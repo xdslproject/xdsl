@@ -17,8 +17,8 @@
 // CHECK: %atan2 = "stablehlo.atan2"(%tf32, %tf32) : (tensor<f32>, tensor<f32>) -> tensor<f32>
 %atan2 = "stablehlo.atan2"(%tf32, %tf32) : (tensor<f32>, tensor<f32>) -> tensor<f32>
 
-// CHECK: %cbrt = "stablehlo.cbrt"(%tf32, %tf32) : (tensor<f32>, tensor<f32>) -> tensor<f32>
-%cbrt = "stablehlo.cbrt"(%tf32, %tf32) : (tensor<f32>, tensor<f32>) -> tensor<f32>
+// CHECK: %cbrt = "stablehlo.cbrt"(%tf32) : (tensor<f32>) -> tensor<f32>
+%cbrt = "stablehlo.cbrt"(%tf32) : (tensor<f32>) -> tensor<f32>
 
 // CHECK: %ceil = "stablehlo.ceil"(%tf32) : (tensor<f32>) -> tensor<f32>
 %ceil = "stablehlo.ceil"(%tf32) : (tensor<f32>) -> tensor<f32>

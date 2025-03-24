@@ -132,6 +132,18 @@ class FloatOrComplexTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC)
         super().__init__(operands=(lhs, rhs), result_types=(result_type,))
 
 
+class FloatOrComplexTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
+    T: ClassVar = VarConstraint("T", base(FloatOrComplexTensorType))
+
+    operand = operand_def(T)
+    result = result_def(T)
+
+    def __init__(self, operand: SSAValue, result_type: Attribute | None = None):
+        if result_type is None:
+            result_type = operand.type
+        super().__init__(operands=(operand,), result_types=(result_type,))
+
+
 class FloatTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
     T: ClassVar = VarConstraint("T", base(FloatTensorType))
 
@@ -503,7 +515,7 @@ class CaseOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CbrtOp(FloatOrComplexTensorLikeElementwiseBinaryOperation):
+class CbrtOp(FloatOrComplexTensorLikeElementwiseUnaryOperation):
     """
     Performs element-wise cubic root operation on operand tensor and produces a result tensor.
     Depending on the element type, does the following:
