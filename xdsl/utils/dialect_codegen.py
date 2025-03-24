@@ -13,10 +13,14 @@ from xdsl.irdl import (
     AnyInt,
     OpDef,
     OperandDef,
+    OptOperandDef,
+    OptResultDef,
     ParamAttrDef,
     RangeOf,
     ResultDef,
     SingleOf,
+    VarOperandDef,
+    VarResultDef,
 )
 
 
@@ -43,23 +47,29 @@ def get_str_from_operand_or_result(
     """
     match operand_or_result.constr:
         case SingleOf():
-            def_prefix = ""
             inner_constr = operand_or_result.constr.constr
         case RangeOf(length=AnyInt()):
-            def_prefix = "var_"
             inner_constr = operand_or_result.constr.constr
         case _:
             raise NotImplementedError(
                 f"Constraint type {operand_or_result.constr} not yet implemented"
             )
 
-    full_prefix = (
-        "operand_def"
-        if issubclass(type(operand_or_result), OperandDef)
-        else "result_def"
-    )
+    match operand_or_result:
+        case VarOperandDef():
+            def_str = "var_operand_def"
+        case OptOperandDef():
+            def_str = "opt_operand_def"
+        case OperandDef():
+            def_str = "operand_def"
+        case VarResultDef():
+            def_str = "var_result_def"
+        case OptResultDef():
+            def_str = "opt_result_def"
+        case ResultDef():
+            def_str = "result_def"
 
-    return f"{name} = {def_prefix + full_prefix}({inner_constr})"
+    return f"{name} = {def_str}({inner_constr})"
 
 
 def typedef_to_class_string(class_name: str, typedef: ParamAttrDef) -> str:
