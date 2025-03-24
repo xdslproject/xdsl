@@ -112,3 +112,10 @@ def test_invalid_index():
 
 def test_name_by_index():
     assert TestRegister.abi_name_by_index() == {0: "a0", 1: "a1"}
+
+
+def test_from_index():
+    assert TestRegister.from_index(0) == TestRegister.from_name("a0")
+    assert TestRegister.from_index(1) == TestRegister.from_name("a1")
+    assert TestRegister.from_index(-1) == TestRegister.infinite_register(0)
+    assert TestRegister.from_index(-2) == TestRegister.infinite_register(1)

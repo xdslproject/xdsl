@@ -5,6 +5,6 @@
   %0, %1 = "test.op"() : () -> (vector<2xindex>, vector<2xi32>)
 
   %2 = "vector.fma"(%1, %0, %1) : (vector<2xi32>, vector<2xindex>, vector<2xi32>) -> vector<2xi32>
-  // CHECK: Result vector type must match with all source vectors. Found different types for result vector and rhs vector.
+  // CHECK: attribute vector<2xi32> expected from variable 'T', but got vector<2xindex>
 
 }) : () -> ()

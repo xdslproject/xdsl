@@ -473,9 +473,11 @@ class FormatParser(BaseParser):
           variable ::= `$` bare-ident
         The variable should refer to an operand or result.
         """
+        start_pos = self.pos
         if self._current_token.text[0] != "$":
             return None
         self._consume_token()
+        end_pos = self._current_token.span.end
         variable_name = self.parse_identifier(" after '$'")
 
         # Check if the variable is an operand
@@ -497,7 +499,11 @@ class FormatParser(BaseParser):
                 case _:
                     return ResultVariable(variable_name, idx)
 
-        self.raise_error("expected typeable variable to refer to an operand or result")
+        self.raise_error(
+            "expected typeable variable to refer to an operand or result",
+            at_position=start_pos,
+            end_position=end_pos,
+        )
 
     def parse_optional_variable(
         self,
@@ -509,7 +515,9 @@ class FormatParser(BaseParser):
         """
         if self._current_token.text[0] != "$":
             return None
+        start_pos = self.pos
         self._consume_token()
+        end_pos = self._current_token.span.end
         variable_name = self.parse_identifier(" after '$'")
 
         # Check if the variable is an operand
@@ -616,7 +624,9 @@ class FormatParser(BaseParser):
                 )
 
         self.raise_error(
-            "expected variable to refer to an operand, attribute, region, or successor"
+            "expected variable to refer to an operand, attribute, region, or successor",
+            at_position=start_pos,
+            end_position=end_pos,
         )
 
     def parse_type_directive(self) -> FormatDirective:

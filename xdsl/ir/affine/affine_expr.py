@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+from typing_extensions import assert_never
+
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
     from xdsl.ir.affine import AffineMap
@@ -36,6 +38,38 @@ class AffineExpr:
     @staticmethod
     def symbol(position: int) -> AffineExpr:
         return AffineSymExpr(position)
+
+    @staticmethod
+    def binary(
+        kind: AffineBinaryOpKind,
+        lhs: AffineExpr,
+        rhs: AffineExpr,
+    ) -> AffineExpr:
+        """
+        Builds a binary expression of the given kind using the operator function associated with that kind.
+        As a consequence, binary expressions are simplified during construction.
+        This may lead to the resulting expression not being of the type `AffineBinaryOpExpr`, but of the type that binary op is
+        simplified to.
+        This simplification does not occur when an `AffineBinaryOpExpr` is directly created using its constructor.
+
+        Example:
+        An expression of kind `AffineBinaryKind.Add` is built using the `AffineExpr.__add__` function.
+        If both `rhs` and `lhs` are `AffineConstantExprs` this function returns an `AffineConstantExpr` of value `rhs` + `lhs`.
+        """
+
+        match kind:
+            case AffineBinaryOpKind.Add:
+                return lhs + rhs
+            case AffineBinaryOpKind.Mul:
+                return lhs * rhs
+            case AffineBinaryOpKind.Mod:
+                return lhs % rhs
+            case AffineBinaryOpKind.FloorDiv:
+                return lhs // rhs
+            case AffineBinaryOpKind.CeilDiv:
+                return lhs.ceil_div(rhs)
+            case _:
+                assert_never(kind)
 
     def compose(self, map: AffineMap) -> AffineExpr:
         """
@@ -78,7 +112,7 @@ class AffineExpr:
             lhs = self.lhs.replace_dims_and_symbols(new_dims, new_symbols)
             rhs = self.rhs.replace_dims_and_symbols(new_dims, new_symbols)
 
-            return AffineBinaryOpExpr(
+            return AffineExpr.binary(
                 lhs=lhs,
                 rhs=rhs,
                 kind=self.kind,
