@@ -692,3 +692,6 @@ def test_tensor_or_memref_of_constraint_attribute_mismatch():
 
 def test_integer_type_repr():
     assert repr(IntegerType(16)) == "IntegerType(16)"
+    assert (
+        repr(IntegerType(16, Signedness.SIGNED)) == "IntegerType(16, Signedness.SIGNED)"
+    )
