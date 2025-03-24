@@ -13,9 +13,11 @@ from typing import Annotated, ClassVar, TypeAlias, cast
 from xdsl.dialects.builtin import (
     I32,
     I64,
+    AnyFloat,
     AnyTensorType,
     AnyTensorTypeConstr,
     ArrayAttr,
+    ComplexType,
     DenseArrayBase,
     IntegerAttr,
     IntegerType,
@@ -56,6 +58,9 @@ from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
 IntegerTensorType: TypeAlias = TensorType[IntegerType]
+FloatOrComplexType: TypeAlias = AnyFloat | ComplexType
+FloatOrComplexTensorType: TypeAlias = TensorType[FloatOrComplexType]
+FloatTensorType: TypeAlias = TensorType[AnyFloat]
 
 # TODO: Change to SI32 once StableHLO adopts signful integer semantics
 # See: https://github.com/openxla/stablehlo/issues/22
@@ -66,6 +71,7 @@ SI32TensorType: TypeAlias = TensorType[I32]
 # region Abstract Base Classes
 
 
+# TODO: Abstract the constraint
 class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
     # TODO: Remove this constraint for complex types.
     T: ClassVar = VarConstraint("T", base(AnyTensorType))
@@ -84,7 +90,6 @@ class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
 
 
 class IntegerTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
-    # TODO: Remove this constraint for complex types.
     T: ClassVar = VarConstraint("T", base(IntegerTensorType))
 
     lhs = operand_def(T)
@@ -101,8 +106,47 @@ class IntegerTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
 
 
 class IntegerTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
-    # TODO: Remove this constraint for complex types.
     T: ClassVar = VarConstraint("T", base(IntegerTensorType))
+
+    operand = operand_def(T)
+    result = result_def(T)
+
+    def __init__(self, operand: SSAValue, result_type: Attribute | None = None):
+        if result_type is None:
+            result_type = operand.type
+        super().__init__(operands=(operand,), result_types=(result_type,))
+
+
+class FloatOrComplexTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
+    T: ClassVar = VarConstraint("T", base(FloatOrComplexTensorType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+
+    result = result_def(T)
+
+    def __init__(
+        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
+    ):
+        if result_type is None:
+            result_type = lhs.type
+        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+
+
+class FloatOrComplexTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
+    T: ClassVar = VarConstraint("T", base(FloatOrComplexTensorType))
+
+    operand = operand_def(T)
+    result = result_def(T)
+
+    def __init__(self, operand: SSAValue, result_type: Attribute | None = None):
+        if result_type is None:
+            result_type = operand.type
+        super().__init__(operands=(operand,), result_types=(result_type,))
+
+
+class FloatTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
+    T: ClassVar = VarConstraint("T", base(FloatTensorType))
 
     operand = operand_def(T)
     result = result_def(T)
@@ -116,6 +160,82 @@ class IntegerTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
 # endregion
 
 # region Attributes
+
+
+class ComparisonDirection(StrEnum):
+    """
+    Comparison direction for stablehlo.
+    """
+
+    EQ = "EQ"
+    NE = "NE"
+    GE = "GE"
+    GT = "GT"
+    LE = "LE"
+    LT = "LT"
+
+
+@irdl_attr_definition
+class ComparisonDirectionAttr(
+    EnumAttribute[ComparisonDirection], SpacedOpaqueSyntaxAttribute
+):
+    """
+    The values of comparison_direction and compare_type have the following semantics:
+
+    For boolean and integer element types:
+    * EQ: lhs = rhs.
+    * NE: lhs != rhs.
+    * GE: lhs >= rhs.
+    * GT: lhs > rhs.
+    * LE: lhs <= rhs
+    * LT: lhs < rhs.
+
+    For floating-point element types with compare_type = FLOAT, the op implements the following IEEE-754 operations:
+    * EQ: compareQuietEqual.
+    * NE: compareQuietNotEqual.
+    * GE: compareQuietGreaterEqual.
+    * GT: compareQuietGreater.
+    * LE: compareQuietLessEqual.
+    * LT: compareQuietLess.
+
+    For floating-point element types with compare_type = TOTALORDER,
+    the op uses the combination of totalOrder and compareQuietEqual operations from IEEE-754.
+    For complex element types,
+    lexicographic comparison of (real, imag) pairs is performed using the provided comparison_direction and compare_type.
+    Imposing an ordering on complex numbers involves surprising semantics,
+    so in the future we are planning to remove support for complex numbers when comparison_direction is GE, GT, LE or LT.
+
+    For quantized types. performs dequantize_compare(lhs, rhs, comparison_direction)
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#compare
+    """
+
+    name = "stablehlo.comparison_direction"
+
+
+class ComparisonType(StrEnum):
+    """
+    Together with comparison_direction determines the semantics of comparison.
+
+    https://github.com/openxla/stablehlo/blob/main/stablehlo/dialect/StablehloEnums.td#L152-L156
+    """
+
+    NOTYPE = "NOTYPE"
+    FLOAT = "FLOAT"
+    TOTALORDER = "TOTALORDER"
+    SIGNED = "SIGNED"
+    UNSIGNED = "UNSIGNED"
+
+
+@irdl_attr_definition
+class ComparisonTypeAttr(EnumAttribute[ComparisonType], SpacedOpaqueSyntaxAttribute):
+    """
+    Together with comparison_direction determines the semantics of comparison.
+
+    https://github.com/openxla/stablehlo/blob/main/stablehlo/dialect/StablehloEnums.td#L152-L156
+    """
+
+    name = "stablehlo.comparison_type"
 
 
 class Precision(StrEnum):
@@ -325,6 +445,22 @@ class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
 
 
 @irdl_op_definition
+class Atan2Op(FloatOrComplexTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise atan2 operation on lhs and rhs tensor and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For floats: atan2 from IEEE-754.
+    For complex numbers: complex atan2.
+    For quantized types: dequantize_op_quantize(atan2, lhs, rhs, type(result)).
+
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#atan2)
+    """
+
+    name = "stablehlo.atan2"
+
+
+@irdl_op_definition
 class BitcastConvertOp(IRDLOperation):
     """
     Performs a bitcast operation on operand tensor and produces a result tensor
@@ -377,6 +513,35 @@ class CaseOp(IRDLOperation):
         super().__init__(
             operands=(index,), result_types=(result_types,), regions=(branches,)
         )
+
+
+@irdl_op_definition
+class CbrtOp(FloatOrComplexTensorLikeElementwiseUnaryOperation):
+    """
+    Performs element-wise cubic root operation on operand tensor and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For floats: rootn(x, 3) from IEEE-754.
+    For complex numbers: complex cubic root.
+    For quantized types: dequantize_op_quantize(cbrt, operand, type(result))
+
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#cbrt)
+    """
+
+    name = "stablehlo.cbrt"
+
+
+@irdl_op_definition
+class CeilOp(FloatTensorLikeElementwiseUnaryOperation):
+    """
+    Performs element-wise ceil of operand tensor and produces a result tensor.
+    Implements the roundToIntegralTowardPositive operation from the IEEE-754 specification.
+    For quantized types, performs dequantize_op_quantize(ceil, operand, type(result)).
+
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#ceil)
+    """
+
+    name = "stablehlo.ceil"
 
 
 @irdl_op_definition
@@ -598,8 +763,11 @@ StableHLO = Dialect(
         AddOp,
         AfterAllOp,
         AndOp,
+        Atan2Op,
         BitcastConvertOp,
         CaseOp,
+        CbrtOp,
+        CeilOp,
         CountLeadingZerosOp,
         MultiplyOp,
         NotOp,
@@ -614,6 +782,8 @@ StableHLO = Dialect(
         XorOp,
     ],
     [
+        ComparisonDirectionAttr,
+        ComparisonTypeAttr,
         DotAttr,
         PrecisionAttr,
         TokenType,
