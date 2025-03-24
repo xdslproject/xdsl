@@ -7,16 +7,15 @@ import itertools
 import subprocess
 from collections.abc import Iterable
 from io import StringIO
-from typing import Literal
 
 from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AnyInt,
-    GenericAttrConstraint,
-    GenericRangeConstraint,
     OpDef,
+    OperandDef,
     ParamAttrDef,
     RangeOf,
+    ResultDef,
     SingleOf,
 )
 
@@ -35,25 +34,32 @@ def generate_dynamic_attr_class(
     )
 
 
-def get_constraint_from_range(
-    constr: GenericRangeConstraint[Attribute],
-    operand_or_result: Literal["operand_def", "result_def"],
-) -> tuple[str, GenericAttrConstraint[Attribute]]:
+def get_str_from_operand_or_result(
+    name: str, operand_or_result: OperandDef | ResultDef
+) -> str:
     """
     Get a constraint from the GenericRangeConstraint wrapper.
     Build the correct definition function based on the wrapper's type.
     """
-    match constr:
+    match operand_or_result.constr:
         case SingleOf():
             def_prefix = ""
-            inner_constr = constr.constr
+            inner_constr = operand_or_result.constr.constr
         case RangeOf(length=AnyInt()):
             def_prefix = "var_"
-            inner_constr = constr.constr
+            inner_constr = operand_or_result.constr.constr
         case _:
-            raise NotImplementedError(f"Constraint type {constr} not yet implemented")
+            raise NotImplementedError(
+                f"Constraint type {operand_or_result.constr} not yet implemented"
+            )
 
-    return def_prefix + operand_or_result, inner_constr
+    full_prefix = (
+        "operand_def"
+        if issubclass(type(operand_or_result), OperandDef)
+        else "result_def"
+    )
+
+    return f"{name} = {def_prefix + full_prefix}({inner_constr})"
 
 
 def typedef_to_class_string(class_name: str, typedef: ParamAttrDef) -> str:
@@ -95,22 +101,8 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
     fields_description += (
         "\n\t".join(
             [
-                "{} = {}({})".format(
-                    name, *get_constraint_from_range(oper.constr, "operand_def")
-                )
-                for name, oper in op.operands
-            ]
-        )
-        + "\n\t"
-    )
-
-    fields_description += (
-        "\n\t".join(
-            [
-                "{} = {}({})".format(
-                    name, *get_constraint_from_range(oper.constr, "result_def")
-                )
-                for name, oper in op.results
+                get_str_from_operand_or_result(name, operand_or_result)
+                for name, operand_or_result in itertools.chain(op.operands, op.results)
             ]
         )
         + "\n\t"
