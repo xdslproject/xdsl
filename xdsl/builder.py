@@ -50,7 +50,7 @@ class Builder(BuilderListener):
     A helper class to construct IRs, by keeping track of where to insert an
     operation. It mimics the OpBuilder class from MLIR.
 
-    https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html
+    See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html).
     """
 
     insertion_point: InsertPoint
@@ -197,7 +197,8 @@ class Builder(BuilderListener):
 
     @overload
     @staticmethod
-    def region(input: Callable[[Builder], None]) -> Region: ...
+    def region(input: Callable[[Builder], None]) -> Region:
+        ...
 
     @staticmethod
     def region(
@@ -272,7 +273,8 @@ class Builder(BuilderListener):
 
     @overload
     @staticmethod
-    def implicit_region(input: Callable[[], None]) -> Region: ...
+    def implicit_region(input: Callable[[], None]) -> Region:
+        ...
 
     @staticmethod
     def implicit_region(

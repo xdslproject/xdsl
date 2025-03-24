@@ -204,7 +204,8 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
     def is_right_zero(attr: IntegerAttr) -> bool:
         """
         Returns True only when 'attr' is a right zero for the operation
-        https://en.wikipedia.org/wiki/Absorbing_element
+
+        See external [documentation](https://en.wikipedia.org/wiki/Absorbing_element).
 
         Note that this depends on the operation and does *not* imply that
         attr.value.data == 0
@@ -215,7 +216,8 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
     def is_right_unit(attr: IntegerAttr) -> bool:
         """
         Return True only when 'attr' is a right unit/identity for the operation
-        https://en.wikipedia.org/wiki/Identity_element
+
+        See external [documentation](https://en.wikipedia.org/wiki/Identity_element).
         """
         return False
 

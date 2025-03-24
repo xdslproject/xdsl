@@ -89,7 +89,8 @@ class ScfgwOp(RsRsIntegerOperation):
     location pointed by rs2 in the memory-mapped address space.
 
     This is a RISC-V ISA extension, part of the `Xssr' extension.
-    https://pulp-platform.github.io/snitch/rm/custom_instructions/
+
+    See external [documentation](https://pulp-platform.github.io/snitch/rm/custom_instructions/).
     """
 
     name = "riscv_snitch.scfgw"
@@ -104,7 +105,8 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
     immediate value in the memory-mapped address space.
 
     This is a RISC-V ISA extension, part of the `Xssr' extension.
-    https://pulp-platform.github.io/snitch/rm/custom_instructions/
+
+    See external [documentation](https://pulp-platform.github.io/snitch/rm/custom_instructions/).
     """
 
     name = "riscv_snitch.scfgwi"
@@ -208,12 +210,12 @@ ALLOWED_FREP_OP_TYPES = (
 
 class FRepOperation(RISCVInstruction):
     """
-    From the Snitch paper: https://arxiv.org/abs/2002.10143
-
     The frep instruction marks the beginning of a floating-point kernel which should be
     repeated. It indicates how many subsequent instructions are stored in the sequence
     buffer, how often and how (operand staggering, repetition mode) each instruction is
     going to be repeated.
+
+    Snitch paper: See external [documentation](https://arxiv.org/abs/2002.10143).
     """
 
     max_rep = operand_def(IntRegisterType)

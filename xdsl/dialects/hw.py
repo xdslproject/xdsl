@@ -2,8 +2,8 @@
 This is a stub of CIRCT’s hw dialect.
 Follows definitions as of CIRCT commit `f8c7faec1e8447521a1ea9a0836b6923a132c79e`.
 
-[1] https://circt.llvm.org/docs/Dialects/HW/
-[2] https://circt.llvm.org/docs/RationaleSymbols/
+See [rationale](https://circt.llvm.org/docs/RationaleSymbols/) for symbols.
+See external [documentation](https://circt.llvm.org/docs/Dialects/HW/).
 """
 
 import abc
@@ -358,12 +358,14 @@ class InnerSymAttr(
         ...
 
     @overload
-    def __init__(self, syms: str | StringAttr) -> None: ...
+    def __init__(self, syms: str | StringAttr) -> None:
+        ...
 
     @overload
     def __init__(
         self, syms: Sequence[InnerSymPropertiesAttr] | ArrayAttr[InnerSymPropertiesAttr]
-    ) -> None: ...
+    ) -> None:
+        ...
 
     def __init__(
         self,

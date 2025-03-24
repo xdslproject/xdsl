@@ -103,10 +103,12 @@ A constant value denoting a dynamic index in a shape.
 
 class ShapedType(Attribute, ABC):
     @abstractmethod
-    def get_num_dims(self) -> int: ...
+    def get_num_dims(self) -> int:
+        ...
 
     @abstractmethod
-    def get_shape(self) -> tuple[int, ...]: ...
+    def get_shape(self) -> tuple[int, ...]:
+        ...
 
     def element_count(self) -> int:
         return prod(self.get_shape())
@@ -477,7 +479,7 @@ class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
         """
         Format to be used when decoding and encoding bytes.
 
-        https://docs.python.org/3/library/struct.html
+        See external [documentation](https://docs.python.org/3/library/struct.html).
         """
         raise NotImplementedError()
 
@@ -685,7 +687,8 @@ class IntegerAttr(
         value_type: _IntegerAttrType,
         *,
         truncate_bits: bool = False,
-    ) -> None: ...
+    ) -> None:
+        ...
 
     @overload
     def __init__(
@@ -694,7 +697,8 @@ class IntegerAttr(
         value_type: int,
         *,
         truncate_bits: bool = False,
-    ) -> None: ...
+    ) -> None:
+        ...
 
     def __init__(
         self,
@@ -925,10 +929,12 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
     type: ParameterDef[_FloatAttrType]
 
     @overload
-    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None: ...
+    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None:
+        ...
 
     @overload
-    def __init__(self, data: float | FloatData, type: int) -> None: ...
+    def __init__(self, data: float | FloatData, type: int) -> None:
+        ...
 
     def __init__(
         self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
@@ -1319,13 +1325,15 @@ class DenseArrayBase(ParametrizedAttribute):
     @staticmethod
     def from_list(
         data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
-    ) -> DenseArrayBase: ...
+    ) -> DenseArrayBase:
+        ...
 
     @overload
     @staticmethod
     def from_list(
         data_type: Attribute, data: Sequence[int | float] | Sequence[FloatData]
-    ) -> DenseArrayBase: ...
+    ) -> DenseArrayBase:
+        ...
 
     @staticmethod
     def from_list(
@@ -1440,7 +1448,7 @@ class MemRefLayoutAttr(Attribute, ABC):
 class StridedLayoutAttr(MemRefLayoutAttr, ParametrizedAttribute):
     """
     An attribute representing a strided layout of a shaped type.
-    See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr).
 
     Contrary to MLIR, we represent dynamic offsets and strides with
     `NoneAttr`, and we do not restrict offsets and strides to 64-bits
@@ -2158,7 +2166,8 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             | Sequence[IntegerAttr[IndexType]]
             | Sequence[IntegerAttr[IntegerType]]
         ),
-    ) -> DenseIntOrFPElementsAttr: ...
+    ) -> DenseIntOrFPElementsAttr:
+        ...
 
     @overload
     @staticmethod
@@ -2170,7 +2179,8 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             | RankedStructure[IndexType]
         ),
         data: Sequence[int | float] | Sequence[FloatAttr],
-    ) -> DenseIntOrFPElementsAttr: ...
+    ) -> DenseIntOrFPElementsAttr:
+        ...
 
     @staticmethod
     def from_list(

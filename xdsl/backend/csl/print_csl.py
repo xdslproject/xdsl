@@ -79,7 +79,7 @@ _CSL_KW_SET = {
 The set of CSL language keywords. These should not be used as variable names.
 
 There is no official list of all reserved keywords in CSL, this list was
-compiled using the keywords found here: https://sdk.cerebras.net/csl/language/syntax
+compiled using the keywords found [here](https://sdk.cerebras.net/csl/language/syntax)
 and should be expanded as needed.
 """
 
@@ -252,9 +252,9 @@ class CslPrintContext:
                 return ""
             case DenseIntOrFPElementsAttr():
                 data = init.get_attrs()
-                assert len(data) == 1, (
-                    f"MemRef global initialiser has to have 1 value, got {len(data)}"
-                )
+                assert (
+                    len(data) == 1
+                ), f"MemRef global initialiser has to have 1 value, got {len(data)}"
                 return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
             case other:
                 return f"<unknown memref.global init type {other}>"
@@ -344,9 +344,9 @@ class CslPrintContext:
         """
         type = val.type
         assert isa(type, MemRefType[Attribute])
-        assert isinstance(val, OpResult), (
-            "The value provided to _memref_type_to_string must be an op result"
-        )
+        assert isinstance(
+            val, OpResult
+        ), "The value provided to _memref_type_to_string must be an op result"
         dims: list[str] = []
         idx = 0
         for dim in type.get_shape():

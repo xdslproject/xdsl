@@ -1,3 +1,9 @@
+"""
+Implementation of the FSM dialect by CIRCT
+
+See external [documentation](https://circt.llvm.org/docs/Dialects/FSM/RationaleFSM/).
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -44,10 +50,6 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
-
-"""
-Implementation of the FSM dialect by CIRCT. Documentation: https://circt.llvm.org/docs/Dialects/FSM/RationaleFSM/
-"""
 
 
 @irdl_attr_definition
