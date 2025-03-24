@@ -37,6 +37,7 @@ docs = [
     "mkdocs-material>=9.5.49",
     "mkdocs>=1.6.1",
     "mkdocstrings[python]>=0.27.0",
+    "mkdocs-marimo==0.2.1",
     "pymdown-extensions>=10.7",
 ]
 gui = ["textual==2.1.2", "pyclip==0.7"]

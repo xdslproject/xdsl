@@ -12,7 +12,7 @@ theme:
     - navigation.expand
 
 markdown_extensions:
-- docs.blocks:MarimoBlocksExtension # the marimo mkdocs extension is out of date, this is what they use internally
+- mkdocs_marimo.blocks:MarimoBlocksExtension
 
 plugins:
 - search
