@@ -6,7 +6,7 @@ of its operations and attributes.
 import itertools
 import subprocess
 from collections.abc import Iterable
-from io import StringIO
+from typing import TextIO
 
 from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
@@ -144,7 +144,7 @@ def dump_dialect_pyfile(
     *,
     attributes: Iterable[tuple[str, ParamAttrDef]] = (),
     types: Iterable[tuple[str, ParamAttrDef]] = (),
-    out: StringIO | None = None,
+    out: TextIO | None = None,
     dialect_obj_name: str = "",
 ):
     """
