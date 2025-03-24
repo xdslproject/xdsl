@@ -8,10 +8,74 @@ import subprocess
 from collections.abc import Iterable
 from io import StringIO
 
-from xdsl.irdl import OpDef, ParamAttrDef
+from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
+from xdsl.irdl import (
+    AnyInt,
+    OpDef,
+    OperandDef,
+    OptOperandDef,
+    OptResultDef,
+    ParamAttrDef,
+    RangeOf,
+    ResultDef,
+    SingleOf,
+    VarOperandDef,
+    VarResultDef,
+)
+
+
+def generate_dynamic_attr_class(
+    class_name: str, attr: ParamAttrDef, is_type: bool = True
+) -> type[Attribute]:
+    """
+    Dynamically define a type based on ParamAttrDef.
+    This is needed to reference dynamically created attributes in operations.
+    """
+    return type(
+        class_name,
+        (ParametrizedAttribute,) + ((TypeAttribute,) if is_type else ()),
+        dict(ParametrizedAttribute.__dict__) | {"name": attr.name},
+    )
+
+
+def get_str_from_operand_or_result(
+    name: str, operand_or_result: OperandDef | ResultDef
+) -> str:
+    """
+    Get a constraint from the GenericRangeConstraint wrapper.
+    Build the correct definition function based on the wrapper's type.
+    """
+    match operand_or_result.constr:
+        case SingleOf():
+            inner_constr = operand_or_result.constr.constr
+        case RangeOf(length=AnyInt()):
+            inner_constr = operand_or_result.constr.constr
+        case _:
+            raise NotImplementedError(
+                f"Constraint type {operand_or_result.constr} not yet implemented"
+            )
+
+    match operand_or_result:
+        case VarOperandDef():
+            def_str = "var_operand_def"
+        case OptOperandDef():
+            def_str = "opt_operand_def"
+        case OperandDef():
+            def_str = "operand_def"
+        case VarResultDef():
+            def_str = "var_result_def"
+        case OptResultDef():
+            def_str = "opt_result_def"
+        case ResultDef():
+            def_str = "result_def"
+
+    return f"{name} = {def_str}({inner_constr})"
 
 
 def typedef_to_class_string(class_name: str, typedef: ParamAttrDef) -> str:
+    """
+    Generate class definition for a type.
+    """
     if typedef.parameters:
         raise NotImplementedError("Attribute parameters not yet implemented")
 
@@ -23,6 +87,9 @@ class {class_name}(ParametrizedAttribute, TypeAttribute):
 
 
 def attrdef_to_class_string(class_name: str, attr: ParamAttrDef) -> str:
+    """
+    Generate class definition for an attribute.
+    """
     if attr.parameters:
         raise NotImplementedError("Attribute parameters not yet implemented")
     return f"""
@@ -33,13 +100,24 @@ class {class_name}(ParametrizedAttribute):
 
 
 def opdef_to_class_string(class_name: str, op: OpDef) -> str:
+    """
+    Generate class definition for an operation.
+    """
     if op.accessor_names:
         raise NotImplementedError("Operation accessor_names not yet implemented")
 
-    if op.operands:
-        raise NotImplementedError("Operation operands not yet implemented")
-    if op.results:
-        raise NotImplementedError("Operation results not yet implemented")
+    fields_description = ""
+
+    fields_description += (
+        "\n\t".join(
+            [
+                get_str_from_operand_or_result(name, operand_or_result)
+                for name, operand_or_result in itertools.chain(op.operands, op.results)
+            ]
+        )
+        + "\n\t"
+    )
+
     if op.attributes:
         raise NotImplementedError("Operation attributes not yet implemented")
     if op.regions:
@@ -55,6 +133,7 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
 @irdl_op_definition
 class {class_name}(IRDLOperation):
 \tname = "{op.name}"
+\t{fields_description}
 \t{f'assembly_format = "{op.assembly_format}"' if op.assembly_format else ""}
     """
 
@@ -68,6 +147,9 @@ def dump_dialect_pyfile(
     out: StringIO | None = None,
     dialect_obj_name: str = "",
 ):
+    """
+    Generate a python file with a dialect comprised of given ops, attributes and types.
+    """
     if not dialect_obj_name:
         dialect_obj_name = dialect_name.capitalize() + "Dialect"
 
