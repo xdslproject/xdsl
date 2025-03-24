@@ -211,10 +211,11 @@ class LowerApplyOp(RewritePattern):
                 (d - s) // 2  # symmetric offset
                 for s, d in zip(send_buf_shape, op.field.type.get_shape(), strict=True)
             ],
-            send_buf_shape,
+            (module_wrapper_op.get_param_value("chunk_size").value.data,),
             len(send_buf_shape) * [1],
             memref.MemRefType(op.field.type.get_element_type(), send_buf_shape),
         )
+        send_buf.result.name_hint = "send_dsd"
 
         # add api call
         num_chunks = arith.ConstantOp(IntegerAttr(op.num_chunks.value, i16))

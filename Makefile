@@ -60,14 +60,6 @@ filecheck: uv-installed
 pytest: uv-installed
 	uv run pytest tests -W error -vv
 
-# run pytest on notebooks
-.PHONY: pytest-nb
-pytest-nb: uv-installed
-	uv run pytest -W error --nbval -vv docs \
-		--ignore=docs/mlir_interoperation.ipynb \
-		--ignore=docs/Toy \
-		--nbval-current-env
-
 # run tests for Toy tutorial
 .PHONY: filecheck-toy
 filecheck-toy: uv-installed
@@ -94,7 +86,14 @@ tests-marimo: uv-installed
 	@bash -c '\
 		error_log="/tmp/marimo_test_$$$$.log"; \
 		failed_tests=""; \
+		files_requiring_mlir_opt=("docs/marimo/mlir_interoperation.py"); \
 		for file in docs/marimo/*.py; do \
+			if [[ " $${files_requiring_mlir_opt[@]} " =~ " $$file " ]]; then \
+				if ! command -v mlir-opt &> /dev/null; then \
+					echo "Skipping $$file (mlir-opt is not available)"; \
+					continue; \
+			  fi; \
+			fi; \
 			echo "Running $$file"; \
 			if ! output=$$(uv run python3 "$$file" 2>&1); then \
 				echo "$$output" >> "$$error_log"; \
@@ -114,7 +113,7 @@ tests-marimo: uv-installed
 
 # run all tests
 .PHONY: tests-functional
-tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo
+tests-functional: pytest tests-toy filecheck tests-marimo
 	@echo All functional tests done.
 
 # run all tests
