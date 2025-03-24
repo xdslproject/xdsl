@@ -1,7 +1,7 @@
 """
-https://github.com/openxla/stablehlo/blob/main/docs/spec.md
 
-StableHLO is an operation set for high-level operations (HLO) in machine learning (ML) models.
+[StableHLO](https://github.com/openxla/stablehlo/blob/main/docs/spec.md)
+is an operation set for high-level operations (HLO) in machine learning (ML) models.
 StableHLO works as a portability layer between different ML frameworks and ML compilers:
 ML frameworks that produce StableHLO programs are compatible with ML compilers that consume StableHLO programs.
 """
@@ -180,34 +180,35 @@ class ComparisonDirectionAttr(
     EnumAttribute[ComparisonDirection], SpacedOpaqueSyntaxAttribute
 ):
     """
-    The values of comparison_direction and compare_type have the following semantics:
-
+    The values of `comparison_direction` and `compare_type` have the following semantics:
     For boolean and integer element types:
-    * EQ: lhs = rhs.
-    * NE: lhs != rhs.
-    * GE: lhs >= rhs.
-    * GT: lhs > rhs.
-    * LE: lhs <= rhs
-    * LT: lhs < rhs.
 
-    For floating-point element types with compare_type = FLOAT, the op implements the following IEEE-754 operations:
-    * EQ: compareQuietEqual.
-    * NE: compareQuietNotEqual.
-    * GE: compareQuietGreaterEqual.
-    * GT: compareQuietGreater.
-    * LE: compareQuietLessEqual.
-    * LT: compareQuietLess.
+    * `EQ`: lhs = rhs.
+    * `NE`: lhs != rhs.
+    * `GE`: lhs >= rhs.
+    * `GT`: lhs > rhs.
+    * `LE`: lhs <= rhs
+    * `LT`: lhs < rhs.
 
-    For floating-point element types with compare_type = TOTALORDER,
+    For floating-point element types with `compare_type = FLOAT`, the op implements the following IEEE-754 operations:
+
+    * `EQ`: compareQuietEqual.
+    * `NE`: compareQuietNotEqual.
+    * `GE`: compareQuietGreaterEqual.
+    * `GT`: compareQuietGreater.
+    * `LE`: compareQuietLessEqual.
+    * `LT`: compareQuietLess.
+
+    For floating-point element types with `compare_type = TOTALORDER`,
     the op uses the combination of totalOrder and compareQuietEqual operations from IEEE-754.
     For complex element types,
-    lexicographic comparison of (real, imag) pairs is performed using the provided comparison_direction and compare_type.
+    lexicographic comparison of (real, imag) pairs is performed using the provided `comparison_direction` and `compare_type`.
     Imposing an ordering on complex numbers involves surprising semantics,
-    so in the future we are planning to remove support for complex numbers when comparison_direction is GE, GT, LE or LT.
+    so in the future we are planning to remove support for complex numbers when comparison_direction is `GE`, `GT`, `LE` or `LT`.
 
-    For quantized types. performs dequantize_compare(lhs, rhs, comparison_direction)
+    For quantized types, performs `dequantize_compare(lhs, rhs, comparison_direction)`
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#compare
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#compare)
     """
 
     name = "stablehlo.comparison_direction"
@@ -215,9 +216,9 @@ class ComparisonDirectionAttr(
 
 class ComparisonType(StrEnum):
     """
-    Together with comparison_direction determines the semantics of comparison.
+    Together with `comparison_direction` determines the semantics of comparison.
 
-    https://github.com/openxla/stablehlo/blob/main/stablehlo/dialect/StablehloEnums.td#L152-L156
+    [See StableHLO's source](https://github.com/openxla/stablehlo/blob/main/stablehlo/dialect/StablehloEnums.td#L152-L156)
     """
 
     NOTYPE = "NOTYPE"
@@ -230,9 +231,9 @@ class ComparisonType(StrEnum):
 @irdl_attr_definition
 class ComparisonTypeAttr(EnumAttribute[ComparisonType], SpacedOpaqueSyntaxAttribute):
     """
-    Together with comparison_direction determines the semantics of comparison.
+    Together with `comparison_direction` determines the semantics of comparison.
 
-    https://github.com/openxla/stablehlo/blob/main/stablehlo/dialect/StablehloEnums.td#L152-L156
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#compare)
     """
 
     name = "stablehlo.comparison_type"
@@ -253,7 +254,7 @@ class PrecisionAttr(EnumAttribute[Precision], SpacedOpaqueSyntaxAttribute):
     """
     XLA precision for an operand. Has backend specific meaning.
 
-    https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloEnums.td#L46
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloEnums.td#L46)
     """
 
     name = "stablehlo.precision"
@@ -267,9 +268,11 @@ class TokenType(TypeAttribute, ParametrizedAttribute):
 
     E.g.,
 
+    ```mlir
       // %input0: !stablehlo.token
       // %input1: !stablehlo.token
       %result = "stablehlo.after_all"(%input0, %input1) : (!stablehlo.token, !stablehlo.token) -> !stablehlo.token
+    ```
     """
 
     name = "stablehlo.token"
@@ -280,7 +283,7 @@ class DotAttr(ParametrizedAttribute):
     """
     Attribute that models the dimension information for dot.
 
-    https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloAttrs.td#L82
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloAttrs.td#L82)
     """
 
     name = "stablehlo.dot"
@@ -376,7 +379,7 @@ class AbsOp(IRDLOperation):
     * For complex numbers: complex modulus.
     * For quantized types: dequantize_op_quantize(abs, operand, type(result)).
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#abs
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#abs)
     """
 
     name = "stablehlo.abs"
@@ -406,7 +409,7 @@ class AddOp(ElementwiseBinaryOperation):
     * For complex numbers: complex addition.
     * For quantized types: `dequantize_op_quantize(add, lhs, rhs, type(result))`.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#add
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#add)
     """
 
     name = "stablehlo.add"
@@ -418,7 +421,7 @@ class AfterAllOp(IRDLOperation):
     Ensures that the operations producing the inputs are executed before any operations that depend on result.
     Execution of this operation does nothing, it only exists to establish data dependencies from result to inputs.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#after_all
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#after_all)
     """
 
     name = "stablehlo.after_all"
@@ -438,7 +441,7 @@ class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
     For booleans: logical AND.
     For integers: bitwise AND.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#and
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#and)
     """
 
     name = "stablehlo.and"
@@ -447,12 +450,12 @@ class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
 @irdl_op_definition
 class Atan2Op(FloatOrComplexTensorLikeElementwiseBinaryOperation):
     """
-    Performs element-wise atan2 operation on lhs and rhs tensor and produces a result tensor.
-    Depending on the element type, does the following:
+    Performs element-wise atan2 operation on `lhs` and `rhs` tensor and produces a
+    `result` tensor. Depending on the element type, does the following:
 
-    For floats: atan2 from IEEE-754.
-    For complex numbers: complex atan2.
-    For quantized types: dequantize_op_quantize(atan2, lhs, rhs, type(result)).
+    * For floats: `atan2` from IEEE-754.
+    * For complex numbers: complex atan2.
+    * For quantized types: `dequantize_op_quantize(atan2, lhs, rhs, type(result))`.
 
     [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#atan2)
     """
@@ -466,15 +469,18 @@ class BitcastConvertOp(IRDLOperation):
     Performs a bitcast operation on operand tensor and produces a result tensor
     where the bits of the entire operand tensor are reinterpreted using the type of the result tensor.
 
-    More formally, given E = element_type(operand), E' = element_type(result), and R = rank(operand):
+    More formally, given `E = element_type(operand)`, `E' = element_type(result)`,
+    and `R = rank(operand)`:
 
-    If num_bits(E') < num_bits(E), bits(result[i0, ..., iR-1, :]) = bits(operand[i0, ..., iR-1]).
-    If num_bits(E') > num_bits(E), bits(result[i0, ..., iR-2]) = bits(operand[i0, ..., iR-2, :]).
-    If num_bits(E') = num_bits(E), bits(result[i0, ..., iR-1]) = bits(operand[i0, ..., iR-1]).
+    * If `num_bits(E') < num_bits(E)`, `bits(result[i0, ..., iR-1, :]) = bits(operand[i0, ..., iR-1])`.
+    * If `num_bits(E') > num_bits(E)`, `bits(result[i0, ..., iR-2]) = bits(operand[i0, ..., iR-2, :])`.
+    * If `num_bits(E') = num_bits(E)`, `bits(result[i0, ..., iR-1]) = bits(operand[i0, ..., iR-1])`.
 
-    bits returns in-memory representation of a given value,
+    `bits` returns in-memory representation of a given value,
     and its behavior is implementation-defined because the exact representation of tensors is implementation-defined,
     and the exact representation of element types is implementation-defined as well.
+
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#bitcast_convert)
     """
 
     name = "stablehlo.bitcast_convert"
@@ -488,15 +494,14 @@ class BitcastConvertOp(IRDLOperation):
 @irdl_op_definition
 class CaseOp(IRDLOperation):
     """
-    Semantics
+    Produces the output from executing exactly one function from `branches`
+    depending on the value of `index`. More formally, `result = selected_branch()`
+    where:
 
-    Produces the output from executing exactly one function from branches depending on the value of index.
-    More formally, result = selected_branch() where:
+    * `selected_branch = branches[index]` if `0 <= index < size(branches)`.
+    * `selected_branch = branches[-1]` otherwise.
 
-    selected_branch = branches[index] if 0 <= index < size(branches).
-    selected_branch = branches[-1] otherwise.
-
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case)
     """
 
     name = "stablehlo.case"
@@ -518,12 +523,12 @@ class CaseOp(IRDLOperation):
 @irdl_op_definition
 class CbrtOp(FloatOrComplexTensorLikeElementwiseUnaryOperation):
     """
-    Performs element-wise cubic root operation on operand tensor and produces a result tensor.
-    Depending on the element type, does the following:
+    Performs element-wise cubic root operation on `operand` tensor and produces a
+    `result` tensor. Depending on the element type, does the following:
 
-    For floats: rootn(x, 3) from IEEE-754.
-    For complex numbers: complex cubic root.
-    For quantized types: dequantize_op_quantize(cbrt, operand, type(result))
+    * For floats: `rootn(x, 3)` from IEEE-754.
+    * For complex numbers: complex cubic root.
+    * For quantized types: `dequantize_op_quantize(cbrt, operand, type(result))`
 
     See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#cbrt)
     """
@@ -547,9 +552,12 @@ class CeilOp(FloatTensorLikeElementwiseUnaryOperation):
 @irdl_op_definition
 class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
-    Performs element-wise count of the number of leading zero bits in the operand tensor and produces a result tensor.
+    Performs element-wise ceil of `operand` tensor and produces a `result` tensor.
+    Implements the `roundToIntegralTowardPositive` operation from the IEEE-754
+    specification. For quantized types, performs
+    `dequantize_op_quantize(ceil, operand, type(result))`.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#count_leading_zeros
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#count_leading_zeros)
     """
 
     name = "stablehlo.count_leading_zeros"
@@ -566,9 +574,9 @@ class MultiplyOp(ElementwiseBinaryOperation):
     * For floats: `multiplication` from IEEE-754.
     * For complex numbers: complex multiplication.
     * For quantized types:
-    * `dequantize_op_quantize(multiply, lhs, rhs, type(result))`.
+      * `dequantize_op_quantize(multiply, lhs, rhs, type(result))`.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#multiply
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#multiply)
     """
 
     name = "stablehlo.multiply"
@@ -577,13 +585,13 @@ class MultiplyOp(ElementwiseBinaryOperation):
 @irdl_op_definition
 class NotOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
-    Performs element-wise NOT of tensor operand and produces a result tensor.
+    Performs element-wise NOT of tensor `operand` and produces a `result` tensor.
     Depending on the element type, does the following:
 
-    For booleans: logical NOT.
-    For integers: bitwise NOT.
+    * For booleans: logical NOT.
+    * For integers: bitwise NOT.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#not
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#not)
     """
 
     name = "stablehlo.not"
@@ -592,13 +600,13 @@ class NotOp(IntegerTensorLikeElementwiseUnaryOperation):
 @irdl_op_definition
 class OrOp(IntegerTensorLikeElementwiseBinaryOperation):
     """
-    Performs element-wise Or of two tensors lhs and rhs and produces a result tensor.
-    Depending on the element type, does the following:
+    Performs element-wise OR of two tensors `lhs` and `rhs` and produces a `result`
+    tensor. Depending on the element type, does the following:
 
-    For booleans: logical OR.
-    For integers: bitwise OR.
+    * For booleans: logical OR.
+    * For integers: bitwise OR.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#or
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#or)
     """
 
     name = "stablehlo.or"
@@ -607,9 +615,10 @@ class OrOp(IntegerTensorLikeElementwiseBinaryOperation):
 @irdl_op_definition
 class PopcntOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
-    Performs element-wise count of the number of bits set in the operand tensor and produces a result tensor.
+    Performs element-wise count of the number of bits set in the `operand` tensor
+    and produces a `result` tensor.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#popcnt
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#popcnt)
     """
 
     name = "stablehlo.popcnt"
@@ -638,9 +647,10 @@ class ReturnOp(IRDLOperation):
 @irdl_op_definition
 class ShiftLeftOp(IntegerTensorLikeElementwiseBinaryOperation):
     """
-    Performs element-wise left-shift operation on the lhs tensor by rhs number of bits and produces a result tensor.
+    Performs element-wise left-shift operation on the `lhs` tensor by `rhs` number
+    of bits and produces a `result` tensor.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#shift_left
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#shift_left)
     """
 
     name = "stablehlo.shift_left"
@@ -649,9 +659,10 @@ class ShiftLeftOp(IntegerTensorLikeElementwiseBinaryOperation):
 @irdl_op_definition
 class ShiftRightArithmeticOp(IntegerTensorLikeElementwiseBinaryOperation):
     """
-    Performs element-wise arithmetic right-shift operation on the lhs tensor by rhs number of bits and produces a result tensor.
+    Performs element-wise arithmetic right-shift operation on the `lhs` tensor by
+    `rhs` number of bits and produces a `result` tensor.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#shift_right_arithmetic
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#shift_right_arithmetic)
     """
 
     name = "stablehlo.shift_right_arithmetic"
@@ -660,9 +671,10 @@ class ShiftRightArithmeticOp(IntegerTensorLikeElementwiseBinaryOperation):
 @irdl_op_definition
 class ShiftRightLogicalOp(IntegerTensorLikeElementwiseBinaryOperation):
     """
-    Performs element-wise logical right-shift operation on the lhs tensor by rhs number of bits and produces a result tensor.
+    Performs element-wise logical right-shift operation on the `lhs` tensor by `rhs`
+    number of bits and produces a `result` tensor.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#shift_right_logical
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#shift_right_logical)
     """
 
     name = "stablehlo.shift_right_logical"
@@ -678,9 +690,9 @@ class SubtractOp(ElementwiseBinaryOperation):
     * For floats: `subtraction` from IEEE-754.
     * For complex numbers: complex subtraction.
     * For quantized types:
-    * `dequantize_op_quantize(subtract, lhs, rhs, type(result))`.
+      * `dequantize_op_quantize(subtract, lhs, rhs, type(result))`.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#subtract
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#subtract)
     """
 
     name = "stablehlo.subtract"
@@ -693,7 +705,7 @@ class TransposeOp(IRDLOperation):
     `result` tensor. More formally, `result[result_index] = operand[operand_index]`
     where `result_index[d] = operand_index[permutation[d]]`.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#transpose
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#transpose)
     """
 
     name = "stablehlo.transpose"
@@ -744,13 +756,13 @@ class TransposeOp(IRDLOperation):
 @irdl_op_definition
 class XorOp(IntegerTensorLikeElementwiseBinaryOperation):
     """
-    Performs element-wise XOR of two tensors lhs and rhs and produces a result tensor.
-    Depending on the element type, does the following:
+    Performs element-wise XOR of two tensors `lhs` and `rhs` and produces a `result`
+    tensor. Depending on the element type, does the following:
 
-    For booleans: logical XOR.
-    For integers: bitwise XOR.
+    * For booleans: logical XOR.
+    * For integers: bitwise XOR.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#xor
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#xor)
     """
 
     name = "stablehlo.xor"
