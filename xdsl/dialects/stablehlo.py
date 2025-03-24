@@ -71,92 +71,63 @@ SI32TensorType: TypeAlias = TensorType[I32]
 # region Abstract Base Classes
 
 
-# TODO: Abstract the constraint
-class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
-    # TODO: Remove this constraint for complex types.
-    T: ClassVar = VarConstraint("T", base(AnyTensorType))
+def _abstract_operation_class_factory(prefix, type_constraint):
+    """
+    Creates elementwise unary and binary operations for a given constraint.
+    """
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+    class ElementwiseUnaryOperation(IRDLOperation, abc.ABC):
+        T: ClassVar = type_constraint
 
-    result = result_def(T)
+        operand = operand_def(T)
+        result = result_def(T)
 
-    def __init__(
-        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
-    ):
-        if result_type is None:
-            result_type = lhs.type
-        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+        def __init__(self, operand: SSAValue, result_type: Attribute | None = None):
+            if result_type is None:
+                result_type = operand.type
+            super().__init__(operands=(operand,), result_types=(result_type,))
 
+    class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
+        T: ClassVar = type_constraint
 
-class IntegerTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
-    T: ClassVar = VarConstraint("T", base(IntegerTensorType))
+        lhs = operand_def(T)
+        rhs = operand_def(T)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+        result = result_def(T)
 
-    result = result_def(T)
+        def __init__(
+            self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
+        ):
+            if result_type is None:
+                result_type = lhs.type
+            super().__init__(operands=(lhs, rhs), result_types=(result_type,))
 
-    def __init__(
-        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
-    ):
-        if result_type is None:
-            result_type = lhs.type
-        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
-
-
-class IntegerTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
-    T: ClassVar = VarConstraint("T", base(IntegerTensorType))
-
-    operand = operand_def(T)
-    result = result_def(T)
-
-    def __init__(self, operand: SSAValue, result_type: Attribute | None = None):
-        if result_type is None:
-            result_type = operand.type
-        super().__init__(operands=(operand,), result_types=(result_type,))
+    ElementwiseUnaryOperation.__name__ = f"{prefix}ElementwiseUnaryOperation"
+    ElementwiseBinaryOperation.__name__ = f"{prefix}ElementwiseBinaryOperation"
+    return ElementwiseUnaryOperation, ElementwiseBinaryOperation
 
 
-class FloatOrComplexTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
-    T: ClassVar = VarConstraint("T", base(FloatOrComplexTensorType))
-
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-
-    result = result_def(T)
-
-    def __init__(
-        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
-    ):
-        if result_type is None:
-            result_type = lhs.type
-        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
-
-
-class FloatOrComplexTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
-    T: ClassVar = VarConstraint("T", base(FloatOrComplexTensorType))
-
-    operand = operand_def(T)
-    result = result_def(T)
-
-    def __init__(self, operand: SSAValue, result_type: Attribute | None = None):
-        if result_type is None:
-            result_type = operand.type
-        super().__init__(operands=(operand,), result_types=(result_type,))
-
-
-class FloatTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
-    T: ClassVar = VarConstraint("T", base(FloatTensorType))
-
-    operand = operand_def(T)
-    result = result_def(T)
-
-    def __init__(self, operand: SSAValue, result_type: Attribute | None = None):
-        if result_type is None:
-            result_type = operand.type
-        super().__init__(operands=(operand,), result_types=(result_type,))
-
-
+ElementwiseUnaryOperation, ElementwiseBinaryOperation = (
+    _abstract_operation_class_factory("", VarConstraint("T", base(AnyTensorType)))
+)
+(
+    IntegerTensorLikeElementwiseUnaryOperation,
+    IntegerTensorLikeElementwiseBinaryOperation,
+) = _abstract_operation_class_factory(
+    "IntegerTensorLike", VarConstraint("T", base(IntegerTensorType))
+)
+(
+    FloatOrComplexTensorLikeElementwiseUnaryOperation,
+    FloatOrComplexTensorLikeElementwiseBinaryOperation,
+) = _abstract_operation_class_factory(
+    "FloatOrComplexTensorLike", VarConstraint("T", base(FloatOrComplexTensorType))
+)
+(
+    FloatTensorLikeElementwiseUnaryOperation,
+    FloatTensorLikeElementwiseBinaryOperation,
+) = _abstract_operation_class_factory(
+    "FloatTensorLike", VarConstraint("T", base(FloatTensorType))
+)
 # endregion
 
 # region Attributes
