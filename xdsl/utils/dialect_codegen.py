@@ -51,7 +51,7 @@ def get_constraint_from_range(
             def_prefix = "var_"
             inner_constr = constr.constr
         case _:
-            raise Exception(f"Constraint type {constr} not supported")
+            raise NotImplementedError(f"Constraint type {constr} not yet implemented")
 
     return def_prefix + operand_or_result, inner_constr
 
