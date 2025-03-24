@@ -445,7 +445,7 @@ class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
 
 
 @irdl_op_definition
-class Atan2(FloatOrComplexTensorLikeElementwiseBinaryOperation):
+class Atan2Op(FloatOrComplexTensorLikeElementwiseBinaryOperation):
     """
     Performs element-wise atan2 operation on lhs and rhs tensor and produces a result tensor.
     Depending on the element type, does the following:
@@ -759,7 +759,7 @@ StableHLO = Dialect(
         AddOp,
         AfterAllOp,
         AndOp,
-        Atan2,
+        Atan2Op,
         BitcastConvertOp,
         CaseOp,
         CbrtOp,
