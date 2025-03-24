@@ -688,3 +688,7 @@ def test_tensor_or_memref_of_constraint_attribute_mismatch():
         VerifyException, match=f"Expected attribute {i64} but got {i32}"
     ):
         constraint.verify(MemRefType(i32, [1]), ConstraintContext())
+
+
+def test_integer_type_repr():
+    assert repr(IntegerType(16)) == "IntegerType(16)"
