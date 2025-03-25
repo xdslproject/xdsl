@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerAttr,
+    IntegerType,
     MemRefType,
     ModuleOp,
     UnrealizedConversionCastOp,
@@ -264,7 +265,14 @@ class GenerateCoeffAPICalls(RewritePattern):
         elem_t = coeffs[0].coeff.type
         pattern = wrapper.get_param_value("pattern").value.data
         neighbours = pattern - 1
-        empty = [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]]
+        is_wse2 = wrapper.target.data == "wse2"
+        if is_wse2:
+            empty = [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]]
+            shape = (pattern,)
+        else:
+            empty = [FloatAttr(f, elem_t) for f in neighbours * [1]]
+            shape = (pattern - 1,)
+
         cmap: dict[csl.Direction, list[FloatAttr]] = {
             csl.Direction.NORTH: empty,
             csl.Direction.SOUTH: empty.copy(),
@@ -274,9 +282,11 @@ class GenerateCoeffAPICalls(RewritePattern):
 
         for c in coeffs:
             direction, distance = get_dir_and_distance(c.offset)
+            if not is_wse2:
+                distance -= 1
             cmap[direction][distance] = c.coeff
 
-        memref_t = memref.MemRefType(Float32Type(), (pattern,))
+        memref_t = memref.MemRefType(Float32Type(), shape)
         ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
 
         cnsts = {
@@ -291,25 +301,22 @@ class GenerateCoeffAPICalls(RewritePattern):
         for d, c in cnsts.items():
             c.result.name_hint = str(d)
 
+        args: list[Operation] = [
+            addrs[csl.Direction.EAST],
+            addrs[csl.Direction.WEST],
+            addrs[csl.Direction.SOUTH],
+            addrs[csl.Direction.NORTH],
+        ]
+
         rewriter.insert_op(
             [
                 *cnsts.values(),
-                east := addrs[csl.Direction.EAST],
-                west := addrs[csl.Direction.WEST],
-                south := addrs[csl.Direction.SOUTH],
-                north := addrs[csl.Direction.NORTH],
-                flse := arith.ConstantOp(IntegerAttr.from_bool(False)),
+                *args,
                 csl.MemberCallOp(
                     "setCoeffs",
                     None,
                     wrapper.get_program_import("stencil_comms.csl"),
-                    [
-                        east,
-                        west,
-                        south,
-                        north,
-                        flse,
-                    ],
+                    args,
                 ),
             ],
             InsertPoint.before(op),
@@ -457,8 +464,17 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         direction_count = arith.ConstantOp.from_int_and_width(4, 16)
         pattern = wrapper.get_program_param("pattern")
         chunk_size = wrapper.get_program_param("chunk_size")
+        if wrapper.target.data != "wse2":
+            assert isinstance(pattern.type, IntegerType)
+            one = arith.ConstantOp.from_int_and_width(1, pattern.type)
+            pattern_m_one = arith.SubiOp(pattern, one)
+            new_ops: list[Operation] = [one, pattern_m_one]
+            neighbors = pattern_m_one
+        else:
+            new_ops: list[Operation] = []
+            neighbors = pattern
         acc_dsd = csl.GetMemDsdOp.build(
-            operands=[alloc, [direction_count, pattern, chunk_size]],
+            operands=[alloc, [direction_count, neighbors, chunk_size]],
             result_types=[dsd_t],
             properties={
                 "tensor_access": AffineMapAttr(
@@ -469,7 +485,8 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         new_acc = acc_dsd
 
         # If the accumulator is a subview at an offset, generate IncrementDsdOffset op (and index_cast).
-        new_ops: list[Operation] = [direction_count, acc_dsd]
+        new_ops.append(direction_count)
+        new_ops.append(acc_dsd)
         if (
             isinstance(accumulator, OpResult)
             and isinstance(subview := accumulator.op, memref.SubviewOp)
