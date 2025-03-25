@@ -2,7 +2,6 @@ import textwrap
 import xml.etree.ElementTree as etree
 from typing import Any
 
-from lzstring2 import LZString
 from pymdownx.blocks import BlocksExtension  # pyright: ignore[reportMissingTypeStubs]
 from pymdownx.blocks.block import (  # pyright: ignore[reportMissingTypeStubs]
     Block,
@@ -153,6 +152,8 @@ def create_marimo_app_code(
 
 
 def create_marimo_app_url(code: str, mode: str = "read") -> str:
+    from lzstring2 import LZString
+
     encoded_code = LZString.compress_to_encoded_URI_component(code)
     return f"https://marimo.app/#code/{encoded_code}&embed=true"
 
