@@ -92,7 +92,7 @@ from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
 
-target = Literal["wse2", "wse3"]
+Target = Literal["wse2", "wse3"]
 
 
 class PtrKind(StrEnum):

@@ -172,7 +172,7 @@ class ModuleOp(IRDLOperation):
         self,
         width: int | IntegerAttr[IntegerType],
         height: int | IntegerAttr[IntegerType],
-        target: csl.target | StringAttr,
+        target: csl.Target | StringAttr,
         params: (
             dict[str, IntegerAttr[IntegerType]] | Sequence[ParamAttribute] | None
         ) = None,

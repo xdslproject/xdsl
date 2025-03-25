@@ -60,7 +60,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
     to initialise stencil-specific program params and yields them from the layout module.
     """
 
-    target: csl.target
+    target: csl.Target
     """
     Specifies the target architecture.
     """
@@ -455,7 +455,7 @@ class CslStencilToCslWrapperPass(ModulePass):
 
     name = "csl-stencil-to-csl-wrapper"
 
-    target: csl.target
+    target: csl.Target
     """
     Specifies the target architecture.
     """
