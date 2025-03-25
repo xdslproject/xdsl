@@ -323,7 +323,7 @@ class PDLInterpFunctions(InterpreterFunctions):
     ):
         assert self.rewriter is not None
         # TODO properly fix nested symbolcallref lookup
-        interpreter.call_op(op.rewriter, args)
+        interpreter.call_op(op.rewriter.nested_references.data[-1].data, args)
         return Successor(op.dest, ()), ()
 
     @impl_terminator(pdl_interp.FinalizeOp)
