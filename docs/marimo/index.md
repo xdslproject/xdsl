@@ -18,9 +18,3 @@ subtitle: Work-In-Progress Introductory Notebooks
 
 1. [RISC-V Dialects](./riscv_dialects.md)
 2. [Compiling Linalg to Snitch](./linalg_snitch.md)
-
-# Test
-
-/// marimo-embed-file
-    filepath: docs/marimo/linalg_snitch.py
-///
