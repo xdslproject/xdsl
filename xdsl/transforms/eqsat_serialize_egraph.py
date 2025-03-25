@@ -6,7 +6,7 @@ from xdsl.ir import BlockArgument, Operation
 from xdsl.passes import ModulePass
 
 
-def serialize_func_to_egraph(f_op: func.FuncOp):
+def build_egraph_dict(f_op: func.FuncOp):
     assert len(f_op.regions) == 1
     body = f_op.regions[0]
     assert body.first_block == body.last_block, (
@@ -26,7 +26,6 @@ def serialize_func_to_egraph(f_op: func.FuncOp):
                 eclass_to_id[op] = (
                     i_enode  # pick the first e-node as the representative
                 )
-                assert op.operands, "EClassOp must have operands"
                 for operand in op.operands:
                     node = operand.owner
                     children: list[str] = []
@@ -55,9 +54,12 @@ def serialize_func_to_egraph(f_op: func.FuncOp):
                     )
                     i_enode += 1
                 i_eclass += 1
-        print(
-            json.dumps({"nodes": {f"enode_{i}": node for i, node in enumerate(nodes)}})
-        )
+    return nodes
+
+
+def serialize_egraph_to_json(f_op: func.FuncOp):
+    nodes = build_egraph_dict(f_op)
+    print(json.dumps({"nodes": {f"enode_{i}": node for i, node in enumerate(nodes)}}))
 
 
 class SerializeEGraph(ModulePass):
@@ -66,4 +68,4 @@ class SerializeEGraph(ModulePass):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for f in op.walk():
             if isinstance(f, func.FuncOp):
-                serialize_func_to_egraph(f)
+                serialize_egraph_to_json(f)
