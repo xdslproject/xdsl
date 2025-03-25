@@ -1,10 +1,14 @@
 import textwrap
 import xml.etree.ElementTree as etree
-from typing import Any, cast
+from typing import Any
 
 from lzstring2 import LZString
-from pymdownx.blocks import BlocksExtension  # type: ignore
-from pymdownx.blocks.block import Block, type_string, type_string_in  # type: ignore
+from pymdownx.blocks import BlocksExtension  # pyright: ignore[reportMissingTypeStubs]
+from pymdownx.blocks.block import (  # pyright: ignore[reportMissingTypeStubs]
+    Block,
+    type_string,  # pyright: ignore[reportUnknownVariableType]
+    type_string_in,  # pyright: ignore[reportUnknownVariableType]
+)
 
 
 class BaseMarimoBlock(Block):
@@ -18,7 +22,9 @@ class BaseMarimoBlock(Block):
         "mode": ["read", type_string_in(["read", "edit"])],
     }
 
-    def on_create(self, parent: etree.Element) -> etree.Element:
+    options: dict[str, Any]
+
+    def on_create(self, parent: etree.Element) -> etree.Element:  # pyright: ignore[reportIncompatibleMethodOverride]
         container = etree.SubElement(parent, "div")
         container.set("class", "marimo-embed-container")
         return container
@@ -33,20 +39,21 @@ class BaseMarimoBlock(Block):
             block.remove(child)
 
         # Add iframe
-        size: str = cast(str, self.options["size"])
+        size: str = self.options["size"]
         iframe = etree.SubElement(block, "iframe")
         iframe.set("class", f"demo {size}")
         iframe.set("src", url)
         iframe.set(
             "allow",
-            "camera; geolocation; microphone; fullscreen; autoplay; encrypted-media; picture-in-picture; clipboard-read; clipboard-write",
+            "camera; geolocation; microphone; fullscreen; autoplay; encrypted-media; "
+            "picture-in-picture; clipboard-read; clipboard-write",
         )
         iframe.set("width", "100%")
         iframe.set("height", "400px")
         iframe.set("frameborder", "0")
         iframe.set("style", "display: block; margin: 0 auto;")
 
-    def on_markdown(self) -> str:
+    def on_markdown(self) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]
         return "raw"
 
 
@@ -64,8 +71,8 @@ class MarimoEmbedBlock(BaseMarimoBlock):
             code = code[:-3]
         code = textwrap.dedent(code)
 
-        app_width: str = cast(str, self.options["app_width"])
-        mode: str = cast(str, self.options["mode"])
+        app_width: str = self.options["app_width"]
+        mode: str = self.options["mode"]
         url = create_marimo_app_url(
             code=create_marimo_app_code(code=code, app_width=app_width),
             mode=mode,
@@ -82,7 +89,7 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
     }
 
     def on_end(self, block: etree.Element) -> None:
-        filepath = cast(str, self.options["filepath"])
+        filepath = self.options["filepath"]
         if not filepath:
             raise ValueError("File path must be provided")
 
@@ -93,12 +100,12 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
         except FileNotFoundError:
             raise ValueError(f"File not found: {filepath}")
 
-        mode: str = cast(str, self.options["mode"])
+        mode: str = self.options["mode"]
         url = create_marimo_app_url(code=code, mode=mode)
         self._create_iframe(block, url)
 
         # Add source code section if enabled
-        show_source: str = cast(str, self.options.get("show_source", "true"))
+        show_source: str = self.options.get("show_source", "true")
         if show_source == "true":
             details = etree.SubElement(block, "details")
             summary = etree.SubElement(details, "summary")
@@ -110,7 +117,10 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
             # container.text = result
 
             copy_paste_container = etree.SubElement(details, "p")
-            copy_paste_container.text = "Tip: paste this code into an empty cell, and the marimo editor will create cells for you"
+            copy_paste_container.text = (
+                "Tip: paste this code into an empty cell, and the marimo editor will "
+                "create cells for you"
+            )
 
             code_container = etree.SubElement(details, "pre")
             code_container.set("class", "marimo-source-code")
