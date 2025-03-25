@@ -7,12 +7,14 @@ from xdsl.dialects.builtin import StringAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
+    ReturnedValues,
     Successor,
     impl,
+    impl_callable,
     impl_terminator,
     register_impls,
 )
-from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 
@@ -33,6 +35,9 @@ class PDLInterpFunctions(InterpreterFunctions):
     def rewriter(self, rewriter: PatternRewriter):
         self._rewriter = rewriter
 
+    def clear_rewriter(self):
+        self._rewriter = None
+
     @impl(pdl_interp.GetOperandOp)
     def run_getoperand(
         self,
@@ -42,7 +47,10 @@ class PDLInterpFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         assert len(args) > 0
         assert isinstance(args[0], Operation)
-        return (args[0].operands[op.index.value.data],)
+        if op.index.value.data >= len(args[0].operands):
+            return (None,)
+        else:
+            return (args[0].operands[op.index.value.data],)
 
     @impl(pdl_interp.GetResultOp)
     def run_getresult(
@@ -64,7 +72,13 @@ class PDLInterpFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         assert len(args) > 0
         assert isinstance(args[0], Operation)
-        return (args[0].attributes[op.constraint_name.data],)
+        attrname = op.constraint_name.data
+        if attrname in args[0].attributes:
+            return (args[0].attributes[attrname],)
+        elif attrname in args[0].properties:
+            return (args[0].properties[attrname],)
+        else:
+            return (None,)
 
     @impl(pdl_interp.GetValueTypeOp)
     def run_getvaluetype(
@@ -86,7 +100,11 @@ class PDLInterpFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) > 0
+        if args[0] is None:
+            return (None,)
         assert isinstance(args[0], SSAValue)
+        if not isinstance(args[0], OpResult):
+            return (None,)
         assert isinstance(args[0].owner, Operation), (
             "Cannot get defining op of a Block argument"
         )
@@ -280,3 +298,36 @@ class PDLInterpFunctions(InterpreterFunctions):
 
         # Return the created operation
         return (result_op,)
+
+    @impl_callable(pdl_interp.FuncOp)
+    def call_func(
+        self, interpreter: Interpreter, op: pdl_interp.FuncOp, args: tuple[Any, ...]
+    ):
+        if op.sym_name.data == "matcher":
+            assert self._rewriter is None
+            assert len(args) == 1
+            root_op = args[0]
+            assert isinstance(root_op, Operation)
+            self.rewriter = PatternRewriter(root_op)
+        else:
+            assert self.rewriter is not None
+
+        return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
+
+    @impl_terminator(pdl_interp.RecordMatchOp)
+    def run_recordmatch(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.RecordMatchOp,
+        args: tuple[Any, ...],
+    ):
+        assert self.rewriter is not None
+        # TODO properly fix nested symbolcallref lookup
+        interpreter.call_op(op.rewriter.nested_references.data[-1].data, args)
+        return Successor(op.dest, ()), ()
+
+    @impl_terminator(pdl_interp.FinalizeOp)
+    def run_finalize(
+        self, interpreter: Interpreter, op: pdl_interp.FinalizeOp, args: tuple[Any, ...]
+    ):
+        return ReturnedValues(()), ()

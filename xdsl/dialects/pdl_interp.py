@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-from xdsl.dialects.arm_func import FuncOpCallableInterface
 from xdsl.dialects.builtin import (
     I16,
     I32,
@@ -26,7 +25,7 @@ from xdsl.dialects.pdl import (
     TypeType,
     ValueType,
 )
-from xdsl.ir import Attribute, Block, Dialect, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyOf,
     AttrSizedOperandSegments,
@@ -42,6 +41,7 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.traits import (
+    CallableOpInterface,
     IsolatedFromAbove,
     IsTerminator,
     SymbolOpInterface,
@@ -445,6 +445,23 @@ class GetDefiningOpOp(IRDLOperation):
 
     def __init__(self, value: SSAValue) -> None:
         super().__init__(operands=[value], result_types=[OperationType()])
+
+
+class FuncOpCallableInterface(CallableOpInterface):
+    @classmethod
+    def get_callable_region(cls, op: Operation) -> Region:
+        assert isinstance(op, FuncOp)
+        return op.body
+
+    @classmethod
+    def get_argument_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.inputs.data
+
+    @classmethod
+    def get_result_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.outputs.data
 
 
 @irdl_op_definition

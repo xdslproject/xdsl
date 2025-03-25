@@ -1,7 +1,10 @@
+from typing import cast
+
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
+    FunctionType,
     ModuleOp,
     StringAttr,
     UnitAttr,
@@ -10,12 +13,13 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreter import Interpreter, Successor
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block
+from xdsl.ir import Block, BlockArgument
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.test_value import TestSSAValue
 
 
 def test_getters():
+    # TODO: test negative cases returning None
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(PDLInterpFunctions(Context()))
 
@@ -380,3 +384,31 @@ def test_create_operation():
     assert created_op.results[0].type == i32
     # Verify that the operation was inserted:
     assert created_op.parent == testmodule.body.first_block
+
+
+def test_func():
+    # not really a unit test, just check if pdl_interp.func can be called.
+    @ModuleOp
+    @Builder.implicit_region
+    def my_module():
+        test.TestOp()
+
+        @Builder.implicit_region((pdl.OperationType(),))
+        def body(args: tuple[BlockArgument, ...]) -> None:
+            pdl_interp.FinalizeOp()
+
+        pdl_interp.FuncOp(
+            "matcher", FunctionType.from_lists([pdl.OperationType()], []), [], [], body
+        )
+
+    my_module.verify()
+    op = cast(test.TestOp, cast(Block, my_module.body.first_block).first_op)
+
+    interpreter = Interpreter(my_module)
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    interpreter.register_implementations(PDLInterpFunctions(ctx))
+    interpreter.call_op("matcher", (op,))
+
+
+# def test_record_match():
