@@ -154,7 +154,7 @@ def create_marimo_app_code(
 
 def create_marimo_app_url(code: str, mode: str = "read") -> str:
     encoded_code = LZString.compress_to_encoded_URI_component(code)
-    return f"https://marimo.app/#code/{encoded_code}"
+    return f"https://marimo.app/#code/{encoded_code}&embed=true"
 
 
 class MarimoBlocksExtension(BlocksExtension):
