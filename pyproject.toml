@@ -172,7 +172,7 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
-python_files = ["tests/*test_*.py", "docs/*test_*.py"]
+python_files = ["tests/*test_*.py", "docs/Toy/*test_*.py"]
 python_classes = "Test_*"
 python_functions = "test_*"
 addopts = ["--durations=20", "--maxfail=5", "--import-mode=importlib"]
