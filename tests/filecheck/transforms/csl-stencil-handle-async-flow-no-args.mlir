@@ -1,7 +1,7 @@
 // RUN: xdsl-opt %s -p "csl-stencil-handle-async-flow{task_ids=1}" --split-input-file --verify-diagnostics | filecheck %s
 
 builtin.module {
-  "csl_wrapper.module"() <{height = 4 : i16, params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=2 : i16>, #csl_wrapper.param<"padded_z_dim" default=2 : i16>], program_name = "loop_kernel", width = 4 : i16}> ({
+  "csl_wrapper.module"() <{height = 4 : i16, params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=2 : i16>, #csl_wrapper.param<"padded_z_dim" default=2 : i16>], program_name = "loop_kernel", width = 4 : i16, target = "wse2"}> ({
   ^0(%arg35 : i16, %arg36 : i16, %arg37 : i16, %arg38 : i16, %arg39 : i16, %arg40 : i16, %arg41 : i16, %arg42 : i16, %arg43 : i16):
     %0 = arith.constant 1 : i1
     %1 = "test.op"() : () -> !csl.comptime_struct
@@ -31,7 +31,7 @@ builtin.module {
 }
 
 // CHECK-NEXT: builtin.module {
-// CHECK-NEXT:   "csl_wrapper.module"() <{height = 4 : i16, params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=2 : i16>, #csl_wrapper.param<"padded_z_dim" default=2 : i16>], program_name = "loop_kernel", width = 4 : i16}> ({
+// CHECK-NEXT:   "csl_wrapper.module"() <{height = 4 : i16, params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=2 : i16>, #csl_wrapper.param<"padded_z_dim" default=2 : i16>], program_name = "loop_kernel", width = 4 : i16, target = "wse2"}> ({
 // CHECK-NEXT:   ^0(%arg35 : i16, %arg36 : i16, %arg37 : i16, %arg38 : i16, %arg39 : i16, %arg40 : i16, %arg41 : i16, %arg42 : i16, %arg43 : i16):
 // CHECK-NEXT:     %0 = arith.constant true
 // CHECK-NEXT:     %1 = "test.op"() : () -> !csl.comptime_struct
@@ -89,7 +89,7 @@ builtin.module {
 
 // -----
 
-"csl_wrapper.module"() <{height = 4 : i16, params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=2 : i16>, #csl_wrapper.param<"padded_z_dim" default=2 : i16>], program_name = "loop_kernel", width = 4 : i16}> ({
+"csl_wrapper.module"() <{height = 4 : i16, params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=2 : i16>, #csl_wrapper.param<"padded_z_dim" default=2 : i16>], program_name = "loop_kernel", width = 4 : i16, target = "wse2"}> ({
   ^0(%arg35 : i16, %arg36 : i16, %arg37 : i16, %arg38 : i16, %arg39 : i16, %arg40 : i16, %arg41 : i16, %arg42 : i16, %arg43 : i16):
     %0 = arith.constant true
     %1 = "test.op"() : () -> !csl.comptime_struct

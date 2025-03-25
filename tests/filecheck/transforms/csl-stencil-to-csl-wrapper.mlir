@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p "csl-stencil-to-csl-wrapper" | filecheck %s
+// RUN: xdsl-opt %s -p "csl-stencil-to-csl-wrapper{target=wse2}" | filecheck %s
 
 func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %c : memref<255xf32>) {
   %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
@@ -33,7 +33,7 @@ func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>,
   func.return
 }
 
-// CHECK:      "csl_wrapper.module"() <{width = 1024 : i16, height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "gauss_seidel"}> ({
+// CHECK:      "csl_wrapper.module"() <{width = 1024 : i16, height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], target = "wse2", program_name = "gauss_seidel"}> ({
 // CHECK-NEXT: ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
 // CHECK-NEXT:   %9 = "csl_wrapper.import"(%2, %3) <{module = "<memcpy/get_params>", fields = ["width", "height"]}> : (i16, i16) -> !csl.imported_module
 // CHECK-NEXT:   %10 = "csl_wrapper.import"(%5, %2, %3) <{module = "routes.csl", fields = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
@@ -127,7 +127,7 @@ func.func private @timer_start() -> f64
 func.func private @timer_end(f64) -> f64
 
 
-// CHECK:      "csl_wrapper.module"() <{width = 1024 : i16, height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "bufferized"}> ({
+// CHECK:      "csl_wrapper.module"() <{width = 1024 : i16, height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], target = "wse2", program_name = "bufferized"}> ({
 // CHECK-NEXT: ^2(%41 : i16, %42 : i16, %43 : i16, %44 : i16, %45 : i16, %46 : i16, %47 : i16, %48 : i16, %49 : i16):
 // CHECK-NEXT:   %50 = "csl_wrapper.import"(%43, %44) <{module = "<memcpy/get_params>", fields = ["width", "height"]}> : (i16, i16) -> !csl.imported_module
 // CHECK-NEXT:   %51 = "csl_wrapper.import"(%46, %43, %44) <{module = "routes.csl", fields = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
