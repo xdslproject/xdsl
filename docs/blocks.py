@@ -50,7 +50,7 @@ class BaseMarimoBlock(Block):
         iframe.set("width", "100%")
         iframe.set("frameborder", "0")
         iframe.set("scrolling", "no")
-        iframe.set("style", "height: 60vh")
+        iframe.set("style", "height: 75vh")
 
     def on_markdown(self) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]
         return "raw"
