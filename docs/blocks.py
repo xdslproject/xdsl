@@ -49,9 +49,9 @@ class BaseMarimoBlock(Block):
             "picture-in-picture; clipboard-read; clipboard-write",
         )
         iframe.set("width", "100%")
-        iframe.set("height", "400px")
         iframe.set("frameborder", "0")
-        iframe.set("style", "display: block; margin: 0 auto;")
+        iframe.set("scrolling", "no")
+        iframe.set("style", "height: 60vh")
 
     def on_markdown(self) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]
         return "raw"
