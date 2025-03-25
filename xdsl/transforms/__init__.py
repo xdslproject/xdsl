@@ -21,6 +21,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return apply_pdl.ApplyPDLPass
 
+    def get_apply_pdl_interp():
+        from xdsl.transforms import apply_pdl_interp
+
+        return apply_pdl_interp.ApplyPDLInterpPass
+
     def get_arith_add_fastmath():
         from xdsl.transforms import arith_add_fastmath
 
@@ -504,6 +509,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "apply-individual-rewrite": get_apply_individual_rewrite,
         "apply-eqsat-pdl": get_apply_eqsat_pdl,
         "apply-pdl": get_apply_pdl,
+        "apply-pdl-interp": get_apply_pdl_interp,
         "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
