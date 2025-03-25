@@ -1,8 +1,8 @@
 import textwrap
-import urllib.parse
 import xml.etree.ElementTree as etree
 from typing import Any, cast
 
+from lzstring2 import LZString
 from pymdownx.blocks import BlocksExtension  # type: ignore
 from pymdownx.blocks.block import Block, type_string, type_string_in  # type: ignore
 
@@ -120,7 +120,7 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
 
 
 def uri_encode_component(code: str) -> str:
-    return urllib.parse.quote(code, safe="~()*!.'")
+    return LZString.compress_to_encoded_URI_component(code)
 
 
 def create_marimo_app_code(
@@ -148,7 +148,7 @@ def create_marimo_app_code(
 
 def create_marimo_app_url(code: str, mode: str = "read") -> str:
     encoded_code = uri_encode_component(code)
-    return f"https://marimo.app/?code={encoded_code}&embed=true&mode={mode}"
+    return f"https://marimo.app/#code/{encoded_code}"
 
 
 class MarimoBlocksExtension(BlocksExtension):

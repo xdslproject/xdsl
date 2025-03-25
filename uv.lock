@@ -1067,6 +1067,11 @@ wheels = [
 ]
 
 [[package]]
+name = "lzstring2"
+version = "0.1.0"
+source = { git = "https://github.com/superlopuh/lz-string.git#d435be09f8aa454ce04d30dd18b5616b59e6d770" }
+
+[[package]]
 name = "marimo"
 version = "0.11.23"
 source = { registry = "https://pypi.org/simple" }
@@ -3062,6 +3067,7 @@ dev = [
     { name = "toml" },
 ]
 docs = [
+    { name = "lzstring2" },
     { name = "mkdocs" },
     { name = "mkdocs-gen-files" },
     { name = "mkdocs-material" },
@@ -3090,6 +3096,7 @@ requires-dist = [
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.5.3" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
+    { name = "lzstring2", marker = "extra == 'docs'", git = "https://github.com/superlopuh/lz-string.git" },
     { name = "marimo", marker = "extra == 'dev'", specifier = "==0.11.23" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.1" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.5.0" },
