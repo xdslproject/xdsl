@@ -50,7 +50,15 @@ for path in sorted((docs_root / "marimo").rglob("*.py")):
     doc_path = path.relative_to(docs_root).with_suffix(".md")
 
     with mkdocs_gen_files.open(doc_path, "w") as fd:
-        fd.write(f"""
+        # Hide the header then inline the notebook
+        fd.write(f"""\
+<style>
+  .md-typeset h1,
+  .md-content__button {{
+    display: none;
+  }}
+</style>
+
 /// marimo-embed-file
     filepath: {path.relative_to(root)}
     mode: 'edit'
