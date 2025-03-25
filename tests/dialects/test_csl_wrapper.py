@@ -15,7 +15,7 @@ def test_get_layout_arg():
     assert m_op.get_layout_param("one") == m_op.layout_module.block.args[4]
     assert m_op.get_layout_param("two") == m_op.layout_module.block.args[5]
     assert len(m_op.layout_module.block.args) == 6
-    assert m_op.target == "wse2"
+    assert m_op.target.data == "wse2"
 
 
 def test_get_program_arg():
@@ -27,7 +27,7 @@ def test_get_program_arg():
     assert m_op.get_program_param("one") == m_op.program_module.block.args[2]
     assert m_op.get_program_param("two") == m_op.program_module.block.args[3]
     assert len(m_op.program_module.block.args) == 4
-    assert m_op.target == "wse3"
+    assert m_op.target.data == "wse3"
 
 
 def test_update_program_args():
