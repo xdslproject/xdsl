@@ -138,3 +138,18 @@ def test_base_attr_constraint_inference():
 
     data_constr = BaseAttr(DataAttr)
     assert not data_constr.can_infer(set())
+
+
+@pytest.mark.parametrize(
+    "constr, expected",
+    [
+        (BaseAttr(StringAttr), "BaseAttr(StringAttr)"),
+        (
+            ParamAttrConstraint(AttrB, (AnyAttr(),)),
+            "ParamAttrConstraint(AttrB, (AnyAttr(),))",
+        ),
+    ],
+)
+def test_constraint_repr(constr: AttrConstraint, expected: str):
+    assert repr(constr) == expected
+    assert eval(repr(constr)) == constr

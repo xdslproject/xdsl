@@ -53,9 +53,8 @@ class ScopedDict(Generic[_Key, _Value]):
         Fetch key from environment. Attempts to first fetch from current scope,
         then from parent scopes. Raises KeyError error if not found.
         """
-        local = self._local_scope.get(key)
-        if local is not None:
-            return local
+        if key in self._local_scope:
+            return self._local_scope[key]
         if self.parent is None:
             raise KeyError(f"No value for key {key}")
         return self.parent[key]
