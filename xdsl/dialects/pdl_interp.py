@@ -342,14 +342,12 @@ class GetValueTypeOp(IRDLOperation):
     """
 
     name = "pdl_interp.get_value_type"
-    value = operand_def(
-        ValueType | ArrayAttr[ValueType]
-    )  # TODO: base(ValueType) | base(ArrayAttr[ValueType]) ???
+    value = operand_def(ValueType | RangeType[TypeType])  
 
     result = result_def(TypeType | ArrayAttr[TypeType])
 
     def __init__(self, value: SSAValue) -> None:
-        super().__init__(operands=[value], result_types=[TypeType()])
+        super().__init__(operands=[value], result_types=[RangeType(TypeType()) if isinstance(value.type, RangeType) else TypeType()])
 
 
 @irdl_op_definition
