@@ -12,7 +12,7 @@ from xdsl.irdl import (
     result_def,
 )
 
-from .assembly import AssemblyInstructionArg, assembly_arg_str
+from .assembly import AssemblyInstructionArg
 from .register import IntRegisterType
 
 
@@ -53,9 +53,7 @@ class ARMInstruction(ARMOperation, ABC):
         # default assembly code generator
         instruction_name = self.assembly_instruction_name()
         arg_str = ", ".join(
-            assembly_arg_str(arg)
-            for arg in self.assembly_line_args()
-            if arg is not None
+            arg.assembly_str() for arg in self.assembly_line_args() if arg is not None
         )
         return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
@@ -93,7 +91,9 @@ class DSMovOp(ARMInstruction):
         )
 
     def assembly_line_args(self):
-        return (self.d, self.s)
+        assert isinstance(self.d.type, IntRegisterType)
+        assert isinstance(self.s.type, IntRegisterType)
+        return (self.d.type, self.s.type)
 
 
 @irdl_op_definition
@@ -151,7 +151,10 @@ class DSSMulOp(ARMInstruction):
         )
 
     def assembly_line_args(self):
-        return (self.d, self.s1, self.s2)
+        assert isinstance(self.d.type, IntRegisterType)
+        assert isinstance(self.s1.type, IntRegisterType)
+        assert isinstance(self.s2.type, IntRegisterType)
+        return (self.d.type, self.s1.type, self.s2.type)
 
 
 @irdl_op_definition
@@ -222,4 +225,6 @@ class CmpRegOp(ARMInstruction):
         )
 
     def assembly_line_args(self):
-        return (self.s1, self.s2)
+        assert isinstance(self.s1.type, IntRegisterType)
+        assert isinstance(self.s2.type, IntRegisterType)
+        return (self.s1.type, self.s2.type)

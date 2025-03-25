@@ -19,6 +19,9 @@ LIT_OPTIONS ?= -v --order=smart
 # make tasks run all commands in a single shell
 .ONESHELL:
 
+# use bash as the shell
+SHELL := /bin/bash
+
 .PHONY: uv-installed
 uv-installed:
 	@command -v uv &> /dev/null ||\
@@ -57,14 +60,6 @@ filecheck: uv-installed
 pytest: uv-installed
 	uv run pytest tests -W error -vv
 
-# run pytest on notebooks
-.PHONY: pytest-nb
-pytest-nb: uv-installed
-	uv run pytest -W error --nbval -vv docs \
-		--ignore=docs/mlir_interoperation.ipynb \
-		--ignore=docs/Toy \
-		--nbval-current-env
-
 # run tests for Toy tutorial
 .PHONY: filecheck-toy
 filecheck-toy: uv-installed
@@ -85,22 +80,40 @@ pytest-toy-nb:
 .PHONY: tests-toy
 tests-toy: filecheck-toy pytest-toy pytest-toy-nb
 
+
 .PHONY: tests-marimo
 tests-marimo: uv-installed
-	@for file in docs/marimo/*.py; do \
-		echo "Running $$file"; \
-		error_message=$$(uv run python3 "$$file" 2>&1) || { \
-			echo "Error running $$file"; \
-			echo "$$error_message"; \
+	@bash -c '\
+		error_log="/tmp/marimo_test_$$$$.log"; \
+		failed_tests=""; \
+		files_requiring_mlir_opt=("docs/marimo/mlir_interoperation.py"); \
+		for file in docs/marimo/*.py; do \
+			if [[ " $${files_requiring_mlir_opt[@]} " =~ " $$file " ]]; then \
+				if ! command -v mlir-opt &> /dev/null; then \
+					echo "Skipping $$file (mlir-opt is not available)"; \
+					continue; \
+			  fi; \
+			fi; \
+			echo "Running $$file"; \
+			if ! output=$$(uv run python3 "$$file" 2>&1); then \
+				echo "$$output" >> "$$error_log"; \
+				failed_tests="$$failed_tests $$file"; \
+			fi; \
+		done; \
+		if [ ! -z "$$failed_tests" ]; then \
+			cat "$$error_log"; \
+			echo -e "\n\nThe following marimo tests failed: $$failed_tests"; \
+			rm -f "$$error_log"; \
 			exit 1; \
-		}; \
-	done
-	@echo "All marimo tests passed successfully."
+		else \
+			rm -f "$$error_log"; \
+			echo -e "\n\nAll marimo tests passed successfully."; \
+		fi'
 
 
 # run all tests
 .PHONY: tests-functional
-tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo
+tests-functional: pytest tests-toy filecheck tests-marimo
 	@echo All functional tests done.
 
 # run all tests

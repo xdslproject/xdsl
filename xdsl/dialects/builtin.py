@@ -517,6 +517,14 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
             signedness = SignednessAttr(signedness)
         super().__init__([data, signedness])
 
+    def __repr__(self):
+        width = self.width.data
+        signedness = self.signedness.data
+        if signedness == Signedness.SIGNLESS:
+            return f"IntegerType({width})"
+        else:
+            return f"IntegerType({width}, {signedness})"
+
     def verify(self):
         if self.width.data < 0:
             raise VerifyException(

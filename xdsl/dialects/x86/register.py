@@ -56,7 +56,7 @@ class GeneralRegisterType(X86RegisterType):
         return "x86"
 
     @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return X86_INDEX_BY_NAME
 
     @classmethod
@@ -110,7 +110,7 @@ class RFLAGSRegisterType(X86RegisterType):
         return "x86"
 
     @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return RFLAGS_INDEX_BY_NAME
 
     @classmethod
@@ -141,7 +141,7 @@ class SSERegisterType(X86VectorRegisterType):
         return "SSE"
 
     @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return SSE_INDEX_BY_NAME
 
     @classmethod
@@ -201,7 +201,7 @@ class AVX2RegisterType(X86VectorRegisterType):
         return "AVX2"
 
     @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return AVX2_INDEX_BY_NAME
 
     @classmethod
@@ -261,7 +261,7 @@ class AVX512RegisterType(X86VectorRegisterType):
         return "AVX512"
 
     @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return X86AVX512_INDEX_BY_NAME
 
     @classmethod
