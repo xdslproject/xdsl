@@ -205,9 +205,9 @@ def print_func_op_like(
             )
         else:
             printer.print_list(body.blocks[0].args, printer.print_block_argument)
-        printer.print(")")
+        printer.print(") ")
         if function_type.outputs:
-            printer.print(" -> ")
+            printer.print("-> ")
             if len(function_type.outputs) > 1 or res_attrs is not None:
                 printer.print("(")
             if res_attrs is not None:
@@ -221,12 +221,12 @@ def print_func_op_like(
                 printer.print_list(function_type.outputs, printer.print_attribute)
             if len(function_type.outputs) > 1 or res_attrs is not None:
                 printer.print(")")
+            printer.print(" ")
     else:
         printer.print_attribute(function_type)
     printer.print_op_attributes(
         attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
     )
-    printer.print_string(" ", indent=0)
 
     if body.blocks:
         printer.print_region(body, False, False)

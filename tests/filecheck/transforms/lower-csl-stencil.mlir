@@ -170,7 +170,7 @@
       csl.activate local, 1 : ui6
       csl.return
     }
-    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5} {
+    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5}{
       %29 = arith.constant 1000 : i16
       %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
       %31 = arith.cmpi slt, %30, %29 : i16
@@ -278,7 +278,7 @@
 // CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
+// CHECK-NEXT:    csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5}{
 // CHECK-NEXT:      %29 = arith.constant 1000 : i16
 // CHECK-NEXT:      %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
 // CHECK-NEXT:      %31 = arith.cmpi slt, %30, %29 : i16
@@ -526,7 +526,7 @@
       csl.activate local, 1 : ui6
       csl.return
     }
-    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5} {
+    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5}{
       %29 = arith.constant 1000 : i16
       %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
       %31 = arith.cmpi slt, %30, %29 : i16
@@ -628,7 +628,7 @@
 // CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
+// CHECK-NEXT:    csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5}{
 // CHECK-NEXT:      %29 = arith.constant 1000 : i16
 // CHECK-NEXT:      %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
 // CHECK-NEXT:      %31 = arith.cmpi slt, %30, %29 : i16

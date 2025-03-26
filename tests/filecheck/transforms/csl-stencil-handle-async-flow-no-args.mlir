@@ -48,7 +48,7 @@ builtin.module {
 // CHECK-NEXT:       csl.activate local, 1 : ui5
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
+// CHECK-NEXT:     csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5}{
 // CHECK-NEXT:       %7 = arith.constant 10 : i32
 // CHECK-NEXT:       %iteration_cond = "csl.load_var"(%iteration) : (!csl.var<i32>) -> i32
 // CHECK-NEXT:       %8 = arith.cmpi slt, %iteration_cond, %7 : i32
