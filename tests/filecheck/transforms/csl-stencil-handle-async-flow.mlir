@@ -111,7 +111,7 @@
 // CHECK-NEXT:       csl.activate local, 1 : ui5
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5}{
+// CHECK-NEXT:     csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
 // CHECK-NEXT:       %41 = arith.constant 1000 : i32
 // CHECK-NEXT:       %iteration_cond = "csl.load_var"(%iteration) : (!csl.var<i32>) -> i32
 // CHECK-NEXT:       %42 = arith.cmpi slt, %iteration_cond, %41 : i32

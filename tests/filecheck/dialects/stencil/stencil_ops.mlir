@@ -32,7 +32,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func private @myfunc(%b0 : !stencil.field<?x?x?xf32>, %b1 : !stencil.field<?x?x?xf32>)  attributes {"param_names" = ["data"]}{
+  func.func private @myfunc(%b0 : !stencil.field<?x?x?xf32>, %b1 : !stencil.field<?x?x?xf32>)  attributes {"param_names" = ["data"]} {
     %f0 = stencil.cast %b0 : !stencil.field<?x?x?xf32> -> !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>
     %f1 = stencil.cast %b1 : !stencil.field<?x?x?xf32> -> !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>
     %time_m = arith.constant 0 : index
@@ -51,7 +51,7 @@ builtin.module {
   }
 }
 
-// CHECK:         func.func private @myfunc(%b0 : !stencil.field<?x?x?xf32>, %b1 : !stencil.field<?x?x?xf32>)  attributes {param_names = ["data"]}{
+// CHECK:         func.func private @myfunc(%b0 : !stencil.field<?x?x?xf32>, %b1 : !stencil.field<?x?x?xf32>)  attributes {param_names = ["data"]} {
 // CHECK-NEXT:      %f0 = stencil.cast %b0 : !stencil.field<?x?x?xf32> -> !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>
 // CHECK-NEXT:      %f1 = stencil.cast %b1 : !stencil.field<?x?x?xf32> -> !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>
 // CHECK-NEXT:      %time_m = arith.constant 0 : index
