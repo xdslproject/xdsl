@@ -224,11 +224,13 @@ def print_func_op_like(
             printer.print(" ")
     else:
         printer.print_attribute(function_type)
-    printer.print_op_attributes(
+    printed_attrs = printer.print_op_attributes(
         attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
     )
 
     if body.blocks:
+        if printed_attrs:
+            printer.print_string(" ", indent=0)
         printer.print_region(body, False, False)
 
 
