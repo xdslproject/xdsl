@@ -52,6 +52,10 @@ for path in sorted((docs_root / "marimo").rglob("*.py")):
     with mkdocs_gen_files.open(doc_path, "w") as fd:
         # Hide the header then inline the notebook
         fd.write(f"""\
+---
+hide:
+    - toc
+---
 <style>
   .md-typeset h1,
   .md-content__button {{
