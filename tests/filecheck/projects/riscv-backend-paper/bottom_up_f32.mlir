@@ -160,8 +160,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 
   riscv.assembly_section ".text" {
     riscv.directive ".globl" "reluf32"
-    riscv.directive ".p2align" "2"
-    riscv_func.func @reluf32(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>) {
+    riscv_func.func @reluf32(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>) attributes {p2align = 2 : i8} {
       %X_1 = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg
       %Y_1 = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg
       %zero = riscv.get_register : !riscv.reg<zero>
@@ -188,8 +187,8 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 
 // CHECK:       .text
 // CHECK-NEXT:  .globl reluf32
-// CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3"], "allocated_int": ["a0", "a1", "t0", "t1", "t2", "zero"]}
+// CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  reluf32:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1
