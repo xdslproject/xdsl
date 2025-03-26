@@ -8,7 +8,11 @@ from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
 
 from typing_extensions import Self, assert_never
 
-from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
+from xdsl.backend.assembly_printer import (
+    AssemblyPrintable,
+    AssemblyPrinter,
+    OneLineAssemblyPrintable,
+)
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
@@ -2706,7 +2710,7 @@ class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
 
 
 @irdl_op_definition
-class AssemblySectionOp(RISCVAsmOperation):
+class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
     """
     The directive operation is used to emit assembler directives (e.g. .text; .data; etc.)
     with the scope of a section.
@@ -2765,8 +2769,8 @@ class AssemblySectionOp(RISCVAsmOperation):
         if self.data.block.ops:
             printer.print_region(self.data)
 
-    def assembly_line(self) -> str | None:
-        return AssemblyPrinter.assembly_line(self.directive.data, "", is_indented=False)
+    def print_assembly(self, printer: AssemblyPrinter) -> None:
+        printer.emit_section(self.directive.data)
 
 
 @irdl_op_definition
