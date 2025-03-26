@@ -348,19 +348,19 @@ csl.func @builtins() {
 // CHECK-NEXT:     %c100 = arith.constant 100 : i32
 // CHECK-NEXT:     %zeros = "csl.constants"(%zero, %c100) : (i32, i32) -> memref<?xi32>
 // CHECK-NEXT:     %zeros2 = "csl.constants"(%zero, %c100) <{is_const}> : (i32, i32) -> memref<?xi32>
-// CHECK-NEXT:     csl.task @local_task()  attributes {kind = #csl<task_kind local>, id = 0 : ui5} {
+// CHECK-NEXT:     csl.task @local_task() attributes {kind = #csl<task_kind local>, id = 0 : ui5} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.task @data_task(%a : i32)  attributes {kind = #csl<task_kind data>, id = 1 : ui5} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl.task @control_task()  attributes {kind = #csl<task_kind control>, id = 2 : ui6} {
+// CHECK-NEXT:     csl.task @control_task() attributes {kind = #csl<task_kind control>, id = 2 : ui6} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.task @control_task_args(%a_1 : i32)  attributes {kind = #csl<task_kind control>, id = 2 : ui6} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl.task @runtime_bound_local_task()  attributes {kind = #csl<task_kind local>} {
+// CHECK-NEXT:     csl.task @runtime_bound_local_task() attributes {kind = #csl<task_kind local>} {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @initialize() {
