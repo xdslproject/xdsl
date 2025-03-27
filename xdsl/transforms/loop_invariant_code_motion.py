@@ -1,9 +1,7 @@
 """
 This pass hoists operation that are invariant to the loops.
 
-Similar to MLIR's loop invariant code motion:
-
-https://mlir.llvm.org/doxygen/LoopInvariantCodeMotion_8cpp_source.html
+Similar to MLIR's loop invariant code motion: see external [documentation](https://mlir.llvm.org/doxygen/LoopInvariantCodeMotion_8cpp_source.html).
 
 An operation is loop-invariant if it depends only of values defined outside of the loop.
 LICM moves these operations out of the loop body so that they are not computed more than

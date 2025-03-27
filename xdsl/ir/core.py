@@ -129,8 +129,9 @@ class TypeAttribute(Attribute):
 class OpaqueSyntaxAttribute(Attribute):
     """
     This class should only be inherited by classes inheriting Attribute.
-    This class is only used for printing attributes in the opaque form,
-    as described at https://mlir.llvm.org/docs/LangRef/#dialect-attribute-values.
+    This class is only used for printing attributes in the opaque form.
+
+    See external [documentation](https://mlir.llvm.org/docs/LangRef/#dialect-attribute-values.).
     """
 
     pass
@@ -139,8 +140,9 @@ class OpaqueSyntaxAttribute(Attribute):
 class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
     """
     This class should only be inherited by classes inheriting Attribute.
-    This class is only used for printing attributes in the opaque form,
-    as described at https://mlir.llvm.org/docs/LangRef/#dialect-attribute-values.
+    This class is only used for printing attributes in the opaque form.
+
+    See external [documentation](https://mlir.llvm.org/docs/LangRef/#dialect-attribute-values.).
     """
 
     pass

@@ -554,7 +554,7 @@ class AddOp(NamedOpBase):
     """
     Adds two tensors elementwise.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgadd-linalgaddop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgadd-linalgaddop).
     """
 
     name = "linalg.add"
@@ -593,7 +593,7 @@ class SubOp(NamedOpBase):
     """
     Subtracts two tensors elementwise.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgsub-linalgsubop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgsub-linalgsubop).
     """
 
     name = "linalg.sub"
@@ -636,7 +636,7 @@ class FillOp(NamedOpBase):
     only and is thus rank polymorphic. Numeric casting is performed on the value operand,
     promoting it to the same data type as the output.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgfill-linalgfillop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgfill-linalgfillop).
     """
 
     name = "linalg.fill"
@@ -684,7 +684,7 @@ class MulOp(NamedOpBase):
     """
     Multiplies two tensors elementwise.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmul-linalgmulop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmul-linalgmulop).
     """
 
     name = "linalg.mul"
@@ -723,7 +723,7 @@ class TransposeOp(IRDLOperation):
     """
     Transpose operator
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgtranspose-linalgtransposeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgtranspose-linalgtransposeop).
     """
 
     name = "linalg.transpose"
@@ -836,8 +836,7 @@ class MatmulOp(NamedOpBase):
     """
     Performs a matrix multiplication of two 2D inputs.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmatmul-linalgmatmulop
-
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmatmul-linalgmatmulop).
     """
 
     name = "linalg.matmul"
@@ -899,8 +898,7 @@ class QuantizedMatmulOp(NamedOpBase):
     """
     Performs a matrix multiplication of two 2D inputs.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgquantized_matmul-linalgquantizedmatmulop
-
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgquantized_matmul-linalgquantizedmatmulop).
     """
 
     name = "linalg.quantized_matmul"
@@ -972,7 +970,7 @@ class PoolingNchwMaxOp(PoolingOpsBase):
     """
     Performs max pooling
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_max-linalgpoolingnchwmaxop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_max-linalgpoolingnchwmaxop).
     """
 
     name = "linalg.pooling_nchw_max"
@@ -1053,7 +1051,7 @@ class Conv2DNchwFchwOp(ConvOpsBase):
     """
     Performs 2-D convolution
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgconv_2d_nchw_fchw-linalgconv2dnchwfchwop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgconv_2d_nchw_fchw-linalgconv2dnchwfchwop).
     """
 
     name = "linalg.conv_2d_nchw_fchw"
