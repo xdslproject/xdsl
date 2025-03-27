@@ -27,4 +27,36 @@
     >
 } : () -> ()
 
+// CHECK-NEXT:    "test.op"() {
+// CHECK-SAME:      eq = #stablehlo<comparison_direction EQ>,
+// CHECK-SAME:      ne = #stablehlo<comparison_direction NE>,
+// CHECK-SAME:      ge = #stablehlo<comparison_direction GE>,
+// CHECK-SAME:      gt = #stablehlo<comparison_direction GT>,
+// CHECK-SAME:      le = #stablehlo<comparison_direction LE>,
+// CHECK-SAME:      lt = #stablehlo<comparison_direction LT>
+// CHECK-SAME:     } : () -> ()
+"test.op"() {
+  eq = #stablehlo<comparison_direction EQ>,
+  ne = #stablehlo<comparison_direction NE>,
+  ge = #stablehlo<comparison_direction GE>,
+  gt = #stablehlo<comparison_direction GT>,
+  le = #stablehlo<comparison_direction LE>,
+  lt = #stablehlo<comparison_direction LT>
+} : () -> ()
+
+// CHECK-NEXT:    "test.op"() {
+// CHECK-SAME:      notype = #stablehlo<comparison_type NOTYPE>,
+// CHECK-SAME:      float = #stablehlo<comparison_type FLOAT>,
+// CHECK-SAME:      totalorder = #stablehlo<comparison_type TOTALORDER>,
+// CHECK-SAME:      signed = #stablehlo<comparison_type SIGNED>,
+// CHECK-SAME:      unsigned = #stablehlo<comparison_type UNSIGNED>
+// CHECK-SAME:    } : () -> ()
+"test.op"() {
+  notype = #stablehlo<comparison_type NOTYPE>,
+  float = #stablehlo<comparison_type FLOAT>,
+  totalorder = #stablehlo<comparison_type TOTALORDER>,
+  signed = #stablehlo<comparison_type SIGNED>,
+  unsigned = #stablehlo<comparison_type UNSIGNED>
+} : () -> ()
+
 // CHECK-NEXT:  }

@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Annotated, ClassVar, TypeAlias
+from typing import Annotated, ClassVar, Literal, TypeAlias
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
@@ -91,6 +91,8 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
+
+Target = Literal["wse2", "wse3"]
 
 
 class PtrKind(StrEnum):
