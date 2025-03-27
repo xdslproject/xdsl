@@ -3051,7 +3051,7 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+        if self.fastmath != FastMathFlagsAttr("none"):
             printer.print(" fastmath")
             self.fastmath.print_parameter(printer)
         return {"fastmath"}
