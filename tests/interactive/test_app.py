@@ -180,7 +180,8 @@ async def test_buttons():
             app.output_text_area.text
             == """builtin.module {
   riscv.assembly_section ".text" {
-    riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+    riscv.directive ".globl" "hello"
+    riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
       %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
       %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
       %two = riscv.li 2 : !riscv.reg
@@ -218,7 +219,8 @@ async def test_buttons():
             app.output_text_area.text
             == """builtin.module {
   riscv.assembly_section ".text" {
-    riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+    riscv.directive ".globl" "hello"
+    riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
       %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
       %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
       %two = arith.constant 2 : index
@@ -403,7 +405,8 @@ async def test_passes():
             app.output_text_area.text
             == """builtin.module {
   riscv.assembly_section ".text" {
-    riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+    riscv.directive ".globl" "hello"
+    riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
       %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
       %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
       %two = arith.constant 2 : index
@@ -422,11 +425,11 @@ async def test_passes():
         with ImplicitBuilder(expected_module.body):
             section = riscv.AssemblySectionOp(".text")
             with ImplicitBuilder(section.data):
+                riscv.DirectiveOp(".globl", "hello")
                 function = riscv_func.FuncOp(
                     "hello",
                     Region([Block(arg_types=[riscv.Registers.A0])]),
                     ((riscv.Registers.A0,), (riscv.Registers.A0,)),
-                    "public",
                     p2align=2,
                 )
                 with ImplicitBuilder(function.body) as (n,):
