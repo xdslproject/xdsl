@@ -980,9 +980,10 @@ class ReinterpretCastOp(IRDLOperation):
         offsets: Sequence[SSAValue | Operation],
         sizes: Sequence[SSAValue | Operation],
         strides: Sequence[SSAValue | Operation],
+        result_type: Attribute,
     ):
         return ReinterpretCastOp.build(
-            operands=[src, offsets, sizes, strides],
+            operands=[src, offsets, sizes, strides], result_types=[result_type]
         )
 
     def verify_(self):
