@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 from abc import ABC
+from enum import auto
 
-from xdsl.backend.assembly_printer import AssemblyPrinter
-from xdsl.dialects.arm.assembly import assembly_arg_str
+from xdsl.dialects.arm.assembly import AssemblyInstructionArg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
-from xdsl.ir import Dialect, Operation, SSAValue
+from xdsl.ir import (
+    Dialect,
+    EnumAttribute,
+    Operation,
+    SpacedOpaqueSyntaxAttribute,
+    SSAValue,
+    StrEnum,
+)
 from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
@@ -75,30 +82,63 @@ V30 = NEONRegisterType.from_name("v30")
 V31 = NEONRegisterType.from_name("v31")
 
 
+class NeonArrangement(StrEnum):
+    """
+    The arrangement specifier for NEON instructions determines element size and count.
+    We assume full 128-bit registers. Possible arrangements:
+      - H  → 8 half-precision floats
+      - S  → 4 single-precision floats
+      - D  → 2 double-precision floats
+    """
+
+    D = auto()
+    H = auto()
+    S = auto()
+
+    def map_to_num_els(self):
+        map = {"D": 2, "S": 4, "H": 8}
+        return map[self.name]
+
+
+@irdl_attr_definition
+class NeonArrangementAttr(EnumAttribute[NeonArrangement], SpacedOpaqueSyntaxAttribute):
+    """
+    Attribute containing the arrangement specification.
+    """
+
+    name = "arm_neon.arrangement"
+
+
 class ARMNEONInstruction(ARMInstruction, ABC):
     """
     Base class for operations in the NEON instruction set.
     The name of the operation will be used as the NEON assembly instruction name.
-
-    The arrangement specifier for NEON instructions determines element size and count:
-      - "4H"  → 4 half-precision floats
-      - "8H"  → 8 half-precision floats
-      - "2S"  → 2 single-precision floats
-      - "4S"  → 4 single-precision floats
-      - "2D"  → 2 double-precision floats
     """
 
-    arrangement = attr_def(StringAttr)
+    arrangement = NeonArrangementAttr
 
-    def assembly_line(self) -> str | None:
-        # default assembly code generator
-        instruction_name = self.assembly_instruction_name()
-        arg_str = ", ".join(
-            f"{assembly_arg_str(arg)}.{self.arrangement.data}"
-            for arg in self.assembly_line_args()
-            if arg is not None
-        )
-        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
+
+class _VectorWithArrangement(AssemblyInstructionArg):
+    reg: NEONRegisterType
+    arrangement: NeonArrangementAttr
+    index: int | None = None
+
+    def __init__(
+        self,
+        reg: NEONRegisterType,
+        arrangement: NeonArrangementAttr,
+        *,
+        index: int | None = None,
+    ):
+        self.reg = reg
+        self.arrangement = arrangement
+        self.index = index
+
+    def assembly_str(self):
+        if self.index is None:
+            return f"{self.reg.register_name.data}.{self.arrangement.data.map_to_num_els()}{self.arrangement.data.name}"
+        else:
+            return f"{self.reg.register_name.data}.{self.arrangement.data.name}[{self.index}]"
 
 
 @irdl_op_definition
@@ -139,6 +179,7 @@ class DSSFMulVecScalarOp(ARMNEONInstruction):
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
     scalar_idx = attr_def(IntegerAttr[i8])
+    arrangement = attr_def(NeonArrangementAttr)
 
     assembly_format = (
         "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
@@ -150,22 +191,18 @@ class DSSFMulVecScalarOp(ARMNEONInstruction):
         s2: Operation | SSAValue,
         *,
         d: NEONRegisterType,
-        arrangement: str | StringAttr,
+        arrangement: NeonArrangement | NeonArrangementAttr,
         comment: str | StringAttr | None = None,
     ):
-        if isinstance(arrangement, str):
-            valid_arrangements = {"4H", "8H", "2S", "4S", "2D"}
-            if arrangement in valid_arrangements:
-                arrangement = StringAttr(arrangement)
-            else:
-                raise ValueError(f"Invalid FMUL arrangement: {arrangement}")
         if isinstance(comment, str):
             comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
         super().__init__(
             operands=(s1, s2),
             attributes={
-                "arrangement": arrangement,
                 "comment": comment,
+                "arrangement": arrangement,
             },
             result_types=(d,),
         )
@@ -174,17 +211,19 @@ class DSSFMulVecScalarOp(ARMNEONInstruction):
         return "fmul"
 
     def assembly_line_args(self):
-        return (self.d, self.s1, self.s2)
+        assert isinstance(self.d.type, NEONRegisterType)
+        assert isinstance(self.s1.type, NEONRegisterType)
+        assert isinstance(self.s2.type, NEONRegisterType)
+        if isinstance(self.arrangement, NeonArrangement):
+            self.arrangement = NeonArrangementAttr(self.arrangement)
 
-    def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
-        arg_str = ", ".join(
-            f"{assembly_arg_str(arg)}.{self.arrangement.data}"
-            for arg in self.assembly_line_args()[:2]
-            if arg is not None
+        return (
+            _VectorWithArrangement(self.d.type, self.arrangement),
+            _VectorWithArrangement(self.s1.type, self.arrangement),
+            _VectorWithArrangement(
+                self.s2.type, self.arrangement, index=self.scalar_idx.value.data
+            ),
         )
-        arg_str += f", {assembly_arg_str(self.assembly_line_args()[2])}.{self.arrangement.data[1]}[{self.scalar_idx.value.data}]"
-        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
 ARM_NEON = Dialect(
@@ -194,6 +233,7 @@ ARM_NEON = Dialect(
         GetRegisterOp,
     ],
     [
+        NeonArrangementAttr,
         NEONRegisterType,
     ],
 )

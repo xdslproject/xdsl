@@ -23,13 +23,13 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.11.19",
-    "pre-commit==4.1.0",
-    "ruff==0.9.10",
+    "marimo==0.11.22",
+    "pre-commit>=4.0.0,<5.0.0",
+    "ruff==0.11.0",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.3",
-    "pyright==1.1.396",
+    "pyright==1.1.397",
     "sympy==1.13.3",
 ]
 docs = [
@@ -39,7 +39,7 @@ docs = [
     "mkdocstrings[python]>=0.27.0",
 ]
 gui = ["textual==2.1.2", "pyclip==0.7"]
-jax = ["jax==0.5.2", "numpy==2.2.3"]
+jax = ["jax==0.5.3", "numpy==2.2.4"]
 riscv = ["riscemu==2.2.7"]
 bench = [
     "asv>=0.6.4",
@@ -188,6 +188,8 @@ omit = [
     "xdsl/_version.py",
     "tests/*",
     "benchmarks/*",
+    "versioneer.py",
+    "setup.py",
 ]
 concurrency = ["multiprocessing"]
 parallel = true
