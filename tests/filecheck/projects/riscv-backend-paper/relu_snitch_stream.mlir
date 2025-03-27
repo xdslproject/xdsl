@@ -11,8 +11,7 @@ builtin.module {
   }
   riscv.assembly_section ".text" {
     riscv.directive ".globl" "main"
-    riscv.directive ".p2align" "2"
-    riscv_func.func @main() {
+    riscv_func.func @main() attributes {p2align = 2 : i8} {
       %A = riscv.li "a" : !riscv.reg
       %B = riscv.li "b" : !riscv.reg
       %zero = riscv.get_register : !riscv.reg<sp>
