@@ -55,7 +55,7 @@ class RISCVRegisterAllocation(ModulePass):
 
         for inner_op in op.walk():
             if isinstance(inner_op, riscv_func.FuncOp):
-                riscv_register_queue = RiscvRegisterQueue()
+                riscv_register_queue = RiscvRegisterQueue.default()
                 if self.limit_registers is not None:
                     riscv_register_queue.limit_registers(self.limit_registers)
                 allocator = allocator_strategies[self.allocation_strategy](
