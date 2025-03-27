@@ -181,7 +181,7 @@ class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class ApplyNativeConstraintOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_constraint-mlirpdlapplynativeconstraintop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_constraint-mlirpdlapplynativeconstraintop).
     """
 
     name = "pdl.apply_native_constraint"
@@ -212,7 +212,7 @@ class ApplyNativeConstraintOp(IRDLOperation):
 @irdl_op_definition
 class ApplyNativeRewriteOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_rewrite-mlirpdlapplynativerewriteop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_rewrite-mlirpdlapplynativerewriteop).
     """
 
     name = "pdl.apply_native_rewrite"
@@ -261,7 +261,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
 @irdl_op_definition
 class AttributeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlattribute-mlirpdlattributeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlattribute-mlirpdlattributeop).
     """
 
     name = "pdl.attribute"
@@ -317,7 +317,7 @@ class AttributeOp(IRDLOperation):
 @irdl_op_definition
 class EraseOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlerase-mlirpdleraseop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlerase-mlirpdleraseop).
     """
 
     name = "pdl.erase"
@@ -338,7 +338,7 @@ class EraseOp(IRDLOperation):
 @irdl_op_definition
 class OperandOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperand-mlirpdloperandop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperand-mlirpdloperandop).
     """
 
     name = "pdl.operand"
@@ -367,7 +367,7 @@ class OperandOp(IRDLOperation):
 @irdl_op_definition
 class OperandsOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperands-mlirpdloperandsop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperands-mlirpdloperandsop).
     """
 
     name = "pdl.operands"
@@ -396,7 +396,7 @@ class OperandsOp(IRDLOperation):
 @irdl_op_definition
 class OperationOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperation-mlirpdloperationop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperation-mlirpdloperationop).
     """
 
     name = "pdl.operation"
@@ -552,7 +552,7 @@ def _has_user_in_rewrite(op: Operation) -> bool:
 @irdl_op_definition
 class PatternOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-mlirpdlpatternop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-mlirpdlpatternop).
     """
 
     name = "pdl.pattern"
@@ -636,7 +636,7 @@ class PatternOp(IRDLOperation):
 @irdl_op_definition
 class RangeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrange-mlirpdlrangeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrange-mlirpdlrangeop).
     """
 
     name = "pdl.range"
@@ -702,7 +702,7 @@ class RangeOp(IRDLOperation):
 @irdl_op_definition
 class ReplaceOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-mlirpdlreplaceop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-mlirpdlreplaceop).
 
     `pdl.replace` operations are used within `pdl.rewrite` regions to specify
     that an input operation should be marked as replaced. The semantics of this
@@ -776,7 +776,7 @@ class ReplaceOp(IRDLOperation):
 @irdl_op_definition
 class ResultOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresult-mlirpdlresultop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresult-mlirpdlresultop).
     """
 
     name = "pdl.result"
@@ -805,7 +805,7 @@ class ResultOp(IRDLOperation):
 @irdl_op_definition
 class ResultsOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresults-mlirpdlresultsop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresults-mlirpdlresultsop).
     """
 
     name = "pdl.results"
@@ -849,7 +849,7 @@ class ResultsOp(IRDLOperation):
 @irdl_op_definition
 class RewriteOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-mlirpdlrewriteop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-mlirpdlrewriteop).
     """
 
     name = "pdl.rewrite"
@@ -935,7 +935,7 @@ class RewriteOp(IRDLOperation):
 @irdl_op_definition
 class TypeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-mlirpdltypeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-mlirpdltypeop).
     """
 
     name = "pdl.type"
@@ -965,7 +965,7 @@ class TypeOp(IRDLOperation):
 @irdl_op_definition
 class TypesOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltypes-mlirpdltypesop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltypes-mlirpdltypesop).
     """
 
     name = "pdl.types"

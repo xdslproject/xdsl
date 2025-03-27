@@ -2,8 +2,7 @@
 The math dialect is intended to hold mathematical operations on integer and floating
 types beyond simple arithmetics.
 
-
-See https://mlir.llvm.org/docs/Dialects/MathOps/
+See external [documentation](https://mlir.llvm.org/docs/Dialects/MathOps/).
 """
 
 from __future__ import annotations
@@ -209,7 +208,7 @@ class Atan2Op(FloatingPointLikeBinaryMathOperationWithFastMath):
     (x, y).  It is a generalization of the 1-argument arcus tangent which
     returns the angle on the basis of the ratio y/x.
 
-    See also https://en.wikipedia.org/wiki/Atan2
+    See also [wikipedia](https://en.wikipedia.org/wiki/Atan2).
 
     Example:
 

@@ -14,7 +14,7 @@ class InsertPoint:
     An insert point.
     It is either a point before an operation, or at the end of a block.
 
-    https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder_1_1InsertPoint.html
+    See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder_1_1InsertPoint.html).
     """
 
     block: Block

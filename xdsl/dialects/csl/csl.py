@@ -1,10 +1,10 @@
 """
-The CSL dialect models the Cerebras Systems Language. It's meant to be used as a target to do automatic codegen for
-the CS2.
+The CSL dialect models the Cerebras Systems Language.
 
-See https://docs.cerebras.net/en/latest/ for some mediocre documentation on the operations and their semantics.
+It aims to be used as a target (using the `-t cls` commandline option) to do automatic
+codegen for the CS2.
 
-This is meant to be used in conjunction with the `-t csl` printing option to generate CSL code.
+See external [documentation](https://docs.cerebras.net/en/latest/).
 """
 
 from __future__ import annotations
@@ -780,11 +780,17 @@ class FuncOp(_FuncBase):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
-            parse_func_op_like(
-                parser,
-                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
-            )
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+        ) = parse_func_op_like(
+            parser,
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
 
         if res_attrs:
@@ -889,11 +895,17 @@ class TaskOp(_FuncBase):
     @classmethod
     def parse(cls, parser: Parser) -> TaskOp:
         pos = parser.pos
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
-            parse_func_op_like(
-                parser,
-                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
-            )
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+        ) = parse_func_op_like(
+            parser,
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
         if res_attrs:
             raise NotImplementedError("res_attrs not implemented in csl TaskOp")
