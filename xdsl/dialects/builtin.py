@@ -103,12 +103,10 @@ A constant value denoting a dynamic index in a shape.
 
 class ShapedType(Attribute, ABC):
     @abstractmethod
-    def get_num_dims(self) -> int:
-        ...
+    def get_num_dims(self) -> int: ...
 
     @abstractmethod
-    def get_shape(self) -> tuple[int, ...]:
-        ...
+    def get_shape(self) -> tuple[int, ...]: ...
 
     def element_count(self) -> int:
         return prod(self.get_shape())
@@ -687,8 +685,7 @@ class IntegerAttr(
         value_type: _IntegerAttrType,
         *,
         truncate_bits: bool = False,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
@@ -697,8 +694,7 @@ class IntegerAttr(
         value_type: int,
         *,
         truncate_bits: bool = False,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self,
@@ -929,12 +925,10 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
     type: ParameterDef[_FloatAttrType]
 
     @overload
-    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None:
-        ...
+    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None: ...
 
     @overload
-    def __init__(self, data: float | FloatData, type: int) -> None:
-        ...
+    def __init__(self, data: float | FloatData, type: int) -> None: ...
 
     def __init__(
         self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
@@ -1325,15 +1319,13 @@ class DenseArrayBase(ParametrizedAttribute):
     @staticmethod
     def from_list(
         data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
-    ) -> DenseArrayBase:
-        ...
+    ) -> DenseArrayBase: ...
 
     @overload
     @staticmethod
     def from_list(
         data_type: Attribute, data: Sequence[int | float] | Sequence[FloatData]
-    ) -> DenseArrayBase:
-        ...
+    ) -> DenseArrayBase: ...
 
     @staticmethod
     def from_list(
@@ -2166,8 +2158,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             | Sequence[IntegerAttr[IndexType]]
             | Sequence[IntegerAttr[IntegerType]]
         ),
-    ) -> DenseIntOrFPElementsAttr:
-        ...
+    ) -> DenseIntOrFPElementsAttr: ...
 
     @overload
     @staticmethod
@@ -2179,8 +2170,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             | RankedStructure[IndexType]
         ),
         data: Sequence[int | float] | Sequence[FloatAttr],
-    ) -> DenseIntOrFPElementsAttr:
-        ...
+    ) -> DenseIntOrFPElementsAttr: ...
 
     @staticmethod
     def from_list(

@@ -197,8 +197,7 @@ class Builder(BuilderListener):
 
     @overload
     @staticmethod
-    def region(input: Callable[[Builder], None]) -> Region:
-        ...
+    def region(input: Callable[[Builder], None]) -> Region: ...
 
     @staticmethod
     def region(
@@ -273,8 +272,7 @@ class Builder(BuilderListener):
 
     @overload
     @staticmethod
-    def implicit_region(input: Callable[[], None]) -> Region:
-        ...
+    def implicit_region(input: Callable[[], None]) -> Region: ...
 
     @staticmethod
     def implicit_region(

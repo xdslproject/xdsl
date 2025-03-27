@@ -358,14 +358,12 @@ class InnerSymAttr(
         ...
 
     @overload
-    def __init__(self, syms: str | StringAttr) -> None:
-        ...
+    def __init__(self, syms: str | StringAttr) -> None: ...
 
     @overload
     def __init__(
         self, syms: Sequence[InnerSymPropertiesAttr] | ArrayAttr[InnerSymPropertiesAttr]
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self,

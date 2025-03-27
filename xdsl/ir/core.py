@@ -347,10 +347,10 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
             return {cast(type[EnumType], cls.enum_type)(value)}
 
         with parser.in_angle_brackets():
-            flags: list[
-                set[EnumType]
-            ] | None = parser.parse_optional_undelimited_comma_separated_list(
-                parse_optional_element, parse_element
+            flags: list[set[EnumType]] | None = (
+                parser.parse_optional_undelimited_comma_separated_list(
+                    parse_optional_element, parse_element
+                )
             )
             if flags is None:
                 return tuple()
@@ -432,8 +432,7 @@ class TypedAttribute(ParametrizedAttribute, ABC):
     """
 
     @classmethod
-    def get_type_index(cls) -> int:
-        ...
+    def get_type_index(cls) -> int: ...
 
     def get_type(self) -> Attribute:
         return self.parameters[self.get_type_index()]
@@ -449,8 +448,7 @@ class TypedAttribute(ParametrizedAttribute, ABC):
         ...
 
     @abstractmethod
-    def print_without_type(self, printer: Printer):
-        ...
+    def print_without_type(self, printer: Printer): ...
 
 
 @dataclass(frozen=True)
@@ -662,16 +660,13 @@ class IRNode(ABC):
 
     @property
     @abstractmethod
-    def parent_node(self) -> IRNode | None:
-        ...
+    def parent_node(self) -> IRNode | None: ...
 
     @abstractmethod
-    def __eq__(self, other: object) -> bool:
-        ...
+    def __eq__(self, other: object) -> bool: ...
 
     @abstractmethod
-    def __hash__(self) -> int:
-        ...
+    def __hash__(self) -> int: ...
 
 
 @dataclass
@@ -685,12 +680,10 @@ class OpOperands(Sequence[SSAValue]):
     """The operation owning the operands."""
 
     @overload
-    def __getitem__(self, idx: int) -> SSAValue:
-        ...
+    def __getitem__(self, idx: int) -> SSAValue: ...
 
     @overload
-    def __getitem__(self, idx: slice) -> Sequence[SSAValue]:
-        ...
+    def __getitem__(self, idx: slice) -> Sequence[SSAValue]: ...
 
     def __getitem__(self, idx: int | slice) -> SSAValue | Sequence[SSAValue]:
         return self._op._operands[idx]  # pyright: ignore[reportPrivateUsage]
@@ -1479,8 +1472,7 @@ class Block(IRNode, IRWithUses):
         return self._args
 
     class BlockCallback(Protocol):
-        def __call__(self, *args: BlockArgument) -> list[Operation]:
-            ...
+        def __call__(self, *args: BlockArgument) -> list[Operation]: ...
 
     def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
         """
@@ -1855,12 +1847,10 @@ class OpSuccessors(Sequence[Block]):
     """The operation owning the successors."""
 
     @overload
-    def __getitem__(self, idx: int) -> Block:
-        ...
+    def __getitem__(self, idx: int) -> Block: ...
 
     @overload
-    def __getitem__(self, idx: slice) -> Sequence[Block]:
-        ...
+    def __getitem__(self, idx: slice) -> Sequence[Block]: ...
 
     def __getitem__(self, idx: int | slice) -> Block | Sequence[Block]:
         return self._op._successors[idx]  # pyright: ignore[reportPrivateUsage]
@@ -1922,12 +1912,10 @@ class RegionBlocks(Sequence[Block], Reversible[Block]):
         return _RegionBlocksIterator(self._region.first_block)
 
     @overload
-    def __getitem__(self, idx: int) -> Block:
-        ...
+    def __getitem__(self, idx: int) -> Block: ...
 
     @overload
-    def __getitem__(self, idx: slice) -> Sequence[Block]:
-        ...
+    def __getitem__(self, idx: slice) -> Sequence[Block]: ...
 
     def __getitem__(self, idx: int | slice) -> Block | Sequence[Block]:
         if isinstance(idx, int):
