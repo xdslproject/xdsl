@@ -37,6 +37,8 @@ docs = [
     "mkdocs-material>=9.5.49",
     "mkdocs>=1.6.1",
     "mkdocstrings[python]>=0.27.0",
+    "pymdown-extensions>=10.7",
+    "lzstring2",
 ]
 gui = ["textual==2.1.2", "pyclip==0.7"]
 jax = ["jax==0.5.3", "numpy==2.2.4"]
@@ -65,6 +67,9 @@ xdsl-tblgen = "xdsl.tools.tblgen_to_py:main"
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
+
+[tool.uv.sources]
+lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
 
 [tool.setuptools.packages]
 find = {}
