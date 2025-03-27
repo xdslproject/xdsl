@@ -171,7 +171,7 @@ class MemRefStreamGenericLegalize(RewritePattern):
         for i, arg in enumerate(new_body.block.args):
             if i not in legalizations:
                 continue
-            rewriter.modify_value_type(arg, legalizations[i])
+            arg = rewriter.replace_value_with_new_type(arg, legalizations[i])
             to_be_legalized.update(use.operation for use in arg.uses)
         # Legalize payload
         _legalize_block(new_body.block, to_be_legalized, rewriter)

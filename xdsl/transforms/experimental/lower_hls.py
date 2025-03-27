@@ -239,12 +239,14 @@ class LowerHLSStreamToAlloca(RewritePattern):
         rewriter.replace_matched_op([size, alloca])
 
         for use in uses:
-            use.operation.operands[use.index].type = alloca.res.type
+            rewriter.replace_value_with_new_type(
+                use.operation.operands[use.index], alloca.res.type
+            )
 
             # This is specially important when the stream is an argument of ApplyOp
             if use.operation.regions:
                 block_arg = use.operation.regions[0].block.args[use.index]
-                block_arg.type = alloca.res.type
+                rewriter.replace_value_with_new_type(block_arg, alloca.res.type)
 
 
 @dataclass

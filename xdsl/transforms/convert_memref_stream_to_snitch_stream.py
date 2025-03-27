@@ -188,7 +188,7 @@ class StreamOpLowering(RewritePattern):
             arg.replace_by_if(
                 cast_op.results[0], lambda use: use.operation is not cast_op
             )
-            rewriter.modify_value_type(arg, stream_type)
+            rewriter.replace_value_with_new_type(arg, stream_type)
 
 
 def strides_for_affine_map(
