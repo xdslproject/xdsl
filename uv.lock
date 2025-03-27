@@ -1068,6 +1068,11 @@ wheels = [
 ]
 
 [[package]]
+name = "lzstring2"
+version = "0.1.0"
+source = { git = "https://github.com/superlopuh/lz-string.git#d435be09f8aa454ce04d30dd18b5616b59e6d770" }
+
+[[package]]
 name = "marimo"
 version = "0.11.28"
 source = { registry = "https://pypi.org/simple" }
@@ -3063,10 +3068,12 @@ dev = [
     { name = "toml" },
 ]
 docs = [
+    { name = "lzstring2" },
     { name = "mkdocs" },
     { name = "mkdocs-gen-files" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
+    { name = "pymdown-extensions" },
 ]
 gui = [
     { name = "pyclip" },
@@ -3090,6 +3097,7 @@ requires-dist = [
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.5.3" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
+    { name = "lzstring2", marker = "extra == 'docs'", git = "https://github.com/superlopuh/lz-string.git" },
     { name = "marimo", marker = "extra == 'dev'", specifier = "==0.11.28" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.1" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.5.0" },
@@ -3102,6 +3110,7 @@ requires-dist = [
     { name = "orjson", marker = "extra == 'bench'", specifier = ">=3.10.15" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.0,<5.0.0" },
     { name = "pyclip", marker = "extra == 'gui'", specifier = "==0.7" },
+    { name = "pymdown-extensions", marker = "extra == 'docs'", specifier = ">=10.7" },
     { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.397" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "<8.4" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==0.26.0" },

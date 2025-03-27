@@ -79,7 +79,7 @@ _CSL_KW_SET = {
 The set of CSL language keywords. These should not be used as variable names.
 
 There is no official list of all reserved keywords in CSL, this list was
-compiled using the keywords found here: https://sdk.cerebras.net/csl/language/syntax
+compiled using the keywords found [here](https://sdk.cerebras.net/csl/language/syntax)
 and should be expanded as needed.
 """
 

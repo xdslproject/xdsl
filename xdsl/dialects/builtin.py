@@ -477,7 +477,7 @@ class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
         """
         Format to be used when decoding and encoding bytes.
 
-        https://docs.python.org/3/library/struct.html
+        See external [documentation](https://docs.python.org/3/library/struct.html).
         """
         raise NotImplementedError()
 
@@ -1440,7 +1440,7 @@ class MemRefLayoutAttr(Attribute, ABC):
 class StridedLayoutAttr(MemRefLayoutAttr, ParametrizedAttribute):
     """
     An attribute representing a strided layout of a shaped type.
-    See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr).
 
     Contrary to MLIR, we represent dynamic offsets and strides with
     `NoneAttr`, and we do not restrict offsets and strides to 64-bits

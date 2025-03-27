@@ -1,7 +1,7 @@
 """
-CIRCT’s seq dialect
+CIRCT’s seq dialect.
 
-[1] https://circt.llvm.org/docs/Dialects/Seq/
+See external [documentation](https://circt.llvm.org/docs/Dialects/Seq/).
 """
 
 from enum import Enum
