@@ -74,14 +74,14 @@ class NeonArrangement(StrEnum):
     """
     The arrangement specifier for NEON instructions determines element size and count.
     We assume full 128-bit registers. Possible arrangements:
-      - H  → 8 half-precision floats
-      - S  → 4 single-precision floats
       - D  → 2 double-precision floats
+      - S  → 4 single-precision floats
+      - H  → 8 half-precision floats
     """
 
     D = "D"
-    H = "H"
     S = "S"
+    H = "H"
 
     def map_to_num_els(self):
         map = {"D": 2, "S": 4, "H": 8}
