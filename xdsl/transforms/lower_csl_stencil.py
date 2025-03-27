@@ -207,21 +207,27 @@ class GenerateCoeffAPICalls(RewritePattern):
     """
     Generates a single global call to the stencil_comms API to set coefficients inside the main function.
 
+    If any `csl_stencil.apply` op has coeffs specified, all will need to generate an API call.
+
     The API currently supports only f32 coeffs.
     """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
         applies: list[csl_stencil.ApplyOp] = []
+        has_coeffs = False
         for apply in op.walk():
             if isinstance(apply, csl_stencil.ApplyOp):
                 applies.append(apply)
+                has_coeffs = has_coeffs or apply.coeffs
+
+        if not has_coeffs:
+            return
 
         for apply in applies:
-            if apply.coeffs and len(apply.coeffs) > 0:
-                ops = get_coeff_api_ops(apply, op)
-                rewriter.insert_op(ops, InsertPoint.before(apply))
-                apply.coeffs = None
+            ops = get_coeff_api_ops(apply, op)
+            rewriter.insert_op(ops, InsertPoint.before(apply))
+            apply.coeffs = None
 
 
 @dataclass(frozen=True)
