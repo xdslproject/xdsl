@@ -42,6 +42,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.pattern_rewriter import RewritePattern
+from xdsl.rewriter import Rewriter
 from xdsl.traits import (
     CallableOpInterface,
     HasCanonicalizationPatternsTrait,
@@ -125,7 +126,7 @@ class InferAddOpShapeTrait(ToyShapeInferenceTrait):
         if not isinstance(op, AddOp):
             raise TypeError
         if not (
-            isinstance(op_lhs_type := op.lhs.type, TensorType)
+            isa(op_lhs_type := op.lhs.type, TensorType)
             and isinstance(op_rhs_type := op.rhs.type, TensorType)
         ):
             return
@@ -133,7 +134,7 @@ class InferAddOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert op_lhs_type.get_shape() == op_res_type.get_shape()
         else:
-            op.res.type = op.lhs.type
+            Rewriter.replace_value_with_new_type(op.res, op_lhs_type)
 
 
 @irdl_op_definition
@@ -303,7 +304,7 @@ class InferMulOpShapeTrait(ToyShapeInferenceTrait):
             raise TypeError
 
         if not (
-            isinstance(op_lhs_type := op.lhs.type, TensorType)
+            isa(op_lhs_type := op.lhs.type, TensorType)
             and isinstance(op_rhs_type := op.rhs.type, TensorType)
         ):
             return
@@ -312,7 +313,7 @@ class InferMulOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert op_lhs_type.get_shape() == op_res_type.get_shape()
         else:
-            op.res.type = op.lhs.type
+            Rewriter.replace_value_with_new_type(op.res, op_lhs_type)
 
 
 @irdl_op_definition
@@ -461,7 +462,7 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert res_shape == op_res_type.get_shape()
         else:
-            op.res.type = TensorType(f64, res_shape)
+            Rewriter.replace_value_with_new_type(op.res, TensorType(f64, res_shape))
 
 
 class TransposeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -516,7 +517,7 @@ class InferCastOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert shape == op_res_type.get_shape()
         else:
-            op.res.type = TensorType(f64, shape)
+            Rewriter.replace_value_with_new_type(op.res, TensorType(f64, shape))
 
 
 @irdl_op_definition

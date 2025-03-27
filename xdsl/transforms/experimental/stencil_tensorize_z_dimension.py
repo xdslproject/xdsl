@@ -259,7 +259,9 @@ class FuncOpTensorize(RewritePattern):
         if not op.is_declaration:
             for arg in op.args:
                 if isa(arg.type, FieldType[Attribute]):
-                    op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
+                    op.replace_argument_type(
+                        arg, stencil_field_to_tensor(arg.type), rewriter
+                    )
 
 
 def is_tensorized(
