@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 from xdsl.dialects.arm.register import ARMRegisterType
-from xdsl.ir import Dialect
-from xdsl.irdl import irdl_attr_definition
+from xdsl.ir import (
+    Dialect,
+    EnumAttribute,
+    SpacedOpaqueSyntaxAttribute,
+    StrEnum,
+)
+from xdsl.irdl import (
+    irdl_attr_definition,
+)
 
 ARM_NEON_INDEX_BY_NAME = {f"v{i}": i for i in range(0, 32)}
 
@@ -62,10 +69,39 @@ V29 = NEONRegisterType.from_name("v29")
 V30 = NEONRegisterType.from_name("v30")
 V31 = NEONRegisterType.from_name("v31")
 
+
+class NeonArrangement(StrEnum):
+    """
+    The arrangement specifier for NEON instructions determines element size and count.
+    We assume full 128-bit registers. Possible arrangements:
+      - H  → 8 half-precision floats
+      - S  → 4 single-precision floats
+      - D  → 2 double-precision floats
+    """
+
+    D = "D"
+    H = "H"
+    S = "S"
+
+    def map_to_num_els(self):
+        map = {"D": 2, "S": 4, "H": 8}
+        return map[self.name]
+
+
+@irdl_attr_definition
+class NeonArrangementAttr(EnumAttribute[NeonArrangement], SpacedOpaqueSyntaxAttribute):
+    """
+    Attribute containing the arrangement specification.
+    """
+
+    name = "arm_neon.arrangement"
+
+
 ARM_NEON = Dialect(
     "arm_neon",
     [],
     [
+        NeonArrangementAttr,
         NEONRegisterType,
     ],
 )
