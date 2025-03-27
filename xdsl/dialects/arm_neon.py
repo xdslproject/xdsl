@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from xdsl.dialects.arm.assembly import AssemblyInstructionArg
 from xdsl.dialects.arm.register import ARMRegisterType
 from xdsl.ir import (
     Dialect,
     EnumAttribute,
     SpacedOpaqueSyntaxAttribute,
+    SSAValue,
     StrEnum,
 )
 from xdsl.irdl import (
@@ -95,6 +97,30 @@ class NeonArrangementAttr(EnumAttribute[NeonArrangement], SpacedOpaqueSyntaxAttr
     """
 
     name = "arm_neon.arrangement"
+
+
+class VectorWithArrangement(AssemblyInstructionArg):
+    reg: NEONRegisterType | SSAValue
+    arrangement: NeonArrangementAttr
+    index: int | None = None
+
+    def __init__(
+        self,
+        reg: NEONRegisterType,
+        arrangement: NeonArrangementAttr,
+        *,
+        index: int | None = None,
+    ):
+        self.reg = reg
+        self.arrangement = arrangement
+        self.index = index
+
+    def assembly_str(self):
+        assert isinstance(self.reg, NEONRegisterType)
+        if self.index is None:
+            return f"{self.reg.register_name.data}.{self.arrangement.data.map_to_num_els()}{self.arrangement.data.name}"
+        else:
+            return f"{self.reg.register_name.data}.{self.arrangement.data.name}[{self.index}]"
 
 
 ARM_NEON = Dialect(
