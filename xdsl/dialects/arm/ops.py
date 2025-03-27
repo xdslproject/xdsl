@@ -200,7 +200,7 @@ class CmpRegOp(ARMInstruction):
     Compare (register) subtracts an optionally-shifted register value from a register value.
     It updates the condition flags based on the result, and discards the result.
 
-    See external [documentation](https://developer.arm.com/documentation/ddi0597/2024-12/Base-Instructions/CMP--register---Compare--register--?lang=en.
+    See external [documentation](https://developer.arm.com/documentation/ddi0597/2024-12/Base-Instructions/CMP--register---Compare--register--?lang=en).
     """
 
     name = "arm.cmp"
