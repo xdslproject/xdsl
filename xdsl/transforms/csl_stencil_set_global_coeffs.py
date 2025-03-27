@@ -151,6 +151,7 @@ class GenerateCoeffAPICalls(RewritePattern):
             return
 
         op_in_main_fn = applies[0]
+        main_fn = None
         while (
             op_in_main_fn
             and (main_fn := op_in_main_fn.parent_op())
