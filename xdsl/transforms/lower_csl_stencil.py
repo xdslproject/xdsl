@@ -2,10 +2,9 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.context import Context
-from xdsl.dialects import arith, func, memref, stencil
+from xdsl.dialects import arith, func, memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
     FloatAttr,
@@ -39,49 +38,12 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import is_side_effect_free
+from xdsl.transforms.csl_stencil_set_global_coeffs import (
+    get_coeff_api_ops,
+    get_dir_and_distance_ops,
+)
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
-
-
-def get_dir_and_distance(
-    offset: stencil.IndexAttr | tuple[int, ...],
-) -> tuple[csl.Direction, int]:
-    """
-    Given an access op, return the distance and direction, assuming as access
-    to a neighbour (not self) in a star-shape pattern
-    """
-
-    if isinstance(offset, stencil.IndexAttr):
-        offset = tuple(offset)
-    assert len(offset) == 2, "Expecting 2-dimensional access"
-    assert (offset[0] == 0) != (offset[1] == 0), (
-        "Expecting neighbour access in a star-shape pattern"
-    )
-    if offset[0] < 0:
-        d = csl.Direction.EAST
-    elif offset[0] > 0:
-        d = csl.Direction.WEST
-    elif offset[1] < 0:
-        d = csl.Direction.NORTH
-    elif offset[1] > 0:
-        d = csl.Direction.SOUTH
-    else:
-        raise ValueError(
-            "Invalid offset, expecting 2-dimensional star-shape neighbor access"
-        )
-    max_distance = abs(max(offset, key=abs))
-    return d, max_distance
-
-
-def get_dir_and_distance_ops(
-    op: csl_stencil.AccessOp,
-) -> tuple[csl.DirectionOp, arith.ConstantOp]:
-    """
-    Given an access op, return the distance and direction ops, assuming as access
-    to a neighbour (not self) in a star-shape pattern
-    """
-    d, max_distance = get_dir_and_distance(op.offset)
-    return csl.DirectionOp(d), arith.ConstantOp(IntegerAttr(max_distance, 16))
 
 
 def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
@@ -243,85 +205,23 @@ class LowerApplyOp(RewritePattern):
 @dataclass(frozen=True)
 class GenerateCoeffAPICalls(RewritePattern):
     """
-    Generates calls to the stencil_comms API to set coefficients.
+    Generates a single global call to the stencil_comms API to set coefficients inside the main function.
 
     The API currently supports only f32 coeffs.
-
-    Todo:
-      * reset coeffs for any subsequent apply op that does not generate a `setCoeffs` API call
-      * check if coeffs need to be set repeatedly (in loops or for multiple applies)
-      * hoist API call for loops with exactly one apply op
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
-        if (
-            not (wrapper := _get_module_wrapper(op))
-            or op.coeffs is None
-            or len(op.coeffs) == 0
-        ):
-            return
-        coeffs = list(op.coeffs)
-        elem_t = coeffs[0].coeff.type
-        pattern = wrapper.get_param_value("pattern").value.data
-        neighbours = pattern - 1
-        is_wse2 = wrapper.target.data == "wse2"
-        if is_wse2:
-            empty = [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]]
-            shape = (pattern,)
-        else:
-            empty = [FloatAttr(f, elem_t) for f in neighbours * [1]]
-            shape = (pattern - 1,)
+    def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
+        applies: list[csl_stencil.ApplyOp] = []
+        for apply in op.walk():
+            if isinstance(apply, csl_stencil.ApplyOp):
+                applies.append(apply)
 
-        cmap: dict[csl.Direction, list[FloatAttr]] = {
-            csl.Direction.NORTH: empty,
-            csl.Direction.SOUTH: empty.copy(),
-            csl.Direction.EAST: empty.copy(),
-            csl.Direction.WEST: empty.copy(),
-        }
-
-        for c in coeffs:
-            direction, distance = get_dir_and_distance(c.offset)
-            if not is_wse2:
-                distance -= 1
-            cmap[direction][distance] = c.coeff
-
-        memref_t = memref.MemRefType(Float32Type(), shape)
-        ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
-
-        cnsts = {
-            d: arith.ConstantOp(
-                DenseIntOrFPElementsAttr.create_dense_float(memref_t, v)
-            )
-            for d, v in cmap.items()
-        }
-        addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}
-
-        # pretty-printing
-        for d, c in cnsts.items():
-            c.result.name_hint = str(d)
-
-        args: list[Operation] = [
-            addrs[csl.Direction.EAST],
-            addrs[csl.Direction.WEST],
-            addrs[csl.Direction.SOUTH],
-            addrs[csl.Direction.NORTH],
-        ]
-
-        rewriter.insert_op(
-            [
-                *cnsts.values(),
-                *args,
-                csl.MemberCallOp(
-                    "setCoeffs",
-                    None,
-                    wrapper.get_program_import("stencil_comms.csl"),
-                    args,
-                ),
-            ],
-            InsertPoint.before(op),
-        )
-        op.coeffs = None
+        for apply in applies:
+            if apply.coeffs and len(apply.coeffs) > 0:
+                ops = get_coeff_api_ops(apply, op)
+                rewriter.insert_op(ops, InsertPoint.before(apply))
+                apply.coeffs = None
 
 
 @dataclass(frozen=True)
