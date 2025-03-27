@@ -607,8 +607,7 @@ class R_RM_Operation(
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        if self.offset is not None:
-            print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -660,8 +659,7 @@ class R_M_Operation(
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        if self.offset is not None:
-            print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -946,8 +944,7 @@ class M_MR_Operation(
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        if self.offset is not None:
-            print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1341,9 +1338,8 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1402,9 +1398,8 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1450,9 +1445,8 @@ class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, A
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1559,8 +1553,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        if self.offset is not None:
-            print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1621,8 +1614,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        if self.offset is not None:
-            print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1912,9 +1904,8 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -2025,9 +2016,8 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -2096,9 +2086,8 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"immediate", "offset"}
 
 
