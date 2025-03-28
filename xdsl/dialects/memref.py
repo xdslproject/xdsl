@@ -972,9 +972,9 @@ class ReinterpretCastOp(IRDLOperation):
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
 
-    static_offsets = attr_def(DenseArrayBase)
-    static_sizes = attr_def(DenseArrayBase)
-    static_strides = attr_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase)
+    static_sizes = prop_def(DenseArrayBase)
+    static_strides = prop_def(DenseArrayBase)
 
     result = result_def(MemRefType[Attribute])
 
@@ -1000,7 +1000,7 @@ class ReinterpretCastOp(IRDLOperation):
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],
-            attributes={
+            properties={
                 "static_offsets": static_offsets,
                 "static_sizes": static_sizes,
                 "static_strides": static_strides,
@@ -1056,33 +1056,30 @@ class ReinterpretCastOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
+        printer.print_string(" ")
         printer.print_ssa_value(self.source)
-        printer.print_string(" to ")
-        printer.print_string(" offset ")
-        printer.print_string(" : ")
+        printer.print_string(" to offset: ")
         print_dynamic_index_list(
             printer,
             self.offsets,
             (cast(int, offset) for offset in self.static_offsets.iter_values()),
             dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
-        printer.print_string(" sizes ")
-        printer.print_string(" : ")
+        printer.print_string(", sizes: ")
         print_dynamic_index_list(
             printer,
             self.sizes,
             (cast(int, size) for size in self.static_sizes.iter_values()),
             dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
-        printer.print_string(" strides ")
-        printer.print_string(" : ")
+        printer.print_string(", strides: ")
         print_dynamic_index_list(
             printer,
             self.strides,
             (cast(int, stride) for stride in self.static_strides.iter_values()),
             dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
-        printer.print_op_attributes(self.attributes, print_keyword=True)
+        printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
         printer.print_attribute(self.source.type)
         printer.print_string(" to ")
@@ -1154,10 +1151,27 @@ class ReinterpretCastOp(IRDLOperation):
         assert isa(self.source.type, MemRefType[Attribute])
         assert isa(self.result.type, MemRefType[Attribute])
 
-        if len(self.result.type.shape) != len(self.sizes):
+        if len(self.result.type.shape) != len(self.static_sizes):
             raise VerifyException(
-                f"Expected {len(self.source.type.shape)} size values but got {len(self.sizes)}"
+                f"Expected {len(self.source.type.shape)} size values but got {len(self.static_sizes)}"
             )
+
+        # validate sizes
+        for dim, (actual, expected) in enumerate(
+            zip(
+                self.result.type.get_shape(),
+                cast(tuple[int], self.static_sizes.get_values()),
+            )
+        ):
+            if actual != expected:
+                if expected == ReinterpretCastOp.DYNAMIC_INDEX:
+                    raise VerifyException(
+                        f"Expected result type with dynamic size instead of {actual} in dim = {dim}"
+                    )
+
+                raise VerifyException(
+                    f"Expected result type with size = {expected} instead of {actual} in dim = {dim}"
+                )
 
 
 @irdl_op_definition

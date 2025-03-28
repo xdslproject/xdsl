@@ -15,6 +15,7 @@
     "memref.store"(%3, %5, %3, %4) : (index, memref<10x2xindex>, index, index) -> ()
     %6 = memref.subview %5[0, 0] [1, 1] [1, 1] : memref<10x2xindex> to memref<1x1xindex, strided<[2, 1]>>
     %7 = "memref.cast"(%5) : (memref<10x2xindex>) -> memref<?x?xindex>
+    %8 = "memref.reinterpret_cast"(%5) {static_offsets = array<i64: 0>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>} : (memref<10x2xindex>) -> memref<5x4xindex, strided<[1, 1]>>
     %no_align = "memref.alloca"() {i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<1xindex>
     "memref.copy"(%no_align, %2) : (memref<1xindex>, memref<1xindex>) -> ()
     "memref.dealloc"(%no_align) : (memref<1xindex>) -> ()
@@ -58,9 +59,10 @@
 // CHECK-NEXT: "memref.store"(%3, %5, %3, %4) : (index, memref<10x2xindex>, index, index) -> ()
 // CHECK-NEXT: %6 = "memref.subview"(%5) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0, 0>, static_sizes = array<i64: 1, 1>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>) -> memref<1x1xindex, strided<[2, 1]>>
 // CHECK-NEXT: %7 = "memref.cast"(%5) : (memref<10x2xindex>) -> memref<?x?xindex>
-// CHECK-NEXT: %8 = "memref.alloca"() <{operandSegmentSizes = array<i32: 0, 0>}> {i64} : () -> memref<1xindex>
-// CHECK-NEXT: "memref.copy"(%8, %2) : (memref<1xindex>, memref<1xindex>) -> ()
-// CHECK-NEXT: "memref.dealloc"(%8) : (memref<1xindex>) -> ()
+// CHECK-NEXT: %8 = "memref.reinterpret_cast"(%5) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>) -> memref<5x4xindex, strided<[1, 1]>>
+// CHECK-NEXT: %9 = "memref.alloca"() <{operandSegmentSizes = array<i32: 0, 0>}> {i64} : () -> memref<1xindex>
+// CHECK-NEXT: "memref.copy"(%9, %2) : (memref<1xindex>, memref<1xindex>) -> ()
+// CHECK-NEXT: "memref.dealloc"(%9) : (memref<1xindex>) -> ()
 // CHECK-NEXT: "memref.dealloc"(%2) : (memref<1xindex>) -> ()
 // CHECK-NEXT: "memref.dealloc"(%5) : (memref<10x2xindex>) -> ()
 
