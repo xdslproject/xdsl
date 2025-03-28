@@ -132,9 +132,11 @@ class GenerateCoeffAPICalls(RewritePattern):
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
         applies: list[csl_stencil.ApplyOp] = []
         global_coeffs = []
-        # first_apply = None
+
+        # check that all apply ops have the same coefficients
         for apply in op.walk():
             if isinstance(apply, csl_stencil.ApplyOp):
+                # if we have not encountered any apply op before, coeffs are simply stored, not compared
                 if not applies:
                     if apply.coeffs:
                         global_coeffs = sorted(
@@ -147,6 +149,8 @@ class GenerateCoeffAPICalls(RewritePattern):
                 ):
                     return
                 applies.append(apply)
+
+        # do nothing if there are no apply ops or no coefficients
         if not global_coeffs or not applies:
             return
 
@@ -169,6 +173,7 @@ class GenerateCoeffAPICalls(RewritePattern):
         coeffs_api_call_ops = get_coeff_api_ops(applies[0], op)
         rewriter.insert_op(coeffs_api_call_ops, InsertPoint.before(op_in_main_fn))
 
+        # delete coefficients from apply ops
         for apply in applies:
             apply.coeffs = None
 
