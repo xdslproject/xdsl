@@ -1,3 +1,8 @@
+"""
+This test file needs the other files in the same folder to read and reprint them in the
+test functions below.
+"""
+
 from contextlib import redirect_stdout
 from io import StringIO
 from typing import IO
