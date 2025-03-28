@@ -480,13 +480,13 @@ class IRWithUses(ABC):
 
 
 @dataclass(eq=False)
-class SSAValue(IRWithUses, ABC):
+class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
     """
     A reference to an SSA variable.
     An SSA variable is either an operation result, or a basic block argument.
     """
 
-    type: Attribute
+    type: AttributeCovT
     """Each SSA variable is associated to a type."""
 
     _name: str | None = field(init=False, default=None)
