@@ -1055,22 +1055,26 @@ class ReinterpretCastOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print_string(" ")
         printer.print_ssa_value(self.source)
+        printer.print(" to ")
+        printer.print(" offset ")
+        printer.print_string(" : ")
         print_dynamic_index_list(
             printer,
             self.offsets,
             (cast(int, offset) for offset in self.static_offsets.iter_values()),
             dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
-        printer.print_string(" ")
+        printer.print(" sizes ")
+        printer.print_string(" : ")
         print_dynamic_index_list(
             printer,
             self.sizes,
             (cast(int, size) for size in self.static_sizes.iter_values()),
             dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
-        printer.print_string(" ")
+        printer.print(" strides ")
+        printer.print_string(" : ")
         print_dynamic_index_list(
             printer,
             self.strides,
@@ -1086,41 +1090,44 @@ class ReinterpretCastOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> ReinterpretCastOp:
         index = IndexType()
-
         unresolved_source = parser.parse_unresolved_operand()
+
         parser.parse_keyword("to")
 
         # offsets
         parser.parse_keyword("offset")
         parser.parse_punctuation(":")
         pos = parser.pos
-        dyn_offsets, static_offsets = parse_dynamic_index_list_without_types(
+        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(
             parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
         )
         pos = parser.pos
-        dyn_offsets = parser.resolve_operands(
-            dyn_offsets, (index,) * len(dyn_offsets), pos
+        dynamic_offsets = parser.resolve_operands(
+            dynamic_offsets, (index,) * len(dynamic_offsets), pos
         )
         pos = parser.pos
         parser.parse_punctuation(",")
 
+        # sizes
         parser.parse_keyword("sizes")
         parser.parse_punctuation(":")
-        dyn_sizes, static_sizes = parse_dynamic_index_list_without_types(
+        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(
             parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
         )
-        dyn_sizes = parser.resolve_operands(dyn_sizes, (index,) * len(dyn_sizes), pos)
+        dynamic_sizes = parser.resolve_operands(
+            dynamic_sizes, (index,) * len(dynamic_sizes), pos
+        )
         parser.parse_punctuation(",")
 
+        # strides
         parser.parse_keyword("strides")
         parser.parse_punctuation(":")
-        dyn_strides, static_strides = parse_dynamic_index_list_without_types(
+        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(
             parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
         )
-        dyn_strides = parser.resolve_operands(
-            dyn_strides, (index,) * len(dyn_strides), pos
+        dynamic_strides = parser.resolve_operands(
+            dynamic_strides, (index,) * len(dynamic_strides), pos
         )
-
         attrs = parser.parse_optional_attr_dict_with_keyword()
         parser.parse_punctuation(":")
         operand_type = parser.parse_attribute()
@@ -1130,9 +1137,9 @@ class ReinterpretCastOp(IRDLOperation):
 
         op = ReinterpretCastOp(
             source,
-            dyn_offsets,
-            dyn_sizes,
-            dyn_strides,
+            dynamic_offsets,
+            dynamic_sizes,
+            dynamic_strides,
             static_offsets,
             static_sizes,
             static_strides,
