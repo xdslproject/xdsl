@@ -113,7 +113,7 @@ class VectorWithArrangement(AssemblyInstructionArg):
 
     def __init__(
         self,
-        reg: NEONRegisterType,
+        reg: NEONRegisterType | SSAValue,
         arrangement: NeonArrangementAttr,
         *,
         index: int | None = None,
@@ -199,8 +199,6 @@ class DSSFMulVecScalarOp(ARMInstruction):
         assert isinstance(self.d.type, NEONRegisterType)
         assert isinstance(self.s1.type, NEONRegisterType)
         assert isinstance(self.s2.type, NEONRegisterType)
-        if isinstance(self.arrangement, NeonArrangement):
-            self.arrangement = NeonArrangementAttr(self.arrangement)
 
         return (
             VectorWithArrangement(self.d.type, self.arrangement),
