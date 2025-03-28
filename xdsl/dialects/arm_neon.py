@@ -168,9 +168,7 @@ class DSSFMulVecScalarOp(ARMInstruction):
     scalar_idx = attr_def(IntegerAttr[i8])
     arrangement = attr_def(NeonArrangementAttr)
 
-    assembly_format = (
-        "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
-    )
+    assembly_format = "$s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
 
     def __init__(
         self,
