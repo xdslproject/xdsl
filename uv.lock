@@ -1074,7 +1074,7 @@ source = { git = "https://github.com/superlopuh/lz-string.git#d435be09f8aa454ce0
 
 [[package]]
 name = "marimo"
-version = "0.11.28"
+version = "0.11.30"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1096,9 +1096,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/25/91/b9385f8b831cbc4e326e54029d8f1955c00dfbdbb5ff205c903303e8cf58/marimo-0.11.28.tar.gz", hash = "sha256:ab5783ebd36157877b524985e29ca483c2c50e9b77e8ce5f29924af41377eaf6", size = 10692210 }
+sdist = { url = "https://files.pythonhosted.org/packages/62/2c/07dc741cdef60ed7dbc10cd268f9a0c8667620c98ef39d0bb1dcffb590f0/marimo-0.11.30.tar.gz", hash = "sha256:ec7a6f65524bfdcd85cdc80cec8f9b253aae15f0209fde86e4a866eaf17d6d34", size = 10694287 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/d1/f0bca00b90d89234697158be35a0ccddaff72ee9ded9072b80053b8b8076/marimo-0.11.28-py3-none-any.whl", hash = "sha256:e0b347ae0298e578b361b29cd95c1f52e9a1b147ddee213530d6e117f0fd1898", size = 11041124 },
+    { url = "https://files.pythonhosted.org/packages/8f/11/a8a7c292e11ed3adfc7e079c6962b1e96cb1d42b8724f419a1f134d80447/marimo-0.11.30-py3-none-any.whl", hash = "sha256:b43bc477b21d9f4129e8f9bacfb9abf7f784ce27b7861f66f79f56f4d1f82ade", size = 11044904 },
 ]
 
 [[package]]
@@ -2683,7 +2683,7 @@ wheels = [
 
 [[package]]
 name = "textual"
-version = "2.1.2"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py", extra = ["linkify", "plugins"] },
@@ -2691,9 +2691,9 @@ dependencies = [
     { name = "rich" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/41/62/4af4689dd971ed4fb3215467624016d53550bff1df9ca02e7625eec07f8b/textual-2.1.2.tar.gz", hash = "sha256:aae3f9fde00c7440be00e3c3ac189e02d014f5298afdc32132f93480f9e09146", size = 1596600 }
+sdist = { url = "https://files.pythonhosted.org/packages/28/7f/9423d4d9e1aabaa6841a7f77e2bf8249a7cae4209c4d6b33d77f55ed24c3/textual-3.0.0.tar.gz", hash = "sha256:0bf9f8523541340d5357724d60868db652fb287ac7b13e6cf4553d45a6d9a9d5", size = 1593595 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/81/9df1988c908cbba77f10fecb8587496b3dff2838d4510457877a521d87fd/textual-2.1.2-py3-none-any.whl", hash = "sha256:95f37f49e930838e721bba8612f62114d410a3019665b6142adabc14c2fb9611", size = 680148 },
+    { url = "https://files.pythonhosted.org/packages/d4/6c/c1c5843ef3966fa80974110a99e1ac7e30e2f084dbea58d1c8caec58f2ab/textual-3.0.0-py3-none-any.whl", hash = "sha256:21ffa46cff719338e6f34510d9249d76279af32598e311a1505285c436f35ab6", size = 681777 },
 ]
 
 [[package]]
@@ -3098,7 +3098,7 @@ requires-dist = [
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.5.3" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
     { name = "lzstring2", marker = "extra == 'docs'", git = "https://github.com/superlopuh/lz-string.git" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.11.28" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.11.30" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.1" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.49" },
@@ -3119,7 +3119,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.11.2" },
     { name = "snakeviz", marker = "extra == 'bench'", specifier = ">=2.2.2" },
     { name = "sympy", marker = "extra == 'dev'", specifier = "==1.13.3" },
-    { name = "textual", marker = "extra == 'gui'", specifier = "==2.1.2" },
+    { name = "textual", marker = "extra == 'gui'", specifier = "==3.0.0" },
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.7.0" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<4.13" },
