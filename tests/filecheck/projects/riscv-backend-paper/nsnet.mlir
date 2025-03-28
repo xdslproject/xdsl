@@ -37,11 +37,11 @@ func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%
 // CHECK-NEXT:      scfgwi t1, 801
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      mv t1, t0
-// CHECK-NEXT:      fld ft7, 0(t1)                               # load double from memref of shape (1, 5)
-// CHECK-NEXT:      fld ft6, 8(t0)                               # load double from memref of shape (1, 5)
-// CHECK-NEXT:      fld ft5, 16(t0)                              # load double from memref of shape (1, 5)
-// CHECK-NEXT:      fld ft4, 24(t0)                              # load double from memref of shape (1, 5)
-// CHECK-NEXT:      fld ft3, 32(t0)                              # load double from memref of shape (1, 5)
+// CHECK-NEXT:      fld ft7, 0(t1)                               # load double from pointer
+// CHECK-NEXT:      fld ft6, 8(t0)                               # load double from pointer
+// CHECK-NEXT:      fld ft5, 16(t0)                              # load double from pointer
+// CHECK-NEXT:      fld ft4, 24(t0)                              # load double from pointer
+// CHECK-NEXT:      fld ft3, 32(t0)                              # load double from pointer
 // CHECK-NEXT:      li t1, 160
 // CHECK-NEXT:      frep.o t1, 5, 0, 0
 // CHECK-NEXT:      fmadd.d ft7, ft0, ft1, ft7
@@ -50,10 +50,10 @@ func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%
 // CHECK-NEXT:      fmadd.d ft4, ft0, ft1, ft4
 // CHECK-NEXT:      fmadd.d ft3, ft0, ft1, ft3
 // CHECK-NEXT:      mv t1, t0
-// CHECK-NEXT:      fsd ft7, 0(t1)                               # store double value to memref of shape (1, 5)
-// CHECK-NEXT:      fsd ft6, 8(t0)                               # store double value to memref of shape (1, 5)
-// CHECK-NEXT:      fsd ft5, 16(t0)                              # store double value to memref of shape (1, 5)
-// CHECK-NEXT:      fsd ft4, 24(t0)                              # store double value to memref of shape (1, 5)
-// CHECK-NEXT:      fsd ft3, 32(t0)                              # store double value to memref of shape (1, 5)
+// CHECK-NEXT:      fsd ft7, 0(t1)                               # store double value to pointer
+// CHECK-NEXT:      fsd ft6, 8(t0)                               # store double value to pointer
+// CHECK-NEXT:      fsd ft5, 16(t0)                              # store double value to pointer
+// CHECK-NEXT:      fsd ft4, 24(t0)                              # store double value to pointer
+// CHECK-NEXT:      fsd ft3, 32(t0)                              # store double value to pointer
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      ret
