@@ -10,9 +10,7 @@ builtin.module {
     riscv.directive ".word" "0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0"
   }
   riscv.assembly_section ".text" {
-    riscv.directive ".globl" "main"
-    riscv.directive ".p2align" "2"
-    riscv_func.func @main() {
+    riscv_func.func public @main() {
       %A = riscv.li "a" : !riscv.reg
       %B = riscv.li "b" : !riscv.reg
       %C = riscv.li "c" : !riscv.reg

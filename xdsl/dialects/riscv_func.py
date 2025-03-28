@@ -38,7 +38,7 @@ from xdsl.traits import (
     IsTerminator,
     SymbolOpInterface,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
 @irdl_op_definition
@@ -214,6 +214,17 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
         if not self.body.blocks:
             # Print nothing for function declaration
             return
+
+        if self.sym_visibility is not None:
+            match self.sym_visibility.data:
+                case "public":
+                    printer.print_string(f".globl {self.sym_name.data}\n", indent=0)
+                case "private":
+                    printer.print_string(f".local {self.sym_name.data}\n", indent=0)
+                case _:
+                    raise DiagnosticException(
+                        f"Unexpected visibility {self.sym_visibility.data} for function {self.sym_name}"
+                    )
 
         if self.p2align is not None:
             printer.print_string(f".p2align {self.p2align.value.data}\n", indent=0)
