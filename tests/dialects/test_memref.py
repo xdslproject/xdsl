@@ -377,14 +377,16 @@ def test_memref_memory_space_cast():
 
 def test_memref_reinterpret_cast():
     src_type = MemRefType(i64, [4, 512])
+    dest_type = MemRefType(i64, [8, 256])
 
     src = TestSSAValue(src_type)
 
-    reinterpret_cast = ReinterpretCastOp.get(
+    reinterpret_cast = ReinterpretCastOp(
         src,
-        [TestSSAValue(IntAttr(0))],
-        [TestSSAValue(IntAttr(8)), TestSSAValue(IntAttr(256))],
-        [TestSSAValue(IntAttr(1)), TestSSAValue(IntAttr(1))],
+        [TestSSAValue(IndexType())],
+        [TestSSAValue(IndexType()), TestSSAValue(IndexType())],
+        [TestSSAValue(IndexType()), TestSSAValue(IndexType())],
+        dest_type,
     )
 
     reinterpret_cast.verify()

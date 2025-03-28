@@ -972,17 +972,17 @@ class ReinterpretCastOp(IRDLOperation):
 
     result = result_def(MemRefType[Attribute])
 
-    irdl_options = [SameVariadicOperandSize()]
+    irdl_options = [AttrSizedOperandSegments()]
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         src: SSAValue | Operation,
         offsets: Sequence[SSAValue | Operation],
         sizes: Sequence[SSAValue | Operation],
         strides: Sequence[SSAValue | Operation],
         result_type: Attribute,
     ):
-        return ReinterpretCastOp.build(
+        super().__init__(
             operands=[src, offsets, sizes, strides], result_types=[result_type]
         )
 
@@ -993,11 +993,6 @@ class ReinterpretCastOp(IRDLOperation):
         if len(self.result.type.shape) != len(self.sizes):
             raise VerifyException(
                 f"Expected {len(self.src.type.shape)} size values but got {len(self.sizes)}"
-            )
-
-        if (self.result.type.shape) != len(self.sizes):
-            raise VerifyException(
-                f"Expected output shape to have {len(self.sizes)} size values but got {len(self.result.type.shape)}"
             )
 
 
