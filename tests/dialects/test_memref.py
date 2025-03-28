@@ -381,7 +381,7 @@ def test_memref_reinterpret_cast():
 
     src = TestSSAValue(src_type)
 
-    reinterpret_cast = ReinterpretCastOp(
+    reinterpret_cast = ReinterpretCastOp.from_dynamic(
         src,
         [TestSSAValue(IndexType())],
         [TestSSAValue(IndexType()), TestSSAValue(IndexType())],
