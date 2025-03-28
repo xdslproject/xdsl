@@ -53,6 +53,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.operations import attr_def
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
@@ -971,9 +972,9 @@ class ReinterpretCastOp(IRDLOperation):
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
 
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = attr_def(DenseArrayBase)
+    static_sizes = attr_def(DenseArrayBase)
+    static_strides = attr_def(DenseArrayBase)
 
     result = result_def(MemRefType[Attribute])
 
@@ -999,7 +1000,7 @@ class ReinterpretCastOp(IRDLOperation):
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],
-            properties={
+            attributes={
                 "static_offsets": static_offsets,
                 "static_sizes": static_sizes,
                 "static_strides": static_strides,
