@@ -36,6 +36,7 @@ builtin.module {
     %19 = memref.collapse_shape %5 [[0, 1]] : memref<10x2xindex> into memref<20xindex>
     %20 = arith.constant 2 : index
     %21 = memref.expand_shape %19 [[0, 1]] output_shape [%20, 10] : memref<20xindex> into memref<?x10xindex>
+    %22 = "memref.reinterpret_cast"(%5) {static_offsets = array<i64: 0>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>} : (memref<10x2xindex>) -> memref<5x4xindex, strided<[1, 1]>>
     memref.dealloc %2 : memref<1xindex>
     memref.dealloc %5 : memref<10x2xindex>
     memref.dealloc %8 : memref<1xindex>
@@ -87,6 +88,7 @@ builtin.module {
 // CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
 // CHECK-NEXT:    %{{.*}} = memref.expand_shape %{{\S*}}
 // CHECK-SAME{LITERAL}: [[0 : i64, 1 : i64]] output_shape [%20, 10] : memref<20xindex> into memref<?x10xindex>
+// CHECK-NEXT:     %{{.*}} = memref.reinterpret_cast %5 to offset: [0], sizes: [5, 4], strides: [1, 1] : memref<10x2xindex> to memref<5x4xindex, strided<[1, 1]>>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<1xindex>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<10x2xindex>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<1xindex>
