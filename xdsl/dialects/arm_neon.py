@@ -113,17 +113,20 @@ class VectorWithArrangement(AssemblyInstructionArg):
 
     def __init__(
         self,
-        reg: NEONRegisterType | SSAValue,
+        reg: NEONRegisterType,
         arrangement: NeonArrangementAttr,
         *,
         index: int | None = None,
     ):
+        if isinstance(reg, SSAValue):
+            assert isinstance(reg.type, NEONRegisterType)
+            reg = reg.type
+
         self.reg = reg
         self.arrangement = arrangement
         self.index = index
 
     def assembly_str(self):
-        assert isinstance(self.reg, NEONRegisterType)
         if self.index is None:
             return f"{self.reg.register_name.data}.{self.arrangement.data.map_to_num_els()}{self.arrangement.data.name}"
         else:
@@ -196,10 +199,6 @@ class DSSFMulVecScalarOp(ARMInstruction):
         return "fmul"
 
     def assembly_line_args(self):
-        assert isinstance(self.d.type, NEONRegisterType)
-        assert isinstance(self.s1.type, NEONRegisterType)
-        assert isinstance(self.s2.type, NEONRegisterType)
-
         return (
             VectorWithArrangement(self.d.type, self.arrangement),
             VectorWithArrangement(self.s1.type, self.arrangement),
