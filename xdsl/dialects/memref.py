@@ -40,7 +40,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     SameVariadicResultSize,
-    SameVariadicOperandSize,
     VarConstraint,
     base,
     irdl_op_definition,
@@ -962,37 +961,194 @@ class MemorySpaceCastOp(IRDLOperation):
 
 @irdl_op_definition
 class ReinterpretCastOp(IRDLOperation):
+    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
+
     name = "memref.reinterpret_cast"
 
-    src = operand_def(MemRefType[Attribute])
+    source = operand_def(MemRefType[Attribute])
 
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
 
+    static_offsets = prop_def(DenseArrayBase)
+    static_sizes = prop_def(DenseArrayBase)
+    static_strides = prop_def(DenseArrayBase)
+
     result = result_def(MemRefType[Attribute])
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
-        src: SSAValue | Operation,
-        offsets: Sequence[SSAValue | Operation],
-        sizes: Sequence[SSAValue | Operation],
-        strides: Sequence[SSAValue | Operation],
+        source: SSAValue | Operation,
+        offsets: Sequence[SSAValue],
+        sizes: Sequence[SSAValue],
+        strides: Sequence[SSAValue],
+        static_offsets: Sequence[int] | DenseArrayBase,
+        static_sizes: Sequence[int] | DenseArrayBase,
+        static_strides: Sequence[int] | DenseArrayBase,
         result_type: Attribute,
     ):
+        if not isinstance(static_offsets, DenseArrayBase):
+            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
+        if not isinstance(static_sizes, DenseArrayBase):
+            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
+        if not isinstance(static_strides, DenseArrayBase):
+            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
         super().__init__(
-            operands=[src, offsets, sizes, strides], result_types=[result_type]
+            operands=[source, offsets, sizes, strides],
+            result_types=[result_type],
+            properties={
+                "static_offsets": static_offsets,
+                "static_sizes": static_sizes,
+                "static_strides": static_strides,
+            },
         )
 
+    @staticmethod
+    def from_dynamic(
+        source: SSAValue,
+        offsets: Sequence[SSAValue | int],
+        sizes: Sequence[SSAValue | int],
+        strides: Sequence[SSAValue | int],
+        result_type: Attribute,
+    ):
+        """
+        Construct a `ReinterpretCastOp` from dynamic offsets, sizes, and strides.
+        """
+        dyn_offsets: list[SSAValue] = []
+        dyn_sizes: list[SSAValue] = []
+        dyn_strides: list[SSAValue] = []
+        static_offsets: list[int] = []
+        static_sizes: list[int] = []
+        static_strides: list[int] = []
+
+        for offset in offsets:
+            if isinstance(offset, int):
+                static_offsets.append(offset)
+            else:
+                static_offsets.append(ReinterpretCastOp.DYNAMIC_INDEX)
+                dyn_offsets.append(offset)
+        for size in sizes:
+            if isinstance(size, int):
+                static_sizes.append(size)
+            else:
+                static_sizes.append(ReinterpretCastOp.DYNAMIC_INDEX)
+                dyn_sizes.append(size)
+        for stride in strides:
+            if isinstance(stride, int):
+                static_strides.append(stride)
+            else:
+                static_strides.append(ReinterpretCastOp.DYNAMIC_INDEX)
+                dyn_strides.append(stride)
+
+        return ReinterpretCastOp(
+            source,
+            dyn_offsets,
+            dyn_sizes,
+            dyn_strides,
+            static_offsets,
+            static_sizes,
+            static_strides,
+            result_type,
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.source)
+        print_dynamic_index_list(
+            printer,
+            self.offsets,
+            (cast(int, offset) for offset in self.static_offsets.iter_values()),
+            dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
+        )
+        printer.print_string(" ")
+        print_dynamic_index_list(
+            printer,
+            self.sizes,
+            (cast(int, size) for size in self.static_sizes.iter_values()),
+            dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
+        )
+        printer.print_string(" ")
+        print_dynamic_index_list(
+            printer,
+            self.strides,
+            (cast(int, stride) for stride in self.static_strides.iter_values()),
+            dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
+        )
+        printer.print_op_attributes(self.attributes, print_keyword=True)
+        printer.print_string(" : ")
+        printer.print_attribute(self.source.type)
+        printer.print_string(" to ")
+        printer.print_attribute(self.result.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ReinterpretCastOp:
+        index = IndexType()
+
+        unresolved_source = parser.parse_unresolved_operand()
+        parser.parse_keyword("to")
+
+        # offsets
+        parser.parse_keyword("offset")
+        parser.parse_punctuation(":")
+        pos = parser.pos
+        dyn_offsets, static_offsets = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
+        )
+        pos = parser.pos
+        dyn_offsets = parser.resolve_operands(
+            dyn_offsets, (index,) * len(dyn_offsets), pos
+        )
+        pos = parser.pos
+        parser.parse_punctuation(",")
+
+        parser.parse_keyword("sizes")
+        parser.parse_punctuation(":")
+        dyn_sizes, static_sizes = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
+        )
+        dyn_sizes = parser.resolve_operands(dyn_sizes, (index,) * len(dyn_sizes), pos)
+        parser.parse_punctuation(",")
+
+        parser.parse_keyword("strides")
+        parser.parse_punctuation(":")
+        dyn_strides, static_strides = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
+        )
+        dyn_strides = parser.resolve_operands(
+            dyn_strides, (index,) * len(dyn_strides), pos
+        )
+
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        parser.parse_punctuation(":")
+        operand_type = parser.parse_attribute()
+        source = parser.resolve_operand(unresolved_source, operand_type)
+        parser.parse_characters("to")
+        result_type = parser.parse_attribute()
+
+        op = ReinterpretCastOp(
+            source,
+            dyn_offsets,
+            dyn_sizes,
+            dyn_strides,
+            static_offsets,
+            static_sizes,
+            static_strides,
+            result_type,
+        )
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
+
     def verify_(self):
-        assert isa(self.src.type, MemRefType[Attribute])
+        assert isa(self.source.type, MemRefType[Attribute])
         assert isa(self.result.type, MemRefType[Attribute])
 
         if len(self.result.type.shape) != len(self.sizes):
             raise VerifyException(
-                f"Expected {len(self.src.type.shape)} size values but got {len(self.sizes)}"
+                f"Expected {len(self.source.type.shape)} size values but got {len(self.sizes)}"
             )
 
 
