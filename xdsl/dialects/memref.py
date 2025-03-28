@@ -1056,8 +1056,8 @@ class ReinterpretCastOp(IRDLOperation):
 
     def print(self, printer: Printer):
         printer.print_ssa_value(self.source)
-        printer.print(" to ")
-        printer.print(" offset ")
+        printer.print_string(" to ")
+        printer.print_string(" offset ")
         printer.print_string(" : ")
         print_dynamic_index_list(
             printer,
@@ -1065,7 +1065,7 @@ class ReinterpretCastOp(IRDLOperation):
             (cast(int, offset) for offset in self.static_offsets.iter_values()),
             dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
-        printer.print(" sizes ")
+        printer.print_string(" sizes ")
         printer.print_string(" : ")
         print_dynamic_index_list(
             printer,
@@ -1073,7 +1073,7 @@ class ReinterpretCastOp(IRDLOperation):
             (cast(int, size) for size in self.static_sizes.iter_values()),
             dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
-        printer.print(" strides ")
+        printer.print_string(" strides ")
         printer.print_string(" : ")
         print_dynamic_index_list(
             printer,
