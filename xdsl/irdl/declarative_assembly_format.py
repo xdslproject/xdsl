@@ -1155,7 +1155,6 @@ class DefaultValuedAttributeVariable(AttributeVariable):
         return True
 
 
-@dataclass(frozen=True)
 class OptionalAttributeVariable(AttributeVariable):
     """
     An optional attribute variable, with the following format:
@@ -1171,34 +1170,6 @@ class OptionalAttributeVariable(AttributeVariable):
         return attr is not None
 
     def is_anchorable(self) -> bool:
-        return True
-
-    def is_optional_like(self) -> bool:
-        return True
-
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
-        unique_base = self.unique_base
-        if unique_base is None:
-            attr = parser.parse_optional_attribute()
-            if attr is None:
-                return False
-        elif self.unique_type is not None:
-            assert issubclass(unique_base, TypedAttribute)
-            attr = unique_base.parse_with_type(parser, self.unique_type)
-        elif issubclass(unique_base, ParametrizedAttribute):
-            parameters = unique_base.parse_parameters(parser)
-            attr = unique_base.new(parameters)
-        elif issubclass(unique_base, Data):
-            attr = unique_base.new(  # pyright: ignore[reportUnknownVariableType]
-                unique_base.parse_parameter(parser)
-            )
-        else:
-            raise ValueError("Attributes must be Data or ParameterizedAttribute.")
-
-        if self.is_property:
-            state.properties[self.name] = attr
-        else:
-            state.attributes[self.name] = attr
         return True
 
 
