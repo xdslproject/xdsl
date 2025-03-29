@@ -1172,20 +1172,6 @@ class OptionalAttributeVariable(AttributeVariable):
     def is_anchorable(self) -> bool:
         return True
 
-    def is_optional_like(self) -> bool:
-        return True
-
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
-        attr = parser.parse_optional_attribute()
-        if attr is None:
-            return False
-        # TODO: handle unique_base and unique_type
-        if self.is_property:
-            state.properties[self.name] = attr
-        else:
-            state.attributes[self.name] = attr
-        return True
-
 
 class OptionalUnitAttrVariable(OptionalAttributeVariable):
     """
