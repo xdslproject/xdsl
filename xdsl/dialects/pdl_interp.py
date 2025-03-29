@@ -506,15 +506,15 @@ class CreateOperationOp(IRDLOperation):
     name = "pdl_interp.create_operation"
     constraint_name = prop_def(StringAttr, prop_name="name")
     input_attribute_names = prop_def(ArrayAttr, prop_name="inputAttributeNames")
-    inferred_result_types = prop_def(UnitAttr)
+    inferred_result_types = opt_prop_def(UnitAttr, prop_name="inferredResultTypes")
 
     input_operands = var_operand_def(ValueType)
-    input_attributes = var_operand_def(Attribute)
+    input_attributes = var_operand_def(AttributeType)
     input_result_types = var_operand_def(TypeType)
 
     result_op = result_def(OperationType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     # assembly_format = (
     #     "$name (`(` $input_operands^ `:` type($input_operands) `)`)?"

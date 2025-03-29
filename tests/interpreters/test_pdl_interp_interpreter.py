@@ -332,7 +332,7 @@ def test_replace():
         # Test replace operation
         replace_op = pdl_interp.ReplaceOp(
             TestSSAValue(pdl.OperationType()),
-            [new_val],
+            [TestSSAValue(pdl.ValueType())],
         )
         interpreter.run_op(replace_op, (original_op, new_val))
 
@@ -347,8 +347,8 @@ def test_create_attribute():
     test_attr = StringAttr("test")
 
     # Test create attribute operation
-    create_attr_op = pdl_interp.CreateAttributeOp(TestSSAValue(pdl.AttributeType()))
-    result = interpreter.run_op(create_attr_op, (test_attr,))
+    create_attr_op = pdl_interp.CreateAttributeOp(test_attr)
+    result = interpreter.run_op(create_attr_op, ())
 
     assert len(result) == 1
     assert result[0] == test_attr
@@ -408,7 +408,11 @@ def test_func():
             pdl_interp.FinalizeOp()
 
         pdl_interp.FuncOp(
-            "matcher", FunctionType.from_lists([pdl.OperationType()], []), [], [], body
+            "matcher",
+            FunctionType.from_lists([pdl.OperationType()], []),
+            None,
+            None,
+            body,
         )
 
     my_module.verify()
