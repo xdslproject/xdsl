@@ -4,7 +4,7 @@ from typing import Any, cast
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
 from xdsl.dialects.builtin import StringAttr
-from xdsl.dialects.pdl import ValueType
+from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -18,6 +18,7 @@ from xdsl.interpreter import (
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 
 @register_impls
@@ -243,9 +244,12 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert isinstance(input_op, Operation)
 
         # Get replacement values (if any)
-        repl_values: list[SSAValue] = list(args[1:]) if len(args) > 1 else []
-        for val in repl_values:
-            assert isinstance(val, SSAValue)
+        repl_values: list[SSAValue] = []
+        for i in range(0, len(args) - 1):
+            if isa(op.repl_values.types[i], ValueType):
+                repl_values.append(args[i + 1])
+            elif isa(op.repl_values.types[i], RangeType[ValueType]):
+                repl_values.extend(args[i + 1])
 
         assert len(input_op.results) == len(repl_values), (
             "Number of replacement values should match number of results"
@@ -262,11 +266,8 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.CreateAttributeOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) == 1
-        value = args[0]
-        assert isinstance(value, Attribute)
         # Simply return the attribute value
-        return (value,)
+        return (op.value,)
 
     @impl(pdl_interp.CreateOperationOp)
     def run_createoperation(
