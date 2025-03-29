@@ -500,6 +500,18 @@ class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
         return struct.calcsize(self.format)
 
 
+_SIGNED_INTEGER_FORMATS = ("<b", "<h", "<i", "<i", "<q", "<q", "<q", "<q")
+"""
+Formats for the struct module to use to process signed and signless integers.
+Bitwidths: `<b`: 1-8, `<h`: 9-16, `<i`: 17-32, `<q`: 33-64.
+"""
+_UNSIGNED_INTEGER_FORMATS = ("<B", "<H", "<I", "<I", "<Q", "<Q", "<Q", "<Q")
+"""
+Formats for the struct module to use to process unsigned integers.
+Bitwidths: `<B`: 1-8, `<H`: 9-16, `<I`: 17-32, `<Q`: 33-64.
+"""
+
+
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthType):
     name = "integer_type"
@@ -585,17 +597,13 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
 
     @property
     def format(self) -> str:
-        match (self.bitwidth + 7) >> 3:  #  = ceil(bw / 8)
-            case 1:
-                return "<b"
-            case 2:
-                return "<h"
-            case 3 | 4:
-                return "<i"
-            case 5 | 6 | 7 | 8:
-                return "<q"
-            case _:
-                raise NotImplementedError(f"Format not implemented for {self}")
+        format_index = ((self.bitwidth + 7) >> 3) - 1  #  = ceil(bw / 8) - 1
+        if format_index >= 8:
+            raise NotImplementedError(f"Format not implemented for {self}")
+
+        unsigned = self.signedness.data == Signedness.UNSIGNED
+        f = _UNSIGNED_INTEGER_FORMATS if unsigned else _SIGNED_INTEGER_FORMATS
+        return f[format_index]
 
 
 i64 = IntegerType(64)
