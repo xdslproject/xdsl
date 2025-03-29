@@ -4,6 +4,7 @@ from typing import Any, cast
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
 from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.pdl import ValueType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -61,7 +62,26 @@ class PDLInterpFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         assert len(args) > 0
         assert isinstance(args[0], Operation)
+        if len(args[0].results) <= op.index.value.data:
+            return (None,)
         return (args[0].results[op.index.value.data],)
+
+    @impl(pdl_interp.GetResultsOp)
+    def run_getresults(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.GetResultsOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        assert isinstance(args[0], Operation)
+        src_op = args[0]
+        assert op.index is None, (
+            "TODO: No support yet for getting a specific result group"
+        )
+        if isinstance(op.result_types[0], ValueType) and len(src_op.results) != 1:
+            return (None,)
+        return (src_op.results,)
 
     @impl(pdl_interp.GetAttributeOp)
     def run_getattribute(

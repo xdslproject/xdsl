@@ -37,6 +37,16 @@ def test_getters():
         pdl_interp.GetResultOp(1, TestSSAValue(pdl.OperationType())), (op,)
     ) == (op.results[1],)
 
+    assert (
+        interpreter.run_op(
+            pdl_interp.GetResultsOp(
+                None, TestSSAValue(pdl.OperationType()), pdl.RangeType(pdl.ValueType())
+            ),
+            (op,),
+        )[0]
+        == op.results
+    )
+
     assert interpreter.run_op(
         pdl_interp.GetAttributeOp("myattr", TestSSAValue(pdl.OperationType())), (op,)
     ) == (myattr,)
