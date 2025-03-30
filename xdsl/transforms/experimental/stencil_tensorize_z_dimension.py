@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TypeGuard, cast
+from typing import TypeGuard
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, varith
@@ -245,10 +245,7 @@ class ApplyOpTensorize(RewritePattern):
                 ApplyOp.get(
                     op.args,
                     body,
-                    [
-                        stencil_temp_to_tensor(cast(TempType[Attribute], r.type))
-                        for r in op.res
-                    ],
+                    [stencil_temp_to_tensor(r.type) for r in op.res],
                 )
             )
 
