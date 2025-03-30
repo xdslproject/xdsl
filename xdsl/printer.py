@@ -119,6 +119,7 @@ class Printer(BasePrinter):
                 self.print_string(arg)
                 continue
             if isinstance(arg, SSAValue):
+                arg = cast(SSAValue[Attribute], arg)
                 self.print_ssa_value(arg)
                 continue
             if isinstance(arg, Attribute):
