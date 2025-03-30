@@ -486,12 +486,16 @@ class SSAValue(IRWithUses, ABC):
     An SSA variable is either an operation result, or a basic block argument.
     """
 
-    type: Attribute
+    _type: Attribute
     """Each SSA variable is associated to a type."""
 
     _name: str | None = field(init=False, default=None)
 
     _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
+
+    @property
+    def type(self) -> Attribute:
+        return self._type
 
     @property
     @abstractmethod
