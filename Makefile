@@ -19,9 +19,6 @@ LIT_OPTIONS ?= -v --order=smart
 # make tasks run all commands in a single shell
 .ONESHELL:
 
-# use bash as the shell
-SHELL := /bin/bash
-
 .PHONY: uv-installed
 uv-installed:
 	@command -v uv &> /dev/null ||\
