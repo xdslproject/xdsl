@@ -82,10 +82,16 @@ requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
 build-backend = "setuptools.build_meta"
 
 [tool.pyright]
-reportImportCycles = false
-reportMissingModuleSource = false
-enableTypeIgnoreComments = false
+# We need this for TypeForm, should remove it once that's in
 enableExperimentalFeatures = true
+# Use specific rule ignore instead if necessary
+enableTypeIgnoreComments = false
+reportAssertAlwaysTrue = true
+reportImportCycles = false
+# Allow importing from irdl files
+reportMissingModuleSource = false
+reportUnnecessaryCast = true
+reportUnnecessaryIsInstance = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests"]
