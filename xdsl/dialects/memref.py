@@ -972,16 +972,6 @@ class ReinterpretCastOp(IRDLOperation):
 
     result = result_def(MemRefType[Attribute])
 
-<<<<<<< HEAD
-    irdl_options = [SameVariadicOperandSize()]
-
-    @staticmethod
-    def get(
-        src: SSAValue | Operation,
-        offsets: Sequence[SSAValue | Operation],
-        sizes: Sequence[SSAValue | Operation],
-        strides: Sequence[SSAValue | Operation],
-=======
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
@@ -994,7 +984,6 @@ class ReinterpretCastOp(IRDLOperation):
         static_sizes: Sequence[int] | DenseArrayBase,
         static_strides: Sequence[int] | DenseArrayBase,
         result_type: Attribute,
->>>>>>> main
     ):
         if not isinstance(static_offsets, DenseArrayBase):
             static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
@@ -1156,16 +1145,6 @@ class ReinterpretCastOp(IRDLOperation):
         assert isa(self.source.type, MemRefType[Attribute])
         assert isa(self.result.type, MemRefType[Attribute])
 
-<<<<<<< HEAD
-        if len(self.result.type.shape) != len(self.sizes):
-            raise VerifyException(
-                f"Expected {len(self.src.type.shape)} size values but got {len(self.sizes)}"
-            )
-
-        if (self.result.type.shape) != len(self.sizes):
-            raise VerifyException(
-                f"Expected output shape to have {len(self.sizes)} size values but got {len(self.result.type.shape)}"
-=======
         if len(self.result.type.shape) != len(self.static_sizes):
             raise VerifyException(
                 f"Expected {len(self.source.type.shape)} size values but got {len(self.static_sizes)}"
@@ -1177,7 +1156,6 @@ class ReinterpretCastOp(IRDLOperation):
                 self.result.type.get_shape(),
                 cast(tuple[int], self.static_sizes.get_values()),
                 strict=True,
->>>>>>> main
             )
         ):
             if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != -1:
