@@ -3,7 +3,6 @@
 import abc
 from typing import ClassVar
 
-from xdsl.dialects.arith import boolLike, floatingPointLike
 from xdsl.dialects.builtin import ContainerOf
 from xdsl.ir import (
     Attribute,
@@ -62,32 +61,6 @@ class BigIntegerBinaryOperation(IRDLOperation, abc.ABC):
         super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
 
-class BigIntegerComparisonOperation(IRDLOperation, abc.ABC):
-    T: ClassVar = VarConstraint("T", bigIntegerLike)
-    R: ClassVar = VarConstraint("R", boolLike)
-
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    result = result_def(R)
-
-    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        """Performs a python function corresponding to this operation."""
-        ...
-
-    def __init__(
-        self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
-        result_type: Attribute | None = None,
-    ):
-        if result_type is None:
-            result_type = SSAValue.get(operand1).type
-        super().__init__(operands=[operand1, operand2], result_types=[result_type])
-
-
 @irdl_op_definition
 class AddBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.add"
@@ -102,6 +75,7 @@ class AddBigIntOp(BigIntegerBinaryOperation):
         return lhs + rhs
 
 
+@irdl_op_definition
 class SubBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.sub"
 
@@ -115,6 +89,7 @@ class SubBigIntOp(BigIntegerBinaryOperation):
         return lhs - rhs
 
 
+@irdl_op_definition
 class MulBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.mul"
 
@@ -128,6 +103,7 @@ class MulBigIntOp(BigIntegerBinaryOperation):
         return lhs * rhs
 
 
+@irdl_op_definition
 class FloorDivBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.floordiv"
 
@@ -140,6 +116,7 @@ class FloorDivBigIntOp(BigIntegerBinaryOperation):
         return lhs // rhs
 
 
+@irdl_op_definition
 class ModBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.mod"
 
@@ -152,6 +129,7 @@ class ModBigIntOp(BigIntegerBinaryOperation):
         return lhs % rhs
 
 
+@irdl_op_definition
 class PowBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.mod"
 
@@ -164,6 +142,7 @@ class PowBigIntOp(BigIntegerBinaryOperation):
         return lhs % rhs
 
 
+@irdl_op_definition
 class LShiftBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.lshift"
 
@@ -176,6 +155,7 @@ class LShiftBigIntOp(BigIntegerBinaryOperation):
         return lhs << rhs
 
 
+@irdl_op_definition
 class RShiftBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.rshift"
 
@@ -188,6 +168,7 @@ class RShiftBigIntOp(BigIntegerBinaryOperation):
         return lhs >> rhs
 
 
+@irdl_op_definition
 class BitOrBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.bitor"
 
@@ -201,6 +182,7 @@ class BitOrBigIntOp(BigIntegerBinaryOperation):
         return lhs | rhs
 
 
+@irdl_op_definition
 class BitXorBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.bitxor"
 
@@ -214,6 +196,7 @@ class BitXorBigIntOp(BigIntegerBinaryOperation):
         return lhs ^ rhs
 
 
+@irdl_op_definition
 class BitAndBigIntOp(BigIntegerBinaryOperation):
     name = "bigint.bitand"
 
@@ -227,110 +210,143 @@ class BitAndBigIntOp(BigIntegerBinaryOperation):
         return lhs & rhs
 
 
-class DivBigIntOp(IRDLOperation):
-    name = "bigint.div"
+# @irdl_op_definition
+# class DivBigIntOp(IRDLOperation):
+#     name = "bigint.div"
 
-    T: ClassVar = VarConstraint("T", bigIntegerLike)
-    R: ClassVar = VarConstraint("R", floatingPointLike)
+#     T: ClassVar = VarConstraint("T", bigIntegerLike)
+#     R: ClassVar = VarConstraint("R", floatingPointLike)
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    result = result_def(R)
+#     lhs = operand_def(T)
+#     rhs = operand_def(T)
+#     result = result_def(R)
 
-    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+#     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 
-    traits = traits_def(
-        Pure(),
-    )
+#     traits = traits_def(
+#         Pure(),
+#     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> float:
-        """Performs a python function corresponding to this operation."""
-        return lhs / rhs
+#     @staticmethod
+#     def py_operation(lhs: int, rhs: int) -> float:
+#         """Performs a python function corresponding to this operation."""
+#         return lhs / rhs
 
-    def __init__(
-        self,
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
-        result_type: Attribute | None = None,
-    ):
-        if result_type is None:
-            result_type = SSAValue.get(operand1).type
-        super().__init__(operands=[operand1, operand2], result_types=[result_type])
-
-
-class EqBigIntOp(BigIntegerComparisonOperation):
-    name = "bigint.eq"
-
-    traits = traits_def(
-        Pure(),
-        Commutative(),
-    )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs == rhs
+#     def __init__(
+#         self,
+#         operand1: Operation | SSAValue,
+#         operand2: Operation | SSAValue,
+#         result_type: Attribute | None = None,
+#     ):
+#         if result_type is None:
+#             result_type = SSAValue.get(operand1).type
+#         super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
 
-class NeqBigIntOp(BigIntegerComparisonOperation):
-    name = "bigint.neq"
+# class BigIntegerComparisonOperation(IRDLOperation, abc.ABC):
+#     T: ClassVar = VarConstraint("T", bigIntegerLike)
+#     R: ClassVar = VarConstraint("R", boolLike)
 
-    traits = traits_def(
-        Pure(),
-        Commutative(),
-    )
+#     lhs = operand_def(T)
+#     rhs = operand_def(T)
+#     result = result_def(R)
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs != rhs
+#     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 
+#     @staticmethod
+#     def py_operation(lhs: int, rhs: int) -> int:
+#         """Performs a python function corresponding to this operation."""
+#         ...
 
-class GtBigIntOp(BigIntegerComparisonOperation):
-    name = "bigint.gt"
-
-    traits = traits_def(
-        Pure(),
-    )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs > rhs
-
-
-class GteBigIntOp(BigIntegerComparisonOperation):
-    name = "bigint.gte"
-
-    traits = traits_def(
-        Pure(),
-    )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs >= rhs
+#     def __init__(
+#         self,
+#         operand1: Operation | SSAValue,
+#         operand2: Operation | SSAValue,
+#         result_type: Attribute | None = None,
+#     ):
+#         if result_type is None:
+#             result_type = SSAValue.get(operand1).type
+#         super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
 
-class LtBigIntOp(BigIntegerComparisonOperation):
-    name = "bigint.lt"
+# @irdl_op_definition
+# class EqBigIntOp(BigIntegerComparisonOperation):
+#     name = "bigint.eq"
 
-    traits = traits_def(
-        Pure(),
-    )
+#     traits = traits_def(
+#         Pure(),
+#         Commutative(),
+#     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs < rhs
+#     @staticmethod
+#     def py_operation(lhs: int, rhs: int) -> int:
+#         return lhs == rhs
 
 
-class LteBigIntOp(BigIntegerComparisonOperation):
-    name = "bigint.lte"
+# @irdl_op_definition
+# class NeqBigIntOp(BigIntegerComparisonOperation):
+#     name = "bigint.neq"
 
-    traits = traits_def(
-        Pure(),
-    )
+#     traits = traits_def(
+#         Pure(),
+#         Commutative(),
+#     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs <= rhs
+#     @staticmethod
+#     def py_operation(lhs: int, rhs: int) -> int:
+#         return lhs != rhs
+
+
+# @irdl_op_definition
+# class GtBigIntOp(BigIntegerComparisonOperation):
+#     name = "bigint.gt"
+
+#     traits = traits_def(
+#         Pure(),
+#     )
+
+#     @staticmethod
+#     def py_operation(lhs: int, rhs: int) -> int:
+#         return lhs > rhs
+
+
+# @irdl_op_definition
+# class GteBigIntOp(BigIntegerComparisonOperation):
+#     name = "bigint.gte"
+
+#     traits = traits_def(
+#         Pure(),
+#     )
+
+#     @staticmethod
+#     def py_operation(lhs: int, rhs: int) -> int:
+#         return lhs >= rhs
+
+
+# @irdl_op_definition
+# class LtBigIntOp(BigIntegerComparisonOperation):
+#     name = "bigint.lt"
+
+#     traits = traits_def(
+#         Pure(),
+#     )
+
+#     @staticmethod
+#     def py_operation(lhs: int, rhs: int) -> int:
+#         return lhs < rhs
+
+
+# @irdl_op_definition
+# class LteBigIntOp(BigIntegerComparisonOperation):
+#     name = "bigint.lte"
+
+#     traits = traits_def(
+#         Pure(),
+#     )
+
+#     @staticmethod
+#     def py_operation(lhs: int, rhs: int) -> int:
+#         return lhs <= rhs
 
 
 bigint = BigIntegerType()
@@ -349,13 +365,13 @@ BigInt = Dialect(
         BitOrBigIntOp,
         BitXorBigIntOp,
         BitAndBigIntOp,
-        DivBigIntOp,
-        EqBigIntOp,
-        NeqBigIntOp,
-        GtBigIntOp,
-        GteBigIntOp,
-        LtBigIntOp,
-        LteBigIntOp,
+        # DivBigIntOp,
+        # EqBigIntOp,
+        # NeqBigIntOp,
+        # GtBigIntOp,
+        # GteBigIntOp,
+        # LtBigIntOp,
+        # LteBigIntOp,
     ],
     [
         BigIntegerType,
