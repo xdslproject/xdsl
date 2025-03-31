@@ -15,11 +15,11 @@ the sign. Here's a table of values for a three-bit two's complement integer type
 |  111 |     7    |   -1   | +7 or -1 |
 |------|----------|--------|----------|
 
-https://en.wikipedia.org/wiki/Two%27s_complement
+See [wikipedia](https://en.wikipedia.org/wiki/Two%27s_complement).
 
-We follow LLVM and MLIR in having a concept of signless integers:
+We follow LLVM and MLIR in having a concept of signless integers.
 
-https://mlir.llvm.org/docs/Rationale/Rationale/#integer-signedness-semantics
+See external [documentation](https://mlir.llvm.org/docs/Rationale/Rationale/#integer-signedness-semantics).
 
 The main idea is to not have the signedness be a property of the type of the value,
 and rather be a property of the operation. That means that a signless value can be

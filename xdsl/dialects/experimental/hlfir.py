@@ -7,7 +7,7 @@ be materialised and there is a higher level of information about
 the programmer's Fortran code, compared to FIR, available for
 optimisation and lowering.
 
-For more details see https://flang.llvm.org/docs/HighLevelFIR.html
+See external [documentation](https://flang.llvm.org/docs/HighLevelFIR.html).
 """
 
 from __future__ import annotations

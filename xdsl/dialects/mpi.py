@@ -151,7 +151,8 @@ class MPIBaseOp(IRDLOperation, ABC):
 class ReduceOp(MPIBaseOp):
     """
     This wraps the MPI_Reduce function (blocking reduction)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Reduce.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Reduce.html).
 
     ## The MPI_Reduce Function Docs:
 
@@ -201,7 +202,8 @@ class ReduceOp(MPIBaseOp):
 class AllreduceOp(MPIBaseOp):
     """
     This wraps the MPI_Allreduce function (blocking all reduction)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Allreduce.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Allreduce.html).
 
     ## The MPI_Allreduce Function Docs:
 
@@ -257,7 +259,8 @@ class AllreduceOp(MPIBaseOp):
 class BcastOp(MPIBaseOp):
     """
     This wraps the MPI_Bcast function (blocking broadcast)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Bcast.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Bcast.html).
 
     ## The MPI_Bcast Function Docs:
 
@@ -300,7 +303,8 @@ class BcastOp(MPIBaseOp):
 class IsendOp(MPIBaseOp):
     """
     This wraps the MPI_Isend function (nonblocking send)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Isend.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Isend.html).
 
     ## The MPI_Isend Function Docs:
 
@@ -348,7 +352,8 @@ class IsendOp(MPIBaseOp):
 class SendOp(MPIBaseOp):
     """
     This wraps the MPI_Send function (blocking send)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Send.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Send.html).
 
     ## The MPI_Send Function Docs:
 
@@ -393,7 +398,8 @@ class SendOp(MPIBaseOp):
 class IrecvOp(MPIBaseOp):
     """
     This wraps the MPI_Irecv function (nonblocking receive).
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Irecv.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Irecv.html).
 
     ## The MPI_Irecv Function Docs:
 
@@ -442,7 +448,8 @@ class IrecvOp(MPIBaseOp):
 class RecvOp(MPIBaseOp):
     """
     This wraps the MPI_Recv function (blocking receive).
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Recv.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Recv.html).
 
     ## The MPI_Recv Function Docs:
 
@@ -492,7 +499,8 @@ class RecvOp(MPIBaseOp):
 class TestOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Test function (test for completion of request)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Test.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Test.html).
 
     ## The MPI_Test Function Docs:
 
@@ -518,7 +526,8 @@ class TestOp(MPIBaseOp):
 class WaitOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Wait function (blocking wait for request)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Wait.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Wait.html).
 
     ## The MPI_Test Function Docs:
 
@@ -545,7 +554,8 @@ class WaitOp(MPIBaseOp):
 class WaitallOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Waitall function (blocking wait for requests)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Waitall.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Waitall.html).
 
     ## The MPI_Test Function Docs:
 

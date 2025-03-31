@@ -8,7 +8,11 @@ from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
 
 from typing_extensions import Self, assert_never
 
-from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
+from xdsl.backend.assembly_printer import (
+    AssemblyPrintable,
+    AssemblyPrinter,
+    OneLineAssemblyPrintable,
+)
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
@@ -1191,7 +1195,6 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.writeonly:
             return
-        assert isinstance(self.rd.type, IntRegisterType)
         if is_non_zero(self.rd.type):
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
@@ -1335,7 +1338,6 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     def verify_(self) -> None:
         if self.writeonly is None:
             return
-        assert isinstance(self.rd.type, IntRegisterType)
         if is_non_zero(self.rd.type):
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
@@ -1457,7 +1459,7 @@ class AddiOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] + sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#addi
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#addi).
     """
 
     name = "riscv.addi"
@@ -1473,7 +1475,7 @@ class SltiOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] <s sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slti
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slti).
     """
 
     name = "riscv.slti"
@@ -1487,7 +1489,7 @@ class SltiuOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] <u sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltiu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltiu).
     """
 
     name = "riscv.sltiu"
@@ -1501,7 +1503,7 @@ class AndiOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] & sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#andi
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#andi).
     """
 
     name = "riscv.andi"
@@ -1515,7 +1517,7 @@ class OriOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] | sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#ori
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#ori).
     """
 
     name = "riscv.ori"
@@ -1529,7 +1531,7 @@ class XoriOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] ^ sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xori
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xori).
     """
 
     name = "riscv.xori"
@@ -1551,7 +1553,7 @@ class SlliOp(RdRsImmShiftOperation):
 
     x[rd] = x[rs1] << shamt
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slli
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slli).
     """
 
     name = "riscv.slli"
@@ -1567,7 +1569,7 @@ class SrliOp(RdRsImmShiftOperation):
 
     x[rd] = x[rs1] >>u shamt
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srli
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srli).
     """
 
     name = "riscv.srli"
@@ -1581,7 +1583,7 @@ class SraiOp(RdRsImmShiftOperation):
 
     x[rd] = x[rs1] >>s shamt
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srai
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srai).
     """
 
     name = "riscv.srai"
@@ -1595,7 +1597,7 @@ class LuiOp(RdImmIntegerOperation):
 
     x[rd] = sext(immediate[31:12] << 12)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lui
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lui).
     """
 
     name = "riscv.lui"
@@ -1610,7 +1612,7 @@ class AuipcOp(RdImmIntegerOperation):
 
     x[rd] = pc + sext(immediate[31:12] << 12)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#auipc
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#auipc).
     """
 
     name = "riscv.auipc"
@@ -1694,7 +1696,7 @@ class AddOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     x[rd] = x[rs1] + x[rs2]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add).
     """
 
     name = "riscv.add"
@@ -1713,7 +1715,7 @@ class SltOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     x[rd] = x[rs1] <s x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slt
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slt).
     """
 
     name = "riscv.slt"
@@ -1727,7 +1729,7 @@ class SltuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     x[rd] = x[rs1] <u x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltu).
     """
 
     name = "riscv.sltu"
@@ -1748,7 +1750,7 @@ class AndOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     x[rd] = x[rs1] & x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#and
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#and).
     """
 
     name = "riscv.and"
@@ -1771,7 +1773,7 @@ class OrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     x[rd] = x[rs1] | x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#or
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#or).
     """
 
     name = "riscv.or"
@@ -1797,7 +1799,7 @@ class XorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     x[rd] = x[rs1] ^ x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xor
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xor).
     """
 
     name = "riscv.xor"
@@ -1813,7 +1815,7 @@ class SllOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     x[rd] = x[rs1] << x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sll
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sll).
     """
 
     name = "riscv.sll"
@@ -1827,7 +1829,7 @@ class SrlOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     x[rd] = x[rs1] >>u x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srl
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srl).
     """
 
     name = "riscv.srl"
@@ -1852,7 +1854,7 @@ class SubOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     x[rd] = x[rs1] - x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub).
     """
 
     name = "riscv.sub"
@@ -1868,7 +1870,7 @@ class SraOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     x[rd] = x[rs1] >>s x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub).
     """
 
     name = "riscv.sra"
@@ -1900,7 +1902,7 @@ class JalOp(RdImmJumpOperation):
 
     x[rd] = pc+4; pc += sext(offset)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jal
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jal).
     """
 
     name = "riscv.jal"
@@ -1940,7 +1942,7 @@ class JalrOp(RdRsImmJumpOperation):
     x[rd] = t
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jalr
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jalr).
     """
 
     name = "riscv.jalr"
@@ -1971,7 +1973,7 @@ class BeqOp(RsRsOffIntegerOperation):
     if (x[rs1] == x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq).
     """
 
     name = "riscv.beq"
@@ -1986,7 +1988,7 @@ class BneOp(RsRsOffIntegerOperation):
     if (x[rs1] != x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bne
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bne).
     """
 
     name = "riscv.bne"
@@ -2001,7 +2003,7 @@ class BltOp(RsRsOffIntegerOperation):
     if (x[rs1] <s x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#blt
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#blt).
     """
 
     name = "riscv.blt"
@@ -2016,7 +2018,7 @@ class BgeOp(RsRsOffIntegerOperation):
     if (x[rs1] >=s x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bge
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bge).
     """
 
     name = "riscv.bge"
@@ -2031,7 +2033,7 @@ class BltuOp(RsRsOffIntegerOperation):
     if (x[rs1] <u x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bltu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bltu).
     """
 
     name = "riscv.bltu"
@@ -2046,7 +2048,7 @@ class BgeuOp(RsRsOffIntegerOperation):
     if (x[rs1] >=u x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bgeu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bgeu).
     """
 
     name = "riscv.bgeu"
@@ -2067,7 +2069,7 @@ class LbOp(RdRsImmIntegerOperation):
     x[rd] = sext(M[x[rs1] + sext(offset)][7:0])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lb
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lb).
     """
 
     name = "riscv.lb"
@@ -2083,7 +2085,7 @@ class LbuOp(RdRsImmIntegerOperation):
     x[rd] = M[x[rs1] + sext(offset)][7:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lbu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lbu).
     """
 
     name = "riscv.lbu"
@@ -2099,7 +2101,7 @@ class LhOp(RdRsImmIntegerOperation):
     x[rd] = sext(M[x[rs1] + sext(offset)][15:0])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lh
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lh).
     """
 
     name = "riscv.lh"
@@ -2115,7 +2117,7 @@ class LhuOp(RdRsImmIntegerOperation):
     x[rd] = M[x[rs1] + sext(offset)][15:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lhu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lhu).
     """
 
     name = "riscv.lhu"
@@ -2141,7 +2143,7 @@ class LwOp(RdRsImmIntegerOperation):
     x[rd] = sext(M[x[rs1] + sext(offset)][31:0])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lw).
     """
 
     name = "riscv.lw"
@@ -2167,7 +2169,7 @@ class SbOp(RsRsImmIntegerOperation):
     M[x[rs1] + sext(offset)] = x[rs2][7:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sb
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sb).
     """
 
     name = "riscv.sb"
@@ -2182,7 +2184,7 @@ class ShOp(RsRsImmIntegerOperation):
     M[x[rs1] + sext(offset)] = x[rs2][15:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sh
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sh).
 
     """
 
@@ -2208,7 +2210,7 @@ class SwOp(RsRsImmIntegerOperation):
     M[x[rs1] + sext(offset)] = x[rs2][31:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sw).
     """
 
     name = "riscv.sw"
@@ -2242,7 +2244,7 @@ class CsrrwOp(CsrReadWriteOperation):
 
     t = CSRs[csr]; CSRs[csr] = x[rs1]; x[rd] = t
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrw).
     """
 
     name = "riscv.csrrw"
@@ -2267,7 +2269,7 @@ class CsrrsOp(CsrBitwiseOperation):
 
     t = CSRs[csr]; CSRs[csr] = t | x[rs1]; x[rd] = t
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrs
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrs).
     """
 
     name = "riscv.csrrs"
@@ -2292,7 +2294,7 @@ class CsrrcOp(CsrBitwiseOperation):
 
     t = CSRs[csr]; CSRs[csr] = t &~x[rs1]; x[rd] = t
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrc
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrc).
     """
 
     name = "riscv.csrrc"
@@ -2309,7 +2311,7 @@ class CsrrwiOp(CsrReadWriteImmOperation):
 
     x[rd] = CSRs[csr]; CSRs[csr] = zimm
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrwi
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrwi).
     """
 
     name = "riscv.csrrwi"
@@ -2332,7 +2334,7 @@ class CsrrsiOp(CsrBitwiseImmOperation):
 
     t = CSRs[csr]; CSRs[csr] = t | zimm; x[rd] = t
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrsi
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrsi).
     """
 
     name = "riscv.csrrsi"
@@ -2355,7 +2357,7 @@ class CsrrciOp(CsrBitwiseImmOperation):
 
     t = CSRs[csr]; CSRs[csr] = t &~zimm; x[rd] = t
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrci
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrci).
     """
 
     name = "riscv.csrrci"
@@ -2386,7 +2388,7 @@ class MulOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     and places the lower XLEN bits in the destination register.
     x[rd] = x[rs1] * x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add).
     """
 
     name = "riscv.mul"
@@ -2401,7 +2403,7 @@ class MulhOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     and places the upper XLEN bits in the destination register.
     x[rd] = (x[rs1] s×s x[rs2]) >>s XLEN
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulh
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulh).
     """
 
     name = "riscv.mulh"
@@ -2414,7 +2416,7 @@ class MulhsuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     and places the upper XLEN bits in the destination register.
     x[rd] = (x[rs1] s × x[rs2]) >>s XLEN
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhsu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhsu).
     """
 
     name = "riscv.mulhsu"
@@ -2427,7 +2429,7 @@ class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     and places the upper XLEN bits in the destination register.
     x[rd] = (x[rs1] u × x[rs2]) >>u XLEN
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhu).
     """
 
     name = "riscv.mulhu"
@@ -2441,7 +2443,7 @@ class DivOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     rounding towards zero.
     x[rd] = x[rs1] /s x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#div
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#div).
     """
 
     name = "riscv.div"
@@ -2454,7 +2456,7 @@ class DivuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     rounding towards zero.
     x[rd] = x[rs1] /u x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#divu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#divu).
     """
 
     name = "riscv.divu"
@@ -2466,7 +2468,7 @@ class RemOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     Perform an XLEN bits by XLEN bits signed integer reminder of rs1 by rs2.
     x[rd] = x[rs1] %s x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#rem
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#rem).
     """
 
     name = "riscv.rem"
@@ -2478,7 +2480,7 @@ class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     Perform an XLEN bits by XLEN bits unsigned integer reminder of rs1 by rs2.
     x[rd] = x[rs1] %u x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#remu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#remu).
     """
 
     name = "riscv.remu"
@@ -2487,7 +2489,7 @@ class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 # endregion
 
 # region Assembler pseudo-instructions
-# https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
+# See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md).
 
 
 class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
@@ -2507,7 +2509,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     This is an assembler pseudo-instruction.
 
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate).
     """
 
     name = "riscv.li"
@@ -2575,7 +2577,7 @@ class EcallOp(NullaryOperation):
     request are passed, but usually these will be in defined locations in the
     integer register file.
 
-    https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
+    See external [documentation](https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf).
     """
 
     name = "riscv.ecall"
@@ -2587,7 +2589,7 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
 
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels).
     """
 
     name = "riscv.label"
@@ -2643,7 +2645,7 @@ class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     without any associated region of assembly code.
     A more complete list of directives can be found here:
 
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops).
     """
 
     name = "riscv.directive"
@@ -2706,14 +2708,14 @@ class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
 
 
 @irdl_op_definition
-class AssemblySectionOp(RISCVAsmOperation):
+class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
     """
     The directive operation is used to emit assembler directives (e.g. .text; .data; etc.)
     with the scope of a section.
 
     A more complete list of directives can be found here:
 
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops).
 
     This operation can have nested operations, corresponding to a section of the assembly.
     """
@@ -2765,8 +2767,8 @@ class AssemblySectionOp(RISCVAsmOperation):
         if self.data.block.ops:
             printer.print_region(self.data)
 
-    def assembly_line(self) -> str | None:
-        return AssemblyPrinter.assembly_line(self.directive.data, "", is_indented=False)
+    def print_assembly(self, printer: AssemblyPrinter) -> None:
+        printer.emit_section(self.directive.data)
 
 
 @irdl_op_definition
@@ -2848,7 +2850,7 @@ class EbreakOp(NullaryOperation):
     The EBREAK instruction is used by debuggers to cause control to be
     transferred back to a debugging environment.
 
-    https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
+    See external [documentation](https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf).
     """
 
     name = "riscv.ebreak"
@@ -2861,7 +2863,7 @@ class WfiOp(NullaryOperation):
     implementation that the current hart can be stalled until an
     interrupt might need servicing.
 
-    https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf
+    See external [documentation](https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf).
     """
 
     name = "riscv.wfi"
@@ -3160,7 +3162,7 @@ class FMAddSOp(RdRsRsRsFloatOperation):
     f[rd] = f[rs1]×f[rs2]+f[rs3]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-s).
     """
 
     name = "riscv.fmadd.s"
@@ -3175,7 +3177,7 @@ class FMSubSOp(RdRsRsRsFloatOperation):
     f[rd] = f[rs1]×f[rs2]+f[rs3]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-s).
     """
 
     name = "riscv.fmsub.s"
@@ -3190,7 +3192,7 @@ class FNMSubSOp(RdRsRsRsFloatOperation):
     f[rd] = -f[rs1]×f[rs2]+f[rs3]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fnmsub-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fnmsub-s).
     """
 
     name = "riscv.fnmsub.s"
@@ -3205,7 +3207,7 @@ class FNMAddSOp(RdRsRsRsFloatOperation):
     f[rd] = -f[rs1]×f[rs2]-f[rs3]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fnmadd-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fnmadd-s).
     """
 
     name = "riscv.fnmadd.s"
@@ -3220,7 +3222,7 @@ class FAddSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = f[rs1]+f[rs2]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fadd-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fadd-s).
     """
 
     name = "riscv.fadd.s"
@@ -3237,7 +3239,7 @@ class FSubSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = f[rs1]-f[rs2]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsub-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsub-s).
     """
 
     name = "riscv.fsub.s"
@@ -3252,7 +3254,7 @@ class FMulSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = f[rs1]×f[rs2]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-s).
     """
 
     name = "riscv.fmul.s"
@@ -3267,7 +3269,7 @@ class FDivSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = f[rs1] / f[rs2]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fdiv-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fdiv-s).
     """
 
     name = "riscv.fdiv.s"
@@ -3282,7 +3284,7 @@ class FSqrtSOp(RdRsFloatOperation[FloatRegisterType]):
     f[rd] = sqrt(f[rs1])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsqrt-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsqrt-s).
     """
 
     name = "riscv.fsqrt.s"
@@ -3298,7 +3300,7 @@ class FSgnJSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     f[rd] = {f[rs2][31], f[rs1][30:0]}
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnj.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnj.s).
     """
 
     name = "riscv.fsgnj.s"
@@ -3314,7 +3316,7 @@ class FSgnJNSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     f[rd] = {~f[rs2][31], f[rs1][30:0]}
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnjn.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnjn.s).
     """
 
     name = "riscv.fsgnjn.s"
@@ -3330,7 +3332,7 @@ class FSgnJXSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     f[rd] = {f[rs1][31] ^ f[rs2][31], f[rs1][30:0]}
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnjx.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnjx.s).
     """
 
     name = "riscv.fsgnjx.s"
@@ -3345,7 +3347,7 @@ class FMinSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = min(f[rs1], f[rs2])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmin-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmin-s).
     """
 
     name = "riscv.fmin.s"
@@ -3360,7 +3362,7 @@ class FMaxSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = max(f[rs1], f[rs2])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmax-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmax-s).
     """
 
     name = "riscv.fmax.s"
@@ -3375,7 +3377,7 @@ class FCvtWSOp(RdRsIntegerOperation[FloatRegisterType]):
     x[rd] = sext(s32_{f32}(f[rs1]))
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.w.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.w.s).
     """
 
     name = "riscv.fcvt.w.s"
@@ -3390,7 +3392,7 @@ class FCvtWuSOp(RdRsIntegerOperation[FloatRegisterType]):
     x[rd] = sext(u32_{f32}(f[rs1]))
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.wu.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.wu.s).
     """
 
     name = "riscv.fcvt.wu.s"
@@ -3406,7 +3408,7 @@ class FMvXWOp(RdRsIntegerOperation[FloatRegisterType]):
     x[rd] = sext(f[rs1][31:0])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmv.x.w
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmv.x.w).
     """
 
     name = "riscv.fmv.x.w"
@@ -3422,7 +3424,7 @@ class FeqSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 
     x[rd] = f[rs1] == f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#feq.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#feq.s).
     """
 
     name = "riscv.feq.s"
@@ -3438,7 +3440,7 @@ class FltSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 
     x[rd] = f[rs1] < f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#flt.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#flt.s).
     """
 
     name = "riscv.flt.s"
@@ -3454,7 +3456,7 @@ class FleSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 
     x[rd] = f[rs1] <= f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fle.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fle.s).
     """
 
     name = "riscv.fle.s"
@@ -3471,7 +3473,7 @@ class FClassSOp(RdRsIntegerOperation[FloatRegisterType]):
 
     x[rd] = classifys(f[rs1])
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fclass.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fclass.s).
     """
 
     name = "riscv.fclass.s"
@@ -3486,7 +3488,7 @@ class FCvtSWOp(RdRsFloatOperation[IntRegisterType]):
     f[rd] = f32_{s32}(x[rs1])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.s.w
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.s.w).
     """
 
     name = "riscv.fcvt.s.w"
@@ -3502,7 +3504,7 @@ class FCvtSWuOp(RdRsFloatOperation[IntRegisterType]):
     f[rd] = f32_{u32}(x[rs1])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.s.wu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.s.wu).
     """
 
     name = "riscv.fcvt.s.wu"
@@ -3519,7 +3521,7 @@ class FMvWXOp(RdRsFloatOperation[IntRegisterType]):
     ```
 
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmv.w.x
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmv.w.x).
     """
 
     name = "riscv.fmv.w.x"
@@ -3544,7 +3546,7 @@ class FLwOp(RdRsImmFloatOperation):
     f[rd] = M[x[rs1] + sext(offset)][31:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#flw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#flw).
     """
 
     name = "riscv.flw"
@@ -3578,7 +3580,7 @@ class FSwOp(RsRsImmFloatOperation):
 
     M[x[rs1] + offset] = f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw).
     """
 
     name = "riscv.fsw"
@@ -3607,7 +3609,7 @@ class FMAddDOp(RdRsRsRsFloatOperation):
 
     f[rd] = f[rs1]×f[rs2]+f[rs3]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-d).
     """
 
     name = "riscv.fmadd.d"
@@ -3622,7 +3624,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 
     f[rd] = f[rs1]×f[rs2]+f[rs3]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-d).
     """
 
     name = "riscv.fmsub.d"
@@ -3647,7 +3649,7 @@ class FAddDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = f[rs1]+f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fadd-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fadd-d).
     """
 
     name = "riscv.fadd.d"
@@ -3665,7 +3667,7 @@ class FSubDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = f[rs1]-f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsub-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsub-d).
     """
 
     name = "riscv.fsub.d"
@@ -3680,7 +3682,7 @@ class FMulDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = f[rs1]×f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-d).
     """
 
     name = "riscv.fmul.d"
@@ -3695,7 +3697,7 @@ class FDivDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = f[rs1] / f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fdiv-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fdiv-d).
     """
 
     name = "riscv.fdiv.d"
@@ -3718,7 +3720,7 @@ class FMinDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = min(f[rs1], f[rs2])
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmin-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmin-d).
     """
 
     name = "riscv.fmin.d"
@@ -3733,7 +3735,7 @@ class FMaxDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = max(f[rs1], f[rs2])
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmax-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmax-d).
     """
 
     name = "riscv.fmax.d"
@@ -3749,7 +3751,7 @@ class FCvtDWOp(RdRsFloatOperation[IntRegisterType]):
 
     x[rd] = sext(s32_{f64}(f[rs1]))
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-w
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-w).
     """
 
     name = "riscv.fcvt.d.w"
@@ -3765,7 +3767,7 @@ class FCvtDWuOp(RdRsFloatOperation[IntRegisterType]):
 
     f[rd] = f64_{u32}(x[rs1])
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-wu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-wu).
     """
 
     name = "riscv.fcvt.d.wu"
@@ -3782,7 +3784,7 @@ class FLdOp(RdRsImmFloatOperation):
     f[rd] = M[x[rs1] + sext(offset)][63:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fld
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fld).
     """
 
     name = "riscv.fld"
@@ -3821,7 +3823,7 @@ class FSdOp(RsRsImmFloatOperation):
 
     M[x[rs1] + offset] = f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw).
     """
 
     name = "riscv.fsd"
@@ -3866,7 +3868,7 @@ class FMvDOp(RdRsFloatOperation[FloatRegisterType]):
 
 # region 17 "V" Standard Extension for Vector Operations
 
-# https://riscv.org/wp-content/uploads/2018/05/15.20-15.55-18.05.06.VEXT-bcn-v1.pdf
+# See external documentation https://riscv.org/wp-content/uploads/2018/05/15.20-15.55-18.05.06.VEXT-bcn-v1.pdf
 
 # Vector operations that use standard RISC-V registers are using a non-standard Xfvec
 # extension.

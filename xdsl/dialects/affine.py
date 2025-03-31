@@ -198,7 +198,7 @@ class ForOp(IRDLOperation):
 @irdl_op_definition
 class IfOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop).
     """
 
     name = "affine.if"
@@ -217,7 +217,7 @@ class IfOp(IRDLOperation):
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop).
     """
 
     name = "affine.parallel"

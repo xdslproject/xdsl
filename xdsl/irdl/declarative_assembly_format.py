@@ -445,38 +445,27 @@ class AttrDictDirective(FormatDirective):
                 )
             op_def = op.get_irdl_definition()
             dictionary = op.attributes | op.properties
-            reserved_or_default = self.reserved_attr_names.union(
-                name
-                for name, d in (op_def.properties | op_def.attributes).items()
-                if d.default_value is not None
-                and dictionary.get(name) == d.default_value
-            )
-            if reserved_or_default.issuperset(dictionary.keys()):
-                return
-            printer.print_op_attributes(
-                dictionary,
-                reserved_attr_names=reserved_or_default,
-                print_keyword=self.with_keyword,
-            )
+            defs = op_def.properties | op_def.attributes
         else:
             op_def = op.get_irdl_definition()
-            reserved_or_default = self.reserved_attr_names.union(
-                name
-                for name, d in op_def.attributes.items()
-                if d.default_value is not None
-                and op.attributes.get(name) == d.default_value
-            )
-            if reserved_or_default.issuperset(op.attributes.keys()):
-                return
-            printer.print_op_attributes(
-                op.attributes,
-                reserved_attr_names=reserved_or_default,
-                print_keyword=self.with_keyword,
-            )
+            dictionary = op.attributes
+            defs = op_def.attributes
 
-        # This is changed only if something was printed
-        state.last_was_punctuation = False
-        state.should_emit_space = True
+        reserved_or_default = self.reserved_attr_names.union(
+            name
+            for name, d in defs.items()
+            if d.default_value is not None and dictionary.get(name) == d.default_value
+        )
+
+        printed = printer.print_op_attributes(
+            dictionary,
+            reserved_attr_names=reserved_or_default,
+            print_keyword=self.with_keyword,
+        )
+
+        if printed:
+            state.last_was_punctuation = False
+            state.should_emit_space = True
 
     def is_optional_like(self) -> bool:
         return True

@@ -9,7 +9,7 @@ class StaticInsnRepresentation(HasInsnRepresentation):
     """
     Returns the first parameter as an insn template string.
 
-    See https://sourceware.org/binutils/docs/as/RISC_002dV_002dDirectives.html for more information
+    See external [documentation](https://sourceware.org/binutils/docs/as/RISC_002dV_002dDirectives.html).
     """
 
     insn: str = field(kw_only=True)

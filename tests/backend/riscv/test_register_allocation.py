@@ -10,15 +10,14 @@ from xdsl.backend.riscv.register_allocation import (
 )
 from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
 from xdsl.dialects import riscv
+from xdsl.dialects.test import TestOp
+from xdsl.ir import SSAValue
 from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, result_def
 from xdsl.utils.exceptions import DiagnosticException
-from xdsl.utils.test_value import TestSSAValue
 
 
 def test_default_reserved_registers():
-    register_queue = RiscvRegisterQueue(
-        available_int_registers=[], available_float_registers=[]
-    )
+    register_queue = RiscvRegisterQueue()
 
     unallocated = riscv.Registers.UNALLOCATED_INT
 
@@ -30,33 +29,28 @@ def test_default_reserved_registers():
 
     assert not register_allocator.allocate_same(())
 
-    a = TestSSAValue(unallocated)
-    register_allocator.allocate_same((a,))
+    op_a = TestOp(result_types=[unallocated])
+    register_allocator.allocate_same(op_a.results)
 
-    assert a.type == j(1)
+    assert op_a.results[0].type == j(1)
 
-    register_allocator.allocate_same((a,))
+    register_allocator.allocate_same(op_a.results)
 
-    assert a.type == j(1)
+    assert op_a.results[0].type == j(1)
 
-    b0 = TestSSAValue(unallocated)
-    b1 = TestSSAValue(unallocated)
+    op_b = TestOp(result_types=[unallocated, unallocated])
 
-    register_allocator.allocate_same((b0, b1))
+    register_allocator.allocate_same(op_b.results)
 
-    assert b0.type == j(2)
-    assert b1.type == j(2)
+    assert tuple(op_b.result_types) == (j(2), j(2))
 
-    c0 = TestSSAValue(j(2))
-    c1 = TestSSAValue(unallocated)
+    op_c = TestOp(result_types=[j(2), unallocated])
 
-    register_allocator.allocate_same((c0, c1))
+    register_allocator.allocate_same(op_c.results)
 
-    assert c0.type == j(2)
-    assert c1.type == j(2)
+    assert tuple(op_c.result_types) == (j(2), j(2))
 
-    d0 = TestSSAValue(j(2))
-    d1 = TestSSAValue(j(3))
+    op_d = TestOp(result_types=[j(2), j(3)])
 
     with pytest.raises(
         DiagnosticException,
@@ -64,11 +58,9 @@ def test_default_reserved_registers():
             "Cannot allocate registers to the same register ['!riscv.reg<j_2>', '!riscv.reg<j_3>']"
         ),
     ):
-        register_allocator.allocate_same((d0, d1))
+        register_allocator.allocate_same(op_d.results)
 
-    e0 = TestSSAValue(j(2))
-    e1 = TestSSAValue(j(3))
-    e2 = TestSSAValue(unallocated)
+    op_e = TestOp(result_types=[j(2), j(3), unallocated])
 
     with pytest.raises(
         DiagnosticException,
@@ -76,7 +68,7 @@ def test_default_reserved_registers():
             "Cannot allocate registers to the same register ['!riscv.reg', '!riscv.reg<j_2>', '!riscv.reg<j_3>']"
         ),
     ):
-        register_allocator.allocate_same((e0, e1, e2))
+        register_allocator.allocate_same(op_e.results)
 
 
 def test_allocate_with_inout_constraints():
@@ -90,12 +82,9 @@ def test_allocate_with_inout_constraints():
         rd1 = result_def()
 
         @classmethod
-        def get(cls, rs0: str, rs1: str, rd0: str, rd1: str) -> Self:
+        def get(cls, rs0: SSAValue, rs1: SSAValue, rd0: str, rd1: str) -> Self:
             return cls.build(
-                operands=(
-                    TestSSAValue(riscv.IntRegisterType.from_name(rs0)),
-                    TestSSAValue(riscv.IntRegisterType.from_name(rs1)),
-                ),
+                operands=(rs0, rs1),
                 result_types=(
                     riscv.IntRegisterType.from_name(rd0),
                     riscv.IntRegisterType.from_name(rd1),
@@ -107,13 +96,17 @@ def test_allocate_with_inout_constraints():
                 (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
             )
 
-    register_queue = RiscvRegisterQueue(
-        available_int_registers=[], available_float_registers=[]
-    )
+    register_queue = RiscvRegisterQueue()
     register_allocator = RegisterAllocatorLivenessBlockNaive(register_queue)
 
     # All new registers. The result register is reused by the allocator for the operand.
-    op0 = MyInstructionOp.get("", "", "", "")
+    rs0, rs1 = TestOp(
+        result_types=[
+            riscv.IntRegisterType.unallocated(),
+            riscv.IntRegisterType.unallocated(),
+        ]
+    ).results
+    op0 = MyInstructionOp.get(rs0, rs1, "", "")
     register_allocator.process_riscv_op(op0)
     assert op0.rs0.type == riscv.IntRegisterType.infinite_register(1)
     assert op0.rs1.type == riscv.IntRegisterType.infinite_register(0)
@@ -122,7 +115,13 @@ def test_allocate_with_inout_constraints():
 
     # One register reserved for inout parameter, the allocator should allocate the output
     # to the same register.
-    op1 = MyInstructionOp.get("", "", "", "a0")
+    rs0, rs1 = TestOp(
+        result_types=[
+            riscv.IntRegisterType.unallocated(),
+            riscv.IntRegisterType.unallocated(),
+        ]
+    ).results
+    op1 = MyInstructionOp.get(rs0, rs1, "", "a0")
     register_allocator.process_riscv_op(op1)
     assert op1.rs0.type == riscv.IntRegisterType.infinite_register(2)
     assert op1.rs1.type == riscv.IntRegisterType.from_name("a0")

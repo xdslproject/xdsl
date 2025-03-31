@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     IndexType,
@@ -16,6 +17,8 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    VarConstraint,
+    base,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
@@ -31,20 +34,24 @@ from xdsl.utils.hints import assert_isa, isa
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     name = "vector.load"
-    memref = operand_def(MemRefType)
+    base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
-    res = result_def(VectorType)
+    result = result_def(VectorType)
+
+    assembly_format = (
+        "$base `[` $indices `]` attr-dict `:` type($base) `,` type($result)"
+    )
 
     def verify_(self):
-        assert isa(self.memref.type, MemRefType[Attribute])
-        assert isa(self.res.type, VectorType[Attribute])
+        assert isa(self.base.type, MemRefType[Attribute])
+        assert isa(self.result.type, VectorType[Attribute])
 
-        if self.memref.type.element_type != self.res.type.element_type:
+        if self.base.type.element_type != self.result.type.element_type:
             raise VerifyException(
                 "MemRef element type should match the Vector element type."
             )
 
-        if self.memref.type.get_num_dims() != len(self.indices):
+        if self.base.type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
@@ -64,19 +71,23 @@ class LoadOp(IRDLOperation):
 class StoreOp(IRDLOperation):
     name = "vector.store"
     vector = operand_def(VectorType)
-    memref = operand_def(MemRefType)
+    base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
 
+    assembly_format = (
+        "$vector `,` $base `[` $indices `]` attr-dict `:` type($base) `,` type($vector)"
+    )
+
     def verify_(self):
-        assert isa(self.memref.type, MemRefType[Attribute])
+        assert isa(self.base.type, MemRefType[Attribute])
         assert isa(self.vector.type, VectorType[Attribute])
 
-        if self.memref.type.element_type != self.vector.type.element_type:
+        if self.base.type.element_type != self.vector.type.element_type:
             raise VerifyException(
                 "MemRef element type should match the Vector element type."
             )
 
-        if self.memref.type.get_num_dims() != len(self.indices):
+        if self.base.type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
@@ -94,6 +105,8 @@ class BroadcastOp(IRDLOperation):
     source = operand_def()
     vector = result_def(VectorType)
     traits = traits_def(Pure())
+
+    assembly_format = "$source attr-dict `:` type($source) `to` type($vector)"
 
     def verify_(self):
         assert isa(self.vector.type, VectorType[Attribute])
@@ -114,54 +127,16 @@ class BroadcastOp(IRDLOperation):
 @irdl_op_definition
 class FMAOp(IRDLOperation):
     name = "vector.fma"
-    lhs = operand_def(VectorType)
-    rhs = operand_def(VectorType)
-    acc = operand_def(VectorType)
-    res = result_def(VectorType)
+
+    T: ClassVar = VarConstraint("T", base(VectorType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    acc = operand_def(T)
+    res = result_def(T)
     traits = traits_def(Pure())
 
-    def verify_(self):
-        assert isa(self.lhs.type, VectorType[Attribute])
-        assert isa(self.rhs.type, VectorType[Attribute])
-        assert isa(self.acc.type, VectorType[Attribute])
-        assert isa(self.res.type, VectorType[Attribute])
-
-        lhs_shape = self.lhs.type.get_shape()
-        rhs_shape = self.rhs.type.get_shape()
-        acc_shape = self.acc.type.get_shape()
-        res_shape = self.res.type.get_shape()
-
-        if self.res.type.element_type != self.lhs.type.element_type:
-            raise VerifyException(
-                "Result vector type must match with all source vectors. Found "
-                "different types for result vector and lhs vector."
-            )
-        elif self.res.type.element_type != self.rhs.type.element_type:
-            raise VerifyException(
-                "Result vector type must match with all source vectors. Found "
-                "different types for result vector and rhs vector."
-            )
-        elif self.res.type.element_type != self.acc.type.element_type:
-            raise VerifyException(
-                "Result vector type must match with all source vectors. Found "
-                "different types for result vector and acc vector."
-            )
-
-        if res_shape != lhs_shape:
-            raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found "
-                "different shapes for result vector and lhs vector."
-            )
-        elif res_shape != rhs_shape:
-            raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found "
-                "different shapes for result vector and rhs vector."
-            )
-        elif res_shape != acc_shape:
-            raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found "
-                "different shapes for result vector and acc vector."
-            )
+    assembly_format = "$lhs `,` $rhs `,` $acc attr-dict `:` type($lhs)"
 
     @staticmethod
     def get(
@@ -177,24 +152,26 @@ class FMAOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MaskedloadOp(IRDLOperation):
+class MaskedLoadOp(IRDLOperation):
     name = "vector.maskedload"
-    memref = operand_def(MemRefType)
+    base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
     mask = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
-    passthrough = operand_def(VectorType)
-    res = result_def(VectorRankConstraint(1))
+    pass_thru = operand_def(VectorType)
+    result = result_def(VectorRankConstraint(1))
+
+    assembly_format = "$base `[` $indices `]` `,` $mask `,` $pass_thru attr-dict `:` type($base) `,` type($mask) `,` type($pass_thru) `into` type($result)"  # noqa: E501
 
     def verify_(self):
-        memref_type = self.memref.type
+        memref_type = self.base.type
         assert isa(memref_type, MemRefType[Attribute])
         memref_element_type = memref_type.element_type
 
-        res_type = self.res.type
+        res_type = self.result.type
         assert isa(res_type, VectorType[Attribute])
         res_element_type = res_type.element_type
 
-        passthrough_type = self.passthrough.type
+        passthrough_type = self.pass_thru.type
         assert isa(passthrough_type, VectorType[Attribute])
         passthrough_element_type = passthrough_type.element_type
 
@@ -218,26 +195,28 @@ class MaskedloadOp(IRDLOperation):
         indices: Sequence[SSAValue | Operation],
         mask: SSAValue | Operation,
         passthrough: SSAValue | Operation,
-    ) -> MaskedloadOp:
+    ) -> MaskedLoadOp:
         memref = SSAValue.get(memref)
         assert assert_isa(memref.type, MemRefType[Attribute])
 
-        return MaskedloadOp.build(
+        return MaskedLoadOp.build(
             operands=[memref, indices, mask, passthrough],
             result_types=[VectorType(memref.type.element_type, [1])],
         )
 
 
 @irdl_op_definition
-class MaskedstoreOp(IRDLOperation):
+class MaskedStoreOp(IRDLOperation):
     name = "vector.maskedstore"
-    memref = operand_def(MemRefType)
+    base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
     mask = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
     value_to_store = operand_def(VectorRankConstraint(1))
 
+    assembly_format = "$base `[` $indices `]` `,` $mask `,` $value_to_store attr-dict `:` type($base) `,` type($mask) `,` type($value_to_store)"  # noqa: E501
+
     def verify_(self):
-        memref_type = self.memref.type
+        memref_type = self.base.type
         assert isa(memref_type, MemRefType[Attribute])
         memref_element_type = memref_type.element_type
 
@@ -266,8 +245,8 @@ class MaskedstoreOp(IRDLOperation):
         indices: Sequence[SSAValue | Operation],
         mask: SSAValue | Operation,
         value_to_store: SSAValue | Operation,
-    ) -> MaskedstoreOp:
-        return MaskedstoreOp.build(operands=[memref, indices, mask, value_to_store])
+    ) -> MaskedStoreOp:
+        return MaskedStoreOp.build(operands=[memref, indices, mask, value_to_store])
 
 
 @irdl_op_definition
@@ -281,21 +260,23 @@ class PrintOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CreatemaskOp(IRDLOperation):
+class CreateMaskOp(IRDLOperation):
     name = "vector.create_mask"
-    mask_operands = var_operand_def(IndexType)
+    mask_dim_sizes = var_operand_def(IndexType)
     mask_vector = result_def(VectorBaseTypeConstraint(i1))
+
+    assembly_format = "$mask_dim_sizes attr-dict `:` type(results)"
 
     def verify_(self):
         assert isa(self.mask_vector.type, VectorType[Attribute])
-        if self.mask_vector.type.get_num_dims() != len(self.mask_operands):
+        if self.mask_vector.type.get_num_dims() != len(self.mask_dim_sizes):
             raise VerifyException(
                 "Expected an operand value for each dimension of resultant mask."
             )
 
     @staticmethod
-    def get(mask_operands: list[Operation | SSAValue]) -> CreatemaskOp:
-        return CreatemaskOp.build(
+    def get(mask_operands: list[Operation | SSAValue]) -> CreateMaskOp:
+        return CreateMaskOp.build(
             operands=[mask_operands],
             result_types=[VectorType(i1, [1])],
         )
@@ -396,10 +377,10 @@ Vector = Dialect(
         StoreOp,
         BroadcastOp,
         FMAOp,
-        MaskedloadOp,
-        MaskedstoreOp,
+        MaskedLoadOp,
+        MaskedStoreOp,
         PrintOp,
-        CreatemaskOp,
+        CreateMaskOp,
         ExtractElementOp,
         InsertElementOp,
     ],

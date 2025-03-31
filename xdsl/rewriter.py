@@ -5,7 +5,16 @@ from dataclasses import dataclass, field
 
 from typing_extensions import deprecated
 
-from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
+from xdsl.utils.test_value import TestSSAValue
 
 
 @dataclass(frozen=True)
@@ -14,7 +23,7 @@ class InsertPoint:
     An insert point.
     It is either a point before an operation, or at the end of a block.
 
-    https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder_1_1InsertPoint.html
+    See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder_1_1InsertPoint.html).
     """
 
     block: Block
@@ -168,6 +177,37 @@ class Rewriter:
                     res.name_hint = op.results[0].name_hint
 
         block.erase_op(op, safe_erase=safe_erase)
+
+    @staticmethod
+    def replace_value_with_new_type(val: SSAValue, new_type: Attribute) -> SSAValue:
+        """
+        Replace a value with a value of a new type, and return the new value.
+        This will insert the new value in the operation or block, and remove the existing
+        value.
+        """
+        if isinstance(val, OpResult):
+            operation = val.op
+            index = val.index
+            new_value = OpResult(new_type, operation, val.index)
+            results = operation.results
+            operation.results = (*results[:index], new_value, *results[index + 1 :])
+        elif isinstance(val, BlockArgument):
+            block = val.block
+            index = val.index
+            new_value = BlockArgument(new_type, block, index)
+            args = block.args
+            block._args = (  # pyright: ignore[reportPrivateUsage]
+                *args[:index],
+                new_value,
+                *args[index + 1 :],
+            )
+        else:
+            assert isinstance(val, TestSSAValue)
+            new_value = TestSSAValue(new_type)
+
+        new_value.name_hint = val.name_hint
+        val.replace_by(new_value)
+        return new_value
 
     @staticmethod
     def inline_block(
