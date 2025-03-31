@@ -35,7 +35,7 @@ class FrontendProgram:
     file: str | None = field(default=None)
     """Path to the file that contains the program."""
 
-    def register_type(self, source_type: type, ir_type: TypeAttribute) -> None:
+    def register_type(self, source_type: type, ir_type: type[TypeAttribute]) -> None:
         """Associate a type in the source code with its type in the IR."""
         raise NotImplementedError()
 
@@ -50,7 +50,7 @@ class FrontendProgram:
             )
             raise FrontendProgramException(msg)
 
-    def compile(self, verify: bool = True, desymref: bool = True) -> None:
+    def compile(self, desymref: bool = True, verify: bool = True) -> None:
         """Generates xDSL from the source program."""
 
         # Both statements and globals msut be initialized from within the
