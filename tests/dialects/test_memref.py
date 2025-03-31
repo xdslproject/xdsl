@@ -375,23 +375,6 @@ def test_memref_memory_space_cast():
     assert memory_space_cast.dest.type.memory_space is dest_memory_space
 
 
-def test_memref_reinterpret_cast():
-    src_type = MemRefType(i64, [4, 512])
-    dest_type = MemRefType(i64, [8, 256])
-
-    src = TestSSAValue(src_type)
-
-    reinterpret_cast = ReinterpretCastOp.from_dynamic(
-        src,
-        [0],
-        [8, 256],
-        [1, 1],
-        dest_type,
-    )
-
-    reinterpret_cast.verify()
-
-
 def test_dma_start():
     src_type = MemRefType(i64, [4, 512], memory_space=IntAttr(1))
     dest_type = MemRefType(i64, [4 * 512], memory_space=IntAttr(2))

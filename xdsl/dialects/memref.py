@@ -1162,12 +1162,11 @@ class ReinterpretCastOp(IRDLOperation):
                 cast(tuple[int], self.static_sizes.get_values()),
             )
         ):
-            if actual != expected:
-                if expected == ReinterpretCastOp.DYNAMIC_INDEX:
-                    raise VerifyException(
-                        f"Expected result type with dynamic size instead of {actual} in dim = {dim}"
-                    )
-
+            if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != -1:
+                raise VerifyException(
+                    f"Expected result type with dynamic size instead of {actual} in dim = {dim}"
+                )
+            elif expected != ReinterpretCastOp.DYNAMIC_INDEX and expected != actual:
                 raise VerifyException(
                     f"Expected result type with size = {expected} instead of {actual} in dim = {dim}"
                 )

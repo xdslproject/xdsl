@@ -36,6 +36,18 @@ builtin.module {
 
 // CHECK: Expected attribute i64
 
+
+// -----
+
+"func.func"() ({
+  %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
+  %1 = "memref.reinterpret_cast"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: 1}> : (memref<10x2xindex>) -> memref<10x2xindex, strided<[1, 1]>>
+  "func.return"() : () -> ()
+}) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
+
+// CHECK: Expected 2 size values but got 1
+
+
 // -----
 
 "func.func"() ({
@@ -45,3 +57,14 @@ builtin.module {
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
 
 // CHECK: Expected result type with size = 5 instead of 10 in dim = 0
+
+
+// -----
+
+"func.func"() ({
+  %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
+  %1 = "memref.reinterpret_cast"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: -9223372036854775808, 4>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>) -> memref<5x4xindex, strided<[1, 1]>>
+  "func.return"() : () -> ()
+}) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
+
+// CHECK: Expected result type with dynamic size instead of 2 in dim = 0
