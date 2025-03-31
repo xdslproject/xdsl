@@ -166,6 +166,3 @@ docs/ret.xdsl
 # direnv
 .direnv
 .envrc
-
-# setuptools-scm
-xdsl/_version.py
