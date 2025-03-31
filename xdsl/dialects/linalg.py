@@ -1217,7 +1217,7 @@ Linalg = Dialect(
         Conv2DNhwgcGfhwcOp,
         Conv2DNhwc_HwcfOp,
         Conv2DNgchwGfchwOp,
-        Conv2DNhwgcGfhwcOp,
+        Conv2DNgchwFgchwOp,
         BroadcastOp,
     ],
     [
