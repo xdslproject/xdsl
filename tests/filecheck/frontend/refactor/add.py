@@ -10,7 +10,7 @@ p.register_method(int, "__add__", AddBigIntOp)
 with CodeContext(p):
     # CHECK:      builtin.module {
     # CHECK-NEXT:   func.func @foo(%0 : !bigint.bigint) -> !bigint.bigint {
-    # CHECK-NEXT:     %1 = bigint.add %0, %0 : bigint.bigint
+    # CHECK-NEXT:     %1 = bigint.add %0, %0 : !bigint.bigint
     # CHECK-NEXT:     func.return %1 : !bigint.bigint
     # CHECK-NEXT:   }
     # CHECK-NEXT: }

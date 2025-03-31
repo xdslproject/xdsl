@@ -25,6 +25,26 @@ class SourceIrTypePair(NamedTuple):
     ir: type[TypeAttribute]
 
 
+class TypeMethodPair(NamedTuple):
+    """Pair of type and method for source code."""
+
+    type_: type
+    method: str
+
+    @classmethod
+    def from_ir_type(
+        cls,
+        ir_type: type[Attribute],
+        method: str,
+        type_registry: dict[TypeName, SourceIrTypePair],
+    ) -> "TypeMethodPair | None":
+        """."""
+        for source, ir in type_registry.values():
+            if ir == ir_type:
+                return cls(source, method)
+        return None
+
+
 @dataclass
 class TypeConverter:
     """

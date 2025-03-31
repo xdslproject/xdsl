@@ -11,9 +11,10 @@ from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
     SourceIrTypePair,
     TypeConverter,
+    TypeMethodPair,
     TypeName,
 )
-from xdsl.ir import TypeAttribute
+from xdsl.ir import Operation, TypeAttribute
 from xdsl.printer import Printer
 
 
@@ -39,6 +40,9 @@ class FrontendProgram:
     type_registry: dict[TypeName, SourceIrTypePair] = field(default_factory=dict)
     """Mappings between source code and ir type, indexed by name."""
 
+    method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
+    """Mappings between methods on objects and their operations."""
+
     file: str | None = field(default=None)
     """Path to the file that contains the program."""
 
@@ -48,6 +52,15 @@ class FrontendProgram:
         if type_name in self.type_registry:
             raise FrontendProgramException(f"Cannot re-register type '{source_type}'")
         self.type_registry[type_name] = SourceIrTypePair(source_type, ir_type)
+
+    def register_method(
+        self, source_type: type, source_method: str, ir_op: type[Operation]
+    ) -> None:
+        """Associate a method on an object in the source code with its IR implementation."""
+        key = TypeMethodPair(source_type, source_method)
+        if key in self.method_registry:
+            raise FrontendProgramException(f"Cannot re-register method '{key}'")
+        self.method_registry[key] = ir_op
 
     def _check_can_compile(self):
         """Check if the context required for compilation has been created."""
@@ -71,7 +84,11 @@ class FrontendProgram:
 
         type_converter = TypeConverter(self.globals)
         self.xdsl_program = CodeGeneration.run_with_type_converter(
-            type_converter, self.type_registry, self.functions_and_blocks, self.file
+            type_converter,
+            self.type_registry,
+            self.method_registry,
+            self.functions_and_blocks,
+            self.file,
         )
 
         # Optionally run a verification pass on the generated program.

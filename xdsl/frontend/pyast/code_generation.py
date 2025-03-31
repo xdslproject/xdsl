@@ -19,9 +19,10 @@ from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
     SourceIrTypePair,
     TypeConverter,
+    TypeMethodPair,
     TypeName,
 )
-from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 
 
 @dataclass
@@ -30,13 +31,16 @@ class CodeGeneration:
     def run_with_type_converter(
         type_converter: TypeConverter,
         type_registry: dict[TypeName, SourceIrTypePair],
+        method_registry: dict[TypeMethodPair, type[Operation]],
         functions_and_blocks: FunctionMap,
         file: str | None,
     ) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp([])
 
-        visitor = CodeGenerationVisitor(type_converter, type_registry, module, file)
+        visitor = CodeGenerationVisitor(
+            type_converter, type_registry, method_registry, module, file
+        )
         for function_def, _ in functions_and_blocks.values():
             visitor.visit(function_def)
         return module
@@ -51,6 +55,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
     type_registry: dict[TypeName, SourceIrTypePair] = field(default_factory=dict)
     """Mappings between source code and ir type, indexed by name."""
+
+    method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
+    """Mappings between methods on objects and their operations."""
 
     globals: dict[str, Any]
     """
@@ -74,11 +81,13 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self,
         type_converter: TypeConverter,
         type_registry: dict[TypeName, SourceIrTypePair],
+        method_registry: dict[TypeMethodPair, type[Operation]],
         module: builtin.ModuleOp,
         file: str | None,
     ) -> None:
         self.type_converter = type_converter
         self.type_registry = type_registry
+        self.method_registry = method_registry
         self.globals = type_converter.globals
         self.file = file
 
@@ -179,17 +188,14 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"but got {lhs.type} and {rhs.type}.",
             )
 
-        # Look-up what is the frontend type we deal with to resolve the binary
-        # operation.
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
-            lhs.type.__class__
-        ]
-
+        frontend_type = lhs.type.__class__
         overload_name = python_AST_operator_to_python_overload[op_name]
-        try:
-            op = OpResolver.resolve_op_overload(overload_name, frontend_type)(lhs, rhs)
-            self.inserter.insert_op(op)
-        except FrontendProgramException:
+        op_key = TypeMethodPair.from_ir_type(
+            ir_type=frontend_type,
+            method=overload_name,
+            type_registry=self.type_registry,
+        )
+        if op_key is None or op_key not in self.method_registry:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
@@ -198,6 +204,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"is not supported by type '{frontend_type.__name__}' "
                 f"which does not overload '{overload_name}'.",
             )
+
+        op = self.method_registry[op_key]
+        self.inserter.insert_op(op(lhs, rhs))
 
     def visit_Compare(self, node: ast.Compare):
         # Allow a single comparison only.
