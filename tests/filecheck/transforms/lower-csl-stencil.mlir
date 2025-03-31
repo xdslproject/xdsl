@@ -1,7 +1,7 @@
 // RUN: xdsl-opt %s -p "lower-csl-stencil" --split-input-file | filecheck %s
 
 
-  "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel_func"}> ({
+  "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel_func", target="wse2"}> ({
   ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
     %9 = arith.constant 0 : i16
     %10 = "csl.get_color"(%9) : (i16) -> !csl.color
@@ -60,7 +60,7 @@
     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
   }) : () -> ()
 
-// CHECK:       "csl_wrapper.module"() <{width = 1022 : i16, height = 510 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "gauss_seidel_func"}> ({
+// CHECK:        "csl_wrapper.module"() <{width = 1022 : i16, height = 510 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "gauss_seidel_func", target = "wse2"}> ({
 // CHECK-NEXT:   ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
 // CHECK-NEXT:     %9 = arith.constant 0 : i16
 // CHECK-NEXT:     %10 = "csl.get_color"(%9) : (i16) -> !csl.color
@@ -127,7 +127,7 @@
 
 // -----
 
-  "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "loop", "width" = 1024 : i16}> ({
+  "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "loop", "width" = 1024 : i16, target="wse2"}> ({
   ^0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
     %0 = arith.constant 0 : i16
     %1 = "csl.get_color"(%0) : (i16) -> !csl.color
@@ -170,7 +170,7 @@
       csl.activate local, 1 : ui6
       csl.return
     }
-    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5}{
+    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5} {
       %29 = arith.constant 1000 : i16
       %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
       %31 = arith.cmpi slt, %30, %29 : i16
@@ -235,7 +235,7 @@
     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
   }) : () -> ()
 
-// CHECK:       "csl_wrapper.module"() <{height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "loop", width = 1024 : i16}> ({
+// CHECK:       "csl_wrapper.module"() <{height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "loop", width = 1024 : i16, target = "wse2"}> ({
 // CHECK-NEXT:  ^0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
 // CHECK-NEXT:    %0 = arith.constant 0 : i16
 // CHECK-NEXT:    %1 = "csl.get_color"(%0) : (i16) -> !csl.color
@@ -278,7 +278,7 @@
 // CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5}{
+// CHECK-NEXT:    csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
 // CHECK-NEXT:      %29 = arith.constant 1000 : i16
 // CHECK-NEXT:      %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
 // CHECK-NEXT:      %31 = arith.cmpi slt, %30, %29 : i16
@@ -353,7 +353,7 @@
 
 // -----
 
-  "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "partial_access"}> ({
+  "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "partial_access", target="wse2"}> ({
   ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
     %9 = arith.constant 0 : i16
     %10 = "csl.get_color"(%9) : (i16) -> !csl.color
@@ -410,7 +410,7 @@
     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
   }) : () -> ()
 
-// CHECK:       "csl_wrapper.module"() <{width = 1022 : i16, height = 510 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "partial_access"}> ({
+// CHECK:       "csl_wrapper.module"() <{width = 1022 : i16, height = 510 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "partial_access", target = "wse2"}> ({
 // CHECK-NEXT:  ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
 // CHECK-NEXT:    %9 = arith.constant 0 : i16
 // CHECK-NEXT:    %10 = "csl.get_color"(%9) : (i16) -> !csl.color
@@ -483,7 +483,7 @@
 
 // -----
 
-  "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=511 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "chunk_reduce_only", "width" = 1024 : i16}> ({
+  "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=511 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "chunk_reduce_only", "width" = 1024 : i16, target="wse2"}> ({
   ^0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
     %0 = arith.constant 1 : i16
     %1 = arith.constant 0 : i16
@@ -526,7 +526,7 @@
       csl.activate local, 1 : ui6
       csl.return
     }
-    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5}{
+    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5} {
       %29 = arith.constant 1000 : i16
       %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
       %31 = arith.cmpi slt, %30, %29 : i16
@@ -585,7 +585,7 @@
     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
   }) : () -> ()
 
-// CHECK:       "csl_wrapper.module"() <{height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=511 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "chunk_reduce_only", width = 1024 : i16}> ({
+// CHECK:       "csl_wrapper.module"() <{height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=511 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "chunk_reduce_only", width = 1024 : i16, target = "wse2"}> ({
 // CHECK-NEXT:  ^0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
 // CHECK-NEXT:    %0 = arith.constant 1 : i16
 // CHECK-NEXT:    %1 = arith.constant 0 : i16
@@ -628,7 +628,7 @@
 // CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5}{
+// CHECK-NEXT:    csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
 // CHECK-NEXT:      %29 = arith.constant 1000 : i16
 // CHECK-NEXT:      %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
 // CHECK-NEXT:      %31 = arith.cmpi slt, %30, %29 : i16
@@ -652,33 +652,32 @@
 // CHECK-NEXT:      %33 = "csl.addressof"(%west) : (memref<2xf32>) -> !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:      %34 = "csl.addressof"(%south) : (memref<2xf32>) -> !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:      %35 = "csl.addressof"(%north) : (memref<2xf32>) -> !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
-// CHECK-NEXT:      %36 = arith.constant false
-// CHECK-NEXT:      "csl.member_call"(%18, %32, %33, %34, %35, %36) <{field = "setCoeffs"}> : (!csl.imported_module, !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>, i1) -> ()
-// CHECK-NEXT:      %37 = arith.constant 1 : i16
-// CHECK-NEXT:      %38 = "csl.addressof_fn"() <{fn_name = @receive_chunk_cb0}> : () -> !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
-// CHECK-NEXT:      %39 = "csl.addressof_fn"() <{fn_name = @done_exchange_cb0}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:      "csl.member_call"(%18, %32, %33, %34, %35) <{field = "setCoeffs"}> : (!csl.imported_module, !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>) -> ()
+// CHECK-NEXT:      %36 = arith.constant 1 : i16
+// CHECK-NEXT:      %37 = "csl.addressof_fn"() <{fn_name = @receive_chunk_cb0}> : () -> !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:      %38 = "csl.addressof_fn"() <{fn_name = @done_exchange_cb0}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:      %send_dsd = memref.subview %arg11[0] [510] [1] : memref<511xf32> to memref<510xf32>
-// CHECK-NEXT:      "csl.member_call"(%18, %send_dsd, %37, %38, %39) <{field = "communicate"}> : (!csl.imported_module, memref<510xf32>, i16, !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>) -> ()
+// CHECK-NEXT:      "csl.member_call"(%18, %send_dsd, %36, %37, %38) <{field = "communicate"}> : (!csl.imported_module, memref<510xf32>, i16, !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>) -> ()
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @receive_chunk_cb0(%offset : i16) {
 // CHECK-NEXT:      %offset_1 = arith.index_cast %offset : i16 to index
 // CHECK-NEXT:      %arg11_1 = "csl.load_var"(%24) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
-// CHECK-NEXT:      %40 = arith.constant dense<1.234500e-01> : memref<510xf32>
-// CHECK-NEXT:      %41 = arith.constant 1 : i16
-// CHECK-NEXT:      %42 = "csl.get_dir"() <{dir = #csl<dir_kind west>}> : () -> !csl.direction
-// CHECK-NEXT:      %43 = "csl.member_call"(%18, %42, %41) <{field = "getRecvBufDsdByNeighbor"}> : (!csl.imported_module, !csl.direction, i16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:      %44 = builtin.unrealized_conversion_cast %43 : !csl<dsd mem1d_dsd> to memref<510xf32>
-// CHECK-NEXT:      %45 = memref.subview %arg11_1[1] [510] [1] : memref<511xf32> to memref<510xf32, strided<[1], offset: 1>>
-// CHECK-NEXT:      %46 = arith.constant 1 : i16
-// CHECK-NEXT:      %47 = "csl.get_dir"() <{dir = #csl<dir_kind south>}> : () -> !csl.direction
-// CHECK-NEXT:      %48 = "csl.member_call"(%18, %47, %46) <{field = "getRecvBufDsdByNeighbor"}> : (!csl.imported_module, !csl.direction, i16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:      %49 = builtin.unrealized_conversion_cast %48 : !csl<dsd mem1d_dsd> to memref<510xf32>
-// CHECK-NEXT:      %50 = memref.subview %accumulator[%offset_1] [510] [1] : memref<510xf32> to memref<510xf32, strided<[1], offset: ?>>
-// CHECK-NEXT:      "csl.fadds"(%50, %45, %49) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: 1>>, memref<510xf32>) -> ()
-// CHECK-NEXT:      "csl.fadds"(%50, %50, %44) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>, memref<510xf32>) -> ()
-// CHECK-NEXT:      %51 = arith.constant 1.234500e-01 : f32
-// CHECK-NEXT:      "csl.fmuls"(%50, %50, %51) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>, f32) -> ()
+// CHECK-NEXT:      %39 = arith.constant dense<1.234500e-01> : memref<510xf32>
+// CHECK-NEXT:      %40 = arith.constant 1 : i16
+// CHECK-NEXT:      %41 = "csl.get_dir"() <{dir = #csl<dir_kind west>}> : () -> !csl.direction
+// CHECK-NEXT:      %42 = "csl.member_call"(%18, %41, %40) <{field = "getRecvBufDsdByNeighbor"}> : (!csl.imported_module, !csl.direction, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:      %43 = builtin.unrealized_conversion_cast %42 : !csl<dsd mem1d_dsd> to memref<510xf32>
+// CHECK-NEXT:      %44 = memref.subview %arg11_1[1] [510] [1] : memref<511xf32> to memref<510xf32, strided<[1], offset: 1>>
+// CHECK-NEXT:      %45 = arith.constant 1 : i16
+// CHECK-NEXT:      %46 = "csl.get_dir"() <{dir = #csl<dir_kind south>}> : () -> !csl.direction
+// CHECK-NEXT:      %47 = "csl.member_call"(%18, %46, %45) <{field = "getRecvBufDsdByNeighbor"}> : (!csl.imported_module, !csl.direction, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:      %48 = builtin.unrealized_conversion_cast %47 : !csl<dsd mem1d_dsd> to memref<510xf32>
+// CHECK-NEXT:      %49 = memref.subview %accumulator[%offset_1] [510] [1] : memref<510xf32> to memref<510xf32, strided<[1], offset: ?>>
+// CHECK-NEXT:      "csl.fadds"(%49, %44, %48) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: 1>>, memref<510xf32>) -> ()
+// CHECK-NEXT:      "csl.fadds"(%49, %49, %43) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>, memref<510xf32>) -> ()
+// CHECK-NEXT:      %50 = arith.constant 1.234500e-01 : f32
+// CHECK-NEXT:      "csl.fmuls"(%49, %49, %50) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>, f32) -> ()
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @done_exchange_cb0() {
@@ -686,21 +685,21 @@
 // CHECK-NEXT:      %arg11_2 = "csl.load_var"(%24) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
 // CHECK-NEXT:      scf.if %arg9 {
 // CHECK-NEXT:      } else {
-// CHECK-NEXT:        %52 = memref.subview %arg12_1[0] [510] [1] : memref<511xf32> to memref<510xf32>
-// CHECK-NEXT:        "memref.copy"(%accumulator, %52) : (memref<510xf32>, memref<510xf32>) -> ()
+// CHECK-NEXT:        %51 = memref.subview %arg12_1[0] [510] [1] : memref<511xf32> to memref<510xf32>
+// CHECK-NEXT:        "memref.copy"(%accumulator, %51) : (memref<510xf32>, memref<510xf32>) -> ()
 // CHECK-NEXT:      }
 // CHECK-NEXT:      "csl.call"() <{callee = @for_inc0}> : () -> ()
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @for_inc0() {
-// CHECK-NEXT:      %53 = arith.constant 1 : i16
-// CHECK-NEXT:      %54 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
-// CHECK-NEXT:      %55 = arith.addi %54, %53 : i16
-// CHECK-NEXT:      "csl.store_var"(%23, %55) : (!csl.var<i16>, i16) -> ()
-// CHECK-NEXT:      %56 = "csl.load_var"(%24) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
-// CHECK-NEXT:      %57 = "csl.load_var"(%25) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
-// CHECK-NEXT:      "csl.store_var"(%24, %57) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
-// CHECK-NEXT:      "csl.store_var"(%25, %56) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
+// CHECK-NEXT:      %52 = arith.constant 1 : i16
+// CHECK-NEXT:      %53 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
+// CHECK-NEXT:      %54 = arith.addi %53, %52 : i16
+// CHECK-NEXT:      "csl.store_var"(%23, %54) : (!csl.var<i16>, i16) -> ()
+// CHECK-NEXT:      %55 = "csl.load_var"(%24) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
+// CHECK-NEXT:      %56 = "csl.load_var"(%25) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
+// CHECK-NEXT:      "csl.store_var"(%24, %56) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
+// CHECK-NEXT:      "csl.store_var"(%25, %55) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
 // CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }

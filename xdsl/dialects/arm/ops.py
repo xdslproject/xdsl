@@ -12,7 +12,7 @@ from xdsl.irdl import (
     result_def,
 )
 
-from .assembly import AssemblyInstructionArg
+from .assembly import AssemblyInstructionArg, reg
 from .register import IntRegisterType
 
 
@@ -63,7 +63,7 @@ class DSMovOp(ARMInstruction):
     """
     Copies the value of s into d.
 
-    https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/mov
+    See external [documentation](https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/mov).
     """
 
     name = "arm.ds.mov"
@@ -91,9 +91,7 @@ class DSMovOp(ARMInstruction):
         )
 
     def assembly_line_args(self):
-        assert isinstance(self.d.type, IntRegisterType)
-        assert isinstance(self.s.type, IntRegisterType)
-        return (self.d.type, self.s.type)
+        return (reg(self.d), reg(self.s))
 
 
 @irdl_op_definition
@@ -119,7 +117,7 @@ class DSSMulOp(ARMInstruction):
     """
     Multiplies the values in s1 and s2 and stores the result in d.
 
-    https://developer.arm.com/documentation/ddi0597/2024-06/Base-Instructions/MUL--MULS--Multiply-?lang=en
+    See external [documentation](https://developer.arm.com/documentation/ddi0597/2024-06/Base-Instructions/MUL--MULS--Multiply-?lang=en).
     """
 
     name = "arm.dss.mul"
@@ -151,10 +149,7 @@ class DSSMulOp(ARMInstruction):
         )
 
     def assembly_line_args(self):
-        assert isinstance(self.d.type, IntRegisterType)
-        assert isinstance(self.s1.type, IntRegisterType)
-        assert isinstance(self.s2.type, IntRegisterType)
-        return (self.d.type, self.s1.type, self.s2.type)
+        return (reg(self.d), reg(self.s1), reg(self.s2))
 
 
 @irdl_op_definition
@@ -162,7 +157,8 @@ class LabelOp(ARMOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
-    https://developer.arm.com/documentation/dui0801/l/Symbols--Literals--Expressions--and-Operators/Labels
+
+    See external [documentation](https://developer.arm.com/documentation/dui0801/l/Symbols--Literals--Expressions--and-Operators/Labels).
     """
 
     name = "arm.label"
@@ -198,7 +194,8 @@ class CmpRegOp(ARMInstruction):
     """
     Compare (register) subtracts an optionally-shifted register value from a register value.
     It updates the condition flags based on the result, and discards the result.
-    https://developer.arm.com/documentation/ddi0597/2024-12/Base-Instructions/CMP--register---Compare--register--?lang=en
+
+    See external [documentation](https://developer.arm.com/documentation/ddi0597/2024-12/Base-Instructions/CMP--register---Compare--register--?lang=en).
     """
 
     name = "arm.cmp"
@@ -225,6 +222,4 @@ class CmpRegOp(ARMInstruction):
         )
 
     def assembly_line_args(self):
-        assert isinstance(self.s1.type, IntRegisterType)
-        assert isinstance(self.s2.type, IntRegisterType)
-        return (self.s1.type, self.s2.type)
+        return (reg(self.s1), reg(self.s2))

@@ -119,6 +119,7 @@ class Printer(BasePrinter):
                 self.print_string(arg)
                 continue
             if isinstance(arg, SSAValue):
+                arg = cast(SSAValue[Attribute], arg)
                 self.print_ssa_value(arg)
                 continue
             if isinstance(arg, Attribute):
@@ -715,9 +716,16 @@ class Printer(BasePrinter):
         *,
         reserved_attr_names: Iterable[str] = (),
         print_keyword: bool = False,
-    ) -> None:
+    ) -> bool:
+        """
+        Prints the attribute dictionary of an operation, with an optional `attributes`
+        keyword.
+        Values for `reserved_attr_names` are not printed even if present.
+        If the printed dictionary would be empty, then nothing is printed, and this
+        function returns False.
+        """
         if not attributes:
-            return
+            return False
 
         if reserved_attr_names:
             attributes = {
@@ -727,13 +735,14 @@ class Printer(BasePrinter):
             }
 
         if not attributes:
-            return
+            return False
 
         if print_keyword:
             self.print_string(" attributes")
 
         self.print_string(" ")
         self.print_attr_dict(attributes)
+        return True
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)

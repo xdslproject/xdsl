@@ -15,7 +15,7 @@ from typing import (
     get_origin,
 )
 
-from xdsl.ir import ParametrizedAttribute
+from xdsl.ir import ParametrizedAttribute, SSAValue
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -101,6 +101,12 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
             return True
         except VerifyException:
             return False
+
+    if origin is SSAValue:
+        if not isinstance(arg, SSAValue):
+            return False
+        arg = cast(SSAValue, arg)
+        return isa(arg.type, get_args(hint)[0])
 
     raise ValueError(f"isa: unsupported type hint '{hint}' {get_origin(hint)}")
 

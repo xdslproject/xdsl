@@ -697,7 +697,9 @@ def test_block_argument_type_change():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.modify_value_type(matched_op.regs[0].blocks[0].args[0], i64)
+                rewriter.replace_value_with_new_type(
+                    matched_op.regs[0].blocks[0].args[0], i64
+                )
 
     rewrite_and_compare(
         prog,
