@@ -40,7 +40,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     SameVariadicResultSize,
-    SameVariadicOperandSize,
     VarConstraint,
     base,
     irdl_op_definition,
