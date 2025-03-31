@@ -80,7 +80,7 @@ class TypeConverter:
 
         # Otherwise, it must be some frontend type, and we can look up its class
         # using the imports.
-        elif type_name not in self.globals:
+        if type_name not in self.globals:
             raise CodeGenerationException(
                 self.file,
                 type_hint.lineno,

@@ -95,7 +95,7 @@ class FrontendProgram:
                 "p = FrontendProgram()\n"
                 "with CodeContext(p):\n"
                 "    pass  # Your code here.\n"
-                "p.compile()\n"
+                "p.compile()"
             )
             raise FrontendProgramException(msg)
 
