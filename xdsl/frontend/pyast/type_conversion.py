@@ -2,6 +2,7 @@ import ast
 from dataclasses import dataclass, field
 from typing import (
     Any,
+    NamedTuple,
     TypeAlias,
     _GenericAlias,  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
 )
@@ -13,9 +14,16 @@ from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
 from xdsl.frontend.pyast.exception import CodeGenerationException
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, TypeAttribute
 
 TypeName: TypeAlias = str
+
+
+class SourceIrTypePair(NamedTuple):
+    """Pair of types for source code and its generated IR."""
+
+    source: type
+    ir: type[TypeAttribute]
 
 
 @dataclass
