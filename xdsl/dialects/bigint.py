@@ -21,7 +21,7 @@ from xdsl.irdl import (
     result_def,
     traits_def,
 )
-from xdsl.traits import Commutative, Pure
+from xdsl.traits import Commutative, Pure, SameOperandsAndResultType
 
 
 @irdl_attr_definition
@@ -68,6 +68,7 @@ class AddBigIntOp(BigIntegerBinaryOperation):
     traits = traits_def(
         Pure(),
         Commutative(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
@@ -82,6 +83,7 @@ class SubBigIntOp(BigIntegerBinaryOperation):
     traits = traits_def(
         Pure(),
         Commutative(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
@@ -96,6 +98,7 @@ class MulBigIntOp(BigIntegerBinaryOperation):
     traits = traits_def(
         Pure(),
         Commutative(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
@@ -109,6 +112,7 @@ class FloorDivBigIntOp(BigIntegerBinaryOperation):
 
     traits = traits_def(
         Pure(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
@@ -122,6 +126,7 @@ class ModBigIntOp(BigIntegerBinaryOperation):
 
     traits = traits_def(
         Pure(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
@@ -135,6 +140,7 @@ class PowBigIntOp(BigIntegerBinaryOperation):
 
     traits = traits_def(
         Pure(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
@@ -148,6 +154,7 @@ class LShiftBigIntOp(BigIntegerBinaryOperation):
 
     traits = traits_def(
         Pure(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
@@ -161,6 +168,7 @@ class RShiftBigIntOp(BigIntegerBinaryOperation):
 
     traits = traits_def(
         Pure(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
@@ -175,6 +183,7 @@ class BitOrBigIntOp(BigIntegerBinaryOperation):
     traits = traits_def(
         Pure(),
         Commutative(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
@@ -189,6 +198,7 @@ class BitXorBigIntOp(BigIntegerBinaryOperation):
     traits = traits_def(
         Pure(),
         Commutative(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
@@ -203,6 +213,7 @@ class BitAndBigIntOp(BigIntegerBinaryOperation):
     traits = traits_def(
         Pure(),
         Commutative(),
+        SameOperandsAndResultType(),
     )
 
     @staticmethod
