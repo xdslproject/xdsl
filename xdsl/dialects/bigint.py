@@ -1,7 +1,27 @@
 """Dialect for arbitrary-precision integers."""
 
-from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
-from xdsl.irdl import irdl_attr_definition
+import abc
+from typing import ClassVar
+
+from xdsl.dialects.builtin import ContainerOf
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    Operation,
+    ParametrizedAttribute,
+    SSAValue,
+    TypeAttribute,
+)
+from xdsl.irdl import (
+    IRDLOperation,
+    VarConstraint,
+    irdl_attr_definition,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+    traits_def,
+)
+from xdsl.traits import Commutative, Pure
 
 
 @irdl_attr_definition
@@ -13,11 +33,54 @@ class BigIntegerType(ParametrizedAttribute, TypeAttribute):
     name = "bigint.bigint"
 
 
+bigIntegerLike = ContainerOf(BigIntegerType)
+
+
+class BigIntegerBinaryOperation(IRDLOperation, abc.ABC):
+    T: ClassVar = VarConstraint("T", bigIntegerLike)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int:
+        """Performs a python function corresponding to this operation."""
+        ...
+
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        super().__init__(operands=[operand1, operand2], result_types=[result_type])
+
+
+@irdl_op_definition
+class AddBigIntOp(BigIntegerBinaryOperation):
+    name = "bigint.add"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int:
+        """Performs a python function corresponding to this operation."""
+        return lhs + rhs
+
+
 bigint = BigIntegerType()
 
 BigInt = Dialect(
     "bigint",
-    [],
+    [AddBigIntOp],
     [
         BigIntegerType,
     ],
