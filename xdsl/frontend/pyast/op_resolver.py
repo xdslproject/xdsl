@@ -4,7 +4,6 @@ import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from xdsl.dialects.bigint import BigIntegerType
 from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
@@ -31,7 +30,7 @@ class OpResolver:
 
     @staticmethod
     def resolve_op_overload(
-        python_op: str, frontend_type: type[_FrontendType | BigIntegerType]
+        python_op: str, frontend_type: type[_FrontendType]
     ) -> Callable[..., Operation]:
         # First, get overloaded function.
         if not hasattr(frontend_type, python_op):
