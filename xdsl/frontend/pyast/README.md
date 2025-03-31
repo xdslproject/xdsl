@@ -72,3 +72,45 @@ builtin.module() {
   }
 }
 ```
+
+## Implementation notes
+
+```
+├── block.py                : Mark functions as basic blocks using a decorator.
+├── code_generation.py      : Walk AST to generate xDSL from nodes. Simple
+                              operands and control flow supported. Explicitly
+                              no support for assignment. Implicitly no support
+                              for complex structures such as classes
+├── const.py                : Mark variables as compile-time constants using a
+                              type hint.
+├── context.py              : Context manager which parses its inner context
+                              into a provided FrontendProgram, checking its
+                              well-formedness on exit.
+├── dialects
+│   ├── arith.py            : Stubs and mappings for a subset of xDSL arith
+│   └── builtin.py          : Stubs and mappings for a subset of xDSL builtin
+├── exception.py            : Custom exceptions for the frontend and code 
+                              generation
+├── op_inserter.py          : Helper class to add operations from a stack to the
+                              end of an operation/region/block
+├── op_resolver.py          : Helper class to map frontend to xDSL operations
+                              - `resolve_op` gets xDSL ops using "resolve_"
+                                prefixed functions in dialects/
+                              - `resolve_op_overload` ...?
+├── passes
+│   └── desymref.py         : Lower symref dialect into SSA form
+├── program.py              : Helper class to store, compile and print the code
+├── python_code_check.py    : Performs two checks for whether the code in the
+                              context is supported:
+                              1. Structure doesn't have nested block and blocks
+                                 have explicit terminators
+                              2. Guaranteeing and inlining constant values
+├── symref.py               : Custom dialect to express typed variable semantics
+                              like alloca but with symbols rather than memory
+                              addresses
+└── type_conversion.py      : Convert python type hints to xDSL types
+                              - Caches conversions for performance
+                              - `_convert_name` handles generic and concrete
+                                type hint mappings into xDSL
+                              - `convert_type_hint` wraps it with unimplemented features
+```
