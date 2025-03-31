@@ -1063,7 +1063,7 @@ class Conv2DNgchwFgchwOp(ConvOpsBase):
 
 
 @irdl_op_definition
-class Conv2DNgchwGfchw(ConvOpsBase):
+class Conv2DNgchwGfchwOp(ConvOpsBase):
     name = "linalg.conv_2d_ngchw_gfchw"
 
 
@@ -1073,12 +1073,12 @@ class Conv2DNhwc_FhwcOp(ConvOpsBase):
 
 
 @irdl_op_definition
-class Conv2DNhwc_Hwcf(ConvOpsBase):
+class Conv2DNhwc_HwcfOp(ConvOpsBase):
     name = "linalg.conv_2d_nhwc_hwcf"
 
 
 @irdl_op_definition
-class Conv2DNhwgcGfhwc(ConvOpsBase):
+class Conv2DNhwgcGfhwcOp(ConvOpsBase):
     name = "linalg.conv_2d_nhwgc_gfhwc"
 
 
@@ -1214,10 +1214,10 @@ Linalg = Dialect(
         QuantizedMatmulOp,
         PoolingNchwMaxOp,
         Conv2DNchwFchwOp,
-        Conv2DNhwgcGfhwc,
-        Conv2DNhwc_Hwcf,
-        Conv2DNgchwGfchw,
-        Conv2DNhwgcGfhwc,
+        Conv2DNhwgcGfhwcOp,
+        Conv2DNhwc_HwcfOp,
+        Conv2DNgchwGfchwOp,
+        Conv2DNhwgcGfhwcOp,
         BroadcastOp,
     ],
     [
