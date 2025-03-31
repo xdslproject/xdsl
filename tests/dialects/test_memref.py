@@ -28,7 +28,6 @@ from xdsl.dialects.memref import (
     ExtractStridedMetaDataOp,
     LoadOp,
     MemorySpaceCastOp,
-    ReinterpretCastOp,
     StoreOp,
     SubviewOp,
 )
