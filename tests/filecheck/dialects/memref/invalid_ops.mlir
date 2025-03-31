@@ -41,7 +41,7 @@ builtin.module {
 
 "func.func"() ({
   %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
-  %1 = "memref.reinterpret_cast"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: 1}> : (memref<10x2xindex>) -> memref<10x2xindex, strided<[1, 1]>>
+  %1 = "memref.reinterpret_cast"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: 5>, static_strides = array<i64: 1>}> : (memref<10x2xindex>) -> memref<10x2xindex, strided<[1, 1]>>
   "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
 
@@ -67,4 +67,4 @@ builtin.module {
   "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
 
-// CHECK: Expected result type with dynamic size instead of 2 in dim = 0
+// CHECK: Expected result type with dynamic size instead of 5 in dim = 0
