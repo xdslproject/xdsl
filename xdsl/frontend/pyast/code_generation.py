@@ -206,7 +206,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
 
         op = self.method_registry[op_key]
-        self.inserter.insert_op(op(lhs, rhs))
+        self.inserter.insert_op(
+            op(lhs, rhs)  # pyright: ignore[reportCallIssue]
+        )
 
     def visit_Compare(self, node: ast.Compare):
         # Allow a single comparison only.
