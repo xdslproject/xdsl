@@ -1154,7 +1154,7 @@ class ReinterpretCastOp(IRDLOperation):
             zip(
                 self.result.type.get_shape(),
                 cast(tuple[int], self.static_sizes.get_values()),
-                strict=True
+                strict=True,
             )
         ):
             if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != -1:
