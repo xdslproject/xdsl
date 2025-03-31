@@ -480,18 +480,22 @@ class IRWithUses(ABC):
 
 
 @dataclass(eq=False)
-class SSAValue(IRWithUses, ABC):
+class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
     """
     A reference to an SSA variable.
     An SSA variable is either an operation result, or a basic block argument.
     """
 
-    type: Attribute
+    _type: AttributeCovT
     """Each SSA variable is associated to a type."""
 
     _name: str | None = field(init=False, default=None)
 
     _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
+
+    @property
+    def type(self) -> AttributeCovT:
+        return self._type
 
     @property
     @abstractmethod
@@ -585,7 +589,7 @@ class SSAValue(IRWithUses, ABC):
 
 
 @dataclass(eq=False)
-class OpResult(SSAValue):
+class OpResult(Generic[AttributeCovT], SSAValue[AttributeCovT]):
     """A reference to an SSA variable defined by an operation result."""
 
     op: Operation
@@ -603,7 +607,7 @@ class OpResult(SSAValue):
 
 
 @dataclass(eq=False)
-class BlockArgument(SSAValue):
+class BlockArgument(Generic[AttributeCovT], SSAValue[AttributeCovT]):
     """A reference to an SSA variable defined by a basic block argument."""
 
     block: Block

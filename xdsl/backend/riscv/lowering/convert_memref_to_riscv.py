@@ -341,7 +341,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
         source_type = source.type
         assert isinstance(source_type, MemRefType)
         source_type = cast(MemRefType[Attribute], source_type)
-        result_type = cast(MemRefType[Attribute], result.type)
+        result_type = result.type
 
         result_layout_attr = result_type.layout
         if isinstance(result_layout_attr, NoneAttr):
