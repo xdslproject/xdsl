@@ -9,6 +9,7 @@ from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.passes.desymref import Desymrefier
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import TypeConverter
+from xdsl.ir import TypeAttribute
 from xdsl.printer import Printer
 
 
@@ -34,16 +35,22 @@ class FrontendProgram:
     file: str | None = field(default=None)
     """Path to the file that contains the program."""
 
+    def register_type(self, source_type: type, ir_type: TypeAttribute) -> None:
+        """Associate a type in the source code with its type in the IR."""
+        raise NotImplementedError()
+
     def _check_can_compile(self):
+        """Check if the context required for compilation has been created."""
         if self.stmts is None or self.globals is None:
-            msg = """
-Cannot compile program without the code context. Try to use:
-    p = FrontendProgram()
-    with CodeContext(p):
-        # Your code here."""
+            msg = (
+                "Cannot compile program without the code context. Consider using:\n\n"
+                "p = FrontendProgram()\n"
+                "with CodeContext(p):\n"
+                "    pass  # Your code here."
+            )
             raise FrontendProgramException(msg)
 
-    def compile(self, desymref: bool = True) -> None:
+    def compile(self, verify: bool = True, desymref: bool = True) -> None:
         """Generates xDSL from the source program."""
 
         # Both statements and globals msut be initialized from within the
@@ -56,7 +63,10 @@ Cannot compile program without the code context. Try to use:
         self.xdsl_program = CodeGeneration.run_with_type_converter(
             type_converter, self.functions_and_blocks, self.file
         )
-        self.xdsl_program.verify()
+
+        # Optionally run a verification pass on the generated program.
+        if verify:
+            self.xdsl_program.verify()
 
         # Optionally run desymrefication pass to produce actual SSA.
         if desymref:
@@ -70,15 +80,17 @@ Cannot compile program without the code context. Try to use:
 
     def _check_can_print(self):
         if self.xdsl_program is None:
-            msg = """
-Cannot print the program IR without compiling it first. Make sure to use:
-    p = FrontendProgram()
-    with CodeContext(p):
-        # Your code here.
-    p.compile()"""
+            msg = (
+                "Cannot print the program IR without compiling it first. Consider using:\n\n"
+                "p = FrontendProgram()\n"
+                "with CodeContext(p):\n"
+                "    pass  # Your code here.\n"
+                "p.compile()\n"
+            )
             raise FrontendProgramException(msg)
 
     def textual_format(self) -> str:
+        """Get a string representation of the program."""
         self._check_can_print()
         assert self.xdsl_program is not None
 
