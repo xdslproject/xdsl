@@ -2,10 +2,10 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    ":semanticCommitTypeAll(CI)",
+    ":semanticCommitTypeAll(dependencies)",
     ":semanticCommitScopeDisabled"
   ],
   "labels": [
-    "CI"
+    "dependencies"
   ]
 }
