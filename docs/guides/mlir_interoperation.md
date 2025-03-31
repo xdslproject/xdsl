@@ -1,4 +1,4 @@
-## Generating executables through MLIR
+# Generating executables through MLIR
 
 xDSL can interoperate with MLIR as its backend. As this
 requires an installation, and therefore a compilation, of a lot of the LLVM

@@ -1,7 +1,7 @@
 """
 Generic implementation of a disjoint set data structure.
 
-https://en.wikipedia.org/wiki/Disjoint-set_data_structure
+See external [documentation](https://en.wikipedia.org/wiki/Disjoint-set_data_structure).
 """
 
 from collections.abc import Hashable, Sequence

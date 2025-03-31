@@ -32,7 +32,8 @@ class GlobalOp(IRDLOperation):
     """
     Module level declaration of a global variable
 
-    See https://mlir.llvm.org/docs/Dialects/MLProgramOps/#ml_programglobal-ml_programglobalop
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/MLProgramOps/#ml_programglobal-ml_programglobalop).
     """
 
     name = "ml_program.global"
@@ -116,7 +117,8 @@ class GlobalLoadConstantOp(IRDLOperation):
     """
     Direct load a constant value from a global
 
-    See https://mlir.llvm.org/docs/Dialects/MLProgramOps/#ml_programglobal_load_const-ml_programgloballoadconstop
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/MLProgramOps/#ml_programglobal_load_const-ml_programgloballoadconstop).
     """
 
     name = "ml_program.global_load_const"

@@ -400,7 +400,7 @@ class VarResultDef(ResultDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-class VarOpResult(tuple[OpResult, ...]):
+class VarOpResult(Generic[AttributeInvT], tuple[OpResult[AttributeInvT], ...]):
     @property
     def types(self):
         return tuple(r.type for r in self)
@@ -411,7 +411,7 @@ class OptResultDef(VarResultDef, OptionalDef):
     """An IRDL optional result definition."""
 
 
-OptOpResult: TypeAlias = OpResult | None
+OptOpResult: TypeAlias = OpResult[AttributeInvT] | None
 
 
 @dataclass(init=True)
@@ -596,42 +596,46 @@ class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
 
 
 def result_def(
-    constraint: IRDLAttrConstraint = Attribute,
+    constraint: IRDLGenericAttrConstraint[AttributeInvT] = Attribute,
     *,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> OpResult:
+) -> OpResult[AttributeInvT]:
     """
     Defines a result of an operation.
     """
-    return cast(OpResult, _ResultFieldDef(ResultDef, constraint))
+    return cast(OpResult[AttributeInvT], _ResultFieldDef(ResultDef, constraint))
 
 
 def var_result_def(
-    constraint: RangeConstraint | IRDLAttrConstraint = Attribute,
+    constraint: (
+        GenericRangeConstraint[AttributeInvT] | IRDLGenericAttrConstraint[AttributeInvT]
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> VarOpResult:
+) -> VarOpResult[AttributeInvT]:
     """
     Defines a variadic result of an operation.
     """
-    return cast(VarOpResult, _ResultFieldDef(VarResultDef, constraint))
+    return cast(VarOpResult[AttributeInvT], _ResultFieldDef(VarResultDef, constraint))
 
 
 def opt_result_def(
-    constraint: RangeConstraint | IRDLAttrConstraint = Attribute,
+    constraint: (
+        GenericRangeConstraint[AttributeInvT] | IRDLGenericAttrConstraint[AttributeInvT]
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> OptOpResult:
+) -> OptOpResult[AttributeInvT]:
     """
     Defines an optional result of an operation.
     """
-    return cast(OptOpResult, _ResultFieldDef(OptResultDef, constraint))
+    return cast(OptOpResult[AttributeInvT], _ResultFieldDef(OptResultDef, constraint))
 
 
 def prop_def(

@@ -360,6 +360,9 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     attr: type[AttributeCovT]
     """The expected attribute base type."""
 
+    def __repr__(self):
+        return f"BaseAttr({self.attr.__name__})"
+
     def verify(
         self,
         attr: Attribute,
@@ -568,6 +571,9 @@ class ParamAttrConstraint(
         )
         object.__setattr__(self, "base_attr", base_attr)
         object.__setattr__(self, "param_constrs", constrs)
+
+    def __repr__(self):
+        return f"ParamAttrConstraint({self.base_attr.__name__}, {repr(self.param_constrs)})"
 
     def verify(
         self,

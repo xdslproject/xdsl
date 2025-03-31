@@ -12,7 +12,8 @@ builtin.module {
       #csl_wrapper.param<"param_with_value" default=512 : i16>,
       #csl_wrapper.param<"param_without_value" : i16>
     ],
-    "program_name" = "params_as_consts_func"
+    "program_name" = "params_as_consts_func",
+    "target" = "wse2"
   }> ({
   ^0(%x : i16, %y : i16, %width : i16, %height : i16, %param_with_value : i16, %param_without_value : i16):
     %memparams = "test.op"() : () -> !csl.comptime_struct
@@ -113,7 +114,8 @@ builtin.module {
       #csl_wrapper.param<"chunk_size" default=255 : i16>,
       #csl_wrapper.param<"padded_z_dim" default=510 : i16>
     ],
-    "program_name" = "gauss_seidel_func"
+    "program_name" = "gauss_seidel_func",
+    "target" = "wse2"
   }> ({
   ^0(%xDim : i16, %yDim : i16, %width : i16, %height : i16, %zDim : i16, %pattern : i16, %num_chunks : i16, %chunk_size : i16, %padded_z_dim : i16):
     %getParamsMod = "csl_wrapper.import"(%width, %height) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height"]}> : (i16, i16) -> !csl.imported_module
