@@ -53,6 +53,8 @@ class Test_AttributesOp(IRDLOperation):
 
     in_ = prop_def(BaseAttr(Test_TestAttr), prop_name="in")
 
+    opt = opt_prop_def(BaseAttr(Test_TestAttr))
+
 
 @irdl_op_definition
 class Test_ConfinedOp(IRDLOperation):
