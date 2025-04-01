@@ -70,8 +70,7 @@ module {
       // %2 = pdl_interp.create_operation "arith.addi"(%arg3, %1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
       %2 = "pdl_interp.create_operation"(%arg3, %1, %arg2) <{inputAttributeNames = [], name = "arith.addi", operandSegmentSizes = array<i32: 2, 0, 1>}> : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
       %3 = pdl_interp.get_result 0 of %2
-      // %4 = pdl_interp.get_results of %2 : !pdl.range<value>
-      %4 = "pdl_interp.get_results"(%2) : (!pdl.operation) -> !pdl.range<value>
+      %4 = pdl_interp.get_results of %2 : !pdl.range<value>
       pdl_interp.replace %arg4 with (%4 : !pdl.range<value>)
       pdl_interp.finalize
     }
