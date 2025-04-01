@@ -39,6 +39,23 @@ def Test_AnyOp : Test_Op<"any"> {
   let arguments = (ins AnyType:$in);
 }
 
+// Check assembly format is converted correctly.
+def Test_AssemblyFormat : Test_Op<"assembly"> {
+  let assemblyFormat = "attr-dict";
+}
+
+// Check assembly format is converted correctly.
+def Test_AssemblyFormatLong : Test_Op<"assembly_long"> {
+  let assemblyFormat = [{
+      `a`
+      `very`
+      `long`
+      `assembly`
+      `format`
+      attr-dict
+  }];
+}
+
 // Check attributes are converted correctly.
 def Test_AttributesOp : Test_Op<"attributes"> {
   let arguments = (ins I16Attr:$int_attr,

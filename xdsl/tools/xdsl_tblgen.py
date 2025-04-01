@@ -411,7 +411,7 @@ class TblgenLoader:
 
         assembly = tblgen_op.assembly_format
         if assembly is not None and "custom" not in assembly:
-            fields["assembly_format"] = assembly
+            fields["assembly_format"] = '"""' + assembly + '"""'
 
         for [arg, orig_name] in tblgen_op.arguments:
             name = self._resolve_name(orig_name)
@@ -580,6 +580,9 @@ def tblgen_to_dialect(
         capture_output=True,
         text=True,
     )
+
+    if output.stderr:
+        raise Exception(f"Formatting failed: {output.stderr}")
 
     print(output.stdout, file=output_file, end="")
 
