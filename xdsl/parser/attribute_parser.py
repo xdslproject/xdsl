@@ -257,8 +257,9 @@ class AttrParser(BaseParser):
             param_list = attr_def.parse_parameters(self)
             return attr_def.new(param_list)
         elif issubclass(attr_def, Data):
-            param: Any = attr_def.parse_parameter(self)
-            return cast(Data[Any], attr_def(param))
+            _attr_def = cast(type[Data[Any]], attr_def)
+            param = _attr_def.parse_parameter(self)
+            return _attr_def(param)
         else:
             raise TypeError("Attributes are either ParametrizedAttribute or Data.")
 
