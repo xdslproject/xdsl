@@ -30,7 +30,7 @@ optimization capabilities.
 - [Getting Started](#getting-started)
 - [xDSL Developer Setup](#xdsl-developer-setup)
   - [Developer Installation](#developer-installation)
-  - [Testing](#testing)
+  - [Testing and benchmarking](#testing-and-benchmarking)
   - [Formatting and Typechecking](#formatting-and-typechecking)
 
 ## Installation

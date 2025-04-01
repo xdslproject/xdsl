@@ -212,7 +212,7 @@ func.func @stencil_two_stores(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.fi
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-func.func @apply_kernel(%0 : !stencil.field<[-2,13]x[-2,13]xf32>, %1 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr)  attributes {"param_names" = ["u_vec_1", "u_vec", "timers"]}{
+func.func @apply_kernel(%0 : !stencil.field<[-2,13]x[-2,13]xf32>, %1 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr)  attributes {"param_names" = ["u_vec_1", "u_vec", "timers"]} {
   %2 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
   %u_vec = builtin.unrealized_conversion_cast %2 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
   %3 = builtin.unrealized_conversion_cast %1 : !stencil.field<[-2,13]x[-2,13]xf32> to memref<15x15xf32>
@@ -236,7 +236,7 @@ func.func @apply_kernel(%0 : !stencil.field<[-2,13]x[-2,13]xf32>, %1 : !stencil.
   func.return
 }
 
-// CHECK:         func.func @apply_kernel(%0 : !stencil.field<[-2,13]x[-2,13]xf32>, %1 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr)  attributes {param_names = ["u_vec_1", "u_vec", "timers"]}{
+// CHECK:         func.func @apply_kernel(%0 : !stencil.field<[-2,13]x[-2,13]xf32>, %1 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr)  attributes {param_names = ["u_vec_1", "u_vec", "timers"]} {
 // CHECK-NEXT:      %2 = "gpu.alloc"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
 // CHECK-NEXT:      %u_vec = builtin.unrealized_conversion_cast %2 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
 // CHECK-NEXT:      %3 = builtin.unrealized_conversion_cast %1 : !stencil.field<[-2,13]x[-2,13]xf32> to memref<15x15xf32>
@@ -341,7 +341,7 @@ func.func @stencil_init_index_offset(%0 : !stencil.field<[0,64]x[0,64]x[0,64]xin
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {"stencil.program"}{
+func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {"stencil.program"} {
   %0, %1 = stencil.apply(%arg1 = %arg0 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
     %true = "test.pureop"() : () -> i1
     %2, %3 = scf.if %true -> (!stencil.result<f64>, f64) {
@@ -359,7 +359,7 @@ func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>,
   func.return
 }
 
-// CHECK:         func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {stencil.program}{
+// CHECK:         func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {stencil.program} {
 // CHECK-NEXT:      stencil.apply(%arg1 = %arg0 : f64) outs (%b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>) {
 // CHECK-NEXT:        %true = "test.pureop"() : () -> i1
 // CHECK-NEXT:        %0, %1 = scf.if %true -> (!stencil.result<f64>, f64) {

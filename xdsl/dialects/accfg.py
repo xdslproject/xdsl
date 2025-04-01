@@ -341,14 +341,19 @@ class SetupOp(IRDLOperation):
             attributes = parser.parse_optional_attr_dict()
 
         parser.parse_punctuation(":")
+        pos = parser.pos
         res_typ = parser.parse_type()
+        if res_typ != StateType(accelerator):
+            parser.raise_error(
+                f"expected {StateType(accelerator)}, but got {res_typ}", pos
+            )
+
         setup_op = cls(
             [val for _, val in args],
             [name for name, _ in args],
             accelerator,
             in_state,
         )
-        setup_op.out_state.type = res_typ
         setup_op.attributes.update(attributes)
         return setup_op
 

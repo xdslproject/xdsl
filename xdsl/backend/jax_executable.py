@@ -7,7 +7,7 @@ import numpy as np
 from jax import Array
 from jax._src import xla_bridge
 from jax._src.interpreters import mlir
-from jax._src.typing import SupportsDType
+from jax._src.typing import SupportsDType  # pyright: ignore[reportPrivateImportUsage]
 from jaxlib.mlir import ir
 from jaxlib.xla_client import LoadedExecutable
 
@@ -84,9 +84,9 @@ class JaxExecutable:
 
         program = str(module)
 
-        mlir_module = ir.Module.parse(program, context=mlir.make_ir_context())
-        bytecode = mlir.module_to_bytecode(mlir_module)
-        client = xla_bridge.backends()["cpu"]
+        mlir_module = ir.Module.parse(program, context=mlir.make_ir_context())  # pyright: ignore[reportPrivateImportUsage]
+        bytecode = mlir.module_to_bytecode(mlir_module)  # pyright: ignore[reportPrivateImportUsage]
+        client = xla_bridge.backends()["cpu"]  # pyright: ignore[reportPrivateImportUsage]
         loaded = client.compile(bytecode)
         return JaxExecutable(func_op.function_type, loaded)
 

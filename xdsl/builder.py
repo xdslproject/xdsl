@@ -50,7 +50,7 @@ class Builder(BuilderListener):
     A helper class to construct IRs, by keeping track of where to insert an
     operation. It mimics the OpBuilder class from MLIR.
 
-    https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html
+    See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html).
     """
 
     insertion_point: InsertPoint

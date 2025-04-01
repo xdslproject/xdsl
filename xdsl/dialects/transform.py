@@ -66,7 +66,7 @@ class TransformParamHandleType(TransformHandleType, ABC):
 @irdl_attr_definition
 class AffineMapType(TransformHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#affinemapparamtype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#affinemapparamtype).
     """
 
     name = "transform.affine_map"
@@ -75,7 +75,7 @@ class AffineMapType(TransformHandleType):
 @irdl_attr_definition
 class AnyOpType(TransformOpHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#anyoptype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#anyoptype).
     """
 
     name = "transform.any_op"
@@ -84,7 +84,7 @@ class AnyOpType(TransformOpHandleType):
 @irdl_attr_definition
 class AnyValueType(TransformValueHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#anyvaluetype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#anyvaluetype).
     """
 
     name = "transform.any_value"
@@ -98,7 +98,7 @@ class AnyParamType(TransformParamHandleType):
 @irdl_attr_definition
 class OperationType(TransformOpHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#operationtype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#operationtype).
     """
 
     name = "transform.op"
@@ -111,7 +111,7 @@ class OperationType(TransformOpHandleType):
 @irdl_attr_definition
 class ParamType(TransformParamHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#paramtype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#paramtype).
     """
 
     name = "transform.param"
@@ -124,7 +124,7 @@ class ParamType(TransformParamHandleType):
 @irdl_attr_definition
 class TypeParamType(TransformParamHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#typeparamtype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#typeparamtype).
     """
 
     name = "transform.type"
@@ -150,7 +150,7 @@ AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
 @irdl_op_definition
 class GetConsumersOfResultOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_consumers_of_result-transformgetconsumersofresult
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_consumers_of_result-transformgetconsumersofresult).
     """
 
     name = "transform.get_consumers_of_result"
@@ -174,7 +174,7 @@ class GetConsumersOfResultOp(IRDLOperation):
 @irdl_op_definition
 class GetDefiningOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_defining_op-transformgetdefiningop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_defining_op-transformgetdefiningop).
     """
 
     name = "transform.get_defining_op"
@@ -189,7 +189,7 @@ class GetDefiningOp(IRDLOperation):
 @irdl_op_definition
 class GetParentOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_parent_op-transformgetparentop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_parent_op-transformgetparentop).
     """
 
     name = "transform.get_parent_op"
@@ -229,7 +229,7 @@ class GetParentOp(IRDLOperation):
 @irdl_op_definition
 class GetProducerOfOperandOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_producer_of_operand-transformgetproducerofoperand
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_producer_of_operand-transformgetproducerofoperand).
     """
 
     name = "transform.get_producer_of_operand"
@@ -255,7 +255,7 @@ class GetProducerOfOperandOp(IRDLOperation):
 @irdl_op_definition
 class GetResultOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_result-transformgetresultop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_result-transformgetresultop).
     """
 
     name = "transform.get_result"
@@ -291,7 +291,7 @@ class GetResultOp(IRDLOperation):
 @irdl_op_definition
 class GetTypeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_type-transformgettypeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_type-transformgettypeop).
     """
 
     name = "transform.get_type"
@@ -311,7 +311,7 @@ class GetTypeOp(IRDLOperation):
 @irdl_op_definition
 class IncludeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transforminclude-transformincludeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transforminclude-transformincludeop).
     """
 
     name = "transform.include"
@@ -344,7 +344,7 @@ class IncludeOp(IRDLOperation):
 @irdl_op_definition
 class MatchOperationEmptyOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchoperation_empty-transformmatchoperationemptyop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchoperation_empty-transformmatchoperationemptyop).
     """
 
     name = "transform.match.operation_empty"
@@ -358,7 +358,7 @@ class MatchOperationEmptyOp(IRDLOperation):
 @irdl_op_definition
 class MatchOperationNameOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchoperation_name-transformmatchoperationnameop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchoperation_name-transformmatchoperationnameop).
     """
 
     name = "transform.match.operation_name"
@@ -387,7 +387,7 @@ class MatchOperationNameOp(IRDLOperation):
 @irdl_op_definition
 class MatchParamCmpIOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchparamcmpi-transformmatchparamcmpiop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchparamcmpi-transformmatchparamcmpiop).
     """
 
     name = "transform.match.param.cmpi"
@@ -412,7 +412,7 @@ class MatchParamCmpIOp(IRDLOperation):
 @irdl_op_definition
 class MergeHandlesOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformmerge_handles-transformmergehandlesop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformmerge_handles-transformmergehandlesop).
     """
 
     name = "transform.merge_handles"
@@ -432,7 +432,7 @@ class MergeHandlesOp(IRDLOperation):
 @irdl_op_definition
 class ParamConstantOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformparamconstant-transformparamconstantop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformparamconstant-transformparamconstantop).
     """
 
     name = "transform.param.constant"
@@ -449,7 +449,7 @@ class ParamConstantOp(IRDLOperation):
 @irdl_op_definition
 class SplitHandleOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformsplit_handle-transformsplithandleop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformsplit_handle-transformsplithandleop).
     """
 
     name = "transform.split_handle"
@@ -500,7 +500,7 @@ class SplitHandleOp(IRDLOperation):
 @irdl_op_definition
 class YieldOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformyield-transformyieldop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformyield-transformyieldop).
     """
 
     name = "transform.yield"
@@ -511,7 +511,7 @@ class YieldOp(IRDLOperation):
 @irdl_op_definition
 class SequenceOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformsequence-transformsequenceop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformsequence-transformsequenceop).
     """
 
     name = "transform.sequence"
@@ -556,7 +556,7 @@ class SequenceOp(IRDLOperation):
 @irdl_op_definition
 class TileOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop).
     """
 
     name = "transform.structured.tile_using_for"
@@ -617,7 +617,7 @@ class TileOp(IRDLOperation):
 @irdl_op_definition
 class TileToForallOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop).
     """
 
     name = "transform.structured.tile_using_forall"
@@ -678,7 +678,7 @@ class TileToForallOp(IRDLOperation):
 @irdl_op_definition
 class SelectOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformselect-transformselectop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformselect-transformselectop).
     """
 
     name = "transform.select"
@@ -700,7 +700,7 @@ class SelectOp(IRDLOperation):
 @irdl_op_definition
 class NamedSequenceOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformnamed_sequence-transformnamedsequenceop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformnamed_sequence-transformnamedsequenceop).
     """
 
     name = "transform.named_sequence"
@@ -744,7 +744,7 @@ class NamedSequenceOp(IRDLOperation):
 @irdl_op_definition
 class CastOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformcast-transformcastop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformcast-transformcastop).
     """
 
     name = "transform.cast"
@@ -759,7 +759,7 @@ class CastOp(IRDLOperation):
 @irdl_op_definition
 class MatchOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredmatch-transformmatchop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredmatch-transformmatchop).
     """
 
     name = "transform.structured.match"

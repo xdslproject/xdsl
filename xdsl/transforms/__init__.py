@@ -203,6 +203,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return csl_stencil_materialize_stores.CslStencilMaterializeStores
 
+    def get_csl_stencil_set_global_coeffs():
+        from xdsl.transforms import csl_stencil_set_global_coeffs
+
+        return csl_stencil_set_global_coeffs.CslStencilSetGlobalCoeffs
+
     def get_csl_stencil_to_csl_wrapper():
         from xdsl.transforms import csl_stencil_to_csl_wrapper
 
@@ -545,6 +550,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-handle-async-flow": get_csl_stencil_handle_async_flow,
         "csl-stencil-materialize-stores": get_csl_stencil_materialize_stores,
+        "csl-stencil-set-global-coeffs": get_csl_stencil_set_global_coeffs,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
         "csl-wrapper-hoist-buffers": get_csl_wrapper_hoist_buffers,
         "dce": get_dce,

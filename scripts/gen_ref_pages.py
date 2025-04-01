@@ -43,3 +43,29 @@ for path in sorted(src.rglob("*.py")):
 
 with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
     nav_file.writelines(nav.build_literate_nav())
+
+docs_root = root / "docs"
+
+for path in sorted((docs_root / "marimo").rglob("*.py")):
+    doc_path = path.relative_to(docs_root).with_suffix(".md")
+
+    with mkdocs_gen_files.open(doc_path, "w") as fd:
+        # Hide the header then inline the notebook
+        fd.write(f"""\
+---
+hide:
+    - toc
+---
+<style>
+  .md-typeset h1,
+  .md-content__button {{
+    display: none;
+  }}
+</style>
+
+/// marimo-embed-file
+    filepath: {path.relative_to(root)}
+    mode: 'edit'
+    show_source: 'false'
+///
+""")

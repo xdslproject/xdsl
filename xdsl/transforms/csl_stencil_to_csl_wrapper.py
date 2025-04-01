@@ -60,6 +60,11 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
     to initialise stencil-specific program params and yields them from the layout module.
     """
 
+    target: csl.Target
+    """
+    Specifies the target architecture.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         # erase timer stubs
@@ -133,6 +138,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         module_op = csl_wrapper.ModuleOp(
             width=IntegerAttr(width + (max_distance * 2), 16),
             height=IntegerAttr(height + (max_distance * 2), 16),
+            target=self.target,
             params={
                 "z_dim": IntegerAttr(z_dim, 16),
                 "pattern": IntegerAttr(max_distance + 1, 16),
@@ -449,11 +455,16 @@ class CslStencilToCslWrapperPass(ModulePass):
 
     name = "csl-stencil-to-csl-wrapper"
 
+    target: csl.Target
+    """
+    Specifies the target architecture.
+    """
+
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertStencilFuncToModuleWrappedPattern(),
+                    ConvertStencilFuncToModuleWrappedPattern(self.target),
                     LowerTimerFuncCall(),
                 ]
             ),

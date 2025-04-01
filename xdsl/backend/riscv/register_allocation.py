@@ -117,6 +117,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
     available_registers: RegisterQueue[IntRegisterType | FloatRegisterType]
     live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
+    new_value_by_old_value: dict[SSAValue, SSAValue]
 
     exclude_preallocated: bool = True
     exclude_snitch_reserved: bool = True
@@ -126,22 +127,40 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     ) -> None:
         self.available_registers = available_registers
         self.live_ins_per_block = {}
+        self.new_value_by_old_value = {}
 
-    def allocate(self, reg: SSAValue) -> bool:
+    def _replace_value_with_new_type(
+        self, val: SSAValue, new_type: Attribute
+    ) -> SSAValue:
+        new_val = Rewriter.replace_value_with_new_type(val, new_type)
+        self.new_value_by_old_value[val] = new_val
+        return new_val
+
+    def _allocate_live_ins_per_block(self, block: Block):
+        live_ins = self.live_ins_per_block[block]
+        for live_in in live_ins:
+            # We change a value type at most once
+            if live_in in self.new_value_by_old_value:
+                live_in = self.new_value_by_old_value[live_in]
+            self.allocate(live_in)
+
+    def allocate(self, reg: SSAValue) -> SSAValue | None:
         """
         Allocate a register if not already allocated.
         """
+        if reg in self.new_value_by_old_value:
+            reg = self.new_value_by_old_value[reg]
         if (
             isinstance(reg.type, IntRegisterType | FloatRegisterType)
             and not reg.type.is_allocated
         ):
             if (val := get_constant_value(reg)) is not None and val.value.data == 0:
-                reg.type = Registers.ZERO
+                new_reg = self._replace_value_with_new_type(reg, Registers.ZERO)
             else:
-                reg.type = self.available_registers.pop(type(reg.type))
-            return True
-
-        return False
+                new_reg = self._replace_value_with_new_type(
+                    reg, self.available_registers.pop(type(reg.type))
+                )
+            return new_reg
 
     def allocate_same(self, vals: Sequence[SSAValue]) -> bool:
         """
@@ -193,12 +212,14 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
         for val in vals:
             if val.type != reg_type:
-                val.type = reg_type
+                self._replace_value_with_new_type(val, reg_type)
                 did_allocate = True
 
         return did_allocate
 
     def _free(self, reg: SSAValue) -> None:
+        if reg in self.new_value_by_old_value:
+            reg = self.new_value_by_old_value[reg]
         if (
             isinstance(reg.type, IntRegisterType | FloatRegisterType)
             and reg.type.is_allocated
@@ -233,8 +254,8 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
         for result in outs:
             # Allocate registers to result if not already allocated
-            self.allocate(result)
-            # Free the register since the SSA value is created here
+            if (new_result := self.allocate(result)) is not None:
+                result = new_result
             self._free(result)
 
         # Allocate registers to operands since they are defined further up
@@ -249,9 +270,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         """
         # Allocate values used inside the body but defined outside.
         # Their scope lasts for the whole body execution scope
-        live_ins = self.live_ins_per_block[loop.body.block]
-        for live_in in live_ins:
-            self.allocate(live_in)
+        self._allocate_live_ins_per_block(loop.body.block)
 
         yield_op = loop.body.block.last_op
         assert yield_op is not None, (
@@ -284,7 +303,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
         # lb is only used as an input to the loop, so free induction variable before
         # allocating lb to it in case it's not yet allocated
-        self._free(block_args[0])
+        self._free(loop.body.block.args[0])
         self.allocate(loop.lb)
 
     def allocate_frep_loop(self, loop: riscv_snitch.FRepOperation) -> None:
@@ -294,9 +313,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         """
         # Allocate values used inside the body but defined outside.
         # Their scope lasts for the whole body execution scope
-        live_ins = self.live_ins_per_block[loop.body.block]
-        for live_in in live_ins:
-            self.allocate(live_in)
+        self._allocate_live_ins_per_block(loop.body.block)
 
         yield_op = loop.body.block.last_op
         assert yield_op is not None, (

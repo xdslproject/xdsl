@@ -93,6 +93,19 @@ def test_IntegerType_formats():
     assert IntegerType(33).format == "<q"
     assert IntegerType(63).format == "<q"
     assert IntegerType(64).format == "<q"
+    assert IntegerType(1, Signedness.UNSIGNED).format == "<B"
+    assert IntegerType(2, Signedness.UNSIGNED).format == "<B"
+    assert IntegerType(7, Signedness.UNSIGNED).format == "<B"
+    assert IntegerType(8, Signedness.UNSIGNED).format == "<B"
+    assert IntegerType(9, Signedness.UNSIGNED).format == "<H"
+    assert IntegerType(15, Signedness.UNSIGNED).format == "<H"
+    assert IntegerType(16, Signedness.UNSIGNED).format == "<H"
+    assert IntegerType(17, Signedness.UNSIGNED).format == "<I"
+    assert IntegerType(31, Signedness.UNSIGNED).format == "<I"
+    assert IntegerType(32, Signedness.UNSIGNED).format == "<I"
+    assert IntegerType(33, Signedness.UNSIGNED).format == "<Q"
+    assert IntegerType(63, Signedness.UNSIGNED).format == "<Q"
+    assert IntegerType(64, Signedness.UNSIGNED).format == "<Q"
     with pytest.raises(NotImplementedError):
         IntegerType(65).format
 

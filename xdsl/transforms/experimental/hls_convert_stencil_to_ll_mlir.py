@@ -549,7 +549,7 @@ class ApplyOpToHLS(RewritePattern):
 
                 if n_dims == 3:
                     stream = self.shift_streams[current_stream][k]
-                    rewriter.modify_value_type(
+                    rewriter.replace_value_with_new_type(
                         apply_clone.region.block.args[i], stream.results[0].type
                     )
 
@@ -665,7 +665,7 @@ class ApplyOpToHLS(RewritePattern):
         self.module.body.block.add_op(get_number_chunks)
         self.module.body.block.add_op(get_chunk_size)
 
-        ndims: int = typing.cast(TempType[Attribute], op.res[0].type).get_num_dims()
+        ndims: int = op.res[0].type.get_num_dims()
 
         rewriter.erase_op(return_op)
         for new_return_component in new_return_component_lst:
@@ -1061,7 +1061,7 @@ class PackData(RewritePattern):
                     [LLVMArrayType.from_size_and_type(8, f64)]
                 )
             )
-            parent_func.replace_argument_type(arg_idx, packed_type)
+            parent_func.replace_argument_type(arg_idx, packed_type, rewriter)
 
             for use in func_arg.uses:
                 if isinstance(use.operation, InsertValueOp):
@@ -1087,15 +1087,21 @@ class PackData(RewritePattern):
                         struct_new_type = LLVMStructType.from_type_list(new_type)
 
                         current_insertvalue = insertvalue
-                        current_insertvalue.res.type = struct_new_type
-                        update_types_insertvalue(current_insertvalue, struct_new_type)
+                        rewriter.replace_value_with_new_type(
+                            current_insertvalue.res, struct_new_type
+                        )
+                        update_types_insertvalue(
+                            current_insertvalue, struct_new_type, rewriter
+                        )
 
 
-def update_types_insertvalue(op: InsertValueOp, new_type: llvm.LLVMStructType):
+def update_types_insertvalue(
+    op: InsertValueOp, new_type: llvm.LLVMStructType, rewriter: PatternRewriter
+):
     for use in op.res.uses:
         if isinstance(use.operation, InsertValueOp):
-            use.operation.res.type = new_type
-            update_types_insertvalue(use.operation, new_type)
+            rewriter.replace_value_with_new_type(use.operation.res, new_type)
+            update_types_insertvalue(use.operation, new_type, rewriter)
 
 
 @dataclass

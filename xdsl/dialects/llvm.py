@@ -105,7 +105,7 @@ def parse_optional_llvm_type(parser: AttrParser):
 @irdl_attr_definition
 class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#structure-types
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#structure-types).
     """
 
     name = "llvm.struct"
@@ -242,7 +242,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     """
     Currently does not support variadics.
 
-    https://mlir.llvm.org/docs/Dialects/LLVM/#function-types
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#function-types).
     """
 
     name = "llvm.func"
@@ -868,11 +868,12 @@ class GEPOp(IRDLOperation):
     llvm.getelementptr is an instruction to do pointer arithmetic by
     adding/subtracting offsets from a pointer.
 
-    The llvm.getelementptr is documented in various places online:
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmgetelementptr-mlirllvmgepop).
 
-    LLVM documentation: https://www.llvm.org/docs/GetElementPtr.html
-    A good blogpost: https://blog.yossarian.net/2020/09/19/LLVMs-getelementptr-by-example
-    MLIR documentation: https://mlir.llvm.org/docs/Dialects/LLVM/#llvmgetelementptr-mlirllvmgepop
+    GetElementPtr is documented in various places online:
+
+    See the LLVM [documentation](https://www.llvm.org/docs/GetElementPtr.html).
+    A good [blogpost](https://blog.yossarian.net/2020/09/19/LLVMs-getelementptr-by-example).
 
     Note that the first two discuss *LLVM IRs* GEP operation, not the MLIR one.
     The semantics are the same, but the structure used by MLIR is not well
@@ -1116,10 +1117,9 @@ class IntToPtrOp(IRDLOperation):
 @irdl_op_definition
 class InlineAsmOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop).
 
-    To see what each field means, have a look at:
-    https://llvm.org/docs/LangRef.html#inline-assembler-expressions
+    To see what each field means, have a look [here](https://llvm.org/docs/LangRef.html#inline-assembler-expressions).
     """
 
     name = "llvm.inline_asm"
@@ -1265,7 +1265,7 @@ class NullOp(IRDLOperation):
 @irdl_op_definition
 class ExtractValueOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmextractvalue-mlirllvmextractvalueop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmextractvalue-mlirllvmextractvalueop).
     """
 
     name = "llvm.extractvalue"
@@ -1295,7 +1295,7 @@ class ExtractValueOp(IRDLOperation):
 @irdl_op_definition
 class InsertValueOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertvalue-mlirllvminsertvalueop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertvalue-mlirllvminsertvalueop).
     """
 
     name = "llvm.insertvalue"
@@ -1326,7 +1326,7 @@ class InsertValueOp(IRDLOperation):
 @irdl_op_definition
 class UndefOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop).
     """
 
     name = "llvm.mlir.undef"
@@ -1453,9 +1453,8 @@ LLVM_CALLING_CONVS: set[str] = {
     "cfguard_checkcc",
 }
 """
-A list of all valid calling conventions understood by LLVM, see
-https://llvm.org/docs/LangRef.html#calling-conventions
-for more info.
+A list of all valid calling conventions understood by LLVM, see external documentation
+[here](https://llvm.org/docs/LangRef.html#calling-conventions) for more info.
 """
 
 
@@ -1540,7 +1539,7 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class ReturnOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmreturn-mlirllvmreturnop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmreturn-mlirllvmreturnop).
     """
 
     name = "llvm.return"
@@ -1600,7 +1599,7 @@ class FastMathAttr(FastMathAttrBase):
 @irdl_op_definition
 class CallIntrinsicOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop).
     """
 
     name = "llvm.call_intrinsic"

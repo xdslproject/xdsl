@@ -164,7 +164,6 @@
       %inner = riscv.li 5 : !riscv.reg<j_1>
       %nested_addi = riscv.addi %inner, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     }
-    // CHECK-NEXT:  .text
     // CHECK-NEXT:  li j_1, 5
     // CHECK-NEXT:  addi j_1, j_1, 1
     riscv.label "label0"
