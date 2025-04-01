@@ -129,6 +129,8 @@ class Test_VariadicityOp(IRDLOperation):
 
     variadic = var_operand_def(BaseAttr(Test_SingletonAType))
 
+    optional = opt_operand_def(BaseAttr(Test_SingletonBType))
+
     required = operand_def(BaseAttr(Test_SingletonCType))
 
 
