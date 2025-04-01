@@ -170,7 +170,7 @@ max-line-length = 130
 max-complexity = 10
 
 [tool.ruff.format]
-exclude = ["docs/marimo/**/*.py", "docs/marimo/**/*.ipynb"]
+exclude = ["docs/marimo/**/*.py"]
 
 [tool.pytest.ini_options]
 python_files = ["tests/*test_*.py", "docs/*test_*.py"]
