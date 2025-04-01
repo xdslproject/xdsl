@@ -1,7 +1,7 @@
 """
 Implementation of the LTL dialect by CIRCT.
 
-https://circt.llvm.org/docs/Dialects/LTL/
+See external [documentation](https://circt.llvm.org/docs/Dialects/LTL/).
 """
 
 from __future__ import annotations

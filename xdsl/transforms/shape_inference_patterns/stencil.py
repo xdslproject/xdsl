@@ -14,7 +14,7 @@ from xdsl.dialects.stencil import (
     StoreOp,
     TempType,
 )
-from xdsl.ir import Attribute, SSAValue
+from xdsl.ir import Attribute, OpResult, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -35,7 +35,8 @@ def update_result_size(
     """
     if isinstance(value.owner, ApplyOp):
         apply = value.owner
-        res_types = (cast(TempType[Attribute], r.type) for r in apply.res)
+        res_types = (r.type for r in apply.res)
+        value = cast(OpResult, value)
         newsize = reduce(
             StencilBoundsAttr.union,
             (
@@ -48,18 +49,19 @@ def update_result_size(
             ),
         )
         for res in apply.res:
-            newtype = TempType(
-                newsize, cast(TempType[Attribute], res.type).element_type
-            )
+            newtype = TempType(newsize, res.type.element_type)
             if newtype != res.type:
-                rewriter.modify_value_type(res, newtype)
+                res = rewriter.replace_value_with_new_type(res, newtype)
             for use in res.uses:
                 if isinstance(use.operation, BufferOp):
                     update_result_size(use.operation.res, newsize, rewriter)
+        # Update value handle as it may have been replaced by `update_result_size`
+        value = apply.res[value.index]
+
     newsize = size | cast(TempType[Attribute], value.type).bounds
     newtype = TempType(newsize, cast(TempType[Attribute], value.type).element_type)
     if newtype != value.type:
-        rewriter.modify_value_type(value, newtype)
+        rewriter.replace_value_with_new_type(value, newtype)
 
 
 class CombineOpShapeInference(RewritePattern):
@@ -70,15 +72,9 @@ class CombineOpShapeInference(RewritePattern):
         lowerext_res = op.results_[len(op.lower) : len(op.lower) + len(op.lowerext)]
         upperext_res = op.results_[len(op.lower) + len(op.lowerext) :]
 
-        combined_bounds = [
-            cast(TempType[Attribute], r.type).bounds for r in combined_res
-        ]
-        lowerext_bounds = [
-            cast(TempType[Attribute], r.type).bounds for r in lowerext_res
-        ]
-        upperext_bounds = [
-            cast(TempType[Attribute], r.type).bounds for r in upperext_res
-        ]
+        combined_bounds = [r.type.bounds for r in combined_res]
+        lowerext_bounds = [r.type.bounds for r in lowerext_res]
+        upperext_bounds = [r.type.bounds for r in upperext_res]
 
         lower_bounds = list[StencilBoundsAttr | None]()
         upper_bounds = list[StencilBoundsAttr | None]()
@@ -210,5 +206,7 @@ class BufferOpShapeInference(RewritePattern):
         res_bounds = cast(TempType[Attribute], op.res.type).bounds
         if not isinstance(res_bounds, StencilBoundsAttr):
             return
-        op.temp.type = op.res.type
+        if op.temp.type == op.res.type:
+            return
+        rewriter.replace_value_with_new_type(op.temp, op.res.type)
         update_result_size(op.temp, res_bounds, rewriter)

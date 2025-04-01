@@ -8,7 +8,7 @@ authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
     "immutabledict<4.2.2",
-    "typing-extensions>=4.7,<4.13",
+    "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
 ]
 dynamic = ["version"]
@@ -23,13 +23,13 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.11.22",
-    "pre-commit==4.1.0",
-    "ruff==0.11.0",
+    "marimo==0.12.0",
+    "pre-commit>=4.0.0,<5.0.0",
+    "ruff==0.11.2",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
-    "pytest-asyncio==0.25.3",
-    "pyright==1.1.396",
+    "pytest-asyncio==0.26.0",
+    "pyright==1.1.398",
     "sympy==1.13.3",
 ]
 docs = [
@@ -37,9 +37,11 @@ docs = [
     "mkdocs-material>=9.5.49",
     "mkdocs>=1.6.1",
     "mkdocstrings[python]>=0.27.0",
+    "pymdown-extensions>=10.7",
+    "lzstring2",
 ]
-gui = ["textual==2.1.2", "pyclip==0.7"]
-jax = ["jax==0.5.2", "numpy==2.2.4"]
+gui = ["textual==3.0.0", "pyclip==0.7"]
+jax = ["jax==0.5.3", "numpy==2.2.4"]
 riscv = ["riscemu==2.2.7"]
 bench = [
     "asv>=0.6.4",
@@ -67,6 +69,9 @@ xdsl-tblgen = "xdsl.tools.tblgen_to_py:main"
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
 
+[tool.uv.sources]
+lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
+
 [tool.setuptools.packages]
 find = {}
 
@@ -78,10 +83,16 @@ requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
 build-backend = "setuptools.build_meta"
 
 [tool.pyright]
-reportImportCycles = false
-reportMissingModuleSource = false
-enableTypeIgnoreComments = false
+# We need this for TypeForm, should remove it once that's in
 enableExperimentalFeatures = true
+# Use specific rule ignore instead if necessary
+enableTypeIgnoreComments = false
+reportAssertAlwaysTrue = true
+reportImportCycles = false
+# Allow importing from irdl files
+reportMissingModuleSource = false
+reportUnnecessaryCast = true
+reportUnnecessaryIsInstance = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests"]

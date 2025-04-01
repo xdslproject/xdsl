@@ -29,6 +29,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
 
 
@@ -103,6 +104,8 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
     counter: int
 
+    task_ids: list[int]
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter, /):
         if not self._is_inside_wrapper_outside_apply(op):
@@ -143,7 +146,12 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
             )
 
         no_params = FunctionType.from_lists([], [])
-        cond_task_id = self.counter + 1
+        if self.task_ids:
+            cond_task_id = self.task_ids.pop(0)
+        else:
+            raise PassFailedException(
+                "Insufficient number of task IDs supplied, please provide further IDs to be used."
+            )
 
         pre_block = op.parent_block()
         if pre_block is None:
@@ -292,11 +300,16 @@ class CslStencilHandleAsyncControlFlow(ModulePass):
 
     name = "csl-stencil-handle-async-flow"
 
+    task_ids: tuple[int, ...]
+    """
+    Available task IDs that this pass is free to allocate.
+    """
+
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertForLoopToCallGraphPass(0),
+                    ConvertForLoopToCallGraphPass(0, list(self.task_ids)),
                     HandleCslStencilApplyAsyncCF(0),
                 ]
             ),

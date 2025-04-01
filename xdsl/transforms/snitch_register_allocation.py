@@ -40,13 +40,16 @@ class AllocateSnitchStreamingRegionRegisters(RewritePattern):
         block = op.body.block
 
         for index, input_stream in enumerate(block.args):
-            input_stream.type = snitch.ReadableStreamType(riscv.Registers.FT[index])
+            rewriter.replace_value_with_new_type(
+                input_stream, snitch.ReadableStreamType(riscv.Registers.FT[index])
+            )
 
         input_count = len(op.inputs)
 
         for index, output_stream in enumerate(block.args[input_count:]):
-            output_stream.type = snitch.WritableStreamType(
-                riscv.Registers.FT[index + input_count]
+            rewriter.replace_value_with_new_type(
+                output_stream,
+                snitch.WritableStreamType(riscv.Registers.FT[index + input_count]),
             )
 
 
@@ -61,7 +64,7 @@ class AllocateRiscvSnitchReadRegisters(RewritePattern):
         stream_type = cast(
             snitch.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
         )
-        op.res.type = stream_type.element_type
+        rewriter.replace_value_with_new_type(op.res, stream_type.element_type)
 
 
 class AllocateRiscvSnitchWriteRegisters(RewritePattern):
@@ -75,7 +78,7 @@ class AllocateRiscvSnitchWriteRegisters(RewritePattern):
         stream_type = cast(
             snitch.WritableStreamType[riscv.FloatRegisterType], op.stream.type
         )
-        op.value.type = stream_type.element_type
+        rewriter.replace_value_with_new_type(op.value, stream_type.element_type)
 
 
 @dataclass(frozen=True)

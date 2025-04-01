@@ -22,8 +22,6 @@ def test_simple():
     @ModuleOp
     @Builder.implicit_region
     def module():
-        riscv.DirectiveOp(".globl", "main")
-
         @Builder.implicit_region
         def body():
             six = riscv.LiOp(6).rd
@@ -32,7 +30,7 @@ def test_simple():
             riscv_debug.PrintfOp("{}", (forty_two,))
             riscv.ReturnOp()
 
-        riscv_func.FuncOp("main", body, ((), ()))
+        riscv_func.FuncOp("main", body, ((), ()), visibility="public")
 
     RISCVRegisterAllocation().apply(ctx, module)
 
@@ -52,8 +50,6 @@ def test_multiply_add():
     @ModuleOp
     @Builder.implicit_region
     def module():
-        riscv.DirectiveOp(".globl", "main")
-
         @Builder.implicit_region
         def main():
             riscv.LiOp(3, rd=riscv.Registers.A0)
@@ -67,7 +63,7 @@ def test_multiply_add():
             riscv.LiOp(93, rd=riscv.Registers.A7)
             riscv.EcallOp()
 
-        riscv_func.FuncOp("main", main, ((), ()))
+        riscv_func.FuncOp("main", main, ((), ()), visibility="public")
 
         @Builder.implicit_region((riscv.Registers.A0, riscv.Registers.A1))
         def multiply(args: tuple[BlockArgument, ...]):

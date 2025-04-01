@@ -713,13 +713,16 @@ def test_unknown_variable():
     with pytest.raises(
         PyRDLOpDefinitionError,
         match="expected variable to refer to an operand, attribute, region, or successor",
-    ):
+    ) as exc_info:
 
         @irdl_op_definition
         class UnknownVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.unknown_var_op"
 
             assembly_format = "$var attr-dict"
+
+    assert isinstance(exc_info.value.__cause__, ParseError)
+    assert exc_info.value.__cause__.span.text == "$var"
 
 
 ################################################################################

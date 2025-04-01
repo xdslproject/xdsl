@@ -30,7 +30,7 @@ optimization capabilities.
 - [Getting Started](#getting-started)
 - [xDSL Developer Setup](#xdsl-developer-setup)
   - [Developer Installation](#developer-installation)
-  - [Testing](#testing)
+  - [Testing and benchmarking](#testing-and-benchmarking)
   - [Formatting and Typechecking](#formatting-and-typechecking)
 
 ## Installation
@@ -44,7 +44,7 @@ pip install xdsl
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions may result in problems. The supported
-MLIR version is commit `cd708029e0b2869e80abe31ddb175f7c35361f90`.
+MLIR version is 19.1.7.
 
 ### Subprojects With Extra Dependencies
 
