@@ -396,7 +396,7 @@ class TblgenLoader:
         elif "OptionalAttr" in superclasses:
             return (
                 self._ArgType.OPTIONAL_PROP,
-                self._resolve_prop_constraint(rec["baseAttr"]),
+                self._resolve_prop_constraint(rec["baseAttr"]["def"]),
             )
         else:
             return (self._ArgType.PROP, self._resolve_prop_constraint(rec))
