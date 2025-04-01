@@ -339,8 +339,7 @@ class TblgenLoader:
         if "AnyAttrOf" in rec.superclasses:
             return textwrap.dedent(f"""
             AnyOf(
-                {",".join(self._resolve_prop_constraint(x["def"]) for x in rec["allowedAttributes"])}
-                )
+                [{",".join(self._resolve_prop_constraint(x["def"]) for x in rec["allowedAttributes"])}]
             )
             """)
 
@@ -511,6 +510,7 @@ def cull_json(output_file: IO[str] | None, loader: TblgenLoader):
         "baseAttr",
         "def",
         "name",
+        "allowedAttributes",
     }
 
     def cull_field(js_in: dict[str, Any]) -> dict[str, Any]:
