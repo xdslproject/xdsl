@@ -62,7 +62,18 @@ class WorkloadBuilder:
 
     @classmethod
     def large_dense_attr(cls, x: int = 1024, y: int = 1024) -> str:
-        """Get the MLIR text representation of a large dense attr."""
+        """Get the MLIR text representation of a large dense attr.
+
+        An example of running `WorkloadBuilder().large_dense_attr(x=3, y=3)`
+        is as follows:
+
+        ```mlir
+        "builtin.module"() ({
+            %0 = "arith.constant"() <{value = dense<[
+                [69, 87, -108], [4, 120, 79], [27, 116, 55]
+            ]> : tensor<3x3xi8>}> : () -> tensor<3x3xi8>
+        }) : () -> ()
+        """
         assert x >= 0
         assert y >= 0
         random.seed(RANDOM_SEED)
@@ -78,7 +89,18 @@ class WorkloadBuilder:
 
     @classmethod
     def large_dense_attr_hex(cls, x: int = 1024, y: int = 1024) -> str:
-        """Get the MLIR hex representation of a large dense attr."""
+        """Get the MLIR hex representation of a large dense attr.
+
+        An example of running `WorkloadBuilder().large_dense_attr(x=3, y=3)`
+        is as follows:
+
+        ```mlir
+        "builtin.module"() ({
+            %0 = "arith.constant"() <{
+                value = dense<0xCD18FC9FB649438493> : tensor<3x3xi8>
+            }> : () -> tensor<3x3xi8>
+        }) : () -> ()
+        """
         assert x >= 0
         assert y >= 0
         random.seed(RANDOM_SEED)
