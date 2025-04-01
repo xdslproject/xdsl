@@ -1,19 +1,28 @@
-from xdsl.dialects.stablehlo import AddOp
-from xdsl.ir import Attribute, OpResult
+from typing_extensions import assert_type
 
-try:
-    from typing import assert_type
-    # assert_type is only supported on python 3.11 and above
-    # https://docs.python.org/3/library/typing.html#typing.assert_type
-except ImportError:
-    # if we cannot use typing.assert_type
-    # use typing_extensions.assert_type
-    # https://typing-extensions.readthedocs.io/en/latest/#typing_extensions.assert_type
-    from typing_extensions import assert_type
+from xdsl.dialects.builtin import (
+    AnyTensorType,
+    DenseArrayBase,
+    IntegerType,
+    TensorType,
+    i32,
+)
+from xdsl.dialects.stablehlo import AddOp, TransposeOp
+from xdsl.ir import Attribute, OpResult
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_type_checking_for_elementwise_operation():
+    a = TestSSAValue(TensorType(IntegerType(32), []))
+    addOp = AddOp(a, a)
+    transposeOp = TransposeOp(
+        a, DenseArrayBase.from_list(i32, [2, 2]), TensorType(IntegerType(32), [])
+    )
     assert_type(
-        AddOp.result,
+        addOp.result,
         OpResult[Attribute],
+    )
+    assert_type(
+        transposeOp.result,
+        OpResult[AnyTensorType],
     )
