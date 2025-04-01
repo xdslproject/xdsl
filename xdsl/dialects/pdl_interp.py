@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence, Set
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
     I16,
@@ -530,9 +530,9 @@ class CreateOperationOp(IRDLOperation):
     input_attribute_names = prop_def(ArrayAttr, prop_name="inputAttributeNames")
     inferred_result_types = opt_prop_def(UnitAttr, prop_name="inferredResultTypes")
 
-    input_operands = var_operand_def(ValueType)
-    input_attributes = var_operand_def(AttributeType)
-    input_result_types = var_operand_def(TypeType)
+    input_operands = var_operand_def(ValueType | RangeType[ValueType])
+    input_attributes = var_operand_def(AttributeType | RangeType[AttributeType])
+    input_result_types = var_operand_def(TypeType | RangeType[TypeType])
 
     result_op = result_def(OperationType)
 
@@ -549,7 +549,7 @@ class CreateOperationOp(IRDLOperation):
     def __init__(
         self,
         name: str | StringAttr,
-        inferred_result_types: UnitAttr,
+        inferred_result_types: UnitAttr | None = None,
         input_attribute_names: Iterable[StringAttr] | None = None,
         input_operands: Sequence[SSAValue] | None = None,
         input_attributes: Sequence[SSAValue] | None = None,
@@ -576,8 +576,112 @@ class CreateOperationOp(IRDLOperation):
                 "name": name,
                 "inferredResultTypes": inferred_result_types,
                 "inputAttributeNames": input_attribute_names,
+            }
+            if inferred_result_types
+            else {
+                "name": name,
+                "inputAttributeNames": input_attribute_names,
             },
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> CreateOperationOp:
+        def _parse_attribute() -> tuple[StringAttr, SSAValue]:
+            attrname = parser.parse_attribute()
+            assert isinstance(attrname, StringAttr)
+            parser.parse_punctuation("=")
+            operand = parser.parse_operand()
+            return (attrname, operand)
+
+        def _parse_input_list():
+            values: list[SSAValue] = []
+            parser.parse_punctuation("(")
+            if not parser.parse_optional_punctuation(")"):
+                values = parser.parse_comma_separated_list(
+                    delimiter=Parser.Delimiter.NONE,
+                    parse=lambda: parser.parse_operand(),
+                )
+                parser.parse_punctuation(":")
+                types = parser.parse_comma_separated_list(
+                    delimiter=Parser.Delimiter.NONE,
+                    parse=lambda: parser.parse_type(),
+                )
+                assert len(values) == len(types)
+                for value, type in zip(values, types):
+                    assert value.type == type
+                parser.parse_punctuation(")")
+            return values
+
+        name = parser.parse_attribute()
+        assert isinstance(name, StringAttr)
+
+        input_operands = _parse_input_list()
+
+        input_attribute_names = None
+        input_attributes = None
+        temp = parser.parse_optional_comma_separated_list(
+            delimiter=Parser.Delimiter.BRACES, parse=_parse_attribute
+        )
+        if temp:
+            input_attribute_names = [i[0] for i in temp]
+            input_attributes = [i[1] for i in temp]
+
+        input_result_types = None
+        inferred_result_types = None
+        if parser.parse_optional_punctuation("->") is not None:
+            if parser.parse_optional_punctuation("<"):
+                parser.parse_characters("inferred")
+                parser.parse_punctuation(">")
+                inferred_result_types = UnitAttr()
+            else:
+                input_result_types = _parse_input_list()
+
+        op = CreateOperationOp(
+            name,
+            inferred_result_types=inferred_result_types,
+            input_attribute_names=input_attribute_names,
+            input_operands=input_operands,
+            input_attributes=input_attributes,
+            input_result_types=input_result_types,
+        )
+        return op
+
+    def print(self, printer: Printer):
+        def _print_input_list(values: Iterable[SSAValue]):
+            printer.print("(")
+            printer.print_list(values, printer.print_operand)
+            printer.print(" : ")
+            printer.print_list(values, lambda op: printer.print(op.type))
+            printer.print(")")
+
+        def _print_attr(value: tuple[StringAttr, SSAValue]):
+            printer.print(value[0])
+            printer.print(" = ")
+            printer.print_operand(value[1])
+
+        printer.print(" ")
+        printer.print(self.constraint_name)
+        if self.input_operands:
+            _print_input_list(self.input_operands)
+        else:
+            printer.print("() ")
+        # printer.print(" ") # TODO: should we mimick the reference by including an extra space?
+        if self.input_attributes:
+            printer.print("{")
+            printer.print_list(
+                zip(
+                    cast(tuple[StringAttr], self.input_attribute_names.data),
+                    self.input_attributes,
+                ),
+                _print_attr,
+            )
+            printer.print("}")
+        if self.inferred_result_types:
+            assert not self.input_result_types
+            printer.print(" -> <inferred>")
+        elif self.input_result_types:
+            printer.print(" -> ")
+            _print_input_list(self.input_result_types)
 
 
 @irdl_op_definition
