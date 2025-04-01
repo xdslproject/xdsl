@@ -9,7 +9,7 @@ from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.passes.desymref import Desymrefier
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
-    SourceIrTypePair,
+    SourceIRTypePair,
     TypeConverter,
     TypeMethodPair,
     TypeName,
@@ -37,8 +37,8 @@ class FrontendProgram:
     xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
-    type_registry: dict[TypeName, SourceIrTypePair] = field(default_factory=dict)
-    """Mappings between source code and ir type, indexed by name."""
+    type_registry: dict[TypeName, SourceIRTypePair] = field(default_factory=dict)
+    """Mappings between source code and IR type, indexed by name."""
 
     method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
     """Mappings between methods on objects and their operations."""
@@ -51,7 +51,7 @@ class FrontendProgram:
         type_name = source_type.__name__
         if type_name in self.type_registry:
             raise FrontendProgramException(f"Cannot re-register type '{source_type}'")
-        self.type_registry[type_name] = SourceIrTypePair(source_type, ir_type)
+        self.type_registry[type_name] = SourceIRTypePair(source_type, ir_type)
 
     def register_method(
         self, source_type: type, source_method: str, ir_op: type[Operation]

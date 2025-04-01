@@ -6,7 +6,7 @@ from xdsl.ir import Attribute, Operation
 TypeName: TypeAlias = str
 
 
-class SourceIrTypePair(NamedTuple):
+class SourceIRTypePair(NamedTuple):
     """Pair of types for source code and its generated IR."""
 
     source: type
@@ -24,8 +24,8 @@ class TypeMethodPair(NamedTuple):
 class TypeConverter:
     """Responsible for conversion of Python type hints to xDSL types."""
 
-    type_registry: dict[TypeName, SourceIrTypePair] = field(default_factory=dict)
-    """Mappings between source code and ir type, indexed by name."""
+    type_registry: dict[TypeName, SourceIRTypePair] = field(default_factory=dict)
+    """Mappings between source code and IR type, indexed by name."""
 
     method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
     """Mappings between methods on objects and their operations."""

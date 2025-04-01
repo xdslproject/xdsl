@@ -37,17 +37,17 @@ with CodeContext(p):
 Now we are ready to write a first simple program.
 
 ```python
-from xdsl.frontend.program import FrontendProgram
+from xdsl.dialects.bigint import BigIntegerType, AddBigIntOp
 from xdsl.frontend.pyast.context import CodeContext
-
-# Pythonic DSL imports
-from xdsl.frontend.pyast.dialects.builtin import i1, i32
+from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
+p.register_type(int, BigIntegerType)
+p.register_method(int, "__add__", AddBigIntOp)
 with CodeContext(p):
 
-    def foo(x: i32, y: i32, z: i32) -> i32:
-        return x + y * z
+    def foo(x: int, y: int) -> int:
+        return x + y
 ```
 
 In order to be able to compile the program, you can simply call `compile()` on
@@ -64,53 +64,10 @@ should give the following output:
 
 ```mlir
 builtin.module() {
-  func.func() ["sym_name" = "foo", "function_type" = !fun<[!i32, !i32, !i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() @foo(%0 : !bigint.bigint, %1 : !bigint.bigint) -> !bigint.bigint {
   ^0(%0 : !i32, %1 : !i32, %2 : !i32):
-    %3 : !i32 = arith.muli(%1 : !i32, %2 : !i32)
-    %4 : !i32 = arith.addi(%0 : !i32, %3 : !i32)
-    func.return(%4 : !i32)
+    %2 = bigint.add %1, %2 : !bigint.bigint
+    func.return %2 : !bigint.bigint
   }
 }
-```
-
-## Implementation notes
-
-```
-├── block.py                : Mark functions as basic blocks using a decorator.
-├── code_generation.py      : Walk AST to generate xDSL from nodes. Simple
-                              operands and control flow supported. Explicitly
-                              no support for assignment. Implicitly no support
-                              for complex structures such as classes
-├── const.py                : Mark variables as compile-time constants using a
-                              type hint.
-├── context.py              : Context manager which parses its inner context
-                              into a provided FrontendProgram, checking its
-                              well-formedness on exit.
-├── dialects
-│   ├── arith.py            : Stubs and mappings for a subset of xDSL arith
-│   └── builtin.py          : Stubs and mappings for a subset of xDSL builtin
-├── exception.py            : Custom exceptions for the frontend and code 
-                              generation
-├── op_inserter.py          : Helper class to add operations from a stack to the
-                              end of an operation/region/block
-├── op_resolver.py          : Helper class to map frontend to xDSL operations
-                              - `resolve_op` gets xDSL ops using "resolve_"
-                                prefixed functions in dialects/
-                              - `resolve_op_overload` ...?
-├── passes
-│   └── desymref.py         : Lower symref dialect into SSA form
-├── program.py              : Helper class to store, compile and print the code
-├── python_code_check.py    : Performs two checks for whether the code in the
-                              context is supported:
-                              1. Structure doesn't have nested block and blocks
-                                 have explicit terminators
-                              2. Guaranteeing and inlining constant values
-├── symref.py               : Custom dialect to express typed variable semantics
-                              like alloca but with symbols rather than memory
-                              addresses
-└── type_conversion.py      : Convert python type hints to xDSL types
-                              - Caches conversions for performance
-                              - `_convert_name` handles generic and concrete
-                                type hint mappings into xDSL
-                              - `convert_type_hint` wraps it with unimplemented features
 ```

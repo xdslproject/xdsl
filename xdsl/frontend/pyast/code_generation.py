@@ -3,18 +3,16 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import xdsl.dialects.affine as affine
-import xdsl.dialects.arith as arith
-import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
-import xdsl.frontend.pyast.symref as symref
+import xdsl.frontend.pyast.dialects.symref as symref
+from xdsl.dialects import builtin
 from xdsl.frontend.pyast.exception import (
     CodeGenerationException,
     FrontendProgramException,
 )
 from xdsl.frontend.pyast.op_inserter import OpInserter
-from xdsl.frontend.pyast.op_resolver import OpResolver
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
     TypeConverter,
@@ -252,7 +250,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         ]
 
         try:
-            op = OpResolver.resolve_op_overload(python_op, frontend_type)
+            op = None  # OpResolver.resolve_op_overload(python_op, frontend_type)
         except FrontendProgramException:
             raise CodeGenerationException(
                 self.file,
@@ -333,9 +331,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     def _generate_loop_bounds(
         self, args: list[ast.expr]
     ) -> tuple[SSAValue, SSAValue, SSAValue]:
+        raise NotImplementedError()
         # Process loop start.
         if len(args) <= 1:
-            start = arith.ConstantOp.from_int_and_width(0, builtin.IndexType())
+            start = None  # arith.ConstantOp.from_int_and_width(0, builtin.IndexType())
             self.inserter.insert_op(start)
         else:
             self.visit(args[0])
@@ -367,7 +366,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         if len(args) == 3:
             self.visit(args[2])
         else:
-            step = arith.ConstantOp.from_int_and_width(1, builtin.IndexType())
+            step = None  # arith.ConstantOp.from_int_and_width(1, builtin.IndexType())
             self.inserter.insert_op(step)
         step = self.inserter.get_operand()
         if not isinstance(step.type, builtin.IndexType):
