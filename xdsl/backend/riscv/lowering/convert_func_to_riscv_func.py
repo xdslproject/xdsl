@@ -8,7 +8,7 @@ from xdsl.backend.riscv.lowering.utils import (
 )
 from xdsl.context import Context
 from xdsl.dialects import func, riscv, riscv_func
-from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
+from xdsl.dialects.builtin import ModuleOp, StringAttr, UnrealizedConversionCastOp
 from xdsl.ir import Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -39,18 +39,20 @@ class LowerFuncOp(RewritePattern):
         # TODO we should ask the target for alignment, this works for rv32
         p2align = 2
 
+        # C-like: default is public
+        sym_visibility = (
+            StringAttr("public") if op.sym_visibility is None else op.sym_visibility
+        )
+
         new_func = riscv_func.FuncOp(
             op.sym_name.data,
             rewriter.move_region_contents_to_new_regions(op.body),
             (input_types, result_types),
+            sym_visibility,
             p2align=p2align,
         )
 
         new_ops: list[Operation] = []
-
-        if (visibility := op.sym_visibility) is None or visibility.data == "public":
-            # C-like: default is public
-            new_ops.append(riscv.DirectiveOp(".globl", op.sym_name.data))
 
         new_ops.append(new_func)
 
