@@ -17,12 +17,9 @@ from xdsl.frontend.pyast.op_inserter import OpInserter
 from xdsl.frontend.pyast.op_resolver import OpResolver
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
-    SourceIrTypePair,
     TypeConverter,
-    TypeMethodPair,
-    TypeName,
 )
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Region, SSAValue
 
 
 @dataclass
@@ -30,17 +27,13 @@ class CodeGeneration:
     @staticmethod
     def run_with_type_converter(
         type_converter: TypeConverter,
-        type_registry: dict[TypeName, SourceIrTypePair],
-        method_registry: dict[TypeMethodPair, type[Operation]],
         functions_and_blocks: FunctionMap,
         file: str | None,
     ) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp([])
 
-        visitor = CodeGenerationVisitor(
-            type_converter, type_registry, method_registry, module, file
-        )
+        visitor = CodeGenerationVisitor(type_converter, module, file)
         for function_def, _ in functions_and_blocks.values():
             visitor.visit(function_def)
         return module
@@ -52,12 +45,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
     type_converter: TypeConverter
     """Used for type conversion during code generation."""
-
-    type_registry: dict[TypeName, SourceIrTypePair] = field(default_factory=dict)
-    """Mappings between source code and ir type, indexed by name."""
-
-    method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
-    """Mappings between methods on objects and their operations."""
 
     globals: dict[str, Any]
     """
@@ -80,15 +67,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     def __init__(
         self,
         type_converter: TypeConverter,
-        type_registry: dict[TypeName, SourceIrTypePair],
-        method_registry: dict[TypeMethodPair, type[Operation]],
         module: builtin.ModuleOp,
         file: str | None,
     ) -> None:
         self.type_converter = type_converter
-        self.type_registry = type_registry
-        self.method_registry = method_registry
-        self.globals = type_converter.globals
         self.file = file
 
         assert len(module.body.blocks) == 1
@@ -188,24 +170,19 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"but got {lhs.type} and {rhs.type}.",
             )
 
-        frontend_type = lhs.type.__class__
-        overload_name = python_AST_operator_to_python_overload[op_name]
-        op_key = TypeMethodPair.from_ir_type(
-            ir_type=frontend_type,
-            method=overload_name,
-            type_registry=self.type_registry,
+        op = self.type_converter.get_method(
+            ir_type=(ir_type := lhs.type.__class__),
+            method=(method := python_AST_operator_to_python_overload[op_name]),
         )
-        if op_key is None or op_key not in self.method_registry:
+        if op is None:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
                 f"Binary operation '{op_name}' "
-                f"is not supported by type '{frontend_type.__name__}' "
-                f"which does not overload '{overload_name}'.",
+                f"is not supported by type '{ir_type.__name__}' "
+                f"which does not overload '{method}'.",
             )
-
-        op = self.method_registry[op_key]
         self.inserter.insert_op(
             op(lhs, rhs)  # pyright: ignore[reportCallIssue]
         )
@@ -268,6 +245,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
 
         # Resolve the comparison operation to an xdsl operation class
+        raise NotImplementedError()
         python_op = python_AST_cmpop_to_python_overload[op_name]
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[
             lhs.type.__class__
@@ -496,8 +474,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None or not isinstance(arg.annotation, ast.Name):
                 raise CodeGenerationException(self.file, arg.lineno, arg.col_offset, "")
-            xdsl_type = self.type_registry[arg.annotation.id].ir()
-            argument_types.append(xdsl_type)
+            argument_types.append(self.type_converter.get_ir_type(arg.annotation.id))
 
         return_types: list[Attribute] = []
         if node.returns is not None:
@@ -505,8 +482,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 raise CodeGenerationException(
                     self.file, node.returns.lineno, node.returns.col_offset, ""
                 )
-            xdsl_type = self.type_registry[node.returns.id].ir()
-            return_types.append(xdsl_type)
+            return_types.append(self.type_converter.get_ir_type(node.returns.id))
 
         # Create a function operation.
         entry_block = Block()

@@ -82,11 +82,11 @@ class FrontendProgram:
         assert self.globals is not None
         assert self.functions_and_blocks is not None
 
-        type_converter = TypeConverter(self.globals)
+        type_converter = TypeConverter(
+            self.type_registry, self.method_registry, self.globals
+        )
         self.xdsl_program = CodeGeneration.run_with_type_converter(
             type_converter,
-            self.type_registry,
-            self.method_registry,
             self.functions_and_blocks,
             self.file,
         )
