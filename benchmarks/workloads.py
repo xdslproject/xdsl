@@ -23,7 +23,23 @@ class WorkloadBuilder:
 
     @classmethod
     def constant_folding(cls, size: int = 100) -> str:
-        """Generate a constant folding workload of a given size."""
+        """Generate a constant folding workload of a given size.
+
+        An example of running `WorkloadBuilder().constant_folding(size=5)`
+        is as follows:
+
+        ```mlir
+        "builtin.module"() ({
+            %0 = "arith.constant"() {"value" = 865 : i32} : () -> i32
+            %1 = "arith.constant"() {"value" = 395 : i32} : () -> i32
+            %2 = "arith.addi"(%1, %0) : (i32, i32) -> i32
+            %3 = "arith.constant"() {"value" = 777 : i32} : () -> i32
+            %4 = "arith.addi"(%3, %2) : (i32, i32) -> i32
+            %5 = "arith.constant"() {"value" = 912 : i32} : () -> i32
+            "test.op"(%4) : (i32) -> ()
+        }) : () -> ()
+        ```
+        """
         assert size >= 0
         random.seed(RANDOM_SEED)
         ops: list[str] = []
