@@ -68,8 +68,8 @@ class TblgenOp(TblgenRecord):
 
     @property
     def assembly_format(self) -> str | None:
-        if "assemblyFormat" in self.js:
-            assembly = self["assemblyFormat"]
+        if self.js.get("hasCustomAssemblyFormat", False):
+            assembly = '"' + (self["assemblyFormat"] or "null") + '"'
             if isinstance(assembly, str):
                 return assembly
         return None
@@ -310,6 +310,8 @@ class TblgenLoader:
     def _resolve_prop_constraint(self, rec: TblgenRecord | str) -> str:
         if isinstance(rec, str):
             rec = self._get_record(rec)
+        elif isinstance(rec, dict):
+            rec = self._get_record(rec["def"])
 
         if rec.name in self.attributes:
             return f"BaseAttr({rec.name})"
@@ -629,3 +631,7 @@ def main():
             tblgen_to_py(args.input_file, output, cull=args.cull)
     else:
         tblgen_to_py(args.input_file, cull=args.cull)
+
+
+if __name__ == "__main__":
+    main()
