@@ -109,9 +109,10 @@ class PDLInterpFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) > 0
-        assert isinstance(args[0], SSAValue)
         assert len(args) == 1, "TODO: Implement this"
-        return (args[0].type,)
+        assert isinstance(args[0], SSAValue)
+        value: SSAValue[Any] = args[0]
+        return (value.type,)
 
     @impl(pdl_interp.GetDefiningOpOp)
     def run_getdefiningop(
