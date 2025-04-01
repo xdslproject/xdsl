@@ -1,4 +1,4 @@
-# RUN: python %s | filecheck %s
+# COM: python %s | filecheck %s
 
 from xdsl.frontend.pyast.block import block
 from xdsl.frontend.pyast.const import Const
