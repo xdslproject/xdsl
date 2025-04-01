@@ -1,6 +1,6 @@
 // Tablegen file used to generate `test.json`, which can be generated with the following command:
 // ```
-// llvm-tblgen -D test test.td $LLVM/mlir/include --dump-json | xdsl-tblgen -c > test.json
+// llvm-tblgen -D test test.td -I $LLVM/mlir/include --dump-json | xdsl-tblgen -c | jq > test.json
 // ```
 // where $LLVM is the root directory of an LLVM repository.
 
