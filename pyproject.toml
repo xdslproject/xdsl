@@ -62,7 +62,7 @@ irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
 xdsl-run = "xdsl.tools.xdsl_run:main"
 xdsl-gui = "xdsl.interactive.app:main"
 xdsl-stubgen = "xdsl.utils.dialect_stub:make_all_stubs"
-xdsl-tblgen = "xdsl.tools.tblgen_to_py:main"
+xdsl-tblgen = "xdsl.tools.xdsl_tblgen:main"
 
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
