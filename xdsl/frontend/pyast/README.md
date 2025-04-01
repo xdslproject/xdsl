@@ -65,8 +65,7 @@ should give the following output:
 ```mlir
 builtin.module() {
   func.func() @foo(%0 : !bigint.bigint, %1 : !bigint.bigint) -> !bigint.bigint {
-  ^0(%0 : !i32, %1 : !i32, %2 : !i32):
-    %2 = bigint.add %1, %2 : !bigint.bigint
+    %2 = bigint.add %0, %1 : !bigint.bigint
     func.return %2 : !bigint.bigint
   }
 }
