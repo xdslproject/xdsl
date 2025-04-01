@@ -260,6 +260,7 @@ class GetResultsOp(IRDLOperation):
     value = result_def(ValueType | RangeType[ValueType])
 
     # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
+    # TODO: if parse_optional_integer ...
 
     def __init__(
         self,
@@ -274,6 +275,27 @@ class GetResultsOp(IRDLOperation):
             properties={"index": index},
             result_types=[result_type],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> GetResultsOp:
+        index = parser.parse_optional_integer()
+        if index is not None:
+            index = IntegerAttr.from_int_and_width(index, 32)
+        parser.parse_characters("of")
+        input_op = parser.parse_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        assert isa(result_type, ValueType) or isa(result_type, RangeType[ValueType])
+        return GetResultsOp(index, input_op, result_type)
+
+    def print(self, printer: Printer):
+        if self.index is not None:
+            printer.print(" ")
+            printer.print(self.index.value.data)
+        printer.print(" of ")
+        printer.print_operand(self.input_op)
+        printer.print(" : ")
+        printer.print(self.value.type)
 
 
 @irdl_op_definition
@@ -622,7 +644,6 @@ class FuncOp(IRDLOperation):
         ) = parse_func_op_like(
             parser, reserved_attr_names=("sym_name", "function_type")
         )
-        print(arg_attrs)
         func = FuncOp(
             sym_name=name,
             function_type=(input_types, return_types),
