@@ -42,7 +42,8 @@ def Test_AnyOp : Test_Op<"any"> {
 // Check attributes are converted correctly.
 def Test_AttributesOp : Test_Op<"attributes"> {
   let arguments = (ins I16Attr:$int_attr,
-                       Test_TestAttr:$in);
+                       Test_TestAttr:$in,
+                       OptionalAttr<Test_TestAttr>:$opt);
 }
 
 // Check confined types are converted correctly.
