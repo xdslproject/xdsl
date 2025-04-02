@@ -161,7 +161,7 @@ class DSSFMulVecScalarOp(ARMInstruction):
     Vd, Vn, Vm specify the regs. The <T> specifier determines element arrangement (size and count).
     The <idx> specifier determines the index of Vm at which the second source operand (scalar) can be found,
     preceded by a size specifier.
-    
+
     See external [documentation](https://developer.arm.com/documentation/ddi0602/2024-12/SIMD-FP-Instructions/FMUL--vector---Floating-point-multiply--vector--?lang=en#T_option__4).
     """
 
