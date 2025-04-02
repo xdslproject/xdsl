@@ -521,7 +521,7 @@ def cull_json(output_file: IO[str] | None, loader: TblgenLoader):
         key: js["!instanceof"][key] for key in ("TypeDef", "AttrDef", "Op", "Dialect")
     }
 
-    print(json.dumps(culled), file=output_file)
+    print(json.dumps(culled, sort_keys=True), file=output_file)
 
 
 def tblgen_to_dialect(
