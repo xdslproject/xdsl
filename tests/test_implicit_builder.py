@@ -1,23 +1,3 @@
-# from __future__ import annotations
-
-# import pytest
-
-# from xdsl.builder import ImplicitBuilder
-# from xdsl.context import Context
-# from xdsl.dialects import test, arith, builtin
-
-# def test_single_implicit_builder():
-#     """Test creating an operation with a single implict builder."""
-#     ctx = Context()
-#     ctx.load_dialect(arith.Arith)
-#     ctx.load_dialect(builtin.Builtin)
-#     with ImplicitBuilder((module := builtin.ModuleOp([])).body):
-#         i = test.TestOp.create(result_types=[builtin.i32])
-#         i.results[0].name_hint = "i"
-#     print(module)
-#     assert False
-
-
 from __future__ import annotations
 
 import pytest
@@ -25,8 +5,6 @@ import pytest
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, test
-
-# from test_printer import assert_print_op
 
 
 @pytest.fixture
@@ -60,6 +38,7 @@ def test_single_implicit_builder(dialect_context: Context):
     expected = 'builtin.module {\n  %i = "test.op"() : () -> i32\n}'
 
     with ImplicitBuilder((module := builtin.ModuleOp([])).body):
+        assert len(ImplicitBuilder._stack.stack) == 1
         i = test.TestOp.create(result_types=[builtin.i32])
         i.results[0].name_hint = "i"
     assert str(module) == expected
@@ -73,9 +52,9 @@ def test_nested_implicit_builders(dialect_context: Context):
     )
 
     with ImplicitBuilder((module_outer := builtin.ModuleOp([])).body):
-        # assert len(ImplicitBuilder._stack.stack) == 1
+        assert len(ImplicitBuilder._stack.stack) == 1
         with ImplicitBuilder((_module_inner := builtin.ModuleOp([])).body):
-            # assert len(ImplicitBuilder._stack.stack) == 2
+            assert len(ImplicitBuilder._stack.stack) == 2
             i = test.TestOp.create(result_types=[builtin.i32])
             i.results[0].name_hint = "i"
     assert str(module_outer) == expected
