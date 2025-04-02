@@ -369,7 +369,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
         type(self)._stack.pop(self._builder)
         if not type(self)._stack.stack:
             assert (old_post_init := type(self)._old_post_init)
-            Operation.__post_init__ = old_post_init
+            Operation.__post_init__ = old_post_init  # pyright: ignore[reportAttributeAccessIssue]
 
     @classmethod
     def get(cls) -> Builder | None:
