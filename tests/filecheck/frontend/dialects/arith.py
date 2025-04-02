@@ -1,4 +1,4 @@
-# COM: python %s | filecheck %s
+# RUN: python %s | filecheck %s
 
 from xdsl.frontend.pyast.context import CodeContext
 from xdsl.frontend.pyast.dialects.builtin import f16, f32, f64, i1, i32, i64

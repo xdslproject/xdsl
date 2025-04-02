@@ -1,4 +1,4 @@
-# COM: python %s | filecheck %s
+# RUN: python %s | filecheck %s
 
 
 from xdsl.frontend.pyast.context import CodeContext
