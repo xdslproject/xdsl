@@ -49,6 +49,7 @@ bench = [
     "viztracer>=1.0.1",
     "flameprof>=0.4",
     "orjson>=3.10.15",
+    "pyinstrument>=5.0.1",
 ]
 
 [project.urls]
