@@ -96,6 +96,7 @@ reportImportCycles = false
 reportMissingModuleSource = false
 reportUnnecessaryCast = true
 reportUnnecessaryIsInstance = true
+reportUnnecessaryTypeIgnoreComment = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests"]
