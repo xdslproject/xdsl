@@ -107,13 +107,13 @@ class NeonArrangementAttr(EnumAttribute[NeonArrangement], SpacedOpaqueSyntaxAttr
 
 
 class VectorWithArrangement(AssemblyInstructionArg):
-    reg: NEONRegisterType | SSAValue
+    reg: NEONRegisterType
     arrangement: NeonArrangementAttr
     index: int | None = None
 
     def __init__(
         self,
-        reg: NEONRegisterType,
+        reg: NEONRegisterType | SSAValue,
         arrangement: NeonArrangementAttr,
         *,
         index: int | None = None,
@@ -200,10 +200,10 @@ class DSSFMulVecScalarOp(ARMInstruction):
 
     def assembly_line_args(self):
         return (
-            VectorWithArrangement(self.d.type, self.arrangement),
-            VectorWithArrangement(self.s1.type, self.arrangement),
+            VectorWithArrangement(self.d, self.arrangement),
+            VectorWithArrangement(self.s1, self.arrangement),
             VectorWithArrangement(
-                self.s2.type, self.arrangement, index=self.scalar_idx.value.data
+                self.s2, self.arrangement, index=self.scalar_idx.value.data
             ),
         )
 
