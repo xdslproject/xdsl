@@ -399,7 +399,3 @@ def _override_operation_post_init() -> Callable[[Operation], None]:
 
     Operation.__post_init__ = new_post_init
     return old_post_init
-
-
-# # set up the operation callback for implicit construction
-# _override_operation_post_init()
