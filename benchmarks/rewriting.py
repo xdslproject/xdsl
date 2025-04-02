@@ -162,8 +162,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
     def time_insert_point_before(self) -> None:
         """Time `InsertPoint.before`.
 
-        Exercise creating an `InsertPoint` from the block's parent block. This
-        is used to move indicate the location to rewrite.
+        Measure time to create an `InsertPoint` from the block's parent block.
         """
         InsertPoint.before(self.add_op)
 
