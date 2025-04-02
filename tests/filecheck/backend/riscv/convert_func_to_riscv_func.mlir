@@ -27,14 +27,16 @@ builtin.module {
         func.return %fres0, %res0 : f64, i32
     }
 
+    func.func private @private_func() {
+        func.return
+    }
+
     func.func @external(%arg0 : i32, %farg0 : f64) -> (f64, i32)
 }
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    riscv.assembly_section ".text" {
-// CHECK-NEXT:      riscv.directive ".globl" "main"
-// CHECK-NEXT:      riscv.directive ".p2align" "2"
-// CHECK-NEXT:      riscv_func.func @main() {
+// CHECK-NEXT:      riscv_func.func public @main() attributes {p2align = 2 : i8} {
 // CHECK-NEXT:          %0, %1 = "test.op"() : () -> (i32, f32)
 // CHECK-NEXT:          %{{.*}} = builtin.unrealized_conversion_cast %0 : i32 to !riscv.reg
 // CHECK-NEXT:          %{{.*}} = builtin.unrealized_conversion_cast %1 : f32 to !riscv.freg
@@ -49,9 +51,7 @@ builtin.module {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv.assembly_section ".text" {
-// CHECK-NEXT:      riscv.directive ".globl" "foo"
-// CHECK-NEXT:      riscv.directive ".p2align" "2"
-// CHECK-NEXT:      riscv_func.func @foo(%arg0 : !riscv.reg<a0>, %arg1 : !riscv.freg<fa0>) -> (!riscv.reg<a0>, !riscv.freg<fa0>) {
+// CHECK-NEXT:      riscv_func.func public @foo(%arg0 : !riscv.reg<a0>, %arg1 : !riscv.freg<fa0>) -> (!riscv.reg<a0>, !riscv.freg<fa0>) attributes {p2align = 2 : i8} {
 // CHECK-NEXT:        %{{.*}} = riscv.mv %arg0 : (!riscv.reg<a0>) -> !riscv.reg
 // CHECK-NEXT:        %arg0_1 = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg to i32
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.s %arg1 : (!riscv.freg<fa0>) -> !riscv.freg
@@ -65,9 +65,7 @@ builtin.module {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv.assembly_section ".text" {
-// CHECK-NEXT:      riscv.directive ".globl" "foo_float"
-// CHECK-NEXT:      riscv.directive ".p2align" "2"
-// CHECK-NEXT:      riscv_func.func @foo_float(%farg0 : !riscv.freg<fa0>, %farg1 : !riscv.freg<fa1>) -> (!riscv.freg<fa0>, !riscv.freg<fa1>) {
+// CHECK-NEXT:      riscv_func.func public @foo_float(%farg0 : !riscv.freg<fa0>, %farg1 : !riscv.freg<fa1>) -> (!riscv.freg<fa0>, !riscv.freg<fa1>) attributes {p2align = 2 : i8} {
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.s %farg0 : (!riscv.freg<fa0>) -> !riscv.freg
 // CHECK-NEXT:        %farg0_1 = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f32
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.s %farg1 : (!riscv.freg<fa1>) -> !riscv.freg
@@ -81,9 +79,7 @@ builtin.module {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv.assembly_section ".text" {
-// CHECK-NEXT:      riscv.directive ".globl" "foo_int_float"
-// CHECK-NEXT:      riscv.directive ".p2align" "2"
-// CHECK-NEXT:      riscv_func.func @foo_int_float(%arg0 : !riscv.reg<a0>, %farg0 : !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>) {
+// CHECK-NEXT:      riscv_func.func public @foo_int_float(%arg0 : !riscv.reg<a0>, %farg0 : !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>) attributes {p2align = 2 : i8} {
 // CHECK-NEXT:        %{{.*}} = riscv.mv %arg0 : (!riscv.reg<a0>) -> !riscv.reg
 // CHECK-NEXT:        %arg0_1 = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg to i32
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.s %farg0 : (!riscv.freg<fa0>) -> !riscv.freg
@@ -97,9 +93,7 @@ builtin.module {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv.assembly_section ".text" {
-// CHECK-NEXT:      riscv.directive ".globl" "foo_int_double"
-// CHECK-NEXT:      riscv.directive ".p2align" "2"
-// CHECK-NEXT:      riscv_func.func @foo_int_double(%arg0 : !riscv.reg<a0>, %farg0 : !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>) {
+// CHECK-NEXT:      riscv_func.func public @foo_int_double(%arg0 : !riscv.reg<a0>, %farg0 : !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>) attributes {p2align = 2 : i8} {
 // CHECK-NEXT:        %{{.*}} = riscv.mv %arg0 : (!riscv.reg<a0>) -> !riscv.reg
 // CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg to i32
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<fa0>) -> !riscv.freg
@@ -113,8 +107,11 @@ builtin.module {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv.assembly_section ".text" {
-// CHECK-NEXT:      riscv.directive ".globl" "external"
-// CHECK-NEXT:      riscv.directive ".p2align" "2"
-// CHECK-NEXT:      riscv_func.func @external(!riscv.reg<a0>, !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>)
+// CHECK-NEXT:      riscv_func.func private @private_func() attributes {p2align = 2 : i8} {
+// CHECK-NEXT:        riscv_func.return
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+// CHECK-NEXT:    riscv.assembly_section ".text" {
+// CHECK-NEXT:      riscv_func.func public @external(!riscv.reg<a0>, !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>) attributes {p2align = 2 : i8}
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }

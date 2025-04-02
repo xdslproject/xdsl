@@ -14,7 +14,6 @@ class X86RegisterType(RegisterType, ABC):
     """
 
 
-# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 X86_INDEX_BY_NAME = {
     "rax": 0,
     "rcx": 1,
@@ -41,6 +40,11 @@ X86_INDEX_BY_NAME = {
     "r14": 14,
     "r15": 15,
 }
+"""
+Mapping of x86 register names to their indices.
+
+See external [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
 
 
 @irdl_attr_definition
@@ -149,7 +153,6 @@ class SSERegisterType(X86VectorRegisterType):
         return "inf_sse_"
 
 
-# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 SSE_INDEX_BY_NAME = {
     "xmm0": 0,
     "xmm1": 1,
@@ -168,6 +171,11 @@ SSE_INDEX_BY_NAME = {
     "xmm14": 14,
     "xmm15": 15,
 }
+"""
+Mapping of SSE register names to their indices.
+
+See external # [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
 
 UNALLOCATED_SSE = SSERegisterType.unallocated()
 XMM0 = SSERegisterType.from_name("xmm0")
@@ -209,7 +217,6 @@ class AVX2RegisterType(X86VectorRegisterType):
         return "inf_avx2_"
 
 
-# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 AVX2_INDEX_BY_NAME = {
     "ymm0": 0,
     "ymm1": 1,
@@ -228,6 +235,11 @@ AVX2_INDEX_BY_NAME = {
     "ymm14": 14,
     "ymm15": 15,
 }
+"""
+Mapping of AVX2 register names to their indices.
+
+See external # [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
 
 UNALLOCATED_AVX2 = AVX2RegisterType.unallocated()
 YMM0 = AVX2RegisterType.from_name("ymm0")
@@ -269,7 +281,6 @@ class AVX512RegisterType(X86VectorRegisterType):
         return "inf_avx512_"
 
 
-# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 X86AVX512_INDEX_BY_NAME = {
     "zmm0": 0,
     "zmm1": 1,
@@ -304,6 +315,11 @@ X86AVX512_INDEX_BY_NAME = {
     "zmm30": 30,
     "zmm31": 31,
 }
+"""
+Mapping of AVX512 register names to their indices.
+
+See external # [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
 
 UNALLOCATED_AVX512 = AVX512RegisterType.unallocated()
 ZMM0 = AVX512RegisterType.from_name("zmm0")

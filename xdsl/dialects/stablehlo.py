@@ -1,5 +1,4 @@
 """
-
 [StableHLO](https://github.com/openxla/stablehlo/blob/main/docs/spec.md)
 is an operation set for high-level operations (HLO) in machine learning (ML) models.
 StableHLO works as a portability layer between different ML frameworks and ML compilers:
@@ -208,7 +207,7 @@ class ComparisonDirectionAttr(
 
     For quantized types, performs `dequantize_compare(lhs, rhs, comparison_direction)`
 
-    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#compare)
+    See external [documentation](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#compare).
     """
 
     name = "stablehlo.comparison_direction"
@@ -218,7 +217,7 @@ class ComparisonType(StrEnum):
     """
     Together with `comparison_direction` determines the semantics of comparison.
 
-    [See StableHLO's source](https://github.com/openxla/stablehlo/blob/main/stablehlo/dialect/StablehloEnums.td#L152-L156)
+    See StableHLO's [source](https://github.com/openxla/stablehlo/blob/main/stablehlo/dialect/StablehloEnums.td#L152-L156).
     """
 
     NOTYPE = "NOTYPE"
@@ -233,7 +232,7 @@ class ComparisonTypeAttr(EnumAttribute[ComparisonType], SpacedOpaqueSyntaxAttrib
     """
     Together with `comparison_direction` determines the semantics of comparison.
 
-    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#compare)
+    See external [documentation](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#compare).
     """
 
     name = "stablehlo.comparison_type"
@@ -254,7 +253,7 @@ class PrecisionAttr(EnumAttribute[Precision], SpacedOpaqueSyntaxAttribute):
     """
     XLA precision for an operand. Has backend specific meaning.
 
-    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloEnums.td#L46)
+    See external [documentation](https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloEnums.td#L46).
     """
 
     name = "stablehlo.precision"
@@ -283,7 +282,7 @@ class DotAttr(ParametrizedAttribute):
     """
     Attribute that models the dimension information for dot.
 
-    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloAttrs.td#L82)
+    See external [documentation](https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloAttrs.td#L82).
     """
 
     name = "stablehlo.dot"
@@ -731,7 +730,7 @@ class TransposeOp(IRDLOperation):
     def verify_(self) -> None:
         # Operand and result types are checked before the custom `verify_`
         o_type = cast(TensorType[Attribute], self.operand.type)
-        r_type = cast(TensorType[Attribute], self.result.type)
+        r_type = self.result.type
 
         o_shape = o_type.get_shape()
         r_shape = r_type.get_shape()
