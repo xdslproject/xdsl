@@ -2,6 +2,7 @@ import ast
 from dataclasses import dataclass, field
 from typing import (
     Any,
+    NamedTuple,
     TypeAlias,
     _GenericAlias,  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
 )
@@ -12,9 +13,26 @@ from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
 from xdsl.frontend.pyast.exception import CodeGenerationException
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, TypeAttribute
 
 TypeName: TypeAlias = str
+
+
+class SourceIRTypePair(NamedTuple):
+    """Pair of types for source code and its generated IR.
+
+    An example of this mapping Python `int`s to the xDSL bigint dialect is:
+    ```python
+    from xdsl.dialects.bigint import BigIntegerType
+    source_ir_type_pair = SourceIRTypePair(int, BigIntegerType)
+    ```
+    """
+
+    source: type
+    """A type from the source code."""
+
+    ir: type[TypeAttribute]
+    """The corresponding type to be generated in the IR."""
 
 
 @dataclass
