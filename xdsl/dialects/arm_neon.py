@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.backend.assembly_printer import AssemblyPrinter
-from xdsl.dialects.arm.assembly import AssemblyInstructionArg
+from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
@@ -266,7 +266,7 @@ class DVarSSt1Op(ARMInstruction):
         assert isinstance(self.d.type, IntRegisterType)
         return (
             *(VectorWithArrangement(s, self.arrangement) for s in self.src_regs),
-            reg(d.type),
+            reg(self.d),
         )
 
     def assembly_line(self) -> str | None:
