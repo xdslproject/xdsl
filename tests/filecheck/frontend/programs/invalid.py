@@ -1,5 +1,6 @@
 # RUN: python %s | filecheck %s
 
+from xdsl.dialects.bigint import BigIntegerType
 from xdsl.frontend.pyast.block import block
 from xdsl.frontend.pyast.const import Const
 from xdsl.frontend.pyast.context import CodeContext
@@ -237,5 +238,12 @@ with CodeContext(p):
 try:
     p.compile(desymref=False)
     print(p.textual_format())
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    p.register_type(int, BigIntegerType)
+    p.register_type(int, BigIntegerType)
 except FrontendProgramException as e:
     print(e.msg)

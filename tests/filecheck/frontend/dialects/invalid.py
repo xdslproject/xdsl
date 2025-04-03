@@ -1,5 +1,7 @@
 # RUN: python %s | filecheck %s
 
+from collections.abc import Callable
+
 from xdsl.frontend.pyast.context import CodeContext
 from xdsl.frontend.pyast.dialects.builtin import i1, i32, i64
 from xdsl.frontend.pyast.exception import (
@@ -112,6 +114,30 @@ try:
         def test_not_supported_loop_IV():
             for i, j in range(100):
                 pass
+            return
+
+    p.compile(desymref=False)
+    print(p.textual_format())
+except CodeGenerationException as e:
+    print(e.msg)
+
+
+try:
+    with CodeContext(p):
+
+        def test_complex_arg_annotation(x: Callable[[int], None]) -> None:
+            return
+
+    p.compile(desymref=False)
+    print(p.textual_format())
+except CodeGenerationException as e:
+    print(e.msg)
+
+
+try:
+    with CodeContext(p):
+
+        def test_complex_return_annotation() -> int | None:
             return
 
     p.compile(desymref=False)

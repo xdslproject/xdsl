@@ -479,7 +479,12 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         argument_types: list[Attribute] = []
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None or not isinstance(arg.annotation, ast.Name):
-                raise CodeGenerationException(self.file, arg.lineno, arg.col_offset, "")
+                raise CodeGenerationException(
+                    self.file,
+                    arg.lineno,
+                    arg.col_offset,
+                    "Only direct annotations are supported in function arguments",
+                )
             xdsl_type = self.type_converter.get_ir_type(arg.annotation.id)
             if xdsl_type is None:
                 xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
@@ -489,7 +494,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         if node.returns is not None:
             if not isinstance(node.returns, ast.Name):
                 raise CodeGenerationException(
-                    self.file, node.returns.lineno, node.returns.col_offset, ""
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Only direct annotations are supported in function return types",
                 )
             xdsl_type = self.type_converter.get_ir_type(node.returns.id)
             if xdsl_type is None:
