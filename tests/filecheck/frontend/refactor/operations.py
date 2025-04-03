@@ -1,16 +1,16 @@
 # RUN: python %s | filecheck %s
 
 from xdsl.dialects.arith import AddfOp, MulfOp, SubfOp
-from xdsl.dialects.bigint import AddBigIntOp, BigIntegerType, MulBigIntOp, SubBigIntOp
+from xdsl.dialects.bigint import AddOp, BigIntegerType, MulOp, SubOp
 from xdsl.dialects.builtin import Float64Type
 from xdsl.frontend.pyast.context import CodeContext
 from xdsl.frontend.pyast.program import FrontendProgram
 
 p1 = FrontendProgram()
 p1.register_type(int, BigIntegerType)
-p1.register_method(int, "__add__", AddBigIntOp)
-p1.register_method(int, "__sub__", SubBigIntOp)
-p1.register_method(int, "__mul__", MulBigIntOp)
+p1.register_method(int, "__add__", AddOp)
+p1.register_method(int, "__sub__", SubOp)
+p1.register_method(int, "__mul__", MulOp)
 with CodeContext(p1):
     # CHECK:      builtin.module {
     # CHECK-NEXT:     func.func @foo(%0 : !bigint.bigint, %1 : !bigint.bigint, %2 : !bigint.bigint) -> !bigint.bigint {

@@ -36,7 +36,7 @@ class BigIntegerType(ParametrizedAttribute, TypeAttribute):
 bigIntegerLike = ContainerOf(BigIntegerType)
 
 
-class BigIntegerBinaryOperation(IRDLOperation, abc.ABC):
+class BinaryOperation(IRDLOperation, abc.ABC):
     T: ClassVar = VarConstraint("T", bigIntegerLike)
 
     lhs = operand_def(T)
@@ -62,7 +62,7 @@ class BigIntegerBinaryOperation(IRDLOperation, abc.ABC):
 
 
 @irdl_op_definition
-class AddBigIntOp(BigIntegerBinaryOperation):
+class AddOp(BinaryOperation):
     name = "bigint.add"
 
     traits = traits_def(
@@ -77,7 +77,7 @@ class AddBigIntOp(BigIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class SubBigIntOp(BigIntegerBinaryOperation):
+class SubOp(BinaryOperation):
     name = "bigint.sub"
 
     traits = traits_def(
@@ -92,7 +92,7 @@ class SubBigIntOp(BigIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class MulBigIntOp(BigIntegerBinaryOperation):
+class MulOp(BinaryOperation):
     name = "bigint.mul"
 
     traits = traits_def(
@@ -107,7 +107,7 @@ class MulBigIntOp(BigIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class FloorDivBigIntOp(BigIntegerBinaryOperation):
+class FloorDivOp(BinaryOperation):
     name = "bigint.floordiv"
 
     traits = traits_def(
@@ -121,7 +121,7 @@ class FloorDivBigIntOp(BigIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class ModBigIntOp(BigIntegerBinaryOperation):
+class ModOp(BinaryOperation):
     name = "bigint.mod"
 
     traits = traits_def(
@@ -135,7 +135,7 @@ class ModBigIntOp(BigIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class PowBigIntOp(BigIntegerBinaryOperation):
+class PowOp(BinaryOperation):
     name = "bigint.mod"
 
     traits = traits_def(
@@ -149,7 +149,7 @@ class PowBigIntOp(BigIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class LShiftBigIntOp(BigIntegerBinaryOperation):
+class LShiftOp(BinaryOperation):
     name = "bigint.lshift"
 
     traits = traits_def(
@@ -163,7 +163,7 @@ class LShiftBigIntOp(BigIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class RShiftBigIntOp(BigIntegerBinaryOperation):
+class RShiftOp(BinaryOperation):
     name = "bigint.rshift"
 
     traits = traits_def(
@@ -177,7 +177,7 @@ class RShiftBigIntOp(BigIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class BitOrBigIntOp(BigIntegerBinaryOperation):
+class BitOrOp(BinaryOperation):
     name = "bigint.bitor"
 
     traits = traits_def(
@@ -192,7 +192,7 @@ class BitOrBigIntOp(BigIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class BitXorBigIntOp(BigIntegerBinaryOperation):
+class BitXorOp(BinaryOperation):
     name = "bigint.bitxor"
 
     traits = traits_def(
@@ -207,7 +207,7 @@ class BitXorBigIntOp(BigIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class BitAndBigIntOp(BigIntegerBinaryOperation):
+class BitAndOp(BinaryOperation):
     name = "bigint.bitand"
 
     traits = traits_def(
@@ -222,7 +222,7 @@ class BitAndBigIntOp(BigIntegerBinaryOperation):
 
 
 # @irdl_op_definition
-# class DivBigIntOp(IRDLOperation):
+# class DivOp(IRDLOperation):
 #     name = "bigint.div"
 
 #     T: ClassVar = VarConstraint("T", bigIntegerLike)
@@ -281,7 +281,7 @@ class BitAndBigIntOp(BigIntegerBinaryOperation):
 
 
 # @irdl_op_definition
-# class EqBigIntOp(BigIntegerComparisonOperation):
+# class EqOp(BigIntegerComparisonOperation):
 #     name = "bigint.eq"
 
 #     traits = traits_def(
@@ -295,7 +295,7 @@ class BitAndBigIntOp(BigIntegerBinaryOperation):
 
 
 # @irdl_op_definition
-# class NeqBigIntOp(BigIntegerComparisonOperation):
+# class NeqOp(BigIntegerComparisonOperation):
 #     name = "bigint.neq"
 
 #     traits = traits_def(
@@ -309,7 +309,7 @@ class BitAndBigIntOp(BigIntegerBinaryOperation):
 
 
 # @irdl_op_definition
-# class GtBigIntOp(BigIntegerComparisonOperation):
+# class GtOp(BigIntegerComparisonOperation):
 #     name = "bigint.gt"
 
 #     traits = traits_def(
@@ -322,7 +322,7 @@ class BitAndBigIntOp(BigIntegerBinaryOperation):
 
 
 # @irdl_op_definition
-# class GteBigIntOp(BigIntegerComparisonOperation):
+# class GteOp(BigIntegerComparisonOperation):
 #     name = "bigint.gte"
 
 #     traits = traits_def(
@@ -335,7 +335,7 @@ class BitAndBigIntOp(BigIntegerBinaryOperation):
 
 
 # @irdl_op_definition
-# class LtBigIntOp(BigIntegerComparisonOperation):
+# class LtOp(BigIntegerComparisonOperation):
 #     name = "bigint.lt"
 
 #     traits = traits_def(
@@ -348,7 +348,7 @@ class BitAndBigIntOp(BigIntegerBinaryOperation):
 
 
 # @irdl_op_definition
-# class LteBigIntOp(BigIntegerComparisonOperation):
+# class LteOp(BigIntegerComparisonOperation):
 #     name = "bigint.lte"
 
 #     traits = traits_def(
@@ -365,24 +365,24 @@ bigint = BigIntegerType()
 BigInt = Dialect(
     "bigint",
     [
-        AddBigIntOp,
-        SubBigIntOp,
-        MulBigIntOp,
-        FloorDivBigIntOp,
-        ModBigIntOp,
-        PowBigIntOp,
-        LShiftBigIntOp,
-        RShiftBigIntOp,
-        BitOrBigIntOp,
-        BitXorBigIntOp,
-        BitAndBigIntOp,
-        # DivBigIntOp,
-        # EqBigIntOp,
-        # NeqBigIntOp,
-        # GtBigIntOp,
-        # GteBigIntOp,
-        # LtBigIntOp,
-        # LteBigIntOp,
+        AddOp,
+        SubOp,
+        MulOp,
+        FloorDivOp,
+        ModOp,
+        PowOp,
+        LShiftOp,
+        RShiftOp,
+        BitOrOp,
+        BitXorOp,
+        BitAndOp,
+        # DivOp,
+        # EqOp,
+        # NeqOp,
+        # GtOp,
+        # GteOp,
+        # LtOp,
+        # LteOp,
     ],
     [
         BigIntegerType,
