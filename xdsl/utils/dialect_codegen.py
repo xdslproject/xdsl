@@ -129,6 +129,16 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
         + "\n\t"
     )
 
+    fields_description += (
+        "\n\t".join(
+            [
+                f"{field_name_mapping.get(name, name)} = attr_def({attr.constr}{f', attr_name="{name}"' if name in field_name_mapping else ''})"  # noqa: E501
+                for name, attr in op.attributes.items()
+            ]
+        )
+        + "\n\t"
+    )
+
     if op.traits.traits:
         fields_description += (
             f"traits = traits_def({','.join([str(t) for t in op.traits.traits])})"
@@ -140,8 +150,6 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
             f"irdl_options = [{','.join([str(opt) for opt in op.options])}]" + "\n\t"
         )
 
-    if op.attributes:
-        raise NotImplementedError("Operation attributes not yet implemented")
     if op.regions:
         raise NotImplementedError("Operation regions not yet implemented")
     if op.successors:

@@ -3,6 +3,7 @@
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
     ComplexType,
+    DenseArrayBase,
     Float32Type,
     IndexType,
     IntAttr,
@@ -15,6 +16,7 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyOf,
+    AttributeDef,
     AttrSizedOperandSegments,
     BaseAttr,
     EqAttrConstraint,
@@ -150,9 +152,9 @@ ops = [
         ),
     ),
     (
-        "Test_AttributesOp",
+        "Test_PropertiesOp",
         OpDef(
-            name="test.attributes",
+            name="test.properties",
             properties={
                 "int_attr": PropertyDef(
                     IntegerAttr.constr(type=EqAttrConstraint(IntegerType(16)))
@@ -167,6 +169,17 @@ ops = [
         OpDef(
             name="test.traits",
             traits=traits_def(ConstantLike(), Pure()),
+        ),
+    ),
+    (
+        "Test_AttributesOp",
+        OpDef(
+            name="test.attributes",
+            attributes={
+                "attr": AttributeDef(AnyAttr()),
+                "operandSegmentSizes": AttributeDef(BaseAttr(DenseArrayBase)),
+            },
+            accessor_names={"some_attr": ("attr", "attribute")},
         ),
     ),
 ]
@@ -270,8 +283,8 @@ dump_dialect_pyfile(
 # CHECK-NEXT:      ]
 
 # CHECK:       @irdl_op_definition
-# CHECK-NEXT:  class Test_AttributesOp(IRDLOperation):
-# CHECK-NEXT:      name = "test.attributes"
+# CHECK-NEXT:  class Test_PropertiesOp(IRDLOperation):
+# CHECK-NEXT:      name = "test.properties"
 # CHECK-EMPTY:
 # CHECK-NEXT:      int_attr = prop_def(
 # CHECK-NEXT:          ParamAttrConstraint(
@@ -286,6 +299,13 @@ dump_dialect_pyfile(
 # CHECK-EMPTY:
 # CHECK-NEXT:      traits = traits_def(ConstantLike(), Pure())
 
+# CHECK:       @irdl_op_definition
+# CHECK-NEXT:  class Test_AttributesOp(IRDLOperation):
+# CHECK-NEXT:      name = "test.attributes"
+# CHECK-NEXT:
+# CHECK-NEXT:      some_attr = attr_def(AnyAttr(), attr_name="attr")
+# CHECK-NEXT:      operandSegmentSizes = attr_def(BaseAttr(DenseArrayBase))
+
 # CHECK:       TestDialect = Dialect(
 # CHECK-NEXT:      "test",
 # CHECK-NEXT:      [
@@ -297,8 +317,9 @@ dump_dialect_pyfile(
 # CHECK-NEXT:          Test_TypesOp,
 # CHECK-NEXT:          Test_SingleOp,
 # CHECK-NEXT:          Test_VariadicityOp,
-# CHECK-NEXT:          Test_AttributesOp,
+# CHECK-NEXT:          Test_PropertiesOp,
 # CHECK-NEXT:          Test_TraitsOp,
+# CHECK-NEXT:          Test_AttributesOp,
 # CHECK-NEXT:      ],
 # CHECK-NEXT:      [Test_TestAttr, Test_SingletonAType, Test_SingletonBType, Test_SingletonCType],
 # CHECK-NEXT:  )
