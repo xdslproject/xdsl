@@ -151,6 +151,7 @@ def dump_dialect_pyfile(
     types: Iterable[tuple[str, ParamAttrDef]] = (),
     out: TextIO | None = None,
     dialect_obj_name: str = "",
+    create_dialect_obj: bool = True,
 ):
     """
     Generate a python file with a dialect comprised of given ops, attributes and types.
@@ -182,7 +183,9 @@ from xdsl.irdl import *
     attr_list = ",".join(name for name, _ in itertools.chain(attributes, types))
 
     dialect_def = (
-        f'{dialect_obj_name} = Dialect("{dialect_name}", [{op_list}], [{attr_list}])'
+        (f'{dialect_obj_name} = Dialect("{dialect_name}", [{op_list}], [{attr_list}])')
+        if create_dialect_obj
+        else ""
     )
 
     content = "\n".join(
