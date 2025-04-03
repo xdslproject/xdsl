@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from xdsl.backend.assembly_printer import AssemblyPrinter
 from xdsl.dialects.arm.assembly import AssemblyInstructionArg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
-from xdsl.dialects.arm.register import ARMRegisterType
+from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
 from xdsl.ir import (
     Dialect,
@@ -18,7 +21,9 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     result_def,
+    var_operand_def,
 )
+from xdsl.utils.exceptions import VerifyException
 
 ARM_NEON_INDEX_BY_NAME = {f"v{i}": i for i in range(0, 32)}
 
@@ -209,10 +214,74 @@ class DSSFMulVecScalarOp(ARMInstruction):
         )
 
 
+@irdl_op_definition
+class DVarSSt1Op(ARMInstruction):
+    """
+    Neon structure store instruction reads data from memory into 64-bit Neon registers.
+    ST1 stores one to four registers of data to memory, with no interleaving.
+    """
+
+    name = "arm_neon.dvars.st1"
+    d = operand_def(IntRegisterType)
+    src_regs = var_operand_def(NEONRegisterType)
+    arrangement = attr_def(NeonArrangementAttr)
+
+    assembly_format = "$src_regs ` ` `[` $d `]` $arrangement attr-dict `:` `(` type($src_regs) `)` `->` type($d)"
+
+    def __init__(
+        self,
+        d: IntRegisterType,
+        src_regs: Sequence[SSAValue],
+        *,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if not (1 <= len(self.src_regs) <= 4):
+            raise ValueError(
+                f"src_regs must contain between 1 and 4 elements, but got {len(self.src_regs)}."
+            )
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=[*src_regs],
+            attributes={
+                "comment": comment,
+                "arrangement": arrangement,
+            },
+            result_types=(d,),
+        )
+
+    def verify_(self) -> None:
+        if not (1 <= len(self.src_regs) <= 4):
+            raise VerifyException(
+                f"src_regs must contain between 1 and 4 elements, but got {len(self.src_regs)}."
+            )
+
+    def assembly_instruction_name(self) -> str:
+        return "st1"
+
+    def assembly_line_args(self):
+        assert isinstance(self.d.type, IntRegisterType)
+        return (
+            *(VectorWithArrangement(s, self.arrangement) for s in self.src_regs),
+            self.d.type,
+        )
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        asm_args = self.assembly_line_args()
+        arg_str = ", ".join(arg.assembly_str() for arg in asm_args[:-1])
+        arg_str += f", [{asm_args[-1].assembly_str()}]"
+        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
+
+
 ARM_NEON = Dialect(
     "arm_neon",
     [
         DSSFMulVecScalarOp,
+        DVarSSt1Op,
         GetRegisterOp,
     ],
     [
