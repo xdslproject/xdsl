@@ -118,6 +118,11 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
         + "\n\t"
     )
 
+    if op.options:
+        fields_description += (
+            f"irdl_options = [{','.join([str(opt) for opt in op.options])}]" + "\n\t"
+        )
+
     if op.attributes:
         raise NotImplementedError("Operation attributes not yet implemented")
     if op.regions:

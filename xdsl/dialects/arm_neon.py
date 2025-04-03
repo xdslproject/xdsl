@@ -214,6 +214,65 @@ class DSSFMulVecScalarOp(ARMInstruction):
 
 
 @irdl_op_definition
+class DSSFmlaVecScalarOp(ARMInstruction):
+    """
+    Floating-point fused Multiply-Add to accumulator (mixed: first source operand is a vector, second is a scalar.
+    Destination is a vector)
+    This instruction multiplies the values in the first source operand by the second source operand,
+    adds the accumulated value from the destination operand, and writes the resulting values to the destination.
+    Encoding: FMLA <Vd>.<T>, <Vn>.<T>, <Vm>.<idx>.
+    Vd, Vn, Vm specify the regs. The <T> specifier determines element arrangement (size and count).
+    The <idx> specifier determines the index of Vm at which the second source operand (scalar) can be found,
+    preceded by a size specifier.
+
+    See external [documentation](https://developer.arm.com/documentation/100069/0606/SIMD-Vector-Instructions/FMLA--vector-).
+    """
+
+    name = "arm_neon.dss.fmla"
+    d = result_def(NEONRegisterType)
+    s1 = operand_def(NEONRegisterType)
+    s2 = operand_def(NEONRegisterType)
+    scalar_idx = attr_def(IntegerAttr[i8])
+    arrangement = attr_def(NeonArrangementAttr)
+
+    assembly_format = "$s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
+
+    def __init__(
+        self,
+        s1: Operation | SSAValue,
+        s2: Operation | SSAValue,
+        *,
+        d: NEONRegisterType,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=(s1, s2),
+            attributes={
+                "comment": comment,
+                "arrangement": arrangement,
+            },
+            result_types=(d,),
+        )
+
+    def assembly_instruction_name(self) -> str:
+        return "fmla"
+
+    def assembly_line_args(self):
+        return (
+            VectorWithArrangement(self.d, self.arrangement),
+            VectorWithArrangement(self.s1, self.arrangement),
+            VectorWithArrangement(
+                self.s2, self.arrangement, index=self.scalar_idx.value.data
+            ),
+        )
+
+
+@irdl_op_definition
 class DVarSSt1Op(ARMInstruction):
     """
     Neon structure store instruction reads data from memory into 64-bit Neon registers.
@@ -272,6 +331,7 @@ class DVarSSt1Op(ARMInstruction):
 ARM_NEON = Dialect(
     "arm_neon",
     [
+        DSSFmlaVecScalarOp,
         DSSFMulVecScalarOp,
         DVarSSt1Op,
         GetRegisterOp,

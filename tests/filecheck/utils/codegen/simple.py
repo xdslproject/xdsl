@@ -14,6 +14,7 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyOf,
+    AttrSizedOperandSegments,
     BaseAttr,
     EqAttrConstraint,
     OpDef,
@@ -22,6 +23,7 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParamAttrDef,
     ResultDef,
+    SameVariadicOperandSize,
     VarOperandDef,
 )
 from xdsl.utils.dialect_codegen import dump_dialect_pyfile, generate_dynamic_attr_class
@@ -137,6 +139,7 @@ ops = [
                 ("variadic", VarOperandDef(BaseAttr(SingletonAType))),
                 ("required", OperandDef(BaseAttr(SingletonCType))),
             ],
+            options=[SameVariadicOperandSize(), AttrSizedOperandSegments()],
         ),
     ),
 ]
@@ -233,6 +236,10 @@ dump_dialect_pyfile(
 # CHECK-NEXT:      opt = opt_operand_def(BaseAttr(Test_SingletonAType))
 # CHECK-NEXT:      variadic = var_operand_def(BaseAttr(Test_SingletonAType))
 # CHECK-NEXT:      required = operand_def(BaseAttr(Test_SingletonCType))
+# CHECK-NEXT:      irdl_options = [
+# CHECK-NEXT:          SameVariadicOperandSize(),
+# CHECK-NEXT:          AttrSizedOperandSegments(as_property=False),
+# CHECK-NEXT:      ]
 
 # CHECK:       TestDialect = Dialect(
 # CHECK-NEXT:      "test",
