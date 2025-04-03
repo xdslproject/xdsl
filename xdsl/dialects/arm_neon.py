@@ -266,7 +266,7 @@ class DVarSSt1Op(ARMInstruction):
         assert isinstance(self.d.type, IntRegisterType)
         return (
             *(VectorWithArrangement(s, self.arrangement) for s in self.src_regs),
-            self.d.type,
+            reg(d.type),
         )
 
     def assembly_line(self) -> str | None:
