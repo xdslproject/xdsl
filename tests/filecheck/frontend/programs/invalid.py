@@ -243,6 +243,7 @@ except FrontendProgramException as e:
 
 
 try:
+    # CHECK-NEXT: Cannot re-register type 'int'
     p.register_type(int, BigIntegerType)
     p.register_type(int, BigIntegerType)
 except FrontendProgramException as e:
