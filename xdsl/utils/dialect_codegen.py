@@ -124,7 +124,7 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
             [
                 f"{field_name_mapping.get(name, name)} = prop_def({prop.constr}"
                 + (f', prop_name="{name}"' if name in field_name_mapping else "")
-                + ")"  # noqa: E501
+                + ")"
                 for name, prop in op.properties.items()
             ]
         )
@@ -136,7 +136,7 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
             [
                 f"{field_name_mapping.get(name, name)} = attr_def({attr.constr}"
                 + (f', attr_name="{name}"' if name in field_name_mapping else "")
-                + ")"  # noqa: E501
+                + ")"
                 for name, attr in op.attributes.items()
             ]
         )
