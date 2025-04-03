@@ -501,8 +501,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             if not isinstance(node.returns, ast.Name):
                 raise CodeGenerationException(
                     self.file,
-                    arg.lineno,
-                    arg.col_offset,
+                    node.lineno,
+                    node.col_offset,
                     "Only direct annotations are supported in function return types",
                 )
             if node.returns.id in self.type_registry:
