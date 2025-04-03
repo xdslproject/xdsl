@@ -124,7 +124,7 @@ except CodeGenerationException as e:
 
 try:
     with CodeContext(p):
-        # CHECK: Unsupported function argument type: Callable[..., None]
+        # CHECK: Unsupported function argument type: 'Callable[..., None]'
         def test_complex_arg_annotation(x: Callable[..., None]) -> None:
             return
 
@@ -136,7 +136,7 @@ except CodeGenerationException as e:
 
 try:
     with CodeContext(p):
-        # CHECK: Unsupported function return type: int | None
+        # CHECK: Unsupported function return type: 'int | None'
         def test_complex_return_annotation() -> int | None:
             return
 

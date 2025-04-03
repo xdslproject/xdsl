@@ -16,9 +16,7 @@ from xdsl.frontend.pyast.exception import (
 from xdsl.frontend.pyast.op_inserter import OpInserter
 from xdsl.frontend.pyast.op_resolver import OpResolver
 from xdsl.frontend.pyast.python_code_check import FunctionMap
-from xdsl.frontend.pyast.type_conversion import (
-    TypeConverter,
-)
+from xdsl.frontend.pyast.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, SSAValue
 
 
