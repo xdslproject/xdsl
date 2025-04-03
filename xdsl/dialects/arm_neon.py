@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from xdsl.backend.assembly_printer import AssemblyPrinter
 from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
@@ -266,15 +265,8 @@ class DVarSSt1Op(ARMInstruction):
         assert isinstance(self.d.type, IntRegisterType)
         return (
             *(VectorWithArrangement(s, self.arrangement) for s in self.src_regs),
-            reg(self.d),
+            reg(self.d, is_ptr_to_mem=True),
         )
-
-    def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
-        asm_args = self.assembly_line_args()
-        arg_str = ", ".join(arg.assembly_str() for arg in asm_args[:-1])
-        arg_str += f", [{asm_args[-1].assembly_str()}]"
-        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
 ARM_NEON = Dialect(

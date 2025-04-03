@@ -21,10 +21,15 @@ class reg(AssemblyInstructionArg):
     """
 
     value: SSAValue
+    is_ptr_to_mem: bool | None = False
 
-    def __init__(self, value: SSAValue) -> None:
+    def __init__(self, value: SSAValue, *, is_ptr_to_mem: bool = False) -> None:
         self.value = value
+        self.is_ptr_to_mem = is_ptr_to_mem
 
     def assembly_str(self) -> str:
         assert isinstance(self.value.type, RegisterType)
-        return self.value.type.register_name.data
+        if self.is_ptr_to_mem:
+            return f"[{self.value.type.register_name.data}]"
+        else:
+            return self.value.type.register_name.data
