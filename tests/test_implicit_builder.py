@@ -31,7 +31,7 @@ builtin.module {
 
 
 def test_nested_implicit_builders() -> None:
-    """Test creating an operation with a single implict builder."""
+    """Test creating an operation with a single nested implict builder."""
     expected = """\
 builtin.module {
   builtin.module {
