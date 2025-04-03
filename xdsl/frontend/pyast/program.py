@@ -9,7 +9,7 @@ from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.passes.desymref import Desymrefier
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
-    SourceIrTypePair,
+    SourceIRTypePair,
     TypeConverter,
     TypeName,
 )
@@ -36,7 +36,7 @@ class FrontendProgram:
     xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
-    type_registry: dict[TypeName, SourceIrTypePair] = field(default_factory=dict)
+    type_registry: dict[TypeName, SourceIRTypePair] = field(default_factory=dict)
     """Mappings between source code and IR type, indexed by name."""
 
     file: str | None = field(default=None)
@@ -47,7 +47,7 @@ class FrontendProgram:
         type_name = source_type.__name__
         if type_name in self.type_registry:
             raise FrontendProgramException(f"Cannot re-register type '{source_type}'")
-        self.type_registry[type_name] = SourceIrTypePair(source_type, ir_type)
+        self.type_registry[type_name] = SourceIRTypePair(source_type, ir_type)
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:

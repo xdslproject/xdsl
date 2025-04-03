@@ -17,7 +17,7 @@ from xdsl.frontend.pyast.op_inserter import OpInserter
 from xdsl.frontend.pyast.op_resolver import OpResolver
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
-    SourceIrTypePair,
+    SourceIRTypePair,
     TypeConverter,
     TypeName,
 )
@@ -29,7 +29,7 @@ class CodeGeneration:
     @staticmethod
     def run_with_type_converter(
         type_converter: TypeConverter,
-        type_registry: dict[TypeName, SourceIrTypePair],
+        type_registry: dict[TypeName, SourceIRTypePair],
         functions_and_blocks: FunctionMap,
         file: str | None,
     ) -> builtin.ModuleOp:
@@ -49,7 +49,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     type_converter: TypeConverter
     """Used for type conversion during code generation."""
 
-    type_registry: dict[TypeName, SourceIrTypePair] = field(default_factory=dict)
+    type_registry: dict[TypeName, SourceIRTypePair] = field(default_factory=dict)
     """Mappings between source code and IR type, indexed by name."""
 
     globals: dict[str, Any]
@@ -73,7 +73,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     def __init__(
         self,
         type_converter: TypeConverter,
-        type_registry: dict[TypeName, SourceIrTypePair],
+        type_registry: dict[TypeName, SourceIRTypePair],
         module: builtin.ModuleOp,
         file: str | None,
     ) -> None:
