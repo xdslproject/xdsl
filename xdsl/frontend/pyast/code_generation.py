@@ -483,12 +483,19 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # Then, convert types in the function signature.
         argument_types: list[Attribute] = []
         for i, arg in enumerate(node.args.args):
-            if arg.annotation is None or not isinstance(arg.annotation, ast.Name):
+            if arg.annotation is None:
                 raise CodeGenerationException(
                     self.file,
                     arg.lineno,
                     arg.col_offset,
-                    "Only direct annotations are supported in function arguments",
+                    "Function arguments must be type hinted",
+                )
+            if not isinstance(arg.annotation, ast.Name):
+                raise CodeGenerationException(
+                    self.file,
+                    arg.lineno,
+                    arg.col_offset,
+                    f"Unsupported function argument type: {ast.unparse(arg.annotation)}",
                 )
             if arg.annotation.id in self.type_registry:
                 xdsl_type = self.type_registry[arg.annotation.id].ir()
@@ -503,7 +510,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    "Only direct annotations are supported in function return types",
+                    f"Unsupported function return type: {ast.unparse(node.returns)}",
                 )
             if node.returns.id in self.type_registry:
                 xdsl_type = self.type_registry[node.returns.id].ir()
