@@ -13,7 +13,7 @@ with CodeContext(p):
     # CHECK-NEXT:     func.return %4 : i32
     # CHECK-NEXT:   }
     # CHECK-NEXT: }
-    def foo(x: i32, y: i32, z: i32) -> i32:  # pyright: ignore[reportUnusedFunction]
+    def foo(x: i32, y: i32, z: i32) -> i32:
         return x + y * z
 
 

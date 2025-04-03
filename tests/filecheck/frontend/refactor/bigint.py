@@ -12,7 +12,7 @@ with CodeContext(p):
     # CHECK-NEXT:     func.return %0 : !bigint.bigint
     # CHECK-NEXT:   }
     # CHECK-NEXT: }
-    def foo(x: int) -> int:  # pyright: ignore[reportUnusedFunction]
+    def foo(x: int) -> int:
         return x
 
 
