@@ -165,21 +165,34 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
 
         op = self.type_converter.get_method(
-            ir_type=(ir_type := lhs.type.__class__),
-            method=(method := python_AST_operator_to_python_overload[op_name]),
+            ir_type=lhs.type.__class__,
+            method=python_AST_operator_to_python_overload[op_name],
         )
-        if op is None:
+        if op is not None:
+            self.inserter.insert_op(
+                op(lhs, rhs)  # pyright: ignore[reportCallIssue]
+            )
+            return
+
+        # Look-up what is the frontend type we deal with to resolve the binary
+        # operation.
+        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
+            lhs.type.__class__
+        ]
+
+        overload_name = python_AST_operator_to_python_overload[op_name]
+        try:
+            op = OpResolver.resolve_op_overload(overload_name, frontend_type)(lhs, rhs)
+            self.inserter.insert_op(op)
+        except FrontendProgramException:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
                 f"Binary operation '{op_name}' "
-                f"is not supported by type '{ir_type.__name__}' "
-                f"which does not overload '{method}'.",
+                f"is not supported by type '{frontend_type.__name__}' "
+                f"which does not overload '{overload_name}'.",
             )
-        self.inserter.insert_op(
-            op(lhs, rhs)  # pyright: ignore[reportCallIssue]
-        )
 
     def visit_Compare(self, node: ast.Compare):
         # Allow a single comparison only.
