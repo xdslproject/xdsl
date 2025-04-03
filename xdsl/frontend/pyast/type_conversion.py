@@ -13,7 +13,7 @@ from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
 from xdsl.frontend.pyast.exception import CodeGenerationException
-from xdsl.ir import Attribute, TypeAttribute
+from xdsl.ir import Attribute, Operation, TypeAttribute
 
 TypeName: TypeAlias = str
 
@@ -31,28 +31,18 @@ class TypeMethodPair(NamedTuple):
     type_: type
     method: str
 
-    @classmethod
-    def from_ir_type(
-        cls,
-        ir_type: type[Attribute],
-        method: str,
-        type_registry: dict[TypeName, SourceIrTypePair],
-    ) -> "TypeMethodPair | None":
-        """."""
-        for source, ir in type_registry.values():
-            if ir == ir_type:
-                return cls(source, method)
-        return None
-
 
 @dataclass
 class TypeConverter:
-    """
-    Class responsible for conversion of Python type hints to concrete xDSL
-    types.
-    """
+    """Responsible for conversion of Python type hints to xDSL types."""
 
-    globals: dict[str, Any]
+    type_registry: dict[TypeName, SourceIrTypePair] = field(default_factory=dict)
+    """Mappings between source code and ir type, indexed by name."""
+
+    method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
+    """Mappings between methods on objects and their operations."""
+
+    globals: dict[str, Any] = field(default_factory=dict)
     """
     Stores all globals in the current Python program, including imports. This is
     useful because we can lookup a class which corresponds to the type
@@ -183,3 +173,21 @@ class TypeConverter:
             type_hint.col_offset,
             f"Unknown type hint AST node '{type_hint}'.",
         )
+
+    def get_method(
+        self,
+        ir_type: type[Attribute],
+        method: str,
+    ) -> type[Operation] | None:
+        """Get the method attribute type from a type and method name."""
+        for source, ir in self.type_registry.values():
+            if ir == ir_type:
+                return self.method_registry[TypeMethodPair(source, method)]
+        return None
+
+    def get_ir_type(
+        self,
+        source_type: TypeName,
+    ) -> Attribute:
+        """Get the ir type by its source code type name"""
+        return self.type_registry[source_type].ir()
