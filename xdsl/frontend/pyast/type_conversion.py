@@ -13,7 +13,7 @@ from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
 from xdsl.frontend.pyast.exception import CodeGenerationException
-from xdsl.ir import Attribute, Operation, TypeAttribute
+from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 
 TypeName: TypeAlias = str
 
@@ -184,15 +184,17 @@ class TypeConverter:
             f"Unknown type hint AST node '{type_hint}'.",
         )
 
-    def get_method(
+    def get_operation(
         self,
         ir_type: type[Attribute],
         method: str,
-    ) -> type[Operation] | None:
+        args: tuple[SSAValue[Attribute], ...],
+    ) -> Operation | None:
         """Get the method attribute type from a type and method name."""
         for source, ir in self.type_registry.values():
             if ir == ir_type:
-                return self.method_registry[TypeMethodPair(source, method)]
+                op_type = self.method_registry[TypeMethodPair(source, method)]
+                return op_type.__call__(*args)
         return None
 
     def get_ir_type(

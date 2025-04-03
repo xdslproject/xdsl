@@ -162,14 +162,13 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"but got {lhs.type} and {rhs.type}.",
             )
 
-        op = self.type_converter.get_method(
+        op = self.type_converter.get_operation(
             ir_type=lhs.type.__class__,
             method=python_AST_operator_to_python_overload[op_name],
+            args=(lhs, rhs),
         )
         if op is not None:
-            self.inserter.insert_op(
-                op(lhs, rhs)  # pyright: ignore[reportCallIssue]
-            )
+            self.inserter.insert_op(op)
             return
 
         # Look-up what is the frontend type we deal with to resolve the binary
