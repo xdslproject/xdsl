@@ -46,18 +46,18 @@ class TypeMethodPair(NamedTuple):
 class TypeConverter:
     """Responsible for conversion of Python type hints to xDSL types."""
 
-    type_registry: dict[TypeName, SourceIRTypePair] = field(default_factory=dict)
-    """Mappings between source code and ir type, indexed by name."""
-
-    method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
-    """Mappings between methods on objects and their operations."""
-
     globals: dict[str, Any] = field(default_factory=dict)
     """
     Stores all globals in the current Python program, including imports. This is
     useful because we can lookup a class which corresponds to the type
     annotation without explicitly constructing it.
     """
+
+    type_registry: dict[TypeName, SourceIRTypePair] = field(default_factory=dict)
+    """Mappings between source code and ir type, indexed by name."""
+
+    method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
+    """Mappings between methods on objects and their operations."""
 
     name_to_xdsl_type_map: dict[TypeName, Attribute] = field(default_factory=dict)
     """
