@@ -1,9 +1,8 @@
 """Dialect for arbitrary-precision integers."""
 
 import abc
-from typing import ClassVar
 
-from xdsl.dialects.builtin import ContainerOf
+from xdsl.dialects.builtin import f64, i1
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -14,7 +13,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -362,6 +360,240 @@ class BitAndOp(BinaryOperation):
 
 bigint = BigIntegerType()
 
+
+class BinaryOperation(IRDLOperation, abc.ABC):
+    lhs = operand_def(bigint)
+    rhs = operand_def(bigint)
+    result = result_def(bigint)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        super().__init__(operands=[operand1, operand2], result_types=[result_type])
+
+
+@irdl_op_definition
+class AddOp(BinaryOperation):
+    name = "bigint.add"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class SubOp(BinaryOperation):
+    name = "bigint.sub"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class MulOp(BinaryOperation):
+    name = "bigint.mul"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class FloorDivOp(BinaryOperation):
+    name = "bigint.floordiv"
+
+    traits = traits_def(
+        Pure(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class ModOp(BinaryOperation):
+    name = "bigint.mod"
+
+    traits = traits_def(
+        Pure(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class PowOp(BinaryOperation):
+    name = "bigint.pow"
+
+    traits = traits_def(
+        Pure(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class LShiftOp(BinaryOperation):
+    name = "bigint.lshift"
+
+    traits = traits_def(
+        Pure(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class RShiftOp(BinaryOperation):
+    name = "bigint.rshift"
+
+    traits = traits_def(
+        Pure(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class BitOrOp(BinaryOperation):
+    name = "bigint.bitor"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class BitXorOp(BinaryOperation):
+    name = "bigint.bitxor"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class BitAndOp(BinaryOperation):
+    name = "bigint.bitand"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SameOperandsAndResultType(),
+    )
+
+
+@irdl_op_definition
+class DivOp(IRDLOperation):
+    name = "bigint.div"
+
+    lhs = operand_def(bigint)
+    rhs = operand_def(bigint)
+    result = result_def(f64)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        super().__init__(operands=[operand1, operand2], result_types=[result_type])
+
+
+class ComparisonOperation(IRDLOperation, abc.ABC):
+    lhs = operand_def(bigint)
+    rhs = operand_def(bigint)
+    result = result_def(i1)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        super().__init__(operands=[operand1, operand2], result_types=[result_type])
+
+
+@irdl_op_definition
+class EqOp(ComparisonOperation):
+    name = "bigint.eq"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+    )
+
+
+@irdl_op_definition
+class NeqOp(ComparisonOperation):
+    name = "bigint.neq"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+    )
+
+
+@irdl_op_definition
+class GtOp(ComparisonOperation):
+    name = "bigint.gt"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+
+@irdl_op_definition
+class GteOp(ComparisonOperation):
+    name = "bigint.gte"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+
+@irdl_op_definition
+class LtOp(ComparisonOperation):
+    name = "bigint.lt"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+
+@irdl_op_definition
+class LteOp(ComparisonOperation):
+    name = "bigint.lte"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+
 BigInt = Dialect(
     "bigint",
     [
@@ -376,13 +608,13 @@ BigInt = Dialect(
         BitOrOp,
         BitXorOp,
         BitAndOp,
-        # DivOp,
-        # EqOp,
-        # NeqOp,
-        # GtOp,
-        # GteOp,
-        # LtOp,
-        # LteOp,
+        DivOp,
+        EqOp,
+        NeqOp,
+        GtOp,
+        GteOp,
+        LtOp,
+        LteOp,
     ],
     [
         BigIntegerType,
