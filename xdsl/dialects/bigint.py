@@ -67,10 +67,6 @@ class AddOp(BinaryOperation):
         SameOperandsAndResultType(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs + rhs
-
 
 @irdl_op_definition
 class SubOp(BinaryOperation):
@@ -81,10 +77,6 @@ class SubOp(BinaryOperation):
         Commutative(),
         SameOperandsAndResultType(),
     )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs - rhs
 
 
 @irdl_op_definition
@@ -97,10 +89,6 @@ class MulOp(BinaryOperation):
         SameOperandsAndResultType(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs * rhs
-
 
 @irdl_op_definition
 class FloorDivOp(BinaryOperation):
@@ -110,10 +98,6 @@ class FloorDivOp(BinaryOperation):
         Pure(),
         SameOperandsAndResultType(),
     )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs // rhs
 
 
 @irdl_op_definition
@@ -125,10 +109,6 @@ class ModOp(BinaryOperation):
         SameOperandsAndResultType(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs % rhs
-
 
 @irdl_op_definition
 class PowOp(BinaryOperation):
@@ -138,10 +118,6 @@ class PowOp(BinaryOperation):
         Pure(),
         SameOperandsAndResultType(),
     )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs**rhs
 
 
 @irdl_op_definition
@@ -153,10 +129,6 @@ class LShiftOp(BinaryOperation):
         SameOperandsAndResultType(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs << rhs
-
 
 @irdl_op_definition
 class RShiftOp(BinaryOperation):
@@ -166,10 +138,6 @@ class RShiftOp(BinaryOperation):
         Pure(),
         SameOperandsAndResultType(),
     )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs >> rhs
 
 
 @irdl_op_definition
@@ -182,10 +150,6 @@ class BitOrOp(BinaryOperation):
         SameOperandsAndResultType(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs | rhs
-
 
 @irdl_op_definition
 class BitXorOp(BinaryOperation):
@@ -197,10 +161,6 @@ class BitXorOp(BinaryOperation):
         SameOperandsAndResultType(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs ^ rhs
-
 
 @irdl_op_definition
 class BitAndOp(BinaryOperation):
@@ -211,10 +171,6 @@ class BitAndOp(BinaryOperation):
         Commutative(),
         SameOperandsAndResultType(),
     )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs & rhs
 
 
 @irdl_op_definition
@@ -279,10 +235,6 @@ class EqOp(BigIntegerComparisonOperation):
         Commutative(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs == rhs
-
 
 @irdl_op_definition
 class NeqOp(BigIntegerComparisonOperation):
@@ -293,10 +245,6 @@ class NeqOp(BigIntegerComparisonOperation):
         Commutative(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs != rhs
-
 
 @irdl_op_definition
 class GtOp(BigIntegerComparisonOperation):
@@ -305,10 +253,6 @@ class GtOp(BigIntegerComparisonOperation):
     traits = traits_def(
         Pure(),
     )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs > rhs
 
 
 @irdl_op_definition
@@ -319,10 +263,6 @@ class GteOp(BigIntegerComparisonOperation):
         Pure(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs >= rhs
-
 
 @irdl_op_definition
 class LtOp(BigIntegerComparisonOperation):
@@ -332,10 +272,6 @@ class LtOp(BigIntegerComparisonOperation):
         Pure(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs < rhs
-
 
 @irdl_op_definition
 class LteOp(BigIntegerComparisonOperation):
@@ -344,10 +280,6 @@ class LteOp(BigIntegerComparisonOperation):
     traits = traits_def(
         Pure(),
     )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        return lhs <= rhs
 
 
 BigInt = Dialect(
