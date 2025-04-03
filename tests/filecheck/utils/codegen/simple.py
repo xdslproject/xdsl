@@ -3,7 +3,6 @@
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
     ComplexType,
-    DenseArrayBase,
     Float32Type,
     IndexType,
     IntAttr,
@@ -177,7 +176,7 @@ ops = [
             name="test.attributes",
             attributes={
                 "attr": AttributeDef(AnyAttr()),
-                "operandSegmentSizes": AttributeDef(BaseAttr(DenseArrayBase)),
+                "other_attr": AttributeDef(AnyAttr()),
             },
             accessor_names={"some_attr": ("attr", "attribute")},
         ),
@@ -304,7 +303,7 @@ dump_dialect_pyfile(
 # CHECK-NEXT:      name = "test.attributes"
 # CHECK-EMPTY:
 # CHECK-NEXT:      some_attr = attr_def(AnyAttr(), attr_name="attr")
-# CHECK-NEXT:      operandSegmentSizes = attr_def(BaseAttr(DenseArrayBase))
+# CHECK-NEXT:      other_attr = attr_def(AnyAttr())
 
 # CHECK:       TestDialect = Dialect(
 # CHECK-NEXT:      "test",
