@@ -485,7 +485,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None or not isinstance(arg.annotation, ast.Name):
                 raise CodeGenerationException(self.file, arg.lineno, arg.col_offset, "")
-            xdsl_type = self.type_registry[arg.annotation.id].ir()
+            if arg.annotation.id in self.type_registry:
+                xdsl_type = self.type_registry[arg.annotation.id].ir()
+            else:
+                xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
             argument_types.append(xdsl_type)
 
         return_types: list[Attribute] = []
@@ -494,7 +497,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 raise CodeGenerationException(
                     self.file, node.returns.lineno, node.returns.col_offset, ""
                 )
-            xdsl_type = self.type_registry[node.returns.id].ir()
+            if node.returns.id in self.type_registry:
+                xdsl_type = self.type_registry[node.returns.id].ir()
+            else:
+                xdsl_type = self.type_converter.convert_type_hint(node.returns)
             return_types.append(xdsl_type)
 
         # Create a function operation.
