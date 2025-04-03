@@ -129,6 +129,12 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
         + "\n\t"
     )
 
+    if op.traits.traits:
+        fields_description += (
+            f"traits = traits_def({','.join([str(t) for t in op.traits.traits])})"
+            + "\n\t"
+        )
+
     if op.options:
         fields_description += (
             f"irdl_options = [{','.join([str(opt) for opt in op.options])}]" + "\n\t"
@@ -140,8 +146,6 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
         raise NotImplementedError("Operation regions not yet implemented")
     if op.successors:
         raise NotImplementedError("Operation successors not yet implemented")
-    if op.traits.traits:
-        raise NotImplementedError(f"Operation traits not yet implemented {op.traits}")
 
     return f"""
 @irdl_op_definition
