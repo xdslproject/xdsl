@@ -103,8 +103,9 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
     """
     Generate class definition for an operation.
     """
-    if op.accessor_names:
-        raise NotImplementedError("Operation accessor_names not yet implemented")
+    field_name_mapping = {
+        ir_name: field_name for (field_name, (ir_name, _)) in op.accessor_names.items()
+    }
 
     fields_description = ""
 
@@ -113,6 +114,16 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
             [
                 get_str_from_operand_or_result(name, operand_or_result)
                 for name, operand_or_result in itertools.chain(op.operands, op.results)
+            ]
+        )
+        + "\n\t"
+    )
+
+    fields_description += (
+        "\n\t".join(
+            [
+                f"{field_name_mapping.get(name, name)} = prop_def({prop.constr}{f', prop_name="{name}"' if name in field_name_mapping else ''})"  # noqa: E501
+                for name, prop in op.properties.items()
             ]
         )
         + "\n\t"
@@ -131,8 +142,6 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
         raise NotImplementedError("Operation successors not yet implemented")
     if op.traits.traits:
         raise NotImplementedError(f"Operation traits not yet implemented {op.traits}")
-    if op.properties:
-        raise NotImplementedError("Operation properties not yet implemented")
 
     return f"""
 @irdl_op_definition

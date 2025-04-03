@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     Float32Type,
     IndexType,
     IntAttr,
+    IntegerAttr,
     IntegerType,
     NoneType,
     Signedness,
@@ -22,6 +23,7 @@ from xdsl.irdl import (
     OptOperandDef,
     ParamAttrConstraint,
     ParamAttrDef,
+    PropertyDef,
     ResultDef,
     SameVariadicOperandSize,
     VarOperandDef,
@@ -142,6 +144,19 @@ ops = [
             options=[SameVariadicOperandSize(), AttrSizedOperandSegments()],
         ),
     ),
+    (
+        "Test_AttributesOp",
+        OpDef(
+            name="test.attributes",
+            properties={
+                "int_attr": PropertyDef(
+                    IntegerAttr.constr(type=EqAttrConstraint(IntegerType(16)))
+                ),
+                "in": PropertyDef(AnyAttr()),
+            },
+            accessor_names={"in_": ("in", "property")},
+        ),
+    ),
 ]
 
 dump_dialect_pyfile(
@@ -236,10 +251,22 @@ dump_dialect_pyfile(
 # CHECK-NEXT:      opt = opt_operand_def(BaseAttr(Test_SingletonAType))
 # CHECK-NEXT:      variadic = var_operand_def(BaseAttr(Test_SingletonAType))
 # CHECK-NEXT:      required = operand_def(BaseAttr(Test_SingletonCType))
+# CHECK-EMPTY:
 # CHECK-NEXT:      irdl_options = [
 # CHECK-NEXT:          SameVariadicOperandSize(),
 # CHECK-NEXT:          AttrSizedOperandSegments(as_property=False),
 # CHECK-NEXT:      ]
+
+# CHECK:       @irdl_op_definition
+# CHECK-NEXT:  class Test_AttributesOp(IRDLOperation):
+# CHECK-NEXT:      name = "test.attributes"
+# CHECK-EMPTY:
+# CHECK-NEXT:      int_attr = prop_def(
+# CHECK-NEXT:          ParamAttrConstraint(
+# CHECK-NEXT:              IntegerAttr, (AnyAttr(), EqAttrConstraint(attr=IntegerType(16)))
+# CHECK-NEXT:          )
+# CHECK-NEXT:      )
+# CHECK-NEXT:      in_ = prop_def(AnyAttr(), prop_name="in")
 
 # CHECK:       TestDialect = Dialect(
 # CHECK-NEXT:      "test",
@@ -252,6 +279,7 @@ dump_dialect_pyfile(
 # CHECK-NEXT:          Test_TypesOp,
 # CHECK-NEXT:          Test_SingleOp,
 # CHECK-NEXT:          Test_VariadicityOp,
+# CHECK-NEXT:          Test_AttributesOp,
 # CHECK-NEXT:      ],
 # CHECK-NEXT:      [Test_TestAttr, Test_SingletonAType, Test_SingletonBType, Test_SingletonCType],
 # CHECK-NEXT:  )
