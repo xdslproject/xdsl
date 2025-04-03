@@ -19,7 +19,7 @@ with CodeContext(p1):
     # CHECK-NEXT:       func.return %4 : !bigint.bigint
     # CHECK-NEXT:     }
     # CHECK-NEXT:   }
-    def foo(x: int, y: int, z: int) -> int:  # pyright: ignore[reportUnusedFunction]
+    def foo(x: int, y: int, z: int) -> int:
         return x - y * z
 
 
@@ -40,7 +40,7 @@ with CodeContext(p2):
     # CHECK-NEXT:         func.return %4 : f64
     # CHECK-NEXT:       }
     # CHECK-NEXT:     }
-    def bar(x: float, y: float, z: float) -> float:  # pyright: ignore[reportUnusedFunction]
+    def bar(x: float, y: float, z: float) -> float:
         return x - y * z
 
 
