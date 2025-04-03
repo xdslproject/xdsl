@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 from xdsl.dialects.arm.assembly import AssemblyInstructionArg
+from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType
+from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
 from xdsl.ir import (
     Dialect,
     EnumAttribute,
+    Operation,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     StrEnum,
 )
 from xdsl.irdl import (
+    attr_def,
     irdl_attr_definition,
+    irdl_op_definition,
+    operand_def,
+    result_def,
 )
 
 ARM_NEON_INDEX_BY_NAME = {f"v{i}": i for i in range(0, 32)}
@@ -100,32 +107,174 @@ class NeonArrangementAttr(EnumAttribute[NeonArrangement], SpacedOpaqueSyntaxAttr
 
 
 class VectorWithArrangement(AssemblyInstructionArg):
-    reg: NEONRegisterType | SSAValue
+    reg: NEONRegisterType
     arrangement: NeonArrangementAttr
     index: int | None = None
 
     def __init__(
         self,
-        reg: NEONRegisterType,
+        reg: NEONRegisterType | SSAValue,
         arrangement: NeonArrangementAttr,
         *,
         index: int | None = None,
     ):
+        if isinstance(reg, SSAValue):
+            assert isinstance(reg.type, NEONRegisterType)
+            reg = reg.type
+
         self.reg = reg
         self.arrangement = arrangement
         self.index = index
 
     def assembly_str(self):
-        assert isinstance(self.reg, NEONRegisterType)
         if self.index is None:
             return f"{self.reg.register_name.data}.{self.arrangement.data.map_to_num_els()}{self.arrangement.data.name}"
         else:
             return f"{self.reg.register_name.data}.{self.arrangement.data.name}[{self.index}]"
 
 
+@irdl_op_definition
+class GetRegisterOp(ARMOperation):
+    """
+    This instruction allows us to create an SSAValue for a given register name.
+    """
+
+    name = "arm_neon.get_register"
+
+    result = result_def(NEONRegisterType)
+    assembly_format = "attr-dict `:` type($result)"
+
+    def __init__(self, register_type: NEONRegisterType):
+        super().__init__(result_types=[register_type])
+
+    def assembly_line(self):
+        return None
+
+
+@irdl_op_definition
+class DSSFMulVecScalarOp(ARMInstruction):
+    """
+    Floating-point multiply (mixed: first source operand is a vector, second is a scalar. Destination is a vector)
+    This instruction multiplies each of the floating-point values in the first source operand by the
+    second source operand and writes the resulting values to the corresponding lanes of the destination.
+    Encoding: FMUL <Vd>.<T>, <Vn>.<T>, <Vm>.<idx>.
+    Vd, Vn, Vm specify the regs. The <T> specifier determines element arrangement (size and count).
+    The <idx> specifier determines the index of Vm at which the second source operand (scalar) can be found,
+    preceded by a size specifier.
+
+    See external [documentation](https://developer.arm.com/documentation/ddi0602/2024-12/SIMD-FP-Instructions/FMUL--vector---Floating-point-multiply--vector--?lang=en#T_option__4).
+    """
+
+    name = "arm_neon.dss.fmulvec"
+    d = result_def(NEONRegisterType)
+    s1 = operand_def(NEONRegisterType)
+    s2 = operand_def(NEONRegisterType)
+    scalar_idx = attr_def(IntegerAttr[i8])
+    arrangement = attr_def(NeonArrangementAttr)
+
+    assembly_format = "$s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
+
+    def __init__(
+        self,
+        s1: Operation | SSAValue,
+        s2: Operation | SSAValue,
+        *,
+        d: NEONRegisterType,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=(s1, s2),
+            attributes={
+                "comment": comment,
+                "arrangement": arrangement,
+            },
+            result_types=(d,),
+        )
+
+    def assembly_instruction_name(self) -> str:
+        return "fmul"
+
+    def assembly_line_args(self):
+        return (
+            VectorWithArrangement(self.d, self.arrangement),
+            VectorWithArrangement(self.s1, self.arrangement),
+            VectorWithArrangement(
+                self.s2, self.arrangement, index=self.scalar_idx.value.data
+            ),
+        )
+
+
+@irdl_op_definition
+class DSSFmlaVecScalarOp(ARMInstruction):
+    """
+    Floating-point fused Multiply-Add to accumulator (mixed: first source operand is a vector, second is a scalar.
+    Destination is a vector)
+    This instruction multiplies the values in the first source operand by the second source operand,
+    adds the accumulated value from the destination operand, and writes the resulting values to the destination.
+    Encoding: FMLA <Vd>.<T>, <Vn>.<T>, <Vm>.<idx>.
+    Vd, Vn, Vm specify the regs. The <T> specifier determines element arrangement (size and count).
+    The <idx> specifier determines the index of Vm at which the second source operand (scalar) can be found,
+    preceded by a size specifier.
+
+    See external [documentation](https://developer.arm.com/documentation/100069/0606/SIMD-Vector-Instructions/FMLA--vector-).
+    """
+
+    name = "arm_neon.dss.fmla"
+    d = result_def(NEONRegisterType)
+    s1 = operand_def(NEONRegisterType)
+    s2 = operand_def(NEONRegisterType)
+    scalar_idx = attr_def(IntegerAttr[i8])
+    arrangement = attr_def(NeonArrangementAttr)
+
+    assembly_format = "$s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
+
+    def __init__(
+        self,
+        s1: Operation | SSAValue,
+        s2: Operation | SSAValue,
+        *,
+        d: NEONRegisterType,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=(s1, s2),
+            attributes={
+                "comment": comment,
+                "arrangement": arrangement,
+            },
+            result_types=(d,),
+        )
+
+    def assembly_instruction_name(self) -> str:
+        return "fmla"
+
+    def assembly_line_args(self):
+        return (
+            VectorWithArrangement(self.d, self.arrangement),
+            VectorWithArrangement(self.s1, self.arrangement),
+            VectorWithArrangement(
+                self.s2, self.arrangement, index=self.scalar_idx.value.data
+            ),
+        )
+
+
 ARM_NEON = Dialect(
     "arm_neon",
-    [],
+    [
+        DSSFmlaVecScalarOp,
+        DSSFMulVecScalarOp,
+        GetRegisterOp,
+    ],
     [
         NeonArrangementAttr,
         NEONRegisterType,

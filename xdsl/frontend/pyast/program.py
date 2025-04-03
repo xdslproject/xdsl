@@ -50,7 +50,7 @@ class FrontendProgram:
         """Associate a type in the source code with its type in the IR."""
         type_name = source_type.__name__
         if type_name in self.type_registry:
-            raise FrontendProgramException(f"Cannot re-register type '{source_type}'")
+            raise FrontendProgramException(f"Cannot re-register type '{type_name}'")
         self.type_registry[type_name] = SourceIRTypePair(source_type, ir_type)
 
     def register_method(

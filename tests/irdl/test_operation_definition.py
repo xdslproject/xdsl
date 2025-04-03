@@ -172,9 +172,9 @@ class ConstraintVarOp(IRDLOperation):
 
     T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
 
-    operand = operand_def(T)  # pyright: ignore[reportArgumentType]
-    result = result_def(T)  # pyright: ignore[reportArgumentType]
-    attribute = attr_def(T)  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
+    operand = operand_def(T)
+    result = result_def(T)
+    attribute = attr_def(T)
 
 
 def test_constraint_var():

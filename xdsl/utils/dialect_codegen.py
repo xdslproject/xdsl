@@ -56,16 +56,16 @@ def get_str_from_operand_or_result(
             )
 
     match operand_or_result:
-        case VarOperandDef():
-            def_str = "var_operand_def"
         case OptOperandDef():
             def_str = "opt_operand_def"
+        case VarOperandDef():
+            def_str = "var_operand_def"
         case OperandDef():
             def_str = "operand_def"
-        case VarResultDef():
-            def_str = "var_result_def"
         case OptResultDef():
             def_str = "opt_result_def"
+        case VarResultDef():
+            def_str = "var_result_def"
         case ResultDef():
             def_str = "result_def"
 
@@ -117,6 +117,11 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
         )
         + "\n\t"
     )
+
+    if op.options:
+        fields_description += (
+            f"irdl_options = [{','.join([str(opt) for opt in op.options])}]" + "\n\t"
+        )
 
     if op.attributes:
         raise NotImplementedError("Operation attributes not yet implemented")

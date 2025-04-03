@@ -488,7 +488,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     arg.lineno,
                     arg.col_offset,
-                    f"Unsupported function argument type: {ast.unparse(arg.annotation)}",
+                    f"Unsupported function argument type: '{ast.unparse(arg.annotation)}'",
                 )
             xdsl_type = self.type_converter.get_ir_type(arg.annotation.id)
             if xdsl_type is None:
@@ -502,7 +502,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    f"Unsupported function return type: {ast.unparse(node.returns)}",
+                    f"Unsupported function return type: '{ast.unparse(node.returns)}'",
                 )
             xdsl_type = self.type_converter.get_ir_type(node.returns.id)
             if xdsl_type is None:
