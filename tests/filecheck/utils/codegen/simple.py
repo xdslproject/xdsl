@@ -302,7 +302,7 @@ dump_dialect_pyfile(
 # CHECK:       @irdl_op_definition
 # CHECK-NEXT:  class Test_AttributesOp(IRDLOperation):
 # CHECK-NEXT:      name = "test.attributes"
-# CHECK-NEXT:
+# CHECK-EMPTY:
 # CHECK-NEXT:      some_attr = attr_def(AnyAttr(), attr_name="attr")
 # CHECK-NEXT:      operandSegmentSizes = attr_def(BaseAttr(DenseArrayBase))
 
