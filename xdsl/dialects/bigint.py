@@ -136,7 +136,7 @@ class ModOp(BinaryOperation):
 
 @irdl_op_definition
 class PowOp(BinaryOperation):
-    name = "bigint.mod"
+    name = "bigint.pow"
 
     traits = traits_def(
         Pure(),
@@ -145,7 +145,7 @@ class PowOp(BinaryOperation):
 
     @staticmethod
     def py_operation(lhs: int, rhs: int) -> int:
-        return lhs % rhs
+        return lhs**rhs
 
 
 @irdl_op_definition
