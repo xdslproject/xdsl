@@ -37,7 +37,7 @@ class FrontendProgram:
     """Generated xDSL program when AST is compiled."""
 
     type_registry: dict[TypeName, SourceIrTypePair] = field(default_factory=dict)
-    """Mappings between source code and ir type, indexed by name."""
+    """Mappings between source code and IR type, indexed by name."""
 
     file: str | None = field(default=None)
     """Path to the file that contains the program."""

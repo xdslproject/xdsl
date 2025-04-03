@@ -50,7 +50,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     """Used for type conversion during code generation."""
 
     type_registry: dict[TypeName, SourceIrTypePair] = field(default_factory=dict)
-    """Mappings between source code and ir type, indexed by name."""
+    """Mappings between source code and IR type, indexed by name."""
 
     globals: dict[str, Any]
     """

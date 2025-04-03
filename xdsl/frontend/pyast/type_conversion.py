@@ -18,7 +18,7 @@ from xdsl.ir import Attribute, TypeAttribute
 TypeName: TypeAlias = str
 
 
-class SourceIrTypePair(NamedTuple):
+class SourceIRTypePair(NamedTuple):
     """Pair of types for source code and its generated IR."""
 
     source: type
