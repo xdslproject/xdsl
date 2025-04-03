@@ -41,11 +41,6 @@ class BinaryOperation(IRDLOperation, abc.ABC):
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        """Performs a python function corresponding to this operation."""
-        ...
-
     def __init__(
         self,
         operand1: Operation | SSAValue,
@@ -187,11 +182,6 @@ class DivOp(IRDLOperation):
         Pure(),
     )
 
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> float:
-        """Performs a python function corresponding to this operation."""
-        return lhs / rhs
-
     def __init__(
         self,
         operand1: Operation | SSAValue,
@@ -203,17 +193,12 @@ class DivOp(IRDLOperation):
         super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
 
-class BigIntegerComparisonOperation(IRDLOperation, abc.ABC):
+class ComparisonOperation(IRDLOperation, abc.ABC):
     lhs = operand_def(bigint)
     rhs = operand_def(bigint)
     result = result_def(i1)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int:
-        """Performs a python function corresponding to this operation."""
-        ...
 
     def __init__(
         self,
@@ -227,7 +212,7 @@ class BigIntegerComparisonOperation(IRDLOperation, abc.ABC):
 
 
 @irdl_op_definition
-class EqOp(BigIntegerComparisonOperation):
+class EqOp(ComparisonOperation):
     name = "bigint.eq"
 
     traits = traits_def(
@@ -237,7 +222,7 @@ class EqOp(BigIntegerComparisonOperation):
 
 
 @irdl_op_definition
-class NeqOp(BigIntegerComparisonOperation):
+class NeqOp(ComparisonOperation):
     name = "bigint.neq"
 
     traits = traits_def(
@@ -247,7 +232,7 @@ class NeqOp(BigIntegerComparisonOperation):
 
 
 @irdl_op_definition
-class GtOp(BigIntegerComparisonOperation):
+class GtOp(ComparisonOperation):
     name = "bigint.gt"
 
     traits = traits_def(
@@ -256,7 +241,7 @@ class GtOp(BigIntegerComparisonOperation):
 
 
 @irdl_op_definition
-class GteOp(BigIntegerComparisonOperation):
+class GteOp(ComparisonOperation):
     name = "bigint.gte"
 
     traits = traits_def(
@@ -265,7 +250,7 @@ class GteOp(BigIntegerComparisonOperation):
 
 
 @irdl_op_definition
-class LtOp(BigIntegerComparisonOperation):
+class LtOp(ComparisonOperation):
     name = "bigint.lt"
 
     traits = traits_def(
@@ -274,7 +259,7 @@ class LtOp(BigIntegerComparisonOperation):
 
 
 @irdl_op_definition
-class LteOp(BigIntegerComparisonOperation):
+class LteOp(ComparisonOperation):
     name = "bigint.lte"
 
     traits = traits_def(
