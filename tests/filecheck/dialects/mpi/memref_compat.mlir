@@ -1,6 +1,6 @@
 // RUN: xdsl-opt -p lower-mpi --print-op-generic %s
 "builtin.module"() ({
-    %ref = "memref.alloc"() {"alignment" = 32 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
+    %ref = "memref.alloc"() {"alignment" = 32 : i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
     %buff, %count, %dtype = "mpi.unwrap_memref"(%ref) : (memref<100x14x14xf64>) -> (!llvm.ptr, i32, !mpi.datatype)
     %i32 = "mpi.get_dtype"() {dtype = i32} : () -> !mpi.datatype
 }) : () -> ()
