@@ -53,18 +53,21 @@ class ConvertPtrAddOp(RewritePattern):
             ),
             InsertPoint.before(op),
         )
+        # ptr -> int
         rewriter.insert_op(
-            cast_offset_op := arith.IndexCastOp(op.offset, builtin.i64),
-            InsertPoint.before(op),
+            ptr_to_int_op := llvm.PtrToIntOp(
+                cast_addr_op.results[0], builtin.IndexType()
+            ),
+            InsertPoint.after(cast_addr_op),
         )
-        # TODO: pretending all pointees are f32s
-        rewriter.replace_matched_op(
-            llvm.GEPOp.from_mixed_indices(
-                cast_addr_op.results[0],
-                [cast_offset_op.result],
-                pointee_type=builtin.f32,
-            )
+        # int + arg
+        rewriter.insert_op(
+            add_op := arith.AddiOp(ptr_to_int_op.results[0], op.offset),
+            InsertPoint.after(ptr_to_int_op),
         )
+        # int -> ptr
+        rewriter.insert_op(llvm.IntToPtrOp(add_op.result), InsertPoint.after(add_op))
+        rewriter.erase_matched_op()
 
 
 class ReconcileUnrealizedPtrCasts(RewritePattern):
