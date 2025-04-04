@@ -1,5 +1,5 @@
 // RUN: XDSL_ROUNDTRIP
-// RUN: xdsl-opt -t arm-asm %s | filecheck %s --check-prefix=CHECK-ASM 
+// RUN: xdsl-opt -t arm-asm %s | filecheck %s --check-prefix=CHECK-ASM
 
 // CHECK: %x1 = arm.get_register : !arm.reg<x1>
 %x1 = arm.get_register : !arm.reg<x1>
