@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import xdsl.dialects.affine as affine
 import xdsl.dialects.arith as arith
@@ -17,7 +17,7 @@ from xdsl.frontend.pyast.op_inserter import OpInserter
 from xdsl.frontend.pyast.op_resolver import OpResolver
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import TypeConverter
-from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.ir import Attribute, Block, Region, SSAValue, TypeAttribute
 
 
 @dataclass
@@ -163,7 +163,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
 
         op = self.type_converter.get_operation(
-            ir_type=lhs.type.__class__,
+            ir_type=cast(type[TypeAttribute], lhs.type.__class__),
             method=python_AST_operator_to_python_overload[op_name],
             args=(lhs, rhs),
         )

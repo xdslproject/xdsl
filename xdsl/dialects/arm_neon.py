@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from xdsl.dialects.arm.assembly import AssemblyInstructionArg
+from collections.abc import Sequence
+
+from xdsl.dialects.arm.assembly import AssemblyInstructionArg, square_brackets_reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
-from xdsl.dialects.arm.register import ARMRegisterType
+from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
 from xdsl.ir import (
     Dialect,
@@ -18,7 +20,9 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     result_def,
+    var_operand_def,
 )
+from xdsl.utils.exceptions import VerifyException
 
 ARM_NEON_INDEX_BY_NAME = {f"v{i}": i for i in range(0, 32)}
 
@@ -131,6 +135,27 @@ class VectorWithArrangement(AssemblyInstructionArg):
             return f"{self.reg.register_name.data}.{self.arrangement.data.map_to_num_els()}{self.arrangement.data.name}"
         else:
             return f"{self.reg.register_name.data}.{self.arrangement.data.name}[{self.index}]"
+
+
+class VariadicNeonRegArg(AssemblyInstructionArg):
+    regs: Sequence[VectorWithArrangement]
+    arrangement: NeonArrangementAttr
+
+    def __init__(
+        self,
+        regs: Sequence[SSAValue],
+        arrangement: NeonArrangementAttr,
+    ):
+        self.arrangement = arrangement
+        vectors: Sequence[VectorWithArrangement] = []
+        for reg in regs:
+            assert isinstance(reg.type, NEONRegisterType)
+            vectors.append(VectorWithArrangement(reg, self.arrangement))
+
+        self.regs = vectors
+
+    def assembly_str(self):
+        return "{" + ", ".join(s.assembly_str() for s in self.regs) + "}"
 
 
 @irdl_op_definition
@@ -268,11 +293,117 @@ class DSSFmlaVecScalarOp(ARMInstruction):
         )
 
 
+@irdl_op_definition
+class DVarSLd1Op(ARMInstruction):
+    """
+    Neon structure load instruction reads data from memory into 64-bit Neon registers.
+    LD1 loads data from memory into up to four registers, with no interleaving.
+    """
+
+    name = "arm_neon.dvars.ld1"
+    s = operand_def(IntRegisterType)
+    dest_regs = var_operand_def(NEONRegisterType)
+    arrangement = attr_def(NeonArrangementAttr)
+
+    assembly_format = "$dest_regs ` ` `[` $s `]` $arrangement attr-dict `:` `(` type($dest_regs) `)` `->` type($s)"
+
+    def __init__(
+        self,
+        s: IntRegisterType,
+        dest_regs: Sequence[SSAValue],
+        *,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if not (1 <= len(self.dest_regs) <= 4):
+            raise ValueError(
+                f"dest_regs must contain between 1 and 4 elements, but got {len(self.dest_regs)}."
+            )
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=[*dest_regs],
+            attributes={
+                "comment": comment,
+                "arrangement": arrangement,
+            },
+            result_types=(s,),
+        )
+
+    def verify_(self) -> None:
+        if not (1 <= len(self.dest_regs) <= 4):
+            raise VerifyException(
+                f"dest_regs must contain between 1 and 4 elements, but got {len(self.dest_regs)}."
+            )
+
+    def assembly_line_args(self):
+        return (
+            VariadicNeonRegArg(self.dest_regs, self.arrangement),
+            square_brackets_reg(self.s),
+        )
+
+
+@irdl_op_definition
+class DVarSSt1Op(ARMInstruction):
+    """
+    Neon structure store instruction stores data from 64-bit Neon registers to memory.
+    ST1 stores one to four registers of data to memory, with no interleaving.
+    """
+
+    name = "arm_neon.dvars.st1"
+    d = operand_def(IntRegisterType)
+    src_regs = var_operand_def(NEONRegisterType)
+    arrangement = attr_def(NeonArrangementAttr)
+
+    assembly_format = "$src_regs ` ` `[` $d `]` $arrangement attr-dict `:` `(` type($src_regs) `)` `->` type($d)"
+
+    def __init__(
+        self,
+        d: IntRegisterType,
+        src_regs: Sequence[SSAValue],
+        *,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if not (1 <= len(self.src_regs) <= 4):
+            raise ValueError(
+                f"src_regs must contain between 1 and 4 elements, but got {len(self.src_regs)}."
+            )
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=[*src_regs],
+            attributes={
+                "comment": comment,
+                "arrangement": arrangement,
+            },
+            result_types=(d,),
+        )
+
+    def verify_(self) -> None:
+        if not (1 <= len(self.src_regs) <= 4):
+            raise VerifyException(
+                f"src_regs must contain between 1 and 4 elements, but got {len(self.src_regs)}."
+            )
+
+    def assembly_line_args(self):
+        return (
+            VariadicNeonRegArg(self.src_regs, self.arrangement),
+            square_brackets_reg(self.d),
+        )
+
+
 ARM_NEON = Dialect(
     "arm_neon",
     [
         DSSFmlaVecScalarOp,
         DSSFMulVecScalarOp,
+        DVarSSt1Op,
+        DVarSLd1Op,
         GetRegisterOp,
     ],
     [
