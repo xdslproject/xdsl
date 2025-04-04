@@ -9,7 +9,6 @@ from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.passes.desymref import Desymrefier
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
-    SourceIRTypePair,
     TypeConverter,
     TypeMethodPair,
     TypeName,
@@ -37,8 +36,11 @@ class FrontendProgram:
     xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
-    type_registry: dict[TypeName, SourceIRTypePair] = field(default_factory=dict)
-    """Mappings between source code and IR type, indexed by name."""
+    type_names: dict[TypeName, type] = field(default_factory=dict)
+    """Mappings from source type names to source types."""
+
+    type_registry: dict[type, type[TypeAttribute]] = field(default_factory=dict)
+    """Mappings between source code and IR type."""
 
     method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
     """Mappings between methods on objects and their operations."""
@@ -48,16 +50,25 @@ class FrontendProgram:
 
     def register_type(self, source_type: type, ir_type: type[TypeAttribute]) -> None:
         """Associate a type in the source code with its type in the IR."""
-        type_name = source_type.__name__
-        if type_name in self.type_registry:
-            raise FrontendProgramException(f"Cannot re-register type '{type_name}'")
-        self.type_registry[type_name] = SourceIRTypePair(source_type, ir_type)
+        if (type_name := source_type.__name__) in self.type_names:
+            raise FrontendProgramException(
+                f"Cannot re-register type name '{type_name}'"
+            )
+        if source_type in self.type_registry:
+            raise FrontendProgramException(f"Cannot re-register type '{source_type}'")
+        self.type_names[type_name] = source_type
+        self.type_registry[source_type] = ir_type
 
     def register_method(
         self, source_type: type, source_method: str, ir_op: type[Operation]
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
-        key = TypeMethodPair(source_type, source_method)
+        if source_type not in self.type_registry:
+            raise FrontendProgramException(
+                f"Cannot register method on unregistered type '{source_type}'"
+            )
+        ir_type = self.type_registry[source_type]
+        key = TypeMethodPair(ir_type, source_method)
         if key in self.method_registry:
             raise FrontendProgramException(f"Cannot re-register method '{key}'")
         self.method_registry[key] = ir_op
@@ -81,9 +92,10 @@ Cannot compile program without the code context. Try to use:
         assert self.functions_and_blocks is not None
 
         type_converter = TypeConverter(
-            type_registry=self.type_registry,
-            method_registry=self.method_registry,
             globals=self.globals,
+            _type_names=self.type_names,
+            _type_registry=self.type_registry,
+            _method_registry=self.method_registry,
         )
         self.xdsl_program = CodeGeneration.run_with_type_converter(
             type_converter,

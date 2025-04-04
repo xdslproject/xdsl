@@ -36,9 +36,9 @@ class SourceIRTypePair(NamedTuple):
 
 
 class TypeMethodPair(NamedTuple):
-    """Pair of type and method for source code."""
+    """Pair of IR type and method on it from the source code."""
 
-    type_: type
+    type_: type[TypeAttribute]
     method: str
 
 
@@ -53,10 +53,15 @@ class TypeConverter:
     annotation without explicitly constructing it.
     """
 
-    type_registry: dict[TypeName, SourceIRTypePair] = field(default_factory=dict)
+    _type_names: dict[TypeName, type] = field(default_factory=dict)
+    """Mappings from source type names to source types."""
+
+    _type_registry: dict[type, type[TypeAttribute]] = field(default_factory=dict)
     """Mappings between source code and ir type, indexed by name."""
 
-    method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
+    _method_registry: dict[TypeMethodPair, type[Operation]] = field(
+        default_factory=dict
+    )
     """Mappings between methods on objects and their operations."""
 
     name_to_xdsl_type_map: dict[TypeName, Attribute] = field(default_factory=dict)
@@ -186,22 +191,23 @@ class TypeConverter:
 
     def get_operation(
         self,
-        ir_type: type[Attribute],
+        ir_type: type[TypeAttribute],
         method: str,
         args: tuple[SSAValue[Attribute], ...],
     ) -> Operation | None:
         """Get the method attribute type from a type and method name."""
-        for source, ir in self.type_registry.values():
-            if ir == ir_type:
-                op_type = self.method_registry[TypeMethodPair(source, method)]
-                return op_type.__call__(*args)
+        if (key := TypeMethodPair(ir_type, method)) in self._method_registry:
+            return self._method_registry[key].__call__(*args)
         return None
 
     def get_ir_type(
         self,
-        source_type: TypeName,
-    ) -> Attribute | None:
+        source_type_name: TypeName,
+    ) -> TypeAttribute | None:
         """Get the ir type by its source code type name"""
-        if source_type not in self.type_registry:
+        if source_type_name not in self._type_names:
             return None
-        return self.type_registry[source_type].ir()
+        source_type = self._type_names[source_type_name]
+        if source_type not in self._type_registry:
+            return None
+        return self._type_registry[source_type]()
