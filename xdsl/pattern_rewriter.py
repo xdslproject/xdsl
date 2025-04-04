@@ -418,7 +418,9 @@ def op_type_rewrite_pattern(
     calling the decorated function.
     """
     # Get the operation argument and check that it is a subclass of Operation
-    params = [param for param in inspect.signature(func).parameters.values()]
+    params = [
+        param for param in inspect.signature(func, eval_str=True).parameters.values()
+    ]
     if len(params) != 3:
         raise Exception(
             "op_type_rewrite_pattern expects the decorated function to "
@@ -609,7 +611,7 @@ def attr_type_rewrite_pattern(
     method. It uses type hints to match on a specific attribute type before
     calling the decorated function.
     """
-    params = list(inspect.signature(func).parameters.values())
+    params = list(inspect.signature(func, eval_str=True).parameters.values())
     expected_type: type[_AttributeT] = params[-1].annotation
     constr = base(expected_type)
     return attr_constr_rewrite_pattern(constr)(func)
