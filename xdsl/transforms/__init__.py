@@ -11,10 +11,20 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return ApplyIndividualRewritePass
 
+    def get_apply_eqsat_pdl():
+        from xdsl.transforms import apply_eqsat_pdl
+
+        return apply_eqsat_pdl.ApplyEqsatPDLPass
+
     def get_apply_pdl():
         from xdsl.transforms import apply_pdl
 
         return apply_pdl.ApplyPDLPass
+
+    def get_apply_pdl_interp():
+        from xdsl.transforms import apply_pdl_interp
+
+        return apply_pdl_interp.ApplyPDLInterpPass
 
     def get_arith_add_fastmath():
         from xdsl.transforms import arith_add_fastmath
@@ -237,6 +247,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import eqsat_create_eclasses
 
         return eqsat_create_eclasses.EqsatCreateEclassesPass
+
+    def get_eqsat_serialize_egraph():
+        from xdsl.transforms import eqsat_serialize_egraph
+
+        return eqsat_serialize_egraph.SerializeEGraph
 
     def get_eqsat_extract():
         from xdsl.transforms import eqsat_extract
@@ -497,7 +512,9 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
     return {
         "apply-individual-rewrite": get_apply_individual_rewrite,
+        "apply-eqsat-pdl": get_apply_eqsat_pdl,
         "apply-pdl": get_apply_pdl,
+        "apply-pdl-interp": get_apply_pdl_interp,
         "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
@@ -542,6 +559,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "empty-tensor-to-alloc-tensor": get_empty_tensor_to_alloc_tensor,
         "eqsat-add-costs": get_eqsat_add_costs,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
+        "eqsat-serialize-egraph": get_eqsat_serialize_egraph,
         "eqsat-extract": get_eqsat_extract,
         "frontend-desymrefy": get_frontend_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
