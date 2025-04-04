@@ -11,19 +11,25 @@ https://github.com/xdslproject/xdsl/issues/3174
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import IntAttr
-from xdsl.ir import Attribute, Dialect, SSAValue
+from xdsl.ir import Attribute, Dialect, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
+    lazy_traits_def,
     opt_attr_def,
+    region_def,
     result_def,
+    traits_def,
     var_operand_def,
+    var_result_def,
 )
+from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 EQSAT_COST_LABEL = "eqsat_cost"
@@ -71,9 +77,45 @@ class EClassOp(IRDLOperation):
                 )
 
 
+@irdl_op_definition
+class EGraphOp(IRDLOperation):
+    name = "eqsat.egraph"
+
+    outputs = var_result_def()
+    body = region_def()
+
+    traits = lazy_traits_def(lambda: (SingleBlockImplicitTerminator(YieldOp),))
+
+    def __init__(
+        self,
+        result_types: Sequence[Attribute] | None,
+        body: Region,
+    ):
+        super().__init__(
+            result_types=result_types,
+            regions=[body],
+        )
+
+
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    name = "eqsat.yield"
+    values = var_operand_def()
+
+    traits = traits_def(HasParent(EGraphOp), IsTerminator())
+
+    def __init__(
+        self,
+        *values: SSAValue,
+    ):
+        super().__init__(operands=[values])
+
+
 EqSat = Dialect(
     "eqsat",
     [
         EClassOp,
+        YieldOp,
+        EGraphOp,
     ],
 )
