@@ -257,7 +257,7 @@ class GetResultsOp(IRDLOperation):
     value = result_def(ValueType | RangeType[ValueType])
 
     # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
-    # TODO: if parse_optional_integer ...
+    # TODO: Fix bug preventing this assebmly format from working: https://github.com/xdslproject/xdsl/issues/4136
 
     def __init__(
         self,
@@ -520,7 +520,7 @@ class CreateOperationOp(IRDLOperation):
     #     "custom<CreateOperationOpResults>($inputResultTypes, type($inputResultTypes), $inferredResultTypes)"
     #     "attr-dict"
     # )
-    # # unexpected token 'custom'
+    # TODO: this assebly format is unsupported in xDSL because of the `custom` directives.
 
     def __init__(
         self,
