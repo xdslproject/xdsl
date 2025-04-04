@@ -1,6 +1,6 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat, func
-from xdsl.ir import Block
+from xdsl.ir import Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -13,33 +13,42 @@ from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.exceptions import DiagnosticException
 
 
-def insert_eclass_ops(block: Block):
-    # Insert eqsat.eclass for each operation
-    for op in block.ops:
-        results = op.results
+def insert_eclass_op(op: Operation):
+    results = op.results
 
-        # Skip special ops such as return ops
+    if len(results) != 1:
+        raise DiagnosticException("Ops with non-single results not handled")
+
+    eclass_op = eqsat.EClassOp(results[0])
+    insertion_point = InsertPoint.after(op)
+    Rewriter.insert_op(eclass_op, insertion_point)
+    results[0].replace_by_if(
+        eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
+    )
+
+
+def create_egraph_op(f: func.FuncOp) -> eqsat.EGraphOp:
+    egraph_block = Block()
+    egraph_body = Region(egraph_block)
+    for op in f.body.block.ops:
+        op.detach()
+        egraph_block.add_op(op)
         if isinstance(op, func.ReturnOp):
-            continue
+            yieldop = eqsat.YieldOp(*op.arguments)
+            Rewriter.replace_op(op, yieldop)
+            op = yieldop
+        else:
+            insert_eclass_op(op)
 
-        if len(results) != 1:
-            raise DiagnosticException("Ops with non-single results not handled")
-
-        eclass_op = eqsat.EClassOp(results[0])
-        insertion_point = InsertPoint.after(op)
-        Rewriter.insert_op(eclass_op, insertion_point)
-        results[0].replace_by_if(
-            eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
-        )
-
-    # Insert eqsat.eclass for each arg
-    for arg in block.args:
+    for arg in f.body.block.args:
         eclass_op = eqsat.EClassOp(arg)
-        insertion_point = InsertPoint.at_start(block)
+        insertion_point = InsertPoint.at_start(egraph_block)
         Rewriter.insert_op(eclass_op, insertion_point)
         arg.replace_by_if(
             eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
         )
+    egraph_op = eqsat.EGraphOp(f.function_type.outputs.data, egraph_body)
+    return egraph_op
 
 
 class InsertEclassOps(RewritePattern):
@@ -49,7 +58,13 @@ class InsertEclassOps(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
-        insert_eclass_ops(op.body.block)
+        egraph_op = create_egraph_op(op)
+        op.body.block.add_op(egraph_op)
+        op.body.block.add_op(
+            func.ReturnOp(
+                *egraph_op.results,
+            )
+        )
 
 
 class EqsatCreateEclassesPass(ModulePass):
@@ -80,5 +95,6 @@ class EqsatCreateEclassesPass(ModulePass):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier([InsertEclassOps()]),
+            walk_regions_first=True,
             apply_recursively=False,
         ).rewrite_module(op)
