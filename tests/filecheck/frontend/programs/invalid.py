@@ -251,8 +251,8 @@ except FrontendProgramException as e:
 
 
 try:
-    # CHECK-NEXT: Cannot re-register method '__add__' on type 'int'
-    p.register_method(int, "__add__", AddOp)
-    p.register_method(int, "__add__", AddOp)
+    # CHECK-NEXT: Cannot re-register function 'int.__add__'
+    p.register_function(int.__add__, AddOp)
+    p.register_function(int.__add__, AddOp)
 except FrontendProgramException as e:
     print(e.msg)

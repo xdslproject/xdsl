@@ -164,24 +164,19 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         ir_type = cast(type[TypeAttribute], lhs.type.__class__)
         source_type = self.type_converter.get_source_type(ir_type)
-        method_name = python_AST_operator_to_python_overload[op_name]
-        function_name = f"{source_type.__qualname__}.{method_name}"
-        function = self.type_converter.resolve_function(
-            module_name=source_type.__module__, function_name=function_name
-        )
-        # print(function)
-        # print(type(function))
-        op = self.type_converter.get_operation(
-            method=function,
-            args=(lhs, rhs),
-        )
-        print(op)
-        if op is not None:
-            self.inserter.insert_op(op)
-            return
-        # print(lhs)
-        # print(self.type_converter.globals["__builtins__"])
-        # print(lhs.type.__class__)
+        if source_type is not None:  # NOTE: To support old codebase
+            method_name = python_AST_operator_to_python_overload[op_name]
+            function_name = f"{source_type.__qualname__}.{method_name}"
+            function = self.type_converter.resolve_function(
+                module_name=source_type.__module__, function_name=function_name
+            )
+            op = self.type_converter.get_operation(
+                method=function,
+                args=(lhs, rhs),
+            )
+            if op is not None:
+                self.inserter.insert_op(op)
+                return
 
         # Look-up what is the frontend type we deal with to resolve the binary
         # operation.

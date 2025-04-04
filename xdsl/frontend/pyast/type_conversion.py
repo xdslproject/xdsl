@@ -205,7 +205,6 @@ class TypeConverter:
         """Resolve a function in the current namespace."""
         function = importlib.import_module(module_name)
         for attr in function_name.split("."):
-            # print("-", attr, function)
             function = getattr(function, attr, None)
         if function is None:
             raise FrontendProgramException(
@@ -224,7 +223,6 @@ class TypeConverter:
         kwargs: dict[str, SSAValue[Attribute]] = dict(),
     ) -> Operation | None:
         """Get the method attribute type from a type and method name."""
-        print(method, self.function_registry)
         if method in self.function_registry:
             return self.function_registry[method].__call__(*args, **kwargs)
         return None
