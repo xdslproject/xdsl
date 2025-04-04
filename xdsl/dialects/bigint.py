@@ -1,4 +1,4 @@
-"""Dialect for arbitrary-precision integers."""
+"""Dialect for unlimited precision integers with Python `int` semantics."""
 
 import abc
 
@@ -24,9 +24,7 @@ from xdsl.traits import Commutative, Pure, SameOperandsAndResultType
 
 @irdl_attr_definition
 class BigIntegerType(ParametrizedAttribute, TypeAttribute):
-    """
-    Type for arbitrary-precision integers (bigints), such as those in Python.
-    """
+    """Type for unlimited precision integers, with Python `int` semantics."""
 
     name = "bigint.bigint"
 
@@ -35,6 +33,8 @@ bigint = BigIntegerType()
 
 
 class BinaryOperation(IRDLOperation, abc.ABC):
+    """Binary operation where all operands and results are `bigint`s."""
+
     lhs = operand_def(bigint)
     rhs = operand_def(bigint)
     result = result_def(bigint)
@@ -54,6 +54,8 @@ class BinaryOperation(IRDLOperation, abc.ABC):
 
 @irdl_op_definition
 class AddOp(BinaryOperation):
+    """Add two `bigint`s."""
+
     name = "bigint.add"
 
     traits = traits_def(
@@ -65,6 +67,8 @@ class AddOp(BinaryOperation):
 
 @irdl_op_definition
 class SubOp(BinaryOperation):
+    """Subtract two `bigint`s."""
+
     name = "bigint.sub"
 
     traits = traits_def(
@@ -76,6 +80,8 @@ class SubOp(BinaryOperation):
 
 @irdl_op_definition
 class MulOp(BinaryOperation):
+    """Multiply two `bigint`s."""
+
     name = "bigint.mul"
 
     traits = traits_def(
@@ -87,6 +93,8 @@ class MulOp(BinaryOperation):
 
 @irdl_op_definition
 class FloorDivOp(BinaryOperation):
+    """Floor divide two `bigint`s, rounding down to the nearest integer."""
+
     name = "bigint.floordiv"
 
     traits = traits_def(
@@ -97,6 +105,8 @@ class FloorDivOp(BinaryOperation):
 
 @irdl_op_definition
 class ModOp(BinaryOperation):
+    """Modulo two `bigint`s, taking the sign of the divisor."""
+
     name = "bigint.mod"
 
     traits = traits_def(
@@ -107,6 +117,8 @@ class ModOp(BinaryOperation):
 
 @irdl_op_definition
 class PowOp(BinaryOperation):
+    """Exponentiate a `bigint` by another."""
+
     name = "bigint.pow"
 
     traits = traits_def(
@@ -117,6 +129,8 @@ class PowOp(BinaryOperation):
 
 @irdl_op_definition
 class LShiftOp(BinaryOperation):
+    """Left shift a `bigint` by another."""
+
     name = "bigint.lshift"
 
     traits = traits_def(
@@ -127,6 +141,8 @@ class LShiftOp(BinaryOperation):
 
 @irdl_op_definition
 class RShiftOp(BinaryOperation):
+    """Right shift a `bigint` by another."""
+
     name = "bigint.rshift"
 
     traits = traits_def(
@@ -137,6 +153,8 @@ class RShiftOp(BinaryOperation):
 
 @irdl_op_definition
 class BitOrOp(BinaryOperation):
+    """Bitwise OR a `bigint` with another."""
+
     name = "bigint.bitor"
 
     traits = traits_def(
@@ -148,6 +166,8 @@ class BitOrOp(BinaryOperation):
 
 @irdl_op_definition
 class BitXorOp(BinaryOperation):
+    """Bitwise XOR a `bigint` with another."""
+
     name = "bigint.bitxor"
 
     traits = traits_def(
@@ -159,6 +179,8 @@ class BitXorOp(BinaryOperation):
 
 @irdl_op_definition
 class BitAndOp(BinaryOperation):
+    """Bitwise AND a `bigint` with another."""
+
     name = "bigint.bitand"
 
     traits = traits_def(
@@ -170,6 +192,12 @@ class BitAndOp(BinaryOperation):
 
 @irdl_op_definition
 class DivOp(IRDLOperation):
+    """Divide two `bigint`s, yielding a 64-bit floating point type.
+
+    Note that this operation follows Python semantics, for example by rounding
+    to minus infinity.
+    """
+
     name = "bigint.div"
 
     lhs = operand_def(bigint)
@@ -194,6 +222,8 @@ class DivOp(IRDLOperation):
 
 
 class ComparisonOperation(IRDLOperation, abc.ABC):
+    """Binary operation comparing two `bigint`s and returning a boolean."""
+
     lhs = operand_def(bigint)
     rhs = operand_def(bigint)
     result = result_def(i1)
@@ -213,6 +243,8 @@ class ComparisonOperation(IRDLOperation, abc.ABC):
 
 @irdl_op_definition
 class EqOp(ComparisonOperation):
+    """Check equality of two `bigint`s."""
+
     name = "bigint.eq"
 
     traits = traits_def(
@@ -223,6 +255,8 @@ class EqOp(ComparisonOperation):
 
 @irdl_op_definition
 class NeqOp(ComparisonOperation):
+    """Check inequality of two `bigint`s."""
+
     name = "bigint.neq"
 
     traits = traits_def(
@@ -233,6 +267,8 @@ class NeqOp(ComparisonOperation):
 
 @irdl_op_definition
 class GtOp(ComparisonOperation):
+    """Check if one `bigint` is greater than another."""
+
     name = "bigint.gt"
 
     traits = traits_def(
@@ -242,6 +278,8 @@ class GtOp(ComparisonOperation):
 
 @irdl_op_definition
 class GteOp(ComparisonOperation):
+    """Check if one `bigint` is greater than or equal to another."""
+
     name = "bigint.gte"
 
     traits = traits_def(
@@ -251,6 +289,8 @@ class GteOp(ComparisonOperation):
 
 @irdl_op_definition
 class LtOp(ComparisonOperation):
+    """Check if one `bigint` is less than another."""
+
     name = "bigint.lt"
 
     traits = traits_def(
@@ -260,6 +300,8 @@ class LtOp(ComparisonOperation):
 
 @irdl_op_definition
 class LteOp(ComparisonOperation):
+    """Check if one `bigint` is less than or equal to another."""
+
     name = "bigint.lte"
 
     traits = traits_def(
