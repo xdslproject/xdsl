@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg
+from xdsl.dialects.arm.assembly import AssemblyInstructionArg, square_brackets_reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
@@ -324,7 +324,7 @@ class DVarSSt1Op(ARMInstruction):
         assert isinstance(self.d.type, IntRegisterType)
         return (
             *(VectorWithArrangement(s, self.arrangement) for s in self.src_regs),
-            reg(self.d, is_ptr_to_mem=True),
+            square_brackets_reg(self.d),
         )
 
 

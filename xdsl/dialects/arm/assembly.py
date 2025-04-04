@@ -21,15 +21,28 @@ class reg(AssemblyInstructionArg):
     """
 
     value: SSAValue
-    is_ptr_to_mem: bool | None = False
 
-    def __init__(self, value: SSAValue, *, is_ptr_to_mem: bool = False) -> None:
+    def __init__(self, value: SSAValue) -> None:
         self.value = value
-        self.is_ptr_to_mem = is_ptr_to_mem
 
     def assembly_str(self) -> str:
         assert isinstance(self.value.type, RegisterType)
-        if self.is_ptr_to_mem:
-            return f"[{self.value.type.register_name.data}]"
-        else:
-            return self.value.type.register_name.data
+        return self.value.type.register_name.data
+
+
+class square_brackets_reg(AssemblyInstructionArg):
+    """
+    A wrapper around SSAValue to be printed in assembly.
+    Only valid if the type of the value is a RegisterType.
+    This class handles the case where a register contains a pointer reference,
+    and therefore should be printed within square brackets.
+    """
+
+    value: SSAValue
+
+    def __init__(self, value: SSAValue) -> None:
+        self.value = value
+
+    def assembly_str(self) -> str:
+        assert isinstance(self.value.type, RegisterType)
+        return f"[{self.value.type.register_name.data}]"
