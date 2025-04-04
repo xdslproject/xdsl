@@ -9,7 +9,6 @@ from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.passes.desymref import Desymrefier
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
-    SourceIRTypePair,
     TypeConverter,
     TypeName,
 )
@@ -36,18 +35,25 @@ class FrontendProgram:
     xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
-    type_registry: dict[TypeName, SourceIRTypePair] = field(default_factory=dict)
-    """Mappings between source code and IR type, indexed by name."""
+    type_names: dict[TypeName, type] = field(default_factory=dict)
+    """Mappings from source type names to source types."""
+
+    type_registry: dict[type, type[TypeAttribute]] = field(default_factory=dict)
+    """Mappings between source code and IR type."""
 
     file: str | None = field(default=None)
     """Path to the file that contains the program."""
 
     def register_type(self, source_type: type, ir_type: type[TypeAttribute]) -> None:
         """Associate a type in the source code with its type in the IR."""
-        type_name = source_type.__name__
-        if type_name in self.type_registry:
-            raise FrontendProgramException(f"Cannot re-register type '{type_name}'")
-        self.type_registry[type_name] = SourceIRTypePair(source_type, ir_type)
+        if (type_name := source_type.__name__) in self.type_names:
+            raise FrontendProgramException(
+                f"Cannot re-register type name '{type_name}'"
+            )
+        if source_type in self.type_registry:
+            raise FrontendProgramException(f"Cannot re-register type '{source_type}'")
+        self.type_names[type_name] = source_type
+        self.type_registry[source_type] = ir_type
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
@@ -67,9 +73,13 @@ Cannot compile program without the code context. Try to use:
         assert self.globals is not None
         assert self.functions_and_blocks is not None
 
-        type_converter = TypeConverter(self.globals)
+        type_converter = TypeConverter(
+            globals=self.globals,
+            _type_names=self.type_names,
+            _type_registry=self.type_registry,
+        )
         self.xdsl_program = CodeGeneration.run_with_type_converter(
-            type_converter, self.type_registry, self.functions_and_blocks, self.file
+            type_converter, self.functions_and_blocks, self.file
         )
         self.xdsl_program.verify()
 
