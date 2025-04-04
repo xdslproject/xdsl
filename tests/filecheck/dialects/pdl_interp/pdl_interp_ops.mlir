@@ -1,4 +1,5 @@
 // RUN: XDSL_ROUNDTRIP
+// RUN: XDSL_GENERIC_ROUNDTRIP
 
 "pdl_interp.func"() <{function_type = (!pdl.operation) -> (), sym_name = "matcher"}> ({
 ^bb0(%arg5: !pdl.operation):
@@ -117,3 +118,63 @@ module @rewriters {
 // CHECK-NEXT:     }) : () -> ()
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
+
+// CHECK-GENERIC:     "builtin.module"() ({
+// CHECK-GENERIC-NEXT:     "pdl_interp.func"() <{function_type = (!pdl.operation) -> (), sym_name = "matcher"}> ({
+// CHECK-GENERIC-NEXT:     ^0(%arg5 : !pdl.operation):
+// CHECK-GENERIC-NEXT:       %0 = "pdl_interp.get_result"(%arg5) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
+// CHECK-GENERIC-NEXT:       "pdl_interp.is_not_null"(%0) [^1, ^2] : (!pdl.value) -> ()
+// CHECK-GENERIC-NEXT:     ^2:
+// CHECK-GENERIC-NEXT:       "pdl_interp.finalize"() : () -> ()
+// CHECK-GENERIC-NEXT:     ^1:
+// CHECK-GENERIC-NEXT:       %1 = "pdl_interp.get_operand"(%arg5) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
+// CHECK-GENERIC-NEXT:       %2 = "pdl_interp.get_defining_op"(%1) : (!pdl.value) -> !pdl.operation
+// CHECK-GENERIC-NEXT:       "pdl_interp.is_not_null"(%2) [^3, ^2] : (!pdl.operation) -> ()
+// CHECK-GENERIC-NEXT:     ^3:
+// CHECK-GENERIC-NEXT:       "pdl_interp.check_operation_name"(%arg5) [^4, ^2] <{name = "arith.subi"}> : (!pdl.operation) -> ()
+// CHECK-GENERIC-NEXT:     ^4:
+// CHECK-GENERIC-NEXT:       "pdl_interp.check_operand_count"(%arg5) [^5, ^2] <{count = 2 : i32}> : (!pdl.operation) -> ()
+// CHECK-GENERIC-NEXT:     ^5:
+// CHECK-GENERIC-NEXT:       "pdl_interp.check_result_count"(%arg5) [^6, ^2] <{count = 1 : i32}> : (!pdl.operation) -> ()
+// CHECK-GENERIC-NEXT:     ^6:
+// CHECK-GENERIC-NEXT:       "pdl_interp.is_not_null"(%1) [^7, ^2] : (!pdl.value) -> ()
+// CHECK-GENERIC-NEXT:     ^7:
+// CHECK-GENERIC-NEXT:       %3 = "pdl_interp.get_operand"(%arg5) <{index = 1 : i32}> : (!pdl.operation) -> !pdl.value
+// CHECK-GENERIC-NEXT:       "pdl_interp.is_not_null"(%3) [^8, ^2] : (!pdl.value) -> ()
+// CHECK-GENERIC-NEXT:     ^8:
+// CHECK-GENERIC-NEXT:       "pdl_interp.check_operation_name"(%2) [^9, ^2] <{name = "arith.addi"}> : (!pdl.operation) -> ()
+// CHECK-GENERIC-NEXT:     ^9:
+// CHECK-GENERIC-NEXT:       "pdl_interp.check_operand_count"(%2) [^10, ^2] <{count = 2 : i32}> : (!pdl.operation) -> ()
+// CHECK-GENERIC-NEXT:     ^10:
+// CHECK-GENERIC-NEXT:       "pdl_interp.check_result_count"(%2) [^11, ^2] <{count = 1 : i32}> : (!pdl.operation) -> ()
+// CHECK-GENERIC-NEXT:     ^11:
+// CHECK-GENERIC-NEXT:       %4 = "pdl_interp.get_operand"(%2) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
+// CHECK-GENERIC-NEXT:       "pdl_interp.is_not_null"(%4) [^12, ^2] : (!pdl.value) -> ()
+// CHECK-GENERIC-NEXT:     ^12:
+// CHECK-GENERIC-NEXT:       %5 = "pdl_interp.get_operand"(%2) <{index = 1 : i32}> : (!pdl.operation) -> !pdl.value
+// CHECK-GENERIC-NEXT:       "pdl_interp.is_not_null"(%5) [^13, ^2] : (!pdl.value) -> ()
+// CHECK-GENERIC-NEXT:     ^13:
+// CHECK-GENERIC-NEXT:       %6 = "pdl_interp.get_result"(%2) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
+// CHECK-GENERIC-NEXT:       "pdl_interp.is_not_null"(%6) [^14, ^2] : (!pdl.value) -> ()
+// CHECK-GENERIC-NEXT:     ^14:
+// CHECK-GENERIC-NEXT:       "pdl_interp.are_equal"(%6, %1) [^15, ^2] : (!pdl.value, !pdl.value) -> ()
+// CHECK-GENERIC-NEXT:     ^15:
+// CHECK-GENERIC-NEXT:       %7 = "pdl_interp.get_value_type"(%6) : (!pdl.value) -> !pdl.type
+// CHECK-GENERIC-NEXT:       %8 = "pdl_interp.get_value_type"(%0) : (!pdl.value) -> !pdl.type
+// CHECK-GENERIC-NEXT:       "pdl_interp.are_equal"(%7, %8) [^16, ^2] : (!pdl.type, !pdl.type) -> ()
+// CHECK-GENERIC-NEXT:     ^16:
+// CHECK-GENERIC-NEXT:       "pdl_interp.record_match"(%5, %3, %7, %4, %arg5, %2, %arg5) [^2] <{rewriter = @rewriters::@pdl_generated_rewriter, benefit = 1 : i16, generatedOps = ["arith.subi", "arith.addi"], rootKind = "arith.subi", operandSegmentSizes = array<i32: 5, 2>}> : (!pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation, !pdl.operation, !pdl.operation) -> ()
+// CHECK-GENERIC-NEXT:     }) : () -> ()
+// CHECK-GENERIC-NEXT:     "builtin.module"() <{sym_name = "rewriters"}> ({
+// CHECK-GENERIC-NEXT:       "pdl_interp.func"() <{function_type = (!pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) -> (), sym_name = "pdl_generated_rewriter"}> ({
+// CHECK-GENERIC-NEXT:       ^0(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation):
+// CHECK-GENERIC-NEXT:         %0 = "pdl_interp.create_operation"(%arg0, %arg1, %arg2) <{inputAttributeNames = [], name = "arith.subi", operandSegmentSizes = array<i32: 2, 0, 1>}> : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
+// CHECK-GENERIC-NEXT:         %1 = "pdl_interp.get_result"(%0) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
+// CHECK-GENERIC-NEXT:         %2 = "pdl_interp.create_operation"(%arg3, %1, %arg2) <{inputAttributeNames = [], name = "arith.addi", operandSegmentSizes = array<i32: 2, 0, 1>}> : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
+// CHECK-GENERIC-NEXT:         %3 = "pdl_interp.get_result"(%2) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
+// CHECK-GENERIC-NEXT:         %4 = "pdl_interp.get_results"(%2) : (!pdl.operation) -> !pdl.range<value>
+// CHECK-GENERIC-NEXT:         "pdl_interp.replace"(%arg4, %4) : (!pdl.operation, !pdl.range<value>) -> ()
+// CHECK-GENERIC-NEXT:         "pdl_interp.finalize"() : () -> ()
+// CHECK-GENERIC-NEXT:       }) : () -> ()
+// CHECK-GENERIC-NEXT:     }) : () -> ()
+// CHECK-GENERIC-NEXT:   }) : () -> ()
