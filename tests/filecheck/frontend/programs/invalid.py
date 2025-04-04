@@ -256,3 +256,24 @@ try:
     p.register_function(int.__add__, AddOp)
 except FrontendProgramException as e:
     print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot register multiple source types for IR type 'BigIntegerType'
+    p.register_type(float, BigIntegerType)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot register multiple source types for IR type 'BigIntegerType'
+    p.register_type(float, BigIntegerType)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Object '' is not a function
+    p.register_type(float, "hello")
+except FrontendProgramException as e:
+    print(e.msg)

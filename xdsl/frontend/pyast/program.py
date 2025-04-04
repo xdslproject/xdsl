@@ -10,8 +10,10 @@ from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.passes.desymref import Desymrefier
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
+    FunctionRegistry,
     TypeConverter,
     TypeName,
+    TypeRegistry,
 )
 from xdsl.ir import Operation, TypeAttribute
 from xdsl.printer import Printer
@@ -39,12 +41,10 @@ class FrontendProgram:
     type_names: dict[TypeName, type] = field(default_factory=dict)
     """Mappings from source type names to source types."""
 
-    type_registry: dict[type, type[TypeAttribute]] = field(default_factory=dict)
+    type_registry: TypeRegistry = field(default_factory=TypeRegistry)
     """Mappings between source code and IR type."""
 
-    function_registry: dict[Callable[..., Any], type[Operation]] = field(
-        default_factory=dict
-    )
+    function_registry: FunctionRegistry = field(default_factory=dict)
     """Mappings between functions and their operation types."""
 
     file: str | None = field(default=None)
@@ -56,7 +56,12 @@ class FrontendProgram:
             raise FrontendProgramException(
                 f"Cannot re-register type name '{type_name}'"
             )
+        # Qualified names not being registered implies matching objects aren't
         assert source_type not in self.type_registry
+        if not self.type_registry.valid_insert(source_type, ir_type):
+            raise FrontendProgramException(
+                f"Cannot register multiple source types for IR type '{ir_type.__name__}'"
+            )
         self.type_names[type_name] = source_type
         self.type_registry[source_type] = ir_type
 

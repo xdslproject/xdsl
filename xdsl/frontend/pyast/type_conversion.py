@@ -20,6 +20,26 @@ from xdsl.frontend.pyast.exception import (
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 
 TypeName: TypeAlias = str
+FunctionRegistry: TypeAlias = dict[Callable[..., Any], type[Operation]]
+
+
+class TypeRegistry(dict[type, type[TypeAttribute]]):
+    """Mappings between source code and IR type.
+
+    This mapping must be one-to-one, with each source type having only IR type.
+    This is to ensure that the lowering then reconstructing an AST is
+    idempotent, as with a many-to-one mapping the source type to reconstruct
+    cannot necessarily be correctly selected.
+    """
+
+    def valid_insert(self, key: type, value: type[TypeAttribute]) -> bool:
+        """Check that both the key and value are unique."""
+        return key not in self and value not in self.values()
+
+    @property
+    def backwards(self) -> dict[type, type[TypeAttribute]]:
+        """Get a dictionary mapping values to keys."""
+        return {value: key for key, value in self.items()}
 
 
 @dataclass
@@ -36,12 +56,10 @@ class TypeConverter:
     type_names: dict[TypeName, type] = field(default_factory=dict)
     """Mappings from source type names to source types."""
 
-    type_registry: dict[type, type[TypeAttribute]] = field(default_factory=dict)
+    type_registry: TypeRegistry = field(default_factory=TypeRegistry)
     """Mappings between source code and ir type, indexed by name."""
 
-    function_registry: dict[Callable[..., Any], type[Operation]] = field(
-        default_factory=dict
-    )
+    function_registry: FunctionRegistry = field(default_factory=dict)
     """Mappings between methods on objects and their operations."""
 
     name_to_xdsl_type_map: dict[TypeName, Attribute] = field(default_factory=dict)
@@ -182,20 +200,8 @@ class TypeConverter:
         return self.type_registry[source_type]()
 
     def get_source_type(self, ir_type: type[TypeAttribute]) -> type | None:
-        """Get the source type from its IR type.
-
-        NOTE: This is broken as the back-mapping may not be unique!
-
-        TODO: This could be improved using a bi-directional dictionary
-        implementation such as the `bidict` library, but the extra dependencies
-        or implementation logic are not justified by the cost of this
-        implementation.
-        """
-        for source, ir in self.type_registry.items():
-            # print(f"- {source}: {ir} = {ir_type}")
-            if ir == ir_type:
-                return source
-        return None
+        """Get the source type from its IR type."""
+        return self.type_registry.backwards.get(ir_type, None)
 
     def resolve_function(
         self,
@@ -210,10 +216,7 @@ class TypeConverter:
             raise FrontendProgramException(
                 f"Unable to resolve function '{module_name}.{function_name}'"
             )
-        if not callable(function):
-            raise FrontendProgramException(
-                f"Object '{module_name}.{function_name}' is not a function"
-            )
+        assert callable(function)  # Guaranteed by types a registration time
         return function
 
     def get_operation(
