@@ -53,6 +53,26 @@ class AffineMap:
         )
 
     @staticmethod
+    def minor_identity(num_dims: int, num_results: int) -> AffineMap:
+        """
+        Returns an identity affine map (d0, ..., dn) -> (dp, ..., dn) on the most minor
+        dimensions.
+
+        Corresponds to MLIR's `AffineMap::getMinorIdentityMap`.
+        """
+        if num_dims < num_results:
+            raise ValueError(
+                f"Dimension mismatch, expected dims {num_dims} to be greater than or "
+                f"equal to results {num_results}."
+            )
+
+        return AffineMap(
+            num_dims,
+            0,
+            tuple(AffineDimExpr(d) for d in range(num_dims - num_results, num_dims)),
+        )
+
+    @staticmethod
     def transpose_map() -> AffineMap:
         """
         Returns the map transposing a 2D matrix: `(i, j) -> (j, i)`.
@@ -285,6 +305,31 @@ class AffineMap:
                 if isinstance(expr, AffineDimExpr):
                     used_dims[expr.position] = True
         return tuple(used_dims)
+
+    def is_minor_identity(self) -> bool:
+        """
+        Returns True if
+        1. there are at most `self.num_dims` results,
+        2. `self.num_symbols` is zero, and
+        3. `self.results` are the last dimensions, in order.
+
+        For example, `(d0, d1, d2) -> (d1, d2)` is a minor identity map.
+
+        Corresponds to MLIR's `AffineMap::isMinorIdentity`.
+        """
+        num_results = len(self.results)
+        return (
+            not self.num_symbols
+            and num_results <= self.num_dims
+            and all(
+                isinstance(r, AffineDimExpr) and d == r.position
+                for d, r in zip(
+                    range(self.num_dims - num_results, self.num_dims),
+                    self.results,
+                    strict=True,
+                )
+            )
+        )
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.
