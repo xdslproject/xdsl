@@ -2,7 +2,6 @@ import ast
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    NamedTuple,
     TypeAlias,
     _GenericAlias,  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
 )
@@ -18,36 +17,22 @@ from xdsl.ir import Attribute, TypeAttribute
 TypeName: TypeAlias = str
 
 
-class SourceIRTypePair(NamedTuple):
-    """Pair of types for source code and its generated IR.
-
-    An example of this mapping Python `int`s to the xDSL bigint dialect is:
-    ```python
-    from xdsl.dialects.bigint import BigIntegerType
-    source_ir_type_pair = SourceIRTypePair(int, BigIntegerType)
-    ```
-    """
-
-    source: type
-    """A type from the source code."""
-
-    ir: type[TypeAttribute]
-    """The corresponding type to be generated in the IR."""
-
-
 @dataclass
 class TypeConverter:
-    """
-    Class responsible for conversion of Python type hints to concrete xDSL
-    types.
-    """
+    """Responsible for conversion of Python type hints to xDSL types."""
 
-    globals: dict[str, Any]
+    globals: dict[str, Any] = field(default_factory=dict)
     """
     Stores all globals in the current Python program, including imports. This is
     useful because we can lookup a class which corresponds to the type
     annotation without explicitly constructing it.
     """
+
+    _type_names: dict[TypeName, type] = field(default_factory=dict)
+    """Mappings from source type names to source types."""
+
+    _type_registry: dict[type, type[TypeAttribute]] = field(default_factory=dict)
+    """Mappings between source code and ir type, indexed by name."""
 
     name_to_xdsl_type_map: dict[TypeName, Attribute] = field(default_factory=dict)
     """
@@ -173,3 +158,15 @@ class TypeConverter:
             type_hint.col_offset,
             f"Unknown type hint AST node '{type_hint}'.",
         )
+
+    def get_ir_type(
+        self,
+        source_type_name: TypeName,
+    ) -> TypeAttribute | None:
+        """Get the ir type by its source code type name"""
+        if source_type_name not in self._type_names:
+            return None
+        source_type = self._type_names[source_type_name]
+        if source_type not in self._type_registry:
+            return None
+        return self._type_registry[source_type]()
