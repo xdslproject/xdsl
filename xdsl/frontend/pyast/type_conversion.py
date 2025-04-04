@@ -18,23 +18,6 @@ from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 TypeName: TypeAlias = str
 
 
-class SourceIRTypePair(NamedTuple):
-    """Pair of types for source code and its generated IR.
-
-    An example of this mapping Python `int`s to the xDSL bigint dialect is:
-    ```python
-    from xdsl.dialects.bigint import BigIntegerType
-    source_ir_type_pair = SourceIRTypePair(int, BigIntegerType)
-    ```
-    """
-
-    source: type
-    """A type from the source code."""
-
-    ir: type[TypeAttribute]
-    """The corresponding type to be generated in the IR."""
-
-
 class TypeMethodPair(NamedTuple):
     """Pair of IR type and method on it from the source code."""
 
