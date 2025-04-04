@@ -338,11 +338,7 @@ class DVarSLd1Op(ARMInstruction):
                 f"dest_regs must contain between 1 and 4 elements, but got {len(self.dest_regs)}."
             )
 
-    def assembly_instruction_name(self) -> str:
-        return "ld1"
-
     def assembly_line_args(self):
-        assert isinstance(self.s.type, IntRegisterType)
         return (
             VariadicNeonRegArg(self.dest_regs, self.arrangement),
             square_brackets_reg(self.s),
@@ -394,11 +390,7 @@ class DVarSSt1Op(ARMInstruction):
                 f"src_regs must contain between 1 and 4 elements, but got {len(self.src_regs)}."
             )
 
-    def assembly_instruction_name(self) -> str:
-        return "st1"
-
     def assembly_line_args(self):
-        assert isinstance(self.d.type, IntRegisterType)
         return (
             VariadicNeonRegArg(self.src_regs, self.arrangement),
             square_brackets_reg(self.d),
