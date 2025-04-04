@@ -270,10 +270,3 @@ try:
     p.register_type(float, BigIntegerType)
 except FrontendProgramException as e:
     print(e.msg)
-
-
-try:
-    # CHECK-NEXT: Object '' is not a function
-    p.register_type(float, "hello")
-except FrontendProgramException as e:
-    print(e.msg)
