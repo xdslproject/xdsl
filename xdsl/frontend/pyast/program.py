@@ -50,12 +50,11 @@ class FrontendProgram:
 
     def register_type(self, source_type: type, ir_type: type[TypeAttribute]) -> None:
         """Associate a type in the source code with its type in the IR."""
-        if (type_name := source_type.__name__) in self.type_names:
+        if (type_name := source_type.__qualname__) in self.type_names:
             raise FrontendProgramException(
                 f"Cannot re-register type name '{type_name}'"
             )
-        if source_type in self.type_registry:
-            raise FrontendProgramException(f"Cannot re-register type '{source_type}'")
+        assert source_type not in self.type_registry
         self.type_names[type_name] = source_type
         self.type_registry[source_type] = ir_type
 
@@ -65,12 +64,14 @@ class FrontendProgram:
         """Associate a method on an object in the source code with its IR implementation."""
         if source_type not in self.type_registry:
             raise FrontendProgramException(
-                f"Cannot register method on unregistered type '{source_type}'"
+                f"Cannot register method on unregistered type name '{source_type.__qualname__}'"
             )
         ir_type = self.type_registry[source_type]
         key = TypeMethodPair(ir_type, source_method)
         if key in self.method_registry:
-            raise FrontendProgramException(f"Cannot re-register method '{key}'")
+            raise FrontendProgramException(
+                f"Cannot re-register method '{source_method}' on type '{source_type.__qualname__}'"
+            )
         self.method_registry[key] = ir_op
 
     def _check_can_compile(self):

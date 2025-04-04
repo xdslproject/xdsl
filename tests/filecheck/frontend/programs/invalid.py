@@ -1,6 +1,6 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.dialects.bigint import BigIntegerType
+from xdsl.dialects.bigint import AddOp, BigIntegerType
 from xdsl.frontend.pyast.block import block
 from xdsl.frontend.pyast.const import Const
 from xdsl.frontend.pyast.context import CodeContext
@@ -243,8 +243,23 @@ except FrontendProgramException as e:
 
 
 try:
+    # CHECK-NEXT: Cannot register method on unregistered type name 'int'
+    p.register_method(int, "__add__", AddOp)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
     # CHECK-NEXT: Cannot re-register type name 'int'
     p.register_type(int, BigIntegerType)
     p.register_type(int, BigIntegerType)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot re-register method '__add__' on type 'int'
+    p.register_method(int, "__add__", AddOp)
+    p.register_method(int, "__add__", AddOp)
 except FrontendProgramException as e:
     print(e.msg)

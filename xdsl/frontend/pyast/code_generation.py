@@ -107,7 +107,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.lineno,
                     node.col_offset,
                     "Expected a string constant for assertion message, found "
-                    f"'ast.{type(node.msg).__name__}'",
+                    f"'ast.{type(node.msg).__qualname__}'",
                 )
             msg = str(node.msg.value)
         op = cf.AssertOp(self.inserter.get_operand(), msg)
@@ -118,7 +118,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         pass
 
     def visit_BinOp(self, node: ast.BinOp):
-        op_name: str = node.op.__class__.__name__
+        op_name: str = node.op.__class__.__qualname__
 
         # Table with mappings of Python AST operator to Python methods.
         python_AST_operator_to_python_overload = {
@@ -163,7 +163,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
 
         op = self.type_converter.get_operation(
-            ir_type=cast(type[TypeAttribute], lhs.type.__class__),
+            ir_type=cast(TypeAttribute, lhs.type.__class__),
             method=python_AST_operator_to_python_overload[op_name],
             args=(lhs, rhs),
         )
@@ -187,7 +187,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.lineno,
                 node.col_offset,
                 f"Binary operation '{op_name}' "
-                f"is not supported by type '{frontend_type.__name__}' "
+                f"is not supported by type '{frontend_type.__qualname__}' "
                 f"which does not overload '{overload_name}'.",
             )
 
@@ -201,7 +201,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"Expected a single comparator, but found {len(node.comparators)}.",
             )
         comp = node.comparators[0]
-        op_name: str = node.ops[0].__class__.__name__
+        op_name: str = node.ops[0].__class__.__qualname__
 
         # Table with mappings of Python AST cmpop to Python method.
         python_AST_cmpop_to_python_overload = {
@@ -262,7 +262,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.lineno,
                 node.col_offset,
                 f"Comparison operation '{op_name}' "
-                f"is not supported by type '{frontend_type.__name__}' "
+                f"is not supported by type '{frontend_type.__qualname__}' "
                 f"which does not overload '{python_op}'.",
             )
 
@@ -298,7 +298,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     args[0].lineno,
                     args[0].col_offset,
-                    f"Expected integer constant for loop start, got '{type(args[0].value).__name__}'.",
+                    f"Expected integer constant for loop start, got '{type(args[0].value).__qualname__}'.",
                 )
             start = int(args[0].value)
 
@@ -313,7 +313,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 arg.lineno,
                 arg.col_offset,
-                f"Expected integer constant for loop end, got '{type(arg.value).__name__}'.",
+                f"Expected integer constant for loop end, got '{type(arg.value).__qualname__}'.",
             )
         end = int(arg.value)
 
@@ -325,7 +325,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     args[2].lineno,
                     args[2].col_offset,
-                    f"Expected integer constant for loop step, got '{type(args[2].value).__name__}'.",
+                    f"Expected integer constant for loop step, got '{type(args[2].value).__qualname__}'.",
                 )
             step = int(args[2].value)
         else:
