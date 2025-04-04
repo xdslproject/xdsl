@@ -24,6 +24,6 @@
 // CHECK-ASM: st1 {v1.4S, v2.4S, v3.4S, v4.4S}, [x1] # st1 op
 arm_neon.dvars.st1 %v1, %v2, %v3, %v4 [%x1] S {comment = "st1 op"} : (!arm_neon.reg<v1>, !arm_neon.reg<v2>, !arm_neon.reg<v3>, !arm_neon.reg<v4>) -> !arm.reg<x1>
 
-// CHECK: arm_neon.dvars.ld1 %v1, %v2, %v3, %v4 [%x1] S {comment = "ld1 op"} : (!arm_neon.reg<v1>, !arm_neon.reg<v2>, !arm_neon.reg<v3>, !arm_neon.reg<v4>) -> !arm.reg<x1>
-// CHECK-ASM: ld1 {v1.4S, v2.4S, v3.4S, v4.4S}, [x1] # ld1 op
-arm_neon.dvars.ld1 %v1, %v2, %v3, %v4 [%x1] S {comment = "ld1 op"} : (!arm_neon.reg<v1>, !arm_neon.reg<v2>, !arm_neon.reg<v3>, !arm_neon.reg<v4>) -> !arm.reg<x1>
+// CHECK: %v11, %v12, %v13, %v14 = arm_neon.dvars.ld1 [%x1] S {comment = "ld1 op"} : !arm.reg<x1> -> (!arm_neon.reg<v11>, !arm_neon.reg<v12>, !arm_neon.reg<v13>, !arm_neon.reg<v14>)
+// CHECK-ASM: ld1 {v11.4S, v12.4S, v13.4S, v14.4S}, [x1] # ld1 op
+%v11, %v12, %v13, %v14 = arm_neon.dvars.ld1 [%x1] S {comment = "ld1 op"} : !arm.reg<x1> -> (!arm_neon.reg<v11>, !arm_neon.reg<v12>, !arm_neon.reg<v13>, !arm_neon.reg<v14>)
