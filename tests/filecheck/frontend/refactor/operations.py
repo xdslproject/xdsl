@@ -8,9 +8,9 @@ from xdsl.frontend.pyast.program import FrontendProgram
 
 p1 = FrontendProgram()
 p1.register_type(int, BigIntegerType)
-p1.register_method(int, "__add__", AddOp)
-p1.register_method(int, "__sub__", SubOp)
-p1.register_method(int, "__mul__", MulOp)
+p1.register_function(int.__add__, AddOp)
+p1.register_function(int.__sub__, SubOp)
+p1.register_function(int.__mul__, MulOp)
 with CodeContext(p1):
     # CHECK:      builtin.module {
     # CHECK-NEXT:     func.func @foo(%x : !bigint.bigint, %y : !bigint.bigint, %z : !bigint.bigint) -> !bigint.bigint {
@@ -29,9 +29,9 @@ print(p1.textual_format())
 
 p2 = FrontendProgram()
 p2.register_type(float, Float64Type)
-p2.register_method(float, "__add__", AddfOp)
-p2.register_method(float, "__sub__", SubfOp)
-p2.register_method(float, "__mul__", MulfOp)
+p2.register_function(float.__add__, AddfOp)
+p2.register_function(float.__sub__, SubfOp)
+p2.register_function(float.__mul__, MulfOp)
 with CodeContext(p2):
     # CHECK:      builtin.module {
     # CHECK-NEXT:       func.func @bar(%x : f64, %y : f64, %z : f64) -> f64 {

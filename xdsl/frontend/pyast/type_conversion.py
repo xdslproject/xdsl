@@ -1,8 +1,9 @@
 import ast
+import importlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    NamedTuple,
     TypeAlias,
     _GenericAlias,  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
 )
@@ -12,17 +13,13 @@ import xdsl.frontend.pyast.dialects.builtin as frontend_builtin
 from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
-from xdsl.frontend.pyast.exception import CodeGenerationException
+from xdsl.frontend.pyast.exception import (
+    CodeGenerationException,
+    FrontendProgramException,
+)
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 
 TypeName: TypeAlias = str
-
-
-class TypeMethodPair(NamedTuple):
-    """Pair of IR type and method on it from the source code."""
-
-    type_: type[TypeAttribute]
-    method: str
 
 
 @dataclass
@@ -36,13 +33,13 @@ class TypeConverter:
     annotation without explicitly constructing it.
     """
 
-    _type_names: dict[TypeName, type] = field(default_factory=dict)
+    type_names: dict[TypeName, type] = field(default_factory=dict)
     """Mappings from source type names to source types."""
 
-    _type_registry: dict[type, type[TypeAttribute]] = field(default_factory=dict)
+    type_registry: dict[type, type[TypeAttribute]] = field(default_factory=dict)
     """Mappings between source code and ir type, indexed by name."""
 
-    _method_registry: dict[TypeMethodPair, type[Operation]] = field(
+    function_registry: dict[Callable[..., Any], type[Operation]] = field(
         default_factory=dict
     )
     """Mappings between methods on objects and their operations."""
@@ -172,25 +169,62 @@ class TypeConverter:
             f"Unknown type hint AST node '{type_hint}'.",
         )
 
-    def get_operation(
-        self,
-        ir_type: type[TypeAttribute],
-        method: str,
-        args: tuple[SSAValue[Attribute], ...],
-    ) -> Operation | None:
-        """Get the method attribute type from a type and method name."""
-        if (key := TypeMethodPair(ir_type, method)) in self._method_registry:
-            return self._method_registry[key].__call__(*args)
-        return None
-
     def get_ir_type(
         self,
         source_type_name: TypeName,
     ) -> TypeAttribute | None:
-        """Get the ir type by its source code type name"""
-        if source_type_name not in self._type_names:
+        """Get the IR type by its source code type name"""
+        if source_type_name not in self.type_names:
             return None
-        source_type = self._type_names[source_type_name]
-        if source_type not in self._type_registry:
+        source_type = self.type_names[source_type_name]
+        if source_type not in self.type_registry:
             return None
-        return self._type_registry[source_type]()
+        return self.type_registry[source_type]()
+
+    def get_source_type(self, ir_type: type[TypeAttribute]) -> type | None:
+        """Get the source type from its IR type.
+
+        NOTE: This is broken as the back-mapping may not be unique!
+
+        TODO: This could be improved using a bi-directional dictionary
+        implementation such as the `bidict` library, but the extra dependencies
+        or implementation logic are not justified by the cost of this
+        implementation.
+        """
+        for source, ir in self.type_registry.items():
+            # print(f"- {source}: {ir} = {ir_type}")
+            if ir == ir_type:
+                return source
+        return None
+
+    def resolve_function(
+        self,
+        module_name: str,
+        function_name: str,
+    ) -> Callable[..., Any]:
+        """Resolve a function in the current namespace."""
+        function = importlib.import_module(module_name)
+        for attr in function_name.split("."):
+            # print("-", attr, function)
+            function = getattr(function, attr, None)
+        if function is None:
+            raise FrontendProgramException(
+                f"Unable to resolve function '{module_name}.{function_name}'"
+            )
+        if not callable(function):
+            raise FrontendProgramException(
+                f"Object '{module_name}.{function_name}' is not a function"
+            )
+        return function
+
+    def get_operation(
+        self,
+        method: Callable[..., Any],
+        args: tuple[SSAValue[Attribute], ...] = tuple(),
+        kwargs: dict[str, SSAValue[Attribute]] = dict(),
+    ) -> Operation | None:
+        """Get the method attribute type from a type and method name."""
+        print(method, self.function_registry)
+        if method in self.function_registry:
+            return self.function_registry[method].__call__(*args, **kwargs)
+        return None

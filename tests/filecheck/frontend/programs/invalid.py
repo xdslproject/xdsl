@@ -243,13 +243,6 @@ except FrontendProgramException as e:
 
 
 try:
-    # CHECK-NEXT: Cannot register method on unregistered type name 'int'
-    p.register_method(int, "__add__", AddOp)
-except FrontendProgramException as e:
-    print(e.msg)
-
-
-try:
     # CHECK-NEXT: Cannot re-register type name 'int'
     p.register_type(int, BigIntegerType)
     p.register_type(int, BigIntegerType)

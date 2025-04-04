@@ -1,4 +1,5 @@
 import ast
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from io import StringIO
 from typing import Any
@@ -10,7 +11,6 @@ from xdsl.frontend.pyast.passes.desymref import Desymrefier
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
     TypeConverter,
-    TypeMethodPair,
     TypeName,
 )
 from xdsl.ir import Operation, TypeAttribute
@@ -42,8 +42,10 @@ class FrontendProgram:
     type_registry: dict[type, type[TypeAttribute]] = field(default_factory=dict)
     """Mappings between source code and IR type."""
 
-    method_registry: dict[TypeMethodPair, type[Operation]] = field(default_factory=dict)
-    """Mappings between methods on objects and their operations."""
+    function_registry: dict[Callable[..., Any], type[Operation]] = field(
+        default_factory=dict
+    )
+    """Mappings between functions and their operation types."""
 
     file: str | None = field(default=None)
     """Path to the file that contains the program."""
@@ -58,21 +60,15 @@ class FrontendProgram:
         self.type_names[type_name] = source_type
         self.type_registry[source_type] = ir_type
 
-    def register_method(
-        self, source_type: type, source_method: str, ir_op: type[Operation]
+    def register_function(
+        self, function: Callable[..., Any], ir_op: type[Operation]
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
-        if source_type not in self.type_registry:
+        if function in self.function_registry:
             raise FrontendProgramException(
-                f"Cannot register method on unregistered type name '{source_type.__qualname__}'"
+                f"Cannot re-register function '{function.__qualname__}'"
             )
-        ir_type = self.type_registry[source_type]
-        key = TypeMethodPair(ir_type, source_method)
-        if key in self.method_registry:
-            raise FrontendProgramException(
-                f"Cannot re-register method '{source_method}' on type '{source_type.__qualname__}'"
-            )
-        self.method_registry[key] = ir_op
+        self.function_registry[function] = ir_op
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
@@ -94,9 +90,9 @@ Cannot compile program without the code context. Try to use:
 
         type_converter = TypeConverter(
             globals=self.globals,
-            _type_names=self.type_names,
-            _type_registry=self.type_registry,
-            _method_registry=self.method_registry,
+            type_names=self.type_names,
+            type_registry=self.type_registry,
+            function_registry=self.function_registry,
         )
         self.xdsl_program = CodeGeneration.run_with_type_converter(
             type_converter,
