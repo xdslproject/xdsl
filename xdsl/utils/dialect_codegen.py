@@ -56,16 +56,16 @@ def get_str_from_operand_or_result(
             )
 
     match operand_or_result:
-        case VarOperandDef():
-            def_str = "var_operand_def"
         case OptOperandDef():
             def_str = "opt_operand_def"
+        case VarOperandDef():
+            def_str = "var_operand_def"
         case OperandDef():
             def_str = "operand_def"
-        case VarResultDef():
-            def_str = "var_result_def"
         case OptResultDef():
             def_str = "opt_result_def"
+        case VarResultDef():
+            def_str = "var_result_def"
         case ResultDef():
             def_str = "result_def"
 
@@ -103,8 +103,9 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
     """
     Generate class definition for an operation.
     """
-    if op.accessor_names:
-        raise NotImplementedError("Operation accessor_names not yet implemented")
+    field_name_mapping = {
+        ir_name: field_name for (field_name, (ir_name, _)) in op.accessor_names.items()
+    }
 
     fields_description = ""
 
@@ -118,16 +119,45 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
         + "\n\t"
     )
 
-    if op.attributes:
-        raise NotImplementedError("Operation attributes not yet implemented")
+    fields_description += (
+        "\n\t".join(
+            [
+                f"{field_name_mapping.get(name, name)} = prop_def({prop.constr}"
+                + (f', prop_name="{name}"' if name in field_name_mapping else "")
+                + ")"
+                for name, prop in op.properties.items()
+            ]
+        )
+        + "\n\t"
+    )
+
+    fields_description += (
+        "\n\t".join(
+            [
+                f"{field_name_mapping.get(name, name)} = attr_def({attr.constr}"
+                + (f', attr_name="{name}"' if name in field_name_mapping else "")
+                + ")"
+                for name, attr in op.attributes.items()
+            ]
+        )
+        + "\n\t"
+    )
+
+    if op.traits.traits:
+        fields_description += (
+            f"traits = traits_def({','.join([str(t) for t in op.traits.traits])})"
+            + "\n\t"
+        )
+
+    if op.options:
+        fields_description += (
+            f"irdl_options = [{','.join([str(opt) for opt in op.options])}]" + "\n\t"
+        )
+
     if op.regions:
         raise NotImplementedError("Operation regions not yet implemented")
     if op.successors:
         raise NotImplementedError("Operation successors not yet implemented")
-    if op.traits.traits:
-        raise NotImplementedError(f"Operation traits not yet implemented {op.traits}")
-    if op.properties:
-        raise NotImplementedError("Operation properties not yet implemented")
 
     return f"""
 @irdl_op_definition

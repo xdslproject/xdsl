@@ -16,7 +16,11 @@ from xdsl.frontend.pyast.exception import (
 from xdsl.frontend.pyast.op_inserter import OpInserter
 from xdsl.frontend.pyast.op_resolver import OpResolver
 from xdsl.frontend.pyast.python_code_check import FunctionMap
-from xdsl.frontend.pyast.type_conversion import TypeConverter
+from xdsl.frontend.pyast.type_conversion import (
+    SourceIRTypePair,
+    TypeConverter,
+    TypeName,
+)
 from xdsl.ir import Attribute, Block, Region, SSAValue
 
 
@@ -25,13 +29,14 @@ class CodeGeneration:
     @staticmethod
     def run_with_type_converter(
         type_converter: TypeConverter,
+        type_registry: dict[TypeName, SourceIRTypePair],
         functions_and_blocks: FunctionMap,
         file: str | None,
     ) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp([])
 
-        visitor = CodeGenerationVisitor(type_converter, module, file)
+        visitor = CodeGenerationVisitor(type_converter, type_registry, module, file)
         for function_def, _ in functions_and_blocks.values():
             visitor.visit(function_def)
         return module
@@ -43,6 +48,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
     type_converter: TypeConverter
     """Used for type conversion during code generation."""
+
+    type_registry: dict[TypeName, SourceIRTypePair] = field(default_factory=dict)
+    """Mappings between source code and IR type, indexed by name."""
 
     globals: dict[str, Any]
     """
@@ -63,9 +71,14 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     """Path of the file containing the program being processed."""
 
     def __init__(
-        self, type_converter: TypeConverter, module: builtin.ModuleOp, file: str | None
+        self,
+        type_converter: TypeConverter,
+        type_registry: dict[TypeName, SourceIRTypePair],
+        module: builtin.ModuleOp,
+        file: str | None,
     ) -> None:
         self.type_converter = type_converter
+        self.type_registry = type_registry
         self.globals = type_converter.globals
         self.file = file
 
@@ -471,13 +484,38 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         argument_types: list[Attribute] = []
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None:
-                raise CodeGenerationException(self.file, arg.lineno, arg.col_offset, "")
-            xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
+                raise CodeGenerationException(
+                    self.file,
+                    arg.lineno,
+                    arg.col_offset,
+                    "Function arguments must be type hinted",
+                )
+            if not isinstance(arg.annotation, ast.Name):
+                raise CodeGenerationException(
+                    self.file,
+                    arg.lineno,
+                    arg.col_offset,
+                    f"Unsupported function argument type: '{ast.unparse(arg.annotation)}'",
+                )
+            if arg.annotation.id in self.type_registry:
+                xdsl_type = self.type_registry[arg.annotation.id].ir()
+            else:
+                xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
             argument_types.append(xdsl_type)
 
         return_types: list[Attribute] = []
         if node.returns is not None:
-            xdsl_type = self.type_converter.convert_type_hint(node.returns)
+            if not isinstance(node.returns, ast.Name):
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    f"Unsupported function return type: '{ast.unparse(node.returns)}'",
+                )
+            if node.returns.id in self.type_registry:
+                xdsl_type = self.type_registry[node.returns.id].ir()
+            else:
+                xdsl_type = self.type_converter.convert_type_hint(node.returns)
             return_types.append(xdsl_type)
 
         # Create a function operation.

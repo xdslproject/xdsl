@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     Float32Type,
     IndexType,
     IntAttr,
+    IntegerAttr,
     IntegerType,
     NoneType,
     Signedness,
@@ -14,14 +15,24 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyOf,
+    AttributeDef,
+    AttrSizedOperandSegments,
     BaseAttr,
     EqAttrConstraint,
     OpDef,
     OperandDef,
+    OptOperandDef,
     ParamAttrConstraint,
     ParamAttrDef,
+    PropertyDef,
     ResultDef,
+    SameVariadicOperandSize,
     VarOperandDef,
+    traits_def,
+)
+from xdsl.traits import (
+    ConstantLike,
+    Pure,
 )
 from xdsl.utils.dialect_codegen import dump_dialect_pyfile, generate_dynamic_attr_class
 
@@ -132,9 +143,42 @@ ops = [
         OpDef(
             name="test.variadic",
             operands=[
+                ("opt", OptOperandDef(BaseAttr(SingletonAType))),
                 ("variadic", VarOperandDef(BaseAttr(SingletonAType))),
                 ("required", OperandDef(BaseAttr(SingletonCType))),
             ],
+            options=[SameVariadicOperandSize(), AttrSizedOperandSegments()],
+        ),
+    ),
+    (
+        "Test_PropertiesOp",
+        OpDef(
+            name="test.properties",
+            properties={
+                "int_attr": PropertyDef(
+                    IntegerAttr.constr(type=EqAttrConstraint(IntegerType(16)))
+                ),
+                "in": PropertyDef(AnyAttr()),
+            },
+            accessor_names={"in_": ("in", "property")},
+        ),
+    ),
+    (
+        "Test_TraitsOp",
+        OpDef(
+            name="test.traits",
+            traits=traits_def(ConstantLike(), Pure()),
+        ),
+    ),
+    (
+        "Test_AttributesOp",
+        OpDef(
+            name="test.attributes",
+            attributes={
+                "attr": AttributeDef(AnyAttr()),
+                "other_attr": AttributeDef(AnyAttr()),
+            },
+            accessor_names={"some_attr": ("attr", "attribute")},
         ),
     ),
 ]
@@ -228,8 +272,38 @@ dump_dialect_pyfile(
 # CHECK:       @irdl_op_definition
 # CHECK-NEXT:  class Test_VariadicityOp(IRDLOperation):
 # CHECK-NEXT:      name = "test.variadic"
+# CHECK-NEXT:      opt = opt_operand_def(BaseAttr(Test_SingletonAType))
 # CHECK-NEXT:      variadic = var_operand_def(BaseAttr(Test_SingletonAType))
 # CHECK-NEXT:      required = operand_def(BaseAttr(Test_SingletonCType))
+# CHECK-EMPTY:
+# CHECK-NEXT:      irdl_options = [
+# CHECK-NEXT:          SameVariadicOperandSize(),
+# CHECK-NEXT:          AttrSizedOperandSegments(as_property=False),
+# CHECK-NEXT:      ]
+
+# CHECK:       @irdl_op_definition
+# CHECK-NEXT:  class Test_PropertiesOp(IRDLOperation):
+# CHECK-NEXT:      name = "test.properties"
+# CHECK-EMPTY:
+# CHECK-NEXT:      int_attr = prop_def(
+# CHECK-NEXT:          ParamAttrConstraint(
+# CHECK-NEXT:              IntegerAttr, (AnyAttr(), EqAttrConstraint(attr=IntegerType(16)))
+# CHECK-NEXT:          )
+# CHECK-NEXT:      )
+# CHECK-NEXT:      in_ = prop_def(AnyAttr(), prop_name="in")
+
+# CHECK:       @irdl_op_definition
+# CHECK-NEXT:  class Test_TraitsOp(IRDLOperation):
+# CHECK-NEXT:      name = "test.traits"
+# CHECK-EMPTY:
+# CHECK-NEXT:      traits = traits_def(ConstantLike(), Pure())
+
+# CHECK:       @irdl_op_definition
+# CHECK-NEXT:  class Test_AttributesOp(IRDLOperation):
+# CHECK-NEXT:      name = "test.attributes"
+# CHECK-EMPTY:
+# CHECK-NEXT:      some_attr = attr_def(AnyAttr(), attr_name="attr")
+# CHECK-NEXT:      other_attr = attr_def(AnyAttr())
 
 # CHECK:       TestDialect = Dialect(
 # CHECK-NEXT:      "test",
@@ -242,6 +316,9 @@ dump_dialect_pyfile(
 # CHECK-NEXT:          Test_TypesOp,
 # CHECK-NEXT:          Test_SingleOp,
 # CHECK-NEXT:          Test_VariadicityOp,
+# CHECK-NEXT:          Test_PropertiesOp,
+# CHECK-NEXT:          Test_TraitsOp,
+# CHECK-NEXT:          Test_AttributesOp,
 # CHECK-NEXT:      ],
 # CHECK-NEXT:      [Test_TestAttr, Test_SingletonAType, Test_SingletonBType, Test_SingletonCType],
 # CHECK-NEXT:  )
