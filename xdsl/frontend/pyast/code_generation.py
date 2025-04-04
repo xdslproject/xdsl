@@ -522,6 +522,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         for i, arg in enumerate(node.args.args):
             symbol_name = str(arg.arg)
             block_arg = entry_block.insert_arg(argument_types[i], i)
+            block_arg.name_hint = symbol_name
             self.symbol_table[symbol_name] = argument_types[i]
             entry_block.add_op(symref.DeclareOp(symbol_name))
             entry_block.add_op(symref.UpdateOp(symbol_name, block_arg))
