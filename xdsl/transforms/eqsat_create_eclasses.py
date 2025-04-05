@@ -1,6 +1,11 @@
+from collections.abc import Sequence
+from itertools import chain
+
+from ordered_set import OrderedSet
+
 from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat, func
-from xdsl.ir import Block, Operation, Region
+from xdsl.ir import Block, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -13,41 +18,59 @@ from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.exceptions import DiagnosticException
 
 
-def insert_eclass_op(op: Operation):
-    results = op.results
-
-    if len(results) != 1:
-        raise DiagnosticException("Ops with non-single results not handled")
-
-    eclass_op = eqsat.EClassOp(results[0])
-    insertion_point = InsertPoint.after(op)
-    Rewriter.insert_op(eclass_op, insertion_point)
-    results[0].replace_by_if(
-        eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
-    )
-
-
-def create_egraph_op(f: func.FuncOp) -> eqsat.EGraphOp:
+def create_egraph_op(
+    f: func.FuncOp, entries: Sequence[SSAValue], exits: Sequence[SSAValue]
+) -> eqsat.EGraphOp:
+    exits_set = set(exits)
     egraph_block = Block()
     egraph_body = Region(egraph_block)
+
+    for val in chain(entries, exits):
+        assert val.owner.parent_op() == f
+
+    for entry in entries:
+        eclass_op = eqsat.EClassOp(entry)
+        egraph_block.add_op(eclass_op)
+        entry.replace_by_if(eclass_op.results[0], lambda u: u.operation != eclass_op)
+
+    egraph_results: OrderedSet[SSAValue] = OrderedSet([])
+
     for op in f.body.block.ops:
+        if op.regions:
+            raise DiagnosticException("Ops with regions not handled")
+        if all(
+            not isinstance(arg.owner, eqsat.EClassOp) or (arg in egraph_results)
+            for arg in op.operands
+        ):
+            continue
+
+        # move op to egraph body:
         op.detach()
         egraph_block.add_op(op)
-        if isinstance(op, func.ReturnOp):
-            yieldop = eqsat.YieldOp(*op.arguments)
-            Rewriter.replace_op(op, yieldop)
-            op = yieldop
-        else:
-            insert_eclass_op(op)
 
-    for arg in f.body.block.args:
-        eclass_op = eqsat.EClassOp(arg)
-        insertion_point = InsertPoint.at_start(egraph_block)
-        Rewriter.insert_op(eclass_op, insertion_point)
-        arg.replace_by_if(
-            eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
+        if len(op.results) > 1:
+            raise DiagnosticException("Ops with multiple results not handled")
+        for res in op.results:
+            eclassop = eqsat.EClassOp(res)
+
+            if res in exits_set:
+                egraph_results.append(eclassop.results[0])
+
+            insertion_point = InsertPoint.after(op)
+            Rewriter.insert_op(eclassop, insertion_point)
+            res.replace_by_if(eclassop.results[0], lambda u: u.operation != eclassop)
+
+    egraph_block.add_op(
+        yield_op := eqsat.YieldOp(
+            *egraph_results,
         )
-    egraph_op = eqsat.EGraphOp(f.function_type.outputs.data, egraph_body)
+    )
+    egraph_op = eqsat.EGraphOp(yield_op.values.types, egraph_body)
+    for i, res in enumerate(egraph_results):
+        res.replace_by_if(
+            egraph_op.results[i], lambda u: u.operation.parent_op() != egraph_op
+        )
+
     return egraph_op
 
 
@@ -58,13 +81,17 @@ class InsertEclassOps(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
-        egraph_op = create_egraph_op(op)
-        op.body.block.add_op(egraph_op)
-        op.body.block.add_op(
-            func.ReturnOp(
-                *egraph_op.results,
+        ret = op.body.block.last_op
+        if not isinstance(ret, func.ReturnOp):
+            raise DiagnosticException(
+                "Expected a return op as the last op in the function"
             )
+        egraph_op = create_egraph_op(
+            op, entries=op.body.block.args, exits=ret.arguments
         )
+        assert op.body.block.first_op, "Expected a first op in the block"
+        insert_point = InsertPoint.before(ret)
+        rewriter.insert_op(egraph_op, insert_point)
 
 
 class EqsatCreateEclassesPass(ModulePass):
