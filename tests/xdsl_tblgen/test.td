@@ -103,3 +103,8 @@ def Test_VariadicityOp : Test_Op<"variadicity"> {
                        Optional<Test_SingletonBType>:$optional,
                        Test_SingletonCType:$required);
 }
+
+// Check that the AnyOf attribute is converted correctly.
+def Test_AnyAttrOfOp : Test_Op<"any_attr_of_i32_str"> {
+  let arguments = (ins AnyAttrOf<[I32Attr, StrAttr]>:$attr);
+}
