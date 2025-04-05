@@ -9,7 +9,7 @@
     %5 = "memref.dim"(%0, %3) : (memref<?x?xi64>, index) -> index
     %6 = "memref.dim"(%1, %2) : (memref<?x?xi64>, index) -> index
     %7 = "memref.dim"(%1, %3) : (memref<?x?xi64>, index) -> index
-    %8 = "memref.alloca"(%4, %7) {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 2, 0>} : (index, index) -> memref<?x?xi64>
+    %8 = "memref.alloca"(%4, %7) {"alignment" = 0 : i64, operandSegmentSizes = array<i32: 2, 0>} : (index, index) -> memref<?x?xi64>
     %9 = "arith.constant"() {"value" = 0 : i64} : () -> i64
     "scf.for"(%2, %4, %3) ({
     ^1(%10 : index):

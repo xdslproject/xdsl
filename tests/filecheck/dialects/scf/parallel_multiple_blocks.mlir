@@ -9,7 +9,7 @@
     "scf.reduce"() : () -> ()
   ^bb1():
     "scf.reduce"() : () -> ()
-  }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
+  }) {operandSegmentSizes = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 }) : () -> ()
 
 // CHECK:      Operation does not verify: Region 'body' at position 0 expected a single block, but got 2 blocks

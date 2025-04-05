@@ -17,7 +17,7 @@ builtin.module {
 // -----
 
 "func.func"() ({
-    %0 = "memref.alloc"() {"alignment" = 64 : i64, "operandSegmentSizes" = array<i32: 0, 0>}: () -> memref<10x2xindex>
+    %0 = "memref.alloc"() {"alignment" = 64 : i64, operandSegmentSizes = array<i32: 0, 0>}: () -> memref<10x2xindex>
     %1 = "memref.collapse_shape"(%0) {"reassociation" = [[0 : i32 , 1 : i32]]} : (memref<10x2xindex>) -> memref<20xindex>
     "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "invalid_reassociation"} : () -> ()
@@ -29,7 +29,7 @@ builtin.module {
 // -----
 
 "func.func"() ({
-    %0 = "memref.alloc"() {"alignment" = 64 : i64, "operandSegmentSizes" = array<i32: 0, 0>}: () -> memref<20xindex>
+    %0 = "memref.alloc"() {"alignment" = 64 : i64, operandSegmentSizes = array<i32: 0, 0>}: () -> memref<20xindex>
     %1 = "memref.expand_shape"(%0) {"reassociation" = [[0 : i32 , 1 : i32]]} : (memref<20xindex>) -> memref<2x10xindex>
     "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "invalid_reassociation"} : () -> ()

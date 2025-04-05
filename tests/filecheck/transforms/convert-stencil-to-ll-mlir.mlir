@@ -382,14 +382,14 @@ builtin.module {
 // CHECK-NEXT:    }
 
   func.func @apply_kernel(%69 : !stencil.field<[-2,13]x[-2,13]xf32>, %70 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr)  attributes {"param_names" = ["u_vec_1", "u_vec", "timers"]} {
-    %71 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
+    %71 = "gpu.alloc"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
     %u_vec = builtin.unrealized_conversion_cast %71 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
     %72 = builtin.unrealized_conversion_cast %70 : !stencil.field<[-2,13]x[-2,13]xf32> to memref<15x15xf32>
-    "gpu.memcpy"(%71, %72) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
-    %73 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
+    "gpu.memcpy"(%71, %72) {operandSegmentSizes = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
+    %73 = "gpu.alloc"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
     %u_vec_1 = builtin.unrealized_conversion_cast %73 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
     %74 = builtin.unrealized_conversion_cast %69 : !stencil.field<[-2,13]x[-2,13]xf32> to memref<15x15xf32>
-    "gpu.memcpy"(%73, %74) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
+    "gpu.memcpy"(%73, %74) {operandSegmentSizes = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
     %time_m_1 = arith.constant 0 : index
     %time_M_1 = arith.constant 10 : index
     %step_1 = arith.constant 1 : index

@@ -11,7 +11,7 @@
         #snitch_stream.stride_pattern<ub = [3, 2], strides = [8, 24]>,
         #snitch_stream.stride_pattern<ub = [5, 4, 3, 2], strides = [8, 40, 160, 480]>
     ],
-    "operandSegmentSizes" = array<i32: 2, 1>
+    operandSegmentSizes = array<i32: 2, 1>
 }> ({
 ^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
     "test.op"() : () -> ()
@@ -83,7 +83,7 @@
     "stride_patterns" = [
         #snitch_stream.stride_pattern<ub = [2], strides = [8]>
     ],
-    "operandSegmentSizes" = array<i32: 1, 1>
+    operandSegmentSizes = array<i32: 1, 1>
 }> ({
 ^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.writable<!riscv.freg<ft1>>):
     "test.op"() : () -> ()
