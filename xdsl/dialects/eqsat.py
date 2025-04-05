@@ -86,6 +86,8 @@ class EGraphOp(IRDLOperation):
 
     traits = lazy_traits_def(lambda: (SingleBlockImplicitTerminator(YieldOp),))
 
+    assembly_format = "`->` type($outputs) $body attr-dict"
+
     def __init__(
         self,
         result_types: Sequence[Attribute] | None,
@@ -103,6 +105,8 @@ class YieldOp(IRDLOperation):
     values = var_operand_def()
 
     traits = traits_def(HasParent(EGraphOp), IsTerminator())
+
+    assembly_format = "$values `:` type($values) attr-dict"
 
     def __init__(
         self,
