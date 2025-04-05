@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     ModuleOp,
+    StringAttr,
     UnitAttr,
 )
 from xdsl.dialects.test import Test, TestType
@@ -2664,6 +2665,44 @@ def test_optional_group_optional_operand_anchor(
 
     ctx = Context()
     ctx.load_op(OptionalGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> i32\ntest.optional_optional_group with "prop" %0',
+            '%0 = "test.op"() : () -> i32\n"test.optional_optional_group"(%0) <{prop="prop"}> : (i32) -> ()',
+        ),
+        (
+            'test.optional_optional_group with "prop"',
+            '"test.optional_optional_group"() <{prop="prop"}>: () -> ()',
+        ),
+        (
+            "test.optional_optional_group",
+            '"test.optional_optional_group"() : () -> ()',
+        ),
+    ],
+)
+def test_optional_optional_group_optional_operand_anchor(
+    program: str,
+    generic_program: str,
+):
+    @irdl_op_definition
+    class OptionalOptionalGroupOp(IRDLOperation):
+        name = "test.optional_optional_group"
+
+        prop = opt_prop_def(StringAttr)
+        arg = opt_operand_def(I32)
+
+        assembly_format = "(`with` $prop^ ($arg^)?)? attr-dict"
+
+    ctx = Context()
+    ctx.load_op(OptionalOptionalGroupOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)

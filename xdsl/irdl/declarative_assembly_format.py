@@ -1297,3 +1297,8 @@ class OptionalGroupDirective(FormatDirective):
                 *self.then_elements,
             ):
                 element.print(printer, state, op)
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.then_first.set_empty(state)
+        for element in self.then_elements:
+            element.set_empty(state)
