@@ -1,4 +1,6 @@
 import ast
+import importlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -11,10 +13,33 @@ import xdsl.frontend.pyast.dialects.builtin as frontend_builtin
 from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
-from xdsl.frontend.pyast.exception import CodeGenerationException
-from xdsl.ir import Attribute, TypeAttribute
+from xdsl.frontend.pyast.exception import (
+    CodeGenerationException,
+    FrontendProgramException,
+)
+from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 
 TypeName: TypeAlias = str
+FunctionRegistry: TypeAlias = dict[Callable[..., Any], type[Operation]]
+
+
+class TypeRegistry(dict[type, type[TypeAttribute]]):
+    """Mappings between source code and IR type.
+
+    This mapping must be one-to-one, with each source type having only IR type.
+    This is to ensure that the lowering then reconstructing an AST is
+    idempotent, as with a many-to-one mapping the source type to reconstruct
+    cannot necessarily be correctly selected.
+    """
+
+    def valid_insert(self, key: type, value: type[TypeAttribute]) -> bool:
+        """Check that both the key and value are unique."""
+        return key not in self and value not in self.values()
+
+    @property
+    def backwards(self) -> dict[type, type[TypeAttribute]]:
+        """Get a dictionary mapping values to keys."""
+        return {value: key for key, value in self.items()}
 
 
 @dataclass
@@ -28,11 +53,14 @@ class TypeConverter:
     annotation without explicitly constructing it.
     """
 
-    _type_names: dict[TypeName, type] = field(default_factory=dict)
+    type_names: dict[TypeName, type] = field(default_factory=dict)
     """Mappings from source type names to source types."""
 
-    _type_registry: dict[type, type[TypeAttribute]] = field(default_factory=dict)
+    type_registry: TypeRegistry = field(default_factory=TypeRegistry)
     """Mappings between source code and ir type, indexed by name."""
+
+    function_registry: FunctionRegistry = field(default_factory=dict)
+    """Mappings between methods on objects and their operations."""
 
     name_to_xdsl_type_map: dict[TypeName, Attribute] = field(default_factory=dict)
     """
@@ -163,10 +191,41 @@ class TypeConverter:
         self,
         source_type_name: TypeName,
     ) -> TypeAttribute | None:
-        """Get the ir type by its source code type name"""
-        if source_type_name not in self._type_names:
+        """Get the IR type by its source code type name"""
+        if source_type_name not in self.type_names:
             return None
-        source_type = self._type_names[source_type_name]
-        if source_type not in self._type_registry:
+        source_type = self.type_names[source_type_name]
+        if source_type not in self.type_registry:
             return None
-        return self._type_registry[source_type]()
+        return self.type_registry[source_type]()
+
+    def get_source_type(self, ir_type: type[TypeAttribute]) -> type | None:
+        """Get the source type from its IR type."""
+        return self.type_registry.backwards.get(ir_type, None)
+
+    def resolve_function(
+        self,
+        module_name: str,
+        function_name: str,
+    ) -> Callable[..., Any]:
+        """Resolve a function in the current namespace."""
+        function = importlib.import_module(module_name)
+        for attr in function_name.split("."):
+            function = getattr(function, attr, None)
+        if function is None:
+            raise FrontendProgramException(
+                f"Unable to resolve function '{module_name}.{function_name}'"
+            )
+        assert callable(function)  # Guaranteed by types a registration time
+        return function
+
+    def get_operation(
+        self,
+        method: Callable[..., Any],
+        args: tuple[SSAValue[Attribute], ...] = tuple(),
+        kwargs: dict[str, SSAValue[Attribute]] = dict(),
+    ) -> Operation | None:
+        """Get the method attribute type from a type and method name."""
+        if method in self.function_registry:
+            return self.function_registry[method].__call__(*args, **kwargs)
+        return None
