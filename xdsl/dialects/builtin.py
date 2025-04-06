@@ -1090,6 +1090,22 @@ class VectorType(
                 f"equal to number of dimensions {num_dims}."
             )
 
+    @classmethod
+    def constr(
+        cls,
+        element_type: IRDLGenericAttrConstraint[AttributeCovT] | None = None,
+    ) -> GenericAttrConstraint[VectorType[AttributeCovT]]:
+        if element_type is None:
+            return BaseAttr[VectorType[AttributeCovT]](VectorType)
+        return ParamAttrConstraint[VectorType[AttributeCovT]](
+            VectorType,
+            (
+                AnyAttr(),
+                element_type,
+                AnyAttr(),
+            ),
+        )
+
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
 

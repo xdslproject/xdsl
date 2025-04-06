@@ -708,3 +708,11 @@ def test_integer_type_repr():
     assert (
         repr(IntegerType(16, Signedness.SIGNED)) == "IntegerType(16, Signedness.SIGNED)"
     )
+
+
+def test_vector_constr():
+    constr = VectorType.constr(i32)
+    constr.verify(VectorType(i32, [1]), ConstraintContext())
+    constr.verify(VectorType(i32, [1, 2]), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(VectorType(i64, [1]), ConstraintContext())
