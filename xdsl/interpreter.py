@@ -592,6 +592,12 @@ class Interpreter:
         for ssa_value, result_value in pairs:
             self._ctx[ssa_value] = result_value
 
+    def is_in_root_scope(self) -> bool:
+        """
+        Returns True if the current scope is the root scope.
+        """
+        return self._ctx.parent is None
+
     def push_scope(self, name: str | None = None) -> None:
         """
         Create new scope in current environment, with optional custom `name`.
@@ -674,12 +680,11 @@ class Interpreter:
         if not region.blocks:
             return results
 
-        scope_count = 0
+        initial_scope_id = id(self._ctx)
         block = region.blocks.first
 
         while block is not None:
             self.push_scope(name)
-            scope_count += 1
             self.set_values(zip(block.args, args))
 
             op: Operation | None = block.first_op
@@ -709,7 +714,7 @@ class Interpreter:
                 op = op.next_op
 
         # Pop as many scopes as we entered blocks
-        for _ in range(scope_count):
+        while id(self._ctx) != initial_scope_id:
             self.pop_scope()
         return results
 
