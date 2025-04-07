@@ -4,7 +4,7 @@
 
     // For without value being passed during iterations
 
-    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
+    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
     ^0(%i : index):
       "affine.yield"() : () -> ()
     }) : () -> ()
@@ -18,14 +18,14 @@
     // For with values being passed during iterations
 
     %init_value = "test.op"() : () -> i32
-    %res = "affine.for"(%init_value) <{"lowerBoundMap" = affine_map<() -> (-10)>, "upperBoundMap" = affine_map<() -> (10)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 1>}> ({
+    %res = "affine.for"(%init_value) <{"lowerBoundMap" = affine_map<() -> (-10)>, "upperBoundMap" = affine_map<() -> (10)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
     ^1(%i : index, %step_value : i32):
       %next_value = "test.op"() : () -> i32
       "affine.yield"(%next_value) : (i32) -> ()
     }) : (i32) -> (i32)
     %00 = "test.op"() : () -> index
     %N = "test.op"() : () -> index
-    %res2 = "affine.for"(%00, %N, %init_value) <{"lowerBoundMap" = affine_map<(d0) -> (d0)>, "upperBoundMap" = affine_map<()[s0] -> (s0)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 1, 1, 1>}> ({
+    %res2 = "affine.for"(%00, %N, %init_value) <{"lowerBoundMap" = affine_map<(d0) -> (d0)>, "upperBoundMap" = affine_map<()[s0] -> (s0)>, "step" = 1 : index, operandSegmentSizes = array<i32: 1, 1, 1>}> ({
     ^1(%i : index, %step_value : i32):
       %next_value = "test.op"() : () -> i32
       "affine.yield"(%next_value) : (i32) -> ()
@@ -65,7 +65,7 @@
     // CHECK-NEXT: %{{.*}} = "affine.load"(%{{.*}}, %{{.*}}, %{{.*}}) <{map = affine_map<(d0, d1) -> (d0, d1)>}> : (memref<2x3xf64>, index, index) -> f64
 
     func.func @empty() {
-    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
+    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
     ^2(%arg0 : index):
       "affine.yield"() : () -> ()
     }) : () -> ()

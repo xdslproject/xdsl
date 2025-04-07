@@ -193,6 +193,7 @@ dump_dialect_pyfile(
 # CHECK:       from xdsl.dialects.builtin import *
 # CHECK-NEXT:  from xdsl.ir import *
 # CHECK-NEXT:  from xdsl.irdl import *
+# CHECK-NEXT:  from xdsl.traits import *
 
 # CHECK:       # ruff: noqa: F403, F405
 
