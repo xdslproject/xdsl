@@ -126,22 +126,22 @@ linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x409
 // CHECK-GENERIC-NEXT:    %{{.*}} %{{.*}} = "test.op"() : () -> (memref<64x9216xf32>, memref<9216x4096xf32>)
 // CHECK-GENERIC-NEXT:    %{{.*}} = "test.op"() : () -> memref<64x4096xf32>
 
-// CHECK-GENERIC-NEXT:    "linalg.matmul"(%{{.*}} %{{.*}} %{{.*}} <{operandSegmentSizes = array<i32: 2, 1>}> ({
+// CHECK-GENERIC-NEXT:    "linalg.matmul"(%{{.*}} %{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>], operandSegmentSizes = array<i32: 2, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^7(%{{.*}} : f32, %{{.*}} : f32, %{{.*}} : f32):
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.mulf"(%{{.*}}, %{{.*}} : (f32, f32) -> f32
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.addf"(%{{.*}}, %{{.*}} : (f32, f32) -> f32
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}} : (f32) -> ()
-// CHECK-GENERIC-NEXT:    }) {id, linalg.memoized_indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>]} : (memref<64x9216xf32>, memref<9216x4096xf32>, memref<64x4096xf32>) -> ()
+// CHECK-GENERIC-NEXT:    }) {id} : (memref<64x9216xf32>, memref<9216x4096xf32>, memref<64x4096xf32>) -> ()
 
 // CHECK-GENERIC-NEXT:    %{{.*}} %{{.*}} = "test.op"() : () -> (memref<64x9216xi32>, memref<9216x4096xi32>)
 // CHECK-GENERIC-NEXT:    %{{.*}} = "test.op"() : () -> memref<64x4096xi32>
 
-// CHECK-GENERIC-NEXT:    "linalg.matmul"(%{{.*}} %{{.*}} %{{.*}} <{operandSegmentSizes = array<i32: 2, 1>}> ({
+// CHECK-GENERIC-NEXT:    "linalg.matmul"(%{{.*}} %{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>], operandSegmentSizes = array<i32: 2, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^8(%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32):
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}} : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}} : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}} : (i32) -> ()
-// CHECK-GENERIC-NEXT:    }) {id, linalg.memoized_indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>]} : (memref<64x9216xi32>, memref<9216x4096xi32>, memref<64x4096xi32>) -> ()
+// CHECK-GENERIC-NEXT:    }) {id} : (memref<64x9216xi32>, memref<9216x4096xi32>, memref<64x4096xi32>) -> ()
 
 // CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.fill"(%{{.*}}, %{{.*}} <{operandSegmentSizes = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^9(%{{.*}} : f32, %{{.*}} : f32):
