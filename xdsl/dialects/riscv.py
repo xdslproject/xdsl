@@ -154,7 +154,7 @@ class IntRegisterType(RISCVRegisterType):
     name = "riscv.reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
+    def register_set_name(cls) -> str:
         return "RV32I"
 
     @classmethod
@@ -217,7 +217,7 @@ class FloatRegisterType(RISCVRegisterType):
     name = "riscv.freg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
+    def register_set_name(cls) -> str:
         return "RV32F"
 
     @classmethod

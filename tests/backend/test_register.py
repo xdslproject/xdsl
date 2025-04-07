@@ -14,7 +14,7 @@ def test_register_clashes():
         def verify(self) -> None: ...
 
         @classmethod
-        def instruction_set_name(cls) -> str:
+        def register_set_name(cls) -> str:
             return "TEST"
 
         @classmethod
@@ -37,7 +37,7 @@ class TestRegister(RegisterType):
     name = "test.reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
+    def register_set_name(cls) -> str:
         return "TEST"
 
     @classmethod

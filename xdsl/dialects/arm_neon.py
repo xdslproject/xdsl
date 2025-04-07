@@ -38,7 +38,7 @@ class NEONRegisterType(ARMRegisterType):
     name = "arm_neon.reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
+    def register_set_name(cls) -> str:
         return "arm_neon"
 
     @classmethod
