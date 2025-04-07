@@ -1,8 +1,8 @@
 # RUN: python %s | filecheck %s
 
 from xdsl.dialects.arith import AddfOp, MulfOp, SubfOp
-from xdsl.dialects.bigint import AddOp, BigIntegerType, MulOp, SubOp
-from xdsl.dialects.builtin import Float64Type
+from xdsl.dialects.bigint import AddOp, BigIntegerType, LtOp, MulOp, SubOp
+from xdsl.dialects.builtin import I1, Float64Type
 from xdsl.frontend.pyast.context import CodeContext
 from xdsl.frontend.pyast.program import FrontendProgram
 
@@ -46,3 +46,22 @@ with CodeContext(p2):
 
 p2.compile()
 print(p2.textual_format())
+
+
+p3 = FrontendProgram()
+p3.register_type(int, BigIntegerType)
+p3.register_type(bool, I1)
+p3.register_function(int.__lt__, LtOp)
+with CodeContext(p3):
+    # CHECK:      builtin.module {
+    # CHECK-NEXT:       func.func @zee(%x : !bigint.bigint, %y : !bigint.bigint) -> i1 {
+    # CHECK-NEXT:         %0 = bigint.lt %x, %y : i1
+    # CHECK-NEXT:         func.return %0 : i1
+    # CHECK-NEXT:       }
+    # CHECK-NEXT:     }
+    def zee(x: int, y: int) -> bool:
+        return x < y
+
+
+p3.compile()
+print(p3.textual_format())

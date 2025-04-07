@@ -11,11 +11,12 @@ from xdsl.frontend.pyast.passes.desymref import Desymrefier
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
     FunctionRegistry,
+    IRType,
     TypeConverter,
     TypeName,
     TypeRegistry,
 )
-from xdsl.ir import Operation, TypeAttribute
+from xdsl.ir import Operation
 from xdsl.printer import Printer
 
 
@@ -50,7 +51,7 @@ class FrontendProgram:
     file: str | None = field(default=None)
     """Path to the file that contains the program."""
 
-    def register_type(self, source_type: type, ir_type: type[TypeAttribute]) -> None:
+    def register_type(self, source_type: type, ir_type: IRType) -> None:
         """Associate a type in the source code with its type in the IR."""
         if (type_name := source_type.__qualname__) in self.type_names:
             raise FrontendProgramException(

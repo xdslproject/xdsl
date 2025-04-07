@@ -3,9 +3,11 @@ import importlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import (
+    Annotated,
     Any,
     TypeAlias,
     _GenericAlias,  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
+    get_args,
 )
 
 import xdsl.dialects.builtin as xdsl_builtin
@@ -20,10 +22,11 @@ from xdsl.frontend.pyast.exception import (
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 
 TypeName: TypeAlias = str
+IRType: TypeAlias = type[TypeAttribute] | Annotated[Any, Attribute]
 FunctionRegistry: TypeAlias = dict[Callable[..., Any], type[Operation]]
 
 
-class TypeRegistry(dict[type, type[TypeAttribute]]):
+class TypeRegistry(dict[type, IRType]):
     """Mappings between source code and IR type.
 
     This mapping must be one-to-one, with each source type having only IR type.
@@ -32,12 +35,12 @@ class TypeRegistry(dict[type, type[TypeAttribute]]):
     cannot necessarily be correctly selected.
     """
 
-    def valid_insert(self, key: type, value: type[TypeAttribute]) -> bool:
+    def valid_insert(self, key: type, value: IRType) -> bool:
         """Check that both the key and value are unique."""
         return key not in self and value not in self.values()
 
     @property
-    def backwards(self) -> dict[type, type[TypeAttribute]]:
+    def backwards(self) -> dict[type, IRType]:
         """Get a dictionary mapping values to keys."""
         return {value: key for key, value in self.items()}
 
@@ -191,13 +194,25 @@ class TypeConverter:
         self,
         source_type_name: TypeName,
     ) -> TypeAttribute | None:
-        """Get the IR type by its source code type name"""
+        """Get the IR type by its source code type name.
+
+        Normally, the attribute is a class which can be instantiated with no
+        parameters. However, in some cases it is parameterised, such as
+        `IntegerType` with its bitwidth. In this case, `Annotated` types such as
+        `I1` defined as `Annotated[IntegerType, IntegerType(1)]` are provided
+        already by xDSL, so we can extract the attribute instance from this.
+        """
         if source_type_name not in self.type_names:
             return None
         source_type = self.type_names[source_type_name]
         if source_type not in self.type_registry:
             return None
-        return self.type_registry[source_type]()
+        ir_type_class = self.type_registry[source_type]
+        if metadata := get_args(ir_type_class):
+            assert len(metadata) >= 2
+            assert isinstance(metadata[1], TypeAttribute)
+            return metadata[1]
+        return ir_type_class()
 
     def get_source_type(self, ir_type: type[TypeAttribute]) -> type | None:
         """Get the source type from its IR type."""
