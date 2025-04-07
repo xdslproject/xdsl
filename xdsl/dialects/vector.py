@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
+    AnyFloatConstr,
     IndexType,
     IndexTypeConstr,
     MemRefType,
@@ -16,9 +17,10 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     IRDLOperation,
+    ParamAttrConstraint,
     VarConstraint,
-    base,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
@@ -128,7 +130,9 @@ class BroadcastOp(IRDLOperation):
 class FMAOp(IRDLOperation):
     name = "vector.fma"
 
-    T: ClassVar = VarConstraint("T", base(VectorType))
+    T: ClassVar = VarConstraint(
+        "T", ParamAttrConstraint(VectorType, (AnyAttr(), AnyFloatConstr, AnyAttr()))
+    )
 
     lhs = operand_def(T)
     rhs = operand_def(T)

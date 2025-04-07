@@ -1,10 +1,10 @@
 // RUN: XDSL_ROUNDTRIP
 
-func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %i : index) {
+func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %i : index, %fvec : vector<2xf32>) {
   %load = vector.load %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
   vector.store %load, %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
   %broadcast = vector.broadcast %i : index to vector<1xindex>
-  %fma = vector.fma %load, %load, %load : vector<2xindex>
+  %fma = vector.fma %fvec, %fvec, %fvec : vector<2xf32>
   %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
   vector.maskedstore %base[%i, %i], %vec, %masked_load : memref<4x4xindex>, vector<1xi1>, vector<1xindex>
   "vector.print"(%masked_load) : (vector<1xindex>) -> ()
