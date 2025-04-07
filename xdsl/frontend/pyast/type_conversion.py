@@ -3,11 +3,9 @@ import importlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import (
-    Annotated,
     Any,
     TypeAlias,
     _GenericAlias,  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
-    get_args,
 )
 
 import xdsl.dialects.builtin as xdsl_builtin
@@ -22,11 +20,10 @@ from xdsl.frontend.pyast.exception import (
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 
 TypeName: TypeAlias = str
-IRType: TypeAlias = type[TypeAttribute] | Annotated[Any, Attribute]
 FunctionRegistry: TypeAlias = dict[Callable[..., Any], type[Operation]]
 
 
-class TypeRegistry(dict[type, IRType]):
+class TypeRegistry(dict[type, TypeAttribute]):
     """Mappings between source code and IR type.
 
     This mapping must be one-to-one, with each source type having only IR type.
@@ -35,14 +32,16 @@ class TypeRegistry(dict[type, IRType]):
     cannot necessarily be correctly selected.
     """
 
-    def valid_insert(self, key: type, value: IRType) -> bool:
+    def valid_insert(self, key: type, value: TypeAttribute) -> bool:
         """Check that both the key and value are unique."""
         return key not in self and value not in self.values()
 
-    @property
-    def backwards(self) -> dict[type, IRType]:
+    def get_backwards(self, lookup: TypeAttribute) -> type | None:
         """Get a dictionary mapping values to keys."""
-        return {value: key for key, value in self.items()}
+        for key, value in self.items():
+            if value == lookup:
+                return key
+        return None
 
 
 @dataclass
@@ -207,16 +206,11 @@ class TypeConverter:
         source_type = self.type_names[source_type_name]
         if source_type not in self.type_registry:
             return None
-        ir_type_class = self.type_registry[source_type]
-        if metadata := get_args(ir_type_class):
-            assert len(metadata) >= 2
-            assert isinstance(metadata[1], TypeAttribute)
-            return metadata[1]
-        return ir_type_class()
+        return self.type_registry[source_type]
 
-    def get_source_type(self, ir_type: type[TypeAttribute]) -> type | None:
+    def get_source_type(self, ir_type: TypeAttribute) -> type | None:
         """Get the source type from its IR type."""
-        return self.type_registry.backwards.get(ir_type, None)
+        return self.type_registry.get_backwards(ir_type)
 
     def resolve_function(
         self,

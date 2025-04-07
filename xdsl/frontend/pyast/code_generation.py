@@ -162,7 +162,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"but got {lhs.type} and {rhs.type}.",
             )
 
-        ir_type = cast(type[TypeAttribute], lhs.type.__class__)
+        ir_type = cast(TypeAttribute, lhs.type)
         source_type = self.type_converter.get_source_type(ir_type)
         if source_type is not None:  # NOTE: To support old codebase
             method_name = python_AST_operator_to_python_overload[op_name]
@@ -255,7 +255,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f" but got {lhs.type} and {rhs.type}.",
             )
 
-        ir_type = cast(type[TypeAttribute], lhs.type.__class__)
+        ir_type = cast(TypeAttribute, lhs.type)
         source_type = self.type_converter.get_source_type(ir_type)
         if source_type is not None:  # NOTE: To support old codebase
             method_name = python_AST_cmpop_to_python_overload[op_name]
