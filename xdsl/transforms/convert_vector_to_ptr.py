@@ -4,7 +4,6 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, memref, ptr, vector
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
-    UnrealizedConversionCastOp,
 )
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -48,9 +47,9 @@ class VectorLoadToPtr(RewritePattern):
         )
 
         # Build a pointer from the subview
-        cast_op = UnrealizedConversionCastOp.get((subview_op.result,), (ptr.PtrType(),))
+        cast_op = ptr.ToPtrOp(operands=[subview_op], result_types=[ptr.PtrType()])
         # Load a vector from the pointer
-        load_op = ptr.LoadOp(operands=cast_op.outputs, result_types=[vector_ty])
+        load_op = ptr.LoadOp(operands=cast_op.results, result_types=[vector_ty])
 
         rewriter.replace_matched_op([subview_op, cast_op, load_op])
 
