@@ -135,4 +135,7 @@ def test_count_reg_types():
 
     fa0 = riscv.Registers.FA0
 
-    assert reg_types([a0, a0, a1, fa0, fa0]) == ({"a0", "a1"}, {"fa0"})
+    assert reg_types([a0, a0, a1, fa0, fa0]) == {
+        "riscv.reg": {"a0", "a1"},
+        "riscv.freg": {"fa0"},
+    }
