@@ -162,7 +162,7 @@ class ToTensorOp(IRDLOperation):
     writable = opt_prop_def(UnitAttr)
     restrict = opt_prop_def(UnitAttr)
 
-    assembly_format = "$memref (`restrict` $restrict^)? (`writable` $writable^)? attr-dict `:` type($memref)"
+    assembly_format = "$memref (`restrict` $restrict^)? (`writable` $writable^)? attr-dict `:` type($memref) `to` type($tensor)"
 
     def __init__(
         self,
@@ -200,7 +200,7 @@ class ToMemRefOp(IRDLOperation):
 
     read_only = opt_prop_def(UnitAttr)
 
-    assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($memref)"
+    assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($tensor) `to` type($memref)"
 
 
 @irdl_op_definition
