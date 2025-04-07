@@ -9,7 +9,7 @@ func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>,
     %7 = csl_stencil.access %3[-1, 0] : tensor<4x255xf32>
     %8 = csl_stencil.access %3[0, 1] : tensor<4x255xf32>
     %9 = csl_stencil.access %3[0, -1] : tensor<4x255xf32>
-    %30 = bufferization.to_tensor %31 : memref<255xf32>
+    %30 = bufferization.to_tensor %31 : memref<255xf32> to tensor<255xf32>
     %10 = arith.addf %9, %8 : tensor<255xf32>
     %11 = arith.addf %10, %7 : tensor<255xf32>
     %12 = arith.addf %11, %6 : tensor<255xf32>
