@@ -1377,7 +1377,10 @@ class DenseArrayBase(ParametrizedAttribute):
 
 
 DenseI64ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i64, BytesAttr])
-"""Type constraint for DenseArrays containing integers of i64 integers."""
+"""Type constraint for DenseArrays containing i64 integers."""
+
+DenseI32ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i32, BytesAttr])
+"""Type constraint for DenseArrays containing i32 integers."""
 
 
 @irdl_attr_definition
