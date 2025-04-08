@@ -58,7 +58,6 @@ def test_unallocated_register():
 def test_register(register: x86.register.GeneralRegisterType, name: str):
     assert register.is_allocated
     assert register.register_name.data == name
-    assert register.register_set_name() == "x86"
 
 
 def test_rflags_register():
@@ -107,7 +106,6 @@ def test_rflags_register():
 def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
     assert register.is_allocated
     assert register.register_name.data == name
-    assert register.register_set_name() == "AVX512"
 
 
 @pytest.mark.parametrize(
@@ -134,7 +132,6 @@ def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
 def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
     assert register.is_allocated
     assert register.register_name.data == name
-    assert register.register_set_name() == "AVX2"
 
 
 @pytest.mark.parametrize(
@@ -161,7 +158,6 @@ def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
 def test_sse_register(register: x86.register.SSERegisterType, name: str):
     assert register.is_allocated
     assert register.register_name.data == name
-    assert register.register_set_name() == "SSE"
 
 
 @pytest.mark.parametrize(

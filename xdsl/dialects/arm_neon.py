@@ -38,10 +38,6 @@ class NEONRegisterType(ARMRegisterType):
     name = "arm_neon.reg"
 
     @classmethod
-    def register_set_name(cls) -> str:
-        return "arm_neon"
-
-    @classmethod
     def index_by_name(cls) -> dict[str, int]:
         return ARM_NEON_INDEX_BY_NAME
 
