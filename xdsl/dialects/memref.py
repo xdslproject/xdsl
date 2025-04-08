@@ -32,6 +32,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import (
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
+    split_dynamic_index_list,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
@@ -713,31 +714,15 @@ class SubviewOp(IRDLOperation):
         strides: Sequence[SSAValue | int],
         result_type: Attribute,
     ) -> SubviewOp:
-        dyn_offsets: list[SSAValue] = []
-        dyn_sizes: list[SSAValue] = []
-        dyn_strides: list[SSAValue] = []
-        static_offsets: list[int] = []
-        static_sizes: list[int] = []
-        static_strides: list[int] = []
-
-        for offset in offsets:
-            if isinstance(offset, int):
-                static_offsets.append(offset)
-            else:
-                static_offsets.append(SubviewOp.DYNAMIC_INDEX)
-                dyn_offsets.append(offset)
-        for size in sizes:
-            if isinstance(size, int):
-                static_sizes.append(size)
-            else:
-                static_sizes.append(SubviewOp.DYNAMIC_INDEX)
-                dyn_sizes.append(size)
-        for stride in strides:
-            if isinstance(stride, int):
-                static_strides.append(stride)
-            else:
-                static_strides.append(SubviewOp.DYNAMIC_INDEX)
-                dyn_strides.append(stride)
+        static_offsets, dyn_offsets = split_dynamic_index_list(
+            offsets, SubviewOp.DYNAMIC_INDEX
+        )
+        static_sizes, dyn_sizes = split_dynamic_index_list(
+            sizes, SubviewOp.DYNAMIC_INDEX
+        )
+        static_strides, dyn_strides = split_dynamic_index_list(
+            strides, SubviewOp.DYNAMIC_INDEX
+        )
 
         return SubviewOp(
             source,
@@ -818,23 +803,23 @@ class SubviewOp(IRDLOperation):
         printer.print_ssa_value(self.source)
         print_dynamic_index_list(
             printer,
+            SubviewOp.DYNAMIC_INDEX,
             self.offsets,
             (cast(int, offset) for offset in self.static_offsets.iter_values()),
-            dynamic_index=SubviewOp.DYNAMIC_INDEX,
         )
         printer.print_string(" ")
         print_dynamic_index_list(
             printer,
+            SubviewOp.DYNAMIC_INDEX,
             self.sizes,
             (cast(int, size) for size in self.static_sizes.iter_values()),
-            dynamic_index=SubviewOp.DYNAMIC_INDEX,
         )
         printer.print_string(" ")
         print_dynamic_index_list(
             printer,
+            SubviewOp.DYNAMIC_INDEX,
             self.strides,
             (cast(int, stride) for stride in self.static_strides.iter_values()),
-            dynamic_index=SubviewOp.DYNAMIC_INDEX,
         )
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_string(" : ")
@@ -1011,31 +996,15 @@ class ReinterpretCastOp(IRDLOperation):
         """
         Construct a `ReinterpretCastOp` from dynamic offsets, sizes, and strides.
         """
-        dyn_offsets: list[SSAValue] = []
-        dyn_sizes: list[SSAValue] = []
-        dyn_strides: list[SSAValue] = []
-        static_offsets: list[int] = []
-        static_sizes: list[int] = []
-        static_strides: list[int] = []
-
-        for offset in offsets:
-            if isinstance(offset, int):
-                static_offsets.append(offset)
-            else:
-                static_offsets.append(ReinterpretCastOp.DYNAMIC_INDEX)
-                dyn_offsets.append(offset)
-        for size in sizes:
-            if isinstance(size, int):
-                static_sizes.append(size)
-            else:
-                static_sizes.append(ReinterpretCastOp.DYNAMIC_INDEX)
-                dyn_sizes.append(size)
-        for stride in strides:
-            if isinstance(stride, int):
-                static_strides.append(stride)
-            else:
-                static_strides.append(ReinterpretCastOp.DYNAMIC_INDEX)
-                dyn_strides.append(stride)
+        static_offsets, dyn_offsets = split_dynamic_index_list(
+            offsets, ReinterpretCastOp.DYNAMIC_INDEX
+        )
+        static_sizes, dyn_sizes = split_dynamic_index_list(
+            sizes, ReinterpretCastOp.DYNAMIC_INDEX
+        )
+        static_strides, dyn_strides = split_dynamic_index_list(
+            strides, ReinterpretCastOp.DYNAMIC_INDEX
+        )
 
         return ReinterpretCastOp(
             source,
@@ -1054,23 +1023,23 @@ class ReinterpretCastOp(IRDLOperation):
         printer.print_string(" to offset: ")
         print_dynamic_index_list(
             printer,
+            ReinterpretCastOp.DYNAMIC_INDEX,
             self.offsets,
             (cast(int, offset) for offset in self.static_offsets.iter_values()),
-            dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
         printer.print_string(", sizes: ")
         print_dynamic_index_list(
             printer,
+            ReinterpretCastOp.DYNAMIC_INDEX,
             self.sizes,
             (cast(int, size) for size in self.static_sizes.iter_values()),
-            dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
         printer.print_string(", strides: ")
         print_dynamic_index_list(
             printer,
+            ReinterpretCastOp.DYNAMIC_INDEX,
             self.strides,
             (cast(int, stride) for stride in self.static_strides.iter_values()),
-            dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
         printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
