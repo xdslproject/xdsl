@@ -316,6 +316,9 @@ def test_minor_identity():
 
 
 def test_is_projected_permutation():
+    assert AffineMap(0, 0, ()).is_projected_permutation()
+    assert not AffineMap(0, 1, ()).is_projected_permutation()
+
     assert AffineMap.from_callable(lambda d0, d1: (d0, d1)).is_projected_permutation()
     assert not AffineMap.from_callable(
         lambda d0, d1: (d0, d0)
