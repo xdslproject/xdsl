@@ -17,9 +17,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
-    ParamAttrConstraint,
     VarConstraint,
     irdl_op_definition,
     operand_def,
@@ -130,9 +128,7 @@ class BroadcastOp(IRDLOperation):
 class FMAOp(IRDLOperation):
     name = "vector.fma"
 
-    T: ClassVar = VarConstraint(
-        "T", ParamAttrConstraint(VectorType, (AnyAttr(), AnyFloatConstr, AnyAttr()))
-    )
+    T: ClassVar = VarConstraint("T", VectorType.constr(AnyFloatConstr))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
