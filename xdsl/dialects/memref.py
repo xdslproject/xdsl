@@ -34,6 +34,7 @@ from xdsl.dialects.utils import (
     print_dynamic_index_list,
     split_dynamic_index_list,
 )
+from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
@@ -679,6 +680,20 @@ class SubviewOp(IRDLOperation):
         lambda: (MemRefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
     )
 
+    def verify_(self) -> None:
+        static_offsets = cast(tuple[int, ...], self.static_offsets.iter_values())
+        static_sizes = cast(tuple[int, ...], self.static_sizes.iter_values())
+        static_strides = cast(tuple[int, ...], self.static_strides.iter_values())
+        verify_dynamic_index_list(
+            static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
+        )
+        verify_dynamic_index_list(
+            static_offsets, self.offsets, self.DYNAMIC_INDEX, " in the offset arguments"
+        )
+        verify_dynamic_index_list(
+            static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments"
+        )
+
     def __init__(
         self,
         source: SSAValue | Operation,
@@ -1023,23 +1038,23 @@ class ReinterpretCastOp(IRDLOperation):
         printer.print_string(" to offset: ")
         print_dynamic_index_list(
             printer,
+            ReinterpretCastOp.DYNAMIC_INDEX,
             self.offsets,
             (cast(int, offset) for offset in self.static_offsets.iter_values()),
-            dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
         printer.print_string(", sizes: ")
         print_dynamic_index_list(
             printer,
+            ReinterpretCastOp.DYNAMIC_INDEX,
             self.sizes,
             (cast(int, size) for size in self.static_sizes.iter_values()),
-            dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
         printer.print_string(", strides: ")
         print_dynamic_index_list(
             printer,
+            ReinterpretCastOp.DYNAMIC_INDEX,
             self.strides,
             (cast(int, stride) for stride in self.static_strides.iter_values()),
-            dynamic_index=ReinterpretCastOp.DYNAMIC_INDEX,
         )
         printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
@@ -1110,6 +1125,20 @@ class ReinterpretCastOp(IRDLOperation):
         return op
 
     def verify_(self):
+        static_offsets = cast(tuple[int, ...], self.static_offsets.iter_values())
+        static_sizes = cast(tuple[int, ...], self.static_sizes.iter_values())
+        static_strides = cast(tuple[int, ...], self.static_strides.iter_values())
+
+        verify_dynamic_index_list(
+            static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
+        )
+        verify_dynamic_index_list(
+            static_offsets, self.offsets, self.DYNAMIC_INDEX, " in the offset arguments"
+        )
+        verify_dynamic_index_list(
+            static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments"
+        )
+
         assert isa(self.source.type, MemRefType[Attribute])
         assert isa(self.result.type, MemRefType[Attribute])
 
