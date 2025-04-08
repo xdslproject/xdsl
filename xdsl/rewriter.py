@@ -201,7 +201,10 @@ class Rewriter:
                 *args[index + 1 :],
             )
         else:
-            new_value = val.__class__(new_type)
+            from xdsl.utils.test_value import TestSSAValue
+
+            assert isinstance(val, TestSSAValue)
+            new_value = TestSSAValue(new_type)
 
         new_value.name_hint = val.name_hint
         val.replace_by(new_value)
