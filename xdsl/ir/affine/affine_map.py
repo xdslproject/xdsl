@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from inspect import getfullargspec
 from typing import cast
 
+from typing_extensions import TypeVar
+
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 
 AffineExprBuilderT = AffineExpr | int
@@ -23,6 +25,8 @@ AffineMapBuilderT = (
         tuple[AffineExprBuilderT, ...],
     ]
 )
+
+_T = TypeVar("_T")
 
 
 @dataclass(frozen=True)
@@ -432,6 +436,26 @@ class AffineMap:
 
         # Results are either dims or zeros and zeros can be mapped to input dims.
         return True
+
+    def apply_permutation(self, source: Sequence[_T]) -> tuple[_T, ...]:
+        """
+        Assert that `self` represents a permutation, and apply the permutation to
+        `source`.
+        The number of inputs must match the size of the source.
+
+        Example:
+        ```
+        map = (d0, d1, d2) -> (d1, d0)
+        source = [10, 20, 30]
+        result = [20, 10]
+        ```
+
+        Equivalent to `applyPermutationMap` in MLIR.
+        """
+        assert self.is_projected_permutation(), "Map must be a projected permutation"
+        assert self.num_dims == len(source), "Number of inputs must match source size"
+        results = cast(Sequence[AffineDimExpr], self.results)
+        return tuple(source[expr.position] for expr in results)
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.

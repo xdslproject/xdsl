@@ -2,6 +2,7 @@ import re
 from collections.abc import Sequence
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.ir.affine import (
     AffineBinaryOpExpr,
@@ -411,3 +412,29 @@ def test_is_projected_permutation():
     assert AffineMap.from_callable(
         lambda d0, d1, d2: (d1, 0, d0)
     ).is_projected_permutation(allow_zero_in_results=True)
+
+
+_T = TypeVar("_T")
+
+
+@pytest.mark.parametrize(
+    "permutation_map, inputs, expected",
+    [
+        (
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, d0)),
+            (10, 20, 30),
+            (20, 10),
+        ),
+        (
+            AffineMap(
+                8, 0, tuple(AffineExpr.dimension(d) for d in (4, 1, 6, 0, 3, 2, 5, 7))
+            ),
+            "policemr",
+            ("c", "o", "m", "p", "i", "l", "e", "r"),
+        ),
+    ],
+)
+def test_apply_permutation_map(
+    permutation_map: AffineMap, inputs: Sequence[_T], expected: tuple[_T, ...]
+):
+    assert permutation_map.apply_permutation(inputs) == expected
