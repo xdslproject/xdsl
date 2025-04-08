@@ -359,7 +359,7 @@ class xDSLOptMain(CommandLineTool):
                 print(e)
                 return False
             else:
-                raise e
+                raise
         return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
@@ -368,7 +368,13 @@ class xDSLOptMain(CommandLineTool):
         if self.args.target not in self.available_targets:
             raise Exception(f"Unknown target {self.args.target}")
 
-        self.available_targets[self.args.target](prog, output)
+        try:
+            self.available_targets[self.args.target](prog, output)
+        except DiagnosticException as e:
+            if self.args.verify_diagnostics:
+                return f"{e}\n"
+            else:
+                raise
         return output.getvalue()
 
 

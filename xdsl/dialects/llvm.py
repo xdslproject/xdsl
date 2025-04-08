@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
+    DenseI32ArrayConstr,
     DenseI64ArrayConstr,
     IndexType,
     IntAttr,
@@ -38,6 +39,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     BaseAttr,
     IRDLOperation,
     ParameterDef,
@@ -105,7 +107,7 @@ def parse_optional_llvm_type(parser: AttrParser):
 @irdl_attr_definition
 class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#structure-types
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#structure-types).
     """
 
     name = "llvm.struct"
@@ -242,7 +244,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     """
     Currently does not support variadics.
 
-    https://mlir.llvm.org/docs/Dialects/LLVM/#function-types
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#function-types).
     """
 
     name = "llvm.func"
@@ -868,11 +870,12 @@ class GEPOp(IRDLOperation):
     llvm.getelementptr is an instruction to do pointer arithmetic by
     adding/subtracting offsets from a pointer.
 
-    The llvm.getelementptr is documented in various places online:
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmgetelementptr-mlirllvmgepop).
 
-    LLVM documentation: https://www.llvm.org/docs/GetElementPtr.html
-    A good blogpost: https://blog.yossarian.net/2020/09/19/LLVMs-getelementptr-by-example
-    MLIR documentation: https://mlir.llvm.org/docs/Dialects/LLVM/#llvmgetelementptr-mlirllvmgepop
+    GetElementPtr is documented in various places online:
+
+    See the LLVM [documentation](https://www.llvm.org/docs/GetElementPtr.html).
+    A good [blogpost](https://blog.yossarian.net/2020/09/19/LLVMs-getelementptr-by-example).
 
     Note that the first two discuss *LLVM IRs* GEP operation, not the MLIR one.
     The semantics are the same, but the structure used by MLIR is not well
@@ -1116,10 +1119,9 @@ class IntToPtrOp(IRDLOperation):
 @irdl_op_definition
 class InlineAsmOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop).
 
-    To see what each field means, have a look at:
-    https://llvm.org/docs/LangRef.html#inline-assembler-expressions
+    To see what each field means, have a look [here](https://llvm.org/docs/LangRef.html#inline-assembler-expressions).
     """
 
     name = "llvm.inline_asm"
@@ -1265,7 +1267,7 @@ class NullOp(IRDLOperation):
 @irdl_op_definition
 class ExtractValueOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmextractvalue-mlirllvmextractvalueop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmextractvalue-mlirllvmextractvalueop).
     """
 
     name = "llvm.extractvalue"
@@ -1295,7 +1297,7 @@ class ExtractValueOp(IRDLOperation):
 @irdl_op_definition
 class InsertValueOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertvalue-mlirllvminsertvalueop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertvalue-mlirllvminsertvalueop).
     """
 
     name = "llvm.insertvalue"
@@ -1326,7 +1328,7 @@ class InsertValueOp(IRDLOperation):
 @irdl_op_definition
 class UndefOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop).
     """
 
     name = "llvm.mlir.undef"
@@ -1453,9 +1455,8 @@ LLVM_CALLING_CONVS: set[str] = {
     "cfguard_checkcc",
 }
 """
-A list of all valid calling conventions understood by LLVM, see
-https://llvm.org/docs/LangRef.html#calling-conventions
-for more info.
+A list of all valid calling conventions understood by LLVM, see external documentation
+[here](https://llvm.org/docs/LangRef.html#calling-conventions) for more info.
 """
 
 
@@ -1540,7 +1541,7 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class ReturnOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmreturn-mlirllvmreturnop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmreturn-mlirllvmreturnop).
     """
 
     name = "llvm.return"
@@ -1600,29 +1601,37 @@ class FastMathAttr(FastMathAttrBase):
 @irdl_op_definition
 class CallIntrinsicOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop).
     """
 
     name = "llvm.call_intrinsic"
 
     fastmathFlags = opt_prop_def(FastMathAttr)
     intrin = prop_def(StringAttr)
+    op_bundle_sizes = prop_def(DenseI32ArrayConstr)
     args = var_operand_def()
+    op_bundle_operands = var_operand_def()
     ress = opt_result_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
         intrin: StringAttr | str,
         args: Sequence[SSAValue],
         result_types: Sequence[Attribute],
+        *,
+        op_bundle_sizes: DenseArrayBase,
+        op_bundle_operands: Sequence[SSAValue] = (),
     ):
         if isinstance(intrin, str):
             intrin = StringAttr(intrin)
         super().__init__(
-            operands=args,
+            operands=[args, op_bundle_operands],
             result_types=(result_types,),
             properties={
                 "intrin": intrin,
+                "op_bundle_sizes": op_bundle_sizes,
             },
         )
 
@@ -1654,20 +1663,28 @@ class CallOp(IRDLOperation):
     name = "llvm.call"
 
     args = var_operand_def()
+    op_bundle_operands = var_operand_def()
 
     callee = opt_prop_def(SymbolRefAttr)
     var_callee_type = opt_prop_def(LLVMFunctionType)
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr("none"))
     CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
+    op_bundle_sizes = prop_def(
+        DenseI32ArrayConstr, default_value=DenseArrayBase.create_dense_int(i32, ())
+    )
     TailCallKind = prop_def(
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
     )
     returned = opt_result_def()
 
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
     def __init__(
         self,
         callee: str | SymbolRefAttr | StringAttr,
         *args: SSAValue | Operation,
+        op_bundle_sizes: DenseArrayBase = DenseArrayBase.create_dense_int(i32, ()),
+        op_bundle_operands: tuple[SSAValue, ...] = (),
         return_type: Attribute | None = None,
         calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
         fastmath: FastMathAttr = FastMathAttr(None),
@@ -1683,12 +1700,13 @@ class CallOp(IRDLOperation):
         ]
         var_callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
         super().__init__(
-            operands=[args],
+            operands=[args, op_bundle_operands],
             properties={
                 "callee": callee,
                 "var_callee_type": var_callee_type,
                 "fastmathFlags": fastmath,
                 "CConv": calling_convention,
+                "op_bundle_sizes": op_bundle_sizes,
             },
             result_types=op_result_type,
         )

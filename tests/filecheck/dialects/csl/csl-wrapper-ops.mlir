@@ -2,7 +2,7 @@
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
 builtin.module {
-    "csl_wrapper.module"() <{"width"=10 : i16, "height"=10: i16, "params" = [
+    "csl_wrapper.module"() <{"width"=10 : i16, "height"=10: i16, target = "wse2", "params" = [
         #csl_wrapper.param<"z_dim" default=4: i16>, #csl_wrapper.param<"pattern" : i16>
     ]}> ({
         ^0(%x: i16, %y: i16, %width: i16, %height: i16, %z_dim: i16, %pattern: i16):
@@ -40,7 +40,7 @@ builtin.module {
 
 
 // CHECK:      builtin.module {
-// CHECK-NEXT:   "csl_wrapper.module"() <{width = 10 : i16, height = 10 : i16, params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" : i16>]}> ({
+// CHECK-NEXT:   "csl_wrapper.module"() <{width = 10 : i16, height = 10 : i16, target = "wse2", params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" : i16>]}> ({
 // CHECK-NEXT:   ^0(%x : i16, %y : i16, %width : i16, %height : i16, %z_dim : i16, %pattern : i16):
 // CHECK-NEXT:     %0 = arith.constant 0 : i16
 // CHECK-NEXT:     %1 = "csl.get_color"(%0) : (i16) -> !csl.color
@@ -71,7 +71,7 @@ builtin.module {
 
 
 // CHECK-GENERIC:      "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   "csl_wrapper.module"() <{width = 10 : i16, height = 10 : i16, params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" : i16>]}> ({
+// CHECK-GENERIC-NEXT:   "csl_wrapper.module"() <{width = 10 : i16, height = 10 : i16, target = "wse2", params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" : i16>]}> ({
 // CHECK-GENERIC-NEXT:   ^0(%x : i16, %y : i16, %width : i16, %height : i16, %z_dim : i16, %pattern : i16):
 // CHECK-GENERIC-NEXT:     %0 = "arith.constant"() <{value = 0 : i16}> : () -> i16
 // CHECK-GENERIC-NEXT:     %1 = "csl.get_color"(%0) : (i16) -> !csl.color

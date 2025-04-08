@@ -8,6 +8,15 @@ from xdsl.utils.base_printer import BasePrinter
 
 
 class AssemblyPrinter(BasePrinter):
+    _current_section: str | None = None
+
+    def emit_section(self, new_section: str):
+        if self._current_section == new_section:
+            return
+        self._current_section = new_section
+        self.print_string(new_section, indent=0)
+        self.print_string("\n", indent=0)
+
     @staticmethod
     def append_comment(line: str, comment: StringAttr | None) -> str:
         if comment is None:

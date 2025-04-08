@@ -18,6 +18,7 @@ from xdsl.ir import (
     BlockArgument,
     ErasedSSAValue,
     Operation,
+    OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -238,18 +239,21 @@ class PatternRewriter(Builder, PatternRewriterListener):
         # Then, erase the original operation
         self.erase_op(op, safe_erase=safe_erase)
 
-    def modify_value_type(self, arg: SSAValue, new_type: Attribute):
-        """Modify the type of a value."""
+    def replace_value_with_new_type(
+        self, val: SSAValue, new_type: Attribute
+    ) -> SSAValue:
+        """
+        Replace a value with a value of a new type, and return the new value.
+        This will insert the new value in the operation or block, and remove the existing
+        value.
+        """
         self.has_done_action = True
-        arg.type = new_type
-
-        owner = arg.owner
-        if isinstance(owner, Block):
-            owner = owner.parent_op()
-        if owner is not None:
-            self.handle_operation_modification(owner)
-        for use in arg.uses:
-            self.handle_operation_modification(use.operation)
+        if isinstance(val, OpResult):
+            self.handle_operation_modification(val.op)
+        if isinstance(val, BlockArgument):
+            if (op := val.block.parent_op()) is not None:
+                self.handle_operation_modification(op)
+        return Rewriter.replace_value_with_new_type(val, new_type)
 
     def insert_block_argument(
         self, block: Block, index: int, arg_type: Attribute
@@ -414,7 +418,9 @@ def op_type_rewrite_pattern(
     calling the decorated function.
     """
     # Get the operation argument and check that it is a subclass of Operation
-    params = [param for param in inspect.signature(func).parameters.values()]
+    params = [
+        param for param in inspect.signature(func, eval_str=True).parameters.values()
+    ]
     if len(params) != 3:
         raise Exception(
             "op_type_rewrite_pattern expects the decorated function to "
@@ -548,7 +554,7 @@ class TypeConversionPattern(RewritePattern):
                 for arg in block.args:
                     converted = self._convert_type_rec(arg.type)
                     if converted is not None and converted != arg.type:
-                        rewriter.modify_value_type(arg, converted)
+                        rewriter.replace_value_with_new_type(arg, converted)
         if changed:
             regions = [op.detach_region(r) for r in op.regions]
             new_op = type(op).create(
@@ -605,7 +611,7 @@ def attr_type_rewrite_pattern(
     method. It uses type hints to match on a specific attribute type before
     calling the decorated function.
     """
-    params = list(inspect.signature(func).parameters.values())
+    params = list(inspect.signature(func, eval_str=True).parameters.values())
     expected_type: type[_AttributeT] = params[-1].annotation
     constr = base(expected_type)
     return attr_constr_rewrite_pattern(constr)(func)

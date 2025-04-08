@@ -10,9 +10,7 @@ builtin.module {
     riscv.directive ".word" "0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0"
   }
   riscv.assembly_section ".text" {
-    riscv.directive ".globl" "main"
-    riscv.directive ".p2align" "2"
-    riscv_func.func @main() {
+    riscv_func.func public @main() attributes {p2align = 2 : i8} {
       %A = riscv.li "a" : !riscv.reg
       %B = riscv.li "b" : !riscv.reg
       %zero = riscv.get_register : !riscv.reg<sp>
@@ -23,7 +21,7 @@ builtin.module {
       %zero_3 = riscv.fld %zero, -8 : (!riscv.reg<sp>) -> !riscv.freg
       "snitch_stream.streaming_region"(%A, %B) <{
         "stride_patterns" = [#snitch_stream.stride_pattern<ub = [2, 3], strides = [24, 8]>],
-        "operandSegmentSizes" = array<i32: 1, 1>
+        operandSegmentSizes = array<i32: 1, 1>
       }> ({
       ^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.writable<!riscv.freg<ft1>>):
         %c5 = riscv.li 5 : !riscv.reg

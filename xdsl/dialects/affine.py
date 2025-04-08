@@ -23,7 +23,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     VarConstraint,
-    attr_def,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -198,7 +197,7 @@ class ForOp(IRDLOperation):
 @irdl_op_definition
 class IfOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop).
     """
 
     name = "affine.if"
@@ -206,7 +205,7 @@ class IfOp(IRDLOperation):
     args = var_operand_def(IndexType)
     res = var_result_def()
 
-    condition = attr_def(AffineSetAttr)
+    condition = prop_def(AffineSetAttr)
 
     then_region = region_def("single_block")
     else_region = region_def()
@@ -217,7 +216,7 @@ class IfOp(IRDLOperation):
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop).
     """
 
     name = "affine.parallel"

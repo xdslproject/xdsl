@@ -553,7 +553,9 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
         assert isa(op.result.type, FieldType[Attribute])
-        op.result.type = StencilToMemRefType(op.result.type)
+        rewriter.replace_value_with_new_type(
+            op.result, StencilToMemRefType(op.result.type)
+        )
 
         if op.field.type == op.result.type:
             rewriter.replace_matched_op([], [op.field])

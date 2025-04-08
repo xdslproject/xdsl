@@ -1,5 +1,7 @@
 # RUN: python %s | filecheck %s
 
+from collections.abc import Callable
+
 from xdsl.frontend.pyast.context import CodeContext
 from xdsl.frontend.pyast.dialects.builtin import i1, i32, i64
 from xdsl.frontend.pyast.exception import (
@@ -17,7 +19,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.textual_format())
+    exit(1)
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -28,7 +30,7 @@ try:
             return b
 
     p.compile(desymref=False)
-    print(p.textual_format())
+    exit(1)
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -39,7 +41,7 @@ try:
             return a
 
     p.compile(desymref=False)
-    print(p.textual_format())
+    exit(1)
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -50,7 +52,7 @@ try:
             return a + b
 
     p.compile(desymref=False)
-    print(p.textual_format())
+    exit(1)
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -61,7 +63,7 @@ try:
             return a < b
 
     p.compile(desymref=False)
-    print(p.textual_format())
+    exit(1)
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -76,7 +78,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.textual_format())
+    exit(1)
 except CodeGenerationException as e:
     print(e.msg)
 
@@ -89,7 +91,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.textual_format())
+    exit(1)
 except CodeGenerationException as e:
     print(e.msg)
 
@@ -102,7 +104,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.textual_format())
+    exit(1)
 except CodeGenerationException as e:
     print(e.msg)
 
@@ -115,6 +117,30 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.textual_format())
+    exit(1)
+except CodeGenerationException as e:
+    print(e.msg)
+
+
+try:
+    with CodeContext(p):
+        # CHECK: Unsupported function argument type: 'Callable[..., None]'
+        def test_complex_arg_annotation(x: Callable[..., None]) -> None:
+            return
+
+    p.compile(desymref=False)
+    exit(1)
+except CodeGenerationException as e:
+    print(e.msg)
+
+
+try:
+    with CodeContext(p):
+        # CHECK: Unsupported function return type: 'int | None'
+        def test_complex_return_annotation() -> int | None:
+            return
+
+    p.compile(desymref=False)
+    exit(1)
 except CodeGenerationException as e:
     print(e.msg)
