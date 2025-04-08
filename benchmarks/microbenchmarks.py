@@ -110,7 +110,11 @@ class OpCreation:
         Comparison with `OperationState opState(unknownLoc, "testbench.empty");
         Operation::create(opState)`.
         """
-        EmptyOp()
+        EmptyOp.create()
+
+    def time_operation_build(self) -> None:
+        """Time building an empty operation."""
+        EmptyOp.build()
 
     def time_operation_clone(self) -> None:
         """Time cloning an empty operation.
@@ -141,6 +145,7 @@ if __name__ == "__main__":
                 EXTENSIBILITY.time_trait_check_neg
             ),
             "OpCreation.operation_create": Benchmark(OP_CREATION.time_operation_create),
+            "OpCreation.operation_build": Benchmark(OP_CREATION.time_operation_build),
             "OpCreation.operation_clone": Benchmark(OP_CREATION.time_operation_clone),
         }
     )
