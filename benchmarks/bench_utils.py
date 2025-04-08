@@ -225,7 +225,7 @@ def pyinstrument_benchmark(
     benchmarks: dict[str, Benchmark],
     warmup: bool = True,
 ) -> Path:
-    """Use VizTracer to profile a benchmark."""
+    """Use pyinstrument to profile a benchmark."""
     from pyinstrument import Profiler
 
     benchmark_runs = get_benchmark_runs(args, benchmarks)
