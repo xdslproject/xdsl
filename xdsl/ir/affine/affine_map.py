@@ -376,6 +376,36 @@ class AffineMap:
         # Results are either dims or zeros and zeros can be mapped to input dims.
         return True
 
+    def apply_permutation(self, source: Sequence[int]) -> list[int]:
+        """
+        Apply a permutation from this map to `source` and return the result.
+
+        The map must be a projected permutation, and the number of inputs must match
+        the size of the source.
+
+        Example:
+        ```
+        map = (d0, d1, d2) -> (d1, d0)
+        source = [10, 20, 30]
+        result = [20, 10]
+        ```
+
+        Equivalent to `applyPermutationMap` in MLIR.
+        """
+        assert self.is_projected_permutation(), "Map must be a projected permutation"
+        assert self.num_dims == len(source), "Number of inputs must match source size"
+
+        result: list[int] = []
+        for i, expr in enumerate(self.results):
+            if isinstance(expr, AffineDimExpr):
+                result.append(source[expr.position])
+            else:
+                raise ValueError(
+                    f"Unexpected result at index {i} in projected permutation map {self}."
+                )
+
+        return result
+
     def __str__(self) -> str:
         # Create comma seperated list of dims.
         dims = ["d" + str(i) for i in range(self.num_dims)]

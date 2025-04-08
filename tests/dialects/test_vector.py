@@ -1,6 +1,8 @@
 import pytest
 
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    BoolAttr,
     IndexType,
     IntAttr,
     MemRefType,
@@ -47,6 +49,8 @@ def test_vectorType():
     assert vec.get_num_dims() == 1
     assert vec.get_shape() == (1,)
     assert vec.element_type is i32
+    assert vec.get_num_scalable_dims() == 0
+    assert vec.get_scalable_dims() == (False,)
 
 
 def test_vectorType_with_dimensions():
@@ -55,6 +59,36 @@ def test_vectorType_with_dimensions():
     assert vec.get_num_dims() == 3
     assert vec.get_shape() == (3, 3, 3)
     assert vec.element_type is i32
+    assert vec.get_num_scalable_dims() == 0
+    assert vec.get_scalable_dims() == (
+        False,
+        False,
+        False,
+    )
+
+
+def test_vectorType_with_scalable_dims():
+    vec = VectorType(
+        i32,
+        [3, 3, 3],
+        scalable_dims=ArrayAttr(
+            (
+                BoolAttr.from_bool(False),
+                BoolAttr.from_bool(True),
+                BoolAttr.from_bool(False),
+            )
+        ),
+    )
+
+    assert vec.get_num_dims() == 3
+    assert vec.get_shape() == (3, 3, 3)
+    assert vec.element_type is i32
+    assert vec.get_num_scalable_dims() == 1
+    assert vec.get_scalable_dims() == (
+        False,
+        True,
+        False,
+    )
 
 
 def test_vector_load_i32():

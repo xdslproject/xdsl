@@ -1,16 +1,23 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
+    I1,
+    AffineMapAttr,
     AnyFloatConstr,
+    ArrayAttr,
+    BoolAttr,
     DenseArrayBase,
     DenseI64ArrayConstr,
     IndexType,
     IndexTypeConstr,
     MemRefType,
     SignlessIntegerConstraint,
+    TensorOrMemRefOf,
+    TensorType,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
     VectorRankConstraint,
@@ -20,13 +27,17 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AnyAttr,
+    AttrSizedOperandSegments,
     IRDLOperation,
+    ParsePropInAttrDict,
     VarConstraint,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
+    opt_result_def,
     prop_def,
     result_def,
     traits_def,
@@ -566,6 +577,296 @@ class InsertElementOp(IRDLOperation):
         )
 
 
+class VectorTransferOperation(ABC):
+    """
+    Encodes properties of a `vector.transfer_read` or `vector.transfer_write`
+    operation. Vector transfer ops have:
+
+    - A shaped value that the op reads from/writes to: a memref or a tensor.
+    - A vector, either as a result or as an operand.
+    - Indices that describe where the transfer from/to the shaped value starts.
+    - An optional mask.
+    - An optional in_bounds array to indicate transfer dimensions that are
+      guaranteed to be in-bounds.
+    - A permutation map to indicate transposes and broadcasts.
+
+    The "vector rank" is the rank of the vector type. E.g.:
+    ```mlir
+    // Transfer with shaped value rank 2 and vector (transfer) rank 1.
+    %0 = vector.transfer_read %arg0[%c3, %c3], %f0
+        {permutation_map = affine_map<(d0, d1) -> (d0)>}
+        : memref<?x?xf32>, vector<128xf32>
+    ```
+
+    The "vector transfer rank" is the number of dimensions that participate in
+    the transfer and broadcasts, and matches the number of results in the
+    permutation map. In most cases, the vector rank matches the vector transfer
+    rank; the only exception is when a vector is flattened as part of the
+    transfer (see `getPermutationMap`).
+
+    Mirrors VectorTransferOpInterface from https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/Interfaces/VectorInterfaces.td
+    """
+
+    permutation_map = prop_def(AffineMapAttr)
+    """
+    The permutation map that describes the mapping of vector
+    dimensions to source dimensions, as well as broadcast dimensions.
+
+    The permutation result has one result per vector transfer dimension.
+    Each result is either a dim expression, indicating the corresponding
+    dimension in the source operand, or a constant "0" expression,
+    indicating a broadcast dimension.
+
+    Note: Nested vector dimensions that are flattened by this op are not
+    accounted for in the permutation map. E.g.:
+    ```mlir
+    // Vector type has rank 4, but permutation map has only 2 results. That
+    // is because there are only 2 transfer dimensions.
+    %0 = vector.transfer_read %arg1[%c3, %c3], %vf0
+        {permutation_map = affine_map<(d0, d1) -> (d0, d1)>}
+        : memref<?x?xvector<4x3xf32>>, vector<1x1x4x3xf32>
+    ```
+    """
+
+
+def _infer_transfer_op_mask_type(
+    vec_type: VectorType, perm_map: AffineMap
+) -> VectorType[I1]:
+    unused_dims = tuple(not dim for dim in perm_map.used_dims_bit_vector())
+    inv_perm_map = perm_map.compress_dims(unused_dims).inverse_permutation()
+    assert inv_perm_map is not None, "Inversed permutation map couldn't be computed"
+    mask_shape = inv_perm_map.eval(vec_type.get_shape(), ())
+    scalable_dims = ArrayAttr(
+        BoolAttr.from_bool(bool(b))
+        for b in inv_perm_map.eval(vec_type.get_scalable_dims(), ())
+    )
+    return VectorType(i1, mask_shape, scalable_dims)
+
+
+def get_transfer_minor_identity_map(
+    shaped_type: TensorType | MemRefType, vector_type: VectorType
+) -> AffineMap:
+    """
+    Get the minor identity map for a transfer operation.
+
+    This is a helper function to compute the default permutation map for
+    transfer operations when none is specified.
+    """
+    element_vector_rank = 0
+    element_type = shaped_type.element_type
+    if isa(element_type, VectorType):
+        element_vector_type = element_type
+        element_vector_rank += element_vector_type.get_num_dims()
+
+    # 0-d transfers are to/from tensor<t>/memref<t> and vector<1xt>.
+    # TODO: replace once we have 0-d vectors.
+    if shaped_type.get_num_dims() == 0 and vector_type.get_shape() == (1,):
+        return AffineMap.constant_map(0)
+
+    return AffineMap.minor_identity(
+        shaped_type.get_num_dims(),
+        vector_type.get_num_dims() - element_vector_rank,
+    )
+
+
+@irdl_op_definition
+class TransferReadOp(IRDLOperation, VectorTransferOperation):
+    "Reads a supervector from memory into an SSA vector value."
+
+    name = "vector.transfer_read"
+
+    source = operand_def(TensorOrMemRefOf(Attribute))
+    indices = var_operand_def(IndexType)
+    padding = operand_def()
+    mask = opt_operand_def(VectorType[I1])
+
+    in_bounds = prop_def(ArrayAttr[BoolAttr])
+    permutation_map = prop_def(AffineMapAttr)
+
+    result = result_def(VectorType)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        indices: Sequence[SSAValue | Operation],
+        padding: SSAValue | Operation,
+        result_type: Attribute,
+        in_bounds: ArrayAttr[BoolAttr],
+        permutation_map: AffineMapAttr,
+        mask: SSAValue | Operation | None = None,
+    ):
+        super().__init__(
+            operands=[source, indices, padding, mask],
+            result_types=[result_type],
+            properties={"permutation_map": permutation_map, "in_bounds": in_bounds},
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ", indent=0)
+        printer.print_ssa_value(self.source)
+        printer.print_string("[", indent=0)
+        printer.print_list(self.indices, printer.print_ssa_value)
+        printer.print_string("], ", indent=0)
+        printer.print_ssa_value(self.padding)
+        if self.mask is not None:
+            printer.print_string(", ", indent=0)
+            printer.print_ssa_value(self.mask)
+        reserved_attr_names = {"operandSegmentSizes"}
+        if self.permutation_map.data.is_minor_identity():
+            reserved_attr_names.add("permutation_map")
+        if not any(self.in_bounds):
+            reserved_attr_names.add("in_bounds")
+        printer.print_op_attributes(
+            self.attributes | self.properties, reserved_attr_names=reserved_attr_names
+        )
+        printer.print_string(" : ", indent=0)
+        printer.print_attribute(self.source.type)
+        printer.print_string(", ", indent=0)
+        printer.print_attribute(self.result.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> TransferReadOp:
+        source = parser.parse_unresolved_operand()
+        indices = parser.parse_comma_separated_list(
+            Parser.Delimiter.SQUARE, parser.parse_operand
+        )
+        parser.parse_punctuation(",")
+        padding = parser.parse_operand()
+        if parser.parse_optional_punctuation(","):
+            mask_start_pos = parser.pos
+            mask = parser.parse_unresolved_operand()
+            mask_end_pos = parser.pos
+        else:
+            mask_start_pos = None
+            mask = None
+            mask_end_pos = None
+        attributes_dict = parser.parse_optional_attr_dict()
+
+        types_pos = parser.pos
+        parser.parse_punctuation(":")
+        shaped_type = parser.parse_type()
+        parser.parse_punctuation(",")
+        vector_type = parser.parse_type()
+
+        source = parser.resolve_operand(source, shaped_type)
+
+        if not isa(shaped_type, MemRefType | TensorType):
+            parser.raise_error(
+                "requires memref or ranked tensor type", at_position=types_pos
+            )
+
+        if not isa(vector_type, VectorType):
+            parser.raise_error("requires vector type", at_position=types_pos)
+
+        # Create default permutation_map if not provided in attributes
+        permutation_map = None
+        if attributes_dict and "permutation_map" in attributes_dict:
+            permutation_map = attributes_dict["permutation_map"]
+            assert isinstance(permutation_map, AffineMapAttr)
+        else:
+            # Create identity permutation map for the shaped type's rank
+            permutation_map = AffineMapAttr(
+                get_transfer_minor_identity_map(shaped_type, vector_type)
+            )
+
+        # Create in_bounds attribute if not provided
+        in_bounds = None
+        if attributes_dict and "in_bounds" in attributes_dict:
+            in_bounds = cast(ArrayAttr[BoolAttr], attributes_dict["in_bounds"])
+        else:
+            # Default: all dimensions are out-of-bounds
+            in_bounds = ArrayAttr(
+                (BoolAttr.from_bool(False),) * len(permutation_map.data.results)
+            )
+
+        if mask is not None:
+            if isa(shaped_type.element_type, VectorType):
+                assert mask_start_pos is not None
+                assert mask_end_pos is not None
+                parser.raise_error(
+                    "does not support masks with vector element type",
+                    at_position=mask_start_pos,
+                    end_position=mask_end_pos,
+                )
+            if vector_type.get_num_dims() != len(permutation_map.data.results):
+                parser.raise_error(
+                    "expected the same rank for the vector and the "
+                    "results of the permutation map",
+                    types_pos,
+                )
+            # Instead of adding the mask type as an op type, compute it based on the
+            # vector type and the permutation map (to keep the type signature small).
+            mask_type = _infer_transfer_op_mask_type(vector_type, permutation_map.data)
+            mask = parser.resolve_operand(mask, mask_type)
+
+        # Create and return the TransferReadOp
+        return TransferReadOp(
+            source=source,
+            indices=indices,
+            padding=padding,
+            mask=mask,
+            permutation_map=permutation_map,
+            in_bounds=in_bounds,
+            result_type=vector_type,
+        )
+
+
+# static void printTransferAttrs(OpAsmPrinter &p, VectorTransferOpInterface op) {
+#   SmallVector<StringRef, 3> elidedAttrs;
+#   elidedAttrs.push_back(TransferReadOp::getOperandSegmentSizeAttr());
+#   if (op.getPermutationMap().isMinorIdentity())
+#     elidedAttrs.push_back(op.getPermutationMapAttrName());
+#   // Elide in_bounds attribute if all dims are out-of-bounds.
+#   if (llvm::none_of(op.getInBoundsValues(), [](bool b) { return b; }))
+#     elidedAttrs.push_back(op.getInBoundsAttrName());
+#   p.printOptionalAttrDict(op->getAttrs(), elidedAttrs);
+# }
+
+
+# void TransferReadOp::print(OpAsmPrinter &p) {
+#   p << " " << getSource() << "[" << getIndices() << "], " << getPadding();
+#   if (getMask())
+#     p << ", " << getMask();
+#   printTransferAttrs(p, *this);
+#   p << " : " << getShapedType() << ", " << getVectorType();
+# }
+
+
+@irdl_op_definition
+class TransferWriteOp(IRDLOperation, VectorTransferOperation):
+    name = "vector.transfer_write"
+
+    vector = operand_def(VectorType[Attribute])
+    source = operand_def(TensorOrMemRefOf(Attribute))
+    indices = var_operand_def(IndexType)
+    mask = opt_operand_def(VectorType[I1])
+
+    in_bounds = prop_def(ArrayAttr[BoolAttr])
+    permutation_map = prop_def(AffineMapAttr)
+
+    result = opt_result_def(TensorType[Attribute])
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        vector: SSAValue | Operation,
+        source: SSAValue | Operation,
+        indices: Sequence[SSAValue | Operation],
+        in_bounds: ArrayAttr[BoolAttr],
+        mask: Sequence[SSAValue | Operation] | None = None,
+        permutation_map: AffineMapAttr | None = None,
+        result_type: TensorType[Attribute] | None = None,
+    ):
+        super().__init__(
+            operands=[vector, source, indices, mask],
+            properties={"permutation_map": permutation_map, "in_bounds": in_bounds},
+            result_types=[result_type],
+        )
+
+
 Vector = Dialect(
     "vector",
     [
@@ -581,6 +882,8 @@ Vector = Dialect(
         ExtractElementOp,
         InsertOp,
         InsertElementOp,
+        TransferReadOp,
+        TransferWriteOp,
     ],
     [],
 )
