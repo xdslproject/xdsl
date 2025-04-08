@@ -313,3 +313,21 @@ def test_minor_identity():
         "results 3",
     ):
         AffineMap.minor_identity(2, 3)
+
+
+def test_is_projected_permutation():
+    assert AffineMap.from_callable(lambda d0, d1: (d0, d1)).is_projected_permutation()
+    assert not AffineMap.from_callable(
+        lambda d0, d1: (d0, d0)
+    ).is_projected_permutation()
+    assert not AffineMap.from_callable(lambda d0: (d0, d0)).is_projected_permutation()
+
+    assert AffineMap.from_callable(
+        lambda d0, d1, d2: (d1, d0)
+    ).is_projected_permutation()
+    assert not AffineMap.from_callable(
+        lambda d0, d1, d2: (d1, 0, d0)
+    ).is_projected_permutation()
+    assert AffineMap.from_callable(
+        lambda d0, d1, d2: (d1, 0, d0)
+    ).is_projected_permutation(allow_zero_in_results=True)

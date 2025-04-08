@@ -5,7 +5,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
 
-from xdsl.ir.affine import AffineDimExpr, AffineExpr
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 
 AffineExprBuilderT = AffineExpr | int
 
@@ -330,6 +330,49 @@ class AffineMap:
                 )
             )
         )
+
+    def is_projected_permutation(self, allow_zero_in_results: bool = False) -> bool:
+        """
+        Returns True if the AffineMap represents a subset (i.e. a projection) of a
+        symbol-less permutation map. `allow_zero_in_results` allows projected
+        permutation maps with constant zero result expressions.
+
+        Examples:
+        ```
+        no_zeros = (d0, d1, d2) -> (d1, d0)
+        with_zeros = (d0, d1, d2) -> (d1, 0, d0)
+        ```
+
+        Equivalent to `isProjectedPermutation` in MLIR.
+        """
+        if self.num_symbols:
+            return False
+
+        # Having more results than inputs means that results have duplicated dims or
+        # zeros that can't be mapped to input dims.
+        if len(self.results) > self.num_dims:
+            return False
+
+        seen = [False] * self.num_dims
+        # A projected permutation can have, at most, only one instance of each input
+        # dimension in the result expressions. Zeros are allowed as long as the
+        # number of result expressions is lower or equal than the number of input
+        # expressions.
+        for expr in self.results:
+            if isinstance(expr, AffineDimExpr):
+                if seen[expr.position]:
+                    return False
+                seen[expr.position] = True
+            else:
+                if (
+                    not allow_zero_in_results
+                    or not isinstance(expr, AffineConstantExpr)
+                    or expr.value != 0
+                ):
+                    return False
+
+        # Results are either dims or zeros and zeros can be mapped to input dims.
+        return True
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.
