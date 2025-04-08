@@ -1090,6 +1090,27 @@ class VectorType(
                 f"equal to number of dimensions {num_dims}."
             )
 
+    @classmethod
+    def constr(
+        cls,
+        element_type: IRDLGenericAttrConstraint[AttributeCovT] | None = None,
+        *,
+        shape: IRDLGenericAttrConstraint[ArrayAttr[IntAttr]] | None = None,
+        scalable_dims: IRDLGenericAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
+    ) -> GenericAttrConstraint[VectorType[AttributeCovT]]:
+        if element_type is None and shape is None and scalable_dims is None:
+            return BaseAttr[VectorType[AttributeCovT]](VectorType)
+        shape_constr = AnyAttr() if shape is None else shape
+        scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
+        return ParamAttrConstraint[VectorType[AttributeCovT]](
+            VectorType,
+            (
+                shape_constr,
+                element_type,
+                scalable_dims_constr,
+            ),
+        )
+
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
 
