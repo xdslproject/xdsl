@@ -14,6 +14,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.utils.test_value import TestSSAValue
 
 
 @dataclass(frozen=True)
@@ -201,8 +202,6 @@ class Rewriter:
                 *args[index + 1 :],
             )
         else:
-            from xdsl.utils.test_value import TestSSAValue
-
             assert isinstance(val, TestSSAValue)
             new_value = TestSSAValue(new_type)
 
