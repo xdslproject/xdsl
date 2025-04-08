@@ -334,3 +334,9 @@ def test_is_projected_permutation():
     assert AffineMap.from_callable(
         lambda d0, d1, d2: (d1, 0, d0)
     ).is_projected_permutation(allow_zero_in_results=True)
+
+
+def test_apply_permutation_map():
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d0)).apply_permutation(
+        (10, 20, 30)
+    ) == [20, 10]
