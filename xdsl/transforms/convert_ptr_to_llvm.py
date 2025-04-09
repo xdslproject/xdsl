@@ -12,61 +12,57 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint
 
 
 @dataclass
 class ConvertStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter, /):
-        rewriter.insert_op(
-            cast_op := builtin.UnrealizedConversionCastOp.get(
-                [op.addr], [llvm.LLVMPointerType.opaque()]
-            ),
-            InsertPoint.before(op),
+        rewriter.replace_matched_op(
+            (
+                cast_op := builtin.UnrealizedConversionCastOp.get(
+                    (op.addr,), (llvm.LLVMPointerType.opaque(),)
+                ),
+                llvm.StoreOp(op.value, cast_op.results[0]),
+            )
         )
-        rewriter.replace_matched_op(llvm.StoreOp(op.value, cast_op.results[0]))
 
 
 @dataclass
 class ConvertLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter, /):
-        rewriter.insert_op(
-            cast_op := builtin.UnrealizedConversionCastOp.get(
-                [op.addr], [llvm.LLVMPointerType.opaque()]
-            ),
-            InsertPoint.before(op),
+        rewriter.replace_matched_op(
+            (
+                cast_op := builtin.UnrealizedConversionCastOp.get(
+                    [op.addr], [llvm.LLVMPointerType.opaque()]
+                ),
+                llvm.LoadOp(cast_op.results[0], op.res.type),
+            )
         )
-        rewriter.replace_matched_op(llvm.LoadOp(cast_op.results[0], op.res.type))
 
 
 @dataclass
 class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
-        # TODO: could be one cast?
-        rewriter.insert_op(
-            cast_addr_op := builtin.UnrealizedConversionCastOp.get(
-                [op.addr],
-                [llvm.LLVMPointerType.opaque()],
-            ),
-            InsertPoint.before(op),
+        rewriter.replace_matched_op(
+            (
+                cast_addr_op := builtin.UnrealizedConversionCastOp.get(
+                    [op.addr],
+                    [llvm.LLVMPointerType.opaque()],
+                ),
+                # ptr -> int
+                ptr_to_int_op := llvm.PtrToIntOp(
+                    cast_addr_op.results[0], builtin.IndexType()
+                ),
+                # int + arg
+                add_op := arith.AddiOp(ptr_to_int_op.results[0], op.offset),
+                # int -> ptr
+                llvm.IntToPtrOp(add_op.result),
+            )
         )
-        # ptr -> int
-        rewriter.insert_op(
-            ptr_to_int_op := llvm.PtrToIntOp(
-                cast_addr_op.results[0], builtin.IndexType()
-            ),
-            InsertPoint.after(cast_addr_op),
-        )
-        # int + arg
-        rewriter.insert_op(
-            add_op := arith.AddiOp(ptr_to_int_op.results[0], op.offset),
-            InsertPoint.after(ptr_to_int_op),
-        )
-        # int -> ptr
-        rewriter.insert_op(llvm.IntToPtrOp(add_op.result), InsertPoint.after(add_op))
+
         rewriter.erase_matched_op()
 
 
@@ -95,7 +91,7 @@ class ReconcileUnrealizedPtrCasts(RewritePattern):
 
 class RewritePtrTypes(TypeConversionPattern):
     """
-    asdf
+    Replaces `ptr_dxdsl.ptr` with `llvm.ptr`.
     """
 
     @attr_type_rewrite_pattern
