@@ -52,18 +52,21 @@ class ConvertPtrAddOp(RewritePattern):
                     [op.addr],
                     [llvm.LLVMPointerType.opaque()],
                 ),
+                # offset (index) -> offset (int)
+                offest_to_int_op := arith.IndexCastOp(op.offset, builtin.i64),
                 # ptr -> int
                 ptr_to_int_op := llvm.PtrToIntOp(
-                    cast_addr_op.results[0], builtin.IndexType()
+                    cast_addr_op.results[0],
+                    builtin.i64,
                 ),
                 # int + arg
-                add_op := arith.AddiOp(ptr_to_int_op.results[0], op.offset),
+                add_op := arith.AddiOp(
+                    ptr_to_int_op.results[0], offest_to_int_op.result
+                ),
                 # int -> ptr
                 llvm.IntToPtrOp(add_op.result),
             )
         )
-
-        rewriter.erase_matched_op()
 
 
 class RewritePtrTypes(TypeConversionPattern):
