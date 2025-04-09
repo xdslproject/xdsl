@@ -53,6 +53,7 @@ from .register import (
     RAX,
     RDX,
     RSP,
+    UNALLOCATED_GENERAL,
     GeneralRegisterType,
     RFLAGSRegisterType,
     X86RegisterType,
@@ -314,17 +315,42 @@ class RR_XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RR_MovOp(X86Instruction, X86CustomFormatOperation):
     """
-    Copies the value of r1 into r2.
+    Copies the value of source into result.
     ```C
-    x[r1] = x[r2]
+    x[result] = x[source]
     ```
 
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
     name = "x86.rr.mov"
+
+    source = operand_def(GeneralRegisterType)
+
+    result = result_def(GeneralRegisterType)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        result: GeneralRegisterType = UNALLOCATED_GENERAL,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.result, self.source
 
 
 @irdl_op_definition
@@ -914,17 +940,71 @@ class RI_XorOp(R_RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RI_MovOp(R_RI_Operation[GeneralRegisterType]):
+class RI_MovOp(X86Instruction, X86CustomFormatOperation):
     """
-    Copies the immediate value into r1.
+    Copies the immediate value into result.
     ```C
-    x[r1] = immediate
+    x[result] = immediate
     ```
 
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
     name = "x86.ri.mov"
+
+    immediate = attr_def(IntegerAttr)
+
+    result = result_def(GeneralRegisterType)
+
+    def __init__(
+        self,
+        immediate: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: GeneralRegisterType = UNALLOCATED_GENERAL,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # TODO: support 64-bit immediates if the result register is a 64-bit register
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.result, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = parse_immediate_value(
+            parser, IntegerType(32, Signedness.SIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print(" : ")
+        printer.print_attribute(self.result.type)
 
 
 class M_MR_Operation(
