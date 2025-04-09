@@ -209,7 +209,11 @@ class TypeConverter:
         return self.type_registry[source_type]
 
     def get_source_type(self, ir_type: TypeAttribute) -> type | None:
-        """Get the source type from its IR type."""
+        """Get the source type from its IR type.
+
+        This assumes the one-to-one mapping enforced by the `TypeRegistry`
+        object in order to idempotently select the correct operation.
+        """
         return self.type_registry.get_backwards(ir_type)
 
     def resolve_function(
