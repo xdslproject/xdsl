@@ -1,37 +1,151 @@
 #!/usr/bin/env python3
 """Microbenchmark properties of the xDSL implementation."""
 
-import importlib
+from __future__ import annotations
 
-import xdsl.dialects.arith
-import xdsl.dialects.builtin
+from xdsl.ir import Block
+from xdsl.irdl import (
+    IRDLOperation,
+    irdl_op_definition,
+    traits_def,
+)
+from xdsl.traits import OpTrait
 
 
-class LoadDialects:
-    """Benchmark loading dialects in xDSL."""
+@irdl_op_definition
+class EmptyOp(IRDLOperation):
+    """An empty operation."""
 
-    def time_arith_load(self) -> None:
-        """Time loading the `arith` dialect.
+    name = "empty"
 
-        Note that this must be done with `importlib.reload` rather than just
-        directly importing with `from xdsl.dialects.arith import Arith` to avoid
-        tests interacting with each other.
+
+class TraitA(OpTrait):
+    """An example trait."""
+
+
+class TraitB(OpTrait):
+    """An example trait."""
+
+
+@irdl_op_definition
+class HasTraitAOp(IRDLOperation):
+    """An operation which has a trait A."""
+
+    name = "has_trait_a"
+    traits = traits_def(TraitA())
+
+
+class IRTraversal:
+    """Benchmark the time to traverse xDSL IR."""
+
+    EXAMPLE_BLOCK_NUM_OPS = 1_000
+    EXAMPLE_OPS = (EmptyOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS))
+    EXAMPLE_BLOCK = Block(ops=EXAMPLE_OPS)
+
+    def time_iterate_ops(self) -> None:
+        """Time directly iterating over a python list of operations.
+
+        Comparison with `for (Operation *op : /*std::vector*/ops) {`.
         """
-        importlib.reload(xdsl.dialects.arith)
+        for op in IRTraversal.EXAMPLE_OPS:
+            assert op
 
-    def time_builtin_load(self) -> None:
-        """Time loading the `builtin` dialect."""
-        importlib.reload(xdsl.dialects.builtin)
+    def time_iterate_block_ops(self) -> None:
+        """Time directly iterating over the linked list of a block's operations.
+
+        Comparison with `for (Operation &op : *block) {`.
+        """
+        for op in IRTraversal.EXAMPLE_BLOCK.ops:
+            assert op
+
+    def time_walk_block_ops(self) -> None:
+        """Time walking a block's operations.
+
+        Comparison with `block->walk([](Operation *op) {});` with no region in
+        the IR.
+        """
+        for op in IRTraversal.EXAMPLE_BLOCK.walk():
+            assert op
+
+
+class Extensibility:
+    """Benchmark the time to check interface and trait properties."""
+
+    HAS_TRAIT_A_OP = HasTraitAOp()
+
+    def time_interface_check(self) -> None:
+        """Time checking the class hierarchy of an operation.
+
+        Indirect comparison with `assert( dyn_cast<OpT>(op) )`.
+
+        This is not a direct comparison as xDSL does not use the
+        class hierarchy to express interface functionality, but is interesting
+        to compare `isinstance` with `dyn_cast` in context.
+        """
+        assert isinstance(Extensibility.HAS_TRAIT_A_OP, HasTraitAOp)
+
+    def time_trait_check(self) -> None:
+        """Time checking the trait of an operation.
+
+        Comparison with `assert( op->hasTrait<TraitT>(op) )`.
+        """
+        assert Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
+
+    def time_trait_check_neg(self) -> None:
+        """Time checking the trait of an operation.
+
+        Comparison with `assert( ! op->hasTrait<TraitT>(op) )`.
+        """
+        assert not Extensibility.HAS_TRAIT_A_OP.has_trait(TraitB)
+
+
+class OpCreation:
+    """Benchmark creating an operation in xDSL."""
+
+    CONSTANT_OPERATION = EmptyOp()
+
+    def time_operation_create(self) -> None:
+        """Time creating an empty operation.
+
+        Comparison with `OperationState opState(unknownLoc, "testbench.empty");
+        Operation::create(opState)`.
+        """
+        EmptyOp.create()
+
+    def time_operation_build(self) -> None:
+        """Time building an empty operation."""
+        EmptyOp.build()
+
+    def time_operation_clone(self) -> None:
+        """Time cloning an empty operation.
+
+        Comparison with `OwningOpRef<ModuleOp> moduleClone = moduleOp->clone();`.
+        """
+        OpCreation.CONSTANT_OPERATION.clone()
 
 
 if __name__ == "__main__":
     from bench_utils import Benchmark, profile
 
-    LOAD_DIALECTS = LoadDialects()
-
+    EXTENSIBILITY = Extensibility()
+    IR_TRAVERSAL = IRTraversal()
+    OP_CREATION = OpCreation()
     profile(
         {
-            "LoadDialects.arith_load": Benchmark(LOAD_DIALECTS.time_arith_load),
-            "LoadDialects.builtin_load": Benchmark(LOAD_DIALECTS.time_builtin_load),
+            "IRTraversal.iterate_ops": Benchmark(IR_TRAVERSAL.time_iterate_ops),
+            "IRTraversal.iterate_block_ops": Benchmark(
+                IR_TRAVERSAL.time_iterate_block_ops
+            ),
+            "IRTraversal.walk_block_ops": Benchmark(IR_TRAVERSAL.time_walk_block_ops),
+            "Extensibility.interface_check": Benchmark(
+                EXTENSIBILITY.time_interface_check
+            ),
+            "Extensibility.trait_check": Benchmark(EXTENSIBILITY.time_trait_check),
+            "Extensibility.trait_check_neg": Benchmark(
+                EXTENSIBILITY.time_trait_check_neg
+            ),
+            "OpCreation.operation_create": Benchmark(OP_CREATION.time_operation_create),
+            "OpCreation.operation_build": Benchmark(OP_CREATION.time_operation_build),
+            "OpCreation.operation_clone": Benchmark(OP_CREATION.time_operation_clone),
         }
     )
