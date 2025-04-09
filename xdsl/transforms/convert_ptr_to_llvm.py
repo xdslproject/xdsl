@@ -66,29 +66,6 @@ class ConvertPtrAddOp(RewritePattern):
         rewriter.erase_matched_op()
 
 
-class ReconcileUnrealizedPtrCasts(RewritePattern):
-    """
-    Eliminates `llvm.ptr` -> `llvm.ptr` casts.
-    """
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: builtin.UnrealizedConversionCastOp, rewriter: PatternRewriter, /
-    ):
-        # preconditions
-        if (
-            len(op.inputs) != 1
-            or len(op.outputs) != 1
-            or not isinstance(op.inputs[0].type, llvm.LLVMPointerType)
-            or not isinstance(op.outputs[0].type, llvm.LLVMPointerType)
-        ):
-            return
-
-        # erase llvm.ptr -> llvm.ptr
-        op.outputs[0].replace_by(op.inputs[0])
-        rewriter.erase_matched_op()
-
-
 class RewritePtrTypes(TypeConversionPattern):
     """
     Replaces `ptr_dxdsl.ptr` with `llvm.ptr`.
@@ -110,7 +87,6 @@ class ConvertPtrToLLVMPass(ModulePass):
                     ConvertLoadOp(),
                     ConvertPtrAddOp(),
                     RewritePtrTypes(),
-                    ReconcileUnrealizedPtrCasts(),
                 ]
             )
         ).rewrite_module(op)
