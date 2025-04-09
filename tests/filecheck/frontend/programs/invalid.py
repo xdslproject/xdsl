@@ -1,5 +1,6 @@
 # RUN: python %s | filecheck %s
 
+from xdsl.dialects.bigint import AddOp, BigIntegerType
 from xdsl.frontend.pyast.block import block
 from xdsl.frontend.pyast.const import Const
 from xdsl.frontend.pyast.context import CodeContext
@@ -237,5 +238,35 @@ with CodeContext(p):
 try:
     p.compile(desymref=False)
     print(p.textual_format())
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot re-register type name 'int'
+    p.register_type(int, BigIntegerType)
+    p.register_type(int, BigIntegerType)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot re-register function 'int.__add__'
+    p.register_function(int.__add__, AddOp)
+    p.register_function(int.__add__, AddOp)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot register multiple source types for IR type 'BigIntegerType'
+    p.register_type(float, BigIntegerType)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot register multiple source types for IR type 'BigIntegerType'
+    p.register_type(float, BigIntegerType)
 except FrontendProgramException as e:
     print(e.msg)

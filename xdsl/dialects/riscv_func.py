@@ -215,6 +215,8 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
             # Print nothing for function declaration
             return
 
+        printer.emit_section(".text")
+
         if self.sym_visibility is not None:
             match self.sym_visibility.data:
                 case "public":

@@ -21,7 +21,6 @@ from xdsl.dialects.gpu import (
     LaunchFuncOp,
     LaunchOp,
     MemcpyOp,
-    ModuleEndOp,
     ModuleOp,
     NumSubgroupsOp,
     ReturnOp,
@@ -162,19 +161,11 @@ def test_dealloc():
 def test_gpu_module():
     name = builtin.SymbolRefAttr("gpu")
 
-    ops: list[Operation] = [ModuleEndOp()]
-
-    gpu_module = ModuleOp(name, ops)
+    gpu_module = ModuleOp(name, Region(Block()))
 
     assert isinstance(gpu_module, ModuleOp)
-    assert list(gpu_module.body.ops) == ops
+    assert list(gpu_module.body.ops) == []
     assert gpu_module.sym_name is name
-
-
-def test_gpu_module_end():
-    module_end = ModuleEndOp()
-
-    assert isinstance(module_end, ModuleEndOp)
 
 
 def test_global_id():

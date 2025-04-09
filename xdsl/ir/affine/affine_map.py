@@ -5,7 +5,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
 
-from xdsl.ir.affine import AffineDimExpr, AffineExpr
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 
 AffineExprBuilderT = AffineExpr | int
 
@@ -50,6 +50,26 @@ class AffineMap:
             symbolic_rank,
             tuple(AffineExpr.dimension(dim) for dim in range(rank))
             + tuple(AffineExpr.symbol(dim) for dim in range(symbolic_rank)),
+        )
+
+    @staticmethod
+    def minor_identity(num_dims: int, num_results: int) -> AffineMap:
+        """
+        Returns an identity affine map (d0, ..., dn) -> (dp, ..., dn) on the most minor
+        dimensions.
+
+        Corresponds to MLIR's `AffineMap::getMinorIdentityMap`.
+        """
+        if num_dims < num_results:
+            raise ValueError(
+                f"Dimension mismatch, expected dims {num_dims} to be greater than or "
+                f"equal to results {num_results}."
+            )
+
+        return AffineMap(
+            num_dims,
+            0,
+            tuple(AffineDimExpr(d) for d in range(num_dims - num_results, num_dims)),
         )
 
     @staticmethod
@@ -285,6 +305,74 @@ class AffineMap:
                 if isinstance(expr, AffineDimExpr):
                     used_dims[expr.position] = True
         return tuple(used_dims)
+
+    def is_minor_identity(self) -> bool:
+        """
+        Returns True if
+        1. there are at most `self.num_dims` results,
+        2. `self.num_symbols` is zero, and
+        3. `self.results` are the last dimensions, in order.
+
+        For example, `(d0, d1, d2) -> (d1, d2)` is a minor identity map.
+
+        Corresponds to MLIR's `AffineMap::isMinorIdentity`.
+        """
+        num_results = len(self.results)
+        return (
+            not self.num_symbols
+            and num_results <= self.num_dims
+            and all(
+                isinstance(r, AffineDimExpr) and d == r.position
+                for d, r in zip(
+                    range(self.num_dims - num_results, self.num_dims),
+                    self.results,
+                    strict=True,
+                )
+            )
+        )
+
+    def is_projected_permutation(self, allow_zero_in_results: bool = False) -> bool:
+        """
+        Returns True if the AffineMap represents a subset (i.e. a projection) of a
+        symbol-less permutation map. `allow_zero_in_results` allows projected
+        permutation maps with constant zero result expressions.
+
+        Examples:
+        ```
+        no_zeros = (d0, d1, d2) -> (d1, d0)
+        with_zeros = (d0, d1, d2) -> (d1, 0, d0)
+        ```
+
+        Equivalent to `isProjectedPermutation` in MLIR.
+        """
+        if self.num_symbols:
+            return False
+
+        # Having more results than inputs means that results have duplicated dims or
+        # zeros that can't be mapped to input dims.
+        if len(self.results) > self.num_dims:
+            return False
+
+        seen = [False] * self.num_dims
+        # A projected permutation can have, at most, only one instance of each input
+        # dimension in the result expressions. Zeros are allowed as long as the
+        # number of result expressions is lower or equal than the number of input
+        # expressions.
+        for expr in self.results:
+            if isinstance(expr, AffineDimExpr):
+                if seen[expr.position]:
+                    return False
+                seen[expr.position] = True
+            else:
+                if (
+                    not allow_zero_in_results
+                    or not isinstance(expr, AffineConstantExpr)
+                    or expr.value != 0
+                ):
+                    return False
+
+        # Results are either dims or zeros and zeros can be mapped to input dims.
+        return True
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.
