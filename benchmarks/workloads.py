@@ -104,8 +104,11 @@ class WorkloadBuilder:
         assert x >= 0
         assert y >= 0
         random.seed(RANDOM_SEED)
-        # Each dense attr item is a byte = 2 hex chars
-        dense_attr_hex = "".join(random.choice(HEX_CHARS) for _ in range(x * y * 2))
+        # In order to guarantee the hex value encodes a valid i8 tensor without
+        # significant logic coupled to the hex implementation, we set all values
+        # to zero. Each dense attr item is a byte is 2 hex chars, so we need
+        # x * y * 2 characters.
+        dense_attr_hex = "0" * x * y * 2
         ops = [
             (
                 '%0 = "arith.constant"() '
