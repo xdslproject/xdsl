@@ -48,29 +48,31 @@ class TypeRegistry(dict[type, TypeAttribute]):
 class TypeConverter:
     """Responsible for conversion of Python type hints to xDSL types."""
 
-    globals: dict[str, Any] = field(default_factory=dict)
+    globals: dict[str, Any] = field(default_factory=dict[str, Any])
     """
     Stores all globals in the current Python program, including imports. This is
     useful because we can lookup a class which corresponds to the type
     annotation without explicitly constructing it.
     """
 
-    type_names: dict[TypeName, type] = field(default_factory=dict)
+    type_names: dict[TypeName, type] = field(default_factory=dict[TypeName, type])
     """Mappings from source type names to source types."""
 
     type_registry: TypeRegistry = field(default_factory=TypeRegistry)
     """Mappings between source code and ir type, indexed by name."""
 
-    function_registry: FunctionRegistry = field(default_factory=dict)
+    function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between methods on objects and their operations."""
 
-    name_to_xdsl_type_map: dict[TypeName, Attribute] = field(default_factory=dict)
+    name_to_xdsl_type_map: dict[TypeName, Attribute] = field(
+        default_factory=dict[TypeName, Attribute]
+    )
     """
     Map to cache xDSL types created so far to avoid repeated conversions.
     """
 
     xdsl_to_frontend_type_map: dict[type[Attribute], type[_FrontendType]] = field(
-        default_factory=dict
+        default_factory=dict[type[Attribute], type[_FrontendType]]
     )
     """
     Map to lookup frontend types based on xDSL type. Useful if we want to see
