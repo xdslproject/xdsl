@@ -1,8 +1,10 @@
 import pytest
 
-from xdsl.dialects.builtin import StringAttr, i32
-from xdsl.ir import Block, BlockArgument, SSAValue
+from xdsl.dialects.builtin import StringAttr, i32, i64
+from xdsl.ir import Block, BlockArgument, Operation, SSAValue
 from xdsl.irdl import IRDLOperation, irdl_op_definition, result_def
+from xdsl.rewriter import Rewriter
+from xdsl.utils.test_value import TestSSAValue
 
 
 @irdl_op_definition
@@ -59,3 +61,33 @@ def test_invalid_ssa_vals(name: str):
     val = BlockArgument(i32, Block(), 0)
     with pytest.raises(ValueError):
         val.name_hint = name
+
+
+def test_rewrite_type():
+    """We can rewrite the type of a test SSA value."""
+    val = TestSSAValue(i32)
+    rewriter = Rewriter()
+    new_val = rewriter.replace_value_with_new_type(val, i64)
+    assert val.type == i32
+    assert new_val.type == i64
+
+
+def test_replace_type():
+    class InvalidValue(SSAValue):
+        @property
+        def owner(self) -> Operation | Block:
+            """
+            An SSA variable is either an operation result, or a basic block argument.
+            This property returns the Operation or Block that currently defines a specific value.
+            """
+            ...
+
+    val = InvalidValue(i32)
+
+    rewriter = Rewriter()
+
+    with pytest.raises(
+        ValueError,
+        match="Expected OpResult or BlockArgument, got InvalidValue",
+    ):
+        rewriter.replace_value_with_new_type(val, i32)

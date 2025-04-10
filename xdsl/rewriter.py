@@ -201,7 +201,9 @@ class Rewriter:
                 *args[index + 1 :],
             )
         else:
-            raise ValueError(f"Expected OpResult or BlockArgument, got {val}")
+            raise ValueError(
+                f"Expected OpResult or BlockArgument, got {type(val).__name__}"
+            )
 
         new_value.name_hint = val.name_hint
         val.replace_by(new_value)
