@@ -1074,7 +1074,7 @@ source = { git = "https://github.com/superlopuh/lz-string.git#d435be09f8aa454ce0
 
 [[package]]
 name = "marimo"
-version = "0.12.6"
+version = "0.12.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1096,9 +1096,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/a4/08fba777f600a5e5b7d42dc6b504ec941712c5dcf630aa0cf08383d26b40/marimo-0.12.6.tar.gz", hash = "sha256:ad399e5c84791b2f8fc51e6ae7d971036ffc392d90855f1ff722abcf6e0fd4ae", size = 10722912 }
+sdist = { url = "https://files.pythonhosted.org/packages/0d/cb/b3ae58a47f81eb34683cfc6756f10fcbdb3d86364e959d28f475ae0014f5/marimo-0.12.7.tar.gz", hash = "sha256:4cc5c2099db9896ea157f9b442b794c955044fbd049af35059f3d7b59c664296", size = 10724685 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/3f/872a5be721218e6b1bbac0cf5ccf5a692b5dd179c9f6811976f512ca6ad3/marimo-0.12.6-py3-none-any.whl", hash = "sha256:c866f54f54458a3226b69cfa5dd4509c84b387910441b4f24e8a69ac15df43c5", size = 11078570 },
+    { url = "https://files.pythonhosted.org/packages/c5/13/660c3e496ecb18f4958e719c3653f61ff72cd082d17f2e63dce440c642c8/marimo-0.12.7-py3-none-any.whl", hash = "sha256:f47974b4b957f8addf9398ee08b1d091d190c553fa49128006f6cac098d574b2", size = 11081231 },
 ]
 
 [[package]]
@@ -3160,7 +3160,7 @@ requires-dist = [
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.5.3" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
     { name = "lzstring2", marker = "extra == 'docs'", git = "https://github.com/superlopuh/lz-string.git" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.12.6" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.12.7" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.1" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.49" },
