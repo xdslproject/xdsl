@@ -1540,9 +1540,12 @@ class XoriOp(RdRsImmIntegerOperation):
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import ShiftLeftImmediate
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftLeftbyZero,
+            ShiftLeftImmediate,
+        )
 
-        return (ShiftLeftImmediate(),)
+        return (ShiftLeftImmediate(), ShiftLeftbyZero())
 
 
 @irdl_op_definition
