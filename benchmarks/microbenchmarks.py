@@ -35,6 +35,19 @@ class HasTraitAOp(IRDLOperation):
     traits = traits_def(TraitA())
 
 
+NUM_CONSTRUCTED_TRAITS = 100
+for i in range(NUM_CONSTRUCTED_TRAITS):
+    exec(f"class Trait{i}(OpTrait): pass")
+
+
+@irdl_op_definition
+class HasManyTraitOp(IRDLOperation):
+    """An operation which has many traits."""
+
+    name = "has_trait_a"
+    traits = traits_def(*[eval(f"Trait{i}()") for i in range(NUM_CONSTRUCTED_TRAITS)])
+
+
 class IRTraversal:
     """Benchmark the time to traverse xDSL IR."""
 
@@ -63,7 +76,7 @@ class IRTraversal:
         ```
         """
         for op in IRTraversal.EXAMPLE_OPS:
-            assert op
+            op  # pyright: ignore[reportUnusedExpression]
 
     def time_iterate_block_ops(self) -> None:
         """Time directly iterating over the linked list of a block's operations.
@@ -86,7 +99,7 @@ class IRTraversal:
         ```
         """
         for op in IRTraversal.EXAMPLE_BLOCK.ops:
-            assert op
+            op  # pyright: ignore[reportUnusedExpression]
 
     def time_walk_block_ops(self) -> None:
         """Time walking a block's operations.
@@ -107,13 +120,19 @@ class IRTraversal:
         ```
         """
         for op in IRTraversal.EXAMPLE_BLOCK.walk():
-            assert op
+            op  # pyright: ignore[reportUnusedExpression]
 
 
 class Extensibility:
     """Benchmark the time to check interface and trait properties."""
 
+    EMPTY_OP = EmptyOp()
     HAS_TRAIT_A_OP = HasTraitAOp()
+    HAS_MANY_TRAIT_OP = HasManyTraitOp()
+
+    def time_interface_check_trait(self) -> None:
+        """Time checking the class hierarchy of a trait."""
+        isinstance(Extensibility.HAS_TRAIT_A_OP, HasTraitAOp)  # pyright: ignore[reportUnnecessaryIsInstance]
 
     def time_interface_check(self) -> None:
         """Time checking the class hierarchy of an operation.
@@ -136,7 +155,7 @@ class Extensibility:
         }
         ```
         """
-        assert isinstance(Extensibility.HAS_TRAIT_A_OP, HasTraitAOp)
+        isinstance(Extensibility.EMPTY_OP, EmptyOp)  # pyright: ignore[reportUnnecessaryIsInstance]
 
     def time_trait_check(self) -> None:
         """Time checking the trait of an operation.
@@ -159,7 +178,13 @@ class Extensibility:
         }
         ```
         """
-        assert Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
+        Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
+
+    def time_trait_check_many(self) -> None:
+        """Time checking the trait of an operation with many traits."""
+        Extensibility.HAS_MANY_TRAIT_OP.has_trait(
+            Trait0()  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownArgumentType]
+        )
 
     def time_trait_check_neg(self) -> None:
         """Time checking the trait of an operation.
@@ -182,7 +207,7 @@ class Extensibility:
         }
         ```
         """
-        assert not Extensibility.HAS_TRAIT_A_OP.has_trait(TraitB)
+        Extensibility.HAS_TRAIT_A_OP.has_trait(TraitB)
 
 
 class OpCreation:
@@ -263,10 +288,16 @@ if __name__ == "__main__":
                 IR_TRAVERSAL.time_iterate_block_ops
             ),
             "IRTraversal.walk_block_ops": Benchmark(IR_TRAVERSAL.time_walk_block_ops),
+            "Extensibility.interface_check_trait": Benchmark(
+                EXTENSIBILITY.time_interface_check_trait
+            ),
             "Extensibility.interface_check": Benchmark(
                 EXTENSIBILITY.time_interface_check
             ),
             "Extensibility.trait_check": Benchmark(EXTENSIBILITY.time_trait_check),
+            "Extensibility.trait_check_many": Benchmark(
+                EXTENSIBILITY.time_trait_check_many
+            ),
             "Extensibility.trait_check_neg": Benchmark(
                 EXTENSIBILITY.time_trait_check_neg
             ),
