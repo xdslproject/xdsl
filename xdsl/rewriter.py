@@ -14,7 +14,6 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.utils.test_value import TestSSAValue
 
 
 @dataclass(frozen=True)
@@ -202,8 +201,7 @@ class Rewriter:
                 *args[index + 1 :],
             )
         else:
-            assert isinstance(val, TestSSAValue)
-            new_value = TestSSAValue(new_type)
+            raise ValueError(f"Expected OpResult or BlockArgument, got {val}")
 
         new_value.name_hint = val.name_hint
         val.replace_by(new_value)

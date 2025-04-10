@@ -23,20 +23,20 @@ from xdsl.dialects.vector import (
     PrintOp,
     StoreOp,
 )
-from xdsl.ir import Attribute, OpResult
+from xdsl.ir import Attribute, OpResult, SSAValue
 from xdsl.utils.test_value import TestSSAValue
 
 
 def get_MemRef_SSAVal(
     referenced_type: Attribute, shape: list[int | IntAttr]
-) -> TestSSAValue:
+) -> SSAValue:
     memref_type = MemRefType(referenced_type, shape)
     return TestSSAValue(memref_type)
 
 
 def get_Vector_SSAVal(
     referenced_type: Attribute, shape: list[int | IntAttr]
-) -> TestSSAValue:
+) -> SSAValue:
     vector_type = VectorType(referenced_type, shape)
     return TestSSAValue(vector_type)
 
