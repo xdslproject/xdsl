@@ -111,8 +111,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
 
             if expected_index is None:
                 raise VerifyException(
-                    f"Invalid register name {name} for register set "
-                    f"{self.instruction_set_name()}."
+                    f"Invalid register name {name} for register type {self.name}."
                 )
             else:
                 raise VerifyException(
@@ -138,11 +137,6 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
             return
 
         raise VerifyException(f"Invalid index {self.index.data} for register {name}.")
-
-    @classmethod
-    @abstractmethod
-    def instruction_set_name(cls) -> str:
-        raise NotImplementedError()
 
     @classmethod
     @abstractmethod
