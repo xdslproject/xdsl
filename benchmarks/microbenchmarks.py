@@ -45,7 +45,22 @@ class IRTraversal:
     def time_iterate_ops(self) -> None:
         """Time directly iterating over a python list of operations.
 
-        Comparison with `for (Operation *op : /*std::vector*/ops) {`.
+        For comparison with the "How Slow is MLIR" testbench
+        `IRWalk/vectorTraveral`, implemented as:
+
+        ```
+        ctx->loadDialect<TestBenchDialect>();
+        OpBuilder b = OpBuilder::atBlockBegin(moduleOp->getBody());
+        SmallVector<Operation *> ops;
+        for (int j = 0; j < state.range(0); ++j) {
+            ops.push_back(b.create<EmptyOp>(unknownLoc));
+        }
+        for (auto _ : state) {
+            for (Operation *op : ops) {
+                benchmark::DoNotOptimize(op);
+            };
+        }
+        ```
         """
         for op in IRTraversal.EXAMPLE_OPS:
             assert op
@@ -53,7 +68,22 @@ class IRTraversal:
     def time_iterate_block_ops(self) -> None:
         """Time directly iterating over the linked list of a block's operations.
 
-        Comparison with `for (Operation &op : *block) {`.
+        For comparison with the "How Slow is MLIR" testbench
+        `IRWalk/blockTraveral`, implemented as:
+
+        ```
+        ctx->loadDialect<TestBenchDialect>();
+        OpBuilder b = OpBuilder::atBlockBegin(moduleOp->getBody());
+        for (int j = 0; j < state.range(0); ++j) {
+            b.create<EmptyOp>(unknownLoc);
+        }
+        Block *block = moduleOp->getBody();
+        for (auto _ : state) {
+            for (Operation &op : *block) {
+                benchmark::DoNotOptimize(&op);
+            };
+        }
+        ```
         """
         for op in IRTraversal.EXAMPLE_BLOCK.ops:
             assert op
@@ -61,8 +91,20 @@ class IRTraversal:
     def time_walk_block_ops(self) -> None:
         """Time walking a block's operations.
 
-        Comparison with `block->walk([](Operation *op) {});` with no region in
-        the IR.
+        For comparison with the "How Slow is MLIR" testbench
+        `IRWalk/blockTraveral`, implemented as:
+
+        ```
+        ctx->loadDialect<TestBenchDialect>();
+        OpBuilder b = OpBuilder::atBlockBegin(moduleOp->getBody());
+        for (int j = 0; j < state.range(0); ++j) {
+            b.create<EmptyOp>(unknownLoc);
+        }
+        Block *block = moduleOp->getBody();
+        for (auto _ : state) {
+            block->walk([](Operation *op) { benchmark::DoNotOptimize(&op); });
+        }
+        ```
         """
         for op in IRTraversal.EXAMPLE_BLOCK.walk():
             assert op
@@ -76,25 +118,69 @@ class Extensibility:
     def time_interface_check(self) -> None:
         """Time checking the class hierarchy of an operation.
 
-        Indirect comparison with `assert( dyn_cast<OpT>(op) )`.
+        For comparison with the "How Slow is MLIR" testbench
+        `IRWalk/vectorTraveralOpCastSuccess`, implemented as:
 
-        This is not a direct comparison as xDSL does not use the
-        class hierarchy to express interface functionality, but is interesting
-        to compare `isinstance` with `dyn_cast` in context.
+        ```
+        ctx->loadDialect<TestBenchDialect>();
+        OpBuilder b = OpBuilder::atBlockBegin(moduleOp->getBody());
+        SmallVector<Operation *> ops;
+        for (int j = 0; j < state.range(0); ++j) {
+            ops.push_back(b.create<EmptyOp>(unknownLoc));
+        }
+        for (auto _ : state) {
+            for (Operation *op : ops) {
+                auto casted = dyn_cast<EmptyOp>(op);
+                benchmark::DoNotOptimize(&casted);
+            };
+        }
+        ```
         """
         assert isinstance(Extensibility.HAS_TRAIT_A_OP, HasTraitAOp)
 
     def time_trait_check(self) -> None:
         """Time checking the trait of an operation.
 
-        Comparison with `assert( op->hasTrait<TraitT>(op) )`.
+        For comparison with the "How Slow is MLIR" testbench
+        `IRWalk/vectorTraveralOpTraitSuccess`, implemented as:
+
+        ```
+        ctx->loadDialect<TestBenchDialect>();
+        OpBuilder b = OpBuilder::atBlockBegin(moduleOp->getBody());
+        SmallVector<Operation *> ops;
+        for (int j = 0; j < state.range(0); ++j) {
+            ops.push_back(b.create<OpWithRegion>(unknownLoc));
+        }
+        for (auto _ : state) {
+            for (Operation *op : ops) {
+                bool hasTrait = op->hasTrait<OpTrait::SingleBlock>();
+                benchmark::DoNotOptimize(&hasTrait);
+            };
+        }
+        ```
         """
         assert Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
 
     def time_trait_check_neg(self) -> None:
         """Time checking the trait of an operation.
 
-        Comparison with `assert( ! op->hasTrait<TraitT>(op) )`.
+        For comparison with the "How Slow is MLIR" testbench
+        `IRWalk/vectorTraveralOpTraitFail`, implemented as:
+
+        ```
+        ctx->loadDialect<TestBenchDialect>();
+        OpBuilder b = OpBuilder::atBlockBegin(moduleOp->getBody());
+        SmallVector<Operation *> ops;
+        for (int j = 0; j < state.range(0); ++j) {
+            ops.push_back(b.create<EmptyOp>(unknownLoc));
+        }
+        for (auto _ : state) {
+            for (Operation *op : ops) {
+                bool hasTrait = op->hasTrait<OpTrait::SingleBlock>();
+                benchmark::DoNotOptimize(&hasTrait);
+            };
+        }
+        ```
         """
         assert not Extensibility.HAS_TRAIT_A_OP.has_trait(TraitB)
 
@@ -107,19 +193,59 @@ class OpCreation:
     def time_operation_create(self) -> None:
         """Time creating an empty operation.
 
-        Comparison with `OperationState opState(unknownLoc, "testbench.empty");
-        Operation::create(opState)`.
+        For comparison with the "How Slow is MLIR" testbench
+        `CreateOps/hoistedOpState`, implemented as:
+
+        ```
+        OperationState opState(unknownLoc, "testbench.empty");
+        for (auto _ : state) {
+            for (int j = 0; j < state.range(0); ++j)
+                Operation::create(opState);
+        }
+        ```
         """
         EmptyOp.create()
 
     def time_operation_build(self) -> None:
-        """Time building an empty operation."""
+        """Time building an empty operation.
+
+        For comparison with the "How Slow is MLIR" testbench
+        `CreateOps/llvm_withInsertRegistered`, implemented as:
+
+        ```
+        auto module = std::make_unique<llvm::Module>("MyModule", ctx);
+        auto *fTy = llvm::FunctionType::get(llvm::Type::getVoidTy(ctx), false);
+        auto *func = llvm::Function::Create(fTy, llvm::Function::ExternalLinkage,
+                                            "", module.get());
+        auto *block = llvm::BasicBlock::Create(ctx, "", func);
+        llvm::IRBuilder<> builder(block);
+        for (auto _ : state) {
+            for (int j = 0; j < state.range(0); ++j)
+                builder.CreateUnreachable();
+        }
+        ```
+        """
         EmptyOp.build()
 
     def time_operation_clone(self) -> None:
         """Time cloning an empty operation.
 
-        Comparison with `OwningOpRef<ModuleOp> moduleClone = moduleOp->clone();`.
+        For comparison with the "How Slow is MLIR" testbench `Cloning/cloneOps`,
+        implemented as:
+
+        ```
+        ctx->loadDialect<TestBenchDialect>();
+        OpBuilder b = OpBuilder::atBlockBegin(moduleOp->getBody());
+        // Create a bunch of ops that have operands.
+        Value operand = moduleOp->getBody()->addArgument(b.getI32Type(), unknownLoc);
+        for (int i = 0; i < state.range(0); ++i) {
+            operand = b.create<PassthroughOp>(unknownLoc, b.getI32Type(), operand);
+        }
+        for (auto _ : state) {
+            OwningOpRef<ModuleOp> moduleClone = moduleOp->clone();
+            benchmark::DoNotOptimize(moduleClone.get());
+        }
+        ```
         """
         OpCreation.CONSTANT_OPERATION.clone()
 
