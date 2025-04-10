@@ -73,7 +73,7 @@ class WorkloadBuilder:
     @classmethod
     def large_dense_attr(cls, x: int = 1024, y: int = 1024) -> str:
         """Get the MLIR text representation of a large dense attr."""
-        return cls.large_dense_attr_module.__str__()
+        return cls.large_dense_attr_module(x=x, y=y).__str__()
 
     @classmethod
     def large_dense_attr_module(cls, x: int = 1024, y: int = 1024) -> ModuleOp:
