@@ -155,7 +155,7 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
 
 
 @app.cell
-def _(input_module, xmo):
+def _(Parser, ctx, xmo):
     output_str = """
     func.func @hello_2() {
         %c0 = arith.constant 0 : index
@@ -169,8 +169,8 @@ def _(input_module, xmo):
           scf.for %jo = %c0 to %c200 step %c5 {
               scf.for %il = %c0 to %c4 step %c1 {
                   scf.for %jl = %c0 to %c5 step %c1 {
-                      %i2 = io + il
-                      %j2 = jo + jl
+                      %i2 = arith.addi %io, %il : index
+                      %j2 = arith.addi %jo, %jl : index
                       "test.op"(%i2, %j2) : (index, index) -> ()
                   }
               }
@@ -180,8 +180,9 @@ def _(input_module, xmo):
     }
     """
 
-    xmo.module_html(input_module)
-    return (output_str,)
+    output_module = Parser(ctx, output_str).parse_module()
+    xmo.module_html(output_module)
+    return output_module, output_str
 
 
 if __name__ == "__main__":
