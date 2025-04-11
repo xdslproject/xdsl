@@ -6,16 +6,13 @@ func.func @test(%x : index) -> (index) {
     func.return %res : index
 }
 
-// CHECK:     builtin.module {
-// CHECK-NEXT:     func.func @test(%x : index) -> index {
-// CHECK-NEXT:       %0 = "eqsat.egraph"() ({
-// CHECK-NEXT:         %x_1 = eqsat.eclass %x : index
-// CHECK-NEXT:         %c2 = arith.constant 2 : index
-// CHECK-NEXT:         %c2_1 = eqsat.eclass %c2 : index
-// CHECK-NEXT:         %res = arith.muli %x_1, %c2_1 : index
-// CHECK-NEXT:         %res_1 = eqsat.eclass %res : index
-// CHECK-NEXT:         "eqsat.yield"(%res_1) : (index) -> ()
-// CHECK-NEXT:       }) : () -> index
-// CHECK-NEXT:       func.return %0 : index
-// CHECK-NEXT:     }
+// CHECK:      func.func @test(%x : index) -> index {
+// CHECK-NEXT:   %c2 = arith.constant 2 : index
+// CHECK-NEXT:   %res = eqsat.egraph -> index {
+// CHECK-NEXT:     %x_1 = eqsat.eclass %x : index
+// CHECK-NEXT:     %res_1 = arith.muli %x_1, %c2 : index
+// CHECK-NEXT:     %res_2 = eqsat.eclass %res_1 : index
+// CHECK-NEXT:     eqsat.yield %res_2 : index
 // CHECK-NEXT:   }
+// CHECK-NEXT:   func.return %res : index
+// CHECK-NEXT: }
