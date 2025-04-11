@@ -141,6 +141,50 @@ class ConvertLoadOp(RewritePattern):
 
 
 @dataclass
+class ConvertSubviewOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
+        assert isinstance(op_memref_type := op.source.type, memref.MemRefType)
+
+        memref_type = cast(memref.MemRefType[Any], op_memref_type)
+        static_offsets = cast(tuple[int, ...], op.static_offsets.get_values())
+        offsets = cast(list[SSAValue], [])
+
+        for idx, offset in enumerate(static_offsets):
+            if offset == memref.SubviewOp.DYNAMIC_INDEX:
+                offsets.append(op.offsets[idx])
+            else:
+                rewriter.insert_op_before_matched_op(
+                    const_op := arith.ConstantOp(
+                        builtin.IntegerAttr(offset, builtin.IndexType())
+                    )
+                )
+                offsets.append(const_op.result)
+
+        # We can treat a subview as getting a pointer to the first element in the subview.
+        ops, target_ptr = get_target_ptr(op.source, memref_type, offsets)
+
+        rewriter.replace_matched_op(
+            (
+                *ops,
+                cast_op := builtin.UnrealizedConversionCastOp.get(
+                    [target_ptr], [op.result.type]
+                ),
+            )
+        )
+        op.result.replace_by(cast_op.results[0])
+
+
+@dataclass
+class ConvertReinterpretCastOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: memref.ReinterpretCastOp, rewriter: PatternRewriter, /
+    ):
+        rewriter.erase_matched_op()
+
+
+@dataclass
 class LowerMemRefFuncOpPattern(RewritePattern):
     """
     Rewrites function arguments of MemRefType to PtrType.
@@ -259,7 +303,14 @@ class ConvertMemRefToPtr(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()])
+            GreedyRewritePatternApplier(
+                [
+                    ConvertStoreOp(),
+                    ConvertLoadOp(),
+                    ConvertSubviewOp(),
+                    ConvertReinterpretCastOp(),
+                ]
+            )
         ).rewrite_module(op)
 
         if self.lower_func:
