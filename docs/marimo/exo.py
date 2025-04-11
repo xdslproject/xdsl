@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.12.6"
+__generated_with = "0.12.7"
 app = marimo.App(width="medium")
 
 
@@ -10,8 +10,8 @@ def _():
     from xdsl.utils import marimo as xmo
     from xdsl.parser import Parser
     from xdsl.context import Context
-    from xdsl.dialects import arith, func, test, scf, builtin
-    return Context, Parser, arith, builtin, func, mo, scf, test, xmo
+    from xdsl.dialects import arith, func, test, scf, builtin, memref
+    return Context, Parser, arith, builtin, func, memref, mo, scf, test, xmo
 
 
 @app.cell(hide_code=True)
@@ -21,7 +21,7 @@ def _(mo):
 
 
 @app.cell
-def _(Context, arith, builtin, func, scf, test):
+def _(Context, arith, builtin, func, memref, scf, test):
     ctx = Context()
 
     ctx.load_dialect(arith.Arith)
@@ -29,25 +29,31 @@ def _(Context, arith, builtin, func, scf, test):
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(scf.Scf)
     ctx.load_dialect(test.Test)
+    ctx.load_dialect(memref.MemRef)
     return (ctx,)
 
 
 @app.cell
 def _(Parser, ctx, xmo):
     input_str = """
-    func.func @hello() {
+      func.func @matmul(%A : memref<512x512xf32>, %B : memref<512x512xf32>, %C : memref<512x512xf32>) {
         %c0 = arith.constant 0 : index
-        %c100 = arith.constant 100 : index
         %c1 = arith.constant 1 : index
-        %c200 = arith.constant 200 : index
-
-        scf.for %i = %c0 to %c100 step %c1 {
-          scf.for %j = %c0 to %c200 step %c1 {
-              "test.op"(%i, %j) : (index, index) -> ()
+        %c512 = arith.constant 512 : index
+        scf.for %i = %c0 to %c512 step %c1 {
+          scf.for %j = %c0 to %c512 step %c1 {
+            scf.for %k = %c0 to %c512 step %c1 {
+              %a = memref.load %A[%i, %k] : memref<512x512xf32>
+              %b = memref.load %B[%k, %j] : memref<512x512xf32>
+              %acc_old = memref.load %C[%i, %j] : memref<512x512xf32>
+              %prod = arith.mulf %a, %b : f32
+              %acc_new = arith.addf %acc_old, %prod : f32
+              memref.store %acc_new, %C[%i, %j] : memref<512x512xf32>
+            }
           }
         }
         func.return
-    }
+      }
     """
 
     input_module = Parser(ctx, input_str).parse_module()
@@ -120,13 +126,43 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
         r.replace_op(cursor, outer_loop, new_results=())
 
 
+    # TODO: reorder_loops does not check the commutativity of the body of the K loop. It needs to be asserted from the user.
+    def reorder_loops(module : ModuleOp, cursor : Operation):
+        r = Rewriter()
+
+        # cursor must be a loop
+        assert isinstance(cursor, scf.ForOp)
+        # body of the outer loop should be size 1. Loops must be perfectly nested
+        assert len(cursor.body.block.ops) == 2
+        assert isinstance(cursor.body.block.first_op, scf.ForOp)
+
+        o_loop = cursor
+        i_loop = cursor.body.block.first_op
+
+        # check that inner loop bounds does not depend on the outer loop iteration variable
+        # actually we can just check if they're constant or not
+        assert isinstance(i_loop.ub.owner, arith.ConstantOp)
+        assert isinstance(i_loop.lb.owner, arith.ConstantOp)
+
+        new_body = r.move_region_contents_to_new_regions(i_loop.body)
+        new_i_loop = scf.ForOp(o_loop.lb, o_loop.ub, o_loop.step, (), new_body)
+        outer_body  = Region(Block([new_i_loop], arg_types=(cursor.body.block.args[0].type,)))
+        new_o_loop = scf.ForOp(i_loop.lb, i_loop.ub, i_loop.step, (), outer_body)
+        r.replace_op(cursor, new_o_loop)
+
+
     print("IR before split")
     Printer().print_op(input_module)
     _module =input_module.clone()
 
     cursors = find(_module, "scf.for") # this should be loops
-    split(_module, cursors[0], 10) # split the loop cursors[0] is pointing to by 8
-    split(_module, cursors[1], 20)
+    # split(_module, cursors[0], 10) # split the loop cursors[0] is pointing to by 8
+    # split(_module, cursors[1], 20)
+    reorder_loops(_module, cursors[0])
+
+    print("\n")
+    print("IR after split")
+    Printer().print_op(_module)
 
     # TODO: think about moving the statement outside and inside the loop
     # think about the safety condition of the reordering the loop
@@ -134,10 +170,6 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
     # safety checks for move and reorder_loops
     # 1. check all the statments inside the loop are pure
     # 2. call the verifier to check that there's no use of register before its definition
-
-    print("\n")
-    print("IR after split")
-    Printer().print_op(_module)
     return (
         Block,
         InsertPoint,
@@ -150,6 +182,7 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
         cursors,
         dataclass,
         op_type_rewrite_pattern,
+        reorder_loops,
         split,
     )
 
