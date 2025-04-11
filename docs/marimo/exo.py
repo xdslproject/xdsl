@@ -1,7 +1,19 @@
 import marimo
 
-__generated_with = "0.12.7"
+__generated_with = "0.12.8"
 app = marimo.App(width="medium")
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        # Exo-Style Scheduling in xDSL
+
+        Applying 2D tiling on matrix multiplication.
+        """
+    )
+    return
 
 
 @app.cell
@@ -29,18 +41,6 @@ def _():
     )
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-        # Exo-Style Scheduling in xDSL
-
-        It works.
-        """
-    )
-    return
-
-
 @app.cell
 def _(Context, arith, builtin, func, memref, scf, test):
     ctx = Context()
@@ -56,6 +56,8 @@ def _(Context, arith, builtin, func, memref, scf, test):
 
 @app.cell
 def _(Parser, ctx, xmo):
+    # Input matmul function
+
     input_str = """
       func.func @matmul(%A : memref<512x512xf32>, %B : memref<512x512xf32>, %C : memref<512x512xf32>) {
         %c0 = arith.constant 0 : index
@@ -83,62 +85,10 @@ def _(Parser, ctx, xmo):
     return input_module, input_str
 
 
-@app.cell(hide_code=True)
-def _(Parser, ctx, xmo):
-    input_one_str = """
-    func.func @hello() -> index {
-        %c0 = arith.constant 0 : index
-        %c100 = arith.constant 100 : index
-        %c1 = arith.constant 1 : index
-        %c200 = arith.constant 200 : index
-        %acc_init = arith.constant 0 : index
-
-        %res = scf.for %i = %c0 to %c100 step %c1 iter_args(%acc_in = %acc_init) -> (index) {
-            %acc_out = arith.addi %acc_in, %i : index
-            scf.yield %acc_out : index
-        }
-        func.return %res : index
-    }
-    """
-
-    input_one_module = Parser(ctx, input_one_str).parse_module()
-    input_one_module.verify()
-    xmo.module_html(input_one_module)
-    return input_one_module, input_one_str
-
-
-@app.cell(hide_code=True)
-def _(Parser, ctx, xmo):
-    output_one_str = """
-    func.func @hello() -> index {
-        %c0 = arith.constant 0 : index
-        %c100 = arith.constant 100 : index
-        %c1 = arith.constant 1 : index
-        %c200 = arith.constant 200 : index
-        %acc_init = arith.constant 0 : index
-        %c5 = arith.constant 5 : index
-
-        %res_o = scf.for %io = %c0 to %c100 step %c5 iter_args(%acc_in_o = %acc_init) -> (index) {
-          %acc_out_o = scf.for %ii = %c0 to %c5 step %c1 iter_args(%acc_in_i = %acc_in_o) -> (index) {
-              %i = arith.addi %io, %ii : index
-              %acc_out_i = arith.addi %acc_in_i, %i : index
-              scf.yield %acc_out_i : index
-          }
-          scf.yield %acc_out_o : index
-        }
-        func.return %res_o : index
-
-    }
-    """
-
-    output_one_module = Parser(ctx, output_one_str).parse_module()
-    output_one_module.verify()
-    xmo.module_html(output_one_module)
-    return output_one_module, output_one_str
-
-
 @app.cell
 def _(input_module):
+    # Exo-like "find" function for getting a reference to an operation by pattern matching
+
     from xdsl.dialects.builtin import ModuleOp
 
     # TODO: needs more sophisticated pattern language not just string match
@@ -150,18 +100,7 @@ def _(input_module):
 
 
 @app.cell
-def _(
-    CanonicalizePass,
-    ModuleOp,
-    ScfForLoopRangeFoldingPass,
-    arith,
-    builtin,
-    ctx,
-    find,
-    func,
-    input_module,
-    scf,
-):
+def _():
     from typing import cast
 
     from xdsl.printer import Printer
@@ -172,9 +111,39 @@ def _(
         op_type_rewrite_pattern,
     )
     from dataclasses import dataclass
+    return (
+        Block,
+        InsertPoint,
+        OpResult,
+        Operation,
+        Printer,
+        Region,
+        Rewriter,
+        cast,
+        dataclass,
+        op_type_rewrite_pattern,
+    )
 
 
-    def split(module : ModuleOp, cursor: Operation, div_const: int): # cursor is just an Operation for now. We need something better when we support forwarding
+@app.cell
+def _(
+    Block,
+    InsertPoint,
+    ModuleOp,
+    Operation,
+    Region,
+    Rewriter,
+    arith,
+    builtin,
+    func,
+    scf,
+):
+    # Implementation of the "split" primitive. The function signature mirrors Exo,
+    # taking a module (proc), a cursor, and a div_const. Module is mutable in MLIR so that's different.
+    # This split impelementation is at least sound
+
+    # TODO: cursor is just an Operation for now. We need something better when we support forwarding
+    def split(module : ModuleOp, cursor: Operation, div_const: int):
         r = Rewriter()
 
         assert isinstance(cursor, scf.ForOp)
@@ -230,8 +199,12 @@ def _(
             if inner_arg.name_hint is not None:
                 outer_arg.name_hint = inner_arg.name_hint + "_o"
                 inner_arg.name_hint += "_i"
+    return (split,)
 
 
+@app.cell
+def _(Block, ModuleOp, Operation, Region, Rewriter, arith, scf):
+    # Implementation of "reorder_loops"
     # TODO: reorder_loops does not check the commutativity of the body of the K loop. It needs to be asserted from the user.
     def reorder_loops(module : ModuleOp, cursor : Operation):
         r = Rewriter()
@@ -261,80 +234,40 @@ def _(
 
         for (old_outer, new_inner) in zip(o_loop.body.block.args, new_i_loop.body.block.args, strict=True):
             new_inner.name_hint = old_outer.name_hint
-
-    print("IR before split")
-    Printer().print_op(input_module)
-    _module =input_module.clone()
-
-    cursors = find(_module, "scf.for") # this should be loops
-    split(_module, cursors[0], 16) # split the loop cursors[0] is pointing to by 8
-    split(_module, cursors[1], 8)
-    ScfForLoopRangeFoldingPass().apply(ctx, _module)
-    CanonicalizePass().apply(ctx, _module)
-    io, ii, jo, ji, k = find(_module, "scf.for")
-    reorder_loops(_module, ii)
-
-    print("\n")
-    print("IR after split")
-    Printer().print_op(_module)
-
-    # TODO: think about moving the statement outside and inside the loop
-    # think about the safety condition of the reordering the loop
-
-    # safety checks for move and reorder_loops
-    # 1. check all the statments inside the loop are pure
-    # 2. call the verifier to check that there's no use of register before its definition
-    return (
-        Block,
-        InsertPoint,
-        OpResult,
-        Operation,
-        Printer,
-        Region,
-        Rewriter,
-        cast,
-        cursors,
-        dataclass,
-        ii,
-        io,
-        ji,
-        jo,
-        k,
-        op_type_rewrite_pattern,
-        reorder_loops,
-        split,
-    )
+    return (reorder_loops,)
 
 
 @app.cell
-def _(Parser, ctx, xmo):
-    output_str = """
-    func.func @hello_2() {
-        %c0 = arith.constant 0 : index
-        %c100 = arith.constant 100 : index
-        %c4 = arith.constant 4 : index
-        %c5 = arith.constant 5 : index
-        %c1 = arith.constant 1 : index
-        %c200 = arith.constant 200 : index
+def _(
+    CanonicalizePass,
+    Printer,
+    ScfForLoopRangeFoldingPass,
+    ctx,
+    find,
+    input_module,
+    reorder_loops,
+    split,
+):
+    # Tile 2D rewrite
 
-        scf.for %io = %c0 to %c100 step %c4 {
-          scf.for %jo = %c0 to %c200 step %c5 {
-              scf.for %il = %c0 to %c4 step %c1 {
-                  scf.for %jl = %c0 to %c5 step %c1 {
-                      %i2 = arith.addi %io, %il : index
-                      %j2 = arith.addi %jo, %jl : index
-                      "test.op"(%i2, %j2) : (index, index) -> ()
-                  }
-              }
-          }
-        }
-        func.return
-    }
-    """
+    print("IR before tiling:")
+    Printer().print_op(input_module)
+    _module =input_module.clone()
 
-    output_module = Parser(ctx, output_str).parse_module()
-    xmo.module_html(output_module)
-    return output_module, output_str
+    # ---- Scheduling code begin -----
+    cursors = find(_module, "scf.for") # this should be loops
+    split(_module, cursors[0], 16) # split the loop cursors[0] is pointing
+    split(_module, cursors[1], 8)
+    ScfForLoopRangeFoldingPass().apply(ctx, _module) # hack
+    CanonicalizePass().apply(ctx, _module) # hack
+    io, ii, jo, ji, k = find(_module, "scf.for")
+    reorder_loops(_module, ii)
+    # ---- Scheduling code end -----
+
+    print("\n")
+    print("IR after tiling:")
+    Printer().print_op(_module)
+    return cursors, ii, io, ji, jo, k
 
 
 if __name__ == "__main__":
