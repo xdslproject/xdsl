@@ -632,15 +632,23 @@ class VectorTransferOperation(ABC):
 def _infer_transfer_op_mask_type(
     vec_type: VectorType, perm_map: AffineMap
 ) -> VectorType[I1]:
+    print("vec_type", vec_type)
+    print("perm_map", perm_map)
     unused_dims = tuple(not dim for dim in perm_map.used_dims_bit_vector())
+    print("unused_dims", unused_dims)
+    print("compressed", perm_map.compress_dims(unused_dims))
     inv_perm_map = perm_map.compress_dims(unused_dims).inverse_permutation()
     assert inv_perm_map is not None, "Inversed permutation map couldn't be computed"
     mask_shape = inv_perm_map.eval(vec_type.get_shape(), ())
+    print("mask_shape", mask_shape)
     scalable_dims = ArrayAttr(
         BoolAttr.from_bool(bool(b))
         for b in inv_perm_map.eval(vec_type.get_scalable_dims(), ())
     )
-    return VectorType(i1, mask_shape, scalable_dims)
+    print("scalable_dims", scalable_dims)
+    res = VectorType(i1, mask_shape, scalable_dims)
+    print("res", res)
+    return res
 
 
 def get_transfer_minor_identity_map(
@@ -655,8 +663,7 @@ def get_transfer_minor_identity_map(
     element_vector_rank = 0
     element_type = shaped_type.element_type
     if isa(element_type, VectorType):
-        element_vector_type = element_type
-        element_vector_rank += element_vector_type.get_num_dims()
+        element_vector_rank += element_type.get_num_dims()
 
     # 0-d transfers are to/from tensor<t>/memref<t> and vector<1xt>.
     # TODO: replace once we have 0-d vectors.
