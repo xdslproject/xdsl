@@ -154,7 +154,7 @@ def get_called_functions(
     sys.settrace(trace_calls)
     func()
     sys.settrace(None)
-    return list(zip(names, objs, depths))
+    return list(zip(names, objs, depths, strict=True))
 
 
 def print_bytecode(func: Callable[[], Any], indent: int = 4, repeats: bool = False):
