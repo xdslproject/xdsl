@@ -73,7 +73,7 @@ class WorkloadBuilder:
     @classmethod
     def large_dense_attr(cls, x: int = 1024, y: int = 1024) -> str:
         """Get the MLIR text representation of a large dense attr."""
-        return cls.large_dense_attr_module.__str__()
+        return cls.large_dense_attr_module(x=x, y=y).__str__()
 
     @classmethod
     def large_dense_attr_module(cls, x: int = 1024, y: int = 1024) -> ModuleOp:
@@ -115,22 +115,19 @@ class WorkloadBuilder:
         ```mlir
         "builtin.module"() ({
             %0 = "arith.constant"() <{
-                value = dense<0x000000000000000000> : tensor<3x3xi8>
+                value = dense<0xCD18FC9FB649438493> : tensor<3x3xi8>
             }> : () -> tensor<3x3xi8>
         }) : () -> ()
         """
         assert x >= 0
         assert y >= 0
         random.seed(RANDOM_SEED)
-        # In order to guarantee the hex value encodes a valid i8 tensor without
-        # significant logic coupled to the hex implementation, we set all values
-        # to zero. Each dense attr item is a byte is 2 hex chars, so we need
-        # x * y * 2 characters.
-        dense_attr_hex = "0" * x * y * 2
+        # Each dense attr item is a byte = 2 hex chars
+        dense_attr_hex = "".join(random.choice(HEX_CHARS) for _ in range(x * y * 2))
         ops = [
             (
                 '%0 = "arith.constant"() '
-                f"<{{value = dense<0x{dense_attr_hex}> "
+                f'<{{value = dense<"0x{dense_attr_hex}"> '
                 f": tensor<{x}x{y}xi8>}}> : () -> tensor<{x}x{y}xi8>"
             )
         ]
