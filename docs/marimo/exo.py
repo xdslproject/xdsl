@@ -31,7 +31,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Exo-Style Scheduling in xDSL""")
+    mo.md(
+        r"""
+        # Exo-Style Scheduling in xDSL
+
+        It works.
+        """
+    )
     return
 
 
@@ -255,8 +261,6 @@ def _(
 
         for (old_outer, new_inner) in zip(o_loop.body.block.args, new_i_loop.body.block.args, strict=True):
             new_inner.name_hint = old_outer.name_hint
-
-
 
     print("IR before split")
     Printer().print_op(input_module)
