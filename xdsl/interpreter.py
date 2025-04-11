@@ -30,16 +30,116 @@ from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
 
-_IMPL_OP_TYPE = "__impl_op_type"
-_CAST_IMPL_TYPES = "__cast_impl_types"
-_ATTR_IMPL_TYPES = "__attr_impl_types"
-_EXT_FUNC_NAME = "__external_func_name"
-_CALLABLE_OP_TYPE = "__callable_op_type"
-_IMPL_DICT = "__impl_dict"
-_CAST_IMPL_DICT = "__cast_impl_dict"
-_ATTR_IMPL_DICT = "__attr_impl_dict"
-_EXT_FUNC_DICT = "__external_func_dict"
-_CALLABLE_IMPL_DICT = "__callable_impl_dict"
+PythonValues: TypeAlias = tuple[Any, ...]
+"""
+A tuple of result values corresponding to the results of the operation being
+interpreted.
+"""
+
+
+class ReturnedValues(NamedTuple):
+    """
+    If the terminator exits the region being interpreted, such as for function returns,
+    return these values to yield control back to the parent operation of the block.
+    """
+
+    values: PythonValues
+
+
+class Successor(NamedTuple):
+    """
+    If the terminator jumps to another block within the region being interpreted, such
+    as for jumps, return a block along with the values to pass as arguments.
+    """
+
+    block: Block
+    args: PythonValues
+
+
+_FT = TypeVar("_FT", bound="InterpreterFunctions")
+
+TerminatorValue: TypeAlias = ReturnedValues | Successor
+"""
+A terminator operation either yields control to the parent operation or jumps to a
+successor.
+"""
+
+
+class OpImplResult(NamedTuple):
+    """
+    The result of interpreting an Operation. If and only if the Operation is a terminator,
+    it must set the terminator_value.
+    """
+
+    values: PythonValues
+    terminator_value: TerminatorValue | None
+
+
+NonTerminatorOpImpl: TypeAlias = Callable[
+    [_FT, "Interpreter", OperationInvT, PythonValues], PythonValues
+]
+
+TerminatorOpImpl: TypeAlias = Callable[
+    [_FT, "Interpreter", OperationInvT, PythonValues],
+    tuple[TerminatorValue, PythonValues],
+]
+
+OpImpl: TypeAlias = Callable[
+    [_FT, "Interpreter", OperationInvT, PythonValues], OpImplResult
+]
+
+
+# region : TypeAliases
+
+_AttributeInvT0 = TypeVar("_AttributeInvT0", bound=Attribute)
+_AttributeInvT1 = TypeVar("_AttributeInvT1", bound=Attribute)
+CastImpl: TypeAlias = Callable[
+    [_FT, _AttributeInvT0, _AttributeInvT1, Any],
+    Any,
+]
+AttrImpl: TypeAlias = Callable[
+    [_FT, "Interpreter", Attribute, AttributeInvT],
+    Any,
+]
+
+_ImplDict: TypeAlias = dict[type[Operation], OpImpl["InterpreterFunctions", Operation]]
+
+_CastImplDict: TypeAlias = dict[
+    tuple[type[Attribute], type[Attribute]],
+    CastImpl["InterpreterFunctions", Attribute, Attribute],
+]
+
+_AttrImplDict: TypeAlias = dict[
+    type[Attribute],
+    AttrImpl["InterpreterFunctions", TypeAttribute],
+]
+
+ExtFuncImpl: TypeAlias = Callable[
+    [_FT, "Interpreter", Operation, PythonValues],
+    PythonValues,
+]
+
+_ExtFuncImplDict: TypeAlias = dict[
+    str,
+    ExtFuncImpl["InterpreterFunctions"],
+]
+
+_CallableImplDict: TypeAlias = dict[
+    type[Operation], NonTerminatorOpImpl["InterpreterFunctions", Operation]
+]
+
+# endregion
+
+_IMPL_OP_TYPE_KEY = "__impl_op_type"
+_CAST_IMPL_TYPES_KEY = "__cast_impl_types"
+_ATTR_IMPL_TYPES_KEY = "__attr_impl_types"
+_EXT_FUNC_NAME_KEY = "__external_func_name"
+_CALLABLE_OP_TYPE_KEY = "__callable_op_type"
+_IMPL_DICT_KEY = "__impl_dict"
+_CAST_IMPL_DICT_KEY = "__cast_impl_dict"
+_ATTR_IMPL_DICT_KEY = "__attr_impl_dict"
+_EXT_FUNC_DICT_KEY = "__external_func_dict"
+_CALLABLE_IMPL_DICT_KEY = "__callable_impl_dict"
 
 
 @dataclass
@@ -103,7 +203,7 @@ class InterpreterFunctions:
         cls,
     ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctions, Operation]]]:
         try:
-            impl_dict = getattr(cls, _IMPL_DICT)
+            impl_dict = getattr(cls, _IMPL_DICT_KEY)
             return impl_dict.items()
         except AttributeError as e:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
@@ -118,7 +218,7 @@ class InterpreterFunctions:
         ]
     ]:
         try:
-            impl_dict = getattr(cls, _CAST_IMPL_DICT)
+            impl_dict = getattr(cls, _CAST_IMPL_DICT_KEY)
             return impl_dict.items()
         except AttributeError as e:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
@@ -133,7 +233,7 @@ class InterpreterFunctions:
         ]
     ]:
         try:
-            impl_dict = getattr(cls, _ATTR_IMPL_DICT)
+            impl_dict = getattr(cls, _ATTR_IMPL_DICT_KEY)
             return impl_dict.items()
         except AttributeError as e:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
@@ -143,7 +243,7 @@ class InterpreterFunctions:
         cls,
     ) -> Iterable[tuple[str, ExtFuncImpl[InterpreterFunctions]]]:
         try:
-            impl_dict = getattr(cls, _EXT_FUNC_DICT)
+            impl_dict = getattr(cls, _EXT_FUNC_DICT_KEY)
             return impl_dict.items()
         except AttributeError as e:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
@@ -153,13 +253,11 @@ class InterpreterFunctions:
         cls,
     ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctions, Operation]]]:
         try:
-            impl_dict = getattr(cls, _CALLABLE_IMPL_DICT)
+            impl_dict = getattr(cls, _CALLABLE_IMPL_DICT_KEY)
             return impl_dict.items()
         except AttributeError as e:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
 
-
-_FT = TypeVar("_FT", bound=InterpreterFunctions)
 
 P = ParamSpec("P")
 
@@ -190,7 +288,7 @@ def impl(
         ) -> OpImplResult:
             return OpImplResult(func(ft, interpreter, op, values), None)
 
-        setattr(impl, _IMPL_OP_TYPE, op_type)
+        setattr(impl, _IMPL_OP_TYPE_KEY, op_type)
         return impl
 
     return annot
@@ -221,7 +319,7 @@ def impl_terminator(
             successor, args = func(ft, interpreter, op, values)
             return OpImplResult(args, successor)
 
-        setattr(impl, _IMPL_OP_TYPE, op_type)
+        setattr(impl, _IMPL_OP_TYPE_KEY, op_type)
         return impl
 
     return annot
@@ -245,7 +343,7 @@ def impl_cast(
     def annot(
         func: CastImpl[_FT, _AttributeInvT0, _AttributeInvT1],
     ) -> CastImpl[_FT, _AttributeInvT0, _AttributeInvT1]:
-        setattr(func, _CAST_IMPL_TYPES, (input_type, output_type))
+        setattr(func, _CAST_IMPL_TYPES_KEY, (input_type, output_type))
         return func
 
     return annot
@@ -269,7 +367,7 @@ def impl_attr(
     """
 
     def annot(func: AttrImpl[_FT, AttributeInvT]) -> AttrImpl[_FT, AttributeInvT]:
-        setattr(func, _ATTR_IMPL_TYPES, input_type)
+        setattr(func, _ATTR_IMPL_TYPES_KEY, input_type)
         return func
 
     return annot
@@ -283,7 +381,7 @@ def impl_external(
     """
 
     def annot(func: ExtFuncImpl[_FT]) -> ExtFuncImpl[_FT]:
-        setattr(func, _EXT_FUNC_NAME, sym_name)
+        setattr(func, _EXT_FUNC_NAME_KEY, sym_name)
         return func
 
     return annot
@@ -304,7 +402,7 @@ def impl_callable(
     def annot(
         impl: NonTerminatorOpImpl[_FT, OperationInvT],
     ) -> NonTerminatorOpImpl[_FT, OperationInvT]:
-        setattr(impl, _CALLABLE_OP_TYPE, op_type)
+        setattr(impl, _CALLABLE_OP_TYPE_KEY, op_type)
         return impl
 
     return annot
@@ -329,42 +427,42 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
         # Iterate from subclass through superclasses
         # Assign definitions, unless they've been redefined in a subclass
         for val in cls.__dict__.values():
-            if _IMPL_OP_TYPE in val.__dir__():
+            if _IMPL_OP_TYPE_KEY in val.__dir__():
                 # This is an annotated operation implementation
-                op_type = getattr(val, _IMPL_OP_TYPE)
+                op_type = getattr(val, _IMPL_OP_TYPE_KEY)
                 if op_type not in impl_dict:
                     # subclass overrides superclass definition
                     impl_dict[op_type] = val
-            elif _CAST_IMPL_TYPES in val.__dir__():
+            elif _CAST_IMPL_TYPES_KEY in val.__dir__():
                 # This is an annotated cast implementation
-                types = getattr(val, _CAST_IMPL_TYPES)
+                types = getattr(val, _CAST_IMPL_TYPES_KEY)
                 if types not in cast_impl_dict:
                     # subclass overrides superclass definition
                     cast_impl_dict[types] = val
-            elif _EXT_FUNC_NAME in val.__dir__():
+            elif _EXT_FUNC_NAME_KEY in val.__dir__():
                 # This is an annotated external function
-                sym_name = getattr(val, _EXT_FUNC_NAME)
+                sym_name = getattr(val, _EXT_FUNC_NAME_KEY)
                 assert isinstance(sym_name, str)
                 if sym_name not in external_func_dict:
                     # subclass overrides superclass definition
                     external_func_dict[sym_name] = val
-            elif _ATTR_IMPL_TYPES in val.__dir__():
+            elif _ATTR_IMPL_TYPES_KEY in val.__dir__():
                 # This is an attribute value implementation
-                types = getattr(val, _ATTR_IMPL_TYPES)
+                types = getattr(val, _ATTR_IMPL_TYPES_KEY)
                 if types not in attr_impl_dict:
                     # subclass overrides superclass definition
                     attr_impl_dict[types] = val
-            elif _CALLABLE_OP_TYPE in val.__dir__():
-                op_type = getattr(val, _CALLABLE_OP_TYPE)
+            elif _CALLABLE_OP_TYPE_KEY in val.__dir__():
+                op_type = getattr(val, _CALLABLE_OP_TYPE_KEY)
                 if op_type not in callable_impl_dict:
                     # subclass overrides superclass definition
                     callable_impl_dict[op_type] = val
 
-    setattr(ft, _IMPL_DICT, impl_dict)
-    setattr(ft, _CAST_IMPL_DICT, cast_impl_dict)
-    setattr(ft, _ATTR_IMPL_DICT, attr_impl_dict)
-    setattr(ft, _EXT_FUNC_DICT, external_func_dict)
-    setattr(ft, _CALLABLE_IMPL_DICT, callable_impl_dict)
+    setattr(ft, _IMPL_DICT_KEY, impl_dict)
+    setattr(ft, _CAST_IMPL_DICT_KEY, cast_impl_dict)
+    setattr(ft, _ATTR_IMPL_DICT_KEY, attr_impl_dict)
+    setattr(ft, _EXT_FUNC_DICT_KEY, external_func_dict)
+    setattr(ft, _CALLABLE_IMPL_DICT_KEY, callable_impl_dict)
 
     return ft
 
@@ -801,78 +899,3 @@ class OpCounter(Interpreter.Listener):
 
     def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
         self.ops[op.name] += 1
-
-
-PythonValues: TypeAlias = tuple[Any, ...]
-
-
-class ReturnedValues(NamedTuple):
-    values: PythonValues
-
-
-class Successor(NamedTuple):
-    block: Block
-    args: PythonValues
-
-
-TerminatorValue: TypeAlias = ReturnedValues | Successor
-
-
-class OpImplResult(NamedTuple):
-    """
-    The result of interpreting an Operation. If and only if the Operation is a terminator,
-    it must set the terminator_value.
-    """
-
-    values: PythonValues
-    terminator_value: TerminatorValue | None
-
-
-NonTerminatorOpImpl: TypeAlias = Callable[
-    [_FT, Interpreter, OperationInvT, PythonValues], PythonValues
-]
-
-TerminatorOpImpl: TypeAlias = Callable[
-    [_FT, Interpreter, OperationInvT, PythonValues],
-    tuple[TerminatorValue, PythonValues],
-]
-
-OpImpl: TypeAlias = Callable[
-    [_FT, Interpreter, OperationInvT, PythonValues], OpImplResult
-]
-
-_AttributeInvT0 = TypeVar("_AttributeInvT0", bound=Attribute)
-_AttributeInvT1 = TypeVar("_AttributeInvT1", bound=Attribute)
-CastImpl: TypeAlias = Callable[
-    [_FT, _AttributeInvT0, _AttributeInvT1, Any],
-    Any,
-]
-AttrImpl: TypeAlias = Callable[
-    [_FT, Interpreter, Attribute, AttributeInvT],
-    Any,
-]
-
-_ImplDict: TypeAlias = dict[type[Operation], OpImpl[InterpreterFunctions, Operation]]
-
-_CastImplDict: TypeAlias = dict[
-    tuple[type[Attribute], type[Attribute]],
-    CastImpl[InterpreterFunctions, Attribute, Attribute],
-]
-_AttrImplDict: TypeAlias = dict[
-    type[Attribute],
-    AttrImpl[InterpreterFunctions, TypeAttribute],
-]
-
-ExtFuncImpl: TypeAlias = Callable[
-    [_FT, Interpreter, Operation, PythonValues],
-    PythonValues,
-]
-
-_ExtFuncImplDict: TypeAlias = dict[
-    str,
-    ExtFuncImpl[InterpreterFunctions],
-]
-
-_CallableImplDict: TypeAlias = dict[
-    type[Operation], NonTerminatorOpImpl[InterpreterFunctions, Operation]
-]
