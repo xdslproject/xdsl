@@ -57,8 +57,63 @@ def _(Parser, ctx, xmo):
     """
 
     input_module = Parser(ctx, input_str).parse_module()
+    input_module.verify()
     xmo.module_html(input_module)
     return input_module, input_str
+
+
+@app.cell(hide_code=True)
+def _(Parser, ctx, xmo):
+    input_one_str = """
+    func.func @hello() -> index {
+        %c0 = arith.constant 0 : index
+        %c100 = arith.constant 100 : index
+        %c1 = arith.constant 1 : index
+        %c200 = arith.constant 200 : index
+        %acc_init = arith.constant 0 : index
+
+        %res = scf.for %i = %c0 to %c100 step %c1 iter_args(%acc_in = %acc_init) -> (index) {
+            %acc_out = arith.addi %acc_in, %i : index
+            scf.yield %acc_out : index
+        }
+        func.return %res : index
+    }
+    """
+
+    input_one_module = Parser(ctx, input_one_str).parse_module()
+    input_one_module.verify()
+    xmo.module_html(input_one_module)
+    return input_one_module, input_one_str
+
+
+@app.cell(hide_code=True)
+def _(Parser, ctx, xmo):
+    output_one_str = """
+    func.func @hello() -> index {
+        %c0 = arith.constant 0 : index
+        %c100 = arith.constant 100 : index
+        %c1 = arith.constant 1 : index
+        %c200 = arith.constant 200 : index
+        %acc_init = arith.constant 0 : index
+        %c5 = arith.constant 5 : index
+
+        %res_o = scf.for %io = %c0 to %c100 step %c5 iter_args(%acc_in_o = %acc_init) -> (index) {
+          %acc_out_o = scf.for %ii = %c0 to %c5 step %c1 iter_args(%acc_in_i = %acc_in_o) -> (index) {
+              %i = arith.addi %io, %ii : index
+              %acc_out_i = arith.addi %acc_in_i, %i : index
+              scf.yield %acc_out_i : index
+          }
+          scf.yield %acc_out_o : index
+        }
+        func.return %res_o : index
+
+    }
+    """
+
+    output_one_module = Parser(ctx, output_one_str).parse_module()
+    output_one_module.verify()
+    xmo.module_html(output_one_module)
+    return output_one_module, output_one_str
 
 
 @app.cell
@@ -104,26 +159,42 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
         # check the step
         assert cursor.step.owner.value.value.data == 1
 
+        res_names = tuple(r.name_hint for r in cursor.results)
+
         step_op = arith.ConstantOp(builtin.IntegerAttr(div_const, cursor.step.type))
         r.insert_op(step_op, insertion_point=InsertPoint.before(cursor))
+        step_op.result.name_hint = f"c{div_const}"
 
         inner_body = r.move_region_contents_to_new_regions(cursor.body) # this is region
-        ii = inner_body.block.args[0]
-        ii.name_hint = "ii"
-        inner_loop = scf.ForOp(cursor.lb, step_op.result, cursor.step, (), inner_body)
+        ii, *iter_args_i = inner_body.block.args
 
-        outer_body = Region(Block([inner_loop], arg_types=(ii.type,)))
-        io = outer_body.block.args[0]
-        io.name_hint = "io"
+        outer_body = Region(Block(arg_types=(ii.type, *(val.type for val in iter_args_i))))
+        io, *iter_args_o = outer_body.block.args
 
-        outer_loop = scf.ForOp(cursor.lb, cursor.ub, step_op, [], outer_body)
-        new_i = arith.AddiOp(inner_body.block.args[0], outer_body.block.args[0])
+        inner_loop = scf.ForOp(cursor.lb, step_op.result, cursor.step, iter_args_o, inner_body)
+        for old, new_i_res in zip(res_names, inner_loop.results):
+            if old is not None:
+                new_i_res.name_hint = old + "_i"
+
+        r.insert_op(inner_loop, InsertPoint.at_start(outer_body.block))
+
+        print(outer_body.block)
+        outer_loop = scf.ForOp(cursor.lb, cursor.ub, step_op, cursor.iter_args, outer_body)
+        new_i = arith.AddiOp(ii, io)
         r.insert_op(new_i, insertion_point=InsertPoint.at_start(inner_body.block))
-        new_i.result.name_hint = "i"
-
+        if ii.name_hint is not None:
+            new_i.result.name_hint = ii.name_hint
         ii.replace_by_if(new_i.result, lambda val : val.operation != new_i)
 
-        r.replace_op(cursor, outer_loop, new_results=())
+        r.replace_op(cursor, outer_loop)
+        for old, new_o_res in zip(res_names, outer_loop.results):
+            if old is not None:
+                new_o_res.name_hint = old + "_o"
+
+        for (outer_arg, inner_arg) in zip(outer_body.block.args, inner_body.block.args, strict=True):
+            if inner_arg.name_hint is not None:
+                outer_arg.name_hint = inner_arg.name_hint + "_o"
+                inner_arg.name_hint += "_i"
 
 
     # TODO: reorder_loops does not check the commutativity of the body of the K loop. It needs to be asserted from the user.
@@ -156,9 +227,9 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
     _module =input_module.clone()
 
     cursors = find(_module, "scf.for") # this should be loops
-    # split(_module, cursors[0], 10) # split the loop cursors[0] is pointing to by 8
-    # split(_module, cursors[1], 20)
-    reorder_loops(_module, cursors[0])
+    split(_module, cursors[0], 16) # split the loop cursors[0] is pointing to by 8
+    # split(_module, cursors[1], 8)
+    #reorder_loops(_module, cursors[0])
 
     print("\n")
     print("IR after split")
@@ -188,7 +259,7 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
 
 
 @app.cell
-def _(input_module, xmo):
+def _(Parser, ctx, xmo):
     output_str = """
     func.func @hello_2() {
         %c0 = arith.constant 0 : index
@@ -202,8 +273,8 @@ def _(input_module, xmo):
           scf.for %jo = %c0 to %c200 step %c5 {
               scf.for %il = %c0 to %c4 step %c1 {
                   scf.for %jl = %c0 to %c5 step %c1 {
-                      %i2 = io + il
-                      %j2 = jo + jl
+                      %i2 = arith.addi %io, %il : index
+                      %j2 = arith.addi %jo, %jl : index
                       "test.op"(%i2, %j2) : (index, index) -> ()
                   }
               }
@@ -213,8 +284,9 @@ def _(input_module, xmo):
     }
     """
 
-    xmo.module_html(input_module)
-    return (output_str,)
+    output_module = Parser(ctx, output_str).parse_module()
+    xmo.module_html(output_module)
+    return output_module, output_str
 
 
 if __name__ == "__main__":
