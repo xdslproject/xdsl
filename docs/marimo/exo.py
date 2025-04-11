@@ -11,7 +11,22 @@ def _():
     from xdsl.parser import Parser
     from xdsl.context import Context
     from xdsl.dialects import arith, func, test, scf, builtin, memref
-    return Context, Parser, arith, builtin, func, memref, mo, scf, test, xmo
+    from xdsl.transforms.scf_for_loop_range_folding import ScfForLoopRangeFoldingPass
+    from xdsl.transforms.canonicalize import CanonicalizePass
+    return (
+        CanonicalizePass,
+        Context,
+        Parser,
+        ScfForLoopRangeFoldingPass,
+        arith,
+        builtin,
+        func,
+        memref,
+        mo,
+        scf,
+        test,
+        xmo,
+    )
 
 
 @app.cell(hide_code=True)
@@ -135,7 +150,18 @@ def _(input_module):
 
 
 @app.cell
-def _(ModuleOp, arith, builtin, find, input_module, scf):
+def _(
+    CanonicalizePass,
+    ModuleOp,
+    ScfForLoopRangeFoldingPass,
+    arith,
+    builtin,
+    ctx,
+    find,
+    func,
+    input_module,
+    scf,
+):
     from typing import cast
 
     from xdsl.printer import Printer
@@ -165,10 +191,14 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
         # check the step
         assert cursor.step.owner.value.value.data == 1
 
+        parent_func = cursor
+        while not isinstance(parent_func, func.FuncOp):
+            parent_func = parent_func.parent_op()
+
         res_names = tuple(r.name_hint for r in cursor.results)
 
         step_op = arith.ConstantOp(builtin.IntegerAttr(div_const, cursor.step.type))
-        r.insert_op(step_op, insertion_point=InsertPoint.before(cursor))
+        r.insert_op(step_op, insertion_point=InsertPoint.at_start(parent_func.body.block))
         step_op.result.name_hint = f"c{div_const}"
 
         inner_body = r.move_region_contents_to_new_regions(cursor.body) # this is region
@@ -184,7 +214,6 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
 
         r.insert_op(inner_loop, InsertPoint.at_start(outer_body.block))
 
-        print(outer_body.block)
         outer_loop = scf.ForOp(cursor.lb, cursor.ub, step_op, cursor.iter_args, outer_body)
         new_i = arith.AddiOp(ii, io)
         r.insert_op(new_i, insertion_point=InsertPoint.at_start(inner_body.block))
@@ -227,6 +256,11 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
         new_o_loop = scf.ForOp(i_loop.lb, i_loop.ub, i_loop.step, (), outer_body)
         r.replace_op(cursor, new_o_loop)
 
+        for (old_inner, new_outer) in zip(new_i_loop.body.block.args, new_o_loop.body.block.args, strict=True):
+            new_outer.name_hint = old_inner.name_hint
+
+        for (old_outer, new_inner) in zip(o_loop.body.block.args, new_i_loop.body.block.args, strict=True):
+            new_inner.name_hint = old_outer.name_hint
 
     print("IR before split")
     Printer().print_op(input_module)
@@ -234,8 +268,11 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
 
     cursors = find(_module, "scf.for") # this should be loops
     split(_module, cursors[0], 16) # split the loop cursors[0] is pointing to by 8
-    # split(_module, cursors[1], 8)
-    #reorder_loops(_module, cursors[0])
+    split(_module, cursors[1], 8)
+    ScfForLoopRangeFoldingPass().apply(ctx, _module)
+    CanonicalizePass().apply(ctx, _module)
+    io, ii, jo, ji, k = find(_module, "scf.for")
+    reorder_loops(_module, ii)
 
     print("\n")
     print("IR after split")
@@ -258,6 +295,11 @@ def _(ModuleOp, arith, builtin, find, input_module, scf):
         cast,
         cursors,
         dataclass,
+        ii,
+        io,
+        ji,
+        jo,
+        k,
         op_type_rewrite_pattern,
         reorder_loops,
         split,
