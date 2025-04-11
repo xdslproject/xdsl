@@ -115,7 +115,7 @@ class WorkloadBuilder:
         ```mlir
         "builtin.module"() ({
             %0 = "arith.constant"() <{
-                value = dense<0x000000000000000000> : tensor<3x3xi8>
+                value = dense<0xCD18FC9FB649438493> : tensor<3x3xi8>
             }> : () -> tensor<3x3xi8>
         }) : () -> ()
         """
