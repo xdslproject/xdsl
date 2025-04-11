@@ -16,7 +16,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Exo-Style Scheduling in xDSL""")
+    mo.md(
+        r"""
+        # Exo-Style Scheduling in xDSL
+
+        It works.
+        """
+    )
     return
 
 
