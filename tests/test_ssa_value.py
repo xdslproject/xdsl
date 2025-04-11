@@ -3,6 +3,7 @@ import pytest
 from xdsl.dialects.builtin import StringAttr, i32
 from xdsl.ir import Block, BlockArgument, SSAValue
 from xdsl.irdl import IRDLOperation, irdl_op_definition, result_def
+from xdsl.utils.test_value import TestSSAValue
 
 
 @irdl_op_definition
@@ -59,3 +60,11 @@ def test_invalid_ssa_vals(name: str):
     val = BlockArgument(i32, Block(), 0)
     with pytest.raises(ValueError):
         val.name_hint = name
+
+
+def test_owner():
+    val = TestSSAValue(i32)
+    with pytest.raises(
+        ValueError, match="Attempting to get the owner of a `TestSSAValue`"
+    ):
+        val.owner

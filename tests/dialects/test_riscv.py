@@ -240,11 +240,11 @@ def test_immediate_shift_inst():
 
 def test_float_register():
     with pytest.raises(
-        VerifyException, match="Invalid register name ft9 for register set RV32I."
+        VerifyException, match="Invalid register name ft9 for register type riscv.reg."
     ):
         riscv.IntRegisterType.from_name("ft9")
     with pytest.raises(
-        VerifyException, match="Invalid register name a0 for register set RV32F."
+        VerifyException, match="Invalid register name a0 for register type riscv.freg."
     ):
         riscv.FloatRegisterType.from_name("a0")
 

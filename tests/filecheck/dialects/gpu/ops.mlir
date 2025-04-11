@@ -76,7 +76,6 @@ builtin.module attributes {"gpu.container_module"} {
         ^bb0(%arg0: index):
             "gpu.return"() : () -> ()
         }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> (), "gpu.known_block_size" = array<i32: 128, 1, 1>, "gpu.known_grid_size" = array<i32: 128, 1, 1>} : () -> ()
-        "gpu.module_end"() : () -> ()
     }) : () -> ()
 }
 
@@ -156,7 +155,6 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:         ^{{.*}}(%{{.*}}: index):
 // CHECK-NEXT:             "gpu.return"() : () -> ()
 // CHECK-NEXT:         }) {sym_name = "foo", gpu.known_block_size = array<i32: 128, 1, 1>, gpu.known_grid_size = array<i32: 128, 1, 1>} : () -> ()
-// CHECK-NEXT:          "gpu.module_end"() : () -> ()
 // CHECK-NEXT:     }) : () -> ()
 
 // CHECK-NEXT: }
