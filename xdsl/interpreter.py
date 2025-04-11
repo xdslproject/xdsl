@@ -103,29 +103,15 @@ AttrImpl: TypeAlias = Callable[
 ]
 
 _ImplDict: TypeAlias = dict[type[Operation], OpImpl["InterpreterFunctions", Operation]]
-_IMPL_DICT: TypeAlias = dict[
-    type[Operation],
-    tuple["InterpreterFunctions", OpImpl["InterpreterFunctions", Operation]],
-]
 
 _CastImplDict: TypeAlias = dict[
     tuple[type[Attribute], type[Attribute]],
     CastImpl["InterpreterFunctions", Attribute, Attribute],
 ]
-_CAST_IMPL_DICT: TypeAlias = dict[
-    tuple[type[Attribute], type[Attribute]],
-    tuple[
-        "InterpreterFunctions", CastImpl["InterpreterFunctions", Attribute, Attribute]
-    ],
-]
 
 _AttrImplDict: TypeAlias = dict[
     type[Attribute],
     AttrImpl["InterpreterFunctions", TypeAttribute],
-]
-_ATTR_IMPL_DICT: TypeAlias = dict[
-    type[Attribute],
-    tuple["InterpreterFunctions", AttrImpl["InterpreterFunctions", Attribute]],
 ]
 
 ExtFuncImpl: TypeAlias = Callable[
@@ -137,20 +123,10 @@ _ExtFuncImplDict: TypeAlias = dict[
     str,
     ExtFuncImpl["InterpreterFunctions"],
 ]
-_EXT_FUNC_IMPL_DICT: TypeAlias = dict[
-    str, tuple["InterpreterFunctions", ExtFuncImpl["InterpreterFunctions"]]
-]
 
 _CallableImplDict: TypeAlias = dict[
     type[Operation], NonTerminatorOpImpl["InterpreterFunctions", Operation]
 ]
-_CALLABLE_IMPL_DICT: TypeAlias = dict[
-    type[Operation],
-    tuple[
-        "InterpreterFunctions", NonTerminatorOpImpl["InterpreterFunctions", Operation]
-    ],
-]
-_IMPL_DATA: TypeAlias = dict[type["InterpreterFunctions"], dict[str, Any]]
 
 # endregion
 
@@ -499,15 +475,29 @@ class _InterpreterFunctionImpls:
     so we keep a `(Functions, OpImpl)` tuple for every Operation type.
     """
 
-    _impl_dict: _IMPL_DICT = field(default_factory=_IMPL_DICT)
-    _cast_impl_dict: _CAST_IMPL_DICT = field(default_factory=_CAST_IMPL_DICT)
-    _attr_impl_dict: _ATTR_IMPL_DICT = field(default_factory=_ATTR_IMPL_DICT)
-    _external_funcs_dict: _EXT_FUNC_IMPL_DICT = field(
-        default_factory=_EXT_FUNC_IMPL_DICT
-    )
-    _callable_impl_dict: _CALLABLE_IMPL_DICT = field(
-        default_factory=_CALLABLE_IMPL_DICT
-    )
+    _impl_dict: dict[
+        type[Operation],
+        tuple[InterpreterFunctions, OpImpl[InterpreterFunctions, Operation]],
+    ] = field(default_factory=dict)
+    _cast_impl_dict: dict[
+        tuple[type[Attribute], type[Attribute]],
+        tuple[
+            InterpreterFunctions, CastImpl[InterpreterFunctions, Attribute, Attribute]
+        ],
+    ] = field(default_factory=dict)
+    _attr_impl_dict: dict[
+        type[Attribute],
+        tuple[InterpreterFunctions, AttrImpl[InterpreterFunctions, Attribute]],
+    ] = field(default_factory=dict)
+    _external_funcs_dict: dict[
+        str, tuple[InterpreterFunctions, ExtFuncImpl[InterpreterFunctions]]
+    ] = field(default_factory=dict)
+    _callable_impl_dict: dict[
+        type[Operation],
+        tuple[
+            InterpreterFunctions, NonTerminatorOpImpl[InterpreterFunctions, Operation]
+        ],
+    ] = field(default_factory=dict)
 
     def register_from(self, ft: InterpreterFunctions, /, override: bool):
         impls = ft._impls()  # pyright: ignore[reportPrivateUsage]
@@ -665,7 +655,9 @@ class Interpreter:
     """
     file: IO[str] | None = field(default=None)
     _symbol_table: dict[str, Operation] | None = None
-    _impl_data: _IMPL_DATA = field(default_factory=_IMPL_DATA)
+    _impl_data: dict[type[InterpreterFunctions], dict[str, Any]] = field(
+        default_factory=dict
+    )
     """
     Runtime data associated with an interpreter functions implementation.
     """
@@ -903,7 +895,7 @@ class OpCounter(Interpreter.Listener):
     Counts the number of times that an op has been run by the interpreter.
     """
 
-    ops: Counter[str] = field(default_factory=Counter[str])
+    ops: Counter[str] = field(default_factory=Counter)
 
     def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
         self.ops[op.name] += 1
