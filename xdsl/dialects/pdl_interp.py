@@ -285,8 +285,11 @@ class GetResultsOp(IRDLOperation):
         input_op = parser.parse_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
-        assert isa(result_type, ValueType) or isa(result_type, RangeType[ValueType])
-        return GetResultsOp(index, input_op, result_type)
+        return GetResultsOp.build(
+            operands=(input_op,),
+            properties={"index": index},
+            result_types=(result_type,),
+        )
 
     def print(self, printer: Printer):
         if self.index is not None:
@@ -586,9 +589,8 @@ class CreateOperationOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> CreateOperationOp:
-        def _parse_attribute() -> tuple[StringAttr, SSAValue]:
+        def _parse_attribute() -> tuple[Attribute, SSAValue]:
             attrname = parser.parse_attribute()
-            assert isinstance(attrname, StringAttr)
             parser.parse_punctuation("=")
             operand = parser.parse_operand()
             return (attrname, operand)
@@ -602,29 +604,29 @@ class CreateOperationOp(IRDLOperation):
                     parse=lambda: parser.parse_operand(),
                 )
                 parser.parse_punctuation(":")
-                types = parser.parse_comma_separated_list(
+                parser.parse_comma_separated_list(
                     delimiter=Parser.Delimiter.NONE,
                     parse=lambda: parser.parse_type(),
                 )
-                assert len(values) == len(types)
-                for value, type in zip(values, types):
-                    assert value.type == type
                 parser.parse_punctuation(")")
             return values
 
         name = parser.parse_attribute()
-        assert isinstance(name, StringAttr)
 
         input_operands = _parse_input_list()
 
         input_attribute_names = None
         input_attributes = None
-        temp = parser.parse_optional_comma_separated_list(
+        attributes = parser.parse_optional_comma_separated_list(
             delimiter=Parser.Delimiter.BRACES, parse=_parse_attribute
         )
-        if temp:
-            input_attribute_names = [i[0] for i in temp]
-            input_attributes = [i[1] for i in temp]
+        if attributes:
+            input_attribute_names = [i[0] for i in attributes]
+            input_attributes = [i[1] for i in attributes]
+        else:
+            input_attribute_names = []
+            input_attributes = []
+        input_attribute_names = ArrayAttr(input_attribute_names)
 
         input_result_types = None
         inferred_result_types = None
@@ -636,13 +638,19 @@ class CreateOperationOp(IRDLOperation):
             else:
                 input_result_types = _parse_input_list()
 
-        op = CreateOperationOp(
-            name,
-            inferred_result_types=inferred_result_types,
-            input_attribute_names=input_attribute_names,
-            input_operands=input_operands,
-            input_attributes=input_attributes,
-            input_result_types=input_result_types,
+        op = CreateOperationOp.build(
+            operands=(input_operands, input_attributes, input_result_types),
+            properties={
+                "name": name,
+                "inputAttributeNames": input_attribute_names,
+            }
+            if inferred_result_types is None
+            else {
+                "name": name,
+                "inferredResultTypes": inferred_result_types,
+                "inputAttributeNames": input_attribute_names,
+            },
+            result_types=(OperationType(),),
         )
         return op
 
