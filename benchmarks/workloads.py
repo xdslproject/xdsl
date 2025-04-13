@@ -109,7 +109,7 @@ class WorkloadBuilder:
         ops = [
             (
                 '%0 = "arith.constant"() '
-                f"<{{value = dense<0x{dense_attr_hex}> "
+                f'<{{value = dense<"0x{dense_attr_hex}"> '
                 f": tensor<{x}x{y}xi8>}}> : () -> tensor<{x}x{y}xi8>"
             )
         ]

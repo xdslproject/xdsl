@@ -39,7 +39,7 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
     """
 
     available_registers: defaultdict[str, list[int]] = field(
-        default_factory=lambda: defaultdict(list)
+        default_factory=lambda: defaultdict(list[int])
     )
     """
     Registers from a given register set that values can be allocated to in the current
