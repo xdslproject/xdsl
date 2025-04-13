@@ -237,8 +237,8 @@ class AffineMap:
 
     def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> tuple[int, ...]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
-        assert len(dims) == self.num_dims
-        assert len(symbols) == self.num_symbols
+        assert len(dims) == self.num_dims, f"{len(dims)}, {self.num_dims}"
+        assert len(symbols) == self.num_symbols, f"{len(symbols)}, {self.num_symbols}"
         return tuple(expr.eval(dims, symbols) for expr in self.results)
 
     def drop_dims(self, unused_dims: Sequence[bool]) -> AffineMap:

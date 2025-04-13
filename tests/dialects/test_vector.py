@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import pytest
 
 from xdsl.dialects.builtin import (
@@ -24,8 +26,10 @@ from xdsl.dialects.vector import (
     MaskedStoreOp,
     PrintOp,
     StoreOp,
+    VectorTransferOperation,
 )
 from xdsl.ir import Attribute, OpResult
+from xdsl.ir.affine import AffineMap
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -618,3 +622,59 @@ def test_vector_insert():
         insert.DYNAMIC_INDEX,
     )
     assert insert.result.type == dest.type
+
+
+@pytest.mark.parametrize(
+    "perm_map,input_shape,input_scalable_dims,output_shape,output_scalable_dims",
+    [
+        (
+            # identity no scalable dims
+            AffineMap.from_callable(lambda d0, d1: (d0, d1)),
+            (2, 3),
+            (False, False),
+            (2, 3),
+            (False, False),
+        ),
+        (
+            # identity with scalable dims
+            AffineMap.from_callable(lambda d0, d1: (d0, d1)),
+            (2, 3),
+            (True, False),
+            (2, 3),
+            (True, False),
+        ),
+        (
+            # inverse permutation
+            AffineMap.from_callable(lambda d0, d1: (d1, d0)),
+            (2, 3),
+            (True, False),
+            (3, 2),
+            (False, True),
+        ),
+        (
+            # unused dims
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, d0)),
+            (2, 3),
+            (True, False),
+            (3, 2),
+            (False, True),
+        ),
+    ],
+)
+def test_infer_transfer_op_mask_type(
+    perm_map: AffineMap,
+    input_shape: Sequence[int],
+    input_scalable_dims: Sequence[bool],
+    output_shape: Sequence[int],
+    output_scalable_dims: Sequence[bool],
+):
+    vec_type = VectorType(
+        i32, input_shape, ArrayAttr(BoolAttr.from_bool(b) for b in input_scalable_dims)
+    )
+    assert VectorTransferOperation.infer_transfer_op_mask_type(
+        vec_type, perm_map
+    ) == VectorType(
+        i1,
+        output_shape,
+        ArrayAttr(BoolAttr.from_bool(b) for b in output_scalable_dims),
+    )

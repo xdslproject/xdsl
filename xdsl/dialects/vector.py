@@ -632,8 +632,14 @@ class VectorTransferOperation(ABC):
     def infer_transfer_op_mask_type(
         vec_type: VectorType, perm_map: AffineMap
     ) -> VectorType[I1]:
-        unused_dims = tuple(not dim for dim in perm_map.used_dims_bit_vector())
-        inv_perm_map = perm_map.drop_dims(unused_dims).inverse_permutation()
+        """
+        Given a resulting vector type and a permutation map from the dimensions of the
+        shaped type to the vector type dimensions, return the vector type of the mask.
+        """
+        unused_dims_bit_vector = tuple(
+            not dim for dim in perm_map.used_dims_bit_vector()
+        )
+        inv_perm_map = perm_map.drop_dims(unused_dims_bit_vector).inverse_permutation()
         assert inv_perm_map is not None, "Inversed permutation map couldn't be computed"
         mask_shape = inv_perm_map.eval(vec_type.get_shape(), ())
         scalable_dims = ArrayAttr(
