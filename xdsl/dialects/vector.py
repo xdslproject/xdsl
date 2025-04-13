@@ -628,45 +628,45 @@ class VectorTransferOperation(ABC):
     ```
     """
 
+    @staticmethod
+    def infer_transfer_op_mask_type(
+        vec_type: VectorType, perm_map: AffineMap
+    ) -> VectorType[I1]:
+        unused_dims = tuple(not dim for dim in perm_map.used_dims_bit_vector())
+        inv_perm_map = perm_map.drop_dims(unused_dims).inverse_permutation()
+        assert inv_perm_map is not None, "Inversed permutation map couldn't be computed"
+        mask_shape = inv_perm_map.eval(vec_type.get_shape(), ())
+        scalable_dims = ArrayAttr(
+            BoolAttr.from_bool(bool(b))
+            for b in inv_perm_map.eval(vec_type.get_scalable_dims(), ())
+        )
+        res = VectorType(i1, mask_shape, scalable_dims)
+        return res
 
-def _infer_transfer_op_mask_type(
-    vec_type: VectorType, perm_map: AffineMap
-) -> VectorType[I1]:
-    unused_dims = tuple(not dim for dim in perm_map.used_dims_bit_vector())
-    inv_perm_map = perm_map.drop_dims(unused_dims).inverse_permutation()
-    assert inv_perm_map is not None, "Inversed permutation map couldn't be computed"
-    mask_shape = inv_perm_map.eval(vec_type.get_shape(), ())
-    scalable_dims = ArrayAttr(
-        BoolAttr.from_bool(bool(b))
-        for b in inv_perm_map.eval(vec_type.get_scalable_dims(), ())
-    )
-    res = VectorType(i1, mask_shape, scalable_dims)
-    return res
+    @staticmethod
+    def get_transfer_minor_identity_map(
+        shaped_type: TensorType | MemRefType, vector_type: VectorType
+    ) -> AffineMap:
+        """
+        Get the minor identity map for a transfer operation.
 
+        This is a helper function to compute the default permutation map for
+        transfer operations when none is specified.
+        """
+        element_vector_rank = 0
+        element_type = shaped_type.element_type
+        if isa(element_type, VectorType):
+            element_vector_rank += element_type.get_num_dims()
 
-def get_transfer_minor_identity_map(
-    shaped_type: TensorType | MemRefType, vector_type: VectorType
-) -> AffineMap:
-    """
-    Get the minor identity map for a transfer operation.
+        # 0-d transfers are to/from tensor<t>/memref<t> and vector<1xt>.
+        # TODO: replace once we have 0-d vectors.
+        if shaped_type.get_num_dims() == 0 and vector_type.get_shape() == (1,):
+            return AffineMap.constant_map(0)
 
-    This is a helper function to compute the default permutation map for
-    transfer operations when none is specified.
-    """
-    element_vector_rank = 0
-    element_type = shaped_type.element_type
-    if isa(element_type, VectorType):
-        element_vector_rank += element_type.get_num_dims()
-
-    # 0-d transfers are to/from tensor<t>/memref<t> and vector<1xt>.
-    # TODO: replace once we have 0-d vectors.
-    if shaped_type.get_num_dims() == 0 and vector_type.get_shape() == (1,):
-        return AffineMap.constant_map(0)
-
-    return AffineMap.minor_identity(
-        shaped_type.get_num_dims(),
-        vector_type.get_num_dims() - element_vector_rank,
-    )
+        return AffineMap.minor_identity(
+            shaped_type.get_num_dims(),
+            vector_type.get_num_dims() - element_vector_rank,
+        )
 
 
 @irdl_op_definition
@@ -768,7 +768,9 @@ class TransferReadOp(IRDLOperation, VectorTransferOperation):
         else:
             # Create identity permutation map for the shaped type's rank
             permutation_map = AffineMapAttr(
-                get_transfer_minor_identity_map(shaped_type, vector_type)
+                VectorTransferOperation.get_transfer_minor_identity_map(
+                    shaped_type, vector_type
+                )
             )
 
         # Create in_bounds attribute if not provided
@@ -798,7 +800,9 @@ class TransferReadOp(IRDLOperation, VectorTransferOperation):
                 )
             # Instead of adding the mask type as an op type, compute it based on the
             # vector type and the permutation map (to keep the type signature small).
-            mask_type = _infer_transfer_op_mask_type(vector_type, permutation_map.data)
+            mask_type = VectorTransferOperation.infer_transfer_op_mask_type(
+                vector_type, permutation_map.data
+            )
             mask = parser.resolve_operand(mask, mask_type)
 
         # Create and return the TransferReadOp
