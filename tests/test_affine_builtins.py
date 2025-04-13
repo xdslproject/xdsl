@@ -230,7 +230,7 @@ def test_drop_dims():
     assert AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)).drop_dims(
         [f, t, f]
     ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
-    assert AffineMap.from_callable(lambda d0, d1: (d1,)).compress_dims(
+    assert AffineMap.from_callable(lambda d0, d1: (d1,)).drop_dims(
         [t, f]
     ) == AffineMap.from_callable(lambda d0: (d0,))
 

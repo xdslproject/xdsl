@@ -75,8 +75,8 @@
 %23 = "vector.transfer_read"(%3, %5, %5, %13) <{in_bounds = [], operandSegmentSizes = array<i32: 1, 2, 1, 0>, permutation_map = affine_map<(d0, d1) -> ()>}> : (memref<?x?xvector<4x3xindex>>, index, index, vector<4x3xindex>) -> vector<5x48xi8>
 // CHECK-NEXT: %23 = vector.transfer_read %3[%5, %5], %13 : memref<?x?xvector<4x3xindex>>, vector<5x48xi8>
 
-%24 = "vector.transfer_read"(%0, %5, %5, %7, %14) <{in_bounds = [false], operandSegmentSizes = array<i32: 1, 2, 1, 1>, permutation_map = affine_map<(d0, d1) -> (d1)>}> : (memref<?x?xf32>, index, index, f32, vector<5xi1>) -> vector<5xf32>
-// CHECK-NEXT: %24 = "vector.transfer_read"(%0, %5, %5, %7, %14) <{in_bounds = [false], operandSegmentSizes = array<i32: 1, 2, 1, 1>, permutation_map = affine_map<(d0, d1) -> (d1)>}> : (memref<?x?xf32>, index, index, f32, vector<5xi1>) -> vector<5xf32>
+%24 = vector.transfer_read %0[%5, %5], %7, %14 : memref<?x?xf32>, vector<5xf32>
+// CHECK-NEXT: %24 = vector.transfer_read %0[%5, %5], %7, %14 : memref<?x?xf32>, vector<5xf32>
 
 %25 = "vector.transfer_read"(%4, %5, %5, %5, %7, %15) <{in_bounds = [false, false, true], operandSegmentSizes = array<i32: 1, 3, 1, 1>, permutation_map = affine_map<(d0, d1, d2) -> (d1, d0, 0)>}> : (memref<?x?x?xf32>, index, index, index, f32, vector<4x5xi1>) -> vector<5x4x8xf32>
 // CHECK-NEXT: %25 = "vector.transfer_read"(%4, %5, %5, %5, %7, %15) <{in_bounds = [false, false, true], operandSegmentSizes = array<i32: 1, 3, 1, 1>, permutation_map = affine_map<(d0, d1, d2) -> (d1, d0, 0)>}> : (memref<?x?x?xf32>, index, index, index, f32, vector<4x5xi1>) -> vector<5x4x8xf32>
