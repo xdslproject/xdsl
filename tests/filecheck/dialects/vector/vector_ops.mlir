@@ -9,8 +9,8 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
   vector.maskedstore %base[%i, %i], %vec, %masked_load : memref<4x4xindex>, vector<1xi1>, vector<1xindex>
   "vector.print"(%masked_load) : (vector<1xindex>) -> ()
   %mask = vector.create_mask %i : vector<2xi1>
-  %read = "vector.transfer_read"(%base, %i, %i, %i) <{in_bounds = [true], operandSegmentSizes = array<i32: 1, 2, 1, 0>, permutation_map = affine_map<(d0, d1) -> (d0)>}> : (memref<4x4xindex>, index, index, index) -> vector<4xindex>
-  %read_1 = "vector.transfer_read"(%base, %i, %i, %i) <{in_bounds = [true], operandSegmentSizes = array<i32: 1, 2, 1, 0>, permutation_map = affine_map<(d0, d1) -> (d1)>}> : (memref<4x4xindex>, index, index, index) -> vector<4xindex>
+  %read = vector.transfer_read %base[%i, %i], %i {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : memref<4x4xindex>, vector<4xindex>
+  %read_1 = vector.transfer_read %base[%i, %i], %i {in_bounds = [true]} : memref<4x4xindex>, vector<4xindex>
   "vector.transfer_write"(%read, %base, %i, %i) <{"in_bounds" = [true], "operandSegmentSizes" = array<i32: 1, 1, 2, 0>, "permutation_map" = affine_map<(d0, d1) -> (d0)>}> :  (vector<4xindex>, memref<4x4xindex>, index, index) -> ()
   func.return
 }

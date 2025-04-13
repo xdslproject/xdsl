@@ -700,7 +700,7 @@ class TransferReadOp(IRDLOperation, VectorTransferOperation):
         super().__init__(
             operands=[source, indices, padding, mask],
             result_types=[result_type],
-            properties={"permutation_map": permutation_map, "in_bounds": in_bounds},
+            properties={"in_bounds": in_bounds, "permutation_map": permutation_map},
         )
 
     def print(self, printer: Printer):
