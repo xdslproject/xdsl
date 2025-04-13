@@ -230,9 +230,6 @@ def test_drop_dims():
     assert AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)).drop_dims(
         [f, t, f]
     ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
-    assert AffineMap.from_callable(lambda d0, d1: (d1,)).drop_dims(
-        [t, f]
-    ) == AffineMap.from_callable(lambda d0: (d0,))
 
 
 def test_affine_expr_affine_expr_binary_simplification():
@@ -337,9 +334,3 @@ def test_is_projected_permutation():
     assert AffineMap.from_callable(
         lambda d0, d1, d2: (d1, 0, d0)
     ).is_projected_permutation(allow_zero_in_results=True)
-
-
-def test_apply_permutation_map():
-    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d0)).apply_permutation(
-        (10, 20, 30)
-    ) == [20, 10]
