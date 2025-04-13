@@ -10,7 +10,9 @@ from xdsl.utils.exceptions import DiagnosticException
 
 @dataclass
 class Diagnostic:
-    op_messages: dict[Operation, list[str]] = field(default_factory=dict)
+    op_messages: dict[Operation, list[str]] = field(
+        default_factory=dict[Operation, list[str]]
+    )
 
     def add_message(self, op: Operation, message: str) -> None:
         """Add a message to an operation."""
