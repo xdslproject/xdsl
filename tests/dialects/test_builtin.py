@@ -474,6 +474,10 @@ def test_vector_constructor(
     assert vec.get_num_dims() == len(dims)
     assert vec.get_num_scalable_dims() == num_scalable_dims
     assert vec.get_shape() == dims
+    if scalable_dims is not None:
+        assert vec.get_scalable_dims() == tuple(scalable_dims)
+    else:
+        assert vec.get_scalable_dims() == (False,) * len(dims)
 
 
 @pytest.mark.parametrize(
@@ -708,3 +712,24 @@ def test_integer_type_repr():
     assert (
         repr(IntegerType(16, Signedness.SIGNED)) == "IntegerType(16, Signedness.SIGNED)"
     )
+
+
+def test_vector_constr():
+    constr = VectorType.constr(i32)
+    constr.verify(VectorType(i32, [1]), ConstraintContext())
+    constr.verify(VectorType(i32, [1, 2]), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(VectorType(i64, [1]), ConstraintContext())
+
+    shape = ArrayAttr([IntAttr(1)])
+    scalable_dims = ArrayAttr([IntegerAttr(0, IntegerType(1))])
+    constr = VectorType.constr(
+        i32,
+        shape=shape,
+        scalable_dims=scalable_dims,
+    )
+    constr.verify(VectorType(i32, shape, scalable_dims), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(VectorType(i32, [1, 2], scalable_dims), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(VectorType(i64, [1]), ConstraintContext())

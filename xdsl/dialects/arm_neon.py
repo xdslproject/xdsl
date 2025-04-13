@@ -7,6 +7,7 @@ from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
 from xdsl.ir import (
+    Attribute,
     Dialect,
     EnumAttribute,
     Operation,
@@ -21,6 +22,7 @@ from xdsl.irdl import (
     operand_def,
     result_def,
     var_operand_def,
+    var_result_def,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -34,10 +36,6 @@ class NEONRegisterType(ARMRegisterType):
     """
 
     name = "arm_neon.reg"
-
-    @classmethod
-    def instruction_set_name(cls) -> str:
-        return "arm_neon"
 
     @classmethod
     def index_by_name(cls) -> dict[str, int]:
@@ -294,9 +292,61 @@ class DSSFmlaVecScalarOp(ARMInstruction):
 
 
 @irdl_op_definition
+class DVarSLd1Op(ARMInstruction):
+    """
+    Neon structure load instruction reads data from memory into 64-bit Neon registers.
+    LD1 loads data from memory into up to four registers, with no interleaving.
+    """
+
+    name = "arm_neon.dvars.ld1"
+    s = operand_def(IntRegisterType)
+    dest_regs = var_result_def(NEONRegisterType)
+    arrangement = attr_def(NeonArrangementAttr)
+
+    assembly_format = " ` ` `[` $s `]` $arrangement attr-dict `:` type($s) `->` `(` type($dest_regs) `)`"
+
+    def __init__(
+        self,
+        s: Operation | SSAValue,
+        result_types: Sequence[Attribute],
+        *,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if not (1 <= len(self.dest_regs) <= 4):
+            raise ValueError(
+                f"dest_regs must contain between 1 and 4 elements, but got {len(self.dest_regs)}."
+            )
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=(s,),
+            attributes={
+                "comment": comment,
+                "arrangement": arrangement,
+            },
+            result_types=[result_types],
+        )
+
+    def verify_(self) -> None:
+        if not (1 <= len(self.dest_regs) <= 4):
+            raise VerifyException(
+                f"dest_regs must contain between 1 and 4 elements, but got {len(self.dest_regs)}."
+            )
+
+    def assembly_line_args(self):
+        return (
+            VariadicNeonRegArg(self.dest_regs, self.arrangement),
+            square_brackets_reg(self.s),
+        )
+
+
+@irdl_op_definition
 class DVarSSt1Op(ARMInstruction):
     """
-    Neon structure store instruction reads data from memory into 64-bit Neon registers.
+    Neon structure store instruction stores data from 64-bit Neon registers to memory.
     ST1 stores one to four registers of data to memory, with no interleaving.
     """
 
@@ -338,11 +388,7 @@ class DVarSSt1Op(ARMInstruction):
                 f"src_regs must contain between 1 and 4 elements, but got {len(self.src_regs)}."
             )
 
-    def assembly_instruction_name(self) -> str:
-        return "st1"
-
     def assembly_line_args(self):
-        assert isinstance(self.d.type, IntRegisterType)
         return (
             VariadicNeonRegArg(self.src_regs, self.arrangement),
             square_brackets_reg(self.d),
@@ -355,6 +401,7 @@ ARM_NEON = Dialect(
         DSSFmlaVecScalarOp,
         DSSFMulVecScalarOp,
         DVarSSt1Op,
+        DVarSLd1Op,
         GetRegisterOp,
     ],
     [

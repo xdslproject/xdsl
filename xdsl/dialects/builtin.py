@@ -1081,6 +1081,9 @@ class VectorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
+    def get_scalable_dims(self) -> tuple[bool, ...]:
+        return tuple(bool(i) for i in self.scalable_dims)
+
     def verify(self):
         num_dims = len(self.shape)
         num_scalable_dims = len(self.scalable_dims)
@@ -1089,6 +1092,27 @@ class VectorType(
                 f"Number of scalable dimension specifiers {num_scalable_dims} must "
                 f"equal to number of dimensions {num_dims}."
             )
+
+    @classmethod
+    def constr(
+        cls,
+        element_type: IRDLGenericAttrConstraint[AttributeCovT] | None = None,
+        *,
+        shape: IRDLGenericAttrConstraint[ArrayAttr[IntAttr]] | None = None,
+        scalable_dims: IRDLGenericAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
+    ) -> GenericAttrConstraint[VectorType[AttributeCovT]]:
+        if element_type is None and shape is None and scalable_dims is None:
+            return BaseAttr[VectorType[AttributeCovT]](VectorType)
+        shape_constr = AnyAttr() if shape is None else shape
+        scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
+        return ParamAttrConstraint[VectorType[AttributeCovT]](
+            VectorType,
+            (
+                shape_constr,
+                element_type,
+                scalable_dims_constr,
+            ),
+        )
 
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
@@ -1377,7 +1401,10 @@ class DenseArrayBase(ParametrizedAttribute):
 
 
 DenseI64ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i64, BytesAttr])
-"""Type constraint for DenseArrays containing integers of i64 integers."""
+"""Type constraint for DenseArrays containing i64 integers."""
+
+DenseI32ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i32, BytesAttr])
+"""Type constraint for DenseArrays containing i32 integers."""
 
 
 @irdl_attr_definition

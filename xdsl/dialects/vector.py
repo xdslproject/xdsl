@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
+    AnyFloatConstr,
+    DenseArrayBase,
+    DenseI64ArrayConstr,
     IndexType,
     IndexTypeConstr,
     MemRefType,
@@ -13,22 +16,29 @@ from xdsl.dialects.builtin import (
     VectorRankConstraint,
     VectorType,
     i1,
+    i64,
 )
+from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     IRDLOperation,
     VarConstraint,
-    base,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
+    prop_def,
     result_def,
     traits_def,
     var_operand_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import assert_isa, isa
+
+DYNAMIC_INDEX: int = -(2**63)
 
 
 @irdl_op_definition
@@ -128,7 +138,7 @@ class BroadcastOp(IRDLOperation):
 class FMAOp(IRDLOperation):
     name = "vector.fma"
 
-    T: ClassVar = VarConstraint("T", base(VectorType))
+    T: ClassVar = VarConstraint("T", VectorType.constr(AnyFloatConstr))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -283,6 +293,94 @@ class CreateMaskOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ExtractOp(IRDLOperation):
+    name = "vector.extract"
+
+    _T: ClassVar = VarConstraint("T", AnyAttr())
+    _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
+
+    static_position = prop_def(DenseI64ArrayConstr)
+
+    vector = operand_def(_V)
+    dynamic_position = var_operand_def(IndexTypeConstr)
+
+    result = result_def(VectorType.constr(_T) | _T)
+
+    traits = traits_def(Pure())
+
+    DYNAMIC_INDEX: ClassVar = DYNAMIC_INDEX
+    """This value is used to indicate that a position is a dynamic index."""
+
+    def get_mixed_position(self) -> list[SSAValue | int]:
+        """
+        Returns the list of positions, represented as either an SSAValue or an int
+        """
+        static_positions = self.static_position.get_values()
+        return get_dynamic_index_list(
+            cast(tuple[int, ...], static_positions),
+            self.dynamic_position,
+            ExtractOp.DYNAMIC_INDEX,
+        )
+
+    def __init__(
+        self,
+        vector: SSAValue,
+        positions: Sequence[SSAValue | int],
+        result_type: Attribute,
+    ):
+        static_positions, dynamic_positions = split_dynamic_index_list(
+            positions, ExtractOp.DYNAMIC_INDEX
+        )
+
+        super().__init__(
+            operands=[vector, dynamic_positions],
+            result_types=[result_type],
+            properties={
+                "static_position": DenseArrayBase.from_list(i64, static_positions)
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ExtractOp:
+        # Parse the vector operand
+        vector = parser.parse_unresolved_operand()
+
+        def parse_int_or_value() -> SSAValue | int:
+            value = parser.parse_optional_unresolved_operand()
+            if value is not None:
+                return parser.resolve_operand(value, IndexType())
+            value = parser.parse_optional_integer()
+            if value is not None:
+                return value
+            parser.raise_error("Expected dimension as an integer or a value.")
+
+        # Parse the positions
+        positions = parser.parse_comma_separated_list(
+            Parser.Delimiter.SQUARE, parse_int_or_value
+        )
+
+        # parse the attribute dictionary
+        attr_dict = parser.parse_optional_attr_dict()
+
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        parser.parse_keyword("from")
+        vector_type = parser.parse_type()
+
+        vector = parser.resolve_operand(vector, vector_type)
+
+        op = ExtractOp(vector, positions, result_type)
+        op.attributes = attr_dict
+        return op
+
+    def print(self, printer: Printer) -> None:
+        # Print the vector operand
+        printer.print(" ", self.vector, "[")
+        printer.print_list(self.get_mixed_position(), printer.print)
+        printer.print("] : ", self.result.type, " from ", self.vector.type)
+
+
+@irdl_op_definition
 class ExtractElementOp(IRDLOperation):
     name = "vector.extractelement"
     vector = operand_def(VectorType)
@@ -321,6 +419,104 @@ class ExtractElementOp(IRDLOperation):
             operands=[vector, position],
             result_types=[result_type],
         )
+
+
+@irdl_op_definition
+class InsertOp(IRDLOperation):
+    name = "vector.insert"
+
+    _T: ClassVar = VarConstraint("T", AnyAttr())
+    _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
+
+    static_position = prop_def(DenseI64ArrayConstr)
+
+    source = operand_def(VectorType.constr(_T) | _T)
+    dest = operand_def(_V)
+    dynamic_position = var_operand_def(IndexTypeConstr)
+
+    result = result_def(_V)
+
+    traits = traits_def(Pure())
+
+    DYNAMIC_INDEX: ClassVar = -(2**63)
+    """This value is used to indicate that a position is a dynamic index."""
+
+    def get_mixed_position(self) -> list[SSAValue | int]:
+        """
+        Returns the list of positions, represented as either an SSAValue or an int.
+        """
+        static_positions = self.static_position.get_values()
+        return get_dynamic_index_list(
+            cast(tuple[int, ...], static_positions),
+            self.dynamic_position,
+            InsertOp.DYNAMIC_INDEX,
+        )
+
+    def __init__(
+        self,
+        source: SSAValue,
+        dest: SSAValue,
+        positions: Sequence[SSAValue | int],
+        result_type: Attribute | None = None,
+    ):
+        static_positions, dynamic_positions = split_dynamic_index_list(
+            positions, InsertOp.DYNAMIC_INDEX
+        )
+
+        if result_type is None:
+            result_type = dest.type
+
+        super().__init__(
+            operands=[source, dest, dynamic_positions],
+            result_types=[result_type],
+            properties={
+                "static_position": DenseArrayBase.from_list(i64, static_positions)
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> InsertOp:
+        # Parse the value to insert
+        source = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+
+        # Parse the vector operand
+        vector = parser.parse_unresolved_operand()
+
+        def parse_int_or_value() -> SSAValue | int:
+            value = parser.parse_optional_unresolved_operand()
+            if value is not None:
+                return parser.resolve_operand(value, IndexType())
+            value = parser.parse_optional_integer()
+            if value is not None:
+                return value
+            parser.raise_error("Expected dimension as an integer or a value.")
+
+        # Parse the positions
+        positions = parser.parse_comma_separated_list(
+            Parser.Delimiter.SQUARE, parse_int_or_value
+        )
+
+        # parse the attribute dictionary
+        attr_dict = parser.parse_optional_attr_dict()
+
+        parser.parse_punctuation(":")
+        source_type = parser.parse_type()
+        parser.parse_keyword("into")
+        vector_type = parser.parse_type()
+
+        source = parser.resolve_operand(source, source_type)
+        vector = parser.resolve_operand(vector, vector_type)
+
+        op = InsertOp(source, vector, positions, vector_type)
+        op.attributes = attr_dict
+        return op
+
+    def print(self, printer: Printer) -> None:
+        # Print the vector operand
+        printer.print(" ", self.source, ", ", self.dest, "[")
+        printer.print_list(self.get_mixed_position(), printer.print)
+        printer.print("] : ", self.source.type, " into ", self.dest.type)
 
 
 @irdl_op_definition
@@ -381,7 +577,9 @@ Vector = Dialect(
         MaskedStoreOp,
         PrintOp,
         CreateMaskOp,
+        ExtractOp,
         ExtractElementOp,
+        InsertOp,
         InsertElementOp,
     ],
     [],

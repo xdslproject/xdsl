@@ -69,7 +69,7 @@ floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 @irdl_op_definition
 class GetOperandOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_operand-pdl_interpgetoperandop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_operand-pdl_interpgetoperandop).
     """
 
     name = "pdl_interp.get_operand"
@@ -90,7 +90,7 @@ class GetOperandOp(IRDLOperation):
 @irdl_op_definition
 class FinalizeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpfinalize-pdl_interpfinalizeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpfinalize-pdl_interpfinalizeop).
     """
 
     name = "pdl_interp.finalize"
@@ -105,7 +105,7 @@ class FinalizeOp(IRDLOperation):
 @irdl_op_definition
 class CheckOperationNameOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_operation_name-pdl_interpcheckoperationnameop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_operation_name-pdl_interpcheckoperationnameop).
     """
 
     name = "pdl_interp.check_operation_name"
@@ -138,7 +138,7 @@ class CheckOperationNameOp(IRDLOperation):
 @irdl_op_definition
 class CheckOperandCountOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_operand_count-pdl_interpcheckoperandcountop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_operand_count-pdl_interpcheckoperandcountop).
     """
 
     name = "pdl_interp.check_operand_count"
@@ -174,7 +174,7 @@ class CheckOperandCountOp(IRDLOperation):
 @irdl_op_definition
 class CheckResultCountOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_result_count-pdl_interpcheckresultcountop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_result_count-pdl_interpcheckresultcountop).
     """
 
     name = "pdl_interp.check_result_count"
@@ -210,7 +210,7 @@ class CheckResultCountOp(IRDLOperation):
 @irdl_op_definition
 class IsNotNullOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpis_not_null-pdl_interpisnotnullop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpis_not_null-pdl_interpisnotnullop).
     """
 
     name = "pdl_interp.is_not_null"
@@ -230,7 +230,7 @@ class IsNotNullOp(IRDLOperation):
 @irdl_op_definition
 class GetResultOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_result-pdl_interpgetresultop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_result-pdl_interpgetresultop).
     """
 
     name = "pdl_interp.get_result"
@@ -251,7 +251,7 @@ class GetResultOp(IRDLOperation):
 @irdl_op_definition
 class GetResultsOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_results-pdl_interpgetresultsop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_results-pdl_interpgetresultsop).
     """
 
     name = "pdl_interp.get_results"
@@ -260,7 +260,7 @@ class GetResultsOp(IRDLOperation):
     value = result_def(ValueType | RangeType[ValueType])
 
     # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
-    # TODO: Fix bug preventing this assebmly format from working: https://github.com/xdslproject/xdsl/issues/4136
+    # TODO: Fix bug preventing this assebmly format from working: https://github.com/xdslproject/xdsl/issues/4136.
 
     def __init__(
         self,
@@ -304,7 +304,7 @@ class GetResultsOp(IRDLOperation):
 @irdl_op_definition
 class GetAttributeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_attribute-pdl_interpgetattributeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_attribute-pdl_interpgetattributeop).
     """
 
     name = "pdl_interp.get_attribute"
@@ -327,7 +327,7 @@ class GetAttributeOp(IRDLOperation):
 @irdl_op_definition
 class CheckAttributeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_attribute-pdl_interpcheckattributeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_attribute-pdl_interpcheckattributeop).
     """
 
     name = "pdl_interp.check_attribute"
@@ -358,7 +358,7 @@ class CheckAttributeOp(IRDLOperation):
 @irdl_op_definition
 class AreEqualOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpare_equal-pdl_interpareequalop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpare_equal-pdl_interpareequalop).
     """
 
     name = "pdl_interp.are_equal"
@@ -382,7 +382,7 @@ class AreEqualOp(IRDLOperation):
 @irdl_op_definition
 class RecordMatchOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interprecord_match-pdl_interprecordmatchop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interprecord_match-pdl_interprecordmatchop).
     """
 
     name = "pdl_interp.record_match"
@@ -467,7 +467,7 @@ class ValueConstrFromResultConstr(
 @irdl_op_definition
 class GetValueTypeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_value_type-pdl_interpgetvaluetypeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_value_type-pdl_interpgetvaluetypeop).
     """
 
     name = "pdl_interp.get_value_type"
@@ -491,7 +491,7 @@ class GetValueTypeOp(IRDLOperation):
 @irdl_op_definition
 class ReplaceOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpreplace-pdl_interpreplaceop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpreplace-pdl_interpreplaceop).
     """
 
     name = "pdl_interp.replace"
@@ -509,7 +509,7 @@ class ReplaceOp(IRDLOperation):
 @irdl_op_definition
 class CreateAttributeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_attribute-pdl_interpcreateattributeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_attribute-pdl_interpcreateattributeop).
     """
 
     name = "pdl_interp.create_attribute"
@@ -525,7 +525,7 @@ class CreateAttributeOp(IRDLOperation):
 @irdl_op_definition
 class CreateOperationOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_operation-pdl_interpcreateoperationop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_operation-pdl_interpcreateoperationop).
     """
 
     name = "pdl_interp.create_operation"
@@ -699,7 +699,7 @@ class CreateOperationOp(IRDLOperation):
 @irdl_op_definition
 class GetDefiningOpOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_defining_op-pdl_interpgetdefiningopop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_defining_op-pdl_interpgetdefiningopop).
     """
 
     name = "pdl_interp.get_defining_op"
@@ -732,7 +732,7 @@ class FuncOpCallableInterface(CallableOpInterface):
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpfunc-pdl_interpfuncop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpfunc-pdl_interpfuncop).
     """
 
     name = "pdl_interp.func"

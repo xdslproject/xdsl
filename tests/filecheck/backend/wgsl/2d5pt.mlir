@@ -56,7 +56,6 @@ builtin.module attributes {gpu.container_module} {
         "sym_name" = "apply_kernel_kernel",
         "workgroup_attributions" = 0 : i64
        } : () -> ()
-    "gpu.module_end"() : () -> ()
   }) {"sym_name" = "apply_kernel_kernel"} : () -> ()
 }
 
