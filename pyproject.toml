@@ -40,7 +40,7 @@ docs = [
     "pymdown-extensions>=10.7",
     "lzstring2",
 ]
-gui = ["textual==3.0.1", "pyclip==0.7"]
+gui = ["textual==3.1.0", "pyclip==0.7"]
 jax = ["jax==0.5.3", "numpy==2.2.4"]
 riscv = ["riscemu==2.2.7"]
 bench = [
