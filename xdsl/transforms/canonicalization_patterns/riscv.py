@@ -405,7 +405,7 @@ class BitwiseOrByZero(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter):
         """
-        x | 0 = 0
+        x | 0 = x
         """
 
         # check if the first operand is 0
