@@ -47,11 +47,13 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
-    %0 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
+    %attr = pdl_interp.create_attribute 10 : i64 
+    %0 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value) {"attrA" = %attr}  -> (%arg2 : !pdl.type)
     %1 = pdl_interp.get_result 0 of %0
     %2 = pdl_interp.create_operation "arith.addi"(%arg3, %1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
     %3 = pdl_interp.get_result 0 of %2
     %4 = pdl_interp.get_results of %2 : !pdl.range<value>
+    %5 = pdl_interp.get_results 0 of %2 : !pdl.range<value>
     pdl_interp.replace %arg4 with (%4 : !pdl.range<value>)
     pdl_interp.finalize
   }
@@ -104,11 +106,13 @@ module @rewriters {
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
 // CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {
-// CHECK-NEXT:         %0 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
+// CHECK-NEXT:         %attr = pdl_interp.create_attribute 10 : i64
+// CHECK-NEXT:         %0 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value) {"attrA" = %attr} -> (%arg2 : !pdl.type)
 // CHECK-NEXT:         %1 = pdl_interp.get_result 0 of %0
 // CHECK-NEXT:         %2 = pdl_interp.create_operation "arith.addi"(%arg3, %1 : !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
 // CHECK-NEXT:         %3 = pdl_interp.get_result 0 of %2
 // CHECK-NEXT:         %4 = pdl_interp.get_results of %2 : !pdl.range<value>
+// CHECK-NEXT:         %5 = pdl_interp.get_results 0 of %2 : !pdl.range<value>
 // CHECK-NEXT:         pdl_interp.replace %arg4 with (%4 : !pdl.range<value>)
 // CHECK-NEXT:         pdl_interp.finalize
 // CHECK-NEXT:       }
@@ -164,13 +168,14 @@ module @rewriters {
 // CHECK-GENERIC-NEXT:     "builtin.module"() <{sym_name = "rewriters"}> ({
 // CHECK-GENERIC-NEXT:       "pdl_interp.func"() <{sym_name = "pdl_generated_rewriter", function_type = (!pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) -> ()}> ({
 // CHECK-GENERIC-NEXT:       ^0(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation):
-// CHECK-GENERIC-NEXT:         %0 = "pdl_interp.create_operation"(%arg0, %arg1, %arg2) <{name = "arith.subi", inputAttributeNames = [], operandSegmentSizes = array<i32: 2, 0, 1>}> : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
-// CHECK-GENERIC-NEXT:         %1 = "pdl_interp.get_result"(%0) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
-// CHECK-GENERIC-NEXT:         %2 = "pdl_interp.create_operation"(%arg3, %1, %arg2) <{name = "arith.addi", inputAttributeNames = [], operandSegmentSizes = array<i32: 2, 0, 1>}> : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
-// CHECK-GENERIC-NEXT:         %3 = "pdl_interp.get_result"(%2) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
-// CHECK-GENERIC-NEXT:         %4 = "pdl_interp.get_results"(%2) : (!pdl.operation) -> !pdl.range<value>
-// CHECK-GENERIC-NEXT:         "pdl_interp.replace"(%arg4, %4) : (!pdl.operation, !pdl.range<value>) -> ()
-// CHECK-GENERIC-NEXT:         "pdl_interp.finalize"() : () -> ()
-// CHECK-GENERIC-NEXT:       }) : () -> ()
+// CHECK-GENERIC-NEXT:       %attr = "pdl_interp.create_attribute"() <{value = 10 : i64}> : () -> !pdl.attribute
+// CHECK-GENERIC-NEXT:       %0 = "pdl_interp.create_operation"(%arg0, %arg1, %attr, %arg2) <{name = "arith.subi", inputAttributeNames = ["attrA"], operandSegmentSizes = array<i32: 2, 1, 1>}> : (!pdl.value, !pdl.value, !pdl.attribute, !pdl.type) -> !pdl.operation
+// CHECK-GENERIC-NEXT:       %1 = "pdl_interp.get_result"(%0) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
+// CHECK-GENERIC-NEXT:       %2 = "pdl_interp.create_operation"(%arg3, %1, %arg2) <{name = "arith.addi", inputAttributeNames = [], operandSegmentSizes = array<i32: 2, 0, 1>}> : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
+// CHECK-GENERIC-NEXT:       %3 = "pdl_interp.get_result"(%2) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
+// CHECK-GENERIC-NEXT:       %4 = "pdl_interp.get_results"(%2) : (!pdl.operation) -> !pdl.range<value>
+// CHECK-GENERIC-NEXT:       %5 = "pdl_interp.get_results"(%2) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.range<value>
+// CHECK-GENERIC-NEXT:       "pdl_interp.replace"(%arg4, %4) : (!pdl.operation, !pdl.range<value>) -> ()
+// CHECK-GENERIC-NEXT:       "pdl_interp.finalize"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
