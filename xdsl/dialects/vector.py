@@ -577,7 +577,7 @@ class InsertElementOp(IRDLOperation):
         )
 
 
-class VectorTransferOperation(ABC):
+class VectorTransferOperation(IRDLOperation, ABC):
     """
     Encodes properties of a `vector.transfer_read` or `vector.transfer_write`
     operation. Vector transfer ops have:
@@ -628,6 +628,18 @@ class VectorTransferOperation(ABC):
     ```
     """
 
+    in_bounds = prop_def(ArrayAttr[BoolAttr])
+    """
+    For every vector dimension, the boolean array attribute `in_bounds` specifies if the
+    transfer is guaranteed to be within the source bounds. If set to `“false”`, accesses
+    (including the starting point) may run out-of-bounds along the respective vector
+    dimension as the index increases. Non-vector dimensions must always be in-bounds.
+    The `in_bounds` array length has to be equal to the vector rank. This attribute has
+    a default value: `false` (i.e. “out-of-bounds”). When skipped in the textual IR, the
+    default value is assumed. Similarly, the OP printer will omit this attribute when
+    all dimensions are out-of-bounds (i.e. the default value is used).
+    """
+
     @staticmethod
     def infer_transfer_op_mask_type(
         vec_type: VectorType, perm_map: AffineMap
@@ -674,9 +686,19 @@ class VectorTransferOperation(ABC):
             vector_type.get_num_dims() - element_vector_rank,
         )
 
+    def _print_attrs(self, printer: Printer):
+        reserved_attr_names = {"operandSegmentSizes"}
+        if self.permutation_map.data.is_minor_identity():
+            reserved_attr_names.add("permutation_map")
+        if not any(self.in_bounds):
+            reserved_attr_names.add("in_bounds")
+        printer.print_op_attributes(
+            self.attributes | self.properties, reserved_attr_names=reserved_attr_names
+        )
+
 
 @irdl_op_definition
-class TransferReadOp(IRDLOperation, VectorTransferOperation):
+class TransferReadOp(VectorTransferOperation):
     "Reads a supervector from memory into an SSA vector value."
 
     name = "vector.transfer_read"
@@ -686,7 +708,6 @@ class TransferReadOp(IRDLOperation, VectorTransferOperation):
     padding = operand_def()
     mask = opt_operand_def(VectorType[I1])
 
-    in_bounds = prop_def(ArrayAttr[BoolAttr])
     permutation_map = prop_def(AffineMapAttr)
 
     result = result_def(VectorType)
@@ -719,14 +740,7 @@ class TransferReadOp(IRDLOperation, VectorTransferOperation):
         if self.mask is not None:
             printer.print_string(", ", indent=0)
             printer.print_ssa_value(self.mask)
-        reserved_attr_names = {"operandSegmentSizes"}
-        if self.permutation_map.data.is_minor_identity():
-            reserved_attr_names.add("permutation_map")
-        if not any(self.in_bounds):
-            reserved_attr_names.add("in_bounds")
-        printer.print_op_attributes(
-            self.attributes | self.properties, reserved_attr_names=reserved_attr_names
-        )
+        self._print_attrs(printer)
         printer.print_string(" : ", indent=0)
         printer.print_attribute(self.source.type)
         printer.print_string(", ", indent=0)
@@ -823,29 +837,8 @@ class TransferReadOp(IRDLOperation, VectorTransferOperation):
         )
 
 
-# static void printTransferAttrs(OpAsmPrinter &p, VectorTransferOpInterface op) {
-#   SmallVector<StringRef, 3> elidedAttrs;
-#   elidedAttrs.push_back(TransferReadOp::getOperandSegmentSizeAttr());
-#   if (op.getPermutationMap().isMinorIdentity())
-#     elidedAttrs.push_back(op.getPermutationMapAttrName());
-#   // Elide in_bounds attribute if all dims are out-of-bounds.
-#   if (llvm::none_of(op.getInBoundsValues(), [](bool b) { return b; }))
-#     elidedAttrs.push_back(op.getInBoundsAttrName());
-#   p.printOptionalAttrDict(op->getAttrs(), elidedAttrs);
-# }
-
-
-# void TransferReadOp::print(OpAsmPrinter &p) {
-#   p << " " << getSource() << "[" << getIndices() << "], " << getPadding();
-#   if (getMask())
-#     p << ", " << getMask();
-#   printTransferAttrs(p, *this);
-#   p << " : " << getShapedType() << ", " << getVectorType();
-# }
-
-
 @irdl_op_definition
-class TransferWriteOp(IRDLOperation, VectorTransferOperation):
+class TransferWriteOp(VectorTransferOperation):
     name = "vector.transfer_write"
 
     vector = operand_def(VectorType[Attribute])
@@ -853,7 +846,6 @@ class TransferWriteOp(IRDLOperation, VectorTransferOperation):
     indices = var_operand_def(IndexType)
     mask = opt_operand_def(VectorType[I1])
 
-    in_bounds = prop_def(ArrayAttr[BoolAttr])
     permutation_map = prop_def(AffineMapAttr)
 
     result = opt_result_def(TensorType[Attribute])
@@ -872,7 +864,7 @@ class TransferWriteOp(IRDLOperation, VectorTransferOperation):
     ):
         super().__init__(
             operands=[vector, source, indices, mask],
-            properties={"permutation_map": permutation_map, "in_bounds": in_bounds},
+            properties={"in_bounds": in_bounds, "permutation_map": permutation_map},
             result_types=[result_type],
         )
 
