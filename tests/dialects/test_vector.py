@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
     MemRefType,
+    TensorType,
     VectorType,
     i1,
     i32,
@@ -678,3 +679,55 @@ def test_infer_transfer_op_mask_type(
         output_shape,
         ArrayAttr(BoolAttr.from_bool(b) for b in output_scalable_dims),
     )
+
+
+@pytest.mark.parametrize(
+    "shaped_type, vector_type, expected_map",
+    [
+        (
+            # 0-d transfer
+            MemRefType(i32, ()),
+            VectorType(i32, (1,)),
+            AffineMap.constant_map(0),
+        ),
+        (
+            # 1-d transfer to 1-d vector
+            MemRefType(i32, (10,)),
+            VectorType(i32, (5,)),
+            AffineMap.identity(1),
+        ),
+        (
+            # 2-d transfer to 1-d vector (minor identity)
+            MemRefType(i32, (10, 20)),
+            VectorType(i32, (5,)),
+            AffineMap.from_callable(lambda d0, d1: (d1,)),
+        ),
+        (
+            # 3-d transfer to 2-d vector (minor identity)
+            MemRefType(i32, (10, 20, 30)),
+            VectorType(i32, (5, 6)),
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)),
+        ),
+        (
+            # Transfer with vector element type
+            MemRefType(VectorType(i32, (4, 3)), (10, 20)),
+            VectorType(i32, (5, 6, 4, 3)),
+            AffineMap.identity(2),
+        ),
+        (
+            # Tensor type
+            TensorType(i32, (10, 20)),
+            VectorType(i32, (5,)),
+            AffineMap.from_callable(lambda d0, d1: (d1,)),
+        ),
+    ],
+)
+def test_get_transfer_minor_identity_map(
+    shaped_type: TensorType | MemRefType,
+    vector_type: VectorType,
+    expected_map: AffineMap,
+):
+    result_map = VectorTransferOperation.get_transfer_minor_identity_map(
+        shaped_type, vector_type
+    )
+    assert result_map == expected_map
