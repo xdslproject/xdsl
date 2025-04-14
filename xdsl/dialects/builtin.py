@@ -1710,7 +1710,7 @@ class UnregisteredOp(Operation, ABC):
     @classmethod
     def has_trait(
         cls,
-        trait: type[OpTrait] | OpTrait,  # pyright: ignore[reportUnknownParameterType]
+        trait: type[OpTrait] | OpTrait,
         *,
         value_if_unregistered: bool = True,
     ) -> bool:
