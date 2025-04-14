@@ -68,12 +68,12 @@ class WorkloadBuilder:
     @classmethod
     def constant_folding(cls, size: int = 100) -> str:
         """Generate a constant folding workload of a given size."""
-        return cls.constant_folding_module(size=size).__str__()
+        return str(cls.constant_folding_module(size=size))
 
     @classmethod
     def large_dense_attr(cls, x: int = 1024, y: int = 1024) -> str:
         """Get the MLIR text representation of a large dense attr."""
-        return cls.large_dense_attr_module(x=x, y=y).__str__()
+        return str(cls.large_dense_attr_module(x=x, y=y))
 
     @classmethod
     def large_dense_attr_module(cls, x: int = 1024, y: int = 1024) -> ModuleOp:

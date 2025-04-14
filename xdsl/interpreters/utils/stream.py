@@ -46,7 +46,7 @@ class Acc(WritableStream[int]):
     A stream designed for testing, appends the next natural number written.
     """
 
-    values: list[int] = field(default_factory=list)
+    values: list[int] = field(default_factory=list[int])
 
     def write(self, value: int) -> None:
         return self.values.append(value)

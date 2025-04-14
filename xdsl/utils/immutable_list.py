@@ -74,9 +74,7 @@ class IList(list[_T]):
             raise Exception("frozen list can not be modified")
         return super().__delitem__(__index)
 
-    def __add__(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self, __x: Iterable[_S]
-    ) -> IList[_T | _S]:
+    def __add__(self, __x: Iterable[_S]) -> IList[_T | _S]:
         return IList(super().__add__(list(__x)))
 
     def __iadd__(self, __x: Iterable[_T]):

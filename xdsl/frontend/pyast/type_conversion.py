@@ -23,7 +23,7 @@ TypeName: TypeAlias = str
 FunctionRegistry: TypeAlias = dict[Callable[..., Any], type[Operation]]
 
 
-class TypeRegistry(dict[type, type[TypeAttribute]]):
+class TypeRegistry(dict[type, TypeAttribute]):
     """Mappings between source code and IR type.
 
     This mapping must be one-to-one, with each source type having only IR type.
@@ -32,43 +32,47 @@ class TypeRegistry(dict[type, type[TypeAttribute]]):
     cannot necessarily be correctly selected.
     """
 
-    def valid_insert(self, key: type, value: type[TypeAttribute]) -> bool:
+    def valid_insert(self, key: type, value: TypeAttribute) -> bool:
         """Check that both the key and value are unique."""
         return key not in self and value not in self.values()
 
-    @property
-    def backwards(self) -> dict[type, type[TypeAttribute]]:
+    def get_backwards(self, lookup: TypeAttribute) -> type | None:
         """Get a dictionary mapping values to keys."""
-        return {value: key for key, value in self.items()}
+        for key, value in self.items():
+            if value == lookup:
+                return key
+        return None
 
 
 @dataclass
 class TypeConverter:
     """Responsible for conversion of Python type hints to xDSL types."""
 
-    globals: dict[str, Any] = field(default_factory=dict)
+    globals: dict[str, Any] = field(default_factory=dict[str, Any])
     """
     Stores all globals in the current Python program, including imports. This is
     useful because we can lookup a class which corresponds to the type
     annotation without explicitly constructing it.
     """
 
-    type_names: dict[TypeName, type] = field(default_factory=dict)
+    type_names: dict[TypeName, type] = field(default_factory=dict[TypeName, type])
     """Mappings from source type names to source types."""
 
     type_registry: TypeRegistry = field(default_factory=TypeRegistry)
     """Mappings between source code and ir type, indexed by name."""
 
-    function_registry: FunctionRegistry = field(default_factory=dict)
+    function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between methods on objects and their operations."""
 
-    name_to_xdsl_type_map: dict[TypeName, Attribute] = field(default_factory=dict)
+    name_to_xdsl_type_map: dict[TypeName, Attribute] = field(
+        default_factory=dict[TypeName, Attribute]
+    )
     """
     Map to cache xDSL types created so far to avoid repeated conversions.
     """
 
     xdsl_to_frontend_type_map: dict[type[Attribute], type[_FrontendType]] = field(
-        default_factory=dict
+        default_factory=dict[type[Attribute], type[_FrontendType]]
     )
     """
     Map to lookup frontend types based on xDSL type. Useful if we want to see
@@ -191,17 +195,24 @@ class TypeConverter:
         self,
         source_type_name: TypeName,
     ) -> TypeAttribute | None:
-        """Get the IR type by its source code type name"""
+        """Get the IR type by its source code type name.
+
+        Normally, the attribute is a class which can be instantiated with no
+        parameters. However, in some cases it is parameterised, such as
+        `IntegerType` with its bitwidth. In this case, `Annotated` types such as
+        `I1` defined as `Annotated[IntegerType, IntegerType(1)]` are provided
+        already by xDSL, so we can extract the attribute instance from this.
+        """
         if source_type_name not in self.type_names:
             return None
         source_type = self.type_names[source_type_name]
         if source_type not in self.type_registry:
             return None
-        return self.type_registry[source_type]()
+        return self.type_registry[source_type]
 
-    def get_source_type(self, ir_type: type[TypeAttribute]) -> type | None:
+    def get_source_type(self, ir_type: TypeAttribute) -> type | None:
         """Get the source type from its IR type."""
-        return self.type_registry.backwards.get(ir_type, None)
+        return self.type_registry.get_backwards(ir_type)
 
     def resolve_function(
         self,

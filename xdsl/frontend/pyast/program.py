@@ -38,19 +38,19 @@ class FrontendProgram:
     xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
-    type_names: dict[TypeName, type] = field(default_factory=dict)
+    type_names: dict[TypeName, type] = field(default_factory=dict[TypeName, type])
     """Mappings from source type names to source types."""
 
     type_registry: TypeRegistry = field(default_factory=TypeRegistry)
     """Mappings between source code and IR type."""
 
-    function_registry: FunctionRegistry = field(default_factory=dict)
+    function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between functions and their operation types."""
 
     file: str | None = field(default=None)
     """Path to the file that contains the program."""
 
-    def register_type(self, source_type: type, ir_type: type[TypeAttribute]) -> None:
+    def register_type(self, source_type: type, ir_type: TypeAttribute) -> None:
         """Associate a type in the source code with its type in the IR."""
         if (type_name := source_type.__qualname__) in self.type_names:
             raise FrontendProgramException(
