@@ -858,7 +858,7 @@ class TransferWriteOp(VectorTransferOperation):
         source: SSAValue | Operation,
         indices: Sequence[SSAValue | Operation],
         in_bounds: ArrayAttr[BoolAttr],
-        mask: Sequence[SSAValue | Operation] | None = None,
+        mask: SSAValue | Operation | None = None,
         permutation_map: AffineMapAttr | None = None,
         result_type: TensorType[Attribute] | None = None,
     ):
@@ -866,6 +866,114 @@ class TransferWriteOp(VectorTransferOperation):
             operands=[vector, source, indices, mask],
             properties={"in_bounds": in_bounds, "permutation_map": permutation_map},
             result_types=[result_type],
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ", indent=0)
+        printer.print_operand(self.vector)
+        printer.print_string(", ", indent=0)
+        printer.print_operand(self.source)
+        printer.print_string(" [", indent=0)
+        printer.print_list(self.indices, printer.print_operand)
+        printer.print_string("]", indent=0)
+        if self.mask is not None:
+            printer.print_string(", ", indent=0)
+            printer.print_ssa_value(self.mask)
+        self._print_attrs(printer)
+        printer.print_string(" : ", indent=0)
+        printer.print_attribute(self.vector.type)
+        printer.print_string(", ", indent=0)
+        printer.print_attribute(self.source.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> TransferWriteOp:
+        vector = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        source = parser.parse_unresolved_operand()
+        indices = parser.parse_comma_separated_list(
+            Parser.Delimiter.SQUARE, parser.parse_operand
+        )
+        if parser.parse_optional_punctuation(","):
+            mask_start_pos = parser.pos
+            mask = parser.parse_unresolved_operand()
+            mask_end_pos = parser.pos
+        else:
+            mask_start_pos = None
+            mask = None
+            mask_end_pos = None
+        attributes_dict = parser.parse_optional_attr_dict()
+
+        types_pos = parser.pos
+        parser.parse_punctuation(":")
+        vector_type = parser.parse_type()
+        parser.parse_punctuation(",")
+        shaped_type = parser.parse_type()
+
+        vector = parser.resolve_operand(vector, vector_type)
+        source = parser.resolve_operand(source, shaped_type)
+
+        if not isa(shaped_type, MemRefType | TensorType):
+            parser.raise_error(
+                "requires memref or ranked tensor type", at_position=types_pos
+            )
+
+        if not isa(vector_type, VectorType):
+            parser.raise_error("requires vector type", at_position=types_pos)
+
+        # Create default permutation_map if not provided in attributes
+        permutation_map = None
+        if attributes_dict and "permutation_map" in attributes_dict:
+            permutation_map = attributes_dict["permutation_map"]
+            assert isinstance(permutation_map, AffineMapAttr)
+        else:
+            # Create identity permutation map for the shaped type's rank
+            permutation_map = AffineMapAttr(
+                VectorTransferOperation.get_transfer_minor_identity_map(
+                    shaped_type, vector_type
+                )
+            )
+
+        # Create in_bounds attribute if not provided
+        in_bounds = None
+        if attributes_dict and "in_bounds" in attributes_dict:
+            in_bounds = cast(ArrayAttr[BoolAttr], attributes_dict["in_bounds"])
+        else:
+            # Default: all dimensions are out-of-bounds
+            in_bounds = ArrayAttr(
+                (BoolAttr.from_bool(False),) * len(permutation_map.data.results)
+            )
+
+        if mask is not None:
+            if isa(shaped_type.element_type, VectorType):
+                assert mask_start_pos is not None
+                assert mask_end_pos is not None
+                parser.raise_error(
+                    "does not support masks with vector element type",
+                    at_position=mask_start_pos,
+                    end_position=mask_end_pos,
+                )
+            if vector_type.get_num_dims() != len(permutation_map.data.results):
+                parser.raise_error(
+                    "expected the same rank for the vector and the "
+                    "results of the permutation map",
+                    types_pos,
+                )
+            # Instead of adding the mask type as an op type, compute it based on the
+            # vector type and the permutation map (to keep the type signature small).
+            mask_type = VectorTransferOperation.infer_transfer_op_mask_type(
+                vector_type, permutation_map.data
+            )
+            mask = parser.resolve_operand(mask, mask_type)
+
+        # Create and return the TransferReadOp
+        return TransferWriteOp(
+            vector=vector,
+            source=source,
+            indices=indices,
+            mask=mask,
+            permutation_map=permutation_map,
+            in_bounds=in_bounds,
+            result_type=shaped_type if isinstance(shaped_type, TensorType) else None,
         )
 
 
