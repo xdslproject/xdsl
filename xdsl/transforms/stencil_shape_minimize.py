@@ -18,7 +18,9 @@ from xdsl.transforms.shape_inference import infer_shapes
 
 @dataclass
 class ShapeAnalysis(TypeConversionPattern):
-    seen: set[stencil.TempType[Attribute]] = field(default_factory=set)
+    seen: set[stencil.TempType[Attribute]] = field(
+        default_factory=set[stencil.TempType[Attribute]]
+    )
 
     @attr_type_rewrite_pattern
     def convert_type(self, typ: stencil.TempType[Attribute], /) -> Attribute | None:

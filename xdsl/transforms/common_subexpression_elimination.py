@@ -123,7 +123,7 @@ class CSEDriver:
     """
 
     _rewriter: Rewriter | PatternRewriter = field(default_factory=Rewriter)
-    _to_erase: set[Operation] = field(default_factory=set)
+    _to_erase: set[Operation] = field(default_factory=set[Operation])
     _known_ops: KnownOps = field(default_factory=KnownOps)
 
     def _mark_erasure(self, op: Operation):
