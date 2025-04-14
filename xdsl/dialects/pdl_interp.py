@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence, Set
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
     I16,
@@ -29,6 +29,7 @@ from xdsl.dialects.pdl import (
     TypeType,
     ValueType,
 )
+from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
@@ -49,6 +50,8 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.traits import (
     CallableOpInterface,
     IsolatedFromAbove,
@@ -272,6 +275,30 @@ class GetResultsOp(IRDLOperation):
             properties={"index": index},
             result_types=[result_type],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> GetResultsOp:
+        index = parser.parse_optional_integer()
+        if index is not None:
+            index = IntegerAttr.from_int_and_width(index, 32)
+        parser.parse_characters("of")
+        input_op = parser.parse_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        return GetResultsOp.build(
+            operands=(input_op,),
+            properties={"index": index},
+            result_types=(result_type,),
+        )
+
+    def print(self, printer: Printer):
+        if self.index is not None:
+            printer.print_string(" ", indent=0)
+            printer.print_string(str(self.index.value.data), indent=0)
+        printer.print_string(" of ", indent=0)
+        printer.print_operand(self.input_op)
+        printer.print_string(" : ", indent=0)
+        printer.print_attribute(self.value.type)
 
 
 @irdl_op_definition
@@ -560,6 +587,114 @@ class CreateOperationOp(IRDLOperation):
             },
         )
 
+    @staticmethod
+    def _parse_attr(parser: Parser) -> tuple[Attribute, SSAValue]:
+        attrname = parser.parse_attribute()
+        parser.parse_punctuation("=")
+        operand = parser.parse_operand()
+        return (attrname, operand)
+
+    @staticmethod
+    def _parse_input_list(parser: Parser) -> list[SSAValue]:
+        values: list[SSAValue] = []
+        parser.parse_punctuation("(")
+        if not parser.parse_optional_punctuation(")"):
+            values = parser.parse_comma_separated_list(
+                delimiter=Parser.Delimiter.NONE,
+                parse=lambda: parser.parse_operand(),
+            )
+            parser.parse_punctuation(":")
+            parser.parse_comma_separated_list(
+                delimiter=Parser.Delimiter.NONE,
+                parse=lambda: parser.parse_type(),
+            )
+            parser.parse_punctuation(")")
+        return values
+
+    @classmethod
+    def parse(cls, parser: Parser) -> CreateOperationOp:
+        name = parser.parse_attribute()
+
+        input_operands = CreateOperationOp._parse_input_list(parser)
+
+        input_attribute_names = None
+        input_attributes = None
+        attributes = parser.parse_optional_comma_separated_list(
+            delimiter=Parser.Delimiter.BRACES,
+            parse=lambda: CreateOperationOp._parse_attr(parser),
+        )
+        if attributes is not None:
+            input_attribute_names = [i[0] for i in attributes]
+            input_attributes = [i[1] for i in attributes]
+        else:
+            input_attribute_names = []
+            input_attributes = []
+        input_attribute_names = ArrayAttr(input_attribute_names)
+
+        input_result_types = None
+        inferred_result_types = None
+        if parser.parse_optional_punctuation("->") is not None:
+            if parser.parse_optional_punctuation("<"):
+                parser.parse_characters("inferred")
+                parser.parse_punctuation(">")
+                inferred_result_types = UnitAttr()
+            else:
+                input_result_types = CreateOperationOp._parse_input_list(parser)
+
+        op = CreateOperationOp.build(
+            operands=(input_operands, input_attributes, input_result_types),
+            properties={
+                "name": name,
+                "inputAttributeNames": input_attribute_names,
+            }
+            if inferred_result_types is None
+            else {
+                "name": name,
+                "inferredResultTypes": inferred_result_types,
+                "inputAttributeNames": input_attribute_names,
+            },
+            result_types=(OperationType(),),
+        )
+        return op
+
+    @staticmethod
+    def _print_input_list(printer: Printer, values: Iterable[SSAValue]):
+        printer.print_string("(", indent=0)
+        printer.print_list(values, printer.print_operand)
+        printer.print_string(" : ", indent=0)
+        printer.print_list(values, lambda op: printer.print_attribute(op.type))
+        printer.print_string(")", indent=0)
+
+    @staticmethod
+    def _print_attr(printer: Printer, value: tuple[StringAttr, SSAValue]):
+        printer.print_attribute(value[0])
+        printer.print_string(" = ", indent=0)
+        printer.print_operand(value[1])
+
+    def print(self, printer: Printer):
+        printer.print_string(" ", indent=0)
+        printer.print_attribute(self.constraint_name)
+        if self.input_operands:
+            CreateOperationOp._print_input_list(printer, self.input_operands)
+        else:
+            printer.print_string("() ", indent=0)
+        if self.input_attributes:
+            printer.print_string(" {", indent=0)
+            printer.print_list(
+                zip(
+                    cast(tuple[StringAttr], self.input_attribute_names.data),
+                    self.input_attributes,
+                ),
+                lambda value: CreateOperationOp._print_attr(printer, value),
+            )
+            printer.print_string("}", indent=0)
+        if self.inferred_result_types:
+            assert not self.input_result_types
+            printer.print_string(" -> <inferred>", indent=0)
+        elif self.input_result_types:
+            printer.print_string(" -> ", indent=0)
+            CreateOperationOp._print_input_list(printer, self.input_result_types)
+
 
 @irdl_op_definition
 class GetDefiningOpOp(IRDLOperation):
@@ -611,6 +746,46 @@ class FuncOp(IRDLOperation):
     traits = traits_def(
         IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
     )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> FuncOp:
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+        ) = parse_func_op_like(
+            parser, reserved_attr_names=("sym_name", "function_type")
+        )
+        func = FuncOp(
+            sym_name=name,
+            function_type=(input_types, return_types),
+            region=region,
+            arg_attrs=arg_attrs,
+            res_attrs=res_attrs,
+        )
+        if extra_attrs is not None:
+            func.attributes |= extra_attrs.data
+        return func
+
+    def print(self, printer: Printer):
+        print_func_op_like(
+            printer,
+            self.sym_name,
+            self.function_type,
+            self.body,
+            self.attributes,
+            arg_attrs=self.arg_attrs,
+            res_attrs=self.res_attrs,
+            reserved_attr_names=(
+                "sym_name",
+                "function_type",
+                "arg_attrs",
+            ),
+        )
 
     def __init__(
         self,

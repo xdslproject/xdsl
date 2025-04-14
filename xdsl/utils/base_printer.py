@@ -15,7 +15,7 @@ class BasePrinter:
     _current_column: int = field(default=0, init=False)
 
     _next_line_callback: list[Callable[[], None]] = field(
-        default_factory=list, init=False
+        default_factory=list[Callable[[], None]], init=False
     )
 
     def print_string(self, text: str, *, indent: int | None = None) -> None:

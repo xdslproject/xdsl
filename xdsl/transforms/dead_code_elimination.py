@@ -90,7 +90,7 @@ def dce(op: ModuleOp):
 @dataclass
 class LiveSet:
     changed: bool = field(default=True)  # Force first iteration to happen
-    _live_ops: set[Operation] = field(default_factory=set)
+    _live_ops: set[Operation] = field(default_factory=set[Operation])
 
     def is_live(self, op: Operation) -> bool:
         return op in self._live_ops

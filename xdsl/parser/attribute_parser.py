@@ -89,7 +89,9 @@ class AttrParser(BaseParser):
 
     ctx: Context
 
-    attribute_aliases: dict[str, Attribute] = field(default_factory=dict)
+    attribute_aliases: dict[str, Attribute] = field(
+        default_factory=dict[str, Attribute]
+    )
     """
     A dictionary of aliases for attributes.
     The key is the alias name, including the `!` or `#` prefix.
