@@ -39,6 +39,27 @@ class Test_AndOp(IRDLOperation):
 
 
 @irdl_op_definition
+class Test_AnyAttrOfOp(IRDLOperation):
+    name = "test.any_attr_of_i32_str"
+
+    attr = prop_def(
+        AnyOf(
+            [
+                IntegerAttr.constr(type=EqAttrConstraint(IntegerType(32))),
+                BaseAttr(StringAttr),
+            ]
+        )
+    )
+
+
+@irdl_op_definition
+class Test_AnyAttrOfSingleOp(IRDLOperation):
+    name = "test.any_attr_of_i32"
+
+    attr = prop_def(AnyOf([IntegerAttr.constr(type=EqAttrConstraint(IntegerType(32)))]))
+
+
+@irdl_op_definition
 class Test_AnyOp(IRDLOperation):
     name = "test.any"
 
@@ -161,6 +182,8 @@ Test_Dialect = Dialect(
     "test",
     [
         Test_AndOp,
+        Test_AnyAttrOfOp,
+        Test_AnyAttrOfSingleOp,
         Test_AnyOp,
         Test_AssemblyFormat,
         Test_AssemblyFormatLong,
