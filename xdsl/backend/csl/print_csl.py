@@ -90,21 +90,23 @@ class CslPrintContext:
     _INDENT = "  "
     output: IO[str]
 
-    variables: dict[SSAValue, str] = field(default_factory=dict)
+    variables: dict[SSAValue, str] = field(default_factory=dict[SSAValue, str])
 
     _counter: int = field(default=0)
 
     _prefix: str = field(default="")
     _symbols_to_export: dict[str, tuple[TypeAttribute, bool | None]] = field(
-        default_factory=dict
+        default_factory=dict[str, tuple[TypeAttribute, bool | None]]
     )
 
-    _binops: dict[str, str] = field(default_factory=dict)
+    _binops: dict[str, str] = field(default_factory=dict[str, str])
     """
     Maps operation name => operand for binary operands
     """
 
-    _cmp_ops: dict[str, dict[str, str | None]] = field(default_factory=dict)
+    _cmp_ops: dict[str, dict[str, str | None]] = field(
+        default_factory=dict[str, dict[str, str | None]]
+    )
 
     def register_binops(self):
         self._binops.update(

@@ -42,10 +42,10 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
     )
     "Floating-point registers unavailable to be used by the register allocator."
 
-    available_int_registers: list[int] = field(default_factory=list)
+    available_int_registers: list[int] = field(default_factory=list[int])
     "Registers that integer values can be allocated to in the current context."
 
-    available_float_registers: list[int] = field(default_factory=list)
+    available_float_registers: list[int] = field(default_factory=list[int])
     "Registers that floating-point values can be allocated to in the current context."
 
     @classmethod
