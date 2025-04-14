@@ -14,6 +14,7 @@ from xdsl.transforms.constant_folding_simple import ConstantFoldingSimplePass
 
 @pytest.fixture(params=[(1,), (10, 100), (100, 100, 100)])
 def constant_folding_workload(request: pytest.FixtureRequest) -> tuple[ModuleOp, int]:
+    """Fixture for a constant folding workload."""
     constants: tuple[int] = request.param
     ops: list[Operation] = []
     for i, constant in enumerate(constants):
@@ -26,7 +27,7 @@ def constant_folding_workload(request: pytest.FixtureRequest) -> tuple[ModuleOp,
 def test_constant_folding_simple(
     constant_folding_workload: tuple[ModuleOp, int],
 ) -> None:
-    """."""
+    """Test constant folding is correct for a workload."""
     module, target = constant_folding_workload
 
     ctx = Context(allow_unregistered=True)
@@ -35,5 +36,5 @@ def test_constant_folding_simple(
     simple_pass = ConstantFoldingSimplePass()
 
     simple_pass.apply(ctx, module)
-    result: int = module.ops.last.result.op.value.value.data
+    result = module.ops.last.result.op.value.value.data  # pyright: ignore
     assert result == target
