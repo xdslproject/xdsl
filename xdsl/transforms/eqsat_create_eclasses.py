@@ -74,6 +74,35 @@ def create_egraph_op(
     return egraph_op
 
 
+def insert_eclass_ops(block: Block):
+    # Insert eqsat.eclass for each operation
+    for op in block.ops:
+        results = op.results
+
+        # Skip special ops such as return ops
+        if isinstance(op, func.ReturnOp):
+            continue
+
+        if len(results) != 1:
+            raise DiagnosticException("Ops with non-single results not handled")
+
+        eclass_op = eqsat.EClassOp(results[0])
+        insertion_point = InsertPoint.after(op)
+        Rewriter.insert_op(eclass_op, insertion_point)
+        results[0].replace_by_if(
+            eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
+        )
+
+    # Insert eqsat.eclass for each arg
+    for arg in block.args:
+        eclass_op = eqsat.EClassOp(arg)
+        insertion_point = InsertPoint.at_start(block)
+        Rewriter.insert_op(eclass_op, insertion_point)
+        arg.replace_by_if(
+            eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
+        )
+
+
 class InsertEclassOps(RewritePattern):
     """
     Inserts a `eqsat.eclass` after each operation except module op and function op.
@@ -81,17 +110,7 @@ class InsertEclassOps(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
-        ret = op.body.block.last_op
-        if not isinstance(ret, func.ReturnOp):
-            raise DiagnosticException(
-                "Expected a return op as the last op in the function"
-            )
-        egraph_op = create_egraph_op(
-            op, entries=op.body.block.args, exits=ret.arguments
-        )
-        assert op.body.block.first_op, "Expected a first op in the block"
-        insert_point = InsertPoint.before(ret)
-        rewriter.insert_op(egraph_op, insert_point)
+        insert_eclass_ops(op.body.block)
 
 
 class EqsatCreateEclassesPass(ModulePass):
@@ -122,6 +141,5 @@ class EqsatCreateEclassesPass(ModulePass):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier([InsertEclassOps()]),
-            walk_regions_first=True,
             apply_recursively=False,
         ).rewrite_module(op)

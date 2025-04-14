@@ -1,4 +1,3 @@
-// XFAIL: *
 // RUN: xdsl-opt -p 'eqsat-create-eclasses,apply-eqsat-pdl,eqsat-add-costs,eqsat-extract' %s | filecheck %s
 
 func.func @test(%x : index) -> (index) {
