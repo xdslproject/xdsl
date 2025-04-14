@@ -118,9 +118,9 @@ class TblgenLoader:
 
     js: Any
 
-    attributes: dict[str, str] = field(default_factory=dict)
-    operations: dict[str, str] = field(default_factory=dict)
-    used_records: set[str] = field(default_factory=set)
+    attributes: dict[str, str] = field(default_factory=dict[str, str])
+    operations: dict[str, str] = field(default_factory=dict[str, str])
+    used_records: set[str] = field(default_factory=set[str])
     anon_counter: int = field(default_factory=int)
 
     def _get_op(self, name: str) -> TblgenOp:

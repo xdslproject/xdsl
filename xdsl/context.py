@@ -1,12 +1,9 @@
 import warnings
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from xdsl.ir import Dialect
-
-if TYPE_CHECKING:
-    from xdsl.ir import Attribute, Operation
+from xdsl.ir import Attribute, Dialect, Operation
 
 
 @dataclass
@@ -15,11 +12,15 @@ class Context:
 
     allow_unregistered: bool = field(default=False)
 
-    _loaded_dialects: "dict[str, Dialect]" = field(default_factory=dict)
-    _loaded_ops: "dict[str, type[Operation]]" = field(default_factory=dict)
-    _loaded_attrs: "dict[str, type[Attribute]]" = field(default_factory=dict)
-    _registered_dialects: "dict[str, Callable[[], Dialect]]" = field(
-        default_factory=dict
+    _loaded_dialects: dict[str, Dialect] = field(default_factory=dict[str, Dialect])
+    _loaded_ops: dict[str, type[Operation]] = field(
+        default_factory=dict[str, type[Operation]]
+    )
+    _loaded_attrs: dict[str, type[Attribute]] = field(
+        default_factory=dict[str, type[Attribute]]
+    )
+    _registered_dialects: dict[str, Callable[[], Dialect]] = field(
+        default_factory=dict[str, Callable[[], Dialect]]
     )
     """
     A dictionary of all registered dialects that are not yet loaded. This is used to

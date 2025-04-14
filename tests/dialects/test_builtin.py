@@ -474,6 +474,10 @@ def test_vector_constructor(
     assert vec.get_num_dims() == len(dims)
     assert vec.get_num_scalable_dims() == num_scalable_dims
     assert vec.get_shape() == dims
+    if scalable_dims is not None:
+        assert vec.get_scalable_dims() == tuple(scalable_dims)
+    else:
+        assert vec.get_scalable_dims() == (False,) * len(dims)
 
 
 @pytest.mark.parametrize(
