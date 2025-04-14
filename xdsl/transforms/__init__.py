@@ -36,6 +36,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return constant_fold_interp.ConstantFoldInterpPass
 
+    def get_constant_folding_simple():
+        from xdsl.transforms import constant_folding_simple
+
+        return constant_folding_simple.ConstantFoldingSimplePass
+
     def get_control_flow_hoist():
         from xdsl.transforms import control_flow_hoist
 
@@ -507,6 +512,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
+        "constant-folding-simple": get_constant_folding_simple,
         "control-flow-hoist": get_control_flow_hoist,
         "convert-arith-to-riscv-snitch": get_convert_arith_to_riscv_snitch,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
