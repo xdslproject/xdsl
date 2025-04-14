@@ -29,7 +29,6 @@ from xdsl.ir import (
 from xdsl.traits import (
     CallableOpInterface,
     IsTerminator,
-    SymbolOpInterface,
     SymbolTable,
 )
 from xdsl.utils.exceptions import InterpretationError
@@ -676,18 +675,6 @@ class Interpreter:
     """
     listeners: tuple[Listener, ...] = field(default=())
 
-    @property
-    def symbol_table(self) -> dict[str, Operation]:
-        if self._symbol_table is None:
-            self._symbol_table = {}
-
-            for op in self.module.walk():
-                if (symbol_interface := op.get_trait(SymbolOpInterface)) is not None:
-                    symbol = symbol_interface.get_sym_attr_name(op)
-                    if symbol:
-                        self._symbol_table[symbol.data] = op
-        return self._symbol_table
-
     def get_values(self, values: Iterable[SSAValue]) -> tuple[Any, ...]:
         """
         Get values from current environment.
@@ -750,11 +737,13 @@ class Interpreter:
             listener.did_interpret_op(op, result.values)
         return result
 
-    def run_op(self, op: Operation | str, inputs: PythonValues = ()) -> PythonValues:
+    def run_op(
+        self, op: Operation | str | SymbolRefAttr, inputs: PythonValues = ()
+    ) -> PythonValues:
         """
         Calls the implementation for the given operation.
         """
-        if isinstance(op, str):
+        if not isinstance(op, Operation):
             op = self.get_op_for_symbol(op)
 
         return self._run_op(op, inputs).values
