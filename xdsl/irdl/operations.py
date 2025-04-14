@@ -924,17 +924,25 @@ class OpDef:
     """The internal IRDL definition of an operation."""
 
     name: str = field(kw_only=False)
-    operands: list[tuple[str, OperandDef]] = field(default_factory=list)
-    results: list[tuple[str, ResultDef]] = field(default_factory=list)
-    properties: dict[str, PropertyDef] = field(default_factory=dict)
-    attributes: dict[str, AttributeDef] = field(default_factory=dict)
-    regions: list[tuple[str, RegionDef]] = field(default_factory=list)
-    successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
-    options: list[IRDLOption] = field(default_factory=list)
+    operands: list[tuple[str, OperandDef]] = field(
+        default_factory=list[tuple[str, OperandDef]]
+    )
+    results: list[tuple[str, ResultDef]] = field(
+        default_factory=list[tuple[str, ResultDef]]
+    )
+    properties: dict[str, PropertyDef] = field(default_factory=dict[str, PropertyDef])
+    attributes: dict[str, AttributeDef] = field(default_factory=dict[str, AttributeDef])
+    regions: list[tuple[str, RegionDef]] = field(
+        default_factory=list[tuple[str, RegionDef]]
+    )
+    successors: list[tuple[str, SuccessorDef]] = field(
+        default_factory=list[tuple[str, SuccessorDef]]
+    )
+    options: list[IRDLOption] = field(default_factory=list[IRDLOption])
     traits: OpTraits = field(default_factory=lambda: traits_def())
 
     accessor_names: dict[str, tuple[str, Literal["attribute", "property"]]] = field(
-        default_factory=dict
+        default_factory=dict[str, tuple[str, Literal["attribute", "property"]]]
     )
     """
     Mapping from the accessor name to the attribute or property name.
@@ -1159,7 +1167,7 @@ class OpDef:
                     case _SuccessorFieldDef():
                         # These asserts are needed as our pyright version currently has a bug
                         assert issubclass(value.cls, SuccessorDef)
-                        successor_def = value.cls()  # pyright: ignore[reportGeneralTypeIssues]
+                        successor_def = value.cls()
                         op_def.successors.append((field_name, successor_def))
                         continue
                     case _:

@@ -56,10 +56,6 @@ class GeneralRegisterType(X86RegisterType):
     name = "x86.reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "x86"
-
-    @classmethod
     def index_by_name(cls) -> dict[str, int]:
         return X86_INDEX_BY_NAME
 
@@ -110,10 +106,6 @@ class RFLAGSRegisterType(X86RegisterType):
     name = "x86.rflags"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "x86"
-
-    @classmethod
     def index_by_name(cls) -> dict[str, int]:
         return RFLAGS_INDEX_BY_NAME
 
@@ -139,10 +131,6 @@ class SSERegisterType(X86VectorRegisterType):
     """
 
     name = "x86.ssereg"
-
-    @classmethod
-    def instruction_set_name(cls) -> str:
-        return "SSE"
 
     @classmethod
     def index_by_name(cls) -> dict[str, int]:
@@ -205,10 +193,6 @@ class AVX2RegisterType(X86VectorRegisterType):
     name = "x86.avx2reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "AVX2"
-
-    @classmethod
     def index_by_name(cls) -> dict[str, int]:
         return AVX2_INDEX_BY_NAME
 
@@ -267,10 +251,6 @@ class AVX512RegisterType(X86VectorRegisterType):
     """
 
     name = "x86.avx512reg"
-
-    @classmethod
-    def instruction_set_name(cls) -> str:
-        return "AVX512"
 
     @classmethod
     def index_by_name(cls) -> dict[str, int]:

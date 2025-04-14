@@ -23,7 +23,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     VarConstraint,
-    attr_def,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -206,7 +205,7 @@ class IfOp(IRDLOperation):
     args = var_operand_def(IndexType)
     res = var_result_def()
 
-    condition = attr_def(AffineSetAttr)
+    condition = prop_def(AffineSetAttr)
 
     then_region = region_def("single_block")
     else_region = region_def()

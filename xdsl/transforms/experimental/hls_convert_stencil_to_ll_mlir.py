@@ -720,7 +720,7 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
     module: builtin.ModuleOp
     out_data_streams: list[HLSStreamType]
     write_data_declaration: bool = False
-    func_args_lst: list[BlockArgument] = field(default_factory=list)
+    func_args_lst: list[BlockArgument] = field(default_factory=list[BlockArgument])
     n_args: int = 0
     total_args: int | None = None
 
@@ -942,13 +942,13 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
     module: builtin.ModuleOp
     first_load: CallOp | None = None
     # sizes: IntegerType | None = None
-    sizes: list[OpResult | SSAValue] = field(default_factory=list)
+    sizes: list[OpResult | SSAValue] = field(default_factory=list[OpResult | SSAValue])
     in_module_load_all_data_func: FuncOp | None = None
     n_current_load: int = 0
     n_input: int = -1
 
-    data_arrays: list[BlockArgument] = field(default_factory=list)
-    data_streams: list[OpResult] = field(default_factory=list)
+    data_arrays: list[BlockArgument] = field(default_factory=list[BlockArgument])
+    data_streams: list[OpResult] = field(default_factory=list[OpResult])
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CallOp, rewriter: PatternRewriter, /):
