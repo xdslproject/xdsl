@@ -162,7 +162,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"but got {lhs.type} and {rhs.type}.",
             )
 
-        ir_type = cast(type[TypeAttribute], lhs.type.__class__)
+        ir_type = cast(TypeAttribute, lhs.type)
         source_type = self.type_converter.get_source_type(ir_type)
         if source_type is not None:  # NOTE: To support old codebase
             method_name = python_AST_operator_to_python_overload[op_name]
@@ -254,6 +254,22 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"Expected the same types for comparison operator '{op_name}',"
                 f" but got {lhs.type} and {rhs.type}.",
             )
+
+        ir_type = cast(TypeAttribute, lhs.type)
+        source_type = self.type_converter.get_source_type(ir_type)
+        if source_type is not None:  # NOTE: To support old codebase
+            method_name = python_AST_cmpop_to_python_overload[op_name]
+            function_name = f"{source_type.__qualname__}.{method_name}"
+            function = self.type_converter.resolve_function(
+                module_name=source_type.__module__, function_name=function_name
+            )
+            op = self.type_converter.get_operation(
+                method=function,
+                args=(lhs, rhs),
+            )
+            if op is not None:
+                self.inserter.insert_op(op)
+                return
 
         # Resolve the comparison operation to an xdsl operation class
         python_op = python_AST_cmpop_to_python_overload[op_name]

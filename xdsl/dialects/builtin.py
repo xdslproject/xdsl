@@ -1081,6 +1081,9 @@ class VectorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
+    def get_scalable_dims(self) -> tuple[bool, ...]:
+        return tuple(bool(i) for i in self.scalable_dims)
+
     def verify(self):
         num_dims = len(self.shape)
         num_scalable_dims = len(self.scalable_dims)

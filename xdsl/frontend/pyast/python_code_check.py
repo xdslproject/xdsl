@@ -98,7 +98,7 @@ class CheckStructure:
     file: str | None = field(default=None)
     """File for error reporting."""
 
-    functions_and_blocks: FunctionMap = field(default_factory=dict)
+    functions_and_blocks: FunctionMap = field(default_factory=FunctionMap)
     """
     Contains all information about functions and blocks. Populated during the
     structure check.
