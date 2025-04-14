@@ -8,12 +8,12 @@ from xdsl.transforms.loop_hoist_memref import (
     find_same_target_store,
     is_loop_dependent,
 )
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_find_same_target_store0():
     i32_memref_type = MemRefType(i32, [1])
-    memref_ssa_value = TestSSAValue(i32_memref_type)
+    memref_ssa_value = create_ssa_value(i32_memref_type)
     load0 = LoadOp.get(memref_ssa_value, [])
 
     assert find_same_target_store(load0) is None
@@ -22,7 +22,7 @@ def test_find_same_target_store0():
 
     assert find_same_target_store(load0) is None
 
-    i32_ssa_value = TestSSAValue(i32)
+    i32_ssa_value = create_ssa_value(i32)
     store0 = StoreOp.get(i32_ssa_value, memref_ssa_value, [])
 
     assert find_same_target_store(load0) is None

@@ -18,7 +18,7 @@ from xdsl.ir import Dialect, SSAValue
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 ctx = Context()
 index = IndexType()
@@ -34,8 +34,8 @@ def test_split_dynamic_index_list():
     assert dynamic == []
 
     # Test case 2: Mix of integers and SSA values
-    val1 = TestSSAValue(IndexType())
-    val2 = TestSSAValue(IndexType())
+    val1 = create_ssa_value(IndexType())
+    val2 = create_ssa_value(IndexType())
     values = [1, 2, val1, 4, val2]
     static, dynamic = split_dynamic_index_list(values, DYNAMIC_INDEX)
     assert static == [1, 2, DYNAMIC_INDEX, 4, DYNAMIC_INDEX]
@@ -60,8 +60,8 @@ def test_get_dynamic_index_list():
     assert result == [1, 2, 3]
 
     # Test case 2: Mix of integers and SSA values
-    val1 = TestSSAValue(IndexType())
-    val2 = TestSSAValue(IndexType())
+    val1 = create_ssa_value(IndexType())
+    val2 = create_ssa_value(IndexType())
     static_values = [1, 2, DYNAMIC_INDEX, 4, DYNAMIC_INDEX]
     dynamic_values = [val1, val2]
     result = get_dynamic_index_list(static_values, dynamic_values, DYNAMIC_INDEX)
@@ -77,7 +77,7 @@ def test_get_dynamic_index_list():
 def test_verify_dynamic_index_list():
     # Test case 1: Valid input
     static_values = [1, 2, DYNAMIC_INDEX]
-    dynamic_values = [TestSSAValue(IndexType())]
+    dynamic_values = [create_ssa_value(IndexType())]
     verify_dynamic_index_list(static_values, dynamic_values, DYNAMIC_INDEX)
 
     # Test case 2: Invalid input (mismatched lengths)
@@ -100,7 +100,7 @@ def test_print_dynamic_index_list():
     # Test case 2: Mix of integers and SSA values
     stream = StringIO()
     printer = Printer(stream)
-    values = [TestSSAValue(IndexType()), TestSSAValue(IndexType())]
+    values = [create_ssa_value(IndexType()), create_ssa_value(IndexType())]
     print_dynamic_index_list(
         printer,
         DYNAMIC_INDEX,
@@ -112,7 +112,7 @@ def test_print_dynamic_index_list():
     # Test case 3: With value types
     stream = StringIO()
     printer = Printer(stream)
-    values = [TestSSAValue(IndexType()), TestSSAValue(IntegerType(32))]
+    values = [create_ssa_value(IndexType()), create_ssa_value(IntegerType(32))]
     value_types = (IndexType(), IntegerType(32))
     print_dynamic_index_list(
         printer,
@@ -184,7 +184,7 @@ def test_parse_dynamic_index_without_type():
 
 def test_parse_dynamic_index_list_with_types():
     dynamic_index = -42
-    test_values = (TestSSAValue(i32), TestSSAValue(index))
+    test_values = (create_ssa_value(i32), create_ssa_value(index))
     parser = Parser(ctx, "[%0 : i32, 42, %1 : index]")
     parser.ssa_values["0"] = (test_values[0],)
     parser.ssa_values["1"] = (test_values[1],)
@@ -213,7 +213,7 @@ def test_parse_dynamic_index_list_without_types():
 
 def test_parse_dynamic_index_list_with_custom_delimiter():
     dynamic_index = -42
-    test_values = (TestSSAValue(i32), TestSSAValue(index))
+    test_values = (create_ssa_value(i32), create_ssa_value(index))
     parser = Parser(ctx, "(%0 : i32, 42, %1 : index)")
     parser.ssa_values["0"] = (test_values[0],)
     parser.ssa_values["1"] = (test_values[1],)
