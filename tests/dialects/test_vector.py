@@ -24,21 +24,21 @@ from xdsl.dialects.vector import (
     StoreOp,
 )
 from xdsl.ir import Attribute, OpResult, SSAValue
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def get_MemRef_SSAVal(
     referenced_type: Attribute, shape: list[int | IntAttr]
 ) -> SSAValue:
     memref_type = MemRefType(referenced_type, shape)
-    return TestSSAValue(memref_type)
+    return create_ssa_value(memref_type)
 
 
 def get_Vector_SSAVal(
     referenced_type: Attribute, shape: list[int | IntAttr]
 ) -> SSAValue:
     vector_type = VectorType(referenced_type, shape)
-    return TestSSAValue(vector_type)
+    return create_ssa_value(vector_type)
 
 
 def test_vectorType():
@@ -68,8 +68,8 @@ def test_vector_load_i32():
 
 def test_vector_load_i32_with_dimensions():
     memref_ssa_value = get_MemRef_SSAVal(i32, [2, 3])
-    index1 = TestSSAValue(IndexType())
-    index2 = TestSSAValue(IndexType())
+    index1 = create_ssa_value(IndexType())
+    index2 = create_ssa_value(IndexType())
     load = LoadOp.get(memref_ssa_value, [index1, index2])
 
     assert type(load.results[0]) is OpResult
@@ -115,8 +115,8 @@ def test_vector_store_i32_with_dimensions():
     vector_ssa_value = get_Vector_SSAVal(i32, [2, 3])
     memref_ssa_value = get_MemRef_SSAVal(i32, [4, 5])
 
-    index1 = TestSSAValue(IndexType())
-    index2 = TestSSAValue(IndexType())
+    index1 = create_ssa_value(IndexType())
+    index2 = create_ssa_value(IndexType())
     store = StoreOp.get(vector_ssa_value, memref_ssa_value, [index1, index2])
 
     assert store.base is memref_ssa_value
@@ -148,7 +148,7 @@ def test_vector_store_verify_indexing_exception():
 
 
 def test_vector_broadcast():
-    index1 = TestSSAValue(IndexType())
+    index1 = create_ssa_value(IndexType())
     broadcast = BroadcastOp.get(index1)
 
     assert type(broadcast.results[0]) is OpResult
@@ -157,7 +157,7 @@ def test_vector_broadcast():
 
 
 def test_vector_broadcast_verify_type_matching():
-    index1 = TestSSAValue(IndexType())
+    index1 = create_ssa_value(IndexType())
     res_vector_type = VectorType(i64, [1])
 
     broadcast = BroadcastOp.build(operands=[index1], result_types=[res_vector_type])
@@ -172,9 +172,9 @@ def test_vector_broadcast_verify_type_matching():
 def test_vector_fma():
     i32_vector_type = VectorType(i32, [1])
 
-    lhs_vector_ssa_value = TestSSAValue(i32_vector_type)
-    rhs_vector_ssa_value = TestSSAValue(i32_vector_type)
-    acc_vector_ssa_value = TestSSAValue(i32_vector_type)
+    lhs_vector_ssa_value = create_ssa_value(i32_vector_type)
+    rhs_vector_ssa_value = create_ssa_value(i32_vector_type)
+    acc_vector_ssa_value = create_ssa_value(i32_vector_type)
 
     fma = FMAOp.get(lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value)
 
@@ -188,9 +188,9 @@ def test_vector_fma():
 def test_vector_fma_with_dimensions():
     i32_vector_type = VectorType(i32, [2, 3])
 
-    lhs_vector_ssa_value = TestSSAValue(i32_vector_type)
-    rhs_vector_ssa_value = TestSSAValue(i32_vector_type)
-    acc_vector_ssa_value = TestSSAValue(i32_vector_type)
+    lhs_vector_ssa_value = create_ssa_value(i32_vector_type)
+    rhs_vector_ssa_value = create_ssa_value(i32_vector_type)
+    acc_vector_ssa_value = create_ssa_value(i32_vector_type)
 
     fma = FMAOp.get(lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value)
 
@@ -220,8 +220,8 @@ def test_vector_masked_load_with_dimensions():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     passthrough_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    index1 = TestSSAValue(IndexType())
-    index2 = TestSSAValue(IndexType())
+    index1 = create_ssa_value(IndexType())
+    index2 = create_ssa_value(IndexType())
 
     maskedload = MaskedLoadOp.get(
         memref_ssa_value,
@@ -320,8 +320,8 @@ def test_vector_masked_store_with_dimensions():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     value_to_store_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    index1 = TestSSAValue(IndexType())
-    index2 = TestSSAValue(IndexType())
+    index1 = create_ssa_value(IndexType())
+    index2 = create_ssa_value(IndexType())
 
     maskedstore = MaskedStoreOp.get(
         memref_ssa_value,
@@ -384,8 +384,8 @@ def test_vector_create_mask():
 
 
 def test_vector_create_mask_with_dimensions():
-    index1 = TestSSAValue(IndexType())
-    index2 = TestSSAValue(IndexType())
+    index1 = create_ssa_value(IndexType())
+    index2 = create_ssa_value(IndexType())
 
     create_mask = CreateMaskOp.get([index1, index2])
 
@@ -410,8 +410,8 @@ def test_vector_create_mask_verify_indexing_exception():
 def test_vector_extract_element_verify_vector_rank_0_or_1():
     vector_type = VectorType(IndexType(), [3, 3])
 
-    vector = TestSSAValue(vector_type)
-    position = TestSSAValue(IndexType())
+    vector = create_ssa_value(vector_type)
+    position = create_ssa_value(IndexType())
     extract_element = ExtractElementOp(vector, position)
 
     with pytest.raises(Exception, match="Unexpected >1 vector rank."):
@@ -421,8 +421,8 @@ def test_vector_extract_element_verify_vector_rank_0_or_1():
 def test_vector_extract_element_construction_1d():
     vector_type = VectorType(IndexType(), [3])
 
-    vector = TestSSAValue(vector_type)
-    position = TestSSAValue(IndexType())
+    vector = create_ssa_value(vector_type)
+    position = create_ssa_value(IndexType())
 
     extract_element = ExtractElementOp(vector, position)
 
@@ -434,7 +434,7 @@ def test_vector_extract_element_construction_1d():
 def test_vector_extract_element_1d_verify_non_empty_position():
     vector_type = VectorType(IndexType(), [3])
 
-    vector = TestSSAValue(vector_type)
+    vector = create_ssa_value(vector_type)
 
     extract_element = ExtractElementOp(vector)
 
@@ -445,7 +445,7 @@ def test_vector_extract_element_1d_verify_non_empty_position():
 def test_vector_extract_element_construction_0d():
     vector_type = VectorType(IndexType(), [])
 
-    vector = TestSSAValue(vector_type)
+    vector = create_ssa_value(vector_type)
 
     extract_element = ExtractElementOp(vector)
 
@@ -457,8 +457,8 @@ def test_vector_extract_element_construction_0d():
 def test_vector_extract_element_0d_verify_empty_position():
     vector_type = VectorType(IndexType(), [])
 
-    vector = TestSSAValue(vector_type)
-    position = TestSSAValue(IndexType())
+    vector = create_ssa_value(vector_type)
+    position = create_ssa_value(IndexType())
 
     extract_element = ExtractElementOp(vector, position)
 
@@ -470,9 +470,9 @@ def test_vector_extract_element_0d_verify_empty_position():
 
 def test_vector_extract():
     vector_type = VectorType(i32, [1, 2, 3, 4])
-    vector = TestSSAValue(vector_type)
-    dim1 = TestSSAValue(i32)
-    dim2 = TestSSAValue(i32)
+    vector = create_ssa_value(vector_type)
+    dim1 = create_ssa_value(i32)
+    dim2 = create_ssa_value(i32)
     dimensions = [0, dim1, 1, dim2]
 
     extract = ExtractOp(vector, dimensions, i32)
@@ -493,9 +493,9 @@ def test_vector_extract():
 def test_vector_insert_element_verify_vector_rank_0_or_1():
     vector_type = VectorType(IndexType(), [3, 3])
 
-    source = TestSSAValue(IndexType())
-    dest = TestSSAValue(vector_type)
-    position = TestSSAValue(IndexType())
+    source = create_ssa_value(IndexType())
+    dest = create_ssa_value(vector_type)
+    position = create_ssa_value(IndexType())
 
     insert_element = InsertElementOp(source, dest, position)
 
@@ -506,9 +506,9 @@ def test_vector_insert_element_verify_vector_rank_0_or_1():
 def test_vector_insert_element_construction_1d():
     vector_type = VectorType(IndexType(), [3])
 
-    source = TestSSAValue(IndexType())
-    dest = TestSSAValue(vector_type)
-    position = TestSSAValue(IndexType())
+    source = create_ssa_value(IndexType())
+    dest = create_ssa_value(vector_type)
+    position = create_ssa_value(IndexType())
 
     insert_element = InsertElementOp(source, dest, position)
 
@@ -521,8 +521,8 @@ def test_vector_insert_element_construction_1d():
 def test_vector_insert_element_1d_verify_non_empty_position():
     vector_type = VectorType(IndexType(), [3])
 
-    source = TestSSAValue(IndexType())
-    dest = TestSSAValue(vector_type)
+    source = create_ssa_value(IndexType())
+    dest = create_ssa_value(vector_type)
 
     insert_element = InsertElementOp(source, dest)
 
@@ -536,8 +536,8 @@ def test_vector_insert_element_1d_verify_non_empty_position():
 def test_vector_insert_element_construction_0d():
     vector_type = VectorType(IndexType(), [])
 
-    source = TestSSAValue(IndexType())
-    dest = TestSSAValue(vector_type)
+    source = create_ssa_value(IndexType())
+    dest = create_ssa_value(vector_type)
 
     insert_element = InsertElementOp(source, dest)
 
@@ -550,9 +550,9 @@ def test_vector_insert_element_construction_0d():
 def test_vector_insert_element_0d_verify_empty_position():
     vector_type = VectorType(IndexType(), [])
 
-    source = TestSSAValue(IndexType())
-    dest = TestSSAValue(vector_type)
-    position = TestSSAValue(IndexType())
+    source = create_ssa_value(IndexType())
+    dest = create_ssa_value(vector_type)
+    position = create_ssa_value(IndexType())
 
     insert_element = InsertElementOp(source, dest, position)
 
@@ -564,10 +564,10 @@ def test_vector_insert_element_0d_verify_empty_position():
 
 
 def test_vector_insert():
-    value = TestSSAValue(VectorType(i32, [5]))
-    dest = TestSSAValue(VectorType(i32, [1, 2, 3, 4, 5]))
-    dim1 = TestSSAValue(i32)
-    dim2 = TestSSAValue(i32)
+    value = create_ssa_value(VectorType(i32, [5]))
+    dest = create_ssa_value(VectorType(i32, [1, 2, 3, 4, 5]))
+    dim1 = create_ssa_value(i32)
+    dim2 = create_ssa_value(i32)
     dimensions = [0, dim1, 1, dim2]
 
     insert = InsertOp(value, dest, dimensions)

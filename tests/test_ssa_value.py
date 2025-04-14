@@ -4,7 +4,7 @@ from xdsl.dialects.builtin import StringAttr, i32, i64
 from xdsl.ir import Block, BlockArgument, Operation, SSAValue
 from xdsl.irdl import IRDLOperation, irdl_op_definition, result_def
 from xdsl.rewriter import Rewriter
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 @irdl_op_definition
@@ -65,7 +65,7 @@ def test_invalid_ssa_vals(name: str):
 
 def test_rewrite_type():
     """We can rewrite the type of a test SSA value."""
-    val = TestSSAValue(i32)
+    val = create_ssa_value(i32)
     rewriter = Rewriter()
     new_val = rewriter.replace_value_with_new_type(val, i64)
     assert val.type == i32

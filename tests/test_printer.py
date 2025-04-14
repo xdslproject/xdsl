@@ -44,7 +44,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_simple_forgotten_op():
@@ -934,7 +934,7 @@ def test_get_printed_name():
     ctx.load_dialect(Builtin)
 
     printer = Printer()
-    val = TestSSAValue(i32)
+    val = create_ssa_value(i32)
 
     # Test printing without constraints
     stream = StringIO()
@@ -949,7 +949,7 @@ def test_get_printed_name():
     assert f"%{picked_name}" == printer.stream.getvalue()
 
     # Test printing with name hint
-    val = TestSSAValue(i32)
+    val = create_ssa_value(i32)
     val.name_hint = "foo"
     printed = StringIO()
     picked_name = Printer(printed).print_ssa_value(val)
