@@ -21,39 +21,39 @@
 // Invalid integer register name
 "test.op"() : () -> (!riscv.reg<ft0>)
 
-//      CHECK:  Invalid register name ft0 for register set RV32I.
+//      CHECK:  Invalid register name ft0 for register type riscv.reg.
 
 // -----
 
 // Invalid float register name
 "test.op"() : () -> (!riscv.freg<a0>)
 
-//      CHECK:  Invalid register name a0 for register set RV32F.
+//      CHECK:  Invalid register name a0 for register type riscv.freg.
 
 // -----
 
 // Non-existent integer register name
 "test.op"() : () -> (!riscv.reg<x99>)
 
-//      CHECK:  Invalid register name x99 for register set RV32I.
+//      CHECK:  Invalid register name x99 for register type riscv.reg.
 
 // -----
 
 // Non-existent float register name
 "test.op"() : () -> (!riscv.freg<ft99>)
 
-//      CHECK:  Invalid register name ft99 for register set RV32F.
+//      CHECK:  Invalid register name ft99 for register type riscv.freg.
 
 // -----
 
 // Integer register with non-integer suffix
 "test.op"() : () -> (!riscv.reg<j_j>)
 
-//      CHECK:  Invalid register name j_j for register set RV32I.
+//      CHECK:  Invalid register name j_j for register type riscv.reg.
 
 // -----
 
 // Float register with non-integer suffix
 "test.op"() : () -> (!riscv.freg<fj_bla>)
 
-//      CHECK:  Invalid register name fj_bla for register set RV32F.
+//      CHECK:  Invalid register name fj_bla for register type riscv.freg.

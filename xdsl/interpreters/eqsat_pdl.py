@@ -124,11 +124,18 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
     values.
     """
 
-    value_to_eclass: dict[SSAValue, eqsat.EClassOp] = field(default_factory=dict)
+    value_to_eclass: dict[SSAValue, eqsat.EClassOp] = field(
+        default_factory=dict[SSAValue, eqsat.EClassOp]
+    )
     op_components_to_op: dict[
         tuple[str, tuple[tuple[str, Attribute], ...], tuple[SSAValue, ...]],
         Operation,
-    ] = field(default_factory=dict)
+    ] = field(
+        default_factory=dict[
+            tuple[str, tuple[tuple[str, Attribute], ...], tuple[SSAValue, ...]],
+            Operation,
+        ]
+    )
     did_populate: bool = field(default=False)
 
     def populate_maps(self, module: ModuleOp):

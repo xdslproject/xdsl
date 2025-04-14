@@ -7,9 +7,8 @@ from xdsl.backend.riscv.lowering.utils import (
     move_to_unallocated_regs,
 )
 from xdsl.context import Context
-from xdsl.dialects import func, riscv, riscv_func
+from xdsl.dialects import func, riscv_func
 from xdsl.dialects.builtin import ModuleOp, StringAttr, UnrealizedConversionCastOp
-from xdsl.ir import Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -52,17 +51,7 @@ class LowerFuncOp(RewritePattern):
             p2align=p2align,
         )
 
-        new_ops: list[Operation] = []
-
-        new_ops.append(new_func)
-
-        # Each function has its own .text: this will tell the assembler to emit
-        # a .text section (if not present) and make it the current one
-        # section = riscv.AssemblySectionOp(".text", Region(Block(result)))
-
-        text_section = riscv.AssemblySectionOp(".text", Region(Block(new_ops)))
-
-        rewriter.replace_matched_op(text_section)
+        rewriter.replace_matched_op(new_func)
 
 
 class LowerFuncCallOp(RewritePattern):

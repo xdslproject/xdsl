@@ -31,7 +31,7 @@ class BacktrackPoint:
 @register_impls
 @dataclass
 class EqsatPDLInterpFunctions(PDLInterpFunctions):
-    backtrack_stack: list[BacktrackPoint] = field(default_factory=list)
+    backtrack_stack: list[BacktrackPoint] = field(default_factory=list[BacktrackPoint])
     visited: bool = True
 
     @impl(pdl_interp.GetResultOp)

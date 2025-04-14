@@ -275,3 +275,62 @@ def test_affine_map_used_dims_bit_vector():
         False,
         True,
     )
+
+
+def test_minor_identity():
+    assert AffineMap.empty().is_minor_identity()
+    assert AffineMap.identity(3).is_minor_identity()
+    assert AffineMap.minor_identity(3, 2).is_minor_identity()
+    assert AffineMap.minor_identity(5, 3).is_minor_identity()
+
+    # Test the actual structure of minor identity maps
+    minor_id_3_2 = AffineMap.minor_identity(3, 2)
+    assert minor_id_3_2 == AffineMap.from_callable(lambda _, d1, d2: (d1, d2))
+
+    minor_id_5_3 = AffineMap.minor_identity(5, 3)
+    assert minor_id_5_3 == AffineMap.from_callable(
+        lambda _d0, _d1, d2, d3, d4: (d2, d3, d4)
+    )
+    # Test non-minor identity maps
+    non_minor_id = AffineMap(2, 0, (AffineExpr.dimension(0), AffineExpr.dimension(0)))
+    assert not non_minor_id.is_minor_identity()
+
+    # Map with symbols is not a minor identity
+    map_with_symbols = AffineMap(
+        2, 1, (AffineExpr.dimension(0), AffineExpr.dimension(1))
+    )
+    assert not map_with_symbols.is_minor_identity()
+
+    # Map with non-consecutive dimensions is not a minor identity
+    non_consecutive = AffineMap(
+        3, 0, (AffineExpr.dimension(0), AffineExpr.dimension(2))
+    )
+    assert not non_consecutive.is_minor_identity()
+
+    with pytest.raises(
+        ValueError,
+        match="Dimension mismatch, expected dims 2 to be greater than or equal to "
+        "results 3",
+    ):
+        AffineMap.minor_identity(2, 3)
+
+
+def test_is_projected_permutation():
+    assert AffineMap(0, 0, ()).is_projected_permutation()
+    assert not AffineMap(0, 1, ()).is_projected_permutation()
+
+    assert AffineMap.from_callable(lambda d0, d1: (d0, d1)).is_projected_permutation()
+    assert not AffineMap.from_callable(
+        lambda d0, d1: (d0, d0)
+    ).is_projected_permutation()
+    assert not AffineMap.from_callable(lambda d0: (d0, d0)).is_projected_permutation()
+
+    assert AffineMap.from_callable(
+        lambda d0, d1, d2: (d1, d0)
+    ).is_projected_permutation()
+    assert not AffineMap.from_callable(
+        lambda d0, d1, d2: (d1, 0, d0)
+    ).is_projected_permutation()
+    assert AffineMap.from_callable(
+        lambda d0, d1, d2: (d1, 0, d0)
+    ).is_projected_permutation(allow_zero_in_results=True)

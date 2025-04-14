@@ -13,8 +13,10 @@ from xdsl.dialects.vector import (
     BroadcastOp,
     CreateMaskOp,
     ExtractElementOp,
+    ExtractOp,
     FMAOp,
     InsertElementOp,
+    InsertOp,
     LoadOp,
     MaskedLoadOp,
     MaskedStoreOp,
@@ -466,6 +468,28 @@ def test_vector_extract_element_0d_verify_empty_position():
         extract_element.verify()
 
 
+def test_vector_extract():
+    vector_type = VectorType(i32, [1, 2, 3, 4])
+    vector = TestSSAValue(vector_type)
+    dim1 = TestSSAValue(i32)
+    dim2 = TestSSAValue(i32)
+    dimensions = [0, dim1, 1, dim2]
+
+    extract = ExtractOp(vector, dimensions, i32)
+    assert extract.vector == vector
+    assert extract.dynamic_position == (
+        dim1,
+        dim2,
+    )
+    assert tuple(extract.static_position.iter_values()) == (
+        0,
+        extract.DYNAMIC_INDEX,
+        1,
+        extract.DYNAMIC_INDEX,
+    )
+    assert extract.result.type == i32
+
+
 def test_vector_insert_element_verify_vector_rank_0_or_1():
     vector_type = VectorType(IndexType(), [3, 3])
 
@@ -537,3 +561,26 @@ def test_vector_insert_element_0d_verify_empty_position():
         match="Expected position to be empty with 0-D vector.",
     ):
         insert_element.verify()
+
+
+def test_vector_insert():
+    value = TestSSAValue(VectorType(i32, [5]))
+    dest = TestSSAValue(VectorType(i32, [1, 2, 3, 4, 5]))
+    dim1 = TestSSAValue(i32)
+    dim2 = TestSSAValue(i32)
+    dimensions = [0, dim1, 1, dim2]
+
+    insert = InsertOp(value, dest, dimensions)
+    assert insert.source == value
+    assert insert.dest == dest
+    assert insert.dynamic_position == (
+        dim1,
+        dim2,
+    )
+    assert tuple(insert.static_position.iter_values()) == (
+        0,
+        insert.DYNAMIC_INDEX,
+        1,
+        insert.DYNAMIC_INDEX,
+    )
+    assert insert.result.type == dest.type

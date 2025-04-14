@@ -110,8 +110,8 @@ class PDLInterpFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         assert len(args) > 0
         assert len(args) == 1, "TODO: Implement this"
-        assert isinstance(args[0], SSAValue)
-        value: SSAValue[Any] = args[0]
+        assert isa(args[0], SSAValue)
+        value = args[0]
         return (value.type,)
 
     @impl(pdl_interp.GetDefiningOpOp)

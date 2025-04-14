@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
+    DenseI32ArrayConstr,
     DenseI64ArrayConstr,
     IndexType,
     IntAttr,
@@ -38,6 +39,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     BaseAttr,
     IRDLOperation,
     ParameterDef,
@@ -1606,22 +1608,30 @@ class CallIntrinsicOp(IRDLOperation):
 
     fastmathFlags = opt_prop_def(FastMathAttr)
     intrin = prop_def(StringAttr)
+    op_bundle_sizes = prop_def(DenseI32ArrayConstr)
     args = var_operand_def()
+    op_bundle_operands = var_operand_def()
     ress = opt_result_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
         intrin: StringAttr | str,
         args: Sequence[SSAValue],
         result_types: Sequence[Attribute],
+        *,
+        op_bundle_sizes: DenseArrayBase,
+        op_bundle_operands: Sequence[SSAValue] = (),
     ):
         if isinstance(intrin, str):
             intrin = StringAttr(intrin)
         super().__init__(
-            operands=args,
+            operands=[args, op_bundle_operands],
             result_types=(result_types,),
             properties={
                 "intrin": intrin,
+                "op_bundle_sizes": op_bundle_sizes,
             },
         )
 
@@ -1653,20 +1663,28 @@ class CallOp(IRDLOperation):
     name = "llvm.call"
 
     args = var_operand_def()
+    op_bundle_operands = var_operand_def()
 
     callee = opt_prop_def(SymbolRefAttr)
     var_callee_type = opt_prop_def(LLVMFunctionType)
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr("none"))
     CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
+    op_bundle_sizes = prop_def(
+        DenseI32ArrayConstr, default_value=DenseArrayBase.create_dense_int(i32, ())
+    )
     TailCallKind = prop_def(
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
     )
     returned = opt_result_def()
 
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
     def __init__(
         self,
         callee: str | SymbolRefAttr | StringAttr,
         *args: SSAValue | Operation,
+        op_bundle_sizes: DenseArrayBase = DenseArrayBase.create_dense_int(i32, ()),
+        op_bundle_operands: tuple[SSAValue, ...] = (),
         return_type: Attribute | None = None,
         calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
         fastmath: FastMathAttr = FastMathAttr(None),
@@ -1682,12 +1700,13 @@ class CallOp(IRDLOperation):
         ]
         var_callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
         super().__init__(
-            operands=[args],
+            operands=[args, op_bundle_operands],
             properties={
                 "callee": callee,
                 "var_callee_type": var_callee_type,
                 "fastmathFlags": fastmath,
                 "CConv": calling_convention,
+                "op_bundle_sizes": op_bundle_sizes,
             },
             result_types=op_result_type,
         )

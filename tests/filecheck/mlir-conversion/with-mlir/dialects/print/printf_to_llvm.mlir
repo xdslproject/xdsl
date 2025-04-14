@@ -2,14 +2,14 @@
 // this tests straight to llvmir to verify intended target compatibility
 
 builtin.module {
-    "func.func"() ({
-        %pi = "arith.constant"() {value = 3.14159:f32} : () -> f32
-        %12 = "arith.constant"() {value = 12 : i32} : () -> i32
+    func.func @main() {
+        %pi = arith.constant 3.14159 : f32
+        %12 = arith.constant 12 : i32
 
         printf.print_format "Hello: {} {}", %pi : f32, %12 : i32
 
-        "func.return"() : () -> ()
-    }) {sym_name = "main", function_type=() -> ()} : () -> ()
+        func.return
+    }
 }
 
 

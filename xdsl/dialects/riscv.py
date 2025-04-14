@@ -154,10 +154,6 @@ class IntRegisterType(RISCVRegisterType):
     name = "riscv.reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "RV32I"
-
-    @classmethod
     def index_by_name(cls) -> dict[str, int]:
         return RV32I_INDEX_BY_NAME
 
@@ -215,10 +211,6 @@ class FloatRegisterType(RISCVRegisterType):
     """
 
     name = "riscv.freg"
-
-    @classmethod
-    def instruction_set_name(cls) -> str:
-        return "RV32F"
 
     @classmethod
     def index_by_name(cls) -> dict[str, int]:
@@ -1540,9 +1532,12 @@ class XoriOp(RdRsImmIntegerOperation):
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import ShiftLeftImmediate
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftLeftbyZero,
+            ShiftLeftImmediate,
+        )
 
-        return (ShiftLeftImmediate(),)
+        return (ShiftLeftImmediate(), ShiftLeftbyZero())
 
 
 @irdl_op_definition

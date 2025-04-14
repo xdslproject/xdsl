@@ -69,7 +69,7 @@ floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 @irdl_op_definition
 class GetOperandOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_operand-pdl_interpgetoperandop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_operand-pdl_interpgetoperandop).
     """
 
     name = "pdl_interp.get_operand"
@@ -90,7 +90,7 @@ class GetOperandOp(IRDLOperation):
 @irdl_op_definition
 class FinalizeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpfinalize-pdl_interpfinalizeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpfinalize-pdl_interpfinalizeop).
     """
 
     name = "pdl_interp.finalize"
@@ -105,7 +105,7 @@ class FinalizeOp(IRDLOperation):
 @irdl_op_definition
 class CheckOperationNameOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_operation_name-pdl_interpcheckoperationnameop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_operation_name-pdl_interpcheckoperationnameop).
     """
 
     name = "pdl_interp.check_operation_name"
@@ -138,7 +138,7 @@ class CheckOperationNameOp(IRDLOperation):
 @irdl_op_definition
 class CheckOperandCountOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_operand_count-pdl_interpcheckoperandcountop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_operand_count-pdl_interpcheckoperandcountop).
     """
 
     name = "pdl_interp.check_operand_count"
@@ -174,7 +174,7 @@ class CheckOperandCountOp(IRDLOperation):
 @irdl_op_definition
 class CheckResultCountOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_result_count-pdl_interpcheckresultcountop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_result_count-pdl_interpcheckresultcountop).
     """
 
     name = "pdl_interp.check_result_count"
@@ -210,7 +210,7 @@ class CheckResultCountOp(IRDLOperation):
 @irdl_op_definition
 class IsNotNullOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpis_not_null-pdl_interpisnotnullop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpis_not_null-pdl_interpisnotnullop).
     """
 
     name = "pdl_interp.is_not_null"
@@ -230,7 +230,7 @@ class IsNotNullOp(IRDLOperation):
 @irdl_op_definition
 class GetResultOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_result-pdl_interpgetresultop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_result-pdl_interpgetresultop).
     """
 
     name = "pdl_interp.get_result"
@@ -251,7 +251,7 @@ class GetResultOp(IRDLOperation):
 @irdl_op_definition
 class GetResultsOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_results-pdl_interpgetresultsop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_results-pdl_interpgetresultsop).
     """
 
     name = "pdl_interp.get_results"
@@ -260,7 +260,7 @@ class GetResultsOp(IRDLOperation):
     value = result_def(ValueType | RangeType[ValueType])
 
     # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
-    # TODO: if parse_optional_integer ...
+    # TODO: Fix bug preventing this assebmly format from working: https://github.com/xdslproject/xdsl/issues/4136.
 
     def __init__(
         self,
@@ -285,23 +285,26 @@ class GetResultsOp(IRDLOperation):
         input_op = parser.parse_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
-        assert isa(result_type, ValueType) or isa(result_type, RangeType[ValueType])
-        return GetResultsOp(index, input_op, result_type)
+        return GetResultsOp.build(
+            operands=(input_op,),
+            properties={"index": index},
+            result_types=(result_type,),
+        )
 
     def print(self, printer: Printer):
         if self.index is not None:
-            printer.print(" ")
-            printer.print(self.index.value.data)
-        printer.print(" of ")
+            printer.print_string(" ", indent=0)
+            printer.print_string(str(self.index.value.data), indent=0)
+        printer.print_string(" of ", indent=0)
         printer.print_operand(self.input_op)
-        printer.print(" : ")
-        printer.print(self.value.type)
+        printer.print_string(" : ", indent=0)
+        printer.print_attribute(self.value.type)
 
 
 @irdl_op_definition
 class GetAttributeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_attribute-pdl_interpgetattributeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_attribute-pdl_interpgetattributeop).
     """
 
     name = "pdl_interp.get_attribute"
@@ -324,7 +327,7 @@ class GetAttributeOp(IRDLOperation):
 @irdl_op_definition
 class CheckAttributeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_attribute-pdl_interpcheckattributeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_attribute-pdl_interpcheckattributeop).
     """
 
     name = "pdl_interp.check_attribute"
@@ -355,7 +358,7 @@ class CheckAttributeOp(IRDLOperation):
 @irdl_op_definition
 class AreEqualOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpare_equal-pdl_interpareequalop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpare_equal-pdl_interpareequalop).
     """
 
     name = "pdl_interp.are_equal"
@@ -379,7 +382,7 @@ class AreEqualOp(IRDLOperation):
 @irdl_op_definition
 class RecordMatchOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interprecord_match-pdl_interprecordmatchop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interprecord_match-pdl_interprecordmatchop).
     """
 
     name = "pdl_interp.record_match"
@@ -464,7 +467,7 @@ class ValueConstrFromResultConstr(
 @irdl_op_definition
 class GetValueTypeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_value_type-pdl_interpgetvaluetypeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_value_type-pdl_interpgetvaluetypeop).
     """
 
     name = "pdl_interp.get_value_type"
@@ -488,7 +491,7 @@ class GetValueTypeOp(IRDLOperation):
 @irdl_op_definition
 class ReplaceOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpreplace-pdl_interpreplaceop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpreplace-pdl_interpreplaceop).
     """
 
     name = "pdl_interp.replace"
@@ -506,7 +509,7 @@ class ReplaceOp(IRDLOperation):
 @irdl_op_definition
 class CreateAttributeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_attribute-pdl_interpcreateattributeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_attribute-pdl_interpcreateattributeop).
     """
 
     name = "pdl_interp.create_attribute"
@@ -522,7 +525,7 @@ class CreateAttributeOp(IRDLOperation):
 @irdl_op_definition
 class CreateOperationOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_operation-pdl_interpcreateoperationop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_operation-pdl_interpcreateoperationop).
     """
 
     name = "pdl_interp.create_operation"
@@ -544,7 +547,7 @@ class CreateOperationOp(IRDLOperation):
     #     "custom<CreateOperationOpResults>($inputResultTypes, type($inputResultTypes), $inferredResultTypes)"
     #     "attr-dict"
     # )
-    # # unexpected token 'custom'
+    # TODO: this assebly format is unsupported in xDSL because of the `custom` directives.
 
     def __init__(
         self,
@@ -584,47 +587,49 @@ class CreateOperationOp(IRDLOperation):
             },
         )
 
+    @staticmethod
+    def _parse_attr(parser: Parser) -> tuple[Attribute, SSAValue]:
+        attrname = parser.parse_attribute()
+        parser.parse_punctuation("=")
+        operand = parser.parse_operand()
+        return (attrname, operand)
+
+    @staticmethod
+    def _parse_input_list(parser: Parser) -> list[SSAValue]:
+        values: list[SSAValue] = []
+        parser.parse_punctuation("(")
+        if not parser.parse_optional_punctuation(")"):
+            values = parser.parse_comma_separated_list(
+                delimiter=Parser.Delimiter.NONE,
+                parse=lambda: parser.parse_operand(),
+            )
+            parser.parse_punctuation(":")
+            parser.parse_comma_separated_list(
+                delimiter=Parser.Delimiter.NONE,
+                parse=lambda: parser.parse_type(),
+            )
+            parser.parse_punctuation(")")
+        return values
+
     @classmethod
     def parse(cls, parser: Parser) -> CreateOperationOp:
-        def _parse_attribute() -> tuple[StringAttr, SSAValue]:
-            attrname = parser.parse_attribute()
-            assert isinstance(attrname, StringAttr)
-            parser.parse_punctuation("=")
-            operand = parser.parse_operand()
-            return (attrname, operand)
-
-        def _parse_input_list():
-            values: list[SSAValue] = []
-            parser.parse_punctuation("(")
-            if not parser.parse_optional_punctuation(")"):
-                values = parser.parse_comma_separated_list(
-                    delimiter=Parser.Delimiter.NONE,
-                    parse=lambda: parser.parse_operand(),
-                )
-                parser.parse_punctuation(":")
-                types = parser.parse_comma_separated_list(
-                    delimiter=Parser.Delimiter.NONE,
-                    parse=lambda: parser.parse_type(),
-                )
-                assert len(values) == len(types)
-                for value, type in zip(values, types):
-                    assert value.type == type
-                parser.parse_punctuation(")")
-            return values
-
         name = parser.parse_attribute()
-        assert isinstance(name, StringAttr)
 
-        input_operands = _parse_input_list()
+        input_operands = CreateOperationOp._parse_input_list(parser)
 
         input_attribute_names = None
         input_attributes = None
-        temp = parser.parse_optional_comma_separated_list(
-            delimiter=Parser.Delimiter.BRACES, parse=_parse_attribute
+        attributes = parser.parse_optional_comma_separated_list(
+            delimiter=Parser.Delimiter.BRACES,
+            parse=lambda: CreateOperationOp._parse_attr(parser),
         )
-        if temp:
-            input_attribute_names = [i[0] for i in temp]
-            input_attributes = [i[1] for i in temp]
+        if attributes is not None:
+            input_attribute_names = [i[0] for i in attributes]
+            input_attributes = [i[1] for i in attributes]
+        else:
+            input_attribute_names = []
+            input_attributes = []
+        input_attribute_names = ArrayAttr(input_attribute_names)
 
         input_result_types = None
         inferred_result_types = None
@@ -634,60 +639,67 @@ class CreateOperationOp(IRDLOperation):
                 parser.parse_punctuation(">")
                 inferred_result_types = UnitAttr()
             else:
-                input_result_types = _parse_input_list()
+                input_result_types = CreateOperationOp._parse_input_list(parser)
 
-        op = CreateOperationOp(
-            name,
-            inferred_result_types=inferred_result_types,
-            input_attribute_names=input_attribute_names,
-            input_operands=input_operands,
-            input_attributes=input_attributes,
-            input_result_types=input_result_types,
+        op = CreateOperationOp.build(
+            operands=(input_operands, input_attributes, input_result_types),
+            properties={
+                "name": name,
+                "inputAttributeNames": input_attribute_names,
+            }
+            if inferred_result_types is None
+            else {
+                "name": name,
+                "inferredResultTypes": inferred_result_types,
+                "inputAttributeNames": input_attribute_names,
+            },
+            result_types=(OperationType(),),
         )
         return op
 
+    @staticmethod
+    def _print_input_list(printer: Printer, values: Iterable[SSAValue]):
+        printer.print_string("(", indent=0)
+        printer.print_list(values, printer.print_operand)
+        printer.print_string(" : ", indent=0)
+        printer.print_list(values, lambda op: printer.print_attribute(op.type))
+        printer.print_string(")", indent=0)
+
+    @staticmethod
+    def _print_attr(printer: Printer, value: tuple[StringAttr, SSAValue]):
+        printer.print_attribute(value[0])
+        printer.print_string(" = ", indent=0)
+        printer.print_operand(value[1])
+
     def print(self, printer: Printer):
-        def _print_input_list(values: Iterable[SSAValue]):
-            printer.print("(")
-            printer.print_list(values, printer.print_operand)
-            printer.print(" : ")
-            printer.print_list(values, lambda op: printer.print(op.type))
-            printer.print(")")
-
-        def _print_attr(value: tuple[StringAttr, SSAValue]):
-            printer.print(value[0])
-            printer.print(" = ")
-            printer.print_operand(value[1])
-
-        printer.print(" ")
-        printer.print(self.constraint_name)
+        printer.print_string(" ", indent=0)
+        printer.print_attribute(self.constraint_name)
         if self.input_operands:
-            _print_input_list(self.input_operands)
+            CreateOperationOp._print_input_list(printer, self.input_operands)
         else:
-            printer.print("() ")
-        # printer.print(" ") # TODO: should we mimick the reference by including an extra space?
+            printer.print_string("() ", indent=0)
         if self.input_attributes:
-            printer.print("{")
+            printer.print_string(" {", indent=0)
             printer.print_list(
                 zip(
                     cast(tuple[StringAttr], self.input_attribute_names.data),
                     self.input_attributes,
                 ),
-                _print_attr,
+                lambda value: CreateOperationOp._print_attr(printer, value),
             )
-            printer.print("}")
+            printer.print_string("}", indent=0)
         if self.inferred_result_types:
             assert not self.input_result_types
-            printer.print(" -> <inferred>")
+            printer.print_string(" -> <inferred>", indent=0)
         elif self.input_result_types:
-            printer.print(" -> ")
-            _print_input_list(self.input_result_types)
+            printer.print_string(" -> ", indent=0)
+            CreateOperationOp._print_input_list(printer, self.input_result_types)
 
 
 @irdl_op_definition
 class GetDefiningOpOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_defining_op-pdl_interpgetdefiningopop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_defining_op-pdl_interpgetdefiningopop).
     """
 
     name = "pdl_interp.get_defining_op"
@@ -720,7 +732,7 @@ class FuncOpCallableInterface(CallableOpInterface):
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpfunc-pdl_interpfuncop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpfunc-pdl_interpfuncop).
     """
 
     name = "pdl_interp.func"

@@ -165,11 +165,6 @@ class WGSLPrinter(BasePrinter):
         return " + ".join(index_values)
 
     @print.register
-    def _(self, op: gpu.ModuleEndOp):
-        # Nothing to print :)
-        pass
-
-    @print.register
     def _(self, op: arith.ConstantOp):
         value = int(str(op.value).split()[0])
         cons_type = op.result.type

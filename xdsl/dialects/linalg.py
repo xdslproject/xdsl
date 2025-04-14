@@ -843,6 +843,8 @@ class MatmulOp(NamedOpBase):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
+    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
+
     def __init__(
         self,
         inputs: Sequence[SSAValue],
@@ -873,21 +875,21 @@ class MatmulOp(NamedOpBase):
             YieldOp(mac)
 
         # add linalg.memoized_indexing_maps attribute
-        if not attributes:
-            attributes = {}
-        if "linalg.memoized_indexing_maps" not in attributes:
-            attributes["linalg.memoized_indexing_maps"] = ArrayAttr(
+        properties: dict[str, Attribute] = {
+            "indexing_maps": ArrayAttr(
                 [
                     AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
                     AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
                     AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
                 ]
             )
+        }
 
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=result_types,
+            properties=properties,
             attributes=attributes,
             hidden_region=hidden_region,
         )

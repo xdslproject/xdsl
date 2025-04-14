@@ -118,9 +118,9 @@ class TblgenLoader:
 
     js: Any
 
-    attributes: dict[str, str] = field(default_factory=dict)
-    operations: dict[str, str] = field(default_factory=dict)
-    used_records: set[str] = field(default_factory=set)
+    attributes: dict[str, str] = field(default_factory=dict[str, str])
+    operations: dict[str, str] = field(default_factory=dict[str, str])
+    used_records: set[str] = field(default_factory=set[str])
     anon_counter: int = field(default_factory=int)
 
     def _get_op(self, name: str) -> TblgenOp:
@@ -396,7 +396,7 @@ class TblgenLoader:
         elif "OptionalAttr" in superclasses:
             return (
                 self._ArgType.OPTIONAL_PROP,
-                self._resolve_prop_constraint(rec["baseAttr"]),
+                self._resolve_prop_constraint(rec["baseAttr"]["def"]),
             )
         else:
             return (self._ArgType.PROP, self._resolve_prop_constraint(rec))
@@ -411,7 +411,7 @@ class TblgenLoader:
 
         assembly = tblgen_op.assembly_format
         if assembly is not None and "custom" not in assembly:
-            fields["assembly_format"] = assembly
+            fields["assembly_format"] = '"""' + assembly + '"""'
 
         for [arg, orig_name] in tblgen_op.arguments:
             name = self._resolve_name(orig_name)
@@ -521,7 +521,7 @@ def cull_json(output_file: IO[str] | None, loader: TblgenLoader):
         key: js["!instanceof"][key] for key in ("TypeDef", "AttrDef", "Op", "Dialect")
     }
 
-    print(json.dumps(culled), file=output_file)
+    print(json.dumps(culled, sort_keys=True, indent=2), file=output_file)
 
 
 def tblgen_to_dialect(
@@ -580,6 +580,9 @@ def tblgen_to_dialect(
         capture_output=True,
         text=True,
     )
+
+    if output.stderr:
+        raise Exception(f"Formatting failed: {output.stderr}")
 
     print(output.stdout, file=output_file, end="")
 
