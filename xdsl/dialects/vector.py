@@ -873,7 +873,7 @@ class TransferWriteOp(VectorTransferOperation):
         printer.print_operand(self.vector)
         printer.print_string(", ", indent=0)
         printer.print_operand(self.source)
-        printer.print_string(" [", indent=0)
+        printer.print_string("[", indent=0)
         printer.print_list(self.indices, printer.print_operand)
         printer.print_string("]", indent=0)
         if self.mask is not None:
