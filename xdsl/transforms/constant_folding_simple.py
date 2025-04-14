@@ -33,9 +33,8 @@ class ConstantFoldingIntegerAdditionPattern(RewritePattern):
 
         # Calculate the result of the addition
         #
-        #  SignlessIntegerBinaryOperation
-        #          | OpOperands  ConstantOp   IntAttr
-        #          |  |  OpResult | IntegerAttr | int
+        #            OpOperands  ConstantOp   IntAttr
+        #      AddiOp |  OpResult | IntegerAttr | int
         #          |  |        |  |    |       /  |
         #          v  v        v  v    v      v   v
         lhs: int = op.operands[0].op.value.value.data  # pyright: ignore
