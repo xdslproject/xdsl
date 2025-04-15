@@ -15,7 +15,7 @@ from xdsl.interpreter import Interpreter, Successor
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Block, BlockArgument
 from xdsl.pattern_rewriter import PatternRewriter
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_getters():
@@ -23,24 +23,26 @@ def test_getters():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(PDLInterpFunctions(Context()))
 
-    c0 = TestSSAValue(i32)
-    c1 = TestSSAValue(i32)
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
     myattr = StringAttr("hello")
     op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr})
     op_res = op.results[0]
 
     assert interpreter.run_op(
-        pdl_interp.GetOperandOp(1, TestSSAValue(pdl.OperationType())), (op,)
+        pdl_interp.GetOperandOp(1, create_ssa_value(pdl.OperationType())), (op,)
     ) == (c1,)
 
     assert interpreter.run_op(
-        pdl_interp.GetResultOp(1, TestSSAValue(pdl.OperationType())), (op,)
+        pdl_interp.GetResultOp(1, create_ssa_value(pdl.OperationType())), (op,)
     ) == (op.results[1],)
 
     assert (
         interpreter.run_op(
             pdl_interp.GetResultsOp(
-                None, TestSSAValue(pdl.OperationType()), pdl.RangeType(pdl.ValueType())
+                None,
+                create_ssa_value(pdl.OperationType()),
+                pdl.RangeType(pdl.ValueType()),
             ),
             (op,),
         )[0]
@@ -48,15 +50,16 @@ def test_getters():
     )
 
     assert interpreter.run_op(
-        pdl_interp.GetAttributeOp("myattr", TestSSAValue(pdl.OperationType())), (op,)
+        pdl_interp.GetAttributeOp("myattr", create_ssa_value(pdl.OperationType())),
+        (op,),
     ) == (myattr,)
 
     assert interpreter.run_op(
-        pdl_interp.GetValueTypeOp(TestSSAValue(pdl.ValueType())), (c0,)
+        pdl_interp.GetValueTypeOp(create_ssa_value(pdl.ValueType())), (c0,)
     ) == (i32,)
 
     assert interpreter.run_op(
-        pdl_interp.GetDefiningOpOp(TestSSAValue(pdl.OperationType())), (op_res,)
+        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (op_res,)
     ) == (op,)
 
 
@@ -67,14 +70,14 @@ def test_check_operation_name():
     truedest = Block()
     falsedest = Block()
 
-    c0 = TestSSAValue(i32)
-    c1 = TestSSAValue(i32)
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
     myattr = StringAttr("hello")
     op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr})
 
     trueresult = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.CheckOperationNameOp(
-            "test.op", TestSSAValue(pdl.OperationType()), truedest, falsedest
+            "test.op", create_ssa_value(pdl.OperationType()), truedest, falsedest
         ),
         (op,),
     )
@@ -84,7 +87,7 @@ def test_check_operation_name():
 
     falseresult = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.CheckOperationNameOp(
-            "test.other", TestSSAValue(pdl.OperationType()), truedest, falsedest
+            "test.other", create_ssa_value(pdl.OperationType()), truedest, falsedest
         ),
         (op,),
     )
@@ -100,15 +103,15 @@ def test_check_operand_count():
     truedest = Block()
     falsedest = Block()
 
-    c0 = TestSSAValue(i32)
-    c1 = TestSSAValue(i32)
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
     myattr = StringAttr("hello")
     op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr})
 
     # Test exact operand count
     exact_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.CheckOperandCountOp(
-            TestSSAValue(pdl.OperationType()),
+            create_ssa_value(pdl.OperationType()),
             2,  # op has exactly 2 operands (c0, c1)
             truedest,
             falsedest,
@@ -122,7 +125,7 @@ def test_check_operand_count():
     # Test compareAtLeast=True
     at_least_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.CheckOperandCountOp(
-            TestSSAValue(pdl.OperationType()),
+            create_ssa_value(pdl.OperationType()),
             1,  # op has 2 operands which is >= 1
             truedest,
             falsedest,
@@ -136,7 +139,7 @@ def test_check_operand_count():
     # Test failing cases
     fail_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.CheckOperandCountOp(
-            TestSSAValue(pdl.OperationType()),
+            create_ssa_value(pdl.OperationType()),
             3,  # op has only 2 operands
             truedest,
             falsedest,
@@ -155,15 +158,15 @@ def test_check_result_count():
     truedest = Block()
     falsedest = Block()
 
-    c0 = TestSSAValue(i32)
-    c1 = TestSSAValue(i32)
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
     myattr = StringAttr("hello")
     op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr})  # Has 2 results
 
     # Test exact result count
     exact_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.CheckResultCountOp(
-            TestSSAValue(pdl.OperationType()),
+            create_ssa_value(pdl.OperationType()),
             2,  # op has exactly 2 results
             truedest,
             falsedest,
@@ -177,7 +180,7 @@ def test_check_result_count():
     # Test compareAtLeast=True
     at_least_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.CheckResultCountOp(
-            TestSSAValue(pdl.OperationType()),
+            create_ssa_value(pdl.OperationType()),
             1,  # op has 2 results which is >= 1
             truedest,
             falsedest,
@@ -191,7 +194,7 @@ def test_check_result_count():
     # Test failing case
     fail_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.CheckResultCountOp(
-            TestSSAValue(pdl.OperationType()),
+            create_ssa_value(pdl.OperationType()),
             3,  # op has only 2 results
             truedest,
             falsedest,
@@ -214,7 +217,7 @@ def test_check_attribute():
     match_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.CheckAttributeOp(
             StringAttr("hello"),  # Expected value
-            TestSSAValue(pdl.AttributeType()),  # Input attribute
+            create_ssa_value(pdl.AttributeType()),  # Input attribute
             truedest,
             falsedest,
         ),
@@ -227,7 +230,7 @@ def test_check_attribute():
     nomatch_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.CheckAttributeOp(
             StringAttr("hello"),  # Expected value
-            TestSSAValue(pdl.AttributeType()),  # Input attribute
+            create_ssa_value(pdl.AttributeType()),  # Input attribute
             truedest,
             falsedest,
         ),
@@ -244,12 +247,12 @@ def test_is_not_null():
     truedest = Block()
     falsedest = Block()
 
-    c0 = TestSSAValue(i32)
+    c0 = create_ssa_value(i32)
 
     # Test with non-null value
     notnull_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.IsNotNullOp(
-            TestSSAValue(pdl.ValueType()),
+            create_ssa_value(pdl.ValueType()),
             truedest,
             falsedest,
         ),
@@ -261,7 +264,7 @@ def test_is_not_null():
     # Test with null value
     null_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.IsNotNullOp(
-            TestSSAValue(pdl.ValueType()),
+            create_ssa_value(pdl.ValueType()),
             truedest,
             falsedest,
         ),
@@ -278,14 +281,14 @@ def test_are_equal():
     truedest = Block()
     falsedest = Block()
 
-    c0 = TestSSAValue(i32)
-    c1 = TestSSAValue(i32)
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
 
     # Test with equal values
     equal_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.AreEqualOp(
-            TestSSAValue(pdl.ValueType()),
-            TestSSAValue(pdl.ValueType()),
+            create_ssa_value(pdl.ValueType()),
+            create_ssa_value(pdl.ValueType()),
             truedest,
             falsedest,
         ),
@@ -297,8 +300,8 @@ def test_are_equal():
     # Test with unequal values
     unequal_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
         pdl_interp.AreEqualOp(
-            TestSSAValue(pdl.ValueType()),
-            TestSSAValue(pdl.ValueType()),
+            create_ssa_value(pdl.ValueType()),
+            create_ssa_value(pdl.ValueType()),
             truedest,
             falsedest,
         ),
@@ -317,8 +320,8 @@ def test_replace():
     @Builder.implicit_region
     def _():
         # Create a test operation to be replaced
-        c0 = TestSSAValue(i32)
-        c1 = TestSSAValue(i32)
+        c0 = create_ssa_value(i32)
+        c1 = create_ssa_value(i32)
         original_op = test.TestOp((c0, c1), (i32,), {})
         original_op_result = original_op.results[0]
 
@@ -327,12 +330,12 @@ def test_replace():
         use_op = test.TestOp((original_op_result,), (i32,), {})
 
         # Create replacement values
-        new_val = TestSSAValue(i32)
+        new_val = create_ssa_value(i32)
 
         # Test replace operation
         replace_op = pdl_interp.ReplaceOp(
-            TestSSAValue(pdl.OperationType()),
-            [TestSSAValue(pdl.ValueType())],
+            create_ssa_value(pdl.OperationType()),
+            [create_ssa_value(pdl.ValueType())],
         )
         interpreter.run_op(replace_op, (original_op, new_val))
 
@@ -368,8 +371,8 @@ def test_create_operation():
         implementations.rewriter = PatternRewriter(root)
 
     # Create test values
-    c0 = TestSSAValue(i32)
-    c1 = TestSSAValue(i32)
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
     attr = StringAttr("test")
 
     # Test create operation
@@ -378,8 +381,8 @@ def test_create_operation():
         inferred_result_types=UnitAttr(),
         input_attribute_names=[StringAttr("attr")],
         input_operands=[c0, c1],
-        input_attributes=[TestSSAValue(pdl.AttributeType())],
-        input_result_types=[TestSSAValue(pdl.TypeType())],
+        input_attributes=[create_ssa_value(pdl.AttributeType())],
+        input_result_types=[create_ssa_value(pdl.TypeType())],
     )
 
     result = interpreter.run_op(create_op, (c0, c1, attr, i32))
