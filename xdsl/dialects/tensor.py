@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
@@ -294,6 +295,39 @@ class ReshapeOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ExpandShapeOp(IRDLOperation):
+    """operation to produce a tensor with a higher rank"""
+
+    name = "tensor.expand_shape"
+
+    src = operand_def(TensorType)
+
+    reassociation = prop_def(ReassociationAttr)
+
+    output_shape = prop_def(DenseArrayBase)
+
+    result = result_def(AnyAttr())
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        src = parser.parse_operand()
+        reassociation = parser.parse_attribute()
+        parser.parse_characters("output_shape")
+        output_shape = DenseArrayBase.from_list(
+            i64, parser.parse_comma_separated_list(Parser.Delimiter.SQUARE, parser.parse_integer)
+        )
+        parser.parse_punctuation(":")
+        src_type = parser.parse_type()
+        parser.parse_characters("into")
+        result_type = parser.parse_type()
+        return cls.build(
+            operands=[src],
+            result_types=[result_type],
+            properties={"reassociation": reassociation, "output_shape": output_shape},
+        )
+
+
+@irdl_op_definition
 class ExtractSliceOp(IRDLOperation):
     name = "tensor.extract_slice"
 
@@ -525,6 +559,7 @@ Tensor = Dialect(
         CastOp,
         DimOp,
         EmptyOp,
+        ExpandShapeOp,
         ExtractSliceOp,
         InsertSliceOp,
         ReshapeOp,
