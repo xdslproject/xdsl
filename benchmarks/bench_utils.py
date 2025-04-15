@@ -11,8 +11,18 @@ from pathlib import Path
 from statistics import mean, median, stdev
 from typing import Any, NamedTuple, cast
 
+from benchmarks.bytecode.visualise import print_bytecode
+
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
-PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof")
+PROFILERS = (
+    "run",
+    "timeit",
+    "snakeviz",
+    "viztracer",
+    "flameprof",
+    "pyinstrument",
+    "dis",
+)
 
 
 class Benchmark(NamedTuple):
@@ -210,6 +220,47 @@ def viztracer_benchmark(
     return output_prof
 
 
+def pyinstrument_benchmark(
+    args: Namespace,
+    benchmarks: dict[str, Benchmark],
+    warmup: bool = True,
+) -> Path:
+    """Use pyinstrument to profile a benchmark."""
+    from pyinstrument import Profiler
+
+    benchmark_runs = get_benchmark_runs(args, benchmarks)
+    if len(benchmark_runs) != 1:
+        raise ValueError("Cannot profile multiple benchmarks together")
+    name, (test, setup) = benchmark_runs[0]
+    output_prof = args.output / f"{name}.html"
+    if warmup:
+        if setup is not None:
+            setup()
+        test()
+    if setup is not None:
+        setup()
+    profiler = Profiler(interval=1e-9)
+    profiler.start()
+    test()
+    profiler.stop()
+    profiler.write_html(output_prof)
+    return output_prof
+
+
+def dis_benchmark(
+    args: Namespace,
+    benchmarks: dict[str, Benchmark],
+):
+    """Use dis to disassemble a benchmark."""
+    benchmark_runs = get_benchmark_runs(args, benchmarks)
+    if len(benchmark_runs) != 1:
+        raise ValueError("Cannot disassemble multiple benchmarks together")
+    _, (test, setup) = benchmark_runs[0]
+    if setup is not None:
+        setup()
+    print_bytecode(test)
+
+
 def show(
     args: Namespace,
     output_prof: Path,
@@ -249,5 +300,10 @@ def profile(
         case "viztracer":
             output_prof = viztracer_benchmark(args, benchmarks)
             show(args, output_prof, tool="vizviewer")
+        case "pyinstrument":
+            output_prof = pyinstrument_benchmark(args, benchmarks)
+            show(args, output_prof, tool="open")
+        case "dis":
+            dis_benchmark(args, benchmarks)
         case _:
             raise ValueError("Invalid command!")

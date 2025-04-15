@@ -41,7 +41,9 @@ class DialectStubGenerator:
     """Generate a typing stub file (.pyi) for a dialect."""
 
     dialect: Dialect
-    dependencies: dict[str, set[str]] = field(init=False, default_factory=dict)
+    dependencies: dict[str, set[str]] = field(
+        init=False, default_factory=dict[str, set[str]]
+    )
 
     def _import(self, module: ModuleType | str, name: str | type[Any]):
         """

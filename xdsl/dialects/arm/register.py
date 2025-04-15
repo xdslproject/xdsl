@@ -29,10 +29,6 @@ class IntRegisterType(ARMRegisterType):
     name = "arm.reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "arm"
-
-    @classmethod
     def index_by_name(cls) -> dict[str, int]:
         return ARM_INDEX_BY_NAME
 

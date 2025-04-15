@@ -58,12 +58,15 @@ class ConvertParallel(RewritePattern):
                     [],
                     [],
                     [],
+                    [],
+                    [],
+                    [],
                     chunk_op,
                 ],
                 regions=[Region(Block())],
             )
             if self.schedule is not None:
-                wsloop.schedule_val = omp.ScheduleKindAttr(
+                wsloop.schedule_kind = omp.ScheduleKindAttr(
                     omp.ScheduleKind(self.schedule)
                 )
             omp.TerminatorOp()
@@ -78,7 +81,6 @@ class ConvertParallel(RewritePattern):
                 ],
                 regions=[Region(Block(arg_types=[IndexType()] * collapse))],
             )
-            omp.TerminatorOp()
 
         rewriter.insertion_point = InsertPoint.at_end(loop_nest.body.block)
         with ImplicitBuilder(rewriter):

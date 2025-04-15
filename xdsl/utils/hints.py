@@ -32,7 +32,7 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     For now, only lists, dictionaries, unions,
     and non-generic classes are supported for type hints.
     """
-    if hint is Any:  # pyright: ignore[reportUnnecessaryComparison]
+    if hint is Any:
         return True
 
     origin = get_origin(hint)

@@ -39,10 +39,52 @@ class Test_AndOp(IRDLOperation):
 
 
 @irdl_op_definition
+class Test_AnyAttrOfOp(IRDLOperation):
+    name = "test.any_attr_of_i32_str"
+
+    attr = prop_def(
+        AnyOf(
+            [
+                IntegerAttr.constr(type=EqAttrConstraint(IntegerType(32))),
+                BaseAttr(StringAttr),
+            ]
+        )
+    )
+
+
+@irdl_op_definition
+class Test_AnyAttrOfSingleOp(IRDLOperation):
+    name = "test.any_attr_of_i32"
+
+    attr = prop_def(AnyOf([IntegerAttr.constr(type=EqAttrConstraint(IntegerType(32)))]))
+
+
+@irdl_op_definition
 class Test_AnyOp(IRDLOperation):
     name = "test.any"
 
     in_ = operand_def(AnyAttr())
+
+
+@irdl_op_definition
+class Test_AssemblyFormat(IRDLOperation):
+    name = "test.assembly"
+
+    assembly_format = """attr-dict"""
+
+
+@irdl_op_definition
+class Test_AssemblyFormatLong(IRDLOperation):
+    name = "test.assembly_long"
+
+    assembly_format = """
+          `a`
+          `very`
+          `long`
+          `assembly`
+          `format`
+          attr-dict
+      """
 
 
 @irdl_op_definition
@@ -52,6 +94,8 @@ class Test_AttributesOp(IRDLOperation):
     int_attr = prop_def(IntegerAttr.constr(type=EqAttrConstraint(IntegerType(16))))
 
     in_ = prop_def(BaseAttr(Test_TestAttr), prop_name="in")
+
+    opt = opt_prop_def(BaseAttr(Test_TestAttr))
 
 
 @irdl_op_definition
@@ -129,6 +173,8 @@ class Test_VariadicityOp(IRDLOperation):
 
     variadic = var_operand_def(BaseAttr(Test_SingletonAType))
 
+    optional = opt_operand_def(BaseAttr(Test_SingletonBType))
+
     required = operand_def(BaseAttr(Test_SingletonCType))
 
 
@@ -136,7 +182,11 @@ Test_Dialect = Dialect(
     "test",
     [
         Test_AndOp,
+        Test_AnyAttrOfOp,
+        Test_AnyAttrOfSingleOp,
         Test_AnyOp,
+        Test_AssemblyFormat,
+        Test_AssemblyFormatLong,
         Test_AttributesOp,
         Test_ConfinedOp,
         Test_Integers,

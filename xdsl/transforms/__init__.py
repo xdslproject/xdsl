@@ -113,6 +113,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_print_format_to_riscv_debug.ConvertPrintFormatToRiscvDebugPass
 
+    def get_convert_ptr_to_llvm():
+        from xdsl.transforms import convert_ptr_to_llvm
+
+        return convert_ptr_to_llvm.ConvertPtrToLLVMPass
+
     def get_convert_ptr_to_riscv():
         from xdsl.transforms import convert_ptr_to_riscv
 
@@ -522,6 +527,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
+        "convert-ptr-to-llvm": get_convert_ptr_to_llvm,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,

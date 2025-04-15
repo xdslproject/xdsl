@@ -7,7 +7,7 @@ from xdsl.ir import Block
 from xdsl.irdl import IRDLOperation, irdl_op_definition, traits_def
 from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 type_type = pdl.TypeType()
 attribute_type = pdl.AttributeType()
@@ -192,9 +192,9 @@ def test_build_operand():
 
 
 def test_range():
-    val1 = TestSSAValue(pdl.ValueType())
-    val2 = TestSSAValue(pdl.RangeType(pdl.ValueType()))
-    val3 = TestSSAValue(pdl.ValueType())
+    val1 = create_ssa_value(pdl.ValueType())
+    val2 = create_ssa_value(pdl.RangeType(pdl.ValueType()))
+    val3 = create_ssa_value(pdl.ValueType())
 
     range_op = pdl.RangeOp((val1, val2, val3))
 

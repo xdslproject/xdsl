@@ -23,7 +23,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 @irdl_op_definition
@@ -134,7 +134,7 @@ def test_ops_accessor_III():
 
 def test_op_operands_assign():
     """Test that we can directly assign `op.operands`."""
-    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op = test.TestOp.create(operands=[val1, val2])
     op.operands = [val2, val1]
     op.verify()
@@ -146,7 +146,7 @@ def test_op_operands_assign():
 
 def test_op_operands_indexing():
     """Test `__getitem__`, `__setitem__`, and `__len__` on `op.operands`."""
-    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op = test.TestOp.create(operands=[val1, val2])
     op.verify()
 
@@ -165,7 +165,7 @@ def test_op_operands_indexing():
 
 def test_op_operands_comparison():
     """Test `__eq__`, and `__hash__` on `op.operands`."""
-    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op1 = test.TestOp.create(operands=[val1, val2])
     op2 = test.TestOp.create(operands=[val1, val2])
     op1.verify()
@@ -740,16 +740,16 @@ def test_is_structurally_equivalent_properties():
 
 
 def test_is_structurally_equivalent_free_operands():
-    val1 = TestSSAValue(i32)
-    val2 = TestSSAValue(i64)
+    val1 = create_ssa_value(i32)
+    val2 = create_ssa_value(i64)
     op1 = test.TestOp.create(operands=[val1, val2])
     op2 = test.TestOp.create(operands=[val1, val2])
     assert op1.is_structurally_equivalent(op2)
 
 
 def test_is_structurally_equivalent_free_operands_fail():
-    val1 = TestSSAValue(i32)
-    val2 = TestSSAValue(i32)
+    val1 = create_ssa_value(i32)
+    val2 = create_ssa_value(i32)
     op1 = test.TestOp.create(operands=[val1])
     op2 = test.TestOp.create(operands=[val2])
     assert not op1.is_structurally_equivalent(op2)
@@ -986,13 +986,13 @@ def test_dialect_name():
 
 
 def test_replace_by_if():
-    a = TestSSAValue(i32)
+    a = create_ssa_value(i32)
     b = test.TestOp((a,))
     c = test.TestOp((a,))
 
     assert set(u.operation for u in a.uses) == {b, c}
 
-    d = TestSSAValue(i32)
+    d = create_ssa_value(i32)
     a.replace_by_if(d, lambda u: u.operation is not c)
 
     assert set(u.operation for u in a.uses) == {c}

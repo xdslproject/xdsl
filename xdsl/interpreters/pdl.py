@@ -24,7 +24,7 @@ class PDLMatcher:
     """
 
     matching_context: dict[SSAValue, Operation | Attribute | SSAValue] = field(
-        default_factory=dict
+        default_factory=dict[SSAValue, Operation | Attribute | SSAValue]
     )
     """
     For each SSAValue that is an OpResult of an operation in the PDL dialect,

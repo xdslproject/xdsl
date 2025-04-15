@@ -29,13 +29,15 @@ class ConstraintContext:
     Contains the assignment of constraint variables.
     """
 
-    _variables: dict[str, Attribute] = field(default_factory=dict)
+    _variables: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
     """The assignment of constraint variables."""
 
-    _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
+    _range_variables: dict[str, tuple[Attribute, ...]] = field(
+        default_factory=dict[str, tuple[Attribute, ...]]
+    )
     """The assignment of constraint range variables."""
 
-    _int_variables: dict[str, int] = field(default_factory=dict)
+    _int_variables: dict[str, int] = field(default_factory=dict[str, int])
     """The assignment of constraint int variables."""
 
     def get_variable(self, key: str) -> Attribute | None:

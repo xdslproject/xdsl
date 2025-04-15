@@ -13,7 +13,7 @@
         %11 = "arith.addi"(%9, %10) : (i32, i32) -> i32
         scf.reduce.return %11 : i32
       }
-    }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, i32) -> i32
+    }) {operandSegmentSizes = array<i32: 1, 1, 1, 1>} : (index, index, index, i32) -> i32
 }) : () -> ()
 
 
