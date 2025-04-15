@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils.dynamic_index_list import (
     parse_dynamic_index_list_with_types,
     parse_dynamic_index_list_without_types,
+    print_dynamic_index_list,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
@@ -367,6 +368,23 @@ class ExpandShapeOp(IRDLOperation):
         shape_attr = DenseArrayBase.create_dense_int(i64, static_shape)
 
         return cls(src, dyn_shape, reassociation, shape_attr, result_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_ssa_value(self.src)
+        printer.print(" ")
+        printer.print_attribute(self.reassociation)
+        printer.print(" output_shape ")
+        print_dynamic_index_list(
+            printer,
+            self.DYNAMIC_INDEX,
+            self.dynamic_output_shape,
+            (cast(int, i) for i in self.output_shape.get_values()),
+        )
+        printer.print(" : ")
+        printer.print_attribute(self.src.type)
+        printer.print(" into ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition

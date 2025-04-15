@@ -1,10 +1,10 @@
+from xdsl.context import Context
 from xdsl.dialects import memref
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import DenseArrayBase, IntegerType, TensorType, f64, i64
 from xdsl.dialects.stencil import IndexAttr
 from xdsl.dialects.tensor import ExpandShapeOp, ExtractSliceOp, InsertSliceOp, Tensor
 from xdsl.dialects.test import TestOp
-from xdsl.context import Context
 from xdsl.parser import Parser
 from xdsl.utils.test_value import create_ssa_value
 
@@ -104,7 +104,7 @@ def test_expand_shape_parse():
     %src = tensor.empty() : tensor<1x5xi32>
     %c0 = arith.constant 0 : index
     %dim = tensor.dim %src, %c0 : tensor<1x5xi32>
-    %expanded = tensor.expand_shape %src [[0], [1, 2, 3]] output_shape [%dim, 1, 1, 5] : tensor<1x5xi32> into tensor<1x1x1x5xi32>
+    %expanded = tensor.expand_shape %src [[0 : i64], [1 : i64, 2 : i64, 3 : i64]] output_shape [%dim, 1, 1, 5] : tensor<1x5xi32> into tensor<1x1x1x5xi32>
     """
 
     ctx = Context()
@@ -120,6 +120,5 @@ def test_expand_shape_parse():
     assert expand_shape_op.src.type == TensorType(IntegerType(32), [1, 5])
     assert expand_shape_op.result.type == TensorType(IntegerType(32), [1, 1, 1, 5])
 
-
-if __name__ == "__main__":
-    test_expand_shape_parse()
+    for line in MODULE_CTX.splitlines():
+        assert line.strip() in str(module_op), f"{line.strip()} not in {str(module_op)}"
