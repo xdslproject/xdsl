@@ -111,7 +111,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert len(args) > 0
         assert len(args) == 1, "TODO: Implement this"
         assert isinstance(args[0], SSAValue)
-        value: SSAValue[Any] = args[0]
+        value = cast(SSAValue, args[0])
         return (value.type,)
 
     @impl(pdl_interp.GetDefiningOpOp)
