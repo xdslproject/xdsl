@@ -7,7 +7,7 @@ from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
 from xdsl.interpreters.utils.stream import Acc, Nats
 from xdsl.ir import BlockArgument
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_read_write():
@@ -21,18 +21,18 @@ def test_read_write():
     output_stream = Acc()
 
     assert interpreter.run_op(
-        riscv_snitch.ReadOp(TestSSAValue(snitch.ReadableStreamType(a0)), a0),
+        riscv_snitch.ReadOp(create_ssa_value(snitch.ReadableStreamType(a0)), a0),
         (input_stream,),
     ) == (1,)
     assert interpreter.run_op(
-        riscv_snitch.ReadOp(TestSSAValue(snitch.ReadableStreamType(a1)), a1),
+        riscv_snitch.ReadOp(create_ssa_value(snitch.ReadableStreamType(a1)), a1),
         (input_stream,),
     ) == (2,)
 
     assert (
         interpreter.run_op(
             riscv_snitch.WriteOp(
-                TestSSAValue(a0), TestSSAValue(snitch.ReadableStreamType(a0))
+                create_ssa_value(a0), create_ssa_value(snitch.ReadableStreamType(a0))
             ),
             (
                 1,
@@ -45,7 +45,7 @@ def test_read_write():
     assert (
         interpreter.run_op(
             riscv_snitch.WriteOp(
-                TestSSAValue(a1), TestSSAValue(snitch.ReadableStreamType(a1))
+                create_ssa_value(a1), create_ssa_value(snitch.ReadableStreamType(a1))
             ),
             (
                 2,

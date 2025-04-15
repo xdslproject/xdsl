@@ -3,7 +3,7 @@ from io import StringIO
 from xdsl.backend.wgsl.wgsl_printer import WGSLPrinter
 from xdsl.dialects import arith, gpu, memref, test
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i32
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 lhs_op = test.TestOp(result_types=[IndexType()])
 rhs_op = test.TestOp(result_types=[IndexType()])
@@ -146,7 +146,7 @@ def test_memref_load():
     printer = WGSLPrinter(stream=file)
 
     memref_type = memref.MemRefType(i32, [10, 10])
-    memref_val = TestSSAValue(memref_type)
+    memref_val = create_ssa_value(memref_type)
     load = memref.LoadOp.get(memref_val, [lhs_op.res[0], rhs_op.res[0]])
     printer.print(load)
 
@@ -158,7 +158,7 @@ def test_memref_store():
     printer = WGSLPrinter(stream=file)
 
     memref_type = memref.MemRefType(i32, [10, 10])
-    memref_val = TestSSAValue(memref_type)
+    memref_val = create_ssa_value(memref_type)
     load = memref.LoadOp.get(memref_val, [lhs_op.res[0], rhs_op.res[0]])
     store = memref.StoreOp.get(load.res, memref_val, [lhs_op.res[0], rhs_op.res[0]])
     printer.print(store)

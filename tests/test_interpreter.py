@@ -27,7 +27,7 @@ from xdsl.interpreter import (
 from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.ir import Attribute, Operation
 from xdsl.utils.exceptions import InterpretationError
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_import_functions():
@@ -90,7 +90,7 @@ def test_cast():
         integer = interpreter.cast_value(IndexType(), i32, index0)
 
     # Test builtin cast
-    integer_value = TestSSAValue(i32)
+    integer_value = create_ssa_value(i32)
     cast_op = builtin.UnrealizedConversionCastOp.get(
         (integer_value,), result_type=(IndexType(),)
     )
@@ -185,7 +185,7 @@ def test_run_op_interpreter_args():
         interpreter.run_op(test_op, ())
 
     op = test.TestOp(
-        (TestSSAValue(TensorType(f32, [4])),),
+        (create_ssa_value(TensorType(f32, [4])),),
         (
             TensorType(f32, [4]),
             TensorType(f32, [4]),
@@ -206,7 +206,7 @@ def test_run_op_interpreter_args():
     assert interpreter.run_op(test_op_2, ()) == (1,)
 
     op_2 = test.TestOp(
-        (TestSSAValue(TensorType(f32, [4])),),
+        (create_ssa_value(TensorType(f32, [4])),),
         (TensorType(f32, [4]),),
     )
     assert interpreter.run_op(op_2, (1,)) == (1,)
