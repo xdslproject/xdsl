@@ -19,6 +19,11 @@ from xdsl.utils.exceptions import InterpretationError
 @register_impls
 @dataclass
 class PDLInterpFunctions(InterpreterFunctions):
+    """
+    Interpreter functions for the pdl_interp dialect.
+    All operations that get a value from the IR will return None if the requested value cannot be determined.
+    """
+
     ctx: Context
 
     _rewriter: PatternRewriter | None = field(default=None)
