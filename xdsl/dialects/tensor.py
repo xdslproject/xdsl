@@ -21,7 +21,6 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils.dynamic_index_list import (
-    parse_dynamic_index_list_with_types,
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
 )
