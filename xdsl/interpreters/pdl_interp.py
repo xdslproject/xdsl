@@ -42,7 +42,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.GetOperandOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
+        assert len(args) == 1
         assert isinstance(args[0], Operation)
         if op.index.value.data >= len(args[0].operands):
             return (None,)
@@ -56,7 +56,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.GetResultOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
+        assert len(args) == 1
         assert isinstance(args[0], Operation)
         if len(args[0].results) <= op.index.value.data:
             return (None,)
@@ -69,7 +69,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.GetResultsOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
+        assert len(args) == 1
         assert isinstance(args[0], Operation)
         src_op = args[0]
         assert op.index is None, (
@@ -86,7 +86,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.GetAttributeOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
+        assert len(args) == 1
         assert isinstance(args[0], Operation)
         attrname = op.constraint_name.data
         if attrname in args[0].attributes:
@@ -103,8 +103,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.GetValueTypeOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
-        assert len(args) == 1, "TODO: Implement this"
+        assert len(args) == 1
         assert isinstance(args[0], SSAValue)
         value = cast(SSAValue, args[0])
         return (value.type,)
@@ -116,7 +115,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.GetDefiningOpOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
+        assert len(args) == 1
         if args[0] is None:
             return (None,)
         assert isinstance(args[0], SSAValue)
