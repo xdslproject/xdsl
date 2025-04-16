@@ -628,6 +628,44 @@ class SubOp(NamedOpBase):
 
 
 @irdl_op_definition
+class SelectOp(NamedOpBase):
+    """
+    Chooses one value based on a binary condition supplied as its first operand.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgselect-linalgselectop).
+    """
+
+    name = "linalg.select"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = arith.SelectOp(*args[: len(inputs)])
+            YieldOp(result)
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
+
+
+@irdl_op_definition
 class FillOp(NamedOpBase):
     """
     Fills the output tensor with the given value.
@@ -1184,6 +1222,7 @@ Linalg = Dialect(
         YieldOp,
         AddOp,
         SubOp,
+        SelectOp,
         FillOp,
         MulOp,
         TransposeOp,

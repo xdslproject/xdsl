@@ -46,6 +46,9 @@ linalg.fill ins(%0 : f32) outs(%m3 : memref<4x16xf32>)
 
 linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%9 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
 
+%b1 = "test.op"() : () -> tensor<4x16xi1>
+%10 = linalg.select ins(%b1, %t1, %t2 : tensor<4x16xi1>, tensor<4x16xf32>, tensor<4x16xf32>) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
+"test.op"(%10) : (tensor<4x16xf32>) -> ()
 
 // CHECK:        module {
 // CHECK-NEXT:    %{{.*}} %{{.*}} = "test.op"() : () -> (f32, memref<1x256xf32>)
@@ -80,6 +83,9 @@ linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x409
 // CHECK-NEXT:    %8 = arith.constant 0 : i32
 // CHECK-NEXT:    %9 = "test.op"() : () -> tensor<64x4096xi32>
 // CHECK-NEXT:    linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%9 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
+// CHECK-NEXT:    %b1 = "test.op"() : () -> tensor<4x16xi1>
+// CHECK-NEXT:    %11 = linalg.select ins(%b1, %t1, %t2 : tensor<4x16xi1>, tensor<4x16xf32>, tensor<4x16xf32>) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
+// CHECK-NEXT:    "test.op"(%11) : (tensor<4x16xf32>) -> ()
 // CHECK-NEXT:    }
 
 // CHECK-GENERIC:       "linalg.generic"(%{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], operandSegmentSizes = array<i32: 1, 1>}> ({
@@ -166,5 +172,12 @@ linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x409
 // CHECK-GENERIC-NEXT:         %{{.*}} = "arith.subi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:         %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:         %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
-//  CHECK-GENERIC-NEXT:        "linalg.yield"(%{{.*}}) : (i32) -> ()
+// CHECK-GENERIC-NEXT:         "linalg.yield"(%{{.*}}) : (i32) -> ()
 // CHECK-GENERIC-NEXT:       }) {linalg.memoized_indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> ()>, affine_map<(d0, d1, d2) -> ()>, affine_map<(d0, d1, d2) -> (d0, d1)>]} : (tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32, tensor<64x4096xi32>) -> tensor<64x4096xi32>
+// CHECK-GENERIC-NEXT:    %{{.*}} = "test.op"() : () -> tensor<4x16xi1>
+// CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.select"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 3, 1>}> ({
+// CHECK-GENERIC-NEXT:    ^12(%{{.*}} : i1, %{{.*}} : f32, %{{.*}} : f32, %{{.*}} : f32):
+// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.select"(%{{.*}}, %{{.*}}, %{{.*}}) : (i1, f32, f32) -> f32
+// CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (f32) -> ()
+// CHECK-GENERIC-NEXT:    }) : (tensor<4x16xi1>, tensor<4x16xf32>, tensor<4x16xf32>, tensor<4x16xf32>) -> tensor<4x16xf32>
+// CHECK-GENERIC-NEXT:    "test.op"(%{{.*}}) : (tensor<4x16xf32>) -> ()
