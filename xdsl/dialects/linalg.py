@@ -741,9 +741,7 @@ class MaxOp(NamedOpBase):
 
         arg_types = self.body_arg_types((*inputs, *outputs))
         maxop = (
-            arith.MaximumfOp
-            if isinstance(arg_types[-1], AnyFloat)
-            else arith.MaximumfOp
+            arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
         )
 
         @Builder.implicit_region(arg_types)
@@ -784,9 +782,7 @@ class MinOp(NamedOpBase):
 
         arg_types = self.body_arg_types((*inputs, *outputs))
         minop = (
-            arith.MinimumfOp
-            if isinstance(arg_types[-1], AnyFloat)
-            else arith.MinimumfOp
+            arith.MinimumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MinSIOp
         )
 
         @Builder.implicit_region(arg_types)
