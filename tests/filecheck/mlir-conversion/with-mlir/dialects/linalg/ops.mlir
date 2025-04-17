@@ -83,6 +83,9 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 %30 = linalg.select ins(%29, %2, %3 : tensor<2x3xi1>, tensor<2x3xf32>, tensor<2x3xf32>) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
 "test.op"(%30) : (tensor<2x3xf32>) -> ()
 
+%31 = linalg.max ins(%2, %3 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
+%32 = linalg.min ins(%2, %3 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
+
 
 // CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
 // CHECK-NEXT:  #map1 = affine_map<(d0, d1) -> (d0, d1)>
@@ -134,4 +137,6 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 // CHECK-NEXT:    %23 = "test.op"() : () -> tensor<2x3xi1>
 // CHECK-NEXT:    %24 = linalg.select ins(%23, %1#0, %1#1 : tensor<2x3xi1>, tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:    "test.op"(%24) : (tensor<2x3xf32>) -> ()
+// CHECK-NEXT:    %25 = linalg.max ins(%1#0, %1#1 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    %26 = linalg.min ins(%1#0, %1#1 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:  }
