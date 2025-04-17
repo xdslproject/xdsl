@@ -161,9 +161,7 @@ func.func @test_const_var_const() {
 "test.op"(%12) : (i1) -> ()
 
 func.func @test_fold_cmpf_select() {
-  %cst = arith.constant 4.000000e+00 : f64
-  %cst_0 = arith.constant 3.000000e+00 : f64
-  %13 = "test.op"() : () -> f64
+  %cst, %cst_0, %13 = "test.op"() : () -> (f64, f64, f64)
   %14 = arith.cmpf ogt, %13, %cst_0 : f64
   %15 = arith.select %14, %13, %cst_0 : f64
   %16 = arith.cmpf olt, %15, %cst : f64
@@ -176,9 +174,7 @@ func.func @test_fold_cmpf_select() {
   return
 
   // CHECK-LABEL: @test_fold_cmpf_select
-  // CHECK-NEXT:  %cst = arith.constant 4.000000e+00 : f64
-  // CHECK-NEXT:  %cst_1 = arith.constant 3.000000e+00 : f64
-  // CHECK-NEXT:  %12 = "test.op"() : () -> f64
+  // CHECK-NEXT:  %cst, %cst_1, %12 = "test.op"() : () -> (f64, f64, f64)
   // CHECK-NEXT:  %13 = arith.maximumf %12, %cst_1 : f64
   // CHECK-NEXT:  %14 = arith.minimumf %13, %cst : f64
   // CHECK-NEXT:  %15 = arith.minnumf %14, %cst : f64

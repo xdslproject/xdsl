@@ -221,7 +221,6 @@ class CmpfOpFoldSelectPattern(RewritePattern):
             case _:
                 return
         rewriter.replace_op(select, target(select.lhs, select.rhs, op.fastmath))
-        rewriter.erase_matched_op()
 
 
 class ApplyCmpiPredicateToEqualOperands(RewritePattern):
