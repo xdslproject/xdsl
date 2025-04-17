@@ -10,12 +10,12 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
+from xdsl.ir import Block
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.test_value import create_ssa_value
 
 
 def test_getters():
-    # TODO: test negative cases returning None
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(PDLInterpFunctions(Context()))
 
@@ -57,6 +57,45 @@ def test_getters():
     assert interpreter.run_op(
         pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (op_res,)
     ) == (op,)
+
+    # Negative cases
+
+    # Test GetOperandOp with out-of-bounds index
+    assert interpreter.run_op(
+        pdl_interp.GetOperandOp(5, create_ssa_value(pdl.OperationType())), (op,)
+    ) == (None,)
+
+    # Test GetResultOp with out-of-bounds index
+    assert interpreter.run_op(
+        pdl_interp.GetResultOp(5, create_ssa_value(pdl.OperationType())), (op,)
+    ) == (None,)
+
+    # Test GetResultsOp with single-SSA type but multiple results
+    single_result_type_op = pdl_interp.GetResultsOp(
+        None,
+        create_ssa_value(pdl.OperationType()),
+        pdl.ValueType(),
+    )
+    assert interpreter.run_op(single_result_type_op, (op,)) == (None,)
+
+    # Test GetAttributeOp with non-existent attribute
+    assert interpreter.run_op(
+        pdl_interp.GetAttributeOp(
+            "non_existent", create_ssa_value(pdl.OperationType())
+        ),
+        (op,),
+    ) == (None,)
+
+    # Test GetDefiningOpOp with non-OpResult value
+    block_arg = Block((), arg_types=(i32,)).args[0]
+    assert interpreter.run_op(
+        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (block_arg,)
+    ) == (None,)
+
+    # Test GetDefiningOpOp with None input
+    assert interpreter.run_op(
+        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (None,)
+    ) == (None,)
 
 
 def test_create_attribute():
