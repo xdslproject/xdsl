@@ -914,16 +914,6 @@ class CmpiOp(ComparisonOperation):
         printer.print_attribute(self.lhs.type)
 
 
-class CmpfOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.arith import (
-            CmpfOpFoldSelectPattern,
-        )
-
-        return (CmpfOpFoldSelectPattern(),)
-
-
 @irdl_op_definition
 class CmpfOp(ComparisonOperation):
     """
@@ -957,7 +947,7 @@ class CmpfOp(ComparisonOperation):
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
     result = result_def(IntegerType(1))
 
-    traits = traits_def(CmpfOpHasCanonicalizationPatterns(), Pure())
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -1039,11 +1029,17 @@ class SelectHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import (
             SelectConstPattern,
+            SelectFoldCmpfPattern,
             SelectSamePattern,
             SelectTrueFalsePattern,
         )
 
-        return (SelectConstPattern(), SelectTrueFalsePattern(), SelectSamePattern())
+        return (
+            SelectConstPattern(),
+            SelectTrueFalsePattern(),
+            SelectSamePattern(),
+            SelectFoldCmpfPattern(),
+        )
 
 
 @irdl_op_definition

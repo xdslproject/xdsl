@@ -162,22 +162,22 @@ func.func @test_const_var_const() {
 
 func.func @test_fold_cmpf_select() {
   %cst, %cst_0, %13 = "test.op"() : () -> (f64, f64, f64)
-  %14 = arith.cmpf ogt, %13, %cst_0 : f64
+  %14 = arith.cmpf ogt, %13, %cst_0 fastmath<nnan> : f64
   %15 = arith.select %14, %13, %cst_0 : f64
-  %16 = arith.cmpf olt, %15, %cst : f64
+  %16 = arith.cmpf olt, %15, %cst fastmath<nnan> : f64
   %17 = arith.select %16, %15, %cst : f64
-  %18 = arith.cmpf ule, %17, %cst : f64
+  %18 = arith.cmpf uge, %17, %cst fastmath<nnan> : f64
   %19 = arith.select %18, %17, %cst : f64
-  %20 = arith.cmpf ule, %19, %cst : f64
+  %20 = arith.cmpf ule, %19, %cst fastmath<nnan> : f64
   %21 = arith.select %20, %19, %cst : f64
   "test.op"(%21) : (f64) -> ()
   return
 
   // CHECK-LABEL: @test_fold_cmpf_select
   // CHECK-NEXT:  %cst, %cst_1, %12 = "test.op"() : () -> (f64, f64, f64)
-  // CHECK-NEXT:  %13 = arith.maximumf %12, %cst_1 : f64
-  // CHECK-NEXT:  %14 = arith.minimumf %13, %cst : f64
-  // CHECK-NEXT:  %15 = arith.minnumf %14, %cst : f64
-  // CHECK-NEXT:  %16 = arith.minnumf %15, %cst : f64
+  // CHECK-NEXT:  %13 = arith.maximumf %12, %cst_1 fastmath<nnan> : f64
+  // CHECK-NEXT:  %14 = arith.minimumf %13, %cst fastmath<nnan> : f64
+  // CHECK-NEXT:  %15 = arith.maximumf %14, %cst fastmath<nnan> : f64
+  // CHECK-NEXT:  %16 = arith.minimumf %15, %cst fastmath<nnan> : f64
   // CHECK-NEXT:  "test.op"(%16) : (f64) -> ()
 }

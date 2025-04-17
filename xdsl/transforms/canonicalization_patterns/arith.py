@@ -1,5 +1,6 @@
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import BoolAttr, IndexType, IntegerType
+from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -189,38 +190,37 @@ class SelectSamePattern(RewritePattern):
             rewriter.replace_matched_op((), (op.lhs,))
 
 
-class CmpfOpFoldSelectPattern(RewritePattern):
+class SelectFoldCmpfPattern(RewritePattern):
     """
-    %1 = arith.cmpf  ogt, %0, %cst : f64
+    %1 = arith.cmpf  ogt, %0, %cst fastmath<nnan> : f64
     %2 = arith.select %1, %0, %cst : f64
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.CmpfOp, rewriter: PatternRewriter):
-        if len(op.result.uses) != 1:
+    def match_and_rewrite(self, op: arith.SelectOp, rewriter: PatternRewriter):
+        if not isinstance(op.cond, OpResult) or not isinstance(
+            cmpf := op.cond.op, arith.CmpfOp
+        ):
             return
-        if not isinstance(select := list(op.result.uses)[0].operation, arith.SelectOp):
+        if (
+            cmpf.fastmath is None
+            or arith.FastMathFlag.NO_NANS not in cmpf.fastmath.flags
+        ):
             return
-        if not (op.lhs == select.lhs and op.rhs == select.rhs):
+        if not (op.lhs == cmpf.lhs and op.rhs == cmpf.rhs):
             return
 
         target = None
-        match op.predicate.value.data:
-            case 2 | 3:
-                # ogt | oge
+        match cmpf.predicate.value.data:
+            case 2 | 3 | 9 | 10:
+                # ogt | oge | ugt | uge
                 target = arith.MaximumfOp
-            case 4 | 5:
-                # olt | ole
+            case 4 | 5 | 11 | 12:
+                # olt | ole | ult | ule
                 target = arith.MinimumfOp
-            case 9 | 10:
-                # ugt | uge
-                target = arith.MaxnumfOp
-            case 11 | 12:
-                # ult | ule
-                target = arith.MinnumfOp
             case _:
                 return
-        rewriter.replace_op(select, target(select.lhs, select.rhs, op.fastmath))
+        rewriter.replace_matched_op(target(op.lhs, op.rhs, cmpf.fastmath))
 
 
 class ApplyCmpiPredicateToEqualOperands(RewritePattern):
