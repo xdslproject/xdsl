@@ -163,12 +163,6 @@ class ConvertLinalgMaxPass(ConvertBinaryLinalgOp):
         self.transform_op(op, rewriter, f16=csl.FmaxhOp, f32=csl.FmaxsOp)
 
 
-class ConvertLinalgMinPass(ConvertBinaryLinalgOp):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.MinOp, rewriter: PatternRewriter, /):
-        self.transform_op(op, rewriter, f16=csl.FminhOp, f32=csl.FminsOp)
-
-
 @dataclass(frozen=True)
 class LinalgToCsl(ModulePass):
     """
@@ -188,7 +182,6 @@ class LinalgToCsl(ModulePass):
                     ConvertLinalgSubPass(),
                     ConvertLinalgMulPass(),
                     ConvertLinalgMaxPass(),
-                    ConvertLinalgMinPass(),
                 ]
             ),
         )
