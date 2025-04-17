@@ -159,3 +159,29 @@ func.func @test_const_var_const() {
 %11 = arith.constant true
 %12 = arith.addi %11, %11 : i1
 "test.op"(%12) : (i1) -> ()
+
+func.func @test_fold_cmpf_select() {
+  %cst = arith.constant 4.000000e+00 : f64
+  %cst_0 = arith.constant 3.000000e+00 : f64
+  %13 = "test.op"() : () -> f64
+  %14 = arith.cmpf ogt, %13, %cst_0 : f64
+  %15 = arith.select %14, %13, %cst_0 : f64
+  %16 = arith.cmpf olt, %15, %cst : f64
+  %17 = arith.select %16, %15, %cst : f64
+  %18 = arith.cmpf ule, %17, %cst : f64
+  %19 = arith.select %18, %17, %cst : f64
+  %20 = arith.cmpf ule, %19, %cst : f64
+  %21 = arith.select %20, %19, %cst : f64
+  "test.op"(%21) : (f64) -> ()
+  return
+
+  // CHECK-LABEL: @test_fold_cmpf_select
+  // CHECK-NEXT:  %cst = arith.constant 4.000000e+00 : f64
+  // CHECK-NEXT:  %cst_1 = arith.constant 3.000000e+00 : f64
+  // CHECK-NEXT:  %12 = "test.op"() : () -> f64
+  // CHECK-NEXT:  %13 = arith.maximumf %12, %cst_1 : f64
+  // CHECK-NEXT:  %14 = arith.minimumf %13, %cst : f64
+  // CHECK-NEXT:  %15 = arith.minnumf %14, %cst : f64
+  // CHECK-NEXT:  %16 = arith.minnumf %15, %cst : f64
+  // CHECK-NEXT:  "test.op"(%16) : (f64) -> ()
+}

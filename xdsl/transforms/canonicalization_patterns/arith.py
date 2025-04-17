@@ -189,6 +189,40 @@ class SelectSamePattern(RewritePattern):
             rewriter.replace_matched_op((), (op.lhs,))
 
 
+class CmpfOpFoldSelectPattern(RewritePattern):
+    """
+    %1 = arith.cmpf  ogt, %0, %cst : f64
+    %2 = arith.select %1, %0, %cst : f64
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.CmpfOp, rewriter: PatternRewriter):
+        if len(op.result.uses) != 1:
+            return
+        if not isinstance(select := list(op.result.uses)[0].operation, arith.SelectOp):
+            return
+        if not (op.lhs == select.lhs and op.rhs == select.rhs):
+            return
+
+        target = None
+        match op.predicate.value.data:
+            case 2 | 3:
+                # ogt | oge
+                target = arith.MaximumfOp
+            case 4 | 5:
+                # olt | ole
+                target = arith.MinimumfOp
+            case 9 | 10:
+                # ugt | uge
+                target = arith.MaxnumfOp
+            case 11 | 12:
+                # ult | ule
+                target = arith.MinnumfOp
+        if target:
+            rewriter.replace_op(select, target(select.lhs, select.rhs, op.fastmath))
+            rewriter.erase_matched_op()
+
+
 class ApplyCmpiPredicateToEqualOperands(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.CmpiOp, rewriter: PatternRewriter):
