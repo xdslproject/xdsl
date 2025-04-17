@@ -218,9 +218,10 @@ class CmpfOpFoldSelectPattern(RewritePattern):
             case 11 | 12:
                 # ult | ule
                 target = arith.MinnumfOp
-        if target:
-            rewriter.replace_op(select, target(select.lhs, select.rhs, op.fastmath))
-            rewriter.erase_matched_op()
+            case _:
+                return
+        rewriter.replace_op(select, target(select.lhs, select.rhs, op.fastmath))
+        rewriter.erase_matched_op()
 
 
 class ApplyCmpiPredicateToEqualOperands(RewritePattern):
