@@ -79,6 +79,9 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
             ins(%26, %27: tensor<1x1x5x5xi8>, tensor<1x1x3x3xi8>)
             outs(%28: tensor<1x1x3x3xi32>) -> tensor<1x1x3x3xi32>
 
+%29 = "test.op"() : () -> tensor<2x3xi1>
+%30 = linalg.select ins(%29, %2, %3 : tensor<2x3xi1>, tensor<2x3xf32>, tensor<2x3xf32>) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
+"test.op"(%30) : (tensor<2x3xf32>) -> ()
 
 
 // CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
@@ -128,4 +131,7 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 // CHECK-NEXT:    %20 = linalg.quantized_matmul ins(%18#0, %18#1, %c0_i32, %c0_i32_1 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%19 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
 // CHECK-NEXT:    %21:3 = "test.op"() : () -> (tensor<1x1x5x5xi8>, tensor<1x1x3x3xi8>, tensor<1x1x3x3xi32>)
 // CHECK-NEXT:    %22 = linalg.conv_2d_nchw_fchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%21#0, %21#1 : tensor<1x1x5x5xi8>, tensor<1x1x3x3xi8>) outs(%21#2 : tensor<1x1x3x3xi32>) -> tensor<1x1x3x3xi32>
+// CHECK-NEXT:    %23 = "test.op"() : () -> tensor<2x3xi1>
+// CHECK-NEXT:    %24 = linalg.select ins(%23, %1#0, %1#1 : tensor<2x3xi1>, tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    "test.op"(%24) : (tensor<2x3xf32>) -> ()
 // CHECK-NEXT:  }
