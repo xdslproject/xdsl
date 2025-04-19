@@ -1,19 +1,26 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import ClassVar, TypeAlias
+
 from xdsl.dialects.builtin import BoolAttr
-from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
+from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     AtLeast,
     IRDLOperation,
     RangeOf,
+    VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     prop_def,
     result_def,
     traits_def,
     var_operand_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.traits import ConstantLike, Pure
 
 
@@ -22,6 +29,9 @@ class BoolType(ParametrizedAttribute, TypeAttribute):
     """A boolean."""
 
     name = "smt.bool"
+
+
+NonFuncSMTType: TypeAlias = BoolType
 
 
 @irdl_op_definition
@@ -103,6 +113,121 @@ class XOrOp(VariadicBoolOp):
     name = "smt.xor"
 
 
+def _parse_same_operand_type_variadic_to_bool_op(
+    parser: Parser,
+) -> tuple[Sequence[SSAValue], dict[str, Attribute]]:
+    """
+    Parse a variadic operation with boolean result, with format
+    `%op1, %op2, ..., %opN attr-dict : T` where `T` is the type of all
+    operands.
+    """
+    operand_pos = parser.pos
+    operands = parser.parse_comma_separated_list(
+        parser.Delimiter.NONE, parser.parse_unresolved_operand, "operand list"
+    )
+    attr_dict = parser.parse_optional_attr_dict()
+    parser.parse_punctuation(":")
+    operand_types = parser.parse_type()
+    operands = parser.resolve_operands(
+        operands, (operand_types,) * len(operands), operand_pos
+    )
+    return operands, attr_dict
+
+
+def _print_same_operand_type_variadic_to_bool_op(
+    printer: Printer, operands: Sequence[SSAValue], attr_dict: dict[str, Attribute]
+):
+    """
+    Print a variadic operation with boolean result, with format
+    `%op1, %op2, ..., %opN attr-dict : T` where `T` is the type of all
+    operands.
+    """
+    printer.print(" ")
+    printer.print_list(operands, printer.print_ssa_value)
+    if attr_dict:
+        printer.print_string(" ")
+        printer.print_attr_dict(attr_dict)
+    printer.print(" : ", operands[0].type)
+
+
+@irdl_op_definition
+class DistinctOp(IRDLOperation):
+    """
+    This operation compares the operands and returns true iff all operands are not
+    identical to any of the other operands. The semantics are equivalent to the
+    `distinct` operator defined in the SMT-LIB Standard 2.7 in the Core theory.
+
+    Any SMT sort/type is allowed for the operands and it supports a variadic
+    number of operands, but requires at least two. This is because the `distinct`
+    operator is annotated with `:pairwise` which means that `distinct a b c d` is
+    equivalent to
+
+    ```
+    and (distinct a b) (distinct a c) (distinct a d)
+        (distinct b c) (distinct b d) (distinct c d)
+    ```
+    """
+
+    name = "smt.distinct"
+
+    T: ClassVar = VarConstraint("T", irdl_to_attr_constraint(NonFuncSMTType))
+
+    inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
+    result = result_def(BoolType())
+
+    @classmethod
+    def parse(cls, parser: Parser) -> DistinctOp:
+        operands, attr_dict = _parse_same_operand_type_variadic_to_bool_op(parser)
+        op = DistinctOp(*operands)
+        op.attributes = attr_dict
+        return op
+
+    def print(self, printer: Printer):
+        _print_same_operand_type_variadic_to_bool_op(
+            printer, self.inputs, self.attributes
+        )
+
+    def __init__(self, *operands: SSAValue):
+        super().__init__(operands=[operands], result_types=[BoolType()])
+
+
+@irdl_op_definition
+class EqOp(IRDLOperation):
+    """
+    This operation compares the operands and returns true iff all operands are
+    identical. The semantics are equivalent to the `=` operator defined in the
+    SMT-LIB Standard 2.7 in the Core theory.
+
+    Any SMT sort/type is allowed for the operands and it supports a variadic number of
+    operands, but requires at least two. This is because the `=` operator is annotated
+    with `:chainable` which means that `= a b c d` is equivalent to
+    `and (= a b) (= b c) (= c d)` where and is annotated `:left-assoc`, i.e., it can
+    be further rewritten to `and (and (= a b) (= b c)) (= c d)`.
+    """
+
+    name = "smt.eq"
+
+    T: ClassVar = VarConstraint("T", irdl_to_attr_constraint(NonFuncSMTType))
+
+    inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
+    result = result_def(BoolType())
+
+    @classmethod
+    def parse(cls, parser: Parser) -> EqOp:
+        operands, attr_dict = _parse_same_operand_type_variadic_to_bool_op(parser)
+        op = EqOp(*operands)
+        op.attributes = attr_dict
+        return op
+
+    def print(self, printer: Printer):
+        _print_same_operand_type_variadic_to_bool_op(
+            printer, self.inputs, self.attributes
+        )
+
+    def __init__(self, *operands: SSAValue):
+        super().__init__(operands=[operands], result_types=[BoolType()])
+
+
 SMT = Dialect(
     "smt",
     [
@@ -110,6 +235,8 @@ SMT = Dialect(
         AndOp,
         OrOp,
         XOrOp,
+        DistinctOp,
+        EqOp,
     ],
     [BoolType],
 )
