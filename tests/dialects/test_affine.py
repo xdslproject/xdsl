@@ -1,9 +1,13 @@
 import pytest
 
-from xdsl.dialects.affine import ForOp, YieldOp
+from xdsl.context import Context
+from xdsl.dialects.affine import Affine, ForOp, YieldOp
+from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, IntegerType
+from xdsl.dialects.tensor import Tensor
 from xdsl.ir import Attribute, Block, Region
 from xdsl.ir.affine import AffineExpr
+from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -77,3 +81,21 @@ def test_for_mismatch_blockargs():
 def test_yield():
     yield_ = YieldOp.get()
     assert yield_.arguments == ()
+
+
+def test_affine_apply_map():
+    MODULE_CTX = """
+#map = affine_map<()[s0] -> (s0 * 4)>
+%c0 = arith.constant 2 : index
+%0 = affine.apply #map()[%c0]
+    """
+    ctx = Context()
+    ctx.load_dialect(Tensor)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Affine)
+
+    module_op = Parser(ctx, MODULE_CTX).parse_module()
+
+    print(module_op)
+
+    module_op.verify()
