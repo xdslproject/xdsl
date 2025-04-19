@@ -134,7 +134,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         return (args[0].owner,)
 
     @impl_terminator(pdl_interp.CheckOperationNameOp)
-    def run_checkoperationname(
+    def run_check_operation_name(
         self,
         interpreter: Interpreter,
         op: pdl_interp.CheckOperationNameOp,
@@ -147,7 +147,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         return Successor(successor, ()), ()
 
     @impl_terminator(pdl_interp.CheckOperandCountOp)
-    def run_checkoperandcount(
+    def run_check_operand_count(
         self,
         interpreter: Interpreter,
         op: pdl_interp.CheckOperandCountOp,
@@ -170,7 +170,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         return Successor(successor, ()), ()
 
     @impl_terminator(pdl_interp.CheckResultCountOp)
-    def run_checkresultcount(
+    def run_check_result_count(
         self,
         interpreter: Interpreter,
         op: pdl_interp.CheckResultCountOp,

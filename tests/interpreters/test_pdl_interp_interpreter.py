@@ -124,7 +124,7 @@ def test_check_operation_name():
         "test.op", create_ssa_value(pdl.OperationType()), truedest, falsedest
     )
 
-    trueresult = pdl_interp_functions.run_checkoperationname(
+    trueresult = pdl_interp_functions.run_check_operation_name(
         interpreter, check_name_op, (op,)
     )
 
@@ -136,7 +136,7 @@ def test_check_operation_name():
         "test.other", create_ssa_value(pdl.OperationType()), truedest, falsedest
     )
 
-    falseresult = pdl_interp_functions.run_checkoperationname(
+    falseresult = pdl_interp_functions.run_check_operation_name(
         interpreter, check_name_op_false, (op,)
     )
 
@@ -167,7 +167,7 @@ def test_check_operand_count():
         compareAtLeast=False,
     )
 
-    exact_result = pdl_interp_functions.run_checkoperandcount(
+    exact_result = pdl_interp_functions.run_check_operand_count(
         interpreter, check_count_op, (op,)
     )
 
@@ -183,7 +183,7 @@ def test_check_operand_count():
         compareAtLeast=True,
     )
 
-    at_least_result = pdl_interp_functions.run_checkoperandcount(
+    at_least_result = pdl_interp_functions.run_check_operand_count(
         interpreter, check_count_op_at_least, (op,)
     )
 
@@ -199,7 +199,7 @@ def test_check_operand_count():
         compareAtLeast=False,
     )
 
-    fail_result = pdl_interp_functions.run_checkoperandcount(
+    fail_result = pdl_interp_functions.run_check_operand_count(
         interpreter, check_count_op_fail, (op,)
     )
 
@@ -229,7 +229,7 @@ def test_check_result_count():
         compareAtLeast=False,
     )
 
-    exact_result = pdl_interp_functions.run_checkresultcount(
+    exact_result = pdl_interp_functions.run_check_result_count(
         interpreter, check_result_op, (op,)
     )
 
@@ -245,7 +245,7 @@ def test_check_result_count():
         compareAtLeast=True,
     )
 
-    at_least_result = pdl_interp_functions.run_checkresultcount(
+    at_least_result = pdl_interp_functions.run_check_result_count(
         interpreter, check_result_op_at_least, (op,)
     )
 
@@ -261,7 +261,7 @@ def test_check_result_count():
         compareAtLeast=False,
     )
 
-    fail_result = pdl_interp_functions.run_checkresultcount(
+    fail_result = pdl_interp_functions.run_check_result_count(
         interpreter, check_result_op_fail, (op,)
     )
 
