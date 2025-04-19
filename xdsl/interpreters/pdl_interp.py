@@ -8,7 +8,9 @@ from xdsl.dialects.pdl import ValueType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
+    Successor,
     impl,
+    impl_terminator,
     register_impls,
 )
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
@@ -55,7 +57,7 @@ class PDLInterpFunctions(InterpreterFunctions):
             return (args[0].operands[op.index.value.data],)
 
     @impl(pdl_interp.GetResultOp)
-    def run_getresult(
+    def run_get_result(
         self,
         interpreter: Interpreter,
         op: pdl_interp.GetResultOp,
@@ -68,7 +70,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         return (args[0].results[op.index.value.data],)
 
     @impl(pdl_interp.GetResultsOp)
-    def run_getresults(
+    def run_get_results(
         self,
         interpreter: Interpreter,
         op: pdl_interp.GetResultsOp,
@@ -85,7 +87,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         return (src_op.results,)
 
     @impl(pdl_interp.GetAttributeOp)
-    def run_getattribute(
+    def run_get_attribute(
         self,
         interpreter: Interpreter,
         op: pdl_interp.GetAttributeOp,
@@ -102,7 +104,7 @@ class PDLInterpFunctions(InterpreterFunctions):
             return (None,)
 
     @impl(pdl_interp.GetValueTypeOp)
-    def run_getvaluetype(
+    def run_get_value_type(
         self,
         interpreter: Interpreter,
         op: pdl_interp.GetValueTypeOp,
@@ -114,7 +116,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         return (value.type,)
 
     @impl(pdl_interp.GetDefiningOpOp)
-    def run_getdefiningop(
+    def run_get_defining_op(
         self,
         interpreter: Interpreter,
         op: pdl_interp.GetDefiningOpOp,
@@ -131,8 +133,109 @@ class PDLInterpFunctions(InterpreterFunctions):
         )
         return (args[0].owner,)
 
+    @impl_terminator(pdl_interp.CheckOperationNameOp)
+    def run_check_operation_name(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckOperationNameOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        assert isinstance(args[0], Operation)
+        cond = args[0].name == op.operation_name.data
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.CheckOperandCountOp)
+    def run_check_operand_count(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckOperandCountOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        assert isinstance(args[0], Operation)
+
+        operand_count = len(args[0].operands)
+        expected_count = op.count.value.data
+
+        # If compareAtLeast is set, check if operand count is >= expected
+        # Otherwise check for exact match
+        if "compareAtLeast" in op.properties:
+            cond = operand_count >= expected_count
+        else:
+            cond = operand_count == expected_count
+
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.CheckResultCountOp)
+    def run_check_result_count(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckResultCountOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        assert isinstance(args[0], Operation)
+
+        result_count = len(args[0].results)
+        expected_count = op.count.value.data
+
+        # If compareAtLeast is set, check if result count is >= expected
+        # Otherwise check for exact match
+        if "compareAtLeast" in op.properties:
+            cond = result_count >= expected_count
+        else:
+            cond = result_count == expected_count
+
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.CheckAttributeOp)
+    def run_check_attribute(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckAttributeOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        # args[0] should be the attribute value to check
+        attribute = args[0]
+        # Compare with the constant value from properties
+        cond = attribute == op.constantValue
+
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.IsNotNullOp)
+    def run_is_not_null(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.IsNotNullOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        # Check if the value is not None
+        cond = args[0] is not None
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.AreEqualOp)
+    def run_are_equal(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.AreEqualOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 2
+        # Compare the two values for equality
+        cond = args[0] == args[1]
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
     @impl(pdl_interp.CreateAttributeOp)
-    def run_createattribute(
+    def run_create_attribute(
         self,
         interpreter: Interpreter,
         op: pdl_interp.CreateAttributeOp,
@@ -142,7 +245,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         return (op.value,)
 
     @impl(pdl_interp.CreateOperationOp)
-    def run_createoperation(
+    def run_create_operation(
         self,
         interpreter: Interpreter,
         op: pdl_interp.CreateOperationOp,
