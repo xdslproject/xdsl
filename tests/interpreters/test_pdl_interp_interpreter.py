@@ -285,7 +285,7 @@ def test_check_attribute():
         falsedest,
     )
 
-    match_result = pdl_interp_functions.run_checkattribute(
+    match_result = pdl_interp_functions.run_check_attribute(
         interpreter, check_attr_op, (StringAttr("hello"),)
     )
 
@@ -293,7 +293,7 @@ def test_check_attribute():
     assert match_result.terminator_value.block is truedest
 
     # Test non-matching attribute
-    nomatch_result = pdl_interp_functions.run_checkattribute(
+    nomatch_result = pdl_interp_functions.run_check_attribute(
         interpreter, check_attr_op, (StringAttr("world"),)
     )
 
@@ -318,7 +318,7 @@ def test_is_not_null():
         falsedest,
     )
 
-    notnull_result = pdl_interp_functions.run_isnotnull(
+    notnull_result = pdl_interp_functions.run_is_not_null(
         interpreter, is_not_null_op, (c0,)
     )
 
@@ -326,7 +326,7 @@ def test_is_not_null():
     assert notnull_result.terminator_value.block is truedest
 
     # Test with null value
-    null_result = pdl_interp_functions.run_isnotnull(
+    null_result = pdl_interp_functions.run_is_not_null(
         interpreter, is_not_null_op, (None,)
     )
 
@@ -353,7 +353,7 @@ def test_are_equal():
         falsedest,
     )
 
-    equal_result = pdl_interp_functions.run_areequal(
+    equal_result = pdl_interp_functions.run_are_equal(
         interpreter, are_equal_op, (c0, c0)
     )
 
@@ -361,7 +361,7 @@ def test_are_equal():
     assert equal_result.terminator_value.block is truedest
 
     # Test with unequal values
-    unequal_result = pdl_interp_functions.run_areequal(
+    unequal_result = pdl_interp_functions.run_are_equal(
         interpreter, are_equal_op, (c0, c1)
     )
 
