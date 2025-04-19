@@ -21,8 +21,9 @@ def test_getters():
 
     c0 = create_ssa_value(i32)
     c1 = create_ssa_value(i32)
-    myattr = StringAttr("hello")
-    op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr})
+    myattr = StringAttr("hello_attr")
+    myprop = StringAttr("hello_prop")
+    op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr}, {"myprop": myprop})
     op_res = op.results[0]
 
     assert interpreter.run_op(
@@ -49,6 +50,11 @@ def test_getters():
         pdl_interp.GetAttributeOp("myattr", create_ssa_value(pdl.OperationType())),
         (op,),
     ) == (myattr,)
+
+    assert interpreter.run_op(
+        pdl_interp.GetAttributeOp("myprop", create_ssa_value(pdl.OperationType())),
+        (op,),
+    ) == (myprop,)
 
     assert interpreter.run_op(
         pdl_interp.GetValueTypeOp(create_ssa_value(pdl.ValueType())), (c0,)
