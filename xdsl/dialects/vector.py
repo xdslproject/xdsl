@@ -18,7 +18,11 @@ from xdsl.dialects.builtin import (
     i1,
     i64,
 )
-from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
+from xdsl.dialects.utils import (
+    get_dynamic_index_list,
+    split_dynamic_index_list,
+    verify_dynamic_index_list,
+)
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
@@ -322,6 +326,37 @@ class ExtractOp(IRDLOperation):
             ExtractOp.DYNAMIC_INDEX,
         )
 
+    def verify_(self):
+        # Check that static position attribute and dynamic position operands
+        # are compatible.
+        static_values = cast(tuple[int, ...], self.static_position.get_values())
+        verify_dynamic_index_list(
+            static_values,
+            self.dynamic_position,
+            self.DYNAMIC_INDEX,
+        )
+
+        num_indices = len(self.static_position)
+        vector_type = self.vector.type
+        assert isa(vector_type, VectorType[Attribute])
+        # Check that the number of dimensions match
+        if isa(self.result.type, VectorType):
+            if (
+                num_indices + self.result.type.get_num_dims()
+                != vector_type.get_num_dims()
+            ):
+                raise VerifyException(
+                    f"Expected position attribute rank ({num_indices}) + result rank "
+                    f"({self.result.type.get_num_dims()}) to "
+                    f"match source vector rank ({vector_type.get_num_dims()})."
+                )
+        else:
+            if num_indices != vector_type.get_num_dims():
+                raise VerifyException(
+                    f"Expected position attribute rank ({num_indices}) to match "
+                    f"source vector rank ({vector_type.get_num_dims()})."
+                )
+
     def __init__(
         self,
         vector: SSAValue,
@@ -451,6 +486,35 @@ class InsertOp(IRDLOperation):
             self.dynamic_position,
             InsertOp.DYNAMIC_INDEX,
         )
+
+    def verify_(self):
+        # Check that static position attribute and dynamic position operands
+        # are compatible.
+        static_values = cast(tuple[int, ...], self.static_position.get_values())
+        verify_dynamic_index_list(
+            static_values,
+            self.dynamic_position,
+            self.DYNAMIC_INDEX,
+        )
+
+        num_indices = len(self.static_position)
+        # Check that the number of dimensions match
+        if isa(self.source.type, VectorType):
+            if (
+                num_indices + self.source.type.get_num_dims()
+                != self.result.type.get_num_dims()
+            ):
+                raise VerifyException(
+                    f"Expected position attribute rank ({num_indices}) + source rank "
+                    f"({self.source.type.get_num_dims()}) to "
+                    f"match dest vector rank ({self.result.type.get_num_dims()})."
+                )
+        else:
+            if num_indices != self.result.type.get_num_dims():
+                raise VerifyException(
+                    f"Expected position attribute rank ({num_indices}) to match "
+                    f"dest vector rank ({self.result.type.get_num_dims()})."
+                )
 
     def __init__(
         self,
