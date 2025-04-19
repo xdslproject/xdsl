@@ -4,18 +4,21 @@ from typing import Any, cast
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
 from xdsl.dialects.builtin import StringAttr
-from xdsl.dialects.pdl import ValueType
+from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
+    ReturnedValues,
     Successor,
     impl,
+    impl_callable,
     impl_terminator,
     register_impls,
 )
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 
 @register_impls
@@ -234,6 +237,33 @@ class PDLInterpFunctions(InterpreterFunctions):
         successor = op.true_dest if cond else op.false_dest
         return Successor(successor, ()), ()
 
+    @impl(pdl_interp.ReplaceOp)
+    def run_replace(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.ReplaceOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) >= 1
+        input_op = args[0]
+        assert isinstance(input_op, Operation)
+
+        # Get replacement values (if any)
+        repl_values: list[SSAValue] = []
+        for i in range(0, len(args) - 1):
+            if isa(op.repl_values.types[i], ValueType):
+                repl_values.append(args[i + 1])
+            elif isa(op.repl_values.types[i], RangeType[ValueType]):
+                repl_values.extend(args[i + 1])
+
+        assert len(input_op.results) == len(repl_values), (
+            "Number of replacement values should match number of results"
+        )
+
+        # Replace the operation with the replacement values
+        self.rewriter.replace_op(input_op, new_ops=[], new_results=repl_values)
+        return ()
+
     @impl(pdl_interp.CreateAttributeOp)
     def run_create_attribute(
         self,
@@ -294,3 +324,35 @@ class PDLInterpFunctions(InterpreterFunctions):
 
         # Return the created operation
         return (result_op,)
+
+    @impl_callable(pdl_interp.FuncOp)
+    def call_func(
+        self, interpreter: Interpreter, op: pdl_interp.FuncOp, args: tuple[Any, ...]
+    ):
+        if op.sym_name.data == "matcher":
+            assert self._rewriter is None
+            assert len(args) == 1
+            root_op = args[0]
+            assert isinstance(root_op, Operation)
+            self.rewriter = PatternRewriter(root_op)
+        else:
+            assert self.rewriter is not None
+
+        return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
+
+    @impl_terminator(pdl_interp.RecordMatchOp)
+    def run_recordmatch(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.RecordMatchOp,
+        args: tuple[Any, ...],
+    ):
+        assert self.rewriter is not None
+        interpreter.call_op(op.rewriter, args)
+        return Successor(op.dest, ()), ()
+
+    @impl_terminator(pdl_interp.FinalizeOp)
+    def run_finalize(
+        self, interpreter: Interpreter, op: pdl_interp.FinalizeOp, args: tuple[Any, ...]
+    ):
+        return ReturnedValues(()), ()

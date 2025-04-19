@@ -1,9 +1,12 @@
+from typing import cast
+
 import pytest
 
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
+    FunctionType,
     ModuleOp,
     StringAttr,
     UnitAttr,
@@ -12,7 +15,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreter import Interpreter, Successor
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block
+from xdsl.ir import Block, BlockArgument
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
@@ -435,3 +438,32 @@ def test_create_operation():
     )
     with pytest.raises(InterpretationError):
         interpreter.run_op(create_op_nonexistent, (c0, c1, attr, i32))
+
+
+def test_func():
+    # not really a unit test, just check if pdl_interp.func can be called.
+    @ModuleOp
+    @Builder.implicit_region
+    def my_module():
+        test.TestOp()
+
+        @Builder.implicit_region((pdl.OperationType(),))
+        def body(args: tuple[BlockArgument, ...]) -> None:
+            pdl_interp.FinalizeOp()
+
+        pdl_interp.FuncOp(
+            "matcher",
+            FunctionType.from_lists([pdl.OperationType()], []),
+            None,
+            None,
+            body,
+        )
+
+    my_module.verify()
+    op = cast(test.TestOp, cast(Block, my_module.body.first_block).first_op)
+
+    interpreter = Interpreter(my_module)
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    interpreter.register_implementations(PDLInterpFunctions(ctx))
+    interpreter.call_op("matcher", (op,))
