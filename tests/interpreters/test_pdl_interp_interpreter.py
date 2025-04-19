@@ -130,7 +130,7 @@ def test_check_operation_name():
 
     assert isinstance(trueresult.terminator_value, Successor)
     assert isinstance(trueresult.terminator_value.block, Block)
-    assert trueresult.terminator_value.block == truedest
+    assert trueresult.terminator_value.block is truedest
 
     check_name_op_false = pdl_interp.CheckOperationNameOp(
         "test.other", create_ssa_value(pdl.OperationType()), truedest, falsedest
@@ -142,7 +142,7 @@ def test_check_operation_name():
 
     assert isinstance(falseresult.terminator_value, Successor)
     assert isinstance(falseresult.terminator_value.block, Block)
-    assert falseresult.terminator_value.block == falsedest
+    assert falseresult.terminator_value.block is falsedest
 
 
 def test_check_operand_count():
@@ -172,7 +172,7 @@ def test_check_operand_count():
     )
 
     assert isinstance(exact_result.terminator_value, Successor)
-    assert exact_result.terminator_value.block == truedest
+    assert exact_result.terminator_value.block is truedest
 
     # Test compareAtLeast=True
     check_count_op_at_least = pdl_interp.CheckOperandCountOp(
@@ -188,7 +188,7 @@ def test_check_operand_count():
     )
 
     assert isinstance(at_least_result.terminator_value, Successor)
-    assert at_least_result.terminator_value.block == truedest
+    assert at_least_result.terminator_value.block is truedest
 
     # Test failing cases
     check_count_op_fail = pdl_interp.CheckOperandCountOp(
@@ -204,7 +204,7 @@ def test_check_operand_count():
     )
 
     assert isinstance(fail_result.terminator_value, Successor)
-    assert fail_result.terminator_value.block == falsedest
+    assert fail_result.terminator_value.block is falsedest
 
 
 def test_check_result_count():
@@ -234,7 +234,7 @@ def test_check_result_count():
     )
 
     assert isinstance(exact_result.terminator_value, Successor)
-    assert exact_result.terminator_value.block == truedest
+    assert exact_result.terminator_value.block is truedest
 
     # Test compareAtLeast=True
     check_result_op_at_least = pdl_interp.CheckResultCountOp(
@@ -250,7 +250,7 @@ def test_check_result_count():
     )
 
     assert isinstance(at_least_result.terminator_value, Successor)
-    assert at_least_result.terminator_value.block == truedest
+    assert at_least_result.terminator_value.block is truedest
 
     # Test failing case
     check_result_op_fail = pdl_interp.CheckResultCountOp(
@@ -266,7 +266,7 @@ def test_check_result_count():
     )
 
     assert isinstance(fail_result.terminator_value, Successor)
-    assert fail_result.terminator_value.block == falsedest
+    assert fail_result.terminator_value.block is falsedest
 
 
 def test_check_attribute():
@@ -290,7 +290,7 @@ def test_check_attribute():
     )
 
     assert isinstance(match_result.terminator_value, Successor)
-    assert match_result.terminator_value.block == truedest
+    assert match_result.terminator_value.block is truedest
 
     # Test non-matching attribute
     nomatch_result = pdl_interp_functions.run_checkattribute(
@@ -298,7 +298,7 @@ def test_check_attribute():
     )
 
     assert isinstance(nomatch_result.terminator_value, Successor)
-    assert nomatch_result.terminator_value.block == falsedest
+    assert nomatch_result.terminator_value.block is falsedest
 
 
 def test_is_not_null():
@@ -323,7 +323,7 @@ def test_is_not_null():
     )
 
     assert isinstance(notnull_result.terminator_value, Successor)
-    assert notnull_result.terminator_value.block == truedest
+    assert notnull_result.terminator_value.block is truedest
 
     # Test with null value
     null_result = pdl_interp_functions.run_isnotnull(
@@ -331,7 +331,7 @@ def test_is_not_null():
     )
 
     assert isinstance(null_result.terminator_value, Successor)
-    assert null_result.terminator_value.block == falsedest
+    assert null_result.terminator_value.block is falsedest
 
 
 def test_are_equal():
@@ -358,7 +358,7 @@ def test_are_equal():
     )
 
     assert isinstance(equal_result.terminator_value, Successor)
-    assert equal_result.terminator_value.block == truedest
+    assert equal_result.terminator_value.block is truedest
 
     # Test with unequal values
     unequal_result = pdl_interp_functions.run_areequal(
@@ -366,7 +366,7 @@ def test_are_equal():
     )
 
     assert isinstance(unequal_result.terminator_value, Successor)
-    assert unequal_result.terminator_value.block == falsedest
+    assert unequal_result.terminator_value.block is falsedest
 
 
 def test_create_attribute():
@@ -381,7 +381,7 @@ def test_create_attribute():
     result = interpreter.run_op(create_attr_op, ())
 
     assert len(result) == 1
-    assert result[0] == test_attr
+    assert result[0] is test_attr
 
 
 def test_create_operation():
@@ -419,11 +419,11 @@ def test_create_operation():
     created_op = result[0]
     assert len(created_op.operands) == 2
     assert created_op.ops == (c0, c1)
-    assert created_op.attributes["attr"] == attr
+    assert created_op.attributes["attr"] is attr
     assert len(created_op.results) == 1
     assert created_op.results[0].type == i32
     # Verify that the operation was inserted:
-    assert created_op.parent == testmodule.body.first_block
+    assert created_op.parent is testmodule.body.first_block
 
     create_op_nonexistent = pdl_interp.CreateOperationOp(
         name="nonexistent.op",
