@@ -1,3 +1,5 @@
+import pytest
+
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
@@ -12,6 +14,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Block
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -159,3 +162,14 @@ def test_create_operation():
     assert created_op.results[0].type == i32
     # Verify that the operation was inserted:
     assert created_op.parent == testmodule.body.first_block
+
+    create_op_nonexistent = pdl_interp.CreateOperationOp(
+        name="nonexistent.op",
+        inferred_result_types=UnitAttr(),
+        input_attribute_names=[StringAttr("attr")],
+        input_operands=[c0, c1],
+        input_attributes=[create_ssa_value(pdl.AttributeType())],
+        input_result_types=[create_ssa_value(pdl.TypeType())],
+    )
+    with pytest.raises(InterpretationError):
+        interpreter.run_op(create_op_nonexistent, (c0, c1, attr, i32))
