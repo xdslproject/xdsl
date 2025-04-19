@@ -8,7 +8,9 @@ from xdsl.dialects.pdl import ValueType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
+    Successor,
     impl,
+    impl_terminator,
     register_impls,
 )
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
@@ -130,6 +132,107 @@ class PDLInterpFunctions(InterpreterFunctions):
             "Cannot get defining op of a Block argument"
         )
         return (args[0].owner,)
+
+    @impl_terminator(pdl_interp.CheckOperationNameOp)
+    def run_checkoperationname(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckOperationNameOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        assert isinstance(args[0], Operation)
+        cond = args[0].name == op.operation_name.data
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.CheckOperandCountOp)
+    def run_checkoperandcount(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckOperandCountOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        assert isinstance(args[0], Operation)
+
+        operand_count = len(args[0].operands)
+        expected_count = op.count.value.data
+
+        # If compareAtLeast is set, check if operand count is >= expected
+        # Otherwise check for exact match
+        if "compareAtLeast" in op.properties:
+            cond = operand_count >= expected_count
+        else:
+            cond = operand_count == expected_count
+
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.CheckResultCountOp)
+    def run_checkresultcount(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckResultCountOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        assert isinstance(args[0], Operation)
+
+        result_count = len(args[0].results)
+        expected_count = op.count.value.data
+
+        # If compareAtLeast is set, check if result count is >= expected
+        # Otherwise check for exact match
+        if "compareAtLeast" in op.properties:
+            cond = result_count >= expected_count
+        else:
+            cond = result_count == expected_count
+
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.CheckAttributeOp)
+    def run_checkattribute(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckAttributeOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        # args[0] should be the attribute value to check
+        attribute = args[0]
+        # Compare with the constant value from properties
+        cond = attribute == op.constantValue
+
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.IsNotNullOp)
+    def run_isnotnull(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.IsNotNullOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        # Check if the value is not None
+        cond = args[0] is not None
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.AreEqualOp)
+    def run_areequal(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.AreEqualOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) >= 2
+        # Compare the two values for equality
+        cond = args[0] == args[1]
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
 
     @impl(pdl_interp.CreateAttributeOp)
     def run_createattribute(

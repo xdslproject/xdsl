@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.interpreter import Interpreter
+from xdsl.interpreter import Interpreter, Successor
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Block
 from xdsl.pattern_rewriter import PatternRewriter
@@ -105,6 +105,254 @@ def test_getters():
     assert interpreter.run_op(
         pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (None,)
     ) == (None,)
+
+
+def test_check_operation_name():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    truedest = Block()
+    falsedest = Block()
+
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
+    myattr = StringAttr("hello")
+    op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr})
+
+    trueresult = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.CheckOperationNameOp(
+            "test.op", create_ssa_value(pdl.OperationType()), truedest, falsedest
+        ),
+        (op,),
+    )
+    assert isinstance(trueresult.terminator_value, Successor)
+    assert isinstance(trueresult.terminator_value.block, Block)
+    assert trueresult.terminator_value.block == truedest
+
+    falseresult = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.CheckOperationNameOp(
+            "test.other", create_ssa_value(pdl.OperationType()), truedest, falsedest
+        ),
+        (op,),
+    )
+    assert isinstance(falseresult.terminator_value, Successor)
+    assert isinstance(falseresult.terminator_value.block, Block)
+    assert falseresult.terminator_value.block == falsedest
+
+
+def test_check_operand_count():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    truedest = Block()
+    falsedest = Block()
+
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
+    myattr = StringAttr("hello")
+    op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr})
+
+    # Test exact operand count
+    exact_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.CheckOperandCountOp(
+            create_ssa_value(pdl.OperationType()),
+            2,  # op has exactly 2 operands (c0, c1)
+            truedest,
+            falsedest,
+            compareAtLeast=False,
+        ),
+        (op,),
+    )
+    assert isinstance(exact_result.terminator_value, Successor)
+    assert exact_result.terminator_value.block == truedest
+
+    # Test compareAtLeast=True
+    at_least_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.CheckOperandCountOp(
+            create_ssa_value(pdl.OperationType()),
+            1,  # op has 2 operands which is >= 1
+            truedest,
+            falsedest,
+            compareAtLeast=True,
+        ),
+        (op,),
+    )
+    assert isinstance(at_least_result.terminator_value, Successor)
+    assert at_least_result.terminator_value.block == truedest
+
+    # Test failing cases
+    fail_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.CheckOperandCountOp(
+            create_ssa_value(pdl.OperationType()),
+            3,  # op has only 2 operands
+            truedest,
+            falsedest,
+            compareAtLeast=False,
+        ),
+        (op,),
+    )
+    assert isinstance(fail_result.terminator_value, Successor)
+    assert fail_result.terminator_value.block == falsedest
+
+
+def test_check_result_count():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    truedest = Block()
+    falsedest = Block()
+
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
+    myattr = StringAttr("hello")
+    op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr})  # Has 2 results
+
+    # Test exact result count
+    exact_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.CheckResultCountOp(
+            create_ssa_value(pdl.OperationType()),
+            2,  # op has exactly 2 results
+            truedest,
+            falsedest,
+            compareAtLeast=False,
+        ),
+        (op,),
+    )
+    assert isinstance(exact_result.terminator_value, Successor)
+    assert exact_result.terminator_value.block == truedest
+
+    # Test compareAtLeast=True
+    at_least_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.CheckResultCountOp(
+            create_ssa_value(pdl.OperationType()),
+            1,  # op has 2 results which is >= 1
+            truedest,
+            falsedest,
+            compareAtLeast=True,
+        ),
+        (op,),
+    )
+    assert isinstance(at_least_result.terminator_value, Successor)
+    assert at_least_result.terminator_value.block == truedest
+
+    # Test failing case
+    fail_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.CheckResultCountOp(
+            create_ssa_value(pdl.OperationType()),
+            3,  # op has only 2 results
+            truedest,
+            falsedest,
+            compareAtLeast=False,
+        ),
+        (op,),
+    )
+    assert isinstance(fail_result.terminator_value, Successor)
+    assert fail_result.terminator_value.block == falsedest
+
+
+def test_check_attribute():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    truedest = Block()
+    falsedest = Block()
+
+    # Test matching attribute
+    match_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.CheckAttributeOp(
+            StringAttr("hello"),  # Expected value
+            create_ssa_value(pdl.AttributeType()),  # Input attribute
+            truedest,
+            falsedest,
+        ),
+        (StringAttr("hello"),),  # Actual value that matches
+    )
+    assert isinstance(match_result.terminator_value, Successor)
+    assert match_result.terminator_value.block == truedest
+
+    # Test non-matching attribute
+    nomatch_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.CheckAttributeOp(
+            StringAttr("hello"),  # Expected value
+            create_ssa_value(pdl.AttributeType()),  # Input attribute
+            truedest,
+            falsedest,
+        ),
+        (StringAttr("world"),),  # Different value
+    )
+    assert isinstance(nomatch_result.terminator_value, Successor)
+    assert nomatch_result.terminator_value.block == falsedest
+
+
+def test_is_not_null():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    truedest = Block()
+    falsedest = Block()
+
+    c0 = create_ssa_value(i32)
+
+    # Test with non-null value
+    notnull_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.IsNotNullOp(
+            create_ssa_value(pdl.ValueType()),
+            truedest,
+            falsedest,
+        ),
+        (c0,),  # Non-null value
+    )
+    assert isinstance(notnull_result.terminator_value, Successor)
+    assert notnull_result.terminator_value.block == truedest
+
+    # Test with null value
+    null_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.IsNotNullOp(
+            create_ssa_value(pdl.ValueType()),
+            truedest,
+            falsedest,
+        ),
+        (None,),  # Null value
+    )
+    assert isinstance(null_result.terminator_value, Successor)
+    assert null_result.terminator_value.block == falsedest
+
+
+def test_are_equal():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    truedest = Block()
+    falsedest = Block()
+
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
+
+    # Test with equal values
+    equal_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.AreEqualOp(
+            create_ssa_value(pdl.ValueType()),
+            create_ssa_value(pdl.ValueType()),
+            truedest,
+            falsedest,
+        ),
+        (c0, c0),  # Same value
+    )
+    assert isinstance(equal_result.terminator_value, Successor)
+    assert equal_result.terminator_value.block == truedest
+
+    # Test with unequal values
+    unequal_result = interpreter._run_op(  # pyright: ignore[reportPrivateUsage]
+        pdl_interp.AreEqualOp(
+            create_ssa_value(pdl.ValueType()),
+            create_ssa_value(pdl.ValueType()),
+            truedest,
+            falsedest,
+        ),
+        (c0, c1),  # Different values
+    )
+    assert isinstance(unequal_result.terminator_value, Successor)
+    assert unequal_result.terminator_value.block == falsedest
 
 
 def test_create_attribute():
