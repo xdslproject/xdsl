@@ -1180,6 +1180,31 @@ class Conv2DNchwFchwOp(ConvOpsBase):
 
 
 @irdl_op_definition
+class Conv2DNgchwFgchwOp(ConvOpsBase):
+    name = "linalg.conv_2d_ngchw_fgchw"
+
+
+@irdl_op_definition
+class Conv2DNgchwGfchwOp(ConvOpsBase):
+    name = "linalg.conv_2d_ngchw_gfchw"
+
+
+@irdl_op_definition
+class Conv2DNhwc_FhwcOp(ConvOpsBase):
+    name = "linalg.conv_2d_nhwc_fhwc"
+
+
+@irdl_op_definition
+class Conv2DNhwc_HwcfOp(ConvOpsBase):
+    name = "linalg.conv_2d_nhwc_hwcf"
+
+
+@irdl_op_definition
+class Conv2DNhwgcGfhwcOp(ConvOpsBase):
+    name = "linalg.conv_2d_nhwgc_gfhwc"
+
+
+@irdl_op_definition
 class BroadcastOp(IRDLOperation):
     """
     Static broadcast operator
@@ -1314,6 +1339,11 @@ Linalg = Dialect(
         QuantizedMatmulOp,
         PoolingNchwMaxOp,
         Conv2DNchwFchwOp,
+        Conv2DNhwgcGfhwcOp,
+        Conv2DNhwc_HwcfOp,
+        Conv2DNgchwGfchwOp,
+        Conv2DNgchwFgchwOp,
+        Conv2DNhwc_FhwcOp,
         BroadcastOp,
     ],
     [
