@@ -1110,14 +1110,14 @@ class Operation(IRNode):
             block_mapper = {}
         operands = [
             (value_mapper[operand] if operand in value_mapper else operand)
-            for operand in self._operands
+            for operand in self.operands
         ]
         result_types = self.result_types
         attributes = self.attributes.copy()
         properties = self.properties.copy()
         successors = [
             (block_mapper[successor] if successor in block_mapper else successor)
-            for successor in self._successors
+            for successor in self.successors
         ]
         regions = [Region() for _ in self.regions]
         cloned_op = self.create(
