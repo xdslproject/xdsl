@@ -55,13 +55,16 @@ class WorkloadBuilder:
         """
         assert size >= 0
         random.seed(RANDOM_SEED)
+        constant_type = i32
         ops: list[Operation] = []
-        ops.append(ConstantOp(IntegerAttr(random.randint(1, 1000), i32)))
+        ops.append(ConstantOp(IntegerAttr(random.randint(1, 1000), constant_type)))
         for i in range(1, size + 1):
             if i % 2 == 0:
                 ops.append(AddiOp(ops[i - 1], ops[i - 2]))
             else:
-                ops.append(ConstantOp(IntegerAttr(random.randint(1, 1000), i32)))
+                ops.append(
+                    ConstantOp(IntegerAttr(random.randint(1, 1000), constant_type))
+                )
         ops.append(TestOp([ops[(size // 2) * 2]]))
         return ModuleOp(ops)
 
