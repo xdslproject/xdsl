@@ -140,7 +140,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.CheckOperationNameOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
+        assert len(args) == 1
         assert isinstance(args[0], Operation)
         cond = args[0].name == op.operation_name.data
         successor = op.true_dest if cond else op.false_dest
@@ -153,7 +153,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.CheckOperandCountOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
+        assert len(args) == 1
         assert isinstance(args[0], Operation)
 
         operand_count = len(args[0].operands)
@@ -176,7 +176,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.CheckResultCountOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
+        assert len(args) == 1
         assert isinstance(args[0], Operation)
 
         result_count = len(args[0].results)
@@ -199,7 +199,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.CheckAttributeOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
+        assert len(args) == 1
         # args[0] should be the attribute value to check
         attribute = args[0]
         # Compare with the constant value from properties
@@ -215,7 +215,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.IsNotNullOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) > 0
+        assert len(args) == 1
         # Check if the value is not None
         cond = args[0] is not None
         successor = op.true_dest if cond else op.false_dest
@@ -228,7 +228,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.AreEqualOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) >= 2
+        assert len(args) == 2
         # Compare the two values for equality
         cond = args[0] == args[1]
         successor = op.true_dest if cond else op.false_dest
