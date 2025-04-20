@@ -1,13 +1,9 @@
 import pytest
 
-from xdsl.context import Context
-from xdsl.dialects.affine import Affine, ForOp, YieldOp
-from xdsl.dialects.arith import Arith
+from xdsl.dialects.affine import ForOp, YieldOp
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, IntegerType
-from xdsl.dialects.tensor import Tensor
 from xdsl.ir import Attribute, Block, Region
 from xdsl.ir.affine import AffineExpr
-from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
 
 
