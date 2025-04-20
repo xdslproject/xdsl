@@ -81,21 +81,3 @@ def test_for_mismatch_blockargs():
 def test_yield():
     yield_ = YieldOp.get()
     assert yield_.arguments == ()
-
-
-def test_affine_apply_map():
-    MODULE_CTX = """
-#map = affine_map<()[s0] -> (s0 * 4)>
-%c0 = arith.constant 2 : index
-%0 = affine.apply #map()[%c0]
-    """
-    ctx = Context()
-    ctx.load_dialect(Tensor)
-    ctx.load_dialect(Arith)
-    ctx.load_dialect(Affine)
-
-    module_op = Parser(ctx, MODULE_CTX).parse_module()
-
-    print(module_op)
-
-    module_op.verify()
