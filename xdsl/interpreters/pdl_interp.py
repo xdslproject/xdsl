@@ -244,7 +244,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.ReplaceOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        assert len(args) >= 1
+        assert args
         input_op = args[0]
         assert isinstance(input_op, Operation)
 
