@@ -94,7 +94,7 @@ class EGraphOp(IRDLOperation):
         body: Region,
     ):
         super().__init__(
-            result_types=result_types,
+            result_types=(result_types,),
             regions=[body],
         )
 
