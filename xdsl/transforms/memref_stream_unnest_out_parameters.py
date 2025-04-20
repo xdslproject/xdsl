@@ -40,13 +40,13 @@ class UnnestOutParametersPattern(RewritePattern):
         if num_parallel == len(op.iterator_types):
             return
 
-        parallel_dims = (True,) * num_parallel + (False,) * num_reduction
+        reduction_dims = (False,) * num_parallel + (True,) * num_reduction
 
         maps = op.indexing_maps.data[num_inputs:]
         new_maps = ArrayAttr(
             (
                 *op.indexing_maps.data[:num_inputs],
-                *(AffineMapAttr(m.data.compress_dims(parallel_dims)) for m in maps),
+                *(AffineMapAttr(m.data.drop_dims(reduction_dims)) for m in maps),
             )
         )
 

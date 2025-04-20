@@ -3,7 +3,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter, Successor
 from xdsl.interpreters.riscv_cf import RiscvCfFunctions
 from xdsl.ir import Block
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 register = riscv.Registers.UNALLOCATED_INT
 module_op = ModuleOp([])
@@ -14,8 +14,8 @@ def test_j_op():
     riscv_cf_functions = RiscvCfFunctions()
     interpreter.register_implementations(riscv_cf_functions)
 
-    a = TestSSAValue(register)
-    b = TestSSAValue(register)
+    a = create_ssa_value(register)
+    b = create_ssa_value(register)
 
     successor = Block(arg_types=(register, register))
 
@@ -35,8 +35,8 @@ def test_branch_op():
     riscv_cf_functions = RiscvCfFunctions()
     interpreter.register_implementations(riscv_cf_functions)
 
-    a = TestSSAValue(register)
-    b = TestSSAValue(register)
+    a = create_ssa_value(register)
+    b = create_ssa_value(register)
 
     successor = Block(arg_types=(register, register))
 
@@ -56,11 +56,11 @@ def test_beq_op():
     riscv_cf_functions = RiscvCfFunctions()
     interpreter.register_implementations(riscv_cf_functions)
 
-    lhs = TestSSAValue(register)
-    rhs = TestSSAValue(register)
-    t0 = TestSSAValue(register)
-    t1 = TestSSAValue(register)
-    e0 = TestSSAValue(register)
+    lhs = create_ssa_value(register)
+    rhs = create_ssa_value(register)
+    t0 = create_ssa_value(register)
+    t1 = create_ssa_value(register)
+    e0 = create_ssa_value(register)
 
     then_block = Block(arg_types=(register, register))
     else_block = Block(arg_types=(register,))

@@ -15,7 +15,7 @@ from typing import (
     TypeVar,
 )
 
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
@@ -26,7 +26,11 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
+from xdsl.traits import (
+    CallableOpInterface,
+    IsTerminator,
+    SymbolTable,
+)
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
 
@@ -671,18 +675,6 @@ class Interpreter:
     """
     listeners: tuple[Listener, ...] = field(default=())
 
-    @property
-    def symbol_table(self) -> dict[str, Operation]:
-        if self._symbol_table is None:
-            self._symbol_table = {}
-
-            for op in self.module.walk():
-                if (symbol_interface := op.get_trait(SymbolOpInterface)) is not None:
-                    symbol = symbol_interface.get_sym_attr_name(op)
-                    if symbol:
-                        self._symbol_table[symbol.data] = op
-        return self._symbol_table
-
     def get_values(self, values: Iterable[SSAValue]) -> tuple[Any, ...]:
         """
         Get values from current environment.
@@ -751,20 +743,24 @@ class Interpreter:
             listener.did_interpret_op(op, result.values)
         return result
 
-    def run_op(self, op: Operation | str, inputs: PythonValues = ()) -> PythonValues:
+    def run_op(
+        self, op: Operation | str | SymbolRefAttr, inputs: PythonValues = ()
+    ) -> PythonValues:
         """
         Calls the implementation for the given operation.
         """
-        if isinstance(op, str):
+        if not isinstance(op, Operation):
             op = self.get_op_for_symbol(op)
 
         return self._run_op(op, inputs).values
 
-    def call_op(self, op: Operation | str, inputs: PythonValues = ()) -> PythonValues:
+    def call_op(
+        self, op: Operation | str | SymbolRefAttr, inputs: PythonValues = ()
+    ) -> PythonValues:
         """
         Calls the implementation for the given operation.
         """
-        if isinstance(op, str):
+        if not isinstance(op, Operation):
             op = self.get_op_for_symbol(op)
         results = self._impls.call(self, op, inputs)
         return results
@@ -837,11 +833,11 @@ class Interpreter:
     def value_for_attribute(self, attr: Attribute, type_attr: Attribute) -> Any:
         return self._impls.attr_value(self, attr, type_attr)
 
-    def get_op_for_symbol(self, symbol: str) -> Operation:
-        if symbol in self.symbol_table:
-            return self.symbol_table[symbol]
-        else:
-            raise InterpretationError(f'Could not find symbol "{symbol}"')
+    def get_op_for_symbol(self, symbol: str | SymbolRefAttr) -> Operation:
+        op = SymbolTable.lookup_symbol(self.module, symbol)
+        if op is not None:
+            return op
+        raise InterpretationError(f"Could not find symbol {symbol}")
 
     def get_data(
         self,
