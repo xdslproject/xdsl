@@ -202,7 +202,10 @@ class SelectFoldCmpfPattern(RewritePattern):
             cmpf := op.cond.op, arith.CmpfOp
         ):
             return
-        if arith.FastMathFlag.NO_NANS not in cmpf.fastmath.flags:
+        if (
+            arith.FastMathFlag.NO_NANS not in cmpf.fastmath.flags
+            or arith.FastMathFlag.NO_SIGNED_ZEROS not in cmpf.fastmath.flags
+        ):
             return
         if not (op.lhs == cmpf.lhs and op.rhs == cmpf.rhs):
             return
