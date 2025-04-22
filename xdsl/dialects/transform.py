@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
 )
+from xdsl.dialects.func import FuncOpCallableInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -42,7 +43,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import IsolatedFromAbove, IsTerminator
+from xdsl.traits import IsolatedFromAbove, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -711,6 +712,10 @@ class NamedSequenceOp(IRDLOperation):
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     body = region_def("single_block")
+
+    traits = traits_def(
+        IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
+    )
 
     def __init__(
         self,
