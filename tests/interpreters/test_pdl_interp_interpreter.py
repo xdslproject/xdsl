@@ -486,6 +486,116 @@ def test_replace():
     assert block.last_op.operands[0] == repl_value
 
 
+def test_replace_with_range():
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
+
+    @ModuleOp
+    @Builder.implicit_region
+    def testmodule():
+        target_op = test.TestOp((), (i32, i32, i32, i32))
+        _c0 = create_ssa_value(i32)
+        _c1 = create_ssa_value(i32)
+        _c2 = create_ssa_value(i32)
+        _c3 = create_ssa_value(i32)
+
+        # Create an operation that we'll replace
+        test.TestOp(target_op.results)
+
+    # Extract the operation from the module
+    block = testmodule.body.first_block
+    assert block
+    target_op = cast(test.TestOp, block.first_op)
+    c0 = cast(test.TestOp, target_op.next_op)
+    c1 = cast(test.TestOp, c0.next_op)
+    c2 = cast(test.TestOp, c1.next_op)
+    c3 = cast(test.TestOp, c2.next_op)
+
+    # Set up the rewriter for testing
+    pdl_interp_functions.rewriter = PatternRewriter(target_op)
+
+    # Before replacement, verify the target_op is in the block
+    assert target_op.parent is block
+    assert block.first_op is target_op
+
+    # Create the replace op
+    replace_op = pdl_interp.ReplaceOp(
+        create_ssa_value(pdl.OperationType()),
+        [
+            create_ssa_value(pdl.ValueType()),
+            create_ssa_value(pdl.RangeType(pdl.ValueType())),
+            create_ssa_value(pdl.ValueType()),
+        ],
+    )
+
+    interpreter.run_op(
+        replace_op,
+        (target_op, c0.results[0], (c1.results[0], c2.results[0]), c3.results[0]),
+    )
+
+    assert target_op.parent is None
+    assert (last_op := block.last_op)
+    assert last_op.operands[0] == c0.results[0]
+    assert last_op.operands[1] == c1.results[0]
+    assert last_op.operands[2] == c2.results[0]
+    assert last_op.operands[3] == c3.results[0]
+
+
+def test_replace_with_range_invalid():
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
+
+    @ModuleOp
+    @Builder.implicit_region
+    def testmodule():
+        target_op = test.TestOp((), (i32, i32, i32, i32))
+        _c0 = create_ssa_value(i32)
+        _c1 = create_ssa_value(i32)
+        _c2 = create_ssa_value(i32)
+        _c3 = create_ssa_value(i32)
+
+        # Create an operation that we'll replace
+        test.TestOp(target_op.results)
+
+    # Extract the operation from the module
+    block = testmodule.body.first_block
+    assert block
+    target_op = cast(test.TestOp, block.first_op)
+    c0 = cast(test.TestOp, target_op.next_op)
+    c1 = cast(test.TestOp, c0.next_op)
+    c2 = cast(test.TestOp, c1.next_op)
+    c3 = cast(test.TestOp, c2.next_op)
+
+    # Set up the rewriter for testing
+    pdl_interp_functions.rewriter = PatternRewriter(target_op)
+
+    # Before replacement, verify the target_op is in the block
+    assert target_op.parent is block
+    assert block.first_op is target_op
+
+    # Create the replace op
+    replace_op = pdl_interp.ReplaceOp(
+        create_ssa_value(pdl.OperationType()),
+        [
+            create_ssa_value(pdl.ValueType()),
+            create_ssa_value(pdl.RangeType(pdl.ValueType())),
+            create_ssa_value(pdl.ValueType()),
+        ],
+    )
+
+    with pytest.raises(InterpretationError):
+        # include one result too little:
+        interpreter.run_op(
+            replace_op, (target_op, c0.results[0], (c1.results[0],), c3.results[0])
+        )
+
+
 def test_func():
     # not really a unit test, just check if pdl_interp.func can be called.
     @ModuleOp
