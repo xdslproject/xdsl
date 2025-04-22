@@ -440,6 +440,52 @@ def test_create_operation():
         interpreter.run_op(create_op_nonexistent, (c0, c1, attr, i32))
 
 
+def test_replace():
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
+
+    # Create a test module with an operation we'll replace
+    @ModuleOp
+    @Builder.implicit_region
+    def testmodule():
+        c0 = create_ssa_value(i32)
+        _c1 = test.TestOp((), (i32,), {"replacement": UnitAttr()})
+        # Create an operation that we'll replace
+        test.TestOp((c0,), (i32,))
+
+    # Extract the operation from the module
+    block = testmodule.body.first_block
+    assert block
+    target_op = cast(test.TestOp, block.first_op)
+    repl_owner = target_op.next_op
+    assert repl_owner is not None
+    repl_value = repl_owner.results[0]
+
+    # Set up the rewriter for testing
+    pdl_interp_functions.rewriter = PatternRewriter(target_op)
+
+    # Before replacement, verify the target_op is in the block
+    assert target_op.parent is block
+    assert block.first_op is target_op
+
+    # Create the replace op
+    replace_op = pdl_interp.ReplaceOp(
+        create_ssa_value(pdl.OperationType()), [create_ssa_value(pdl.ValueType())]
+    )
+
+    # Execute the replace operation
+    interpreter.run_op(replace_op, (target_op, repl_value))
+
+    # Verify the replacement worked:
+    # The target_op should be removed from the block
+    assert target_op.parent is None
+    assert block.last_op
+    assert block.last_op.operands[0] == repl_value
+
+
 def test_func():
     # not really a unit test, just check if pdl_interp.func can be called.
     @ModuleOp
