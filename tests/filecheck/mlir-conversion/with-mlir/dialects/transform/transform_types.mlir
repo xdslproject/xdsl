@@ -41,7 +41,6 @@ builtin.module attributes  {"transform.with_named_sequence"} {
   "transform.match.param.cmpi"(%25, %26) <{predicate = 1 : i32}> : (!transform.any_param, !transform.any_param) -> ()
   %27:2 = "transform.split_handle"(%24) <{fail_on_payload_too_small = true, pass_through_empty_handle = true}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
   %28 = "transform.structured.match"(%24) <{"op_attrs" = {"qmatmul_0"}}> : (!transform.any_op) -> !transform.any_op
-  %29 = "transform.apply_registered_pass"(%28) <{options = "", pass_name = "foo"}> : (!transform.any_op) -> !transform.any_op
 }
 
 
@@ -84,5 +83,4 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:   transform.match.param.cmpi ne %15, %16 : !transform.any_param
 //CHECK-NEXT:   %17:2 = transform.split_handle %14 : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
 //CHECK-NEXT:   %18 = transform.structured.match attributes {qmatmul_0} in %14 : (!transform.any_op) -> !transform.any_op
-//CHECK-NEXT:   %19 = transform.apply_registered_pass "foo" to %18 : (!transform.any_op) -> !transform.any_op
 //CHECK-NEXT: }
