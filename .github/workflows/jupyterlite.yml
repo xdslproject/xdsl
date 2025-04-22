@@ -27,7 +27,7 @@ jobs:
       - name: Build xDSL source distribution
         run: |
           cd xdsl
-          python setup.py sdist
+          uv build
 
       # Pyodide is cached, so cloned only if not present in the cache, otherwise
       # just checked out to whatever desired version and partially rebuilt.
