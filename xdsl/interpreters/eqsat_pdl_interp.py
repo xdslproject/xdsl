@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 from xdsl.dialects import eqsat, pdl_interp
+from xdsl.dialects.builtin import SymbolRefAttr
+from xdsl.dialects.pdl import ValueType
 from xdsl.interpreter import (
     Interpreter,
     ReturnedValues,
@@ -13,7 +15,8 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Attribute, Block, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Block, Operation, OpResult, SSAValue, Use
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
 
@@ -28,11 +31,18 @@ class BacktrackPoint:
     max_index: int
 
 
+@dataclass
+class Match:
+    rewriter: SymbolRefAttr
+    args: tuple[Any, ...]
+
+
 @register_impls
 @dataclass
 class EqsatPDLInterpFunctions(PDLInterpFunctions):
     backtrack_stack: list[BacktrackPoint] = field(default_factory=list[BacktrackPoint])
     visited: bool = True
+    matches: list[Match] = field(default_factory=list)
 
     @impl(pdl_interp.GetResultOp)
     def run_getresult(
@@ -43,7 +53,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     ) -> tuple[Any, ...]:
         result = cast(
             None | OpResult[Attribute],
-            PDLInterpFunctions.run_getresult(self, interpreter, op, args).values[0],
+            PDLInterpFunctions.run_get_result(self, interpreter, op, args).values[0],
         )
 
         if (
@@ -65,7 +75,26 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.GetResultsOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        raise InterpretationError("TODO: pdl_interp.get_results")
+        assert isinstance(args[0], Operation)
+        src_op = args[0]
+        assert op.index is None, (
+            "pdl_interp.get_results with index is not yet supported."
+        )
+        if isinstance(op.result_types[0], ValueType) and len(src_op.results) != 1:
+            return (None,)
+
+        results: list[OpResult] = []
+        for result in src_op.results:
+            if (
+                result
+                and len(result.uses) == 1
+                and isinstance(
+                    eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
+                )
+            ):
+                assert len(eclass_op.results) == 1
+                results.append(eclass_op.results[0])
+        return (results,)
 
     @impl(pdl_interp.GetDefiningOpOp)
     def run_getdefiningop(
@@ -76,7 +105,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     ) -> tuple[Any, ...]:
         defining_op = cast(
             None | Operation,
-            PDLInterpFunctions.run_getdefiningop(self, interpreter, op, args).values[0],
+            PDLInterpFunctions.run_get_defining_op(self, interpreter, op, args).values[
+                0
+            ],
         )
         if isinstance(eclass_op := defining_op, eqsat.EClassOp):
             if not self.visited:
@@ -98,7 +129,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                         block, block_args, scope, op, index, len(eclass_op.operands) - 1
                     )
                 )
-            return PDLInterpFunctions.run_getdefiningop(
+            return PDLInterpFunctions.run_get_defining_op(
                 self, interpreter, op, (eclass_op.operands[index],)
             ).values
 
@@ -111,16 +142,63 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.ReplaceOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        raise InterpretationError("TODO: pdl_interp.replace")
+        assert args
+        input_op = args[0]
+        assert isinstance(input_op, Operation)
+        assert len(input_op.results) == 1, (
+            "ReplaceOp currently only supports replacing operations that have a single result"
+        )
+        if len(input_op.results[0].uses) != 1 or not isinstance(
+            original_eclass := next(iter(input_op.results[0].uses)).operation,
+            eqsat.EClassOp,
+        ):
+            raise InterpretationError(
+                "Replaced operation result can only be used by a single e-class operation"
+            )
 
-    @impl_terminator(pdl_interp.RecordMatchOp)
-    def run_recordmatch(
+        repl_values = args[1]
+        assert len(repl_values) == 1, (
+            "pdl_interp.replace currently only a supports replacing with a single e-class result."
+        )
+        repl_value: SSAValue = repl_values[0]
+        repl_eclass = repl_value.owner
+        if not isinstance(repl_eclass, eqsat.EClassOp):
+            raise InterpretationError(
+                "Replacement value must be the result of an EClassOp"
+            )
+
+        operands = original_eclass._operands  # pyright: ignore[reportPrivateUsage]
+        startlen = len(operands)
+        for i, val in enumerate(repl_eclass.operands):
+            val.add_use(Use(original_eclass, startlen + i))
+        original_eclass._operands = operands + repl_eclass._operands  # pyright: ignore[reportPrivateUsage]
+
+        # Replace the operation with the replacement values
+        self.rewriter.replace_op(
+            repl_eclass, new_ops=[], new_results=original_eclass.results
+        )
+        return ()
+
+    @impl(pdl_interp.CreateOperationOp)
+    def run_createoperation(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.RecordMatchOp,
+        op: pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
-    ):
-        raise InterpretationError("TODO: pdl_interp.record_match")
+    ) -> tuple[Any, ...]:
+        (new_op,) = PDLInterpFunctions.run_create_operation(
+            self, interpreter, op, args
+        ).values
+
+        eclass_op = eqsat.EClassOp(
+            new_op.results[0],
+        )
+        self.rewriter.insert_op(
+            eclass_op,
+            InsertPoint.after(new_op),
+        )
+
+        return (new_op,)
 
     @impl_terminator(pdl_interp.FinalizeOp)
     def run_finalize(
