@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
+    I1,
+    AffineMapAttr,
     AnyFloatConstr,
+    ArrayAttr,
+    BoolAttr,
     DenseArrayBase,
     DenseI64ArrayConstr,
     IndexType,
     IndexTypeConstr,
     MemRefType,
     SignlessIntegerConstraint,
+    TensorType,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
     VectorRankConstraint,
@@ -24,6 +30,7 @@ from xdsl.dialects.utils import (
     verify_dynamic_index_list,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
@@ -627,6 +634,126 @@ class InsertElementOp(IRDLOperation):
         super().__init__(
             operands=[source, dest, position],
             result_types=[result_type],
+        )
+
+
+class VectorTransferOperation(IRDLOperation, ABC):
+    """
+    Encodes properties of a `vector.transfer_read` or `vector.transfer_write`
+    operation. Vector transfer ops have:
+
+    - A shaped value that the op reads from/writes to: a memref or a tensor.
+    - A vector, either as a result or as an operand.
+    - Indices that describe where the transfer from/to the shaped value starts.
+    - An optional mask.
+    - An optional in_bounds array to indicate transfer dimensions that are
+      guaranteed to be in-bounds.
+    - A permutation map to indicate transposes and broadcasts.
+
+    The "vector rank" is the rank of the vector type. E.g.:
+    ```mlir
+    // Transfer with shaped value rank 2 and vector (transfer) rank 1.
+    %0 = vector.transfer_read %arg0[%c3, %c3], %f0
+        {permutation_map = affine_map<(d0, d1) -> (d0)>}
+        : memref<?x?xf32>, vector<128xf32>
+    ```
+
+    The "vector transfer rank" is the number of dimensions that participate in
+    the transfer and broadcasts, and matches the number of results in the
+    permutation map. In most cases, the vector rank matches the vector transfer
+    rank; the only exception is when a vector is flattened as part of the
+    transfer (see `permutation_map`).
+
+    Mirrors VectorTransferOpInterface from [MLIR](https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/Interfaces/VectorInterfaces.td)
+    """
+
+    permutation_map = prop_def(AffineMapAttr)
+    """
+    The permutation map that describes the mapping of vector
+    dimensions to source dimensions, as well as broadcast dimensions.
+
+    The permutation result has one result per vector transfer dimension.
+    Each result is either a dim expression, indicating the corresponding
+    dimension in the source operand, or a constant "0" expression,
+    indicating a broadcast dimension.
+
+    Note: Nested vector dimensions that are flattened by this op are not
+    accounted for in the permutation map. E.g.:
+    ```mlir
+    // Vector type has rank 4, but permutation map has only 2 results. That
+    // is because there are only 2 transfer dimensions.
+    %0 = vector.transfer_read %arg1[%c3, %c3], %vf0
+        {permutation_map = affine_map<(d0, d1) -> (d0, d1)>}
+        : memref<?x?xvector<4x3xf32>>, vector<1x1x4x3xf32>
+    ```
+    """
+
+    in_bounds = prop_def(ArrayAttr[BoolAttr])
+    """
+    For every vector dimension, the boolean array attribute `in_bounds` specifies if the
+    transfer is guaranteed to be within the source bounds. If set to `“false”`, accesses
+    (including the starting point) may run out-of-bounds along the respective vector
+    dimension as the index increases. Non-vector dimensions must always be in-bounds.
+    The `in_bounds` array length has to be equal to the vector rank. This attribute has
+    a default value: `false` (i.e. “out-of-bounds”). When skipped in the textual IR, the
+    default value is assumed. Similarly, the OP printer will omit this attribute when
+    all dimensions are out-of-bounds (i.e. the default value is used).
+    """
+
+    @staticmethod
+    def infer_transfer_op_mask_type(
+        vec_type: VectorType, perm_map: AffineMap
+    ) -> VectorType[I1]:
+        """
+        Given a resulting vector type and a permutation map from the dimensions of the
+        shaped type to the vector type dimensions, return the vector type of the mask.
+        """
+        unused_dims_bit_vector = tuple(
+            not dim for dim in perm_map.used_dims_bit_vector()
+        )
+        inv_perm_map = perm_map.drop_dims(unused_dims_bit_vector).inverse_permutation()
+        assert inv_perm_map is not None, "Inversed permutation map couldn't be computed"
+        mask_shape = inv_perm_map.eval(vec_type.get_shape(), ())
+        scalable_dims = ArrayAttr(
+            BoolAttr.from_bool(bool(b))
+            for b in inv_perm_map.eval(vec_type.get_scalable_dims(), ())
+        )
+        res = VectorType(i1, mask_shape, scalable_dims)
+        return res
+
+    @staticmethod
+    def get_transfer_minor_identity_map(
+        shaped_type: TensorType | MemRefType, vector_type: VectorType
+    ) -> AffineMap:
+        """
+        Get the minor identity map for a transfer operation.
+
+        This is a helper function to compute the default permutation map for
+        transfer operations when none is specified.
+        """
+        element_vector_rank = 0
+        element_type = shaped_type.element_type
+        if isa(element_type, VectorType):
+            element_vector_rank += element_type.get_num_dims()
+
+        # 0-d transfers are to/from tensor<t>/memref<t> and vector<1xt>.
+        # TODO: replace once we have 0-d vectors.
+        if shaped_type.get_num_dims() == 0 and vector_type.get_shape() == (1,):
+            return AffineMap.constant_map(0)
+
+        return AffineMap.minor_identity(
+            shaped_type.get_num_dims(),
+            vector_type.get_num_dims() - element_vector_rank,
+        )
+
+    def _print_attrs(self, printer: Printer):
+        reserved_attr_names = {"operandSegmentSizes"}
+        if self.permutation_map.data.is_minor_identity():
+            reserved_attr_names.add("permutation_map")
+        if not any(self.in_bounds):
+            reserved_attr_names.add("in_bounds")
+        printer.print_op_attributes(
+            self.attributes | self.properties, reserved_attr_names=reserved_attr_names
         )
 
 
