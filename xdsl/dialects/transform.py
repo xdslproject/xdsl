@@ -166,11 +166,13 @@ class ApplyRegisteredPassOp(IRDLOperation):
         target: SSAValue,
         options: str | None = None,
     ):
+        props: dict[str, StringAttr] = {}
+        props["pass_name"] = StringAttr(pass_name)
+        if options is not None:
+            props["options"] = StringAttr(options)
+
         super().__init__(
-            properties={
-                "pass_name": pass_name,
-                "options": options,
-            },
+            properties=props,
             operands=[target],
             result_types=[TransformHandleType()],
         )
