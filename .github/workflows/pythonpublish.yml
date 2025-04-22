@@ -18,5 +18,5 @@ jobs:
 
     - name: Build and publish
       run: |
-        uv run --no-project --with setuptools --with wheel setup.py sdist bdist_wheel
+        uv build
         uvx twine upload -u __token__ -p ${{ secrets.PYPI_XDSL_TOKEN }} dist/*

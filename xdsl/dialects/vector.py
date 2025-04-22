@@ -666,9 +666,9 @@ class VectorTransferOperation(IRDLOperation, ABC):
     the transfer and broadcasts, and matches the number of results in the
     permutation map. In most cases, the vector rank matches the vector transfer
     rank; the only exception is when a vector is flattened as part of the
-    transfer (see `getPermutationMap`).
+    transfer (see `permutation_map`).
 
-    Mirrors VectorTransferOpInterface from https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/Interfaces/VectorInterfaces.td
+    Mirrors VectorTransferOpInterface from [MLIR](https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/Interfaces/VectorInterfaces.td)
     """
 
     permutation_map = prop_def(AffineMapAttr)
