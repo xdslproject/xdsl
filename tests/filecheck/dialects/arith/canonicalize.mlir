@@ -161,23 +161,33 @@ func.func @test_const_var_const() {
 "test.op"(%12) : (i1) -> ()
 
 func.func @test_fold_cmpf_select() {
-  %cst, %cst_0, %13 = "test.op"() : () -> (f64, f64, f64)
-  %14 = arith.cmpf ogt, %13, %cst_0 fastmath<nnan,nsz> : f64
-  %15 = arith.select %14, %13, %cst_0 : f64
-  %16 = arith.cmpf olt, %15, %cst fastmath<nnan,nsz> : f64
-  %17 = arith.select %16, %15, %cst : f64
-  %18 = arith.cmpf uge, %17, %cst fastmath<nnan,nsz> : f64
-  %19 = arith.select %18, %17, %cst : f64
-  %20 = arith.cmpf ule, %19, %cst fastmath<nnan,nsz> : f64
-  %21 = arith.select %20, %19, %cst : f64
-  "test.op"(%21) : (f64) -> ()
-  return
-
   // CHECK-LABEL: @test_fold_cmpf_select
-  // CHECK-NEXT:  %cst, %cst_1, %12 = "test.op"() : () -> (f64, f64, f64)
-  // CHECK-NEXT:  %13 = arith.maximumf %12, %cst_1 fastmath<nnan,nsz> : f64
-  // CHECK-NEXT:  %14 = arith.minimumf %13, %cst fastmath<nnan,nsz> : f64
-  // CHECK-NEXT:  %15 = arith.maximumf %14, %cst fastmath<nnan,nsz> : f64
-  // CHECK-NEXT:  %16 = arith.minimumf %15, %cst fastmath<nnan,nsz> : f64
-  // CHECK-NEXT:  "test.op"(%16) : (f64) -> ()
+  %one, %two = "test.op"() : () -> (f64, f64)
+  // CHECK-NEXT:  %one, %two = "test.op"() : () -> (f64, f64)
+
+  %cond_0 = arith.cmpf ogt, %one, %two fastmath<nnan,nsz> : f64
+  %sel_0 = arith.select %cond_0, %one, %two : f64
+  // CHECK-NEXT:  %sel = arith.maximumf %one, %two fastmath<nnan,nsz> : f64
+
+  %cond_1 = arith.cmpf olt, %sel_0, %one fastmath<nnan,nsz> : f64
+  %sel_1 = arith.select %cond_1, %sel_0, %one : f64
+  // CHECK-NEXT:  %sel_1 = arith.minimumf %sel, %one fastmath<nnan,nsz> : f64
+
+  %cond_2 = arith.cmpf uge, %sel_1, %one fastmath<nnan,nsz> : f64
+  %sel_2 = arith.select %cond_2, %sel_1, %one : f64
+  // CHECK-NEXT:  %sel_2 = arith.maximumf %sel_1, %one fastmath<nnan,nsz> : f64
+
+  %cond_3 = arith.cmpf ule, %sel_2, %two fastmath<nnan,nsz> : f64
+  %sel_3 = arith.select %cond_3, %sel_2, %two : f64
+  // CHECK-NEXT:  %sel_3 = arith.minimumf %sel_2, %two fastmath<nnan,nsz> : f64
+
+  %cond_4 = arith.cmpf ule, %sel_3, %two : f64
+  %sel_4 = arith.select %cond_4, %sel_3, %two : f64
+  // CHECK-NEXT:  %cond_1 = arith.cmpf ule, %sel_3, %two : f64
+  // CHECK-NEXT:  %sel_4 = arith.select %cond_1, %sel_3, %two : f64
+
+  "test.op"(%sel_4) : (f64) -> ()
+  // CHECK-NEXT:  "test.op"(%sel_4) : (f64) -> ()
+
+  return
 }
