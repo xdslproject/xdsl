@@ -256,10 +256,10 @@ class PDLInterpFunctions(InterpreterFunctions):
             elif isa(op.repl_values.types[i], RangeType[ValueType]):
                 repl_values.extend(args[i + 1])
 
-        assert len(input_op.results) == len(repl_values), (
-            "Number of replacement values should match number of results"
-        )
-
+        if len(input_op.results) != len(repl_values):
+            raise InterpretationError(
+                "Number of replacement values should match number of results"
+            )
         # Replace the operation with the replacement values
         self.rewriter.replace_op(input_op, new_ops=[], new_results=repl_values)
         return ()
