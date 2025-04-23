@@ -8,14 +8,13 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp
-from xdsl.ir import Operation
+from xdsl.ir import ErasedSSAValue, Operation, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     Worklist,
 )
-from xdsl.rewriter import InsertPoint
 
 
 @dataclass
@@ -66,12 +65,12 @@ class ConstantFoldingSimplePass(ModulePass):
         PatternRewriteWalker(pattern).rewrite_module(op)
         ```
         """
-        ### Input values and state
+        ### Input values
         region = op.body
-        op_was_modified = True
-        walker_worklist = Worklist()
 
         ### The function implementation
+        op_was_modified = True
+        walker_worklist = Worklist()
         while op_was_modified:
             ## Inline `walker._populate_worklist(region)`
             for sub_op in region.walk(reverse=True, region_first=True):
@@ -86,8 +85,6 @@ class ConstantFoldingSimplePass(ModulePass):
                 op_was_modified = False
                 continue
 
-            # Create a rewriter on the first operation
-            rewriter = PatternRewriter(rewrite_op)
             # No custom listeners have any effect, as we are operating in the
             # non-recursive mode and no operations are removed in constant folding.
             # As a result of this, we elide `rewriter.extend_from_listener(listener)`.
@@ -95,21 +92,85 @@ class ConstantFoldingSimplePass(ModulePass):
             # do/while loop
             while True:
                 # Reset the rewriter on `op`
-                rewriter.has_done_action = False
-                rewriter.current_operation = rewrite_op
-                rewriter.insertion_point = InsertPoint.before(rewrite_op)
+                # rewriter.current_operation = rewrite_op
+                # rewriter.insertion_point = InsertPoint.before(rewrite_op)
 
                 # Apply the pattern on the operation
-                # Inline `walker.pattern.match_and_rewrite(rewrite_op, rewriter)`
+                ## Inline `walker.pattern.match_and_rewrite(rewrite_op, rewriter)`
                 if isinstance(rewrite_op, AddiOp):
                     lhs: int = rewrite_op.operands[0].owner.value.value.data  # pyright: ignore
                     rhs: int = rewrite_op.operands[1].owner.value.value.data  # pyright: ignore
                     folded_op = ConstantOp(
                         IntegerAttr(lhs + rhs, rewrite_op.result.type)  # pyright: ignore
                     )
-                    rewriter.replace_matched_op(folded_op, [folded_op.results[0]])
+                    # ============================ #
+                    ## Inline `rewriter.replace_matched_op(folded_op, [folded_op.results[0]])`
+                    ## Inline `rewriter.replace_op(...)`
+                    old_op = rewrite_op
+                    new_results = [folded_op.results[0]]
+                    rewriter_has_done_action = True
 
-                rewriter_has_done_action |= rewriter.has_done_action
+                    # First, insert the new operations before the matched operation
+                    ## Inline `rewriter.insert_op((folded_op,), InsertPoint.before(old_op))`
+                    ## There are no callbacks, so can elide `rewriter.handle_operation_insertion(op_)`
+                    # ---------------------------- #
+                    ## Inline `old_op.parent.insert_ops_before((folded_op,), old_op)`
+                    ## Inline `old_op.parent.insert_op_before(folded_op, old_op)`
+                    folded_op.parent = old_op.parent
+                    prev_op = old_op.prev_op
+                    ## Inline `old_op._insert_prev_op(folded_op)`
+                    if old_op._prev_op is not None:
+                        # update prev node
+                        old_op._prev_op._next_op = folded_op
+                    # set next and previous on new node
+                    folded_op._prev_op = old_op._prev_op
+                    folded_op._next_op = old_op
+                    # update self
+                    old_op._prev_op = folded_op
+                    if prev_op is None:
+                        # No `prev_op`, means `next_op` is the first op in the block.
+                        old_op.parent._first_op = folded_op
+                    # ---------------------------- #
+
+                    # Then, replace the results with new ones
+                    ## There are no callbacks, so can elide `rewriter.handle_operation_replacement(op_)`
+                    for old_result, new_result in zip(
+                        old_op.results, new_results, strict=True
+                    ):
+                        ## Inline `rewriter._replace_all_uses_with(old_result, new_result, safe_erase=True)`
+                        ## There are no callbacks, so can elide `self.handle_operation_modification(use.operation)`
+                        ## Inline `old_result.replace_by(new_result)`
+                        for use in old_result.uses.copy():
+                            use.operation.operands[use.index] = new_result
+                        new_result.name_hint = old_result.name_hint
+
+                    # Then, erase the original operation
+                    ## Inline `rewriter.erase_op(old_op, safe_erase=True)`
+                    ## There are no callbacks, so can elide `rewriter.handle_operation_removal(old_op)`
+                    ## Inline `Rewriter.erase_op(old_op, safe_erase=True)`
+                    ## Inline `old_op.parent.erase_op(old_op, safe_erase=True)`
+                    # ---------------------------- #
+                    ## Inline `old_op = old_op.parent.detach_op(old_op)`
+                    old_op = old_op.parent.detach_op(old_op)
+                    # ---------------------------- #
+                    ## Inline `old_op.erase(safe_erase=True)`
+                    ## Inline `old_op.drop_all_references()`
+                    old_op.parent = None
+                    for idx, operand in enumerate(old_op.operands):
+                        ## Inline `operand.remove_use(Use(old_op, idx))`
+                        operand.uses.remove(Use(old_op, idx))
+                    ## This application has no regions, so no recursive drops
+
+                    for result in old_op.results:
+                        ## Inline `result.erase(safe_erase=True)`
+                        ## Inline `result.replace_by(ErasedSSAValue(result.type, result))`
+                        replace_value = ErasedSSAValue(result.type, result)
+                        for use in result.uses.copy():
+                            use.operation.operands[use.index] = replace_value
+                        # carry over name if possible
+                        if replace_value.name_hint is None:
+                            replace_value.name_hint = result.name_hint
+                    # ============================ #
 
                 # If the worklist is empty, we are done
                 rewrite_op = walker_worklist.pop()
