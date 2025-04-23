@@ -3,13 +3,12 @@ A pass that applies the interpreter to operations with no side effects where all
 inputs are constant, replacing the computation with a constant value.
 """
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -81,12 +80,6 @@ class ConstantFoldingSimplePass(ModulePass):
         ### The function implementation
 
         ## Inline `listener = walker._get_rewriter_listener()`
-        walker_listener = PatternRewriterListener()
-
-        def walker_handle_operation_insertion(handle_op: Operation) -> None:
-            # TODO: This might be removable, since non-recursive
-            pass
-
         def walker_handle_operation_removal(handle_op: Operation) -> None:
             # TODO: This might be removable, since no removal so never invoked
             if handle_op.regions:
@@ -95,34 +88,12 @@ class ConstantFoldingSimplePass(ModulePass):
             else:
                 walker_worklist.remove(handle_op)
 
-        def walker_handle_operation_modification(handle_op: Operation) -> None:
-            # TODO: This might be removable, since non-recursive
-            pass
-
-        def walker_handle_operation_replacement(
-            handle_op: Operation, new_results: Sequence[SSAValue | None]
-        ) -> None:
-            # TODO: This might be removable, since non-recursive
-            pass
-
         rewriter_listener = PatternRewriterListener(
-            operation_insertion_handler=[
-                *walker_listener.operation_insertion_handler,
-                walker_handle_operation_insertion,
-            ],
-            operation_removal_handler=[
-                *walker_listener.operation_removal_handler,
-                walker_handle_operation_removal,
-            ],
-            operation_modification_handler=[
-                *walker_listener.operation_modification_handler,
-                walker_handle_operation_modification,
-            ],
-            operation_replacement_handler=[
-                *walker_listener.operation_replacement_handler,
-                walker_handle_operation_replacement,
-            ],
-            block_creation_handler=walker_listener.block_creation_handler,
+            operation_insertion_handler=[],
+            operation_removal_handler=[walker_handle_operation_removal],
+            operation_modification_handler=[],
+            operation_replacement_handler=[],
+            block_creation_handler=[],
         )
 
         while op_was_modified:
