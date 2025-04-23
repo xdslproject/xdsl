@@ -86,5 +86,5 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:   %17:2 = transform.split_handle %14 : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
 //CHECK-NEXT:   %18 = transform.structured.match attributes {qmatmul_0} in %14 : (!transform.any_op) -> !transform.any_op
 //CHECK-NEXT:   %19 = "test.op"() : () -> !transform.op<"builtin.module">
-//CHECK-NEXT:   %20 = "transform.apply_registered_pass"(%19) {pass_name = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+//CHECK-NEXT:   %20 = transform.apply_registered_pass "foo" to %19 : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 //CHECK-NEXT: }
