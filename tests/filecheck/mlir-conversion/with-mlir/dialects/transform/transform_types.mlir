@@ -66,7 +66,7 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:   transform.sequence  failures(propagate) {
 //CHECK-NEXT:   ^bb0(%arg0: !transform.any_op):
 //CHECK-NEXT:     %21 = select "linalg.quantized_matmul" in %arg0 : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
-//CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %19 tile_sizes [8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+//CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %21 tile_sizes [8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:   }
 //CHECK-NEXT:   %6 = "test.op"() : () -> !transform.any_op
 //CHECK-NEXT:   %7 = transform.get_producer_of_operand %6[0] : (!transform.any_op) -> !transform.any_op
