@@ -561,11 +561,12 @@ def test_func():
     # not really a unit test, just check if pdl_interp.func can be called.
     testmodule = ModuleOp(Region([Block()]))
     block = testmodule.body.first_block
+    func_body = Region([Block()])
+    with ImplicitBuilder(func_body.block):
+        pdl_interp.FinalizeOp()
+    func_body2 = func_body.clone()
     with ImplicitBuilder(block):
         op = test.TestOp()
-        func_body = Region([Block()])
-        with ImplicitBuilder(func_body.block):
-            pdl_interp.FinalizeOp()
         pdl_interp.FuncOp(
             "matcher",
             FunctionType.from_lists([pdl.OperationType()], []),
@@ -573,11 +574,29 @@ def test_func():
             None,
             func_body,
         )
+        pdl_interp.FuncOp(
+            "rewrite",
+            FunctionType.from_lists([pdl.OperationType()], []),
+            None,
+            None,
+            func_body2,
+        )
 
     testmodule.verify()
 
     interpreter = Interpreter(testmodule)
     ctx = Context()
     ctx.register_dialect("test", lambda: test.Test)
-    interpreter.register_implementations(PDLInterpFunctions(ctx))
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
     interpreter.call_op("matcher", (op,))
+
+    with pytest.raises(InterpretationError):
+        interpreter.call_op("rewrite", (op,))
+
+    pdl_interp_functions.rewriter = PatternRewriter(op)
+
+    with pytest.raises(InterpretationError):
+        interpreter.call_op("matcher", (op,))
+
+    interpreter.call_op("rewrite", (op,))
