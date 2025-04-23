@@ -16,24 +16,31 @@
     // The Python project's subdirectory in your repo.  If missing or
     // the empty string, the project is assumed to be located at the root
     // of the repository.
-    // "repo_subdir": "src",
+    // "repo_subdir": "",
 
-    // Customizable commands for building, installing, and
-    // uninstalling the project. See asv.conf.json documentation.
-    "install_command": [
-        "in-dir={env_dir} python -mpip install {wheel_file}",
-        // Uninstall optional memory tracing dependencies which break for PyPy
-        "in-dir={env_dir} python -mpip uninstall -y pympler pyyaml"
-    ],
-    "uninstall_command": ["return-code=any python -mpip uninstall -y {project}"],
+    // Customizable commands for building the project.
+    // See asv.conf.json documentation.
+    // To build the package using pyproject.toml (PEP518), uncomment the following lines
     "build_command": [
-        "python setup.py build",
+        "python -m pip install build",
+        "python -m build",
         "PIP_NO_BUILD_ISOLATION=false python -mpip wheel --no-deps --no-index -w {build_cache_dir} {build_dir}"
     ],
+    // To build the package using setuptools and a setup.py file, uncomment the following lines
+    // "build_command": [
+    //     "python setup.py build",
+    //     "python -mpip wheel -w {build_cache_dir} {build_dir}"
+    // ],
 
-    // List of branches to benchmark. If not provided, defaults to "master"
+    // Customizable commands for installing and uninstalling the project.
+    // See asv.conf.json documentation.
+    // "install_command": ["in-dir={env_dir} python -mpip install {wheel_file}"],
+    // "uninstall_command": ["return-code=any python -mpip uninstall -y {project}"],
+
+    // List of branches to benchmark. If not provided, defaults to "main"
     // (for git) or "default" (for mercurial).
-    "branches": ["edmundgoodman/benchmark-dev"],
+    "branches": ["main"], // for git
+    // "branches": ["default"],    // for mercurial
 
     // The DVCS being used.  If not set, it will be automatically
     // determined from "repo" by looking at the protocol in the URL
@@ -42,7 +49,8 @@
     "dvcs": "git",
 
     // The tool to use to create environments.  May be "conda",
-    // "virtualenv" or other value depending on the plugins in use.
+    // "virtualenv", "mamba" (above 3.8)
+    // or other value depending on the plugins in use.
     // If missing or the empty string, the tool will be automatically
     // determined by looking for tools on the PATH environment
     // variable.
@@ -57,7 +65,6 @@
 
     // The Pythons you'd like to test against.  If not provided, defaults
     // to the current version of Python used to run `asv`.
-    // "pythons": ["3.11", "3.13", "pypy3.11"],
     "pythons": ["3.13"],
 
     // The list of conda channel names to be searched for benchmark
@@ -131,10 +138,10 @@
     // ],
     //
     // "include": [
-    //     // additional env for python2.7
-    //     {"python": "2.7", "req": {"numpy": "1.8"}, "env_nobuild": {"FOO": "123"}},
+    //     // additional env for python3.12
+    //     {"python": "3.12", "req": {"numpy": "1.26"}, "env_nobuild": {"FOO": "123"}},
     //     // additional env if run on windows+conda
-    //     {"platform": "win32", "environment_type": "conda", "python": "2.7", "req": {"libpython": ""}},
+    //     {"platform": "win32", "environment_type": "conda", "python": "3.12", "req": {"libpython": ""}},
     // ],
 
     // The directory (relative to the current directory) that benchmarks are

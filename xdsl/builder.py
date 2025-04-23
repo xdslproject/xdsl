@@ -19,12 +19,12 @@ class BuilderListener:
     """A listener for builder events."""
 
     operation_insertion_handler: list[Callable[[Operation], None]] = field(
-        default_factory=list, kw_only=True
+        default_factory=list[Callable[[Operation], None]], kw_only=True
     )
     """Callbacks that are called when an operation is inserted by the builder."""
 
     block_creation_handler: list[Callable[[Block], None]] = field(
-        default_factory=list, kw_only=True
+        default_factory=list[Callable[[Block], None]], kw_only=True
     )
     """Callback that are called when a block is created by the builder."""
 
@@ -301,7 +301,7 @@ class _ImplicitBuilderStack(threading.local):
     default. There is a stack per thread, guaranteed by inheriting from `threading.local`.
     """
 
-    stack: list[Builder] = field(default_factory=list)
+    stack: list[Builder] = field(default_factory=list[Builder])
 
     def push(self, builder: Builder) -> None:
         self.stack.append(builder)

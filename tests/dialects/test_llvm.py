@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import UnitAttr, i32
 from xdsl.ir import Attribute
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 @pytest.mark.parametrize(
@@ -297,9 +297,9 @@ def test_variadic_func():
 
 def test_inline_assembly_op():
     a, b, c = (
-        TestSSAValue(builtin.i32),
-        TestSSAValue(builtin.i32),
-        TestSSAValue(builtin.i32),
+        create_ssa_value(builtin.i32),
+        create_ssa_value(builtin.i32),
+        create_ssa_value(builtin.i32),
     )
 
     op = llvm.InlineAsmOp(

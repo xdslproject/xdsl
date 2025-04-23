@@ -118,9 +118,9 @@ class TblgenLoader:
 
     js: Any
 
-    attributes: dict[str, str] = field(default_factory=dict)
-    operations: dict[str, str] = field(default_factory=dict)
-    used_records: set[str] = field(default_factory=set)
+    attributes: dict[str, str] = field(default_factory=dict[str, str])
+    operations: dict[str, str] = field(default_factory=dict[str, str])
+    used_records: set[str] = field(default_factory=set[str])
     anon_counter: int = field(default_factory=int)
 
     def _get_op(self, name: str) -> TblgenOp:
@@ -339,8 +339,7 @@ class TblgenLoader:
         if "AnyAttrOf" in rec.superclasses:
             return textwrap.dedent(f"""
             AnyOf(
-                {",".join(self._resolve_prop_constraint(x["def"]) for x in rec["allowedAttributes"])}
-                )
+                [{",".join(self._resolve_prop_constraint(x["def"]) for x in rec["allowedAttributes"])}]
             )
             """)
 
@@ -511,6 +510,7 @@ def cull_json(output_file: IO[str] | None, loader: TblgenLoader):
         "baseAttr",
         "def",
         "name",
+        "allowedAttributes",
     }
 
     def cull_field(js_in: dict[str, Any]) -> dict[str, Any]:

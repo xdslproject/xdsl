@@ -3,22 +3,18 @@
 
 from io import StringIO
 
-from benchmarks.helpers import get_context, parse_module
 from benchmarks.workloads import WorkloadBuilder
 from xdsl.printer import Printer as XdslPrinter
 
-CTX = get_context()
 MODULE_PRINTER = XdslPrinter(stream=StringIO())
 
 
 class Printer:
     """Benchmark the xDSL printer on MLIR files."""
 
-    WORKLOAD_CONSTANT_100 = parse_module(CTX, WorkloadBuilder.constant_folding(100))
-    WORKLOAD_CONSTANT_1000 = parse_module(CTX, WorkloadBuilder.constant_folding(1000))
-    WORKLOAD_LARGE_DENSE_ATTR_HEX = parse_module(
-        CTX, WorkloadBuilder.large_dense_attr_hex()
-    )
+    WORKLOAD_CONSTANT_100 = WorkloadBuilder.constant_folding_module(100)
+    WORKLOAD_CONSTANT_1000 = WorkloadBuilder.constant_folding_module(1000)
+    WORKLOAD_LARGE_DENSE_ATTR = WorkloadBuilder.large_dense_attr_module()
 
     def time_constant_100(self) -> None:
         """Time lexing constant folding for 100 items."""
@@ -28,9 +24,9 @@ class Printer:
         """Time lexing constant folding for 1000 items."""
         MODULE_PRINTER.print_op(Printer.WORKLOAD_CONSTANT_1000)
 
-    def time_dense_attr_hex(self) -> None:
+    def time_dense_attr(self) -> None:
         """Time lexing a 1024x1024xi8 dense attribute given as a hex string."""
-        MODULE_PRINTER.print_op(Printer.WORKLOAD_LARGE_DENSE_ATTR_HEX)
+        MODULE_PRINTER.print_op(Printer.WORKLOAD_LARGE_DENSE_ATTR)
 
 
 if __name__ == "__main__":
@@ -39,8 +35,8 @@ if __name__ == "__main__":
     PRINTER = Printer()
     profile(
         {
-            "Printer.constant_100_input": Benchmark(PRINTER.time_constant_100),
-            "Printer.constant_1000_input": Benchmark(PRINTER.time_constant_1000),
-            "Printer.dense_attr_hex_input": Benchmark(PRINTER.time_dense_attr_hex),
+            "Printer.constant_100": Benchmark(PRINTER.time_constant_100),
+            "Printer.constant_1000": Benchmark(PRINTER.time_constant_1000),
+            "Printer.dense_attr": Benchmark(PRINTER.time_dense_attr),
         }
     )

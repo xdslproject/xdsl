@@ -4,7 +4,6 @@ import abc
 
 from xdsl.dialects.builtin import f64, i1
 from xdsl.ir import (
-    Attribute,
     Dialect,
     Operation,
     ParametrizedAttribute,
@@ -45,11 +44,8 @@ class BinaryOperation(IRDLOperation, abc.ABC):
         self,
         operand1: Operation | SSAValue,
         operand2: Operation | SSAValue,
-        result_type: Attribute | None = None,
     ):
-        if result_type is None:
-            result_type = SSAValue.get(operand1).type
-        super().__init__(operands=[operand1, operand2], result_types=[result_type])
+        super().__init__(operands=[operand1, operand2], result_types=[bigint])
 
 
 @irdl_op_definition
@@ -214,11 +210,8 @@ class DivOp(IRDLOperation):
         self,
         operand1: Operation | SSAValue,
         operand2: Operation | SSAValue,
-        result_type: Attribute | None = None,
     ):
-        if result_type is None:
-            result_type = SSAValue.get(operand1).type
-        super().__init__(operands=[operand1, operand2], result_types=[result_type])
+        super().__init__(operands=[operand1, operand2], result_types=[f64])
 
 
 class ComparisonOperation(IRDLOperation, abc.ABC):
@@ -234,11 +227,8 @@ class ComparisonOperation(IRDLOperation, abc.ABC):
         self,
         operand1: Operation | SSAValue,
         operand2: Operation | SSAValue,
-        result_type: Attribute | None = None,
     ):
-        if result_type is None:
-            result_type = SSAValue.get(operand1).type
-        super().__init__(operands=[operand1, operand2], result_types=[result_type])
+        super().__init__(operands=[operand1, operand2], result_types=[i1])
 
 
 @irdl_op_definition

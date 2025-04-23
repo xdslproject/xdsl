@@ -17,7 +17,7 @@ class OpInserter:
     appended.
     """
 
-    stack: list[SSAValue] = field(default_factory=list)
+    stack: list[SSAValue] = field(default_factory=list[SSAValue])
     """
     Stack to hold the intermediate results of operations. For each new
     operation, its operands will be popped from the stack.

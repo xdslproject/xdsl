@@ -321,7 +321,7 @@ class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     x[r1] = x[r2]
     ```
 
-    See external [documentation](https://www.felixcloutier..com/x86/mov).
+    See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
     name = "x86.rr.mov"
@@ -811,7 +811,7 @@ class R_RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
         if isinstance(immediate, int):
             immediate = IntegerAttr(
                 immediate, 32
-            )  # the deault immediate size is 32 bits
+            )  # the default immediate size is 32 bits
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1071,7 +1071,7 @@ class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
         if isinstance(immediate, int):
             immediate = IntegerAttr(
                 immediate, 32
-            )  # the deault immediate size is 32 bits
+            )  # the default immediate size is 32 bits
         if isinstance(offset, int):
             offset = IntegerAttr(offset, 64)
         if isinstance(comment, str):
@@ -2106,7 +2106,7 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
         if isinstance(immediate, int):
             immediate = IntegerAttr(
                 immediate, 32
-            )  # the deault immediate size is 32 bits
+            )  # the default immediate size is 32 bits
         if isinstance(offset, int):
             offset = IntegerAttr(offset, 64)
         if isinstance(comment, str):

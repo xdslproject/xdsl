@@ -34,18 +34,21 @@ class PatternRewriterListener(BuilderListener):
     """A listener for pattern rewriter events."""
 
     operation_removal_handler: list[Callable[[Operation], None]] = field(
-        default_factory=list, kw_only=True
+        default_factory=list[Callable[[Operation], None]], kw_only=True
     )
     """Callbacks that are called when an operation is removed."""
 
     operation_modification_handler: list[Callable[[Operation], None]] = field(
-        default_factory=list, kw_only=True
+        default_factory=list[Callable[[Operation], None]], kw_only=True
     )
     """Callbacks that are called when an operation is modified."""
 
     operation_replacement_handler: list[
         Callable[[Operation, Sequence[SSAValue | None]], None]
-    ] = field(default_factory=list, kw_only=True)
+    ] = field(
+        default_factory=list[Callable[[Operation, Sequence[SSAValue | None]], None]],
+        kw_only=True,
+    )
     """Callbacks that are called when an operation is replaced."""
 
     def handle_operation_removal(self, op: Operation) -> None:
@@ -637,7 +640,9 @@ class GreedyRewritePatternApplier(RewritePattern):
 
 @dataclass(eq=False)
 class Worklist:
-    _op_stack: list[Operation | None] = field(default_factory=list, init=False)
+    _op_stack: list[Operation | None] = field(
+        default_factory=list[Operation | None], init=False
+    )
     """
     The list of operations to iterate over, used as a last-in-first-out stack.
     Operations are added and removed at the end of the list.
@@ -645,7 +650,7 @@ class Worklist:
     keep removal of operations O(1).
     """
 
-    _map: dict[Operation, int] = field(default_factory=dict, init=False)
+    _map: dict[Operation, int] = field(default_factory=dict[Operation, int], init=False)
     """
     The map of operations to their index in the stack.
     It is used to check if an operation is already in the stack, and to

@@ -84,7 +84,9 @@ class Printer(BasePrinter):
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
-    _ssa_values: dict[SSAValue, str] = field(default_factory=dict, init=False)
+    _ssa_values: dict[SSAValue, str] = field(
+        default_factory=dict[SSAValue, str], init=False
+    )
     """
     maps SSA Values to their "allocated" names
     """

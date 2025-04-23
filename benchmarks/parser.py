@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Benchmarks for the parser of the xDSL implementation."""
 
-from benchmarks.helpers import get_context
 from benchmarks.workloads import WorkloadBuilder
+from xdsl.context import Context
+from xdsl.dialects.arith import Arith
+from xdsl.dialects.builtin import Builtin
 from xdsl.parser import Parser as XdslParser
 
-CTX = get_context()
+CTX = Context(allow_unregistered=True)
+CTX.load_dialect(Arith)
+CTX.load_dialect(Builtin)
 
 
 class Parser:
@@ -28,7 +32,7 @@ class Parser:
         """Time lexing a 1024x1024xi8 dense attribute."""
         XdslParser(CTX, Parser.WORKLOAD_LARGE_DENSE_ATTR).parse_module()
 
-    def time_dense_attr_hex(self) -> None:
+    def ignore_time_dense_attr_hex(self) -> None:
         """Time lexing a 1024x1024xi8 dense attribute given as a hex string."""
         XdslParser(CTX, Parser.WORKLOAD_LARGE_DENSE_ATTR_HEX).parse_module()
 
@@ -41,7 +45,7 @@ if __name__ == "__main__":
         {
             "Parser.constant_100": Benchmark(PARSER.time_constant_100),
             "Parser.constant_1000": Benchmark(PARSER.time_constant_1000),
-            # "Parser.dense_attr": Benchmark(PARSER.ignore_time_dense_attr),
-            "Parser.dense_attr_hex": Benchmark(PARSER.time_dense_attr_hex),
+            "Parser.dense_attr": Benchmark(PARSER.ignore_time_dense_attr),
+            "Parser.dense_attr_hex": Benchmark(PARSER.ignore_time_dense_attr_hex),
         }
     )

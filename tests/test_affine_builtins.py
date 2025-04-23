@@ -219,16 +219,16 @@ def test_inverse_permutation():
     )
 
 
-def test_compress_dims():
+def test_drop_dims():
     # (d0, d1, d2) -> (d1, d2) with [0,1,1] gives (d0, d1) -> (d0, d1)
     # (d0, d1, d2) -> (d2, d2) with [1,0,1] gives (d0, d1) -> (d1, d1)
     t = True
     f = False
-    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)).compress_dims(
-        [f, t, t]
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)).drop_dims(
+        [t, f, f]
     ) == AffineMap.from_callable(lambda d0, d1: (d0, d1))
-    assert AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)).compress_dims(
-        [t, f, t]
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)).drop_dims(
+        [f, t, f]
     ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
 
 
@@ -313,3 +313,24 @@ def test_minor_identity():
         "results 3",
     ):
         AffineMap.minor_identity(2, 3)
+
+
+def test_is_projected_permutation():
+    assert AffineMap(0, 0, ()).is_projected_permutation()
+    assert not AffineMap(0, 1, ()).is_projected_permutation()
+
+    assert AffineMap.from_callable(lambda d0, d1: (d0, d1)).is_projected_permutation()
+    assert not AffineMap.from_callable(
+        lambda d0, d1: (d0, d0)
+    ).is_projected_permutation()
+    assert not AffineMap.from_callable(lambda d0: (d0, d0)).is_projected_permutation()
+
+    assert AffineMap.from_callable(
+        lambda d0, d1, d2: (d1, d0)
+    ).is_projected_permutation()
+    assert not AffineMap.from_callable(
+        lambda d0, d1, d2: (d1, 0, d0)
+    ).is_projected_permutation()
+    assert AffineMap.from_callable(
+        lambda d0, d1, d2: (d1, 0, d0)
+    ).is_projected_permutation(allow_zero_in_results=True)

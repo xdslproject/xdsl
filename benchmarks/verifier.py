@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """Benchmarks for the verifier of the xDSL implementation."""
 
-from benchmarks.helpers import get_context, parse_module
 from benchmarks.workloads import WorkloadBuilder
-
-CTX = get_context()
 
 
 class Verifier:
@@ -19,11 +16,9 @@ class Verifier:
     verification pass contributes to the overall performance.
     """
 
-    WORKLOAD_CONSTANT_100 = parse_module(CTX, WorkloadBuilder.constant_folding(100))
-    WORKLOAD_CONSTANT_1000 = parse_module(CTX, WorkloadBuilder.constant_folding(1000))
-    WORKLOAD_LARGE_DENSE_ATTR_HEX = parse_module(
-        CTX, WorkloadBuilder.large_dense_attr_hex()
-    )
+    WORKLOAD_CONSTANT_100 = WorkloadBuilder.constant_folding_module(100)
+    WORKLOAD_CONSTANT_1000 = WorkloadBuilder.constant_folding_module(1000)
+    WORKLOAD_LARGE_DENSE_ATTR = WorkloadBuilder.large_dense_attr_module()
 
     def time_constant_100(self) -> None:
         """Time verifying constant folding for 100 items."""
@@ -35,7 +30,7 @@ class Verifier:
 
     def time_dense_attr_hex(self) -> None:
         """Time verifying a 1024x1024xi8 dense attribute given as a hex string."""
-        Verifier.WORKLOAD_LARGE_DENSE_ATTR_HEX.verify()
+        Verifier.WORKLOAD_LARGE_DENSE_ATTR.verify()
 
 
 if __name__ == "__main__":
