@@ -64,6 +64,9 @@ class ConstantFoldingSimplePass(ModulePass):
         pattern = ConstantFoldingIntegerAdditionPattern()
         PatternRewriteWalker(pattern).rewrite_module(op)
         ```
+
+        The remaining function invocations are walking the region, interacting
+        with the worklist, and creating the new constant operation.
         """
         ### Input values
         region = op.body
@@ -119,17 +122,17 @@ class ConstantFoldingSimplePass(ModulePass):
                     folded_op.parent = old_op.parent
                     prev_op = old_op.prev_op
                     ## Inline `old_op._insert_prev_op(folded_op)`
-                    if old_op._prev_op is not None:
+                    if old_op._prev_op is not None:  # pyright: ignore[reportPrivateUsage]
                         # update prev node
-                        old_op._prev_op._next_op = folded_op
+                        old_op._prev_op._next_op = folded_op  # pyright: ignore[reportPrivateUsage]
                     # set next and previous on new node
-                    folded_op._prev_op = old_op._prev_op
-                    folded_op._next_op = old_op
+                    folded_op._prev_op = old_op._prev_op  # pyright: ignore[reportPrivateUsage]
+                    folded_op._next_op = old_op  # pyright: ignore[reportPrivateUsage]
                     # update self
-                    old_op._prev_op = folded_op
+                    old_op._prev_op = folded_op  # pyright: ignore[reportPrivateUsage]
                     if prev_op is None:
                         # No `prev_op`, means `next_op` is the first op in the block.
-                        old_op.parent._first_op = folded_op
+                        old_op.parent._first_op = folded_op  # pyright: ignore[reportOptionalMemberAccess,reportPrivateUsage]
                     # ---------------------------- #
 
                     # Then, replace the results with new ones
@@ -151,7 +154,26 @@ class ConstantFoldingSimplePass(ModulePass):
                     ## Inline `old_op.parent.erase_op(old_op, safe_erase=True)`
                     # ---------------------------- #
                     ## Inline `old_op = old_op.parent.detach_op(old_op)`
-                    old_op = old_op.parent.detach_op(old_op)
+                    old_op.parent = None
+                    prev_op = old_op.prev_op
+                    next_op = old_op.next_op
+                    if prev_op is not None:
+                        # detach op from linked list
+                        prev_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
+                        # detach linked list from op
+                        old_op._prev_op = None  # pyright: ignore[reportPrivateUsage]
+                    else:
+                        # reattach linked list if op is first op this block
+                        old_op.parent._first_op = next_op  # pyright: ignore[reportAttributeAccessIssue]
+
+                    if next_op is not None:
+                        # detach op from linked list
+                        next_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
+                        # detach linked list from op
+                        old_op._next_op = None  # pyright: ignore[reportPrivateUsage]
+                    else:
+                        # reattach linked list if op is last op in this block
+                        old_op.parent._last_op = prev_op  # pyright: ignore[reportAttributeAccessIssue]
                     # ---------------------------- #
                     ## Inline `old_op.erase(safe_erase=True)`
                     ## Inline `old_op.drop_all_references()`
@@ -165,8 +187,9 @@ class ConstantFoldingSimplePass(ModulePass):
                         ## Inline `result.erase(safe_erase=True)`
                         ## Inline `result.replace_by(ErasedSSAValue(result.type, result))`
                         replace_value = ErasedSSAValue(result.type, result)
-                        for use in result.uses.copy():
-                            use.operation.operands[use.index] = replace_value
+                        ## Newly constructed `ErasedSSAValue`s have no uses!
+                        # for use in result.uses.copy():
+                        #     use.operation.operands[use.index] = replace_value
                         # carry over name if possible
                         if replace_value.name_hint is None:
                             replace_value.name_hint = result.name_hint
