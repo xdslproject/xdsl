@@ -3,7 +3,7 @@ from xdsl.dialects.builtin import DenseArrayBase, TensorType, f64, i64
 from xdsl.dialects.stencil import IndexAttr
 from xdsl.dialects.tensor import ExtractSliceOp, InsertSliceOp
 from xdsl.dialects.test import TestOp
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_extract_slice_static():
@@ -72,13 +72,13 @@ def test_insert_slice_static():
 
 def test_insert_slice_dynamic():
     source_t = TensorType(f64, [10, 20])
-    source_v = TestSSAValue(source_t)
+    source_v = create_ssa_value(source_t)
     dest_t = TensorType(f64, [10, 20, 30])
-    dest_v = TestSSAValue(dest_t)
-    offset1 = TestSSAValue(IndexAttr.get(3))
-    offset2 = TestSSAValue(IndexAttr.get(15))
-    stride1 = TestSSAValue(IndexAttr.get(2))
-    stride2 = TestSSAValue(IndexAttr.get(5))
+    dest_v = create_ssa_value(dest_t)
+    offset1 = create_ssa_value(IndexAttr.get(3))
+    offset2 = create_ssa_value(IndexAttr.get(15))
+    stride1 = create_ssa_value(IndexAttr.get(2))
+    stride2 = create_ssa_value(IndexAttr.get(5))
 
     insert_slice = InsertSliceOp.get(
         source=source_v,

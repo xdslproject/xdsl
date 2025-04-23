@@ -237,33 +237,35 @@ class AffineMap:
 
     def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> tuple[int, ...]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
-        assert len(dims) == self.num_dims
-        assert len(symbols) == self.num_symbols
+        assert len(dims) == self.num_dims, f"{len(dims)}, {self.num_dims}"
+        assert len(symbols) == self.num_symbols, f"{len(symbols)}, {self.num_symbols}"
         return tuple(expr.eval(dims, symbols) for expr in self.results)
 
-    def compress_dims(self, selectors: Sequence[bool]) -> AffineMap:
+    def drop_dims(self, unused_dims: Sequence[bool]) -> AffineMap:
         """
-        Given a sequence of `selectors` indicating the input dimensions to keep, return a
-        new map only with the new dimensions. The results of `self` must be a subset of
-        the dimensions in `selectors`. The remaining dimensions are remapped to the
-        remaining number.
+        Given a sequence of `unused_dims` indicating the input dimensions to drop,
+        return a new map only with the new dimensions. The results of `self` must be a
+        subset of the dimensions in `selectors`. The remaining dimensions are remapped
+        to the remaining number.
 
         Examples:
         ```
-        (d0, d1, d2) -> (d1, d2) with [0,1,1] gives (d0, d1) -> (d0, d1)
-        (d0, d1, d2) -> (d2, d2) with [1,0,1] gives (d0, d1) -> (d1, d1)
+        (d0, d1, d2) -> (d1, d2) with [1,0,0] gives (d0, d1) -> (d0, d1)
+        (d0, d1, d2) -> (d2, d2) with [0,1,0] gives (d0, d1) -> (d1, d1)
         ```
+
+        Corresponds to MLIR's `compressDims`.
         """
-        if len(selectors) != self.num_dims:
+        if len(unused_dims) != self.num_dims:
             raise ValueError(
-                f"Invalid `selectors`, expected {self.num_dims} `bool` values, got "
-                f"{len(selectors)}"
+                f"Invalid `unused_dims`, expected {self.num_dims} `bool` values, got "
+                f"{len(unused_dims)}"
             )
 
-        result_num_dims = sum(selectors)
+        result_num_dims = sum(not dim for dim in unused_dims)
         new_dims = tuple(
             AffineExpr.dimension(dim)
-            for dim in itertools.accumulate(selectors, initial=0)
+            for dim in itertools.accumulate((not dim for dim in unused_dims), initial=0)
         )
         new_symbols = tuple(AffineExpr.symbol(s) for s in range(self.num_symbols))
 
