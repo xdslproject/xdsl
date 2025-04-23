@@ -1,5 +1,6 @@
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import BoolAttr, IndexType, IntegerType
+from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -187,6 +188,39 @@ class SelectSamePattern(RewritePattern):
     def match_and_rewrite(self, op: arith.SelectOp, rewriter: PatternRewriter):
         if op.lhs == op.rhs:
             rewriter.replace_matched_op((), (op.lhs,))
+
+
+class SelectFoldCmpfPattern(RewritePattern):
+    """
+    %1 = arith.cmpf  ogt, %0, %cst fastmath<nnan> : f64
+    %2 = arith.select %1, %0, %cst : f64
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.SelectOp, rewriter: PatternRewriter):
+        if not isinstance(op.cond, OpResult) or not isinstance(
+            cmpf := op.cond.op, arith.CmpfOp
+        ):
+            return
+        if (
+            arith.FastMathFlag.NO_NANS not in cmpf.fastmath.flags
+            or arith.FastMathFlag.NO_SIGNED_ZEROS not in cmpf.fastmath.flags
+        ):
+            return
+        if not (op.lhs == cmpf.lhs and op.rhs == cmpf.rhs):
+            return
+
+        target = None
+        match cmpf.predicate.value.data:
+            case 2 | 3 | 9 | 10:
+                # ogt | oge | ugt | uge
+                target = arith.MaximumfOp
+            case 4 | 5 | 11 | 12:
+                # olt | ole | ult | ule
+                target = arith.MinimumfOp
+            case _:
+                return
+        rewriter.replace_matched_op(target(op.lhs, op.rhs, cmpf.fastmath))
 
 
 class ApplyCmpiPredicateToEqualOperands(RewritePattern):

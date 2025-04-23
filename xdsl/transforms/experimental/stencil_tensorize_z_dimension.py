@@ -5,12 +5,8 @@ from typing import TypeGuard
 from xdsl.context import Context
 from xdsl.dialects import builtin, varith
 from xdsl.dialects.arith import (
-    AddfOp,
     ConstantOp,
-    DivfOp,
     FloatingPointLikeBinaryOperation,
-    MulfOp,
-    SubfOp,
 )
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -169,7 +165,7 @@ class ArithOpTensorize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: AddfOp | SubfOp | MulfOp | DivfOp, rewriter: PatternRewriter, /
+        self, op: FloatingPointLikeBinaryOperation, rewriter: PatternRewriter, /
     ):
         type_constructor = type(op)
         if is_tensor(op.result.type):
@@ -396,7 +392,7 @@ def arithBinaryOpUpdateShape(
 class ArithOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: AddfOp | SubfOp | MulfOp | DivfOp, rewriter: PatternRewriter, /
+        self, op: FloatingPointLikeBinaryOperation, rewriter: PatternRewriter, /
     ):
         arithBinaryOpUpdateShape(op, rewriter)
 
