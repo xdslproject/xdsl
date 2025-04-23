@@ -80,20 +80,14 @@ class ConstantFoldingSimplePass(ModulePass):
         ### The function implementation
 
         ## Inline `listener = walker._get_rewriter_listener()`
-        def walker_handle_operation_removal(handle_op: Operation) -> None:
-            # TODO: This might be removable, since no removal so never invoked
-            if handle_op.regions:
-                for sub_op in handle_op.walk():
-                    walker_worklist.remove(sub_op)
-            else:
-                walker_worklist.remove(handle_op)
-
         rewriter_listener = PatternRewriterListener(
+            # In non-recursive rewriting case these do nothing
             operation_insertion_handler=[],
-            operation_removal_handler=[walker_handle_operation_removal],
             operation_modification_handler=[],
             operation_replacement_handler=[],
             block_creation_handler=[],
+            # In constant folding specialisation, no operations are removed
+            operation_removal_handler=[],
         )
 
         while op_was_modified:
