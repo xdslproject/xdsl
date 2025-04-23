@@ -137,6 +137,8 @@ class ConvertLinalgMinPass(RewritePattern):
     """
     Lowers the `linalg.min` op to csl by negating the operands, performing max, and
     again negating the operands as well as the result.
+
+    todo: scalar operands are currently not supported
     """
 
     @op_type_rewrite_pattern
