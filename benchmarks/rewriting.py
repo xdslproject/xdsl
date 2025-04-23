@@ -498,3 +498,6 @@ if __name__ == "__main__":
             ),
         }
     )
+
+    print(CONSTANT_FOLDING.workload_constant_20)
+    assert CONSTANT_FOLDING.workload_constant_20.body.ops.last._prev_op.value.value.data == 6114
