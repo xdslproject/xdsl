@@ -180,7 +180,7 @@ class ApplyRegisteredPassOp(IRDLOperation):
                 "options": options,
             },
             operands=[target],
-            result_types=[TransformHandleType()],
+            result_types=[target.type],
         )
 
 
