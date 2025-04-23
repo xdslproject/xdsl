@@ -159,6 +159,12 @@ class AccessOpShapeInference(RewritePattern):
         output_size = apply.res[0].type.bounds
         if not isinstance(output_size, StencilBoundsAttr):
             return
+        if len(op.offset) < apply.res[0].type.get_num_dims() and op.offset_mapping:
+            mapped_offsets = [
+                (output_size.lb.array.data[i], output_size.ub.array.data[i])
+                for i in op.offset_mapping
+            ]
+            output_size = StencilBoundsAttr(mapped_offsets)
 
         update_result_size(
             op.temp, temp_type.bounds | output_size + op.offset, rewriter
