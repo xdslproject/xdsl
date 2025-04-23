@@ -21,26 +21,26 @@ builtin.module attributes  {"transform.with_named_sequence"} {
   "transform.sequence"() <{"failure_propagation_mode" = 1 : i32, operandSegmentSizes = array<i32: 0, 0>}> ({
   ^0(%arg0 : !transform.any_op):
     %arg1 = "transform.select"(%arg0) <{"op_name" = "linalg.quantized_matmul"}> : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
-    %13, %14, %15 = "transform.structured.tile_using_for"(%arg1) <{"scalable_sizes" = array<i1: false, false>, "static_sizes" = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+    %7, %8, %9 = "transform.structured.tile_using_for"(%arg1) <{"scalable_sizes" = array<i1: false, false>, "static_sizes" = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
     "transform.yield"() : () -> ()
   }) : () -> ()
- %16 = "test.op"() : () -> !transform.any_op
-  %17 = "transform.get_producer_of_operand"(%16) <{operand_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
-  %18 = "transform.get_consumers_of_result"(%17) <{result_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
-  %19 = "test.op"() : () -> !transform.any_value
-  %20 = "transform.get_defining_op" (%19) : (!transform.any_value) -> !transform.any_op
-  %21 = "transform.get_parent_op"(%20) <{isolated_from_above, nth_parent = 1 : i64}> : (!transform.any_op) -> !transform.any_op
-  %22 = "transform.get_result"(%21) <{raw_position_list = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value
-  %23 = "transform.get_type"(%22) <{elemental}> : (!transform.any_value) -> !transform.type
-  "transform.include"(%21) <{failure_propagation_mode = 1 : i32, target = @foo}> : (!transform.any_op) -> ()
-  "transform.match.operation_empty"(%21) : (!transform.any_op) -> ()
-  "transform.match.operation_name" (%21) <{op_names = ["scf.for"]}> : (!transform.any_op) -> ()
-  %24 = "transform.merge_handles"(%20, %21) : (!transform.any_op, !transform.any_op) -> !transform.any_op
-  %25 = "test.op"() : () -> !transform.any_param
-  %26 = "test.op"() : () -> !transform.any_param
-  "transform.match.param.cmpi"(%25, %26) <{predicate = 1 : i32}> : (!transform.any_param, !transform.any_param) -> ()
-  %27:2 = "transform.split_handle"(%24) <{fail_on_payload_too_small = true, pass_through_empty_handle = true}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
-  %28 = "transform.structured.match"(%24) <{"op_attrs" = {"qmatmul_0"}}> : (!transform.any_op) -> !transform.any_op
+  %7 = "test.op"() : () -> !transform.any_op
+  %8 = "transform.get_producer_of_operand"(%7) <{operand_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
+  %9 = "transform.get_consumers_of_result"(%8) <{result_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
+  %10 = "test.op"() : () -> !transform.any_value
+  %11 = "transform.get_defining_op" (%10) : (!transform.any_value) -> !transform.any_op
+  %12 = "transform.get_parent_op"(%11) <{isolated_from_above, nth_parent = 1 : i64}> : (!transform.any_op) -> !transform.any_op
+  %13 = "transform.get_result"(%12) <{raw_position_list = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value
+  %14 = "transform.get_type"(%13) <{elemental}> : (!transform.any_value) -> !transform.type
+  "transform.include"(%12) <{failure_propagation_mode = 1 : i32, target = @foo}> : (!transform.any_op) -> ()
+  "transform.match.operation_empty"(%12) : (!transform.any_op) -> ()
+  "transform.match.operation_name" (%12) <{op_names = ["scf.for"]}> : (!transform.any_op) -> ()
+  %15 = "transform.merge_handles"(%11, %12) : (!transform.any_op, !transform.any_op) -> !transform.any_op
+  %16 = "test.op"() : () -> !transform.any_param
+  %17 = "test.op"() : () -> !transform.any_param
+  "transform.match.param.cmpi"(%16, %17) <{predicate = 1 : i32}> : (!transform.any_param, !transform.any_param) -> ()
+  %18:2 = "transform.split_handle"(%15) <{fail_on_payload_too_small = true, pass_through_empty_handle = true}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
+  %19 = "transform.structured.match"(%15) <{"op_attrs" = {"qmatmul_0"}}> : (!transform.any_op) -> !transform.any_op
 }
 
 
@@ -69,21 +69,21 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:    %6, %7, %8 = "transform.structured.tile_using_for"(%arg1) <{scalable_sizes = array<i1: false, false>, static_sizes = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:    "transform.yield"() : () -> ()
 //CHECK-NEXT:  }) : () -> ()
-//CHECK-NEXT:  %12 = "test.op"() : () -> !transform.any_op
-//CHECK-NEXT:  %13 = "transform.get_producer_of_operand"(%12) <{operand_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
-//CHECK-NEXT:  %14 = "transform.get_consumers_of_result"(%13) <{result_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
-//CHECK-NEXT:  %15 = "test.op"() : () -> !transform.any_value
-//CHECK-NEXT:  %16 = "transform.get_defining_op"(%15) : (!transform.any_value) -> !transform.any_op
-//CHECK-NEXT:  %17 = "transform.get_parent_op"(%16) <{isolated_from_above, nth_parent = 1 : i64}> : (!transform.any_op) -> !transform.any_op
-//CHECK-NEXT:  %18 = "transform.get_result"(%17) <{raw_position_list = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value
-//CHECK-NEXT:  %19 = "transform.get_type"(%18) <{elemental}> : (!transform.any_value) -> !transform.type
-//CHECK-NEXT:  "transform.include"(%17) <{failure_propagation_mode = 1 : i32, target = @foo}> : (!transform.any_op) -> ()
-//CHECK-NEXT:  "transform.match.operation_empty"(%17) : (!transform.any_op) -> ()
-//CHECK-NEXT:  "transform.match.operation_name"(%17) <{op_names = ["scf.for"]}> : (!transform.any_op) -> ()
-//CHECK-NEXT:  %20 = "transform.merge_handles"(%16, %17) : (!transform.any_op, !transform.any_op) -> !transform.any_op
-//CHECK-NEXT:  %21 = "test.op"() : () -> !transform.any_param
-//CHECK-NEXT:  %22 = "test.op"() : () -> !transform.any_param
-//CHECK-NEXT:  "transform.match.param.cmpi"(%21, %22) <{predicate = 1 : i32}> : (!transform.any_param, !transform.any_param) -> ()
-//CHECK-NEXT:  %23, %24 = "transform.split_handle"(%20) <{fail_on_payload_too_small = true, pass_through_empty_handle = true}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
-//CHECK-NEXT:  %25 = "transform.structured.match"(%20) <{op_attrs = {qmatmul_0}}> : (!transform.any_op) -> !transform.any_op
+//CHECK-NEXT:  %6 = "test.op"() : () -> !transform.any_op
+//CHECK-NEXT:  %7 = "transform.get_producer_of_operand"(%6) <{operand_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
+//CHECK-NEXT:  %8 = "transform.get_consumers_of_result"(%7) <{result_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
+//CHECK-NEXT:  %9 = "test.op"() : () -> !transform.any_value
+//CHECK-NEXT:  %10 = "transform.get_defining_op"(%9) : (!transform.any_value) -> !transform.any_op
+//CHECK-NEXT:  %11 = "transform.get_parent_op"(%10) <{isolated_from_above, nth_parent = 1 : i64}> : (!transform.any_op) -> !transform.any_op
+//CHECK-NEXT:  %12 = "transform.get_result"(%11) <{raw_position_list = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value
+//CHECK-NEXT:  %13 = "transform.get_type"(%12) <{elemental}> : (!transform.any_value) -> !transform.type
+//CHECK-NEXT:  "transform.include"(%11) <{failure_propagation_mode = 1 : i32, target = @foo}> : (!transform.any_op) -> ()
+//CHECK-NEXT:  "transform.match.operation_empty"(%11) : (!transform.any_op) -> ()
+//CHECK-NEXT:  "transform.match.operation_name"(%11) <{op_names = ["scf.for"]}> : (!transform.any_op) -> ()
+//CHECK-NEXT:  %14 = "transform.merge_handles"(%10, %11) : (!transform.any_op, !transform.any_op) -> !transform.any_op
+//CHECK-NEXT:  %15 = "test.op"() : () -> !transform.any_param
+//CHECK-NEXT:  %16 = "test.op"() : () -> !transform.any_param
+//CHECK-NEXT:  "transform.match.param.cmpi"(%15, %16) <{predicate = 1 : i32}> : (!transform.any_param, !transform.any_param) -> ()
+//CHECK-NEXT:  %17, %18 = "transform.split_handle"(%14) <{fail_on_payload_too_small = true, pass_through_empty_handle = true}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
+//CHECK-NEXT:  %19 = "transform.structured.match"(%14) <{op_attrs = {qmatmul_0}}> : (!transform.any_op) -> !transform.any_op
 //CHECK-NEXT:}
