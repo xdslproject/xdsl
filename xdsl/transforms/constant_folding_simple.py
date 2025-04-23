@@ -3,15 +3,17 @@ A pass that applies the interpreter to operations with no side effects where all
 inputs are constant, replacing the computation with a constant value.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp
-from xdsl.ir import Operation
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
+    PatternRewriterListener,
     PatternRewriteWalker,
     RewritePattern,
     Worklist,
@@ -67,24 +69,68 @@ class ConstantFoldingSimplePass(ModulePass):
         PatternRewriteWalker(pattern).rewrite_module(op)
         ```
         """
-        ## Input values and state
+        ### Input values and state
         region = op.body
         op_was_modified = True
         walker_worklist = Worklist()
-        ## Stubs for development
+
+        ### Stubs for development
         pattern = ConstantFoldingIntegerAdditionPattern()
         walker = PatternRewriteWalker(pattern)
 
+        ### The function implementation
 
-        ## The function implementation
-        listener = walker._get_rewriter_listener()
+        ## Inline `listener = walker._get_rewriter_listener()`
+        walker_listener = PatternRewriterListener()
+
+        def walker_handle_operation_insertion(handle_op: Operation) -> None:
+            # TODO: This might be removable, since non-recursive
+            pass
+
+        def walker_handle_operation_removal(handle_op: Operation) -> None:
+            # TODO: This might be removable, since no removal so never invoked
+            if handle_op.regions:
+                for sub_op in handle_op.walk():
+                    walker_worklist.remove(sub_op)
+            else:
+                walker_worklist.remove(handle_op)
+
+        def walker_handle_operation_modification(handle_op: Operation) -> None:
+            # TODO: This might be removable, since non-recursive
+            pass
+
+        def walker_handle_operation_replacement(
+            handle_op: Operation, new_results: Sequence[SSAValue | None]
+        ) -> None:
+            # TODO: This might be removable, since non-recursive
+            pass
+
+        rewriter_listener = PatternRewriterListener(
+            operation_insertion_handler=[
+                *walker_listener.operation_insertion_handler,
+                walker_handle_operation_insertion,
+            ],
+            operation_removal_handler=[
+                *walker_listener.operation_removal_handler,
+                walker_handle_operation_removal,
+            ],
+            operation_modification_handler=[
+                *walker_listener.operation_modification_handler,
+                walker_handle_operation_modification,
+            ],
+            operation_replacement_handler=[
+                *walker_listener.operation_replacement_handler,
+                walker_handle_operation_replacement,
+            ],
+            block_creation_handler=walker_listener.block_creation_handler,
+        )
+
         while op_was_modified:
             ## Inline `walker._populate_worklist(region)`
             for sub_op in region.walk(reverse=True, region_first=True):
                 walker_worklist.push(sub_op)
 
-
-            ## Inline `walker._process_worklist(listener)`
+            ## Inline `walker._process_worklist(rewriter_listener)`
             rewriter_has_done_action = False
 
             # Handle empty worklist
@@ -95,7 +141,7 @@ class ConstantFoldingSimplePass(ModulePass):
 
             # Create a rewriter on the first operation
             rewriter = PatternRewriter(rewrite_op)
-            rewriter.extend_from_listener(listener)
+            rewriter.extend_from_listener(rewriter_listener)
 
             # do/while loop
             while True:
