@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
 )
+from xdsl.dialects.func import FuncOpCallableInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -42,7 +43,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import IsolatedFromAbove, IsTerminator
+from xdsl.traits import IsolatedFromAbove, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -145,6 +146,41 @@ class FailurePropagationModeAttr(
 AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
     Attribute, AnyOf([IntegerType, FailurePropagationModeAttr])
 ]
+
+
+@irdl_op_definition
+class ApplyRegisteredPassOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformapply_registered_pass-transformapplyregisteredpassop).
+    """
+
+    name = "transform.apply_registered_pass"
+
+    options = prop_def(StringAttr, default_value=StringAttr(""))
+    pass_name = prop_def(StringAttr)
+    target = operand_def(TransformHandleType)
+    result = result_def(TransformHandleType)
+
+    def __init__(
+        self,
+        pass_name: str | StringAttr,
+        target: SSAValue,
+        options: str | StringAttr | None = None,
+    ):
+        if isinstance(pass_name, str):
+            pass_name = StringAttr(pass_name)
+
+        if isinstance(options, str):
+            options = StringAttr(options)
+
+        super().__init__(
+            properties={
+                "pass_name": pass_name,
+                "options": options,
+            },
+            operands=[target],
+            result_types=[TransformHandleType()],
+        )
 
 
 @irdl_op_definition
@@ -712,6 +748,10 @@ class NamedSequenceOp(IRDLOperation):
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     body = region_def("single_block")
 
+    traits = traits_def(
+        IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
+    )
+
     def __init__(
         self,
         sym_name: str | StringAttr,
@@ -815,6 +855,7 @@ class MatchOp(IRDLOperation):
 Transform = Dialect(
     "transform",
     [
+        ApplyRegisteredPassOp,
         GetConsumersOfResultOp,
         GetDefiningOp,
         GetParentOp,
