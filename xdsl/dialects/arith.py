@@ -1298,55 +1298,29 @@ class IndexCastOp(IRDLOperation):
             )
 
 
+class FloatingPointToIntegerBaseOp(IRDLOperation, abc.ABC):
+    input = operand_def(AnyFloatConstr)
+    result = result_def(IntegerType)
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
+        super().__init__(operands=[op], result_types=[target_type])
+
+
 @irdl_op_definition
-class FPToSIOp(IRDLOperation):
+class FPToSIOp(FloatingPointToIntegerBaseOp):
     name = "arith.fptosi"
 
-    input = operand_def(AnyFloatConstr)
-    result = result_def(IntegerType)
-
-    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
-
-    traits = traits_def(Pure())
-
-    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        super().__init__(operands=[op], result_types=[target_type])
-
 
 @irdl_op_definition
-class SIToFPOp(IRDLOperation):
-    name = "arith.sitofp"
-
-    input = operand_def(IntegerType)
-    result = result_def(AnyFloatConstr)
-
-    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
-
-    traits = traits_def(Pure())
-
-    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
-        super().__init__(operands=[op], result_types=[target_type])
-
-
-@irdl_op_definition
-class FPToUIOp(IRDLOperation):
+class FPToUIOp(FloatingPointToIntegerBaseOp):
     name = "arith.fptoui"
 
-    input = operand_def(AnyFloatConstr)
-    result = result_def(IntegerType)
 
-    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
-
-    traits = traits_def(Pure())
-
-    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        super().__init__(operands=[op], result_types=[target_type])
-
-
-@irdl_op_definition
-class UIToFPOp(IRDLOperation):
-    name = "arith.uitofp"
-
+class IntegerToFloatingPointBaseOp(IRDLOperation, abc.ABC):
     input = operand_def(IntegerType)
     result = result_def(AnyFloatConstr)
 
@@ -1356,6 +1330,16 @@ class UIToFPOp(IRDLOperation):
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         super().__init__(operands=[op], result_types=[target_type])
+
+
+@irdl_op_definition
+class SIToFPOp(IntegerToFloatingPointBaseOp):
+    name = "arith.sitofp"
+
+
+@irdl_op_definition
+class UIToFPOp(IntegerToFloatingPointBaseOp):
+    name = "arith.uitofp"
 
 
 @irdl_op_definition
