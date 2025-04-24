@@ -9,6 +9,9 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
   vector.maskedstore %base[%i, %i], %vec, %masked_load : memref<4x4xindex>, vector<1xi1>, vector<1xindex>
   "vector.print"(%masked_load) : (vector<1xindex>) -> ()
   %mask = vector.create_mask %i : vector<2xi1>
+  %read = vector.transfer_read %base[%i, %i], %i {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : memref<4x4xindex>, vector<4xindex>
+  %read_1 = vector.transfer_read %base[%i, %i], %i {in_bounds = [true]} : memref<4x4xindex>, vector<4xindex>
+  vector.transfer_write %read, %base[%i, %i] {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : vector<4xindex>, memref<4x4xindex>
   func.return
 }
 
@@ -22,6 +25,9 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
 // CHECK-NEXT:     vector.maskedstore %base[%i, %i], %vec, %masked_load : memref<4x4xindex>, vector<1xi1>, vector<1xindex>
 // CHECK-NEXT:     "vector.print"(%masked_load) : (vector<1xindex>) -> ()
 // CHECK-NEXT:     %mask = vector.create_mask %i : vector<2xi1>
+// CHECK-NEXT:     %read = vector.transfer_read %base[%i, %i], %i {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : memref<4x4xindex>, vector<4xindex>
+// CHECK-NEXT:     %read_1 = vector.transfer_read %base[%i, %i], %i {in_bounds = [true]} : memref<4x4xindex>, vector<4xindex>
+// CHECK-NEXT:     vector.transfer_write %read, %base[%i, %i] {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : vector<4xindex>, memref<4x4xindex>
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 
