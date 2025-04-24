@@ -79,8 +79,8 @@ class DmpSwapSwapsInference(RewritePattern):
                     new_lb = [0] * len(core_lb)
                     new_ub = [0] * len(core_ub)
                     for idx, dim in enumerate(accessed_dims):
-                        new_lb[dim] = tuple(buff_lb)[idx]
-                        new_ub[dim] = tuple(buff_ub)[idx]
+                        new_lb[dim] = buff_lb.array.data[idx].data
+                        new_ub[dim] = buff_ub.array.data[idx].data
                     buff_lb = stencil.IndexAttr.get(*new_lb)
                     buff_ub = stencil.IndexAttr.get(*new_ub)
 

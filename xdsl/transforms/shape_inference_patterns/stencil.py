@@ -159,6 +159,9 @@ class AccessOpShapeInference(RewritePattern):
         output_size = apply.res[0].type.bounds
         if not isinstance(output_size, StencilBoundsAttr):
             return
+
+        # if the access op has fewer dimensions specified than the parent apply op, state explicitly which dimensions should be
+        # retained by looking at the offset_mapping
         if len(op.offset) < apply.res[0].type.get_num_dims() and op.offset_mapping:
             mapped_offsets = [
                 (output_size.lb.array.data[i], output_size.ub.array.data[i])
