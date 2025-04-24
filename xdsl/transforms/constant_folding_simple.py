@@ -13,7 +13,6 @@ from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
-    Worklist,
 )
 
 
@@ -73,17 +72,19 @@ class ConstantFoldingSimplePass(ModulePass):
 
         ### The function implementation
         op_was_modified = True
-        walker_worklist = Worklist()
+        walker_worklist = []  # Changed from `Worklist()`
         while op_was_modified:
             ## Inline `walker._populate_worklist(region)`
-            for sub_op in region.walk(reverse=True, region_first=True):
-                walker_worklist.push(sub_op)
+            # Elide `for sub_op in region.walk(reverse=True, region_first=True):`
+            for sub_block in reversed(region.blocks):
+                for sub_op in reversed(sub_block.ops):
+                    walker_worklist.append(sub_op)
 
             ## Inline `walker._process_worklist(listener)`
             rewriter_has_done_action = False
 
             # Handle empty worklist
-            rewrite_op = walker_worklist.pop()
+            rewrite_op = walker_worklist.pop() if len(walker_worklist) else None
             if rewrite_op is None:
                 op_was_modified = False
                 continue
@@ -196,7 +197,7 @@ class ConstantFoldingSimplePass(ModulePass):
                     # ============================ #
 
                 # If the worklist is empty, we are done
-                rewrite_op = walker_worklist.pop()
+                rewrite_op = walker_worklist.pop() if len(walker_worklist) else None
                 if rewrite_op is None:
                     op_was_modified = rewriter_has_done_action
                     break
