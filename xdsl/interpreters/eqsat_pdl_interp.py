@@ -17,6 +17,7 @@ from xdsl.interpreter import (
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Attribute, Block, Operation, OpResult, SSAValue, Use
 from xdsl.rewriter import InsertPoint
+from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
 
@@ -42,7 +43,7 @@ class Match:
 class EqsatPDLInterpFunctions(PDLInterpFunctions):
     backtrack_stack: list[BacktrackPoint] = field(default_factory=list[BacktrackPoint])
     visited: bool = True
-    matches: list[Match] = field(default_factory=list)
+    known_ops: KnownOps = field(default_factory=KnownOps)
 
     @impl(pdl_interp.GetResultOp)
     def run_getresult(
@@ -167,6 +168,16 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 "Replacement value must be the result of an EClassOp"
             )
 
+        if repl_eclass == original_eclass:
+            return ()
+
+        # TODO: is the below of any use?
+        # Check if the repl_eclass operation is already in the original_eclass's operands
+        for i, val in enumerate(original_eclass.operands):
+            if val.owner and val.owner == repl_eclass:
+                # Already present, no need to add it again
+                return ()
+
         operands = original_eclass._operands  # pyright: ignore[reportPrivateUsage]
         startlen = len(operands)
         for i, val in enumerate(repl_eclass.operands):
@@ -189,6 +200,16 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         (new_op,) = PDLInterpFunctions.run_create_operation(
             self, interpreter, op, args
         ).values
+
+        assert isinstance(new_op, Operation)
+
+        # Check if an identical operation already exists
+        if existing_op := self.known_ops.get(new_op):
+            self.rewriter.erase_op(new_op)
+            return (existing_op,)
+
+        # Record the newly created operation
+        self.known_ops[new_op] = new_op
 
         eclass_op = eqsat.EClassOp(
             new_op.results[0],
