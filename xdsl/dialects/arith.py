@@ -1329,6 +1329,36 @@ class SIToFPOp(IRDLOperation):
 
 
 @irdl_op_definition
+class FPToUIOp(IRDLOperation):
+    name = "arith.fptoui"
+
+    input = operand_def(AnyFloatConstr)
+    result = result_def(IntegerType)
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
+        super().__init__(operands=[op], result_types=[target_type])
+
+
+@irdl_op_definition
+class UIToFPOp(IRDLOperation):
+    name = "arith.uitofp"
+
+    input = operand_def(IntegerType)
+    result = result_def(AnyFloatConstr)
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
+        super().__init__(operands=[op], result_types=[target_type])
+
+
+@irdl_op_definition
 class ExtFOp(IRDLOperation):
     name = "arith.extf"
 
@@ -1474,7 +1504,9 @@ Arith = Dialect(
         BitcastOp,
         IndexCastOp,
         FPToSIOp,
+        FPToUIOp,
         SIToFPOp,
+        UIToFPOp,
         ExtFOp,
         TruncFOp,
         TruncIOp,
