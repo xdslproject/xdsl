@@ -47,11 +47,12 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import assert_isa, isa
+from xdsl.utils.lexer import Position
 
 DYNAMIC_INDEX: int = -(2**63)
 
@@ -760,6 +761,66 @@ class VectorTransferOperation(IRDLOperation, ABC):
             self.attributes | self.properties, reserved_attr_names=reserved_attr_names
         )
 
+    @staticmethod
+    def resolve_attrs(
+        parser: Parser,
+        attributes_dict: dict[str, Attribute],
+        shaped_type: TensorType[Attribute] | MemRefType[Attribute],
+        vector_type: VectorType[Attribute],
+        mask_start_pos: Position | None,
+        mask_end_pos: Position | None,
+        mask: UnresolvedOperand | None,
+        types_pos: Position,
+    ):
+        # Create default permutation_map if not provided in attributes
+        permutation_map = None
+        if attributes_dict and "permutation_map" in attributes_dict:
+            permutation_map = attributes_dict["permutation_map"]
+            assert isinstance(permutation_map, AffineMapAttr)
+        else:
+            # Create identity permutation map for the shaped type's rank
+            permutation_map = AffineMapAttr(
+                VectorTransferOperation.get_transfer_minor_identity_map(
+                    shaped_type, vector_type
+                )
+            )
+
+        # Create in_bounds attribute if not provided
+        in_bounds = None
+        if attributes_dict and "in_bounds" in attributes_dict:
+            in_bounds = cast(ArrayAttr[BoolAttr], attributes_dict["in_bounds"])
+        else:
+            # Default: all dimensions are out-of-bounds
+            in_bounds = ArrayAttr(
+                (BoolAttr.from_bool(False),) * len(permutation_map.data.results)
+            )
+
+        if mask is not None:
+            if isa(shaped_type.element_type, VectorType):
+                assert mask_start_pos is not None
+                assert mask_end_pos is not None
+                parser.raise_error(
+                    "does not support masks with vector element type",
+                    at_position=mask_start_pos,
+                    end_position=mask_end_pos,
+                )
+            if vector_type.get_num_dims() != len(permutation_map.data.results):
+                parser.raise_error(
+                    "expected the same rank for the vector and the "
+                    "results of the permutation map",
+                    types_pos,
+                )
+            # Instead of adding the mask type as an op type, compute it based on the
+            # vector type and the permutation map (to keep the type signature small).
+            mask_type = VectorTransferOperation.infer_transfer_op_mask_type(
+                vector_type, permutation_map.data
+            )
+            resolved_mask = parser.resolve_operand(mask, mask_type)
+        else:
+            resolved_mask = None
+
+        return resolved_mask, permutation_map, in_bounds
+
 
 @irdl_op_definition
 class TransferReadOp(VectorTransferOperation):
@@ -844,50 +905,16 @@ class TransferReadOp(VectorTransferOperation):
         if not isa(vector_type, VectorType):
             parser.raise_error("requires vector type", at_position=types_pos)
 
-        # Create default permutation_map if not provided in attributes
-        permutation_map = None
-        if attributes_dict and "permutation_map" in attributes_dict:
-            permutation_map = attributes_dict["permutation_map"]
-            assert isinstance(permutation_map, AffineMapAttr)
-        else:
-            # Create identity permutation map for the shaped type's rank
-            permutation_map = AffineMapAttr(
-                VectorTransferOperation.get_transfer_minor_identity_map(
-                    shaped_type, vector_type
-                )
-            )
-
-        # Create in_bounds attribute if not provided
-        in_bounds = None
-        if attributes_dict and "in_bounds" in attributes_dict:
-            in_bounds = cast(ArrayAttr[BoolAttr], attributes_dict["in_bounds"])
-        else:
-            # Default: all dimensions are out-of-bounds
-            in_bounds = ArrayAttr(
-                (BoolAttr.from_bool(False),) * len(permutation_map.data.results)
-            )
-
-        if mask is not None:
-            if isa(shaped_type.element_type, VectorType):
-                assert mask_start_pos is not None
-                assert mask_end_pos is not None
-                parser.raise_error(
-                    "does not support masks with vector element type",
-                    at_position=mask_start_pos,
-                    end_position=mask_end_pos,
-                )
-            if vector_type.get_num_dims() != len(permutation_map.data.results):
-                parser.raise_error(
-                    "expected the same rank for the vector and the "
-                    "results of the permutation map",
-                    types_pos,
-                )
-            # Instead of adding the mask type as an op type, compute it based on the
-            # vector type and the permutation map (to keep the type signature small).
-            mask_type = VectorTransferOperation.infer_transfer_op_mask_type(
-                vector_type, permutation_map.data
-            )
-            mask = parser.resolve_operand(mask, mask_type)
+        mask, permutation_map, in_bounds = VectorTransferOperation.resolve_attrs(
+            parser,
+            attributes_dict,
+            shaped_type,
+            vector_type,
+            mask_start_pos,
+            mask_end_pos,
+            mask,
+            types_pos,
+        )
 
         # Create and return the TransferReadOp
         return TransferReadOp(
@@ -984,50 +1011,16 @@ class TransferWriteOp(VectorTransferOperation):
         if not isa(vector_type, VectorType):
             parser.raise_error("requires vector type", at_position=types_pos)
 
-        # Create default permutation_map if not provided in attributes
-        permutation_map = None
-        if attributes_dict and "permutation_map" in attributes_dict:
-            permutation_map = attributes_dict["permutation_map"]
-            assert isinstance(permutation_map, AffineMapAttr)
-        else:
-            # Create identity permutation map for the shaped type's rank
-            permutation_map = AffineMapAttr(
-                VectorTransferOperation.get_transfer_minor_identity_map(
-                    shaped_type, vector_type
-                )
-            )
-
-        # Create in_bounds attribute if not provided
-        in_bounds = None
-        if attributes_dict and "in_bounds" in attributes_dict:
-            in_bounds = cast(ArrayAttr[BoolAttr], attributes_dict["in_bounds"])
-        else:
-            # Default: all dimensions are out-of-bounds
-            in_bounds = ArrayAttr(
-                (BoolAttr.from_bool(False),) * len(permutation_map.data.results)
-            )
-
-        if mask is not None:
-            if isa(shaped_type.element_type, VectorType):
-                assert mask_start_pos is not None
-                assert mask_end_pos is not None
-                parser.raise_error(
-                    "does not support masks with vector element type",
-                    at_position=mask_start_pos,
-                    end_position=mask_end_pos,
-                )
-            if vector_type.get_num_dims() != len(permutation_map.data.results):
-                parser.raise_error(
-                    "expected the same rank for the vector and the "
-                    "results of the permutation map",
-                    types_pos,
-                )
-            # Instead of adding the mask type as an op type, compute it based on the
-            # vector type and the permutation map (to keep the type signature small).
-            mask_type = VectorTransferOperation.infer_transfer_op_mask_type(
-                vector_type, permutation_map.data
-            )
-            mask = parser.resolve_operand(mask, mask_type)
+        mask, permutation_map, in_bounds = VectorTransferOperation.resolve_attrs(
+            parser,
+            attributes_dict,
+            shaped_type,
+            vector_type,
+            mask_start_pos,
+            mask_end_pos,
+            mask,
+            types_pos,
+        )
 
         # Create and return the TransferReadOp
         return TransferWriteOp(
