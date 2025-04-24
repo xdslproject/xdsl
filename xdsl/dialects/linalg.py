@@ -57,7 +57,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -395,8 +395,12 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 @irdl_op_definition
 class IndexOp(IRDLOperation):
     name = "linalg.index"
+
     dim = prop_def(IntegerAttr[i64])
+
     result = result_def(IndexTypeConstr)
+
+    traits = traits_def(HasParent(GenericOp))
 
     assembly_format = "$dim attr-dict `:` type($result)"
 
