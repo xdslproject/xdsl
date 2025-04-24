@@ -149,6 +149,41 @@ AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
 
 
 @irdl_op_definition
+class ApplyRegisteredPassOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformapply_registered_pass-transformapplyregisteredpassop).
+    """
+
+    name = "transform.apply_registered_pass"
+
+    options = prop_def(StringAttr, default_value=StringAttr(""))
+    pass_name = prop_def(StringAttr)
+    target = operand_def(TransformHandleType)
+    result = result_def(TransformHandleType)
+
+    def __init__(
+        self,
+        pass_name: str | StringAttr,
+        target: SSAValue,
+        options: str | StringAttr | None = None,
+    ):
+        if isinstance(pass_name, str):
+            pass_name = StringAttr(pass_name)
+
+        if isinstance(options, str):
+            options = StringAttr(options)
+
+        super().__init__(
+            properties={
+                "pass_name": pass_name,
+                "options": options,
+            },
+            operands=[target],
+            result_types=[TransformHandleType()],
+        )
+
+
+@irdl_op_definition
 class GetConsumersOfResultOp(IRDLOperation):
     """
     See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_consumers_of_result-transformgetconsumersofresult).
@@ -820,6 +855,7 @@ class MatchOp(IRDLOperation):
 Transform = Dialect(
     "transform",
     [
+        ApplyRegisteredPassOp,
         GetConsumersOfResultOp,
         GetDefiningOp,
         GetParentOp,
