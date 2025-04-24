@@ -11,8 +11,6 @@ from pathlib import Path
 from statistics import mean, median, stdev
 from typing import Any, NamedTuple, cast
 
-from benchmarks.bytecode.visualise import print_bytecode
-
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = (
     "run",
@@ -22,6 +20,7 @@ PROFILERS = (
     "flameprof",
     "pyinstrument",
     "dis",
+    "mprof",
 )
 
 
@@ -252,6 +251,8 @@ def dis_benchmark(
     benchmarks: dict[str, Benchmark],
 ):
     """Use dis to disassemble a benchmark."""
+    from benchmarks.bytecode.visualise import print_bytecode
+
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     if len(benchmark_runs) != 1:
         raise ValueError("Cannot disassemble multiple benchmarks together")
@@ -259,6 +260,24 @@ def dis_benchmark(
     if setup is not None:
         setup()
     print_bytecode(test)
+
+
+def mprof_benchmark(
+    args: Namespace,
+    benchmarks: dict[str, Benchmark],
+):
+    """Use memory_profiler to get the memory usage a benchmark."""
+    from memory_profiler import (
+        profile as memory_profile,  # pyright: ignore[reportMissingTypeStubs]
+    )
+
+    benchmark_runs = get_benchmark_runs(args, benchmarks)
+    if len(benchmark_runs) != 1:
+        raise ValueError("Cannot memory profile multiple benchmarks together")
+    _, (test, setup) = benchmark_runs[0]
+    if setup is not None:
+        setup()
+    memory_profile(test)()
 
 
 def show(
@@ -305,5 +324,7 @@ def profile(
             show(args, output_prof, tool="open")
         case "dis":
             dis_benchmark(args, benchmarks)
+        case "mprof":
+            mprof_benchmark(args, benchmarks)
         case _:
             raise ValueError("Invalid command!")

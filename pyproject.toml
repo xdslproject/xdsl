@@ -50,6 +50,8 @@ bench = [
     "flameprof>=0.4",
     "orjson>=3.10.15",
     "pyinstrument>=5.0.1",
+    "memory-profiler>=0.61.0",
+    "matplotlib>=3.10.1",
 ]
 
 [project.urls]
