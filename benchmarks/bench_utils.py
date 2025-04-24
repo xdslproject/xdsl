@@ -267,8 +267,8 @@ def mprof_benchmark(
     benchmarks: dict[str, Benchmark],
 ):
     """Use memory_profiler to get the memory usage a benchmark."""
-    from memory_profiler import (
-        profile as memory_profile,  # pyright: ignore[reportMissingTypeStubs]
+    from memory_profiler import (  # pyright: ignore[reportMissingTypeStubs]
+        profile as memory_profile,  # pyright: ignore[reportUnknownVariableType]
     )
 
     benchmark_runs = get_benchmark_runs(args, benchmarks)
@@ -277,7 +277,7 @@ def mprof_benchmark(
     _, (test, setup) = benchmark_runs[0]
     if setup is not None:
         setup()
-    memory_profile(test)()
+    memory_profile(test)()  # pyright: ignore[reportCallIssue]
 
 
 def show(
