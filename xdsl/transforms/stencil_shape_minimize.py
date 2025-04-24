@@ -113,6 +113,8 @@ class StencilShapeMinimize(ModulePass):
         if not bounds:
             return
         dim_shapes = dict[int, StencilBoundsAttr]()
+
+        # construct one minimal shape for each number of dimensions
         for b in bounds:
             dims = len(b.ub)
             if dims in dim_shapes:
