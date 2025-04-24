@@ -1,8 +1,6 @@
-from typing import cast
-
 import pytest
 
-from xdsl.builder import Builder
+from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
@@ -15,7 +13,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreter import Interpreter, Successor
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, BlockArgument
+from xdsl.ir import Block, Region
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
@@ -394,9 +392,9 @@ def test_create_operation():
     implementations = PDLInterpFunctions(ctx)
     interpreter.register_implementations(implementations)
 
-    @ModuleOp
-    @Builder.implicit_region
-    def testmodule():
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
         root = test.TestOp()
         implementations.rewriter = PatternRewriter(root)
 
@@ -426,7 +424,7 @@ def test_create_operation():
     assert len(created_op.results) == 1
     assert created_op.results[0].type == i32
     # Verify that the operation was inserted:
-    assert created_op.parent is testmodule.body.first_block
+    assert created_op.parent is block
 
     create_op_nonexistent = pdl_interp.CreateOperationOp(
         name="nonexistent.op",
@@ -440,30 +438,165 @@ def test_create_operation():
         interpreter.run_op(create_op_nonexistent, (c0, c1, attr, i32))
 
 
+def test_replace():
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        target_val = create_ssa_value(i32)
+        target_op = target_val.op
+        _c1 = test.TestOp((), (i32,), {"replacement": UnitAttr()})
+        # Create an operation that we'll replace
+        user = test.TestOp((target_val,), (i32,))
+
+    repl_owner = target_op.next_op
+    assert repl_owner is not None
+    repl_value = repl_owner.results[0]
+
+    # Set up the rewriter for testing
+    pdl_interp_functions.rewriter = PatternRewriter(target_op)
+
+    # Before replacement, verify the target_op is in the block
+    assert target_op.parent is block
+
+    # Create the replace op
+    replace_op = pdl_interp.ReplaceOp(
+        create_ssa_value(pdl.OperationType()), [create_ssa_value(pdl.ValueType())]
+    )
+
+    # Execute the replace operation
+    interpreter.run_op(replace_op, (target_op, repl_value))
+
+    # Verify the replacement worked:
+    # The target_op should be removed from the block
+    assert target_op.parent is None
+    assert user.operands[0] == repl_value
+
+
+def test_replace_with_range():
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+
+    with ImplicitBuilder(block):
+        target_op = test.TestOp((), (i32, i32, i32, i32))
+        c0 = create_ssa_value(i32)
+        c1 = create_ssa_value(i32)
+        c2 = create_ssa_value(i32)
+        c3 = create_ssa_value(i32)
+        # Create an operation that we'll replace
+        user = test.TestOp(target_op.results)
+    # Set up the rewriter for testing
+    pdl_interp_functions.rewriter = PatternRewriter(target_op)
+
+    # Create the replace op
+    replace_op = pdl_interp.ReplaceOp(
+        create_ssa_value(pdl.OperationType()),
+        [
+            create_ssa_value(pdl.ValueType()),
+            create_ssa_value(pdl.RangeType(pdl.ValueType())),
+            create_ssa_value(pdl.ValueType()),
+        ],
+    )
+
+    interpreter.run_op(
+        replace_op,
+        (target_op, c0, (c1, c2), c3),
+    )
+
+    assert target_op.parent is None
+    assert user.operands[0] == c0
+    assert user.operands[1] == c1
+    assert user.operands[2] == c2
+    assert user.operands[3] == c3
+
+
+def test_replace_with_range_invalid():
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+
+    with ImplicitBuilder(block):
+        target_op = test.TestOp((), (i32, i32, i32, i32))
+        c0 = create_ssa_value(i32)
+        c1 = create_ssa_value(i32)
+        _c2 = create_ssa_value(i32)
+        c3 = create_ssa_value(i32)
+        # Create an operation that we'll replace
+        test.TestOp(target_op.results)
+    # Set up the rewriter for testing
+    pdl_interp_functions.rewriter = PatternRewriter(target_op)
+
+    # Create the replace op
+    replace_op = pdl_interp.ReplaceOp(
+        create_ssa_value(pdl.OperationType()),
+        [
+            create_ssa_value(pdl.ValueType()),
+            create_ssa_value(pdl.RangeType(pdl.ValueType())),
+            create_ssa_value(pdl.ValueType()),
+        ],
+    )
+
+    with pytest.raises(InterpretationError):
+        # include one result too little:
+        interpreter.run_op(replace_op, (target_op, c0, (c1,), c3))
+
+
 def test_func():
     # not really a unit test, just check if pdl_interp.func can be called.
-    @ModuleOp
-    @Builder.implicit_region
-    def my_module():
-        test.TestOp()
-
-        @Builder.implicit_region((pdl.OperationType(),))
-        def body(args: tuple[BlockArgument, ...]) -> None:
-            pdl_interp.FinalizeOp()
-
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    func_body = Region([Block()])
+    with ImplicitBuilder(func_body.block):
+        pdl_interp.FinalizeOp()
+    func_body2 = func_body.clone()
+    with ImplicitBuilder(block):
+        op = test.TestOp()
         pdl_interp.FuncOp(
             "matcher",
             FunctionType.from_lists([pdl.OperationType()], []),
             None,
             None,
-            body,
+            func_body,
+        )
+        pdl_interp.FuncOp(
+            "rewrite",
+            FunctionType.from_lists([pdl.OperationType()], []),
+            None,
+            None,
+            func_body2,
         )
 
-    my_module.verify()
-    op = cast(test.TestOp, cast(Block, my_module.body.first_block).first_op)
+    testmodule.verify()
 
-    interpreter = Interpreter(my_module)
+    interpreter = Interpreter(testmodule)
     ctx = Context()
     ctx.register_dialect("test", lambda: test.Test)
-    interpreter.register_implementations(PDLInterpFunctions(ctx))
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
     interpreter.call_op("matcher", (op,))
+
+    with pytest.raises(InterpretationError):
+        interpreter.call_op("rewrite", (op,))
+
+    pdl_interp_functions.rewriter = PatternRewriter(op)
+
+    with pytest.raises(InterpretationError):
+        interpreter.call_op("matcher", (op,))
+
+    interpreter.call_op("rewrite", (op,))

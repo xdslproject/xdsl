@@ -1,9 +1,14 @@
+from collections.abc import Sequence
+
 import pytest
 
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    BoolAttr,
     IndexType,
     IntAttr,
     MemRefType,
+    TensorType,
     VectorType,
     i1,
     i32,
@@ -22,8 +27,10 @@ from xdsl.dialects.vector import (
     MaskedStoreOp,
     PrintOp,
     StoreOp,
+    VectorTransferOperation,
 )
 from xdsl.ir import Attribute, OpResult, SSAValue
+from xdsl.ir.affine import AffineMap
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -47,6 +54,8 @@ def test_vectorType():
     assert vec.get_num_dims() == 1
     assert vec.get_shape() == (1,)
     assert vec.element_type is i32
+    assert vec.get_num_scalable_dims() == 0
+    assert vec.get_scalable_dims() == (False,)
 
 
 def test_vectorType_with_dimensions():
@@ -55,6 +64,36 @@ def test_vectorType_with_dimensions():
     assert vec.get_num_dims() == 3
     assert vec.get_shape() == (3, 3, 3)
     assert vec.element_type is i32
+    assert vec.get_num_scalable_dims() == 0
+    assert vec.get_scalable_dims() == (
+        False,
+        False,
+        False,
+    )
+
+
+def test_vectorType_with_scalable_dims():
+    vec = VectorType(
+        i32,
+        [3, 3, 3],
+        scalable_dims=ArrayAttr(
+            (
+                BoolAttr.from_bool(False),
+                BoolAttr.from_bool(True),
+                BoolAttr.from_bool(False),
+            )
+        ),
+    )
+
+    assert vec.get_num_dims() == 3
+    assert vec.get_shape() == (3, 3, 3)
+    assert vec.element_type is i32
+    assert vec.get_num_scalable_dims() == 1
+    assert vec.get_scalable_dims() == (
+        False,
+        True,
+        False,
+    )
 
 
 def test_vector_load_i32():
@@ -584,3 +623,111 @@ def test_vector_insert():
         insert.DYNAMIC_INDEX,
     )
     assert insert.result.type == dest.type
+
+
+@pytest.mark.parametrize(
+    "perm_map,input_shape,input_scalable_dims,output_shape,output_scalable_dims",
+    [
+        (
+            # identity no scalable dims
+            AffineMap.from_callable(lambda d0, d1: (d0, d1)),
+            (2, 3),
+            (False, False),
+            (2, 3),
+            (False, False),
+        ),
+        (
+            # identity with scalable dims
+            AffineMap.from_callable(lambda d0, d1: (d0, d1)),
+            (2, 3),
+            (True, False),
+            (2, 3),
+            (True, False),
+        ),
+        (
+            # inverse permutation
+            AffineMap.from_callable(lambda d0, d1: (d1, d0)),
+            (2, 3),
+            (True, False),
+            (3, 2),
+            (False, True),
+        ),
+        (
+            # unused dims
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, d0)),
+            (2, 3),
+            (True, False),
+            (3, 2),
+            (False, True),
+        ),
+    ],
+)
+def test_infer_transfer_op_mask_type(
+    perm_map: AffineMap,
+    input_shape: Sequence[int],
+    input_scalable_dims: Sequence[bool],
+    output_shape: Sequence[int],
+    output_scalable_dims: Sequence[bool],
+):
+    vec_type = VectorType(
+        i32, input_shape, ArrayAttr(BoolAttr.from_bool(b) for b in input_scalable_dims)
+    )
+    assert VectorTransferOperation.infer_transfer_op_mask_type(
+        vec_type, perm_map
+    ) == VectorType(
+        i1,
+        output_shape,
+        ArrayAttr(BoolAttr.from_bool(b) for b in output_scalable_dims),
+    )
+
+
+@pytest.mark.parametrize(
+    "shaped_type, vector_type, expected_map",
+    [
+        (
+            # 0-d transfer
+            MemRefType(i32, ()),
+            VectorType(i32, (1,)),
+            AffineMap.constant_map(0),
+        ),
+        (
+            # 1-d transfer to 1-d vector
+            MemRefType(i32, (10,)),
+            VectorType(i32, (5,)),
+            AffineMap.identity(1),
+        ),
+        (
+            # 2-d transfer to 1-d vector (minor identity)
+            MemRefType(i32, (10, 20)),
+            VectorType(i32, (5,)),
+            AffineMap.from_callable(lambda d0, d1: (d1,)),
+        ),
+        (
+            # 3-d transfer to 2-d vector (minor identity)
+            MemRefType(i32, (10, 20, 30)),
+            VectorType(i32, (5, 6)),
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)),
+        ),
+        (
+            # Transfer with vector element type
+            MemRefType(VectorType(i32, (4, 3)), (10, 20)),
+            VectorType(i32, (5, 6, 4, 3)),
+            AffineMap.identity(2),
+        ),
+        (
+            # Tensor type
+            TensorType(i32, (10, 20)),
+            VectorType(i32, (5,)),
+            AffineMap.from_callable(lambda d0, d1: (d1,)),
+        ),
+    ],
+)
+def test_get_transfer_minor_identity_map(
+    shaped_type: TensorType | MemRefType,
+    vector_type: VectorType,
+    expected_map: AffineMap,
+):
+    result_map = VectorTransferOperation.get_transfer_minor_identity_map(
+        shaped_type, vector_type
+    )
+    assert result_map == expected_map

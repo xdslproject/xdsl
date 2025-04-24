@@ -16,6 +16,9 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
+    IndexType,
+    IndexTypeConstr,
+    IntegerAttr,
     IntegerType,
     MemRefType,
     ShapedType,
@@ -47,13 +50,14 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -386,6 +390,26 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     name = "linalg.yield"
 
     traits = traits_def(IsTerminator())
+
+
+@irdl_op_definition
+class IndexOp(IRDLOperation):
+    name = "linalg.index"
+
+    dim = prop_def(IntegerAttr[i64])
+
+    result = result_def(IndexTypeConstr)
+
+    traits = traits_def(HasParent(GenericOp))
+
+    assembly_format = "$dim attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        dim: int,
+    ):
+        dim_attr = IntegerAttr(dim, i64)
+        super().__init__(properties={"dim": dim_attr}, result_types=[IndexType()])
 
 
 class NamedOpBase(IRDLOperation, ABC):
@@ -1180,6 +1204,31 @@ class Conv2DNchwFchwOp(ConvOpsBase):
 
 
 @irdl_op_definition
+class Conv2DNgchwFgchwOp(ConvOpsBase):
+    name = "linalg.conv_2d_ngchw_fgchw"
+
+
+@irdl_op_definition
+class Conv2DNgchwGfchwOp(ConvOpsBase):
+    name = "linalg.conv_2d_ngchw_gfchw"
+
+
+@irdl_op_definition
+class Conv2DNhwc_FhwcOp(ConvOpsBase):
+    name = "linalg.conv_2d_nhwc_fhwc"
+
+
+@irdl_op_definition
+class Conv2DNhwc_HwcfOp(ConvOpsBase):
+    name = "linalg.conv_2d_nhwc_hwcf"
+
+
+@irdl_op_definition
+class Conv2DNhwgcGfhwcOp(ConvOpsBase):
+    name = "linalg.conv_2d_nhwgc_gfhwc"
+
+
+@irdl_op_definition
 class BroadcastOp(IRDLOperation):
     """
     Static broadcast operator
@@ -1302,6 +1351,7 @@ Linalg = Dialect(
     [
         GenericOp,
         YieldOp,
+        IndexOp,
         AddOp,
         SubOp,
         SelectOp,
@@ -1314,6 +1364,11 @@ Linalg = Dialect(
         QuantizedMatmulOp,
         PoolingNchwMaxOp,
         Conv2DNchwFchwOp,
+        Conv2DNhwgcGfhwcOp,
+        Conv2DNhwc_HwcfOp,
+        Conv2DNgchwGfchwOp,
+        Conv2DNgchwFgchwOp,
+        Conv2DNhwc_FhwcOp,
         BroadcastOp,
     ],
     [

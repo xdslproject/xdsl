@@ -947,6 +947,8 @@ class CmpfOp(ComparisonOperation):
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
     result = result_def(IntegerType(1))
 
+    traits = traits_def(Pure())
+
     def __init__(
         self,
         operand1: SSAValue | Operation,
@@ -1027,11 +1029,17 @@ class SelectHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import (
             SelectConstPattern,
+            SelectFoldCmpfPattern,
             SelectSamePattern,
             SelectTrueFalsePattern,
         )
 
-        return (SelectConstPattern(), SelectTrueFalsePattern(), SelectSamePattern())
+        return (
+            SelectConstPattern(),
+            SelectTrueFalsePattern(),
+            SelectSamePattern(),
+            SelectFoldCmpfPattern(),
+        )
 
 
 @irdl_op_definition
@@ -1290,10 +1298,7 @@ class IndexCastOp(IRDLOperation):
             )
 
 
-@irdl_op_definition
-class FPToSIOp(IRDLOperation):
-    name = "arith.fptosi"
-
+class FloatingPointToIntegerBaseOp(IRDLOperation, abc.ABC):
     input = operand_def(AnyFloatConstr)
     result = result_def(IntegerType)
 
@@ -1306,9 +1311,16 @@ class FPToSIOp(IRDLOperation):
 
 
 @irdl_op_definition
-class SIToFPOp(IRDLOperation):
-    name = "arith.sitofp"
+class FPToSIOp(FloatingPointToIntegerBaseOp):
+    name = "arith.fptosi"
 
+
+@irdl_op_definition
+class FPToUIOp(FloatingPointToIntegerBaseOp):
+    name = "arith.fptoui"
+
+
+class IntegerToFloatingPointBaseOp(IRDLOperation, abc.ABC):
     input = operand_def(IntegerType)
     result = result_def(AnyFloatConstr)
 
@@ -1318,6 +1330,16 @@ class SIToFPOp(IRDLOperation):
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         super().__init__(operands=[op], result_types=[target_type])
+
+
+@irdl_op_definition
+class SIToFPOp(IntegerToFloatingPointBaseOp):
+    name = "arith.sitofp"
+
+
+@irdl_op_definition
+class UIToFPOp(IntegerToFloatingPointBaseOp):
+    name = "arith.uitofp"
 
 
 @irdl_op_definition
@@ -1466,7 +1488,9 @@ Arith = Dialect(
         BitcastOp,
         IndexCastOp,
         FPToSIOp,
+        FPToUIOp,
         SIToFPOp,
+        UIToFPOp,
         ExtFOp,
         TruncFOp,
         TruncIOp,
