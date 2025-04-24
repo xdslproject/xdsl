@@ -34,12 +34,10 @@ class ApplyEqsatPDLInterpPass(ModulePass):
         interpreter = Interpreter(op)
         implementations = EqsatPDLInterpFunctions(ctx)
         interpreter.register_implementations(implementations)
-        for root in op.walk():
-            # print("*** Trying to match with root: ", type(root).__name__, " ***")
-            implementations.clear_rewriter()
-            if root == op:
-                continue  # can't rewrite the module itself
-            interpreter.call_op(matcher, (root,))
-            # for match in implementations.matches:
-            # print("\tFound match for rewriter: ", match.rewriter)
-            implementations.matches.clear()
+        for _ in range(10):
+            for root in op.walk():
+                implementations.clear_rewriter()
+                if root == op:
+                    continue  # can't rewrite the module itself
+                interpreter.call_op(matcher, (root,))
+                # cse(op) # rebuild
