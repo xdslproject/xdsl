@@ -318,7 +318,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         # Verify all arguments have correct types
         for operand in operands:
             assert isinstance(operand, SSAValue)
-        for attr in attributes:
+        for attr in attributes.values():
             assert isinstance(attr, Attribute)
         for res_type in result_types:
             assert isinstance(res_type, TypeAttribute)
