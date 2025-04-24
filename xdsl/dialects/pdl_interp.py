@@ -597,8 +597,7 @@ class CreateOperationOp(IRDLOperation):
     @staticmethod
     def _parse_input_list(parser: Parser) -> list[SSAValue]:
         values: list[SSAValue] = []
-        parser.parse_punctuation("(")
-        if not parser.parse_optional_punctuation(")"):
+        if parser.parse_optional_punctuation("("):
             values = parser.parse_comma_separated_list(
                 delimiter=Parser.Delimiter.NONE,
                 parse=lambda: parser.parse_operand(),
