@@ -16,6 +16,9 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
+    IndexType,
+    IndexTypeConstr,
+    IntegerAttr,
     IntegerType,
     MemRefType,
     ShapedType,
@@ -47,6 +50,7 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
@@ -386,6 +390,22 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     name = "linalg.yield"
 
     traits = traits_def(IsTerminator())
+
+
+@irdl_op_definition
+class IndexOp(IRDLOperation):
+    name = "linalg.index"
+    dim = prop_def(IntegerAttr[i64])
+    result = result_def(IndexTypeConstr)
+
+    assembly_format = "$dim attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        dim: int,
+    ):
+        dim_attr = IntegerAttr(dim, i64)
+        super().__init__(properties={"dim": dim_attr}, result_types=[IndexType()])
 
 
 class NamedOpBase(IRDLOperation, ABC):
@@ -1327,6 +1347,7 @@ Linalg = Dialect(
     [
         GenericOp,
         YieldOp,
+        IndexOp,
         AddOp,
         SubOp,
         SelectOp,
