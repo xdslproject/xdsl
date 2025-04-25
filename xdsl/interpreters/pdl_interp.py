@@ -196,6 +196,20 @@ class PDLInterpFunctions(InterpreterFunctions):
         successor = op.true_dest if cond else op.false_dest
         return Successor(successor, ()), ()
 
+    @impl_terminator(pdl_interp.SwitchOperationNameOp)
+    def run_switch_operation_name(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.SwitchOperationNameOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        input_op: Operation = args[0]
+        op_name = input_op.name
+        for name, block in zip(op.case_values, op.cases):
+            if name.data == op_name:
+                return Successor(block, ()), ()
+        return Successor(op.default_dest, ()), ()
+
     @impl_terminator(pdl_interp.CheckAttributeOp)
     def run_check_attribute(
         self,

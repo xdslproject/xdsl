@@ -49,6 +49,7 @@ from xdsl.irdl import (
     successor_def,
     traits_def,
     var_operand_def,
+    var_successor_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -702,13 +703,48 @@ class GetDefiningOpOp(IRDLOperation):
     """
 
     name = "pdl_interp.get_defining_op"
-    value = operand_def(ValueType | ArrayAttr[ValueType])
+    value = operand_def(ValueType | RangeType[ValueType])
     input_op = result_def(OperationType)
 
     assembly_format = "`of` $value `:` type($value) attr-dict"
 
     def __init__(self, value: SSAValue) -> None:
         super().__init__(operands=[value], result_types=[OperationType()])
+
+
+@irdl_op_definition
+class SwitchOperationNameOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpswitch_operation_name-pdl_interpswitchoperationnameop).
+    """
+
+    name = "pdl_interp.switch_operation_name"
+
+    case_values = prop_def(ArrayAttr[StringAttr], prop_name="caseValues")
+
+    input_op = operand_def(OperationType)
+
+    default_dest = successor_def()
+    cases = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+    assembly_format = (
+        "`of` $input_op `to` $caseValues `(` $cases `)` attr-dict `->` $default_dest"
+    )
+
+    def __init__(
+        self,
+        case_values: Iterable[StringAttr],
+        input_op: SSAValue,
+        default_dest: Block,
+        cases: Iterable[Block],
+    ) -> None:
+        case_values = ArrayAttr(case_values)
+        super().__init__(
+            operands=[input_op],
+            properties={"caseValues": case_values},
+            successors=[default_dest, *cases],
+        )
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -832,6 +868,7 @@ PDLInterp = Dialect(
         ReplaceOp,
         CreateAttributeOp,
         CreateOperationOp,
+        SwitchOperationNameOp,
         FuncOp,
         GetDefiningOpOp,
     ],
