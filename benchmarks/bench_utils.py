@@ -35,7 +35,7 @@ class Benchmark(NamedTuple):
 def warmed_timeit(
     func: Callable[[], Any],
     setup: Callable[[], Any] | None = None,
-    number: int = 100,
+    number: int = 32768,
     warmup: int = 3,
 ) -> tuple[float, float, float]:
     """

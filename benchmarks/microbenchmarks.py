@@ -35,9 +35,12 @@ class HasTraitAOp(IRDLOperation):
     traits = traits_def(TraitA())
 
 
-NUM_CONSTRUCTED_TRAITS = 100
+NUM_CONSTRUCTED_TRAITS = 8
 for i in range(NUM_CONSTRUCTED_TRAITS):
-    exec(f"class Trait{i}(OpTrait): pass")
+    exec(f"""\
+class Trait{i}(OpTrait):
+    pass
+""")
 
 
 @irdl_op_definition
@@ -128,7 +131,8 @@ class Extensibility:
 
     EMPTY_OP = EmptyOp()
     HAS_TRAIT_A_OP = HasTraitAOp()
-    HAS_MANY_TRAIT_OP = HasManyTraitOp()
+    OP_WITH_REGION = HasManyTraitOp()
+    TRAIT_0 = Trait0()  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownVariableType]
 
     def time_interface_check_trait(self) -> None:
         """Time checking the class hierarchy of a trait."""
@@ -177,14 +181,30 @@ class Extensibility:
             };
         }
         ```
-        """
-        Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
 
-    def time_trait_check_many(self) -> None:
-        """Time checking the trait of an operation with many traits."""
-        Extensibility.HAS_MANY_TRAIT_OP.has_trait(
-            Trait0()  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownArgumentType]
+        Since MLIR provides the following traits `mlir::OpTrait::OneRegion`,
+        `mlir::OpTrait::ZeroResults`, `mlir::OpTrait::ZeroSuccessors`,
+        `mlir::OpTrait::ZeroOperands`, `mlir::OpTrait::SingleBlock`,
+        `mlir::OpTrait::OpInvariants`, `mlir::RegionKindInterface::Trait`,
+        `mlir::OpTrait::HasOnlyGraphRegion`, our constructed operation also
+        has eight traits for fair comparison.
+        """
+        assert Extensibility.OP_WITH_REGION.has_trait(
+            Trait0  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownArgumentType]
         )
+
+    def time_trait_check_optimised(self) -> None:
+        """Time checking the trait of an operation using optimised code."""
+        has_trait = False
+        for t in Extensibility.OP_WITH_REGION.traits._traits:
+            if isinstance(t, Trait0):  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownArgumentType]
+                has_trait = True
+                break
+        assert has_trait
+
+    def time_trait_check_single(self) -> None:
+        """Time checking the trait of an operation with one trait."""
+        Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
 
     def time_trait_check_neg(self) -> None:
         """Time checking the trait of an operation.
@@ -207,7 +227,7 @@ class Extensibility:
         }
         ```
         """
-        Extensibility.HAS_TRAIT_A_OP.has_trait(TraitB)
+        Extensibility.OP_WITH_REGION.has_trait(TraitB)
 
 
 class OpCreation:
@@ -295,8 +315,11 @@ if __name__ == "__main__":
                 EXTENSIBILITY.time_interface_check
             ),
             "Extensibility.trait_check": Benchmark(EXTENSIBILITY.time_trait_check),
-            "Extensibility.trait_check_many": Benchmark(
-                EXTENSIBILITY.time_trait_check_many
+            "Extensibility.trait_check_optimised": Benchmark(
+                EXTENSIBILITY.time_trait_check_optimised
+            ),
+            "Extensibility.trait_check_single": Benchmark(
+                EXTENSIBILITY.time_trait_check_single
             ),
             "Extensibility.trait_check_neg": Benchmark(
                 EXTENSIBILITY.time_trait_check_neg
