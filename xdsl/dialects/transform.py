@@ -15,8 +15,8 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
 )
-from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.dialects.func import FuncOpCallableInterface
+from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Dialect,
