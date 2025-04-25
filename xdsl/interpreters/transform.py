@@ -3,6 +3,8 @@ from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
     PythonValues,
+    ReturnedValues,
+    TerminatorValue,
     impl_callable,
     impl_terminator,
     register_impls,
@@ -23,6 +25,5 @@ class TransformFunctions(InterpreterFunctions):
     @impl_terminator(transform.YieldOp)
     def run_apply_yield_op(
         self, interpreter: Interpreter, op: transform.YieldOp, args: PythonValues
-    ) -> PythonValues:
-        # transform.yield does not return anything
-        return (), ()
+    ) -> tuple[TerminatorValue, PythonValues]:
+        return ReturnedValues(args), ()
