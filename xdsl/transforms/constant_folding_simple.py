@@ -145,7 +145,18 @@ class ConstantFoldingSimplePass(ModulePass):
                         ## There are no callbacks, so can elide `self.handle_operation_modification(use.operation)`
                         ## Inline `old_result.replace_by(new_result)`
                         for use in old_result.uses.copy():
-                            use.operation.operands[use.index] = new_result
+                            ## Inline `use.operation.operands.__setitem__(...)`
+                            operands = use.operation._operands  # pyright: ignore[reportPrivateUsage]
+                            operands[use.index].remove_use(
+                                Use(use.operation, use.index)
+                            )
+                            new_result.add_use(Use(use.operation, use.index))
+                            new_operands = (
+                                *operands[: use.index],
+                                new_result,
+                                *operands[use.index + 1 :],
+                            )
+                            use.operation._operands = new_operands  # pyright: ignore[reportPrivateUsage]
                         new_result.name_hint = old_result.name_hint
 
                     # Then, erase the original operation
@@ -179,7 +190,7 @@ class ConstantFoldingSimplePass(ModulePass):
                     ## Inline `old_op.erase(safe_erase=True)`
                     ## Inline `old_op.drop_all_references()`
                     old_op.parent = None
-                    for idx, operand in enumerate(old_op.operands):
+                    for idx, operand in enumerate(old_op._operands):
                         ## Inline `operand.remove_use(Use(old_op, idx))`
                         operand.uses.remove(Use(old_op, idx))
                     ## This application has no regions, so no recursive drops
