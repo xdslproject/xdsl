@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
 )
+from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.dialects.func import FuncOpCallableInterface
 from xdsl.ir import (
     Attribute,
@@ -534,7 +535,7 @@ class SplitHandleOp(IRDLOperation):
 
 
 @irdl_op_definition
-class YieldOp(IRDLOperation):
+class YieldOp(AbstractYieldOperation[Attribute]):
     """
     See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformyield-transformyieldop).
     """
