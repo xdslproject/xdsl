@@ -325,7 +325,7 @@ class ExpandShapeOp(IRDLOperation):
         dynamic_output_shape: Sequence[SSAValue],
         reassociation: ReassociationAttr,
         static_output_shape: Sequence[int] | DenseArrayBase,
-        result_type: TensorType,
+        result_type: TensorType[Attribute],
     ):
         if not isinstance(static_output_shape, DenseArrayBase):
             static_output_shape = DenseArrayBase.create_dense_int(
@@ -365,6 +365,9 @@ class ExpandShapeOp(IRDLOperation):
         src = parser.resolve_operand(src_operand, src_type)
 
         shape_attr = DenseArrayBase.create_dense_int(i64, static_shape)
+
+        reassociation = cast(ReassociationAttr, reassociation)
+        result_type = cast(TensorType[Attribute], result_type)
 
         return cls(src, dyn_shape, reassociation, shape_attr, result_type)
 
