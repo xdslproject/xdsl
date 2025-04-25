@@ -3,7 +3,7 @@
 builtin.module attributes  {"transform.with_named_sequence"} {
   "transform.named_sequence"() <{arg_attrs = [{transform.readonly}], function_type = (!transform.any_op) -> (), sym_name = "foo"}> ({
   ^bb0(%arg0: !transform.any_op):
-    "transform.yield"() : () -> ()
+    transform.yield
   }) : () -> ()
   %0 = "test.op"() : () -> !transform.affine_map
   %1 = "test.op"() : () -> !transform.any_op
@@ -16,13 +16,13 @@ builtin.module attributes  {"transform.with_named_sequence"} {
     %6 = "transform.cast"(%arg1) : (!transform.op<"linalg.quantized_matmul">) -> !transform.any_op
     %7, %8 = "transform.structured.tile_using_forall"(%arg1) <{operandSegmentSizes = array<i32: 1, 0, 0, 0, 0>, "static_tile_sizes" = array<i64: 4, 32>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op)
     %9, %10, %11 = "transform.structured.tile_using_for"(%arg1) <{"scalable_sizes" = array<i1: false, false>, "static_sizes" = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
-    "transform.yield"() : () -> ()
+    transform.yield
   }) : () -> ()
   "transform.sequence"() <{"failure_propagation_mode" = 1 : i32, operandSegmentSizes = array<i32: 0, 0>}> ({
   ^0(%arg0 : !transform.any_op):
     %arg1 = "transform.select"(%arg0) <{"op_name" = "linalg.quantized_matmul"}> : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
     %6, %7, %8 = "transform.structured.tile_using_for"(%arg1) <{"scalable_sizes" = array<i1: false, false>, "static_sizes" = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
-    "transform.yield"() : () -> ()
+    transform.yield
   }) : () -> ()
   %6 = "test.op"() : () -> !transform.any_op
   %7 = "transform.get_producer_of_operand"(%6) <{operand_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
@@ -48,7 +48,7 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK: builtin.module attributes  {transform.with_named_sequence} {
 //CHECK-NEXT: "transform.named_sequence"() <{arg_attrs = [{transform.readonly}], function_type = (!transform.any_op) -> (), sym_name = "foo"}> ({
 //CHECK-NEXT:  ^0(%arg0 : !transform.any_op):
-//CHECK-NEXT:    "transform.yield"() : () -> ()
+//CHECK-NEXT:    transform.yield
 //CHECK-NEXT:  }) : () -> ()
 //CHECK-NEXT:  %0 = "test.op"() : () -> !transform.affine_map
 //CHECK-NEXT:  %1 = "test.op"() : () -> !transform.any_op
@@ -61,13 +61,13 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:    %6 = "transform.cast"(%arg1) : (!transform.op<"linalg.quantized_matmul">) -> !transform.any_op
 //CHECK-NEXT:    %7, %8 = "transform.structured.tile_using_forall"(%arg1) <{operandSegmentSizes = array<i32: 1, 0, 0, 0, 0>, static_tile_sizes = array<i64: 4, 32>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op)
 //CHECK-NEXT:    %9, %10, %11 = "transform.structured.tile_using_for"(%arg1) <{scalable_sizes = array<i1: false, false>, static_sizes = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
-//CHECK-NEXT:    "transform.yield"() : () -> ()
+//CHECK-NEXT:    transform.yield
 //CHECK-NEXT:  }) : () -> ()
 //CHECK-NEXT:  "transform.sequence"() <{failure_propagation_mode = 1 : i32, operandSegmentSizes = array<i32: 0, 0>}> ({
 //CHECK-NEXT:  ^0(%arg0 : !transform.any_op):
 //CHECK-NEXT:    %arg1 = "transform.select"(%arg0) <{op_name = "linalg.quantized_matmul"}> : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
 //CHECK-NEXT:    %6, %7, %8 = "transform.structured.tile_using_for"(%arg1) <{scalable_sizes = array<i1: false, false>, static_sizes = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
-//CHECK-NEXT:    "transform.yield"() : () -> ()
+//CHECK-NEXT:    transform.yield
 //CHECK-NEXT:  }) : () -> ()
 //CHECK-NEXT:  %6 = "test.op"() : () -> !transform.any_op
 //CHECK-NEXT:  %7 = "transform.get_producer_of_operand"(%6) <{operand_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
