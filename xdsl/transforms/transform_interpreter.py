@@ -6,6 +6,7 @@ from xdsl.dialects import builtin, transform
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.transform import TransformFunctions
 from xdsl.passes import Context, ModulePass
+from xdsl.utils.exceptions import PassFailedException
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,9 @@ class TransformInterpreterPass(ModulePass):
                 and op.sym_name.data == entry_point
             ):
                 return op
+        raise PassFailedException(
+            f"{root} could not find a nested named sequence with name: {entry_point}"
+        )
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         schedule = TransformInterpreterPass.find_transform_entry_point(
