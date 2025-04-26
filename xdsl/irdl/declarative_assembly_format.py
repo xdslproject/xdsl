@@ -1007,12 +1007,11 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        successors: list[Successor] = []
-        current_successor = parser.parse_optional_successor()
-        while current_successor is not None:
-            successors.append(current_successor)
-            current_successor = parser.parse_optional_successor()
-
+        successors = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_successor, parser.parse_successor
+        )
+        if successors is None:
+            successors = []
         state.successors[self.index] = successors
 
         return bool(successors)
@@ -1023,7 +1022,7 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
             return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        printer.print_list(successor, printer.print_block_name, delimiter=" ")
+        printer.print_list(successor, printer.print_block_name)
         state.last_was_punctuation = False
         state.should_emit_space = True
 
