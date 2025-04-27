@@ -13,9 +13,6 @@ from xdsl.utils.exceptions import PassFailedException
 class TransformInterpreterPass(ModulePass):
     """Transform dialect interpreter"""
 
-    # TODO: Add the rest of options to the transform interpreter
-    # and add semantics for all of the other transform operations
-
     name = "transform-interpreter"
 
     entry_point: str = "__transform_main"
