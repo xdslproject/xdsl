@@ -2,11 +2,11 @@ import pytest
 
 from xdsl.dialects import arith, builtin, snitch_runtime
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_ssr_loop_op():
-    data_mover = TestSSAValue(builtin.i32)
+    data_mover = create_ssa_value(builtin.i32)
     ten = arith.ConstantOp.from_int_and_width(10, builtin.IndexType())
     bounds1d = [ten]
     bounds2d = [ten, ten]

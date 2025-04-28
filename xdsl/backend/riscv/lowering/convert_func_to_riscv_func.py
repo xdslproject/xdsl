@@ -7,9 +7,8 @@ from xdsl.backend.riscv.lowering.utils import (
     move_to_unallocated_regs,
 )
 from xdsl.context import Context
-from xdsl.dialects import func, riscv, riscv_func
-from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
-from xdsl.ir import Block, Operation, Region
+from xdsl.dialects import func, riscv_func
+from xdsl.dialects.builtin import ModuleOp, StringAttr, UnrealizedConversionCastOp
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -36,32 +35,23 @@ class LowerFuncOp(RewritePattern):
             input_types = tuple(a_regs_for_types(op.function_type.inputs.data))
         result_types = list(a_regs_for_types(op.function_type.outputs.data))
 
+        # TODO we should ask the target for alignment, this works for rv32
+        p2align = 2
+
+        # C-like: default is public
+        sym_visibility = (
+            StringAttr("public") if op.sym_visibility is None else op.sym_visibility
+        )
+
         new_func = riscv_func.FuncOp(
             op.sym_name.data,
             rewriter.move_region_contents_to_new_regions(op.body),
             (input_types, result_types),
+            sym_visibility,
+            p2align=p2align,
         )
 
-        new_ops: list[Operation] = []
-
-        if (visibility := op.sym_visibility) is None or visibility.data == "public":
-            # C-like: default is public
-            new_ops.append(riscv.DirectiveOp(".globl", op.sym_name.data))
-
-        new_ops.append(
-            # FIXME we should ask the target for alignment, this works for rv32
-            riscv.DirectiveOp(".p2align", "2"),
-        )
-
-        new_ops.append(new_func)
-
-        # Each function has its own .text: this will tell the assembler to emit
-        # a .text section (if not present) and make it the current one
-        # section = riscv.AssemblySectionOp(".text", Region(Block(result)))
-
-        text_section = riscv.AssemblySectionOp(".text", Region(Block(new_ops)))
-
-        rewriter.replace_matched_op(text_section)
+        rewriter.replace_matched_op(new_func)
 
 
 class LowerFuncCallOp(RewritePattern):

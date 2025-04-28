@@ -14,13 +14,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # https://github.com/xdslproject/llvm-docker/pkgs/container/llvm
+    container: ghcr.io/xdslproject/llvm:20.1.1
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      MLIR-Version: cd708029e0b2869e80abe31ddb175f7c35361f90
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.10' }}
     steps:
     - uses: actions/checkout@v4
@@ -29,7 +30,7 @@ jobs:
         fetch-depth: 2
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v5
+      uses: astral-sh/setup-uv@v6
       with:
         enable-cache: true
         cache-dependency-glob: "xdsl/uv.lock"
@@ -45,50 +46,6 @@ jobs:
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
         VENV_EXTRAS="--all-extras" make venv
-
-    - name: Cache binaries
-      id: cache-binary
-      uses: actions/cache@v4
-      with:
-        path: llvm-project/build
-        key: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
-        restore-keys: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
-
-    - name: Checkout MLIR
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
-      with:
-        repository: llvm/llvm-project.git
-        path: llvm-project
-        ref: ${{ env.MLIR-Version }}
-
-    - name: Clang Setup
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: egor-tensin/setup-clang@v1
-
-    - name: Ninja Setup
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: lukka/get-cmake@aa1df13cce8c30d2cb58efa871271c5a764623f8
-
-    - name: MLIR Build Setup
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      run: |
-        mkdir llvm-project/build
-        cd llvm-project/build
-        cmake -G Ninja ../llvm \
-          -DLLVM_ENABLE_PROJECTS=mlir \
-          -DLLVM_TARGETS_TO_BUILD="X86" \
-          -DLLVM_ENABLE_LLD=ON \
-          -DCMAKE_C_COMPILER=clang \
-          -DCMAKE_CXX_COMPILER=clang++ \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DLLVM_ENABLE_ASSERTIONS=ON
-
-    - name: MLIR Build
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      run: |
-        cd llvm-project/build
-        cmake --build . --target mlir-opt mlir-cpu-runner
 
     - name: Test with pytest and generate code coverage
       run: |
@@ -117,7 +74,7 @@ jobs:
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        uv run pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
+        make tests-marimo
 
     - name: Combine coverage data
       if: matrix.python-version == '3.10'

@@ -5,7 +5,7 @@ class DominanceInfo:
     """
     Computes and exposes the dominance relation amongst blocks of a region.
 
-    https://en.wikipedia.org/w/index.php?title=Dominator_(graph_theory)&oldid=1189814332
+    See external [documentation](https://en.wikipedia.org/w/index.php?title=Dominator_(graph_theory)&oldid=1189814332).
     """
 
     _dominance: dict[Block, set[Block]]
@@ -14,7 +14,7 @@ class DominanceInfo:
         """
         Compute (improper) dominance.
 
-        https://en.wikipedia.org/w/index.php?title=Dominator_(graph_theory)&oldid=1189814332
+        See external [documentation](https://en.wikipedia.org/w/index.php?title=Dominator_(graph_theory)&oldid=1189814332).
         """
 
         self._dominance = {}

@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import IO, Literal, cast
+from typing import IO, Literal
 
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
@@ -79,7 +79,7 @@ _CSL_KW_SET = {
 The set of CSL language keywords. These should not be used as variable names.
 
 There is no official list of all reserved keywords in CSL, this list was
-compiled using the keywords found here: https://sdk.cerebras.net/csl/language/syntax
+compiled using the keywords found [here](https://sdk.cerebras.net/csl/language/syntax)
 and should be expanded as needed.
 """
 
@@ -90,21 +90,23 @@ class CslPrintContext:
     _INDENT = "  "
     output: IO[str]
 
-    variables: dict[SSAValue, str] = field(default_factory=dict)
+    variables: dict[SSAValue, str] = field(default_factory=dict[SSAValue, str])
 
     _counter: int = field(default=0)
 
     _prefix: str = field(default="")
     _symbols_to_export: dict[str, tuple[TypeAttribute, bool | None]] = field(
-        default_factory=dict
+        default_factory=dict[str, tuple[TypeAttribute, bool | None]]
     )
 
-    _binops: dict[str, str] = field(default_factory=dict)
+    _binops: dict[str, str] = field(default_factory=dict[str, str])
     """
     Maps operation name => operand for binary operands
     """
 
-    _cmp_ops: dict[str, dict[str, str | None]] = field(default_factory=dict)
+    _cmp_ops: dict[str, dict[str, str | None]] = field(
+        default_factory=dict[str, dict[str, str | None]]
+    )
 
     def register_binops(self):
         self._binops.update(
@@ -682,13 +684,11 @@ class CslPrintContext:
                     self.variables[res] = f"({arr_name}[{idx_args}])"
                 case csl.AddressOfOp(value=val, res=res):
                     val_name = self._get_variable_name_for(val)
-                    ty = cast(csl.PtrType, res.type)
-                    use = self._var_use(res, ty.constness.data.value)
+                    use = self._var_use(res, res.type.constness.data.value)
                     self.print(f"{use} = &{val_name};")
 
                 case csl.AddressOfFnOp(fn_name=name, res=res):
-                    ty = cast(csl.PtrType, res.type)
-                    use = self._var_use(res, ty.constness.data.value)
+                    use = self._var_use(res, res.type.constness.data.value)
                     self.print(f"{use} = &{name.string_value()};")
                 case csl.DirectionOp(dir=d, res=res):
                     self._print_or_promote_to_inline_expr(res, str.upper(d.data))

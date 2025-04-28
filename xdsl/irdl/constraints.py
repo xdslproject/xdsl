@@ -29,13 +29,15 @@ class ConstraintContext:
     Contains the assignment of constraint variables.
     """
 
-    _variables: dict[str, Attribute] = field(default_factory=dict)
+    _variables: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
     """The assignment of constraint variables."""
 
-    _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
+    _range_variables: dict[str, tuple[Attribute, ...]] = field(
+        default_factory=dict[str, tuple[Attribute, ...]]
+    )
     """The assignment of constraint range variables."""
 
-    _int_variables: dict[str, int] = field(default_factory=dict)
+    _int_variables: dict[str, int] = field(default_factory=dict[str, int])
     """The assignment of constraint int variables."""
 
     def get_variable(self, key: str) -> Attribute | None:
@@ -360,6 +362,9 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     attr: type[AttributeCovT]
     """The expected attribute base type."""
 
+    def __repr__(self):
+        return f"BaseAttr({self.attr.__name__})"
+
     def verify(
         self,
         attr: Attribute,
@@ -568,6 +573,9 @@ class ParamAttrConstraint(
         )
         object.__setattr__(self, "base_attr", base_attr)
         object.__setattr__(self, "param_constrs", constrs)
+
+    def __repr__(self):
+        return f"ParamAttrConstraint({self.base_attr.__name__}, {repr(self.param_constrs)})"
 
     def verify(
         self,

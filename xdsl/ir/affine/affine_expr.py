@@ -301,7 +301,7 @@ class AffineExpr:
         """
         Iterates nodes in depth-first order.
 
-        https://en.wikipedia.org/wiki/Depth-first_search
+        See external [documentation](https://en.wikipedia.org/wiki/Depth-first_search).
         """
         yield self
 

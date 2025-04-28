@@ -4,14 +4,21 @@ class LazyVersion:
     only when needed.
     """
 
+    _version: str | None
+
     def __init__(self):
         self._version = None
 
     def __str__(self):
         if self._version is None:
-            from . import _version
+            from importlib.metadata import PackageNotFoundError, version
 
-            self._version = _version.get_versions()["version"]
+            try:
+                self._version = version("xdsl")
+            except PackageNotFoundError:
+                # package is not installed
+                self._version = "Error: xDSL not installed"
+
         return self._version
 
 

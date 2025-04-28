@@ -23,6 +23,7 @@ from xdsl.dialects.arith import (
     FloatingPointLikeBinaryOperation,
     FloorDivSIOp,
     FPToSIOp,
+    FPToUIOp,
     IndexCastOp,
     MaximumfOp,
     MaxSIOp,
@@ -47,6 +48,7 @@ from xdsl.dialects.arith import (
     SubiOp,
     TruncFOp,
     TruncIOp,
+    UIToFPOp,
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
@@ -71,7 +73,7 @@ from xdsl.ir import Attribute
 from xdsl.irdl import base
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.isattr import isattr
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 _BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
 
@@ -183,8 +185,8 @@ def test_addui_extend(
     sum_type: Attribute | None,
     is_correct: bool,
 ):
-    lhs = TestSSAValue(lhs_type)
-    rhs = TestSSAValue(rhs_type)
+    lhs = create_ssa_value(lhs_type)
+    rhs = create_ssa_value(rhs_type)
 
     attributes = {"foo": i32}
 
@@ -212,8 +214,8 @@ def test_addui_extend(
 
 @pytest.mark.parametrize("op_type", [MulSIExtendedOp, MulUIExtendedOp])
 def test_mul_extended(op_type: type[MulSIExtendedOp | MulUIExtendedOp]):
-    lhs = TestSSAValue(i32)
-    rhs = TestSSAValue(i32)
+    lhs = create_ssa_value(i32)
+    rhs = create_ssa_value(i32)
 
     op = op_type(lhs, rhs)
 
@@ -282,7 +284,7 @@ def test_select_op():
     ],
 )
 def test_bitcast_op(in_type: Attribute, out_type: Attribute):
-    in_arg = TestSSAValue(in_type)
+    in_arg = create_ssa_value(in_type)
     cast = BitcastOp(in_arg, out_type)
 
     cast.verify_()
@@ -310,7 +312,7 @@ BITWIDTH_MISMATCH = "operand and result types must have equal bitwidths or be In
     ],
 )
 def test_bitcast_incorrect(in_type: Attribute, out_type: Attribute, err_msg: str):
-    in_arg = TestSSAValue(in_type)
+    in_arg = create_ssa_value(in_type)
     cast = BitcastOp(in_arg, out_type)
 
     with pytest.raises(VerifyException, match=err_msg):
@@ -334,6 +336,17 @@ def test_cast_fp_and_si_ops():
     assert fp.input == a.result
     assert fp.result == si.input
     assert isinstance(si.result.type, IntegerType)
+    assert fp.result.type == f32
+
+
+def test_cast_fp_and_ui_ops():
+    a = ConstantOp.from_int_and_width(0, 32)
+    fp = UIToFPOp(a, f32)
+    ui = FPToUIOp(fp, i32)
+
+    assert fp.input == a.result
+    assert fp.result == ui.input
+    assert isinstance(ui.result.type, IntegerType)
     assert fp.result.type == f32
 
 

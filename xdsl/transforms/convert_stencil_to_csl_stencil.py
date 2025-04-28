@@ -312,7 +312,8 @@ def split_ops(
         for op in ops:
             if op in a:
                 recv_chunk_ops.append(op)
-                if op in cnst_exports and isinstance(op, arith.ConstantOp):
+                if op in cnst_exports:
+                    assert isinstance(op, arith.ConstantOp)
                     # create a copy of the constant in the second region
                     done_exch_ops.append(cln := op.clone())
                     # rewire ops of the second region to use the copied constant

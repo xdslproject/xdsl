@@ -236,7 +236,8 @@ class RR_AddOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] + x[r2]
     ```
-    https://www.felixcloutier.com/x86/add
+
+    See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
     name = "x86.rr.add"
@@ -249,7 +250,8 @@ class RR_SubOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] - x[r2]
     ```
-    https://www.felixcloutier.com/x86/sub
+
+    See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
     name = "x86.rr.sub"
@@ -262,7 +264,8 @@ class RR_ImulOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] * x[r2]
     ```
-    https://www.felixcloutier.com/x86/imul
+
+    See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
     name = "x86.rr.imul"
@@ -275,7 +278,8 @@ class RR_AndOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] & x[r2]
     ```
-    https://www.felixcloutier.com/x86/and
+
+    See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
     name = "x86.rr.and"
@@ -288,7 +292,8 @@ class RR_OrOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] | x[r2]
     ```
-    https://www.felixcloutier.com/x86/or
+
+    See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
     name = "x86.rr.or"
@@ -301,7 +306,8 @@ class RR_XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] ^ x[r2]
     ```
-    https://www.felixcloutier.com/x86/xor
+
+    See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
     name = "x86.rr.xor"
@@ -314,7 +320,8 @@ class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r2]
     ```
-    https://www.felixcloutier..com/x86/mov
+
+    See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
     name = "x86.rr.mov"
@@ -324,7 +331,8 @@ class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 class R_PushOp(X86Instruction, X86CustomFormatOperation):
     """
     Decreases %rsp and places r1 at the new memory location pointed to by %rsp.
-    https://www.felixcloutier.com/x86/push
+
+    See external [documentation](https://www.felixcloutier.com/x86/push).
     """
 
     name = "x86.r.push"
@@ -360,7 +368,8 @@ class R_PushOp(X86Instruction, X86CustomFormatOperation):
 class R_PopOp(X86Instruction, X86CustomFormatOperation):
     """
     Copies the value at the top of the stack into r1 and increases %rsp.
-    https://www.felixcloutier.com/x86/pop
+
+    See external [documentation](https://www.felixcloutier.com/x86/pop).
     """
 
     name = "x86.r.pop"
@@ -429,7 +438,8 @@ class R_NegOp(R_R_Operation[GeneralRegisterType]):
     ```C
     x[r1] = -x[r1]
     ```
-    https://www.felixcloutier.com/x86/neg
+
+    See external [documentation](https://www.felixcloutier.com/x86/neg).
     """
 
     name = "x86.r.neg"
@@ -442,7 +452,8 @@ class R_NotOp(R_R_Operation[GeneralRegisterType]):
     ```C
     x[r1] = ~x[r1]
     ```
-    https://www.felixcloutier.com/x86/not
+
+    See external [documentation](https://www.felixcloutier.com/x86/not).
     """
 
     name = "x86.r.not"
@@ -455,7 +466,8 @@ class R_IncOp(R_R_Operation[GeneralRegisterType]):
     ```C
     x[r1] = x[r1] + 1
     ```
-    https://www.felixcloutier.com/x86/inc
+
+    See external [documentation](https://www.felixcloutier.com/x86/inc).
     """
 
     name = "x86.r.inc"
@@ -468,7 +480,8 @@ class R_DecOp(R_R_Operation[GeneralRegisterType]):
     ```C
     x[r1] = x[r1] - 1
     ```
-    https://www.felixcloutier.com/x86/dec
+
+    See external [documentation](https://www.felixcloutier.com/x86/dec).
     """
 
     name = "x86.r.dec"
@@ -478,7 +491,8 @@ class R_DecOp(R_R_Operation[GeneralRegisterType]):
 class R_IDivOp(X86Instruction, X86CustomFormatOperation):
     """
     Divides the value in RDX:RAX by r1 and stores the quotient in RAX and the remainder in RDX.
-    https://www.felixcloutier.com/x86/idiv
+
+    See external [documentation](https://www.felixcloutier.com/x86/idiv).
     """
 
     name = "x86.r.idiv"
@@ -522,7 +536,8 @@ class R_ImulOp(X86Instruction, X86CustomFormatOperation):
     ```C
     x[RDX:RAX] = x[RAX] * r1
     ```
-    https://www.felixcloutier.com/x86/imul
+
+    See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
     name = "x86.r.imul"
@@ -607,8 +622,7 @@ class R_RM_Operation(
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        if self.offset is not None:
-            print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -660,8 +674,7 @@ class R_M_Operation(
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        if self.offset is not None:
-            print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -672,7 +685,8 @@ class RM_AddOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] + [x[r2]]
     ```
-    https://www.felixcloutier.com/x86/add
+
+    See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
     name = "x86.rm.add"
@@ -685,7 +699,8 @@ class RM_SubOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] - [x[r2]]
     ```
-    https://www.felixcloutier.com/x86/sub
+
+    See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
     name = "x86.rm.sub"
@@ -698,7 +713,8 @@ class RM_ImulOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] * [x[r2]]
     ```
-    https://www.felixcloutier.com/x86/imul
+
+    See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
     name = "x86.rm.imul"
@@ -711,7 +727,8 @@ class RM_AndOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] & [x[r2]]
     ```
-    https://www.felixcloutier.com/x86/and
+
+    See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
     name = "x86.rm.and"
@@ -724,7 +741,8 @@ class RM_OrOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] | [x[r2]]
     ```
-    https://www.felixcloutier.com/x86/or
+
+    See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
     name = "x86.rm.or"
@@ -737,7 +755,8 @@ class RM_XorOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = x[r1] ^ [x[r2]]
     ```
-    https://www.felixcloutier.com/x86/xor
+
+    See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
     name = "x86.rm.xor"
@@ -750,7 +769,8 @@ class RM_MovOp(R_M_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r2] = [x[r1]]
     ```
-    https://www.felixcloutier.com/x86/mov
+
+    See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
     name = "x86.rm.mov"
@@ -763,7 +783,8 @@ class RM_leaOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     x[r1] = &x[r2]
     ```
-    https://www.felixcloutier.com/x86/lea
+
+    See external [documentation](https://www.felixcloutier.com/x86/lea).
     """
 
     name = "x86.rm.lea"
@@ -790,7 +811,7 @@ class R_RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
         if isinstance(immediate, int):
             immediate = IntegerAttr(
                 immediate, 32
-            )  # the deault immediate size is 32 bits
+            )  # the default immediate size is 32 bits
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -829,7 +850,8 @@ class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
     ```C
     x[r1] = x[r1] + immediate
     ```
-    https://www.felixcloutier.com/x86/add
+
+    See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
     name = "x86.ri.add"
@@ -842,7 +864,8 @@ class RI_SubOp(R_RI_Operation[GeneralRegisterType]):
     ```C
     x[r1] = x[r1] - immediate
     ```
-    https://www.felixcloutier.com/x86/sub
+
+    See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
     name = "x86.ri.sub"
@@ -855,7 +878,8 @@ class RI_AndOp(R_RI_Operation[GeneralRegisterType]):
     ```C
     x[r1] = x[r1] & immediate
     ```
-    https://www.felixcloutier.com/x86/and
+
+    See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
     name = "x86.ri.and"
@@ -868,7 +892,8 @@ class RI_OrOp(R_RI_Operation[GeneralRegisterType]):
     ```C
     x[r1] = x[r1] | immediate
     ```
-    https://www.felixcloutier.com/x86/or
+
+    See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
     name = "x86.ri.or"
@@ -881,7 +906,8 @@ class RI_XorOp(R_RI_Operation[GeneralRegisterType]):
     ```C
     x[r1] = x[r1] ^ immediate
     ```
-    https://www.felixcloutier.com/x86/xor
+
+    See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
     name = "x86.ri.xor"
@@ -894,7 +920,8 @@ class RI_MovOp(R_RI_Operation[GeneralRegisterType]):
     ```C
     x[r1] = immediate
     ```
-    https://www.felixcloutier.com/x86/mov
+
+    See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
     name = "x86.ri.mov"
@@ -946,8 +973,7 @@ class M_MR_Operation(
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        if self.offset is not None:
-            print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -958,7 +984,8 @@ class MR_AddOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     ```C
     [x[r1]] = [x[r1]] + x[r2]
     ```
-    https://www.felixcloutier.com/x86/add
+
+    See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
     name = "x86.mr.add"
@@ -969,7 +996,8 @@ class MR_SubOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Subtracts the value from r2 from the memory location pointed to by r1.
     [x[r1]] = [x[r1]] - x[r2]
-    https://www.felixcloutier.com/x86/sub
+
+    See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
     name = "x86.mr.sub"
@@ -980,7 +1008,8 @@ class MR_AndOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise and of [r1] and r2
     [x[r1]] = [x[r1]] & x[r2]
-    https://www.felixcloutier.com/x86/and
+
+    See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
     name = "x86.mr.and"
@@ -991,7 +1020,8 @@ class MR_OrOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise or of [r1] and r2
     [x[r1]] = [x[r1]] | x[r2]
-    https://www.felixcloutier.com/x86/or
+
+    See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
     name = "x86.mr.or"
@@ -1002,7 +1032,8 @@ class MR_XorOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise xor of [r1] and r2
     [x[r1]] = [x[r1]] ^ x[r2]
-    https://www.felixcloutier.com/x86/xor
+
+    See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
     name = "x86.mr.xor"
@@ -1013,7 +1044,8 @@ class MR_MovOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value from r2 into the memory location pointed to by r1.
     [x[r1]] = x[r2]
-    https://www.felixcloutier.com/x86/mov
+
+    See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
     name = "x86.mr.mov"
@@ -1039,7 +1071,7 @@ class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
         if isinstance(immediate, int):
             immediate = IntegerAttr(
                 immediate, 32
-            )  # the deault immediate size is 32 bits
+            )  # the default immediate size is 32 bits
         if isinstance(offset, int):
             offset = IntegerAttr(offset, 64)
         if isinstance(comment, str):
@@ -1084,7 +1116,8 @@ class MI_AddOp(M_MI_Operation[GeneralRegisterType]):
     """
     Adds the immediate value to the memory location pointed to by r1.
     [x[r1]] = [x[r1]] + immediate
-    https://www.felixcloutier.com/x86/add
+
+    See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
     name = "x86.mi.add"
@@ -1095,7 +1128,8 @@ class MI_SubOp(M_MI_Operation[GeneralRegisterType]):
     """
     Subtracts the immediate value from the memory location pointed to by r1.
     [x[r1]] = [x[r1]] - immediate
-    https://www.felixcloutier.com/x86/sub
+
+    See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
     name = "x86.mi.sub"
@@ -1108,7 +1142,8 @@ class MI_AndOp(M_MI_Operation[GeneralRegisterType]):
     ```C
     [x[r1]] = [x[r1]] & immediate
     ```
-    https://www.felixcloutier.com/x86/and
+
+    See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
     name = "x86.mi.and"
@@ -1121,7 +1156,8 @@ class MI_OrOp(M_MI_Operation[GeneralRegisterType]):
     ```C
     [x[r1]] = [x[r1]] | immediate
     ```
-    https://www.felixcloutier.com/x86/or
+
+    See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
     name = "x86.mi.or"
@@ -1134,7 +1170,8 @@ class MI_XorOp(M_MI_Operation[GeneralRegisterType]):
     ```C
     [x[r1]] = [x[r1]] ^ immediate
     ```
-    https://www.felixcloutier.com/x86/xor
+
+    See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
     name = "x86.mi.xor"
@@ -1145,7 +1182,8 @@ class MI_MovOp(M_MI_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into the memory location pointed to by r1.
     [x[r1]] = immediate
-    https://www.felixcloutier.com/x86/mov
+
+    See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
     name = "x86.mi.mov"
@@ -1208,7 +1246,8 @@ class RRI_ImulOp(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the source register and stores the result in the destination register.
     x[r1] = x[r2] * immediate
-    https://www.felixcloutier.com/x86/imul
+
+    See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
     name = "x86.rri.imul"
@@ -1285,7 +1324,8 @@ class RMI_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the memory location pointed to by r2 and stores the result in r1.
     x[r1] = [x[r2]] * immediate
-    https://www.felixcloutier.com/x86/imul
+
+    See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
     name = "x86.rmi.imul"
@@ -1295,7 +1335,8 @@ class RMI_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
 class M_PushOp(X86Instruction, X86CustomFormatOperation):
     """
     Decreases %rsp and places [r1] at the new memory location pointed to by %rsp.
-    https://www.felixcloutier.com/x86/push
+
+    See external [documentation](https://www.felixcloutier.com/x86/push).
     """
 
     name = "x86.m.push"
@@ -1341,9 +1382,8 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1353,7 +1393,8 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     Copies the value at the top of the stack into [r1] and increases %rsp.
     The value held by r1 is a pointer to the memory location where the value is stored.
     The only register modified by this operation is %rsp.
-    https://www.felixcloutier.com/x86/pop
+
+    See external [documentation](https://www.felixcloutier.com/x86/pop).
     """
 
     name = "x86.m.pop"
@@ -1402,9 +1443,8 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1450,9 +1490,8 @@ class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, A
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1463,7 +1502,8 @@ class M_NegOp(M_M_Operation[GeneralRegisterType]):
     ```C
     [x[r1]] = -[x[r1]]
     ```
-    https://www.felixcloutier.com/x86/neg
+
+    See external [documentation](https://www.felixcloutier.com/x86/neg).
     """
 
     name = "x86.m.neg"
@@ -1476,7 +1516,8 @@ class M_NotOp(M_M_Operation[GeneralRegisterType]):
     ```C
     [x[r1]] = ~[x[r1]]
     ```
-    https://www.felixcloutier.com/x86/not
+
+    See external [documentation](https://www.felixcloutier.com/x86/not).
     """
 
     name = "x86.m.not"
@@ -1487,7 +1528,8 @@ class M_IncOp(M_M_Operation[GeneralRegisterType]):
     """
     Increments the value at the memory location pointed to by r1.
     [x[r1]] = [x[r1]] + 1
-    https://www.felixcloutier.com/x86/inc
+
+    See external [documentation](https://www.felixcloutier.com/x86/inc).
     """
 
     name = "x86.m.inc"
@@ -1498,7 +1540,8 @@ class M_DecOp(M_M_Operation[GeneralRegisterType]):
     """
     Decrements the value at the memory location pointed to by r1.
     [x[r1]] = [x[r1]] - 1
-    https://www.felixcloutier.com/x86/dec
+
+    See external [documentation](https://www.felixcloutier.com/x86/dec).
     """
 
     name = "x86.m.dec"
@@ -1508,7 +1551,8 @@ class M_DecOp(M_M_Operation[GeneralRegisterType]):
 class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     """
     Divides the value in RDX:RAX by [r1] and stores the quotient in RAX and the remainder in RDX.
-    https://www.felixcloutier.com/x86/idiv
+
+    See external [documentation](https://www.felixcloutier.com/x86/idiv).
     """
 
     name = "x86.m.idiv"
@@ -1559,8 +1603,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        if self.offset is not None:
-            print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1569,7 +1612,8 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
     """
     The source operand is multiplied by the value in the RAX register and the product is stored in the RDX:RAX registers.
     x[RDX:RAX] = x[RAX] * [x[r1]]
-    https://www.felixcloutier.com/x86/imul
+
+    See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
     name = "x86.m.imul"
@@ -1621,8 +1665,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        if self.offset is not None:
-            print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1749,7 +1792,8 @@ class DirectiveOp(X86AsmOperation, X86CustomFormatOperation):
 class S_JmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Unconditional jump to the label specified in destination.
-    https://www.felixcloutier.com/x86/jmp
+
+    See external [documentation](https://www.felixcloutier.com/x86/jmp).
     """
 
     name = "x86.s.jmp"
@@ -1825,7 +1869,8 @@ class RR_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
-    https://www.felixcloutier.com/x86/cmp
+
+    See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
     name = "x86.rr.cmp"
@@ -1863,7 +1908,8 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
-    https://www.felixcloutier.com/x86/cmp
+
+    See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
     name = "x86.rm.cmp"
@@ -1912,9 +1958,8 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1923,7 +1968,8 @@ class RI_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
-    https://www.felixcloutier.com/x86/cmp
+
+    See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
     name = "x86.ri.cmp"
@@ -1976,7 +2022,8 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
-    https://www.felixcloutier.com/x86/cmp
+
+    See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
     name = "x86.mr.cmp"
@@ -2025,9 +2072,8 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -2036,7 +2082,8 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
-    https://www.felixcloutier.com/x86/cmp
+
+    See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
     name = "x86.mi.cmp"
@@ -2059,7 +2106,7 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
         if isinstance(immediate, int):
             immediate = IntegerAttr(
                 immediate, 32
-            )  # the deault immediate size is 32 bits
+            )  # the default immediate size is 32 bits
         if isinstance(offset, int):
             offset = IntegerAttr(offset, 64)
         if isinstance(comment, str):
@@ -2096,16 +2143,16 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
-        if self.offset is not None:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
         return {"immediate", "offset"}
 
 
 class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for Jcc operations.
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     rflags = operand_def(RFLAGSRegisterType)
@@ -2224,7 +2271,8 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
 class S_JaOp(ConditionalJumpOperation):
     """
     Jump if above (CF=0 and ZF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.ja"
@@ -2234,7 +2282,8 @@ class S_JaOp(ConditionalJumpOperation):
 class S_JaeOp(ConditionalJumpOperation):
     """
     Jump if above or equal (CF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jae"
@@ -2244,7 +2293,8 @@ class S_JaeOp(ConditionalJumpOperation):
 class S_JbOp(ConditionalJumpOperation):
     """
     Jump if below (CF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jb"
@@ -2254,7 +2304,8 @@ class S_JbOp(ConditionalJumpOperation):
 class S_JbeOp(ConditionalJumpOperation):
     """
     Jump if below or equal (CF=1 or ZF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jbe"
@@ -2264,7 +2315,8 @@ class S_JbeOp(ConditionalJumpOperation):
 class S_JcOp(ConditionalJumpOperation):
     """
     Jump if carry (CF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jc"
@@ -2274,7 +2326,8 @@ class S_JcOp(ConditionalJumpOperation):
 class S_JeOp(ConditionalJumpOperation):
     """
     Jump if equal (ZF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.je"
@@ -2284,7 +2337,8 @@ class S_JeOp(ConditionalJumpOperation):
 class S_JgOp(ConditionalJumpOperation):
     """
     Jump if greater (ZF=0 and SF=OF).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jg"
@@ -2294,7 +2348,8 @@ class S_JgOp(ConditionalJumpOperation):
 class S_JgeOp(ConditionalJumpOperation):
     """
     Jump if greater or equal (SF=OF).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jge"
@@ -2304,7 +2359,8 @@ class S_JgeOp(ConditionalJumpOperation):
 class S_JlOp(ConditionalJumpOperation):
     """
     Jump if less (SF≠OF).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jl"
@@ -2314,7 +2370,8 @@ class S_JlOp(ConditionalJumpOperation):
 class S_JleOp(ConditionalJumpOperation):
     """
     Jump if less or equal (ZF=1 or SF≠OF).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jle"
@@ -2324,7 +2381,8 @@ class S_JleOp(ConditionalJumpOperation):
 class S_JnaOp(ConditionalJumpOperation):
     """
     Jump if not above (CF=1 or ZF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jna"
@@ -2334,7 +2392,8 @@ class S_JnaOp(ConditionalJumpOperation):
 class S_JnaeOp(ConditionalJumpOperation):
     """
     Jump if not above or equal (CF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jnae"
@@ -2344,7 +2403,8 @@ class S_JnaeOp(ConditionalJumpOperation):
 class S_JnbOp(ConditionalJumpOperation):
     """
     Jump if not below (CF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jnb"
@@ -2354,7 +2414,8 @@ class S_JnbOp(ConditionalJumpOperation):
 class S_JnbeOp(ConditionalJumpOperation):
     """
     Jump if not below or equal (CF=0 and ZF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jnbe"
@@ -2364,7 +2425,8 @@ class S_JnbeOp(ConditionalJumpOperation):
 class S_JncOp(ConditionalJumpOperation):
     """
     Jump if not carry (CF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jnc"
@@ -2374,7 +2436,8 @@ class S_JncOp(ConditionalJumpOperation):
 class S_JneOp(ConditionalJumpOperation):
     """
     Jump if not equal (ZF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jne"
@@ -2384,7 +2447,8 @@ class S_JneOp(ConditionalJumpOperation):
 class S_JngOp(ConditionalJumpOperation):
     """
     Jump if not greater (ZF=1 or SF≠OF).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jng"
@@ -2394,7 +2458,8 @@ class S_JngOp(ConditionalJumpOperation):
 class S_JngeOp(ConditionalJumpOperation):
     """
     Jump if not greater or equal (SF≠OF).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jnge"
@@ -2404,7 +2469,8 @@ class S_JngeOp(ConditionalJumpOperation):
 class S_JnlOp(ConditionalJumpOperation):
     """
     Jump if not less (SF=OF).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jnl"
@@ -2414,7 +2480,8 @@ class S_JnlOp(ConditionalJumpOperation):
 class S_JnleOp(ConditionalJumpOperation):
     """
     Jump if not less or equal (ZF=0 and SF=OF).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jnle"
@@ -2424,7 +2491,8 @@ class S_JnleOp(ConditionalJumpOperation):
 class S_JnoOp(ConditionalJumpOperation):
     """
     Jump if not overflow (OF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jno"
@@ -2434,7 +2502,8 @@ class S_JnoOp(ConditionalJumpOperation):
 class S_JnpOp(ConditionalJumpOperation):
     """
     Jump if not parity (PF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jnp"
@@ -2444,7 +2513,8 @@ class S_JnpOp(ConditionalJumpOperation):
 class S_JnsOp(ConditionalJumpOperation):
     """
     Jump if not sign (SF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jns"
@@ -2454,7 +2524,8 @@ class S_JnsOp(ConditionalJumpOperation):
 class S_JnzOp(ConditionalJumpOperation):
     """
     Jump if not zero (ZF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jnz"
@@ -2464,7 +2535,8 @@ class S_JnzOp(ConditionalJumpOperation):
 class S_JoOp(ConditionalJumpOperation):
     """
     Jump if overflow (OF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jo"
@@ -2474,7 +2546,8 @@ class S_JoOp(ConditionalJumpOperation):
 class S_JpOp(ConditionalJumpOperation):
     """
     Jump if parity (PF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jp"
@@ -2484,7 +2557,8 @@ class S_JpOp(ConditionalJumpOperation):
 class S_JpeOp(ConditionalJumpOperation):
     """
     Jump if parity even (PF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jpe"
@@ -2494,7 +2568,8 @@ class S_JpeOp(ConditionalJumpOperation):
 class S_JpoOp(ConditionalJumpOperation):
     """
     Jump if parity odd (PF=0).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jpo"
@@ -2504,7 +2579,8 @@ class S_JpoOp(ConditionalJumpOperation):
 class S_JsOp(ConditionalJumpOperation):
     """
     Jump if sign (SF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.js"
@@ -2514,7 +2590,8 @@ class S_JsOp(ConditionalJumpOperation):
 class S_JzOp(ConditionalJumpOperation):
     """
     Jump if zero (ZF=1).
-    https://www.felixcloutier.com/x86/jcc
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
     name = "x86.s.jz"
@@ -2564,7 +2641,8 @@ class RRR_Vfmadd231pdOp(
     """
     Multiply packed double-precision floating-point elements in r2 and r3, add the
     intermediate result to r1, and store the final result in r1.
-    https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd
+
+    See external [documentation](https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd).
     """
 
     name = "x86.rrr.vfmadd231pd"
@@ -2577,7 +2655,8 @@ class RRR_Vfmadd231psOp(
     """
     Multiply packed single-precision floating-point elements in r2 and r3, add the
     intermediate result to r1, and store the final result in r1.
-    https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd
+
+    See external [documentation](https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd).
     """
 
     name = "x86.rrr.vfmadd231ps"
@@ -2588,7 +2667,8 @@ class RR_VmovapdOp(R_RR_Operation[X86VectorRegisterType, X86VectorRegisterType])
     """
     Move aligned packed double precision floating-point values from zmm1 to zmm2 using
     writemask k1
-    https://www.felixcloutier.com/x86/movapd
+
+    See external [documentation](https://www.felixcloutier.com/x86/movapd).
     """
 
     name = "x86.rr.vmovapd"
@@ -2598,7 +2678,8 @@ class RR_VmovapdOp(R_RR_Operation[X86VectorRegisterType, X86VectorRegisterType])
 class MR_VmovapdOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to m512 using writemask k1
-    https://www.felixcloutier.com/x86/movapd
+
+    See external [documentation](https://www.felixcloutier.com/x86/movapd).
     """
 
     name = "x86.mr.vmovapd"
@@ -2608,7 +2689,8 @@ class MR_VmovapdOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
 class MR_VmovupsOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed single precision floating-point values from vector register to memory
-    https://www.felixcloutier.com/x86/movups
+
+    See external [documentation](https://www.felixcloutier.com/x86/movups).
     """
 
     name = "x86.mr.vmovups"
@@ -2618,7 +2700,8 @@ class MR_VmovupsOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
 class RM_VmovupsOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed single precision floating-point values from memory to vector register
-    https://www.felixcloutier.com/x86/movups
+
+    See external [documentation](https://www.felixcloutier.com/x86/movups).
     """
 
     name = "x86.rm.vmovups"
@@ -2628,7 +2711,8 @@ class RM_VmovupsOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
 class RM_VbroadcastsdOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Broadcast low double precision floating-point element in m64 to eight locations in zmm1 using writemask k1
-    https://www.felixcloutier.com/x86/vbroadcast
+
+    See external [documentation](https://www.felixcloutier.com/x86/vbroadcast).
     """
 
     name = "x86.rm.vbroadcastsd"
@@ -2638,7 +2722,8 @@ class RM_VbroadcastsdOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType
 class RM_VbroadcastssOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Broadcast single precision floating-point element to eight locations in memory
-    https://www.felixcloutier.com/x86/vbroadcast
+
+    See external [documentation](https://www.felixcloutier.com/x86/vbroadcast).
     """
 
     name = "x86.rm.vbroadcastss"

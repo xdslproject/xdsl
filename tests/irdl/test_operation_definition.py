@@ -60,7 +60,7 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 ################################################################################
 #                              IRDL definition                                 #
@@ -172,14 +172,14 @@ class ConstraintVarOp(IRDLOperation):
 
     T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
 
-    operand = operand_def(T)  # pyright: ignore[reportArgumentType]
-    result = result_def(T)  # pyright: ignore[reportArgumentType]
-    attribute = attr_def(T)  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
+    operand = operand_def(T)
+    result = result_def(T)
+    attribute = attr_def(T)
 
 
 def test_constraint_var():
-    i32_operand = TestSSAValue(i32)
-    index_operand = TestSSAValue(IndexType())
+    i32_operand = create_ssa_value(i32)
+    index_operand = create_ssa_value(IndexType())
     op = ConstraintVarOp.create(
         operands=[i32_operand], result_types=[i32], attributes={"attribute": i32}
     )
@@ -195,8 +195,8 @@ def test_constraint_var():
 
 def test_constraint_var_fail_non_equal():
     """Check that all uses of a constraint variable are of the same attribute."""
-    i32_operand = TestSSAValue(i32)
-    index_operand = TestSSAValue(IndexType())
+    i32_operand = create_ssa_value(i32)
+    index_operand = create_ssa_value(IndexType())
 
     # Fail because of operand
     op = ConstraintVarOp.create(
@@ -235,7 +235,7 @@ def test_constraint_var_fail_non_equal():
 
 def test_constraint_var_fail_not_satisfy_constraint():
     """Check that all uses of a constraint variable are satisfying the constraint."""
-    test_operand = TestSSAValue(TestType("foo"))
+    test_operand = create_ssa_value(TestType("foo"))
     op = ConstraintVarOp.create(
         operands=[test_operand],
         result_types=[TestType("foo")],
@@ -260,8 +260,8 @@ class GenericConstraintVarOp(IRDLOperation):
 
 
 def test_generic_constraint_var():
-    i32_operand = TestSSAValue(i32)
-    index_operand = TestSSAValue(IndexType())
+    i32_operand = create_ssa_value(i32)
+    index_operand = create_ssa_value(IndexType())
     op = GenericConstraintVarOp.create(
         operands=[i32_operand], result_types=[i32], attributes={"attribute": i32}
     )
@@ -277,8 +277,8 @@ def test_generic_constraint_var():
 
 def test_generic_constraint_var_fail_non_equal():
     """Check that all uses of a constraint variable are of the same attribute."""
-    i32_operand = TestSSAValue(i32)
-    index_operand = TestSSAValue(IndexType())
+    i32_operand = create_ssa_value(i32)
+    index_operand = create_ssa_value(IndexType())
 
     # Fail because of operand
     op = GenericConstraintVarOp.create(
@@ -317,7 +317,7 @@ def test_generic_constraint_var_fail_non_equal():
 
 def test_generic_constraint_var_fail_not_satisfy_constraint():
     """Check that all uses of a constraint variable are satisfying the constraint."""
-    test_operand = TestSSAValue(TestType("foo"))
+    test_operand = create_ssa_value(TestType("foo"))
     op = GenericConstraintVarOp.create(
         operands=[test_operand],
         result_types=[TestType("foo")],
@@ -339,8 +339,8 @@ class ConstraintRangeVarOp(IRDLOperation):
 
 
 def test_range_var():
-    i32_operand = TestSSAValue(i32)
-    index_operand = TestSSAValue(IndexType())
+    i32_operand = create_ssa_value(i32)
+    index_operand = create_ssa_value(IndexType())
     op = ConstraintRangeVarOp.create(operands=[], result_types=[])
     op.verify()
     op = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[i32])
@@ -358,8 +358,8 @@ def test_range_var():
 
 def test_range_var_fail_non_equal():
     """Check that all uses of a range variable are of the same attribute."""
-    i32_operand = TestSSAValue(i32)
-    index_operand = TestSSAValue(IndexType())
+    i32_operand = create_ssa_value(i32)
+    index_operand = create_ssa_value(IndexType())
 
     op = ConstraintRangeVarOp.create(operands=[index_operand], result_types=[i32])
     with pytest.raises(
@@ -394,7 +394,7 @@ def test_range_var_fail_non_equal():
 
 def test_range_var_fail_not_satisfy_constraint():
     """Check that all uses of a range variable are satisfying the constraint."""
-    test_operand = TestSSAValue(TestType("foo"))
+    test_operand = create_ssa_value(TestType("foo"))
     op = ConstraintRangeVarOp.create(
         operands=[test_operand], result_types=[TestType("foo")]
     )
@@ -475,10 +475,10 @@ class OperandOp(IRDLOperation):
 
 def test_operand_accessors():
     """Test accessors for operands."""
-    operand1 = TestSSAValue(i32)
-    operand2 = TestSSAValue(i32)
-    operand3 = TestSSAValue(i32)
-    operand4 = TestSSAValue(i32)
+    operand1 = create_ssa_value(i32)
+    operand2 = create_ssa_value(i32)
+    operand3 = create_ssa_value(i32)
+    operand4 = create_ssa_value(i32)
 
     op = OperandOp.build(operands=[operand1, [operand2], [operand3, operand4]])
     assert op.operand is op.operands[0]
@@ -729,8 +729,8 @@ class StringFooOp(GenericOp[StringAttr, FooType, FooType]):
 
 def test_generic_op():
     """Test generic operation."""
-    FooOperand = TestSSAValue(TestType("foo"))
-    BarOperand = TestSSAValue(TestType("bar"))
+    FooOperand = create_ssa_value(TestType("foo"))
+    BarOperand = create_ssa_value(TestType("bar"))
     FooResultType = TestType("foo")
     BarResultType = TestType("bar")
 
@@ -777,7 +777,7 @@ class OtherStringFooOp(GenericOp[StringAttr, FooType, FooType], OtherParentOp):
 
 def test_multiple_inheritance_op():
     """Test generic operation."""
-    FooOperand = TestSSAValue(TestType("foo"))
+    FooOperand = create_ssa_value(TestType("foo"))
     FooResultType = TestType("foo")
 
     op = OtherStringFooOp(

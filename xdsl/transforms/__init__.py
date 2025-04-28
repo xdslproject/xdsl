@@ -108,6 +108,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_print_format_to_riscv_debug.ConvertPrintFormatToRiscvDebugPass
 
+    def get_convert_ptr_to_llvm():
+        from xdsl.transforms import convert_ptr_to_llvm
+
+        return convert_ptr_to_llvm.ConvertPtrToLLVMPass
+
     def get_convert_ptr_to_riscv():
         from xdsl.transforms import convert_ptr_to_riscv
 
@@ -192,6 +197,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import csl_stencil_materialize_stores
 
         return csl_stencil_materialize_stores.CslStencilMaterializeStores
+
+    def get_csl_stencil_set_global_coeffs():
+        from xdsl.transforms import csl_stencil_set_global_coeffs
+
+        return csl_stencil_set_global_coeffs.CslStencilSetGlobalCoeffs
 
     def get_csl_stencil_to_csl_wrapper():
         from xdsl.transforms import csl_stencil_to_csl_wrapper
@@ -488,6 +498,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
 
+    def get_transform_interpreter():
+        from xdsl.transforms import transform_interpreter
+
+        return transform_interpreter.TransformInterpreterPass
+
     def get_varith_fuse_repeated_operands():
         from xdsl.transforms import varith_transformations
 
@@ -516,6 +531,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
+        "convert-ptr-to-llvm": get_convert_ptr_to_llvm,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
@@ -533,6 +549,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-handle-async-flow": get_csl_stencil_handle_async_flow,
         "csl-stencil-materialize-stores": get_csl_stencil_materialize_stores,
+        "csl-stencil-set-global-coeffs": get_csl_stencil_set_global_coeffs,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
         "csl-wrapper-hoist-buffers": get_csl_wrapper_hoist_buffers,
         "dce": get_dce,
@@ -592,5 +609,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
     }

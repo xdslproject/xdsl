@@ -615,9 +615,9 @@ class ApplyOp(IRDLOperation):
                 "buffer-semantic destination operands."
             )
         if len(self.res) > 0:
-            res_type = cast(TempType[Attribute], self.res[0].type)
+            res_type = self.res[0].type
             for other in self.res[1:]:
-                other = cast(TempType[Attribute], other.type)
+                other = other.type
                 if res_type.bounds != other.bounds:
                     raise VerifyException(
                         "Expected all output types bounds to be equals."
@@ -664,7 +664,10 @@ class ApplyOp(IRDLOperation):
                 # grab the offsets as a tuple[int, ...]
                 offsets = tuple(access.offset)
                 # account for offset_mappings:
-                if access.offset_mapping is not None:
+                if (
+                    access.offset_mapping is not None
+                    and len(offsets) == self.get_rank()
+                ):
                     offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield AccessPattern(tuple(accesses))
@@ -674,7 +677,7 @@ class ApplyOp(IRDLOperation):
             return self.bounds
         else:
             assert self.res
-            res_type = cast(TempType[Attribute], self.res[0].type)
+            res_type = self.res[0].type
             return res_type.bounds
 
 
@@ -1506,9 +1509,7 @@ class ReturnOp(IRDLOperation):
         types = [ot.elem if isinstance(ot, ResultType) else ot for ot in self.arg.types]
         apply = cast(ApplyOp, self.parent_op())
         if len(apply.res) > 0:
-            res_types = [
-                cast(TempType[Attribute], r.type).element_type for r in apply.res
-            ]
+            res_types = [r.type.element_type for r in apply.res]
         else:
             res_types = [
                 cast(FieldType[Attribute], o.type).element_type for o in apply.dest

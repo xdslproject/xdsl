@@ -1,16 +1,12 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TypeGuard, cast
+from typing import TypeGuard
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, varith
 from xdsl.dialects.arith import (
-    AddfOp,
     ConstantOp,
-    DivfOp,
     FloatingPointLikeBinaryOperation,
-    MulfOp,
-    SubfOp,
 )
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -169,7 +165,7 @@ class ArithOpTensorize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: AddfOp | SubfOp | MulfOp | DivfOp, rewriter: PatternRewriter, /
+        self, op: FloatingPointLikeBinaryOperation, rewriter: PatternRewriter, /
     ):
         type_constructor = type(op)
         if is_tensor(op.result.type):
@@ -245,10 +241,7 @@ class ApplyOpTensorize(RewritePattern):
                 ApplyOp.get(
                     op.args,
                     body,
-                    [
-                        stencil_temp_to_tensor(cast(TempType[Attribute], r.type))
-                        for r in op.res
-                    ],
+                    [stencil_temp_to_tensor(r.type) for r in op.res],
                 )
             )
 
@@ -259,7 +252,9 @@ class FuncOpTensorize(RewritePattern):
         if not op.is_declaration:
             for arg in op.args:
                 if isa(arg.type, FieldType[Attribute]):
-                    op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
+                    op.replace_argument_type(
+                        arg, stencil_field_to_tensor(arg.type), rewriter
+                    )
 
 
 def is_tensorized(
@@ -397,7 +392,7 @@ def arithBinaryOpUpdateShape(
 class ArithOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: AddfOp | SubfOp | MulfOp | DivfOp, rewriter: PatternRewriter, /
+        self, op: FloatingPointLikeBinaryOperation, rewriter: PatternRewriter, /
     ):
         arithBinaryOpUpdateShape(op, rewriter)
 

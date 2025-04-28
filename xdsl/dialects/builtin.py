@@ -75,6 +75,7 @@ from xdsl.traits import (
     NoMemoryEffect,
     NoTerminator,
     OptionalSymbolOpInterface,
+    OpTrait,
     SymbolTable,
 )
 from xdsl.utils.comparisons import (
@@ -477,7 +478,7 @@ class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
         """
         Format to be used when decoding and encoding bytes.
 
-        https://docs.python.org/3/library/struct.html
+        See external [documentation](https://docs.python.org/3/library/struct.html).
         """
         raise NotImplementedError()
 
@@ -500,6 +501,18 @@ class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
         return struct.calcsize(self.format)
 
 
+_SIGNED_INTEGER_FORMATS = ("<b", "<h", "<i", "<i", "<q", "<q", "<q", "<q")
+"""
+Formats for the struct module to use to process signed and signless integers.
+Bitwidths: `<b`: 1-8, `<h`: 9-16, `<i`: 17-32, `<q`: 33-64.
+"""
+_UNSIGNED_INTEGER_FORMATS = ("<B", "<H", "<I", "<I", "<Q", "<Q", "<Q", "<Q")
+"""
+Formats for the struct module to use to process unsigned integers.
+Bitwidths: `<B`: 1-8, `<H`: 9-16, `<I`: 17-32, `<Q`: 33-64.
+"""
+
+
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthType):
     name = "integer_type"
@@ -516,6 +529,14 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
         if isinstance(signedness, Signedness):
             signedness = SignednessAttr(signedness)
         super().__init__([data, signedness])
+
+    def __repr__(self):
+        width = self.width.data
+        signedness = self.signedness.data
+        if signedness == Signedness.SIGNLESS:
+            return f"IntegerType({width})"
+        else:
+            return f"IntegerType({width}, {signedness})"
 
     def verify(self):
         if self.width.data < 0:
@@ -577,17 +598,13 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
 
     @property
     def format(self) -> str:
-        match (self.bitwidth + 7) >> 3:  #  = ceil(bw / 8)
-            case 1:
-                return "<b"
-            case 2:
-                return "<h"
-            case 3 | 4:
-                return "<i"
-            case 5 | 6 | 7 | 8:
-                return "<q"
-            case _:
-                raise NotImplementedError(f"Format not implemented for {self}")
+        format_index = ((self.bitwidth + 7) >> 3) - 1  #  = ceil(bw / 8) - 1
+        if format_index >= 8:
+            raise NotImplementedError(f"Format not implemented for {self}")
+
+        unsigned = self.signedness.data == Signedness.UNSIGNED
+        f = _UNSIGNED_INTEGER_FORMATS if unsigned else _SIGNED_INTEGER_FORMATS
+        return f[format_index]
 
 
 i64 = IntegerType(64)
@@ -1065,6 +1082,9 @@ class VectorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
+    def get_scalable_dims(self) -> tuple[bool, ...]:
+        return tuple(bool(i) for i in self.scalable_dims)
+
     def verify(self):
         num_dims = len(self.shape)
         num_scalable_dims = len(self.scalable_dims)
@@ -1073,6 +1093,27 @@ class VectorType(
                 f"Number of scalable dimension specifiers {num_scalable_dims} must "
                 f"equal to number of dimensions {num_dims}."
             )
+
+    @classmethod
+    def constr(
+        cls,
+        element_type: IRDLGenericAttrConstraint[AttributeCovT] | None = None,
+        *,
+        shape: IRDLGenericAttrConstraint[ArrayAttr[IntAttr]] | None = None,
+        scalable_dims: IRDLGenericAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
+    ) -> GenericAttrConstraint[VectorType[AttributeCovT]]:
+        if element_type is None and shape is None and scalable_dims is None:
+            return BaseAttr[VectorType[AttributeCovT]](VectorType)
+        shape_constr = AnyAttr() if shape is None else shape
+        scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
+        return ParamAttrConstraint[VectorType[AttributeCovT]](
+            VectorType,
+            (
+                shape_constr,
+                element_type,
+                scalable_dims_constr,
+            ),
+        )
 
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
@@ -1361,7 +1402,10 @@ class DenseArrayBase(ParametrizedAttribute):
 
 
 DenseI64ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i64, BytesAttr])
-"""Type constraint for DenseArrays containing integers of i64 integers."""
+"""Type constraint for DenseArrays containing i64 integers."""
+
+DenseI32ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i32, BytesAttr])
+"""Type constraint for DenseArrays containing i32 integers."""
 
 
 @irdl_attr_definition
@@ -1432,7 +1476,7 @@ class MemRefLayoutAttr(Attribute, ABC):
 class StridedLayoutAttr(MemRefLayoutAttr, ParametrizedAttribute):
     """
     An attribute representing a strided layout of a shaped type.
-    See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr).
 
     Contrary to MLIR, we represent dynamic offsets and strides with
     `NoneAttr`, and we do not restrict offsets and strides to 64-bits
@@ -1662,6 +1706,15 @@ class UnregisteredOp(Operation, ABC):
                 return op
 
         return UnregisteredOpWithNameOp
+
+    @classmethod
+    def has_trait(
+        cls,
+        trait: type[OpTrait] | OpTrait,
+        *,
+        value_if_unregistered: bool = True,
+    ) -> bool:
+        return value_if_unregistered
 
 
 class UnregisteredAttr(ParametrizedAttribute, ABC):
