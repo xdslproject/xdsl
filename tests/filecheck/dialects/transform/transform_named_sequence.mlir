@@ -28,4 +28,3 @@ module {
 // CHECK-NEXT:   %0 = "transform.apply_registered_pass"(%arg0) <{options = "", pass_name = "canonicalize"}> : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 // CHECK-NEXT:   transform.yield
 // CHECK-NEXT: }) : () -> ()
-

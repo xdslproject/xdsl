@@ -1,4 +1,5 @@
 from collections.abc import Callable
+
 from xdsl.context import Context
 from xdsl.dialects import transform
 from xdsl.interpreter import (
