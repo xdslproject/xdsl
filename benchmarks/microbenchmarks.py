@@ -132,7 +132,7 @@ class Extensibility:
     EMPTY_OP = EmptyOp()
     HAS_TRAIT_A_OP = HasTraitAOp()
     OP_WITH_REGION = HasManyTraitOp()
-    TRAIT_0 = Trait0()  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownVariableType]
+    TRAIT_4 = Trait4()  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownVariableType]
 
     def time_interface_check_trait(self) -> None:
         """Time checking the class hierarchy of a trait."""
@@ -190,14 +190,14 @@ class Extensibility:
         has eight traits for fair comparison.
         """
         assert Extensibility.OP_WITH_REGION.has_trait(
-            Trait0  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownArgumentType]
+            Trait4  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownArgumentType]
         )
 
     def time_trait_check_optimised(self) -> None:
         """Time checking the trait of an operation using optimised code."""
         has_trait = False
-        for t in Extensibility.OP_WITH_REGION.traits._traits:
-            if isinstance(t, Trait0):  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownArgumentType]
+        for t in Extensibility.OP_WITH_REGION.traits._traits:  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues, reportPrivateUsage]
+            if isinstance(t, Trait4):  # noqa: F821 # pyright: ignore[reportUndefinedVariable]
                 has_trait = True
                 break
         assert has_trait
