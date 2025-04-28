@@ -678,7 +678,7 @@ class FormatParser(BaseParser):
                 if self.parse_optional_keyword("^"):
                     if anchor is not None:
                         self.raise_error("An optional group can only have one anchor.")
-                    anchor = then_elements[-1]
+                    anchor = else_elements[-1]
                     anchor_in_first = False
 
         self.parse_punctuation("?")
