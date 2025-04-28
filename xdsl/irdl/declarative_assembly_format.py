@@ -1272,6 +1272,7 @@ class KeywordDirective(FormatDirective):
 @dataclass(frozen=True)
 class OptionalGroupDirective(FormatDirective):
     anchor: Directive
+    anchor_in_first: bool | None
     then_whitespace: tuple[WhitespaceDirective, ...]
     then_first: FormatDirective
     then_elements: tuple[FormatDirective, ...]
@@ -1292,15 +1293,15 @@ class OptionalGroupDirective(FormatDirective):
         return ret
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if self.anchor.is_present(op):
+        if self.anchor.is_present(op) and self.then_first:
             for element in (
                 *self.then_whitespace,
                 self.then_first,
                 *self.then_elements,
             ):
                 element.print(printer, state, op)
-        else:
-            for element in (*self.else_elements,):
+        elif self.anchor.is_present(op) and self.else_elements:
+            for element in self.else_elements:
                 element.print(printer, state, op)
 
     def set_empty(self, state: ParsingState) -> None:
