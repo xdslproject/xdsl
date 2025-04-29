@@ -661,7 +661,6 @@ class FormatParser(BaseParser):
         then_elements = tuple[FormatDirective, ...]()
         else_elements = tuple[FormatDirective, ...]()
         anchor: Directive | None = None
-        anchor_in_first: bool | None = None
 
         while not self.parse_optional_punctuation(")"):
             then_elements += (self.parse_format_directive(),)
@@ -669,7 +668,6 @@ class FormatParser(BaseParser):
                 if anchor is not None:
                     self.raise_error("An optional group can only have one anchor.")
                 anchor = then_elements[-1]
-                anchor_in_first = True
 
         if self.parse_optional_punctuation(":"):
             self.parse_punctuation("(")
@@ -705,7 +703,6 @@ class FormatParser(BaseParser):
 
         return OptionalGroupDirective(
             anchor,
-            anchor_in_first,
             cast(
                 tuple[WhitespaceDirective, ...],
                 then_elements[:first_non_whitespace_index],
