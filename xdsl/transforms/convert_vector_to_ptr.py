@@ -1,10 +1,13 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, memref, ptr, vector
+from xdsl.dialects import builtin, memref, ptr, vector, affine
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     FixedBitwidthType,
+    NoneAttr,
 )
+from xdsl.ir.affine.affine_map import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -30,28 +33,33 @@ class VectorLoadToPtr(RewritePattern):
         memory_ty = memory.type
         assert isinstance(memory_ty, memref.MemRefType)
 
-        # Build a subview of the original memref
-        strides = memory_ty.get_strides()
-        static_strides: list[int] = []
-        if strides:
-            static_strides += [s for s in strides if s is not None]
-        subview_type = memref.MemRefType(
-            element_type=element_type, shape=vector_int_shape
-        )
-        subview_op = memref.SubviewOp.get(
-            source=memory,
-            result_type=subview_type,
-            offsets=op.indices,
-            strides=static_strides,
-            sizes=vector_int_shape,
+        # Build an affine.apply to compute the linearized offset
+        layout_map = memory_ty.layout
+        if isinstance(layout_map, NoneAttr):
+            layout_map = AffineMapAttr(affine.AffineMap.identity(len(op.indices)))
+        assert isinstance(layout_map,AffineMapAttr)
+        apply_op = affine.ApplyOp(
+            map_operands=op.indices,
+            affine_map=layout_map,
         )
 
-        # Build a pointer from the subview
-        cast_op = ptr.ToPtrOp(operands=[subview_op], result_types=[ptr.PtrType()])
+        # Compute the linearized offset
+        cast_op = ptr.ToPtrOp(
+            operands=[memory],
+            result_types=[ptr.PtrType()]
+        )
+        add_op = ptr.PtrAddOp(
+            operands=[cast_op.results[0],apply_op.result],
+            result_types=[ptr.PtrType()]
+        )
+        
         # Load a vector from the pointer
-        load_op = ptr.LoadOp(operands=cast_op.results, result_types=[vector_ty])
+        load_op = ptr.LoadOp(
+            operands=add_op.results,
+            result_types=[vector_ty]
+        )
 
-        rewriter.replace_matched_op([subview_op, cast_op, load_op])
+        rewriter.replace_matched_op([apply_op,cast_op,add_op,load_op])
 
 
 @dataclass(frozen=True)
@@ -60,6 +68,8 @@ class ConvertVectorToPtrPass(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([VectorLoadToPtr()]),
+            GreedyRewritePatternApplier([
+                VectorLoadToPtr(),
+            ]),
             apply_recursively=False,
         ).rewrite_module(op)
