@@ -673,11 +673,6 @@ class FormatParser(BaseParser):
             self.parse_punctuation("(")
             while not self.parse_optional_punctuation(")"):
                 else_elements += (self.parse_format_directive(),)
-                if self.parse_optional_keyword("^"):
-                    if anchor is not None:
-                        self.raise_error("An optional group can only have one anchor.")
-                    anchor = else_elements[-1]
-                    anchor_in_first = False
 
         self.parse_punctuation("?")
 
