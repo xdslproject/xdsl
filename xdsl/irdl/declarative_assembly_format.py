@@ -1300,7 +1300,7 @@ class OptionalGroupDirective(FormatDirective):
             ):
                 element.print(printer, state, op)
         else:
-            for element in (*self.else_elements,):
+            for element in self.else_elements:
                 element.print(printer, state, op)
 
     def set_empty(self, state: ParsingState) -> None:
