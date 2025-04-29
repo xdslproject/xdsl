@@ -49,6 +49,7 @@ class EventTrace(abc.ABC):
     def get_median(cls, traces: list[Self]) -> Self:
         """Get a trace with the median +/- standard error elapsed time."""
         assert len(traces) > 0
+        assert all(x == traces[0] for x in traces)
         median_trace = copy.copy(traces[0])
         median_trace.elapsed = statistics.median([trace.elapsed for trace in traces])
         return median_trace
