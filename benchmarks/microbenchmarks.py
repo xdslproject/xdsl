@@ -36,11 +36,20 @@ class HasTraitAOp(IRDLOperation):
 
 
 NUM_CONSTRUCTED_TRAITS = 8
-for i in range(NUM_CONSTRUCTED_TRAITS):
-    exec(f"""\
-class Trait{i}(OpTrait):
-    pass
-""")
+
+
+def get_optrait_subclass() -> type[OpTrait]:
+    """Construct a unique subclass of `OpTrait`."""
+
+    class Trait(OpTrait):
+        pass
+
+    return Trait
+
+
+optrait_subclasses: dict[int, type[OpTrait]] = {
+    i + 1: get_optrait_subclass() for i in range(NUM_CONSTRUCTED_TRAITS)
+}
 
 
 @irdl_op_definition
@@ -48,7 +57,7 @@ class HasManyTraitOp(IRDLOperation):
     """An operation which has many traits."""
 
     name = "has_trait_a"
-    traits = traits_def(*[eval(f"Trait{i}()") for i in range(NUM_CONSTRUCTED_TRAITS)])
+    traits = traits_def(*[trait() for trait in optrait_subclasses.values()])
 
 
 class IRTraversal:
@@ -132,7 +141,8 @@ class Extensibility:
     EMPTY_OP = EmptyOp()
     HAS_TRAIT_A_OP = HasTraitAOp()
     OP_WITH_REGION = HasManyTraitOp()
-    TRAIT_4 = Trait4()  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownVariableType]
+    TRAIT_4 = optrait_subclasses[4]
+    TRAIT_4_INSTANCE = TRAIT_4()
 
     def time_interface_check_trait(self) -> None:
         """Time checking the class hierarchy of a trait."""
@@ -189,15 +199,13 @@ class Extensibility:
         `mlir::OpTrait::HasOnlyGraphRegion`, our constructed operation also
         has eight traits for fair comparison.
         """
-        assert Extensibility.OP_WITH_REGION.has_trait(
-            Trait4  # noqa: F821 # pyright: ignore[reportUndefinedVariable, reportUnknownArgumentType]
-        )
+        assert Extensibility.OP_WITH_REGION.has_trait(Extensibility.TRAIT_4)
 
     def time_trait_check_optimised(self) -> None:
         """Time checking the trait of an operation using optimised code."""
         has_trait = False
         for t in Extensibility.OP_WITH_REGION.traits._traits:  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues, reportPrivateUsage]
-            if isinstance(t, Trait4):  # noqa: F821 # pyright: ignore[reportUndefinedVariable]
+            if isinstance(t, Extensibility.TRAIT_4):
                 has_trait = True
                 break
         assert has_trait
