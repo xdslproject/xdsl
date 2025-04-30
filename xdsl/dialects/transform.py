@@ -164,10 +164,14 @@ class ApplyRegisteredPassOp(IRDLOperation):
 
     name = "transform.apply_registered_pass"
 
-    options = prop_def(StringAttr, default_value=StringAttr(""))
+    options = opt_attr_def(StringAttr, default_value=StringAttr(""))
     pass_name = prop_def(StringAttr)
     target = operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
+
+    assembly_format = (
+        "$pass_name `to` $target attr-dict `:` functional-type(operands, results)"
+    )
 
     def __init__(
         self,

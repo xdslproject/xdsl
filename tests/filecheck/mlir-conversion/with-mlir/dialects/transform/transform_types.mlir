@@ -40,7 +40,7 @@ builtin.module attributes  {"transform.with_named_sequence"} {
   %27:2 = "transform.split_handle"(%24) <{fail_on_payload_too_small = true, pass_through_empty_handle = true}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
   %28 = "transform.structured.match"(%24) <{"op_attrs" = {"qmatmul_0"}}> : (!transform.any_op) -> !transform.any_op
   %29 = "test.op"() : () -> !transform.op<"builtin.module">
-  %30 = "transform.apply_registered_pass"(%29) {pass_name = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+  %30 = transform.apply_registered_pass "foo" to %29 : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 }
 
 
