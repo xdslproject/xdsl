@@ -63,6 +63,7 @@ class ConstantFoldingSimplePass(ModulePass):
         The remaining function invocations are walking the region, interacting
         with the worklist, and creating the new constant operation.
         """
+
         ### Input values
         region = op.body
 
@@ -168,10 +169,10 @@ class ConstantFoldingSimplePass(ModulePass):
                         for use in old_result.uses.copy():
                             ## Inline `use.operation.operands.__setitem__(...)`
                             operands = use.operation._operands  # pyright: ignore[reportPrivateUsage]
-                            operands[use.index].remove_use(
-                                Use(use.operation, use.index)
-                            )
-                            new_result.add_use(Use(use.operation, use.index))
+                            ## Inline `operands[use.index].remove_use(Use(use.operation, use.index))`
+                            operands[use.index].uses.remove(use)
+                            ## Inline `new_result.add_use(Use(use.operation, use.index))`
+                            new_result.uses.add(use)
                             new_operands = (
                                 *operands[: use.index],
                                 new_result,
