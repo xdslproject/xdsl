@@ -8,12 +8,13 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp
-from xdsl.ir import ErasedSSAValue, Operation, Use
+from xdsl.ir import ErasedSSAValue, Operation, OpResult, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
 )
+from xdsl.traits import ConstantLike
 
 
 @dataclass
@@ -25,22 +26,17 @@ class ConstantFoldingIntegerAdditionPattern(RewritePattern):
         if not isinstance(op, AddiOp):
             return
 
-        # # Only rewrite operations where all the operands are integer constants
-        # for operand in op.operands:
-        #     assert isinstance(operand, OpResult)
-        #     assert operand.op.has_trait(ConstantLike)
+        # Ensure both operands are constants
+        lhs_op: ConstantOp = op.operands[0].op  # pyright: ignore
+        rhs_op: ConstantOp = op.operands[1].op  # pyright: ignore
+        assert lhs_op.has_trait(ConstantLike)  # pyright: ignore
+        assert rhs_op.has_trait(ConstantLike)  # pyright: ignore
 
         # Calculate the result of the addition
-        #
-        #  SignlessIntegerBinaryOperation
-        #          | OpOperands    ConstantOp   IntAttr
-        #          |  |  OpResult   |  IntegerAttr | int
-        #          |  |        |    |     |       /  |
-        #          v  v        v    v     v      v   v
-        lhs: int = op.operands[0].owner.value.value.data  # pyright: ignore
-        rhs: int = op.operands[1].owner.value.value.data  # pyright: ignore
+        lhs: int = lhs_op.value.value.data  # pyright: ignore
+        rhs: int = rhs_op.value.value.data  # pyright: ignore
         folded_op = ConstantOp(
-            IntegerAttr(lhs + rhs, op.result.type)  # pyright: ignore
+            IntegerAttr(lhs + rhs, op.result.type)  # pyright: ignore[reportCallIssue, reportArgumentType]
         )
 
         # Rewrite with the calculated result
@@ -95,17 +91,31 @@ class ConstantFoldingSimplePass(ModulePass):
 
             # do/while loop
             while True:
-                # Reset the rewriter on `op`
-                # rewriter.current_operation = rewrite_op
-                # rewriter.insertion_point = InsertPoint.before(rewrite_op)
-
                 # Apply the pattern on the operation
                 ## Inline `walker.pattern.match_and_rewrite(rewrite_op, rewriter)`
                 if isinstance(rewrite_op, AddiOp):
-                    lhs: int = rewrite_op.operands[0].owner.value.value.data  # pyright: ignore
-                    rhs: int = rewrite_op.operands[1].owner.value.value.data  # pyright: ignore
+                    lhs_op: OpResult = rewrite_op.operands[0].op  # pyright: ignore
+                    rhs_op: OpResult = rewrite_op.operands[1].op  # pyright: ignore
+
+                    ## Inline `lhs_op.op.has_trait(ConstantLike)`
+                    has_trait = False
+                    for t in lhs_op.traits._traits:  # pyright: ignore
+                        if isinstance(t, ConstantLike):
+                            has_trait = True
+                            break
+                    assert has_trait
+                    ## Inline `rhs_op.op.has_trait(ConstantLike)`
+                    has_trait = False
+                    for t in lhs_op.traits._traits:  # pyright: ignore
+                        if isinstance(t, ConstantLike):
+                            has_trait = True
+                            break
+                    assert has_trait
+
+                    lhs: int = lhs_op.value.value.data  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue, reportUnknownMemberType]
+                    rhs: int = rhs_op.value.value.data  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue, reportUnknownMemberType]
                     folded_op = ConstantOp(
-                        IntegerAttr(lhs + rhs, rewrite_op.result.type)  # pyright: ignore
+                        IntegerAttr(lhs + rhs, rewrite_op.result.type)  # pyright: ignore[reportCallIssue, reportArgumentType]
                     )
                     # ============================ #
                     ## Inline `rewriter.replace_matched_op(folded_op, [folded_op.results[0]])`
