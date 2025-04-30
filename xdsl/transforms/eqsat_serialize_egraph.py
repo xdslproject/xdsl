@@ -56,7 +56,7 @@ def serialize_to_egraph(mod: builtin.ModuleOp):
                 else:
                     canonical_enode = cast(BlockArgument, firstoperand)
                 children.append(enode_to_id[canonical_enode])
-        if len(op.operands) > 0:
+        if op.operands:
             name = op.name
         else:
             name = str(op).split("=")[1].split(":")[0].strip()
