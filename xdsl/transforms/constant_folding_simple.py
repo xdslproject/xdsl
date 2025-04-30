@@ -163,7 +163,9 @@ class ConstantFoldingSimplePass(ModulePass):
                 # No `prev_op`, means `next_op` is the first op in the block.
                 old_op.parent._first_op = new_op  # pyright: ignore[reportOptionalMemberAccess,reportPrivateUsage]
 
-        def replace_op(old_op: Operation, new_op: Operation, new_results) -> None:
+        def replace_op(
+            old_op: Operation, new_op: Operation, new_result: SSAValue
+        ) -> None:
             """Replace the matched operation with new operations."""
 
             # First, insert the new operations before the matched operation
@@ -171,12 +173,11 @@ class ConstantFoldingSimplePass(ModulePass):
 
             ## There are no callbacks, so can elide `rewriter.handle_operation_replacement(op_)`
 
-            # TODO: We know there is only one result, so can elide this...
             # Then, replace the results with new ones
-            for old_result, new_result in zip(old_op.results, new_results, strict=True):
-                replace_all_uses_with(old_result, new_result)
-                # Elide "preserv[ing] name hints for ops with multiple results",
-                # since done already in `SSAValue.replace_by`
+            ## We know there is only one result, so can elide the loop
+            replace_all_uses_with(old_op.results[0], new_result)
+            # Elide "preserv[ing] name hints for ops with multiple results",
+            # since done already in `SSAValue.replace_by`
 
             # Elide "add[ing] name hints for existing ops, only if there is a
             # single new result", since done already in `SSAValue.replace_by`
@@ -217,7 +218,7 @@ class ConstantFoldingSimplePass(ModulePass):
             rhs: int = rhs_op.value.value.data  # pyright: ignore
             folded_op = construct_int_constant_op(lhs + rhs, rewrite_op.result.type)  # pyright: ignore
 
-            replace_op(rewrite_op, folded_op, (folded_op.results[0],))
+            replace_op(rewrite_op, folded_op, folded_op.results[0])
             return True
 
         def process_worklist(worklist: list[Operation]) -> bool:
@@ -304,7 +305,7 @@ class ConstantFoldingSimplePass(ModulePass):
                 properties={"value": integer_attr},
             )
 
-            old_op, new_op, new_results = rewrite_op, folded_op, (folded_op.results[0],)
+            old_op, new_op, new_result = rewrite_op, folded_op, folded_op.results[0]
 
             # First, insert the new operations before the matched operation
             new_op.parent = old_op.parent
@@ -325,27 +326,27 @@ class ConstantFoldingSimplePass(ModulePass):
 
             ## There are no callbacks, so can elide `rewriter.handle_operation_replacement(op_)`
 
-            # TODO: We know there is only one result, so can elide this...
             # Then, replace the results with new ones
-            for old_result, new_result in zip(old_op.results, new_results, strict=True):
-                ## There are no callbacks, so can elide `self.handle_operation_modification(use.operation)`
-                for use in old_result.uses.copy():
-                    ## Inline `use.operation.operands.__setitem__(...)`
-                    operands = use.operation._operands  # pyright: ignore[reportPrivateUsage]
-                    ## Inline `operands[use.index].remove_use(Use(use.operation, use.index))`
-                    operands[use.index].uses.remove(use)
-                    ## Inline `new_result.add_use(Use(use.operation, use.index))`
-                    new_result.uses.add(use)
-                    new_operands = (
-                        *operands[: use.index],
-                        new_result,
-                        *operands[use.index + 1 :],
-                    )
-                    use.operation._operands = new_operands  # pyright: ignore[reportPrivateUsage]
-                new_result.name_hint = old_result.name_hint
+            ## We know there is only one result, so can elide the loop
+            old_result = old_op.results[0]
+            ## There are no callbacks, so can elide `self.handle_operation_modification(use.operation)`
+            for use in old_result.uses.copy():
+                ## Inline `use.operation.operands.__setitem__(...)`
+                operands = use.operation._operands  # pyright: ignore[reportPrivateUsage]
+                ## Inline `operands[use.index].remove_use(Use(use.operation, use.index))`
+                operands[use.index].uses.remove(use)
+                ## Inline `new_result.add_use(Use(use.operation, use.index))`
+                new_result.uses.add(use)
+                new_operands = (
+                    *operands[: use.index],
+                    new_result,
+                    *operands[use.index + 1 :],
+                )
+                use.operation._operands = new_operands  # pyright: ignore[reportPrivateUsage]
+            new_result.name_hint = old_result.name_hint
 
-                # Elide "preserv[ing] name hints for ops with multiple results",
-                # since done already in `SSAValue.replace_by`
+            # Elide "preserv[ing] name hints for ops with multiple results",
+            # since done already in `SSAValue.replace_by`
 
             # Elide "add[ing] name hints for existing ops, only if there is a
             # single new result", since done already in `SSAValue.replace_by`
