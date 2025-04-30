@@ -114,8 +114,12 @@ class ConstantFoldingSimplePass(ModulePass):
 
                     lhs: int = lhs_op.value.value.data  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue, reportUnknownMemberType]
                     rhs: int = rhs_op.value.value.data  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue, reportUnknownMemberType]
-                    folded_op = ConstantOp(
-                        IntegerAttr(lhs + rhs, rewrite_op.result.type)  # pyright: ignore[reportCallIssue, reportArgumentType]
+                    result_type = rewrite_op.result.type
+                    folded_op = ConstantOp.create(
+                        result_types=[result_type],
+                        properties={
+                            "value": IntegerAttr(lhs + rhs, result_type)  # pyright: ignore
+                        },
                     )
                     # ============================ #
                     ## Inline `rewriter.replace_matched_op(folded_op, [folded_op.results[0]])`
