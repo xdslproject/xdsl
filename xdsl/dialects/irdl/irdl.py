@@ -32,6 +32,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     opt_attr_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -231,6 +232,21 @@ class AttributeOp(IRDLOperation):
         return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
 
 
+def _parse_argument(parser: Parser) -> tuple[StringAttr, SSAValue]:
+    name = StringAttr(parser.parse_identifier())
+    parser.parse_punctuation(":")
+
+    arg = parser.parse_operand()
+
+    return (name, arg)
+
+
+def _print_argument(printer: Printer, data: tuple[StringAttr, SSAValue]) -> None:
+    printer.print_string(data[0].data)
+    printer.print_string(": ")
+    printer.print_operand(data[1])
+
+
 @irdl_op_definition
 class ParametersOp(IRDLOperation):
     """An attribute or type parameter definition"""
@@ -239,21 +255,28 @@ class ParametersOp(IRDLOperation):
 
     args = var_operand_def(AttributeType)
 
+    names = prop_def(ArrayAttr[StringAttr])
+
     traits = traits_def(HasParent(TypeOp, AttributeOp))
 
-    def __init__(self, args: Sequence[SSAValue]):
-        super().__init__(operands=[args])
+    def __init__(self, args: Sequence[SSAValue], names: ArrayAttr[StringAttr]):
+        super().__init__(operands=[args], properties={"names": names})
 
     @classmethod
     def parse(cls, parser: Parser) -> ParametersOp:
         args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_operand
+            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
         )
-        return ParametersOp(args)
+        return ParametersOp(
+            tuple(x[1] for x in args),
+            ArrayAttr(x[0] for x in args),
+        )
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
-        printer.print_list(self.args, printer.print, ", ")
+        printer.print_list(
+            zip(self.names, self.args), lambda x: _print_argument(printer, x)
+        )
         printer.print(")")
 
 
@@ -304,21 +327,29 @@ class OperationOp(IRDLOperation):
         )
 
 
-def _parse_argument(parser: Parser) -> tuple[VariadicityAttr, SSAValue]:
+def _parse_argument_with_var(
+    parser: Parser,
+) -> tuple[StringAttr, VariadicityAttr, SSAValue]:
+    name = StringAttr(parser.parse_identifier())
+    parser.parse_punctuation(":")
     variadicity = parser.parse_optional_str_enum(VariadicityEnum)
     if variadicity is None:
         variadicity = VariadicityEnum.SINGLE
 
     arg = parser.parse_operand()
 
-    return (VariadicityAttr(variadicity), arg)
+    return (name, VariadicityAttr(variadicity), arg)
 
 
-def _print_argument(printer: Printer, data: tuple[VariadicityAttr, SSAValue]) -> None:
-    variadicity = data[0].data
+def _print_argument_with_var(
+    printer: Printer, data: tuple[StringAttr, VariadicityAttr, SSAValue]
+) -> None:
+    printer.print_string(data[0].data)
+    printer.print_string(": ")
+    variadicity = data[1].data
     if variadicity != VariadicityEnum.SINGLE:
         printer.print(variadicity, " ")
-    printer.print(data[1])
+    printer.print(data[2])
 
 
 @irdl_op_definition
@@ -329,34 +360,40 @@ class OperandsOp(IRDLOperation):
 
     args = var_operand_def(AttributeType)
 
-    variadicity = attr_def(VariadicityArrayAttr)
+    variadicity = prop_def(VariadicityArrayAttr)
+
+    names = prop_def(ArrayAttr[StringAttr])
 
     traits = traits_def(HasParent(OperationOp))
 
-    def __init__(self, args: Sequence[tuple[VariadicityAttr, SSAValue] | SSAValue]):
-        args_list = [
-            (VariadicityAttr.SINGLE, x) if isinstance(x, SSAValue) else x for x in args
-        ]
-        operands = tuple(operand for _, operand in args_list)
-        attributes = {
-            "variadicity": VariadicityArrayAttr(
-                ArrayAttr(tuple(v for v, _ in args_list))
-            )
+    def __init__(
+        self,
+        operands: Sequence[SSAValue],
+        variadicity: VariadicityArrayAttr,
+        names: ArrayAttr[StringAttr],
+    ):
+        properties = {
+            "variadicity": variadicity,
+            "names": names,
         }
-        super().__init__(operands=[operands], attributes=attributes)
+        super().__init__(operands=[operands], properties=properties)
 
     @classmethod
     def parse(cls, parser: Parser) -> OperandsOp:
         args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
+            parser.Delimiter.PAREN, lambda: _parse_argument_with_var(parser)
         )
-        return OperandsOp(args)
+        return OperandsOp(
+            tuple(x[2] for x in args),
+            VariadicityArrayAttr(ArrayAttr(x[1] for x in args)),
+            ArrayAttr(x[0] for x in args),
+        )
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
         printer.print_list(
-            zip(self.variadicity.value, self.args),
-            lambda x: _print_argument(printer, x),
+            zip(self.names, self.variadicity.value, self.args),
+            lambda x: _print_argument_with_var(printer, x),
             ", ",
         )
         printer.print(")")
@@ -370,34 +407,40 @@ class ResultsOp(IRDLOperation):
 
     args = var_operand_def(AttributeType)
 
-    variadicity = attr_def(VariadicityArrayAttr)
+    variadicity = prop_def(VariadicityArrayAttr)
+
+    names = prop_def(ArrayAttr[StringAttr])
 
     traits = traits_def(HasParent(OperationOp))
 
-    def __init__(self, args: Sequence[tuple[VariadicityAttr, SSAValue] | SSAValue]):
-        args_list = [
-            (VariadicityAttr.SINGLE, x) if isinstance(x, SSAValue) else x for x in args
-        ]
-        operands = [x[1] for x in args_list]
-        attributes = {
-            "variadicity": VariadicityArrayAttr(
-                ArrayAttr(tuple(v for v, _ in args_list))
-            )
+    def __init__(
+        self,
+        operands: Sequence[SSAValue],
+        variadicity: VariadicityArrayAttr,
+        names: ArrayAttr[StringAttr],
+    ):
+        properties = {
+            "variadicity": variadicity,
+            "names": names,
         }
-        super().__init__(operands=[operands], attributes=attributes)
+        super().__init__(operands=[operands], properties=properties)
 
     @classmethod
     def parse(cls, parser: Parser) -> ResultsOp:
         args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
+            parser.Delimiter.PAREN, lambda: _parse_argument_with_var(parser)
         )
-        return ResultsOp(args)
+        return ResultsOp(
+            tuple(x[2] for x in args),
+            VariadicityArrayAttr(ArrayAttr(x[1] for x in args)),
+            ArrayAttr(x[0] for x in args),
+        )
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
         printer.print_list(
-            zip(self.variadicity.value, self.args),
-            lambda x: _print_argument(printer, x),
+            zip(self.names, self.variadicity.value, self.args),
+            lambda x: _print_argument_with_var(printer, x),
             ", ",
         )
         printer.print(")")
@@ -482,10 +525,27 @@ class RegionsOp(IRDLOperation):
 
     args = var_operand_def(RegionType())
 
-    assembly_format = "`(` $args `)` attr-dict"
+    names = prop_def(ArrayAttr[StringAttr])
 
-    def __init__(self, args: Sequence[SSAValue]):
-        super().__init__(operands=args)
+    def __init__(self, args: Sequence[SSAValue], names: ArrayAttr[StringAttr]):
+        super().__init__(operands=[args], properties={"names": names})
+
+    @classmethod
+    def parse(cls, parser: Parser) -> RegionsOp:
+        args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
+        )
+        return RegionsOp(
+            tuple(x[1] for x in args),
+            ArrayAttr(x[0] for x in args),
+        )
+
+    def print(self, printer: Printer) -> None:
+        printer.print("(")
+        printer.print_list(
+            zip(self.names, self.args), lambda x: _print_argument(printer, x)
+        )
+        printer.print(")")
 
 
 ################################################################################

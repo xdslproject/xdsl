@@ -2177,7 +2177,7 @@ def test_successors():
                 "test.op"() ({
                   "test.op"() [^0] : () -> ()
                 ^0:
-                  test.var_successor ^0 ^0
+                  test.var_successor ^0, ^0
                 }) : () -> ()"""
             ),
             textwrap.dedent(
