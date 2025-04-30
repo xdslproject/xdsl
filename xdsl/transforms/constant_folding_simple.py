@@ -39,10 +39,8 @@ class ConstantFoldingIntegerAdditionPattern(RewritePattern):
         #          v  v        v    v     v      v   v
         lhs: int = op.operands[0].owner.value.value.data  # pyright: ignore
         rhs: int = op.operands[1].owner.value.value.data  # pyright: ignore
-        folded_op = ConstantOp.create(
-            attributes={
-                "value": IntegerAttr(lhs + rhs, op.result.type)  # pyright: ignore
-            }
+        folded_op = ConstantOp(
+            IntegerAttr(lhs + rhs, op.result.type)  # pyright: ignore
         )
 
         # Rewrite with the calculated result
@@ -106,10 +104,8 @@ class ConstantFoldingSimplePass(ModulePass):
                 if isinstance(rewrite_op, AddiOp):
                     lhs: int = rewrite_op.operands[0].owner.value.value.data  # pyright: ignore
                     rhs: int = rewrite_op.operands[1].owner.value.value.data  # pyright: ignore
-                    folded_op = ConstantOp.create(
-                        attributes={
-                            "value": IntegerAttr(lhs + rhs, op.result.type)  # pyright: ignore
-                        }
+                    folded_op = ConstantOp(
+                        IntegerAttr(lhs + rhs, rewrite_op.result.type)  # pyright: ignore
                     )
                     # ============================ #
                     ## Inline `rewriter.replace_matched_op(folded_op, [folded_op.results[0]])`
