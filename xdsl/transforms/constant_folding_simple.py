@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects.arith import AddiOp, ConstantOp
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp
 from xdsl.ir import ErasedSSAValue, Operation, OpResult, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -114,12 +114,19 @@ class ConstantFoldingSimplePass(ModulePass):
 
                     lhs: int = lhs_op.value.value.data  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue, reportUnknownMemberType]
                     rhs: int = rhs_op.value.value.data  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue, reportUnknownMemberType]
+                    ## Inline `ConstantOp(...)`
                     result_type = rewrite_op.result.type
+                    ## Inline `IntegerAttr(lhs + rhs, result_type)`
+                    ## Inline `IntAttr(lhs + rhs)`
+                    int_attr = IntAttr(lhs + rhs)
+                    integer_attr = IntegerAttr.__new__(IntegerAttr)
+                    ## Inline `ParametrizedAttribute.__init__(integer_attr,[int_attr, result_type])`
+                    object.__setattr__(
+                        integer_attr, "parameters", (int_attr, result_type)
+                    )
                     folded_op = ConstantOp.create(
                         result_types=[result_type],
-                        properties={
-                            "value": IntegerAttr(lhs + rhs, result_type)  # pyright: ignore
-                        },
+                        properties={"value": integer_attr},
                     )
                     # ============================ #
                     ## Inline `rewriter.replace_matched_op(folded_op, [folded_op.results[0]])`
