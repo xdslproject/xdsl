@@ -2096,23 +2096,24 @@ RankedStructure: TypeAlias = (
 )
 
 AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
+DenseElementCovT = TypeVar(
+    "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
+)
 
 
 @irdl_attr_definition
-class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
+class DenseIntOrFPElementsAttr(
+    Generic[DenseElementCovT], TypedAttribute, ContainerType[DenseElementCovT]
+):
     name = "dense"
-    type: ParameterDef[
-        RankedStructure[IntegerType]
-        | RankedStructure[IndexType]
-        | RankedStructure[AnyFloat]
-    ]
+    type: ParameterDef[RankedStructure[DenseElementCovT]]
     data: ParameterDef[BytesAttr]
 
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...]:
         return self.type.get_shape()
 
-    def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
+    def get_element_type(self) -> DenseElementCovT:
         return self.type.get_element_type()
 
     def __len__(self) -> int:
@@ -2136,7 +2137,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     def create_dense_index(
         type: RankedStructure[IndexType],
         data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
-    ) -> DenseIntOrFPElementsAttr:
+    ) -> DenseIntOrFPElementsAttr[IndexType]:
         if len(data) and isinstance(data[0], IntegerAttr):
             data = [
                 el.value.data for el in cast(Sequence[IntegerAttr[IndexType]], data)
@@ -2150,7 +2151,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     def create_dense_int(
         type: RankedStructure[IntegerType],
         data: Sequence[int] | Sequence[IntegerAttr[IntegerType]],
-    ) -> DenseIntOrFPElementsAttr:
+    ) -> DenseIntOrFPElementsAttr[IntegerType]:
         if len(data) and isinstance(data[0], IntegerAttr):
             data = [
                 el.value.data for el in cast(Sequence[IntegerAttr[IntegerType]], data)
@@ -2180,8 +2181,8 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     @staticmethod
     def create_dense_float(
         type: RankedStructure[AnyFloat],
-        data: Sequence[int | float] | Sequence[FloatAttr],
-    ) -> DenseIntOrFPElementsAttr:
+        data: Sequence[float] | Sequence[FloatAttr],
+    ) -> DenseIntOrFPElementsAttr[AnyFloat]:
         if len(data) and isa(data[0], FloatAttr):
             data = [el.value.data for el in cast(Sequence[FloatAttr], data)]
         else:
