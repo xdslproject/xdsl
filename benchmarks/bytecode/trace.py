@@ -15,7 +15,7 @@ from typing import Any, Self, cast
 
 FUNCTION_DELIMITER_LENGTH = 45
 MIN_TIME_PADDING = 100
-TRACE_REPEATS = 1000
+MEDIAN_TRACE_REPEATS = 1000
 
 PERF_COUNTER_RESOLUTION = time.get_clock_info("perf_counter").resolution
 
@@ -176,7 +176,7 @@ class FunctionTrace(EventTrace):
     ) -> str:
         """Get a string representation of the function."""
         contents = f" {self.file.stem}:{self.lineno} `{self.name}` "
-        line = f"\n{' ' * indent}// {contents:{'='}{'^'}{FUNCTION_DELIMITER_LENGTH}}"
+        line = f"\n{' ' * indent}// =={contents:{'='}{'^'}{FUNCTION_DELIMITER_LENGTH - 4}}=="
         if show_times:
             line += self.padded_time(line, " ==", elapsed_offset)
         return line
@@ -188,11 +188,13 @@ class ExceptionTrace(EventTrace):
 
     exception: type
     value: Exception = field(compare=False)
-    traceback: types.TracebackType = field(compare=False)
+    traceback: types.TracebackType | None = field(compare=False)
 
     @classmethod
     def from_frame(
-        cls, frame: types.FrameType, arg: tuple[type, Exception, types.TracebackType]
+        cls,
+        frame: types.FrameType,
+        arg: tuple[type, Exception, types.TracebackType | None],
     ) -> Self:
         """Construct the line representation from a frame object."""
         return cls(*arg)
@@ -201,7 +203,11 @@ class ExceptionTrace(EventTrace):
         self, indent: int = 0, show_times: bool = True, elapsed_offset: float = 0
     ) -> str:
         """Get a string representation of returning from a function."""
-        return f"{' ' * (indent)}// {'!' * FUNCTION_DELIMITER_LENGTH}"
+        contents = f" `{self.exception.__qualname__}` "
+        line = f"\n{' ' * indent}// !!{contents:{'!'}{'^'}{FUNCTION_DELIMITER_LENGTH - 4}}!!"
+        if show_times:
+            line += self.padded_time(line, " ==", elapsed_offset)
+        return line
 
 
 @dataclass
@@ -228,7 +234,7 @@ class BytecodeProfiler:
     _prev_trace_start: float = field(default_factory=time.perf_counter)
     _prev_opcode: OpcodeTrace | None = None
     _prev_line_stack: list[LineTrace] = field(default_factory=list)
-    _exception_stack: list[ExceptionTrace] = field(default_factory=list)
+    _prev_exception: ExceptionTrace | None = None
     _function_stack: list[FunctionTrace] = field(default_factory=list)
     _calibration_offset: float | None = 0.0
 
@@ -278,7 +284,7 @@ class BytecodeProfiler:
             for function in self._function_stack:
                 function.elapsed += event_elapsed
 
-        if event == "opcode":
+        elif event == "opcode":
             # Create the new opcode object
             trace = OpcodeTrace.from_frame(frame, arg)
             self._prev_opcode = trace
@@ -289,7 +295,7 @@ class BytecodeProfiler:
             for function in self._function_stack:
                 function.elapsed += event_elapsed
 
-        if event == "line":
+        elif event == "line":
             # Create the new line object
             trace = LineTrace.from_frame(frame, arg)
             self._prev_line = trace
@@ -298,7 +304,7 @@ class BytecodeProfiler:
             for function in self._function_stack:
                 function.elapsed += event_elapsed
 
-        if event == "return":
+        elif event == "return":
             # Create the new function object
             trace = ReturnTrace.from_frame(frame, arg)
             # Return events contribute to return and function runtimes
@@ -309,20 +315,21 @@ class BytecodeProfiler:
             assert len(self._function_stack) > 0
             self._function_stack.pop()
             # Exiting a function stops affecting previous lines/opcodes
-            self._prev_line_stack.pop()
+            if len(self._prev_line_stack) > 0:
+                self._prev_line_stack.pop()
             self._prev_opcode = None
 
-        if event == "exception":
+        elif event == "exception":
             # Create the new exception object and add it to the exception stack
             trace = ExceptionTrace.from_frame(frame, arg)
-            self._exception_stack.append(trace)
+            self._prev_exception = trace
             # Exception events contribute to exception and function runtimes
-            for exception in self._exception_stack:
-                exception.elapsed += event_elapsed
+            self._prev_exception.elapsed += event_elapsed
             for function in self._function_stack:
                 function.elapsed += event_elapsed
             # Raising and exception stops affecting previous lines/opcodes
-            self._prev_line_stack.pop()
+            if len(self._prev_line_stack) > 0:
+                self._prev_line_stack.pop()
             self._prev_opcode = None
 
         assert trace is not None
@@ -343,13 +350,20 @@ class BytecodeProfiler:
         try:
             # Run once to set `frame.f_trace_opcodes` to generate opcode events
             sys.settrace(self.trace_enable_opcode_events)
-            func(*args, **kwargs)
+            try:
+                func(*args, **kwargs)
+            except Exception as _exc:
+                pass
 
             # Then run a second time to process all the events, including opcodes
             sys.settrace(self.trace_all_events)
-            self._prev_trace_start = time.perf_counter()
-            func(*args, **kwargs)
-            prev_trace_finish = time.perf_counter()
+            try:
+                self._prev_trace_start = time.perf_counter()
+                func(*args, **kwargs)
+            except Exception as _exc:
+                pass  # This will be captured in our trace!
+            finally:
+                prev_trace_finish = time.perf_counter()
 
             # Clean up elapsed time for any remaining trace events
             if self._prev_opcode is not None:
@@ -360,8 +374,8 @@ class BytecodeProfiler:
                 remaining_functions.elapsed += (
                     prev_trace_finish - self._prev_trace_start
                 )
-            for remaining_exceptions in self._exception_stack:
-                remaining_exceptions.elapsed += (
+            if self._prev_exception is not None:
+                self._prev_exception.elapsed += (
                     prev_trace_finish - self._prev_trace_start
                 )
         finally:
@@ -378,7 +392,8 @@ class BytecodeProfiler:
     ) -> list[EventTrace]:
         """Get the median event time across many traces."""
         all_profile_traces: list[list[EventTrace]] = [
-            self.trace_function(func, *args, **kwargs) for _ in range(TRACE_REPEATS)
+            self.trace_function(func, *args, **kwargs)
+            for _ in range(MEDIAN_TRACE_REPEATS)
         ]
         return [
             EventTrace.get_median(cast(list[EventTrace], lockstep_traces))
@@ -455,15 +470,12 @@ if __name__ == "__main__":
         assert x
 
     def raise_exception():
-        raise ValueError
+        raise ValueError("Help")
 
     def example_function():
         inner_function(1)
         inner_function("Hello")
-        try:
-            raise_exception()
-        except:
-            pass
+        raise_exception()
         inner_function(5.0)
 
     def go():
