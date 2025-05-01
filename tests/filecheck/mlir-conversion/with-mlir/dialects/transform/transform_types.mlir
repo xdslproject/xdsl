@@ -57,15 +57,15 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:   %4 = "test.op"() : () -> !transform.param<i64>
 //CHECK-NEXT:   %5 = "test.op"() : () -> !transform.type
 //CHECK-NEXT:   transform.named_sequence @__transform_main(%arg0: !transform.any_op, %arg1: !transform.op<"linalg.quantized_matmul">, %arg2: !transform.op<"linalg.elemwise_binary">) {
-//CHECK-NEXT:     %21 = transform.cast %arg1 : !transform.op<"linalg.quantized_matmul"> to !transform.any_op
+//CHECK-NEXT:     %22 = transform.cast %arg1 : !transform.op<"linalg.quantized_matmul"> to !transform.any_op
 //CHECK-NEXT:     %tiled_op, %forall_op = transform.structured.tile_using_forall %arg1 tile_sizes [4, 32] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op)
 //CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %arg1 tile_sizes [8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:     transform.yield
 //CHECK-NEXT:   }
 //CHECK-NEXT:   transform.sequence  failures(propagate) {
 //CHECK-NEXT:   ^bb0(%arg0: !transform.any_op):
-//CHECK-NEXT:     %21 = select "linalg.quantized_matmul" in %arg0 : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
-//CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %21 tile_sizes [8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+//CHECK-NEXT:     %22 = select "linalg.quantized_matmul" in %arg0 : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
+//CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %22 tile_sizes [8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:   }
 //CHECK-NEXT:   %6 = "test.op"() : () -> !transform.any_op
 //CHECK-NEXT:   %7 = transform.get_producer_of_operand %6[0] : (!transform.any_op) -> !transform.any_op
