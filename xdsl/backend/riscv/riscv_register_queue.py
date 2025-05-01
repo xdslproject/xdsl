@@ -1,15 +1,18 @@
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import overload
+
+from typing_extensions import TypeVar
 
 from xdsl.backend.register_queue import RegisterQueue
 from xdsl.dialects.builtin import IntAttr
-from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, Registers
+from xdsl.dialects.riscv import Registers, RISCVRegisterType
+
+_T = TypeVar("_T", bound=RISCVRegisterType)
 
 
 @dataclass
-class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
+class RiscvRegisterQueue(RegisterQueue[RISCVRegisterType]):
     """
     LIFO queue of registers available for allocation.
     """
@@ -49,9 +52,8 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
     @classmethod
     def default(
         cls,
-        reserved_registers: Iterable[IntRegisterType | FloatRegisterType] | None = None,
-        available_registers: Iterable[IntRegisterType | FloatRegisterType]
-        | None = None,
+        reserved_registers: Iterable[RISCVRegisterType] | None = None,
+        available_registers: Iterable[RISCVRegisterType] | None = None,
     ):
         if reserved_registers is None:
             reserved_registers = RiscvRegisterQueue.DEFAULT_RESERVED_REGISTERS
@@ -67,7 +69,7 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
             res.push(reg)
         return res
 
-    def push(self, reg: IntRegisterType | FloatRegisterType) -> None:
+    def push(self, reg: RISCVRegisterType) -> None:
         """
         Return a register to be made available for allocation.
         """
@@ -80,15 +82,7 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
 
         self.available_registers[register_set].append(reg.index.data)
 
-    @overload
-    def pop(self, reg_type: type[IntRegisterType]) -> IntRegisterType: ...
-
-    @overload
-    def pop(self, reg_type: type[FloatRegisterType]) -> FloatRegisterType: ...
-
-    def pop(
-        self, reg_type: type[IntRegisterType] | type[FloatRegisterType]
-    ) -> IntRegisterType | FloatRegisterType:
+    def pop(self, reg_type: type[_T]) -> _T:
         """
         Get the next available register for allocation.
         """
@@ -109,7 +103,7 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         )
         return reg
 
-    def reserve_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
+    def reserve_register(self, reg: RISCVRegisterType) -> None:
         """
         Increase the reservation count for a register.
         If the reservation count is greater than 0, a register cannot be pushed back onto
@@ -120,7 +114,7 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         assert isinstance(reg.index, IntAttr)
         self.reserved_registers[reg.name][reg.index.data] += 1
 
-    def unreserve_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
+    def unreserve_register(self, reg: RISCVRegisterType) -> None:
         """
         Decrease the reservation count for a register. If the reservation count is 0, make
         the register available for allocation.
@@ -148,7 +142,7 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
             for key in keys:
                 del self.available_registers[key]
 
-    def exclude_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
+    def exclude_register(self, reg: RISCVRegisterType) -> None:
         """
         Removes register from available set, if present.
         """
