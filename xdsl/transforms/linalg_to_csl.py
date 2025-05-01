@@ -50,40 +50,34 @@ def get_scalar_const(op: SSAValue) -> FloatAttr | IntegerAttr | None:
         return val.get_attrs()[0]
 
 
-class ConvertBinaryLinalgOp(RewritePattern):
-    """
-    Base class for converting binary linalg operations.
-    """
+def transform_op(
+    op: linalg.NamedOpBase,
+    rewriter: PatternRewriter,
+    f16: type[csl.BuiltinDsdOp],
+    f32: type[csl.BuiltinDsdOp],
+):
+    if not isa(target_t := op.outputs.types[0], MemRefType):
+        return
 
-    def transform_op(
-        self,
-        op: linalg.NamedOpBase,
-        rewriter: PatternRewriter,
-        f16: type[csl.BuiltinDsdOp],
-        f32: type[csl.BuiltinDsdOp],
-    ):
-        if not isa(target_t := op.outputs.types[0], MemRefType):
-            return
+    builtin = match_op_for_precision(target_t.get_element_type(), f16, f32)
 
-        builtin = match_op_for_precision(target_t.get_element_type(), f16, f32)
+    lhs = op.inputs[0]
+    rhs = op.inputs[1]
 
-        lhs = op.inputs[0]
-        rhs = op.inputs[1]
+    # binary functions translated here support mixing scalar and collection operands
+    # may need revisiting if more functions are translated
+    if scalar_const := get_scalar_const(lhs):
+        rewriter.insert_op(
+            const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op)
+        )
+        lhs = const_op.result
+    elif scalar_const := get_scalar_const(rhs):
+        rewriter.insert_op(
+            const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op)
+        )
+        rhs = const_op.result
 
-        # binary functions translated here support mixing scalar and collection operands
-        # may need revisiting if more functions are translated
-        if scalar_const := get_scalar_const(lhs):
-            rewriter.insert_op(
-                const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op)
-            )
-            lhs = const_op.result
-        elif scalar_const := get_scalar_const(rhs):
-            rewriter.insert_op(
-                const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op)
-            )
-            rhs = const_op.result
-
-        rewriter.replace_matched_op(builtin(operands=[[op.outputs[0], lhs, rhs]]))
+    rewriter.replace_matched_op(builtin(operands=[[op.outputs[0], lhs, rhs]]))
 
 
 class ConvertLinalgGenericFMAPass(RewritePattern):
@@ -139,28 +133,59 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
         )
 
 
-class ConvertLinalgAddPass(ConvertBinaryLinalgOp):
+class ConvertLinalgMinPass(RewritePattern):
+    """
+    Lowers the `linalg.min` op to csl by negating the operands, performing max, and
+    again negating the operands as well as the result.
+
+    todo: scalar operands are currently not supported
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: linalg.MinOp, rewriter: PatternRewriter, /):
+        if not isa(op.outputs.types[0], MemRefType):
+            return
+
+        # sets of operands to be negated before and after
+        negate_before = set(op.inputs)
+        negate_after = negate_before | set(op.outputs)
+
+        # builtin op for negating
+        neg_op = match_op_for_precision(
+            op.outputs.types[0].get_element_type(), f16=csl.FneghOp, f32=csl.FnegsOp
+        )
+
+        # constructing in-place negate ops before and after
+        before_ops = [neg_op(operands=[(o, o)]) for o in negate_before]
+        after_ops = [neg_op(operands=[(o, o)]) for o in negate_after]
+
+        rewriter.insert_op(before_ops, InsertPoint.before(op))
+        rewriter.insert_op(after_ops, InsertPoint.after(op))
+        transform_op(op, rewriter, f16=csl.FmaxhOp, f32=csl.FmaxsOp)
+
+
+class ConvertLinalgAddPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: linalg.AddOp, rewriter: PatternRewriter, /):
-        self.transform_op(op, rewriter, f16=csl.FaddhOp, f32=csl.FaddsOp)
+        transform_op(op, rewriter, f16=csl.FaddhOp, f32=csl.FaddsOp)
 
 
-class ConvertLinalgSubPass(ConvertBinaryLinalgOp):
+class ConvertLinalgSubPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: linalg.SubOp, rewriter: PatternRewriter, /):
-        self.transform_op(op, rewriter, f16=csl.FsubhOp, f32=csl.FsubsOp)
+        transform_op(op, rewriter, f16=csl.FsubhOp, f32=csl.FsubsOp)
 
 
-class ConvertLinalgMulPass(ConvertBinaryLinalgOp):
+class ConvertLinalgMulPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: linalg.MulOp, rewriter: PatternRewriter, /):
-        self.transform_op(op, rewriter, f16=csl.FmulhOp, f32=csl.FmulsOp)
+        transform_op(op, rewriter, f16=csl.FmulhOp, f32=csl.FmulsOp)
 
 
-class ConvertLinalgMaxPass(ConvertBinaryLinalgOp):
+class ConvertLinalgMaxPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: linalg.MaxOp, rewriter: PatternRewriter, /):
-        self.transform_op(op, rewriter, f16=csl.FmaxhOp, f32=csl.FmaxsOp)
+        transform_op(op, rewriter, f16=csl.FmaxhOp, f32=csl.FmaxsOp)
 
 
 @dataclass(frozen=True)
@@ -182,6 +207,7 @@ class LinalgToCsl(ModulePass):
                     ConvertLinalgSubPass(),
                     ConvertLinalgMulPass(),
                     ConvertLinalgMaxPass(),
+                    ConvertLinalgMinPass(),
                 ]
             ),
         )

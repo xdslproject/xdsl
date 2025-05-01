@@ -86,7 +86,7 @@ class BuiltinFunctions(InterpreterFunctions):
         attr: Attribute,
         type_attr: builtin.MemRefType[Any],
     ) -> ShapedArray[Any]:
-        assert isinstance(attr, builtin.DenseIntOrFPElementsAttr)
+        assert isa(attr, builtin.DenseIntOrFPElementsAttr)
         shape = attr.get_shape()
         data = attr.get_values()
         data_ptr = ptr.TypedPtr[Any].new(

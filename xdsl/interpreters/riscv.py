@@ -5,6 +5,7 @@ from typing import Any, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import (
+    DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -26,6 +27,7 @@ from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 _T = TypeVar("_T")
 
@@ -639,6 +641,7 @@ class RiscvFunctions(InterpreterFunctions):
             case IntegerAttr():
                 return attr.value.data
             case builtin.DenseIntOrFPElementsAttr():
+                assert isa(attr, DenseIntOrFPElementsAttr)
                 data = attr.get_values()
                 data_ptr = ptr.TypedPtr[Any].new(
                     data,
