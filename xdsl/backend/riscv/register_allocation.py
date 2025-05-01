@@ -105,7 +105,6 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
     new_value_by_old_value: dict[SSAValue, SSAValue]
 
-    exclude_preallocated: bool = True
     exclude_snitch_reserved: bool = True
 
     def __init__(self, available_registers: RegisterQueue[RISCVRegisterType]) -> None:
@@ -335,10 +334,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."
             )
 
-        preallocated: set[RISCVRegisterType] = set()
-
-        if self.exclude_preallocated:
-            preallocated |= gather_allocated(func)
+        preallocated: set[RISCVRegisterType] = gather_allocated(func)
 
         if self.exclude_snitch_reserved and _uses_snitch_stream(func):
             preallocated |= get_snitch_reserved()
