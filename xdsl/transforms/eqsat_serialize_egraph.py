@@ -59,6 +59,8 @@ def serialize_to_egraph(mod: builtin.ModuleOp):
         if op.operands:
             name = op.name
         else:
+            # If the operation has no operands, we get the full string representation as name for the node.
+            # This is useful for operations such as `arith.constant 42`.
             name = str(op).split("=")[1].split(":")[0].strip()
         nodes[enode_to_id[op]] = {
             "op": name,
