@@ -56,7 +56,7 @@ class EventTrace(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_frame(cls, frame: types.FrameType) -> Self: ...
+    def from_frame(cls, frame: types.FrameType, arg: Any) -> Self: ...
 
     @abc.abstractmethod
     def show(
@@ -89,7 +89,7 @@ class OpcodeTrace(EventTrace):
         return None
 
     @classmethod
-    def from_frame(cls, frame: types.FrameType) -> Self:
+    def from_frame(cls, frame: types.FrameType, arg: None) -> Self:
         """Construct the opcode representation from a frame object."""
         instruction = cls.get_opcode(frame)
         assert instruction is not None
@@ -133,7 +133,7 @@ class LineTrace(EventTrace):
     contents: str
 
     @classmethod
-    def from_frame(cls, frame: types.FrameType) -> Self:
+    def from_frame(cls, frame: types.FrameType, arg: None) -> Self:
         """Construct the line representation from a frame object."""
         try:
             frameinfo = inspect.getframeinfo(frame)
@@ -163,7 +163,7 @@ class FunctionTrace(EventTrace):
     return_time: float | None = None
 
     @classmethod
-    def from_frame(cls, frame: types.FrameType) -> Self:
+    def from_frame(cls, frame: types.FrameType, arg: None) -> Self:
         """Construct the function representation from a frame object."""
         return cls(
             name=frame.f_code.co_qualname,
@@ -183,13 +183,37 @@ class FunctionTrace(EventTrace):
 
 
 @dataclass
+class ExceptionTrace(EventTrace):
+    """Representation of raising an exception in a trace."""
+
+    exception: type
+    value: Exception = field(compare=False)
+    traceback: types.TracebackType = field(compare=False)
+
+    @classmethod
+    def from_frame(
+        cls, frame: types.FrameType, arg: tuple[type, Exception, types.TracebackType]
+    ) -> Self:
+        """Construct the line representation from a frame object."""
+        return cls(*arg)
+
+    def show(
+        self, indent: int = 0, show_times: bool = True, elapsed_offset: float = 0
+    ) -> str:
+        """Get a string representation of returning from a function."""
+        return f"{' ' * (indent)}// {'!' * FUNCTION_DELIMITER_LENGTH}"
+
+
+@dataclass
 class ReturnTrace(EventTrace):
     """Representation of returning from a function in a trace."""
 
+    return_value: Any
+
     @classmethod
-    def from_frame(cls, frame: types.FrameType) -> Self:
+    def from_frame(cls, frame: types.FrameType, arg: Any) -> Self:
         """Construct the line representation from a frame object."""
-        return cls()
+        return cls(return_value=arg)
 
     def show(
         self, indent: int = 0, show_times: bool = True, elapsed_offset: float = 0
@@ -204,6 +228,7 @@ class BytecodeProfiler:
     _prev_trace_start: float = field(default_factory=time.perf_counter)
     _prev_opcode: OpcodeTrace | None = None
     _prev_line_stack: list[LineTrace] = field(default_factory=list)
+    _exception_stack: list[ExceptionTrace] = field(default_factory=list)
     _function_stack: list[FunctionTrace] = field(default_factory=list)
     _calibration_offset: float | None = 0.0
 
@@ -247,7 +272,7 @@ class BytecodeProfiler:
         trace: EventTrace | None = None
         if event == "call":
             # Create the new function object and add it to the call stack
-            trace = FunctionTrace.from_frame(frame)
+            trace = FunctionTrace.from_frame(frame, arg)
             self._function_stack.append(trace)
             # All events contribute to function runtime
             for function in self._function_stack:
@@ -255,7 +280,7 @@ class BytecodeProfiler:
 
         if event == "opcode":
             # Create the new opcode object
-            trace = OpcodeTrace.from_frame(frame)
+            trace = OpcodeTrace.from_frame(frame, arg)
             self._prev_opcode = trace
             # Opcode events contribute to opcode, line, and function runtimes
             self._prev_opcode.elapsed += event_elapsed
@@ -266,7 +291,7 @@ class BytecodeProfiler:
 
         if event == "line":
             # Create the new line object
-            trace = LineTrace.from_frame(frame)
+            trace = LineTrace.from_frame(frame, arg)
             self._prev_line = trace
             # Line events contribute to line, and function runtimes
             self._prev_line.elapsed += event_elapsed  # pyright: ignore[reportOptionalMemberAccess]
@@ -275,7 +300,7 @@ class BytecodeProfiler:
 
         if event == "return":
             # Create the new function object
-            trace = ReturnTrace()
+            trace = ReturnTrace.from_frame(frame, arg)
             # Return events contribute to return and function runtimes
             trace.elapsed += event_elapsed
             for function in self._function_stack:
@@ -283,6 +308,20 @@ class BytecodeProfiler:
             # Pop the returning function from the call stack
             assert len(self._function_stack) > 0
             self._function_stack.pop()
+            # Exiting a function stops affecting previous lines/opcodes
+            self._prev_line_stack.pop()
+            self._prev_opcode = None
+
+        if event == "exception":
+            # Create the new exception object and add it to the exception stack
+            trace = ExceptionTrace.from_frame(frame, arg)
+            self._exception_stack.append(trace)
+            # Exception events contribute to exception and function runtimes
+            for exception in self._exception_stack:
+                exception.elapsed += event_elapsed
+            for function in self._function_stack:
+                function.elapsed += event_elapsed
+            # Raising and exception stops affecting previous lines/opcodes
             self._prev_line_stack.pop()
             self._prev_opcode = None
 
@@ -321,6 +360,10 @@ class BytecodeProfiler:
                 remaining_functions.elapsed += (
                     prev_trace_finish - self._prev_trace_start
                 )
+            for remaining_exceptions in self._exception_stack:
+                remaining_exceptions.elapsed += (
+                    prev_trace_finish - self._prev_trace_start
+                )
         finally:
             sys.settrace(old_trace)
             if gcold:
@@ -348,6 +391,7 @@ class BytecodeProfiler:
         func: Callable[[], Any],
         indent_size: int = 4,
         show_times: bool = True,
+        calculate_median: bool = False,
         *args: list[Any],
         **kwargs: dict[str, Any],
     ) -> None:
@@ -355,7 +399,11 @@ class BytecodeProfiler:
         profiler = cls()
 
         calibration_offset = 0
-        profile_traces = profiler.median_trace_function(func, *args, **kwargs)
+        profile_traces = (
+            profiler.median_trace_function(func, *args, **kwargs)
+            if calculate_median
+            else profiler.trace_function(func, *args, **kwargs)
+        )
 
         print(f"//// Trace of `{func.__qualname__}` :")
         indent = -indent_size
@@ -406,9 +454,16 @@ if __name__ == "__main__":
     def inner_function(x: int | str | float):
         assert x
 
+    def raise_exception():
+        raise ValueError
+
     def example_function():
         inner_function(1)
         inner_function("Hello")
+        try:
+            raise_exception()
+        except:
+            pass
         inner_function(5.0)
 
     def go():
