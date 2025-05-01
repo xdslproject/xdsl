@@ -6,7 +6,7 @@ from typing_extensions import Self
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.riscv.register_allocation import (
     RegisterAllocatorLivenessBlockNaive,
-    reg_types,
+    reg_types_by_name,
 )
 from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
 from xdsl.dialects import riscv
@@ -135,7 +135,7 @@ def test_count_reg_types():
 
     fa0 = riscv.Registers.FA0
 
-    assert reg_types([a0, a0, a1, fa0, fa0]) == {
+    assert reg_types_by_name([a0, a0, a1, fa0, fa0]) == {
         "riscv.reg": {"a0", "a1"},
         "riscv.freg": {"fa0"},
     }

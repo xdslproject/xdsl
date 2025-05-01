@@ -63,9 +63,9 @@ class RegisterAllocator(abc.ABC):
         raise NotImplementedError()
 
 
-def reg_types(regs: Iterable[RISCVRegisterType]) -> dict[str, set[str]]:
+def reg_types_by_name(regs: Iterable[RISCVRegisterType]) -> dict[str, set[str]]:
     """
-    Groups register types by the name of their type.
+    Groups register types by name.
     """
     res = defaultdict[str, set[str]](set)
     for reg in regs:
@@ -355,8 +355,8 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             self.process_operation(op)
 
         if add_regalloc_stats:
-            preallocated_stats = reg_types(preallocated)
-            allocated_stats = reg_types(
+            preallocated_stats = reg_types_by_name(preallocated)
+            allocated_stats = reg_types_by_name(
                 val.type
                 for op in block.walk()
                 for vals in (op.results, op.operands)
