@@ -20,7 +20,7 @@ class RiscvRegisterQueue(LIFORegisterQueue[RISCVRegisterType]):
         Registers.S0,  # Same register as FP
     }
 
-    DEFAULT_AVAILABLE_REGISTERS: tuple[RISCVRegisterType, ...] = (
+    DEFAULT_AVAILABLE_REGISTERS = (
         *reversed(Registers.A),
         *reversed(Registers.T),
         *reversed(Registers.FA),
