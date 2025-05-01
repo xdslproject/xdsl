@@ -8,7 +8,7 @@ from xdsl.ir import BlockArgument, Operation
 from xdsl.passes import ModulePass
 
 
-class IDGenerator:
+class _IDGenerator:
     def __init__(self, prefix: str):
         self.prefix = prefix
         self.counter = 0
@@ -20,9 +20,11 @@ class IDGenerator:
 
 def serialize_to_egraph(mod: builtin.ModuleOp):
     enode_to_id: defaultdict[Operation | BlockArgument, str] = defaultdict(
-        IDGenerator("enode_")
+        _IDGenerator("enode_")
     )
-    eclass_to_id: defaultdict[eqsat.EClassOp, str] = defaultdict(IDGenerator("eclass_"))
+    eclass_to_id: defaultdict[eqsat.EClassOp, str] = defaultdict(
+        _IDGenerator("eclass_")
+    )
     nodes: dict[str, dict[str, str | list[str]]] = dict()
     for op in mod.walk(reverse=True):
         if isinstance(op, eqsat.EClassOp):
