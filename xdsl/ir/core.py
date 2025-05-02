@@ -116,6 +116,15 @@ class Attribute(ABC):
         return res.getvalue()
 
 
+class BuiltinAttribute(Attribute):
+    """
+    This class is used to mark builtin attributes. Builtin attributes are handled
+    differently when parsing and printing.
+    """
+
+    pass
+
+
 class TypeAttribute(Attribute):
     """
     This class should only be inherited by classes inheriting Attribute.
