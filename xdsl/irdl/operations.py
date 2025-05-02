@@ -1235,17 +1235,6 @@ class OpDef:
         for trait in self.traits:
             trait.verify(op)
 
-    def split_properties(
-        self, properties: dict[str, Attribute], attr_dict: dict[str, Attribute]
-    ):
-        """
-        Remove all entries of an attribute dictionary that are defined as properties
-        by the operation definition, and return them in a new dictionary.
-        """
-        for property_name in self.properties.keys():
-            if property_name in attr_dict and property_name not in properties:
-                properties[property_name] = attr_dict.pop(property_name)
-
 
 class VarIRConstruct(Enum):
     """
