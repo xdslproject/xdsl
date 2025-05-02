@@ -107,7 +107,7 @@ def test_allocate_with_inout_constraints():
         ]
     ).results
     op0 = MyInstructionOp.get(rs0, rs1, "", "")
-    register_allocator.process_riscv_op(op0)
+    op0.allocate_registers(register_allocator)
     assert op0.rs0.type == riscv.IntRegisterType.infinite_register(1)
     assert op0.rs1.type == riscv.IntRegisterType.infinite_register(0)
     assert op0.rd0.type == riscv.IntRegisterType.infinite_register(1)
@@ -122,7 +122,7 @@ def test_allocate_with_inout_constraints():
         ]
     ).results
     op1 = MyInstructionOp.get(rs0, rs1, "", "a0")
-    register_allocator.process_riscv_op(op1)
+    op1.allocate_registers(register_allocator)
     assert op1.rs0.type == riscv.IntRegisterType.infinite_register(2)
     assert op1.rs1.type == riscv.IntRegisterType.from_name("a0")
     assert op1.rd0.type == riscv.IntRegisterType.infinite_register(2)
