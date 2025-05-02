@@ -277,7 +277,7 @@ def test_attr_dict(program: str, generic_program: str):
         ),
     ],
 )
-def test_attr_dict_prop_fallack(program: str, generic_program: str):
+def test_attr_dict_prop_fallback(program: str, generic_program: str):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
@@ -305,7 +305,7 @@ def test_attr_dict_prop_fallack(program: str, generic_program: str):
         ),
     ],
 )
-def test_partial_attr_dict_prop_fallack(program: str, generic_program: str):
+def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
