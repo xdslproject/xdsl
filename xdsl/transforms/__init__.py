@@ -533,6 +533,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return varith_transformations.VarithFuseRepeatedOperandsPass
 
+    def get_x86_allocate_registers():
+        from xdsl.transforms import x86_allocate_registers
+
+        return x86_allocate_registers.X86AllocateRegisters
+
     # Please insert pass and `get_` function in alphabetical order
 
     return {
@@ -641,4 +646,5 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
+        "x86-allocate-registers": get_x86_allocate_registers,
     }
