@@ -857,8 +857,6 @@ class Parser(AttrParser):
 
         # Parse attribute dictionary
         properties = self.parse_optional_properties_dict()
-        if properties is None:
-            properties = {}
 
         # Parse regions
         regions = self.parse_region_list()
