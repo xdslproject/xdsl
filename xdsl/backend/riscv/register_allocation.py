@@ -3,10 +3,8 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import cast
 
-from ordered_set import OrderedSet
-
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
-from xdsl.backend.register_allocator import ValueAllocator
+from xdsl.backend.register_allocator import BlockAllocator, live_ins_per_block
 from xdsl.backend.register_queue import RegisterQueue
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv, riscv_func, riscv_scf, riscv_snitch
@@ -26,7 +24,7 @@ def reg_types_by_name(regs: Iterable[RISCVRegisterType]) -> dict[str, set[str]]:
     return res
 
 
-class RegisterAllocatorLivenessBlockNaive(ValueAllocator):
+class RegisterAllocatorLivenessBlockNaive(BlockAllocator):
     """
     It traverses the use-def SSA chain backwards (i.e., from uses to defs) and:
       1. allocates registers for operands
@@ -54,10 +52,7 @@ class RegisterAllocatorLivenessBlockNaive(ValueAllocator):
     ```
     """
 
-    live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
-
     def __init__(self, available_registers: RegisterQueue) -> None:
-        self.live_ins_per_block = {}
         super().__init__(available_registers, RISCVRegisterType)
 
     def new_type_for_value(self, reg: SSAValue) -> RegisterType | None:
@@ -145,8 +140,7 @@ class RegisterAllocatorLivenessBlockNaive(ValueAllocator):
         assert all(isinstance(reg, RISCVRegisterType) for reg in regs)
         regs = cast(tuple[RISCVRegisterType, ...], regs)
         with self.available_registers.reserve_registers(regs):
-            for op in reversed(loop.body.block.ops):
-                self.process_operation(op)
+            self.allocate_block(loop.body.block)
 
         # lb is only used as an input to the loop, so free induction variable before
         # allocating lb to it in case it's not yet allocated
@@ -187,8 +181,11 @@ class RegisterAllocatorLivenessBlockNaive(ValueAllocator):
         assert all(isinstance(reg, RISCVRegisterType) for reg in regs)
         regs = cast(tuple[RISCVRegisterType, ...], regs)
         with self.available_registers.reserve_registers(regs):
-            for op in reversed(loop.body.block.ops):
-                self.process_operation(op)
+            self.allocate_block(loop.body.block)
+
+    def allocate_block(self, block: Block):
+        for op in reversed(block.ops):
+            self.process_operation(op)
 
     def allocate_func(
         self, func: riscv_func.FuncOp, *, add_regalloc_stats: bool = False
@@ -223,8 +220,8 @@ class RegisterAllocatorLivenessBlockNaive(ValueAllocator):
 
         self.live_ins_per_block = live_ins_per_block(block)
         assert not self.live_ins_per_block[block]
-        for op in reversed(block.ops):
-            self.process_operation(op)
+
+        self.allocate_block(block)
 
         if add_regalloc_stats:
             preallocated_stats = reg_types_by_name(preallocated)
@@ -248,39 +245,3 @@ class RegisterAllocatorLivenessBlockNaive(ValueAllocator):
                 riscv.CommentOp(f"Regalloc stats: {stats_str}"),
                 InsertPoint.before(func),
             )
-
-
-def _live_ins_per_block(
-    block: Block, acc: dict[Block, OrderedSet[SSAValue]]
-) -> OrderedSet[SSAValue]:
-    res = OrderedSet[SSAValue]([])
-
-    for op in reversed(block.ops):
-        # Remove values defined in the block
-        # We are traversing backwards, so cannot use the value removed here again
-        res.difference_update(op.results)
-        # Add values used in the block
-        res.update(op.operands)
-
-        # Process inner blocks
-        for region in op.regions:
-            for inner in region.blocks:
-                # Add the values used in the inner block
-                res.update(_live_ins_per_block(inner, acc))
-
-    # Remove the block arguments
-    res.difference_update(block.args)
-
-    acc[block] = res
-
-    return res
-
-
-def live_ins_per_block(block: Block) -> dict[Block, OrderedSet[SSAValue]]:
-    """
-    Returns a mapping from a block to the set of values used in it but defined outside of
-    it.
-    """
-    res: dict[Block, OrderedSet[SSAValue]] = {}
-    _ = _live_ins_per_block(block, res)
-    return res
