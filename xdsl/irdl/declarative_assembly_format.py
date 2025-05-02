@@ -426,13 +426,11 @@ class AttrDictDirective(FormatDirective):
                 "dictionary."
             )
 
-        parsed = bool(res)
-
         props = tuple(k for k in res.keys() if k in self.expected_properties)
         for name in props:
             state.properties[name] = res.pop(name)
         state.attributes |= res
-        return parsed
+        return bool(res) or bool(props)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if not op.attributes.keys().isdisjoint(self.expected_properties):
