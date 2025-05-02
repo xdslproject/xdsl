@@ -856,7 +856,9 @@ class Parser(AttrParser):
             successors = []
 
         # Parse attribute dictionary
-        properties = self.parse_optional_properties_dict() or {}
+        properties = self.parse_optional_properties_dict()
+        if properties is None:
+            properties = {}
 
         # Parse regions
         regions = self.parse_region_list()
