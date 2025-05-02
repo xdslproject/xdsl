@@ -435,7 +435,7 @@ class AttrDictDirective(FormatDirective):
         return parsed
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if any(name in op.attributes for name in self.expected_properties):
+        if not op.attributes.keys().isdisjoint(self.expected_properties):
             raise ValueError(
                 "Cannot print attributes and properties with the same name "
                 "in a single dictionary"
