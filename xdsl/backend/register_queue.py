@@ -3,7 +3,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import IntAttr
@@ -12,13 +12,13 @@ _T = TypeVar("_T", bound=RegisterType)
 
 
 @dataclass
-class RegisterQueue(Generic[_T], ABC):
+class RegisterQueue(ABC):
     """
     LIFO queue of registers available for allocation.
     """
 
     @abstractmethod
-    def push(self, reg: _T) -> None:
+    def push(self, reg: RegisterType) -> None:
         """
         Return a register to be made available for allocation.
         """
@@ -32,7 +32,7 @@ class RegisterQueue(Generic[_T], ABC):
         ...
 
     @contextmanager
-    def reserve_registers(self, regs: Sequence[_T]):
+    def reserve_registers(self, regs: Sequence[RegisterType]):
         for reg in regs:
             self.reserve_register(reg)
 
@@ -42,7 +42,7 @@ class RegisterQueue(Generic[_T], ABC):
             self.unreserve_register(reg)
 
     @abstractmethod
-    def reserve_register(self, reg: _T) -> None:
+    def reserve_register(self, reg: RegisterType) -> None:
         """
         Increase the reservation count for a register.
         If the reservation count is greater than 0, a register cannot be pushed back onto
@@ -53,7 +53,7 @@ class RegisterQueue(Generic[_T], ABC):
         ...
 
     @abstractmethod
-    def unreserve_register(self, reg: _T) -> None:
+    def unreserve_register(self, reg: RegisterType) -> None:
         """
         Decrease the reservation count for a register. If the reservation count is 0, make
         the register available for allocation.
@@ -61,7 +61,7 @@ class RegisterQueue(Generic[_T], ABC):
         ...
 
     @abstractmethod
-    def exclude_register(self, reg: _T) -> None:
+    def exclude_register(self, reg: RegisterType) -> None:
         """
         Removes regiesters from available set, if present.
         """
@@ -69,7 +69,7 @@ class RegisterQueue(Generic[_T], ABC):
 
 
 @dataclass
-class LIFORegisterQueue(Generic[_T], RegisterQueue[_T]):
+class LIFORegisterQueue(RegisterQueue):
     """
     LIFO queue of registers available for allocation.
     """
@@ -95,14 +95,14 @@ class LIFORegisterQueue(Generic[_T], RegisterQueue[_T]):
     """
 
     @classmethod
-    def default_reserved_registers(cls) -> Iterable[_T]:
+    def default_reserved_registers(cls) -> Iterable[RegisterType]:
         """
         The default registers to be made unavailable when instantiating the queue.
         """
         return ()
 
     @classmethod
-    def default_available_registers(cls) -> Iterable[_T]:
+    def default_available_registers(cls) -> Iterable[RegisterType]:
         """
         The default registers to be made available when instantiating the queue.
         """
@@ -111,8 +111,8 @@ class LIFORegisterQueue(Generic[_T], RegisterQueue[_T]):
     @classmethod
     def default(
         cls,
-        reserved_registers: Iterable[_T] | None = None,
-        available_registers: Iterable[_T] | None = None,
+        reserved_registers: Iterable[RegisterType] | None = None,
+        available_registers: Iterable[RegisterType] | None = None,
     ):
         if reserved_registers is None:
             reserved_registers = cls.default_reserved_registers()
@@ -125,7 +125,7 @@ class LIFORegisterQueue(Generic[_T], RegisterQueue[_T]):
             res.push(reg)
         return res
 
-    def push(self, reg: _T) -> None:
+    def push(self, reg: RegisterType) -> None:
         """
         Return a register to be made available for allocation.
         """
@@ -159,7 +159,7 @@ class LIFORegisterQueue(Generic[_T], RegisterQueue[_T]):
         )
         return reg
 
-    def reserve_register(self, reg: _T) -> None:
+    def reserve_register(self, reg: RegisterType) -> None:
         """
         Increase the reservation count for a register.
         If the reservation count is greater than 0, a register cannot be pushed back onto
@@ -170,7 +170,7 @@ class LIFORegisterQueue(Generic[_T], RegisterQueue[_T]):
         assert isinstance(reg.index, IntAttr)
         self.reserved_registers[reg.name][reg.index.data] += 1
 
-    def unreserve_register(self, reg: _T) -> None:
+    def unreserve_register(self, reg: RegisterType) -> None:
         """
         Decrease the reservation count for a register. If the reservation count is 0, make
         the register available for allocation.
@@ -198,7 +198,7 @@ class LIFORegisterQueue(Generic[_T], RegisterQueue[_T]):
             for key in keys:
                 del self.available_registers[key]
 
-    def exclude_register(self, reg: _T) -> None:
+    def exclude_register(self, reg: RegisterType) -> None:
         """
         Removes register from available set, if present.
         """

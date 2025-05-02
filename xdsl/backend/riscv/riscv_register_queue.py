@@ -1,12 +1,11 @@
-from collections.abc import Iterable
 from dataclasses import dataclass
 
 from xdsl.backend.register_queue import LIFORegisterQueue
-from xdsl.dialects.riscv import Registers, RISCVRegisterType
+from xdsl.dialects.riscv import Registers
 
 
 @dataclass
-class RiscvRegisterQueue(LIFORegisterQueue[RISCVRegisterType]):
+class RiscvRegisterQueue(LIFORegisterQueue):
     """
     LIFO queue of RISCV-specific registers.
     """
@@ -28,9 +27,9 @@ class RiscvRegisterQueue(LIFORegisterQueue[RISCVRegisterType]):
     )
 
     @classmethod
-    def default_reserved_registers(cls) -> Iterable[RISCVRegisterType]:
+    def default_reserved_registers(cls):
         return RiscvRegisterQueue.DEFAULT_RESERVED_REGISTERS
 
     @classmethod
-    def default_available_registers(cls) -> Iterable[RISCVRegisterType]:
+    def default_available_registers(cls):
         return RiscvRegisterQueue.DEFAULT_AVAILABLE_REGISTERS
