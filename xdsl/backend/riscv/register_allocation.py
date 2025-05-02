@@ -101,13 +101,13 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     ```
     """
 
-    available_registers: RegisterQueue[RISCVRegisterType]
+    available_registers: RegisterQueue
     live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
     new_value_by_old_value: dict[SSAValue, SSAValue]
 
     exclude_snitch_reserved: bool = True
 
-    def __init__(self, available_registers: RegisterQueue[RISCVRegisterType]) -> None:
+    def __init__(self, available_registers: RegisterQueue) -> None:
         self.available_registers = available_registers
         self.live_ins_per_block = {}
         self.new_value_by_old_value = {}
