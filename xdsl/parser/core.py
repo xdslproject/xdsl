@@ -856,7 +856,7 @@ class Parser(AttrParser):
             successors = []
 
         # Parse attribute dictionary
-        properties = self.parse_optional_properties_dict()
+        properties = self.parse_optional_properties_dict() or {}
 
         # Parse regions
         regions = self.parse_region_list()
@@ -875,10 +875,10 @@ class Parser(AttrParser):
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 
-        # Properties retrocompatibility : if no properties dictionary was present at all,
-        # We extract them from the attribute dictionary by name.
-        if issubclass(op_type, IRDLOperation) and not properties:
-            properties = op_type.get_irdl_definition().split_properties(attrs)
+        # Properties retrocompatibility :
+        # We extract properties from the attribute dictionary by name.
+        if issubclass(op_type, IRDLOperation):
+            op_type.get_irdl_definition().split_properties(properties, attrs)
 
         return op_type.create(
             operands=operands,

@@ -134,8 +134,8 @@ class FormatParser(BaseParser):
     """The region variables that are already parsed."""
     seen_successors: list[bool]
     """The successor variables that are already parsed."""
-    has_attr_dict: bool = field(default=False)
-    """True if the attribute dictionary has already been parsed."""
+    attr_dict_idx: int = field(default=-1)
+    """Location of the attribute dictionary in the assembly format."""
 
     def __init__(self, input: str, op_def: OpDef):
         super().__init__(ParserState(FormatLexer(Input(input, "<input>"))))
@@ -156,14 +156,15 @@ class FormatParser(BaseParser):
         unambiguous and refer to all elements exactly once.
         """
         elements: list[FormatDirective] = []
+        idx = 0
         while self._current_token.kind != MLIRTokenKind.EOF:
-            elements.append(self.parse_format_directive())
+            elements.append(self.parse_format_directive(idx))
+            idx += 1
 
-        self.add_reserved_attrs_to_directive(elements)
+        self.verify_attr_dict()
         extractors = self.extractors_by_name()
         self.verify_directives(elements)
-        self.verify_attr_dict()
-        self.verify_properties()
+        self.verify_properties(elements)
         self.verify_operands(extractors.keys())
         self.verify_results(extractors.keys())
         self.verify_regions()
@@ -210,21 +211,6 @@ class FormatParser(BaseParser):
                     )
                 case _:
                     pass
-
-    def add_reserved_attrs_to_directive(self, elements: list[FormatDirective]):
-        """
-        Add reserved attributes to the attr-dict directive.
-        These are the attributes that are printed/parsed in other places in the format,
-        and thus should not be printed in the attr-dict directive.
-        """
-        for idx, element in enumerate(elements):
-            if isinstance(element, AttrDictDirective):
-                elements[idx] = AttrDictDirective(
-                    with_keyword=element.with_keyword,
-                    reserved_attr_names=self.seen_attributes,
-                    print_properties=element.print_properties,
-                )
-                return
 
     @dataclass(frozen=True)
     class _OperandLengthResolver(VarExtractor[ParsingState]):
@@ -372,25 +358,14 @@ class FormatParser(BaseParser):
         """
         Check that the attribute dictionary is present.
         """
-        if not self.has_attr_dict:
+        if self.attr_dict_idx == -1:
             self.raise_error("'attr-dict' directive not found")
 
-    def verify_properties(self):
+    def verify_properties(self, elements: list[FormatDirective]):
         """
         Check that all properties are present, unless `ParsePropInAttrDict` option is
         used.
         """
-        # This is used for compatibility with MLIR
-        if any(
-            isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
-        ):
-            if self.seen_properties:
-                self.raise_error(
-                    "properties cannot be specified in the declarative format "
-                    "when 'ParsePropInAttrDict' IRDL option is used. They are instead "
-                    "parsed from the attribute dictionary."
-                )
-            return
 
         missing_properties = set(self.op_def.properties.keys()) - self.seen_properties
 
@@ -398,12 +373,25 @@ class FormatParser(BaseParser):
             if isinstance(option, AttrSizedSegments) and option.as_property:
                 missing_properties.remove(option.attribute_name)
 
-        if missing_properties:
+        parse_prop_in_attr_dict = any(
+            isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
+        )
+
+        if missing_properties and not parse_prop_in_attr_dict:
             self.raise_error(
                 f"{', '.join(missing_properties)} properties are missing from "
                 "the declarative format. If this is intentional, consider using "
                 "'ParsePropInAttrDict' IRDL option."
             )
+
+        attr_dict = elements[self.attr_dict_idx]
+        assert isinstance(attr_dict, AttrDictDirective)
+
+        elements[self.attr_dict_idx] = AttrDictDirective(
+            with_keyword=attr_dict.with_keyword,
+            reserved_attr_names=self.seen_attributes,
+            expected_properties=missing_properties,
+        )
 
     def verify_regions(self):
         """
@@ -662,7 +650,7 @@ class FormatParser(BaseParser):
         anchor: Directive | None = None
 
         while not self.parse_optional_punctuation(")"):
-            then_elements += (self.parse_format_directive(),)
+            then_elements += (self.parse_format_directive(None),)
             if self.parse_optional_keyword("^"):
                 if anchor is not None:
                     self.raise_error("An optional group can only have one anchor.")
@@ -753,7 +741,7 @@ class FormatParser(BaseParser):
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
-    def parse_format_directive(self) -> FormatDirective:
+    def parse_format_directive(self, idx: int | None) -> FormatDirective:
         """
         Parse a format directive, with the following format:
           directive ::= `attr-dict`
@@ -762,10 +750,10 @@ class FormatParser(BaseParser):
                         | keyword-or-punctuation-directive
                         | variable
         """
-        if self.parse_optional_keyword("attr-dict"):
-            return self.create_attr_dict_directive(False)
-        if self.parse_optional_keyword("attr-dict-with-keyword"):
-            return self.create_attr_dict_directive(True)
+        if idx is not None and self.parse_optional_keyword("attr-dict"):
+            return self.create_attr_dict_directive(False, idx)
+        if idx is not None and self.parse_optional_keyword("attr-dict-with-keyword"):
+            return self.create_attr_dict_directive(True, idx)
         if self.parse_optional_keyword("type"):
             return self.parse_type_directive()
         if self.parse_optional_keyword("operands"):
@@ -780,23 +768,22 @@ class FormatParser(BaseParser):
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
-    def create_attr_dict_directive(self, with_keyword: bool) -> AttrDictDirective:
+    def create_attr_dict_directive(
+        self, with_keyword: bool, idx: int
+    ) -> AttrDictDirective:
         """Create an attribute dictionary directive, and update the parsing state."""
-        if self.has_attr_dict:
+        if self.attr_dict_idx != -1:
             self.raise_error(
                 "'attr-dict' directive can only occur once "
                 "in the assembly format description"
             )
-        self.has_attr_dict = True
-        print_properties = any(
-            isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
-        )
-        # reserved_attr_names is populated once the format is parsed, as some attributes
-        # might appear after the attr-dict directive
+        self.attr_dict_idx = idx
+        # reserved_attr_names and expected_properties are populated once the format is parsed,
+        # as some attributes might appear after the attr-dict directive.
         return AttrDictDirective(
             with_keyword=with_keyword,
             reserved_attr_names=set(),
-            print_properties=print_properties,
+            expected_properties=set(),
         )
 
     def create_operands_directive(self, top_level: bool) -> OperandsDirective:
