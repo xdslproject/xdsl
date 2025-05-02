@@ -120,14 +120,6 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         self.new_value_by_old_value[val] = new_val
         return new_val
 
-    def _allocate_live_ins_per_block(self, block: Block):
-        live_ins = self.live_ins_per_block[block]
-        for live_in in live_ins:
-            # We change a value type at most once
-            if live_in in self.new_value_by_old_value:
-                live_in = self.new_value_by_old_value[live_in]
-            self.allocate(live_in)
-
     def allocate(self, reg: SSAValue) -> SSAValue | None:
         """
         Allocate a register if not already allocated.
@@ -248,7 +240,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         """
         # Allocate values used inside the body but defined outside.
         # Their scope lasts for the whole body execution scope
-        self._allocate_live_ins_per_block(loop.body.block)
+        live_ins = self.live_ins_per_block[loop.body.block]
+        for live_in in live_ins:
+            self.allocate(live_in)
 
         yield_op = loop.body.block.last_op
         assert yield_op is not None, (
@@ -290,7 +284,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         """
         # Allocate values used inside the body but defined outside.
         # Their scope lasts for the whole body execution scope
-        self._allocate_live_ins_per_block(loop.body.block)
+        live_ins = self.live_ins_per_block[loop.body.block]
+        for live_in in live_ins:
+            self.allocate(live_in)
 
         yield_op = loop.body.block.last_op
         assert yield_op is not None, (
