@@ -1,10 +1,16 @@
 from collections.abc import Sequence
 
-from xdsl.backend.register_allocatable import RegisterAllocatableOperation
+from xdsl.backend.register_allocatable import (
+    HasRegisterConstraints,
+    RegisterAllocatableOperation,
+    RegisterConstraints,
+)
 from xdsl.backend.register_type import RegisterType
 from xdsl.builder import Builder
 from xdsl.ir import Attribute, SSAValue
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    AttrSizedResultSegments,
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
@@ -27,20 +33,44 @@ class TestRegister(RegisterType):
 
 
 @irdl_op_definition
-class TestAllocatableOp(IRDLOperation, RegisterAllocatableOperation):
+class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
     name = "test.allocatable"
 
-    res = var_result_def()
-    ops = var_operand_def()
+    in_operands = var_operand_def()
+    inout_operands = var_operand_def()
+    out_results = var_result_def()
+    inout_results = var_result_def()
+
+    irdl_options = [AttrSizedOperandSegments(), AttrSizedResultSegments()]
 
     def __init__(
-        self, operands: Sequence[SSAValue] = (), result_types: Sequence[Attribute] = ()
+        self,
+        in_operands: Sequence[SSAValue],
+        inout_operands: Sequence[SSAValue],
+        out_result_types: Sequence[Attribute],
+        inout_result_types: Sequence[Attribute],
     ):
-        super().__init__(operands=(operands,), result_types=(result_types,))
+        super().__init__(
+            operands=(in_operands, inout_operands),
+            result_types=(out_result_types, inout_result_types),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            self.in_operands,
+            self.out_results,
+            tuple(zip(self.inout_operands, self.inout_results)),
+        )
 
 
-def op(operands: Sequence[SSAValue], *result_types: Attribute):
-    return TestAllocatableOp(operands, result_types).results
+def op(
+    ins: Sequence[SSAValue],
+    *out_result_types: Attribute,
+    inouts: Sequence[SSAValue] = (),
+):
+    return TestAllocatableOp(
+        ins, inouts, out_result_types, tuple(val.type for val in inouts)
+    )
 
 
 def test_gather_allocated():
@@ -50,8 +80,8 @@ def test_gather_allocated():
 
     @Builder.implicit_region
     def no_preallocated_body() -> None:
-        (v1,) = op((), u)
-        (v2,) = op((), u)
+        (v1,) = op((), u).results
+        (v2,) = op((), u).results
         op((v1, v2), u)
 
     pa_regs = set(
@@ -62,8 +92,8 @@ def test_gather_allocated():
 
     @Builder.implicit_region
     def one_preallocated_body() -> None:
-        (v1,) = op((), u)
-        (v2,) = op((), x0)
+        (v1,) = op((), u).results
+        (v2,) = op((), x0).results
         op((v1, v2), u)
 
     pa_regs = set(
@@ -74,9 +104,9 @@ def test_gather_allocated():
 
     @Builder.implicit_region
     def repeated_preallocated_body() -> None:
-        (v1,) = op((), u)
-        (v2,) = op((), x0)
-        (v3,) = op((), x0)
+        (v1,) = op((), u).results
+        (v2,) = op((), x0).results
+        (v3,) = op((), x0).results
         op((v1, v2, v3), u)
 
     pa_regs = set(
@@ -87,9 +117,9 @@ def test_gather_allocated():
 
     @Builder.implicit_region
     def multiple_preallocated_body() -> None:
-        (v1,) = op((), u)
-        (v2,) = op((), x0)
-        (v3,) = op((), x1)
+        (v1,) = op((), u).results
+        (v2,) = op((), x0).results
+        (v3,) = op((), x1).results
         op((v1, v2, v3), u)
 
     pa_regs = set(
