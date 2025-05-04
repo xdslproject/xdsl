@@ -47,7 +47,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _():
     triangle_text = """\
-    func.func @triangle(%n: index) -> index {
+    func.func @sum_of_squares(%n: index) -> index {
       %zero = arith.constant 0 : index
       %one = arith.constant 1 : index
       %res = scf.for %i = %zero to %n step %one iter_args(%acc_in = %zero) -> (index) {
