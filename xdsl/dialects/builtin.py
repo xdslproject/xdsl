@@ -85,7 +85,7 @@ from xdsl.utils.comparisons import (
     unsigned_upper_bound,
     unsigned_value_range,
 )
-from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.exceptions import DiagnosticException, PyRDLError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
@@ -316,13 +316,15 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
         self.int_constraint.verify(attr.data, constraint_context)
 
     @dataclass(frozen=True)
-    class _Extractor(VarExtractor[IntAttr]):
+    class _Extractor(VarExtractor[Attribute]):
         inner: VarExtractor[int]
 
-        def extract_var(self, a: IntAttr) -> ConstraintVariableType:
+        def extract_var(self, a: Attribute) -> ConstraintVariableType:
+            if not isinstance(a, IntAttr):
+                raise PyRDLError(f"Inference expected {a} to be an IntAttr")
             return self.inner.extract_var(a.data)
 
-    def get_variable_extractors(self) -> dict[str, VarExtractor[IntAttr]]:
+    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
         return {
             k: self._Extractor(v)
             for k, v in self.int_constraint.get_length_extractors().items()
