@@ -15,7 +15,7 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import IntAttr
-from xdsl.ir import Attribute, Dialect, Region, SSAValue
+from xdsl.ir import Attribute, Dialect, OperationInfo, OpOperands, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
@@ -29,13 +29,60 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import HasParent, IsTerminator, Pure, SingleBlockImplicitTerminator
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 EQSAT_COST_LABEL = "eqsat_cost"
 """
 Key used to store the cost of computing the result of an operation.
 """
+
+
+class EClassOpInfo(OperationInfo):
+    """
+    Two EclassOps are the same if they have at least one operand in common.
+    Upon an equality check between two equivalent EClassOps, the two operations are
+    canonicalized by inserting the missing operands from the other.
+    """
+
+    def __hash__(self):
+        # Custom hash that ignores the operands
+        return hash(
+            (
+                self.name,
+                sum(hash(i) for i in self.op.attributes.items()),
+                sum(hash(i) for i in self.op.properties.items()),
+                hash(self.op.result_types),
+            )
+        )
+
+    def __eq__(self, other: object):
+        if not isinstance(other, EClassOpInfo):
+            return False
+
+        if self.name == other.name:
+            # If any of the operands are the same, the e-classes are equivalent
+            for operand in self.op.operands:
+                if operand in other.op.operands:
+                    # TODO: the new operands should be added to the e-class such that,when
+                    # cse removes the other e-class, the equivalent operands are not lost.
+                    EClassOpInfo._canonicalize_operands(
+                        self.op.operands, other.op.operands
+                    )
+                    return True
+        return False
+
+    @staticmethod
+    def _canonicalize_operands(a: OpOperands, b: OpOperands):
+        """
+        Insert the operands of b into a, such that the two e-classes are equivalent.
+        """
+        for operand in b:
+            if operand not in a:
+                a.append(operand)
+        for operand in a:
+            if operand not in b:
+                b.append(operand)
 
 
 @irdl_op_definition
@@ -46,6 +93,8 @@ class EClassOp(IRDLOperation):
     arguments = var_operand_def(T)
     result = result_def(T)
     min_cost_index = opt_attr_def(IntAttr)
+
+    traits = traits_def(Pure())
 
     assembly_format = "$arguments attr-dict `:` type($result)"
 
@@ -75,6 +124,9 @@ class EClassOp(IRDLOperation):
                     "A result of an eclass operation cannot be used as an operand of "
                     "another eclass."
                 )
+
+    def info(self) -> OperationInfo:
+        return EClassOpInfo(self)
 
 
 @irdl_op_definition
