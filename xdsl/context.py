@@ -3,7 +3,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from xdsl.ir import Attribute, Dialect, Operation
+from xdsl.ir import Attribute, Dialect, Operation, TypeAttribute
 
 
 @dataclass
@@ -17,6 +17,9 @@ class Context:
         default_factory=dict[str, type[Operation]]
     )
     _loaded_attrs: dict[str, type[Attribute]] = field(
+        default_factory=dict[str, type[Attribute]]
+    )
+    _loaded_types: dict[str, type[Attribute]] = field(
         default_factory=dict[str, type[Attribute]]
     )
     _registered_dialects: dict[str, Callable[[], Dialect]] = field(
@@ -33,6 +36,7 @@ class Context:
             self._loaded_dialects.copy(),
             self._loaded_ops.copy(),
             self._loaded_attrs.copy(),
+            self._loaded_types.copy(),
             self._registered_dialects.copy(),
         )
 
@@ -49,6 +53,13 @@ class Context:
         Returns all the loaded attributes. Not valid across mutations of this object.
         """
         return self._loaded_attrs.values()
+
+    @property
+    def loaded_types(self) -> Iterable[type[Attribute]]:
+        """
+        Returns all the loaded types. Not valid across mutations of this object.
+        """
+        return self._loaded_types.values()
 
     @property
     def loaded_dialects(self) -> "Iterable[Dialect]":
@@ -87,7 +98,7 @@ class Context:
             self.load_op(op)
 
         for attr in dialect.attributes:
-            self.load_attr(attr)
+            self.load_attr_or_type(attr)
 
     def load_dialect(self, dialect: "Dialect"):
         """
@@ -108,11 +119,20 @@ class Context:
             raise Exception(f"Operation {op.name} has already been loaded")
         self._loaded_ops[op.name] = op
 
-    def load_attr(self, attr: "type[Attribute]") -> None:
-        """Load an attribute definition. Attribute names should be unique."""
-        if attr.name in self._loaded_attrs:
-            raise Exception(f"Attribute {attr.name} has already been loaded")
-        self._loaded_attrs[attr.name] = attr
+    def load_attr_or_type(self, attr: type[Attribute]) -> None:
+        """
+        Load an attribute or type definition.
+        Attribute or type names should be unique, but an attribute may have the same
+        name as a type.
+        """
+        if issubclass(attr, TypeAttribute):
+            if attr.name in self._loaded_types:
+                raise Exception(f"Type {attr.name} has already been loaded")
+            self._loaded_types[attr.name] = attr
+        else:
+            if attr.name in self._loaded_attrs:
+                raise Exception(f"Attribute {attr.name} has already been loaded")
+            self._loaded_attrs[attr.name] = attr
 
     def _get_known_op(self, name: str) -> "type[Operation] | None":
         if name in self._loaded_ops:
@@ -165,6 +185,43 @@ class Context:
         if op_type := self.get_optional_op(name, dialect_stack=dialect_stack):
             return op_type
         raise Exception(f"Operation {name} is not registered")
+
+    def get_optional_type(self, name: str) -> type[Attribute] | None:
+        """
+        Get a type definition from its name if it exists.
+        If the type is not registered, return None unless unregistered types
+        are allowed in the context, in which case return an UnregisteredAttr.
+        """
+        # If the type is already loaded, returns it.
+        if name in self._loaded_types:
+            return self._loaded_types[name]
+
+        # Otherwise, check if the type dialect is registered.
+        dialect_name, _ = Dialect.split_name(name)
+        if (dialect_name in self._registered_dialects) and (
+            dialect_name not in self._loaded_dialects
+        ):
+            self.load_registered_dialect(dialect_name)
+            return self.get_optional_type(name)
+
+        # If the dialect is unregistered, but the context allows unregistered
+        # dialects, return an UnregisteredAttr.
+        if self.allow_unregistered:
+            from xdsl.dialects.builtin import UnregisteredAttr
+
+            attr_type = UnregisteredAttr.with_name_and_type(name, True)
+            self._loaded_types[name] = attr_type
+            return attr_type
+
+    def get_type(self, name: str) -> type[Attribute]:
+        """
+        Get a type definition from its name.
+        If the type is not registered, raise an exception unless unregistered
+        types are allowed in the context, in which case return an UnregisteredAttr.
+        """
+        if attr_type := self.get_optional_type(name):
+            return attr_type
+        raise Exception(f"Type {name} is not registered")
 
     def get_optional_attr(
         self,

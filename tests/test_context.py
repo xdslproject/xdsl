@@ -26,8 +26,13 @@ class DummyAttr2(ParametrizedAttribute):
     name = "test.dummy_attr2"
 
 
-testDialect = Dialect("test", [DummyOp], [DummyAttr])
-testDialect2 = Dialect("test", [DummyOp2], [DummyAttr2])
+@irdl_attr_definition
+class DummyType(ParametrizedAttribute, TypeAttribute):
+    name = "test.dummy_type"
+
+
+testDialect = Dialect("test", [DummyOp], [DummyAttr, DummyType])
+testDialect2 = Dialect("test", [DummyOp2], [DummyAttr2, DummyType])
 
 
 def test_get_op():
@@ -96,7 +101,7 @@ def test_get_op_unregistered_with_dialect_stack():
 def test_get_attr():
     """Test `get_attr` and `get_optional_attr` methods."""
     ctx = Context()
-    ctx.load_attr(DummyAttr)
+    ctx.load_attr_or_type(DummyAttr)
 
     assert ctx.get_attr("test.dummy_attr") == DummyAttr
     with pytest.raises(Exception):
@@ -106,6 +111,20 @@ def test_get_attr():
     assert ctx.get_optional_attr("test.dummy_attr2") is None
 
 
+def test_get_type():
+    """Test `get_type` and `get_optional_type` methods."""
+    ctx = Context()
+    ctx.load_attr_or_type(DummyAttr)
+    ctx.load_attr_or_type(DummyType)
+
+    assert ctx.get_type("test.dummy_type") == DummyType
+    with pytest.raises(Exception):
+        _ = ctx.get_type("test.dummy_attr")
+
+    assert ctx.get_optional_type("test.dummy_type") == DummyType
+    assert ctx.get_optional_type("test.dummy_attr") is None
+
+
 @pytest.mark.parametrize("is_type", [True, False])
 def test_get_attr_unregistered(is_type: bool):
     """
@@ -113,7 +132,7 @@ def test_get_attr_unregistered(is_type: bool):
     methods with the `allow_unregistered` flag.
     """
     ctx = Context(allow_unregistered=True)
-    ctx.load_attr(DummyAttr)
+    ctx.load_attr_or_type(DummyAttr)
 
     assert (
         ctx.get_optional_attr("test.dummy_attr", create_unregistered_as_type=is_type)
@@ -139,7 +158,7 @@ def test_get_attr_unregistered(is_type: bool):
 
 def test_clone_function():
     ctx = Context()
-    ctx.load_attr(DummyAttr)
+    ctx.load_attr_or_type(DummyAttr)
     ctx.load_op(DummyOp)
 
     copy = ctx.clone()
@@ -151,7 +170,7 @@ def test_clone_function():
     copy = ctx.clone()
 
     assert ctx == copy
-    copy.load_attr(DummyAttr2)
+    copy.load_attr_or_type(DummyAttr2)
     assert ctx != copy
 
 
@@ -237,3 +256,22 @@ def test_get_optional_attr_registered():
     assert ctx.get_optional_attr("test.dummy_attr2") is None
     assert list(ctx.loaded_dialects) == [testDialect]
     assert list(ctx.registered_dialect_names) == ["test"]
+
+
+def test_attr_type_same_name():
+    """
+    Check that a type and an attribute can have the same name.
+    """
+    ctx = Context()
+
+    class SameNameAttr(ParametrizedAttribute):
+        name = "test.same_name"
+
+    class SameNameType(ParametrizedAttribute, TypeAttribute):
+        name = "test.same_name"
+
+    dialect = Dialect("test", [], [SameNameAttr, SameNameType])
+    ctx.load_dialect(dialect)
+
+    assert ctx.get_attr("test.same_name") == SameNameAttr
+    assert ctx.get_type("test.same_name") == SameNameType

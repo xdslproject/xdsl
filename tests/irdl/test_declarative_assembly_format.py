@@ -420,7 +420,7 @@ def test_unqualified_attr(program: str, generic_program: str):
         assembly_format = "$attr attr-dict"
 
     ctx = Context()
-    ctx.load_attr(ParamOne)
+    ctx.load_attr_or_type(ParamOne)
     ctx.load_op(UnqualifiedAttrOp)
 
     check_equivalence(program, generic_program, ctx)
@@ -2348,7 +2348,7 @@ def test_eq_attr_inference():
         assembly_format = "attr-dict $index"
 
     ctx = Context()
-    ctx.load_attr(UnitType)
+    ctx.load_attr_or_type(UnitType)
     ctx.load_op(OneOperandEqTypeOp)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
@@ -2375,7 +2375,7 @@ def test_all_of_attr_inference():
         assembly_format = "attr-dict $index"
 
     ctx = Context()
-    ctx.load_attr(UnitType)
+    ctx.load_attr_or_type(UnitType)
     ctx.load_op(OneOperandEqTypeAllOfNestedOp)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
@@ -2422,7 +2422,7 @@ def test_nested_inference():
 
     ctx = Context()
     ctx.load_op(TwoOperandsNestedVarOp)
-    ctx.load_attr(ParamOne)
+    ctx.load_attr_or_type(ParamOne)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
         """\
@@ -2460,7 +2460,7 @@ def test_nested_inference_variable():
 
     ctx = Context()
     ctx.load_op(ResultTypeIsOperandParamOp)
-    ctx.load_attr(ParamOne)
+    ctx.load_attr_or_type(ParamOne)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
         """\
@@ -2503,7 +2503,7 @@ def test_non_verifying_inference():
 
     ctx = Context()
     ctx.load_op(OneOperandOneResultNestedOp)
-    ctx.load_attr(ParamOne)
+    ctx.load_attr_or_type(ParamOne)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
         """\
@@ -2532,10 +2532,12 @@ def test_variadic_length_inference():
     ctx = Context()
     ctx.load_op(RangeVarOp)
     ctx.load_dialect(Test)
-    program = textwrap.dedent("""\
+    program = textwrap.dedent(
+        """\
     %in0, %in1 = "test.op"() : () -> (index, index)
     %out0, %out1 = test.range_var %in0, %in1 : index, index
-    """)
+    """
+    )
 
     parser = Parser(ctx, program)
     test_op = parser.parse_optional_operation()
@@ -2557,10 +2559,12 @@ def test_int_var_inference():
     ctx = Context()
     ctx.load_op(IntVarOp)
     ctx.load_dialect(Test)
-    program = textwrap.dedent("""\
+    program = textwrap.dedent(
+        """\
     %in0, %in1 = "test.op"() : () -> (index, index)
     %out0, %out1 = test.int_var %in0, %in1
-    """)
+    """
+    )
 
     parser = Parser(ctx, program)
     test_op = parser.parse_optional_operation()
@@ -3240,7 +3244,7 @@ class ParamExtractorOp(IRDLOperation):
 
 def test_param_extraction_fails():
     ctx = Context()
-    ctx.load_attr(DoubleParamAttr)
+    ctx.load_attr_or_type(DoubleParamAttr)
     ctx.load_op(ParamExtractorOp)
     ctx.load_dialect(Test)
     parser = Parser(
