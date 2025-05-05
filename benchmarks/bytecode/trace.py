@@ -95,8 +95,6 @@ class OpcodeTrace(EventTrace):
         assert instruction is not None
 
         line_no = getattr(instruction.positions, "lineno", None)
-        if line_no is None and instruction.starts_line is not None:
-            line_no = instruction.starts_line
 
         return cls(
             lineno=line_no,
