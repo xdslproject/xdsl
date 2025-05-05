@@ -27,7 +27,7 @@ from xdsl.utils.exceptions import VerifyException
 class BoolData(Data[bool]):
     """An attribute holding a boolean value."""
 
-    name = "bool"
+    name = "test.bool"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> bool:
@@ -41,7 +41,7 @@ class BoolData(Data[bool]):
 class IntData(Data[int]):
     """An attribute holding an integer value."""
 
-    name = "int"
+    name = "test.int"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:
@@ -57,7 +57,7 @@ class IntData(Data[int]):
 class DoubleParamAttr(ParametrizedAttribute):
     """An attribute with two unbounded attribute parameters."""
 
-    name = "param"
+    name = "test.param"
 
     param1: ParameterDef[Attribute]
     param2: ParameterDef[Attribute]
