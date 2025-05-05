@@ -1052,19 +1052,14 @@ class SelectOp(IRDLOperation):
     """
 
     name = "arith.select"
-    cond = operand_def(IntegerType(1))  # should be unsigned
-    lhs = operand_def(Attribute)
-    rhs = operand_def(Attribute)
-    result = result_def(Attribute)
+
+    _T: ClassVar = VarConstraint("_T", AnyAttr())
+    cond = operand_def(IntegerType(1))
+    lhs = operand_def(_T)
+    rhs = operand_def(_T)
+    result = result_def(_T)
 
     traits = traits_def(Pure(), SelectHasCanonicalizationPatterns())
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.cond.type != IntegerType(1):
-            raise VerifyException("Condition has to be of type !i1")
-        if self.lhs.type != self.rhs.type or self.rhs.type != self.result.type:
-            raise VerifyException("expect all input and output types to be equal")
 
     def __init__(
         self,
@@ -1077,32 +1072,7 @@ class SelectOp(IRDLOperation):
             operands=[operand1, operand2, operand3], result_types=[operand2.type]
         )
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        cond = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        operand1 = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        operand2 = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        (cond, operand1, operand2) = parser.resolve_operands(
-            [cond, operand1, operand2],
-            [IntegerType(1), result_type, result_type],
-            parser.pos,
-        )
-
-        return cls(cond, operand1, operand2)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_operand(self.cond)
-        printer.print(", ")
-        printer.print_operand(self.lhs)
-        printer.print(", ")
-        printer.print_operand(self.rhs)
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
+    assembly_format = "$cond `,` $lhs `,` $rhs attr-dict `:` type($result)"
 
 
 @irdl_op_definition
