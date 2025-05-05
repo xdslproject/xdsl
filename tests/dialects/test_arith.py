@@ -251,7 +251,7 @@ class Test_float_arith_construction:
         op = func(self.a, self.b, flags)
         assert op.operands[0].owner is self.a
         assert op.operands[1].owner is self.b
-        assert op.fastmath == flags
+        assert op.fastmath == (flags or FastMathFlagsAttr("none"))
 
 
 def test_select_op():
