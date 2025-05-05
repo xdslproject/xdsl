@@ -676,8 +676,6 @@ class CreateOperationOp(IRDLOperation):
         printer.print_attribute(self.constraint_name)
         if self.input_operands:
             CreateOperationOp._print_input_list(printer, self.input_operands)
-        else:
-            printer.print_string("() ", indent=0)
         if self.input_attributes:
             printer.print_string(" {", indent=0)
             printer.print_list(
