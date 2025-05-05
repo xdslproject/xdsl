@@ -1146,9 +1146,12 @@ class DivfOp(FloatingPointLikeBinaryOperation):
 @irdl_op_definition
 class NegfOp(IRDLOperation):
     name = "arith.negf"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(floatingPointLike)
-    result = result_def(floatingPointLike)
+
+    _T: ClassVar = VarConstraint("_T", floatingPointLike)
+
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    operand = operand_def(_T)
+    result = result_def(_T)
 
     traits = traits_def(Pure())
 
@@ -1162,19 +1165,7 @@ class NegfOp(IRDLOperation):
             result_types=[operand.type],
         )
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        input = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_attribute()
-        input = parser.resolve_operand(input, result_type)
-        return cls(input)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_operand(self.operand)
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
+    assembly_format = "$operand (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
 
 @irdl_op_definition
