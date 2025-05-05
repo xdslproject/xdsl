@@ -36,6 +36,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParameterDef,
+    ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -164,14 +165,14 @@ class ApplyRegisteredPassOp(IRDLOperation):
 
     name = "transform.apply_registered_pass"
 
-    options = opt_attr_def(StringAttr, default_value=StringAttr(""))
+    options = prop_def(StringAttr, default_value=StringAttr(""))
     pass_name = prop_def(StringAttr)
     target = operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
-
     assembly_format = (
         "$pass_name `to` $target attr-dict `:` functional-type(operands, results)"
     )
+    irdl_options = [ParsePropInAttrDict()]
 
     def __init__(
         self,
