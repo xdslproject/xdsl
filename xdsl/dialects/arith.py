@@ -38,7 +38,6 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_prop_def,
     prop_def,
     result_def,
     traits_def,
