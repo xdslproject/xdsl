@@ -30,35 +30,35 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 
  %t1, %t2, %t3 = "test.op"() : () -> (tensor<4x16xf32>, tensor<4x16xf32>, tensor<4x16xf32>)
  %m1, %m2, %m3 = "test.op"() : () -> (memref<4x16xf32>, memref<4x16xf32>, memref<4x16xf32>)
- 
+
  %sum = linalg.add ins(%t1, %t2 : tensor<4x16xf32>, tensor<4x16xf32>) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
  linalg.add ins(%m1, %m2 : memref<4x16xf32>, memref<4x16xf32>) outs(%m3 : memref<4x16xf32>) -> ()
- 
+
  %mul = linalg.mul ins(%t1, %t2 : tensor<4x16xf32>, tensor<4x16xf32>) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
  linalg.mul ins(%m1, %m2 : memref<4x16xf32>, memref<4x16xf32>) outs(%m3 : memref<4x16xf32>)
- 
+
  %2, %3 = "test.op"() : () -> (memref<64x9216xf32>, memref<9216x4096xf32>)
  %4 = "test.op"() : () -> (memref<64x4096xf32>)
  linalg.matmul {id} ins(%2, %3 : memref<64x9216xf32>, memref<9216x4096xf32>) outs(%4 : memref<64x4096xf32>)
- 
+
  %i2, %i3 = "test.op"() : () -> (memref<64x9216xi32>, memref<9216x4096xi32>)
  %i4 = "test.op"() : () -> (memref<64x4096xi32>)
  linalg.matmul {id} ins(%i2, %i3 : memref<64x9216xi32>, memref<9216x4096xi32>) outs(%i4 : memref<64x4096xi32>)
- 
+
  %fill = linalg.fill ins(%0 : f32) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
  linalg.fill ins(%0 : f32) outs(%m3 : memref<4x16xf32>)
- 
+
  %5, %6 = "test.op"() : () -> (tensor<64x9216xi8>, tensor<9216x4096xi8>)
  %7 = arith.constant 0 : i32
  %8 = arith.constant 0 : i32
  %9 = "test.op"() : () -> (tensor<64x4096xi32>)
- 
+
  linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%9 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
- 
+
  %b1 = "test.op"() : () -> tensor<4x16xi1>
  %10 = linalg.select ins(%b1, %t1, %t2 : tensor<4x16xi1>, tensor<4x16xf32>, tensor<4x16xf32>) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
  "test.op"(%10) : (tensor<4x16xf32>) -> ()
- 
+
  %11 = linalg.max ins(%t1, %t2 : tensor<4x16xf32>, tensor<4x16xf32>) outs(%t1 : tensor<4x16xf32>) -> tensor<4x16xf32>
  %12 = linalg.min ins(%t1, %t2 : tensor<4x16xf32>, tensor<4x16xf32>) outs(%t1 : tensor<4x16xf32>) -> tensor<4x16xf32>
 
@@ -213,11 +213,11 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-GENERIC-NEXT:    "test.op"(%{{.*}}) : (tensor<4x16xf32>) -> ()
 // CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.max"(%{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32, %{{.*}} : f32):
-// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.maximumf"(%{{.*}}, %{{.*}}) : (f32, f32) -> f32
+// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.maximumf"(%{{.*}}, %{{.*}}) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (f32) -> ()
 // CHECK-GENERIC-NEXT:    }) : (tensor<4x16xf32>, tensor<4x16xf32>, tensor<4x16xf32>) -> tensor<4x16xf32>
 // CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32, %{{.*}} : f32):
-// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.minimumf"(%{{.*}}, %{{.*}}) : (f32, f32) -> f32
+// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.minimumf"(%{{.*}}, %{{.*}}) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (f32) -> ()
 // CHECK-GENERIC-NEXT:    }) : (tensor<4x16xf32>, tensor<4x16xf32>, tensor<4x16xf32>) -> tensor<4x16xf32>

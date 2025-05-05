@@ -318,7 +318,7 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
     rhs = operand_def(T)
     result = result_def(T)
 
-    fastmath = opt_prop_def(FastMathFlagsAttr)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     def __init__(
         self,
@@ -335,29 +335,9 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
             properties={"fastmath": flags},
         )
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        lhs = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        rhs = parser.parse_unresolved_operand()
-        flags = FastMathFlagsAttr("none")
-        if parser.parse_optional_keyword("fastmath") is not None:
-            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
-        return cls(lhs, rhs, flags, result_type)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_ssa_value(self.lhs)
-        printer.print(", ")
-        printer.print_ssa_value(self.rhs)
-        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
-            printer.print(" fastmath")
-            self.fastmath.print_parameter(printer)
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
+    assembly_format = (
+        "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
+    )
 
 
 @irdl_op_definition
