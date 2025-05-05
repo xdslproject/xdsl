@@ -5,7 +5,6 @@ from xdsl.dialects import affine, builtin, memref, ptr, vector
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     FixedBitwidthType,
-    NoneAttr,
 )
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -32,13 +31,10 @@ class VectorLoadToPtr(RewritePattern):
         assert isinstance(memory_ty, memref.MemRefType)
 
         # Build an affine.apply to compute the linearized offset
-        layout_map = memory_ty.layout
-        if isinstance(layout_map, NoneAttr):
-            layout_map = AffineMapAttr(affine.AffineMap.identity(len(op.indices)))
-        assert isinstance(layout_map, AffineMapAttr)
+        layout_map = memory_ty.get_affine_map_in_bytes()
         apply_op = affine.ApplyOp(
             map_operands=op.indices,
-            affine_map=layout_map,
+            affine_map=AffineMapAttr(layout_map),
         )
 
         # Compute the linearized offset
