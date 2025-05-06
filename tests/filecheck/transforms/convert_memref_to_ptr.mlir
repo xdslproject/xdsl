@@ -73,7 +73,6 @@ memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 // CHECK-NEXT: %scaled_pointer_offset_6 = arith.muli %3, %bytes_per_element_6 : index
 // CHECK-NEXT: %subview = ptr_xdsl.to_ptr %arr : memref<10xi32> -> !ptr_xdsl.ptr
 // CHECK-NEXT: %offset_pointer_6 = ptr_xdsl.ptradd %subview, %scaled_pointer_offset_6 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
-// CHECK-NEXT: %subview_1 = builtin.unrealized_conversion_cast %offset_pointer_6 : !ptr_xdsl.ptr to memref<5xi32>
 
 %size, %dyn = "test.op"() : () -> (index, memref<?xi32>)
 %dynsubview = memref.subview %dyn[%idx][%size][1] : memref<?xi32> to memref<?xi32>
@@ -82,10 +81,10 @@ memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 // CHECK-NEXT: %scaled_pointer_offset_7 = arith.muli %idx, %bytes_per_element_7 : index
 // CHECK-NEXT: %dynsubview = ptr_xdsl.to_ptr %dyn : memref<?xi32> -> !ptr_xdsl.ptr
 // CHECK-NEXT: %offset_pointer_7 = ptr_xdsl.ptradd %dynsubview, %scaled_pointer_offset_7 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
-// CHECK-NEXT: %dynsubview_1 = builtin.unrealized_conversion_cast %offset_pointer_7 : !ptr_xdsl.ptr to memref<?xi32>
 
 %reinterpret_cast = memref.reinterpret_cast %arr to offset: [0], sizes: [5, 2], strides: [1, 1] : memref<10xi32> to memref<5x2xi32>
 
+// CHECK-NEXT: %reinterpret_cast = ptr_xdsl.to_ptr %arr : memref<10xi32> -> !ptr_xdsl.ptr
 // CHECK-NEXT: }
 
 // -----
