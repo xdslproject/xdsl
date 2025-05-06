@@ -902,7 +902,12 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
     ) -> None:
         for a in attrs:
             self.constr.verify(a, constraint_context)
-        self.length.verify(len(attrs), constraint_context)
+        try:
+            self.length.verify(len(attrs), constraint_context)
+        except VerifyException as e:
+            raise VerifyException(
+                "incorrect length for range variable:\n" + str(e)
+            ) from e
 
     def get_length_extractors(self) -> dict[str, VarExtractor[int]]:
         return self.length.get_length_extractors()
