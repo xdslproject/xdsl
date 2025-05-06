@@ -187,9 +187,7 @@ class LowerBinaryFloatOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected float type {op.lhs.type}")
 
-        rv_flags = riscv.FastMathFlagsAttr("none")
-        if op.fastmath is not None:
-            rv_flags = riscv.FastMathFlagsAttr(op.fastmath.data)
+        rv_flags = riscv.FastMathFlagsAttr(op.fastmath.data)
 
         new_op = cls(lhs, rhs, rd=_FLOAT_REGISTER_TYPE, fastmath=rv_flags)
         cast = UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,))

@@ -23,7 +23,6 @@ from typing_extensions import Self, TypeVar
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
-    AttributeInvT,
     Block,
     BlockOps,
     BuiltinAttribute,
@@ -86,7 +85,7 @@ from xdsl.utils.comparisons import (
     unsigned_upper_bound,
     unsigned_value_range,
 )
-from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.exceptions import DiagnosticException, PyRDLError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
@@ -317,13 +316,15 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
         self.int_constraint.verify(attr.data, constraint_context)
 
     @dataclass(frozen=True)
-    class _Extractor(VarExtractor[IntAttr]):
+    class _Extractor(VarExtractor[Attribute]):
         inner: VarExtractor[int]
 
-        def extract_var(self, a: IntAttr) -> ConstraintVariableType:
+        def extract_var(self, a: Attribute) -> ConstraintVariableType:
+            if not isinstance(a, IntAttr):
+                raise PyRDLError(f"Inference expected {a} to be an IntAttr")
             return self.inner.extract_var(a.data)
 
-    def get_variable_extractors(self) -> dict[str, VarExtractor[IntAttr]]:
+    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
         return {
             k: self._Extractor(v)
             for k, v in self.int_constraint.get_length_extractors().items()
@@ -2027,52 +2028,6 @@ class MemRefType(
         return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
             MemRefType, (shape, element_type, layout, memory_space)
         )
-
-
-@dataclass(frozen=True, init=False)
-class TensorOrMemRefOf(
-    GenericAttrConstraint[TensorType[AttributeCovT] | MemRefType[AttributeCovT]]
-):
-    """A type constraint that can be nested once in a memref or a tensor."""
-
-    elem_constr: GenericAttrConstraint[AttributeCovT]
-
-    def __init__(
-        self,
-        elem_constr: (
-            AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT]
-        ),
-    ) -> None:
-        object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
-
-    @dataclass(frozen=True)
-    class _Extractor(
-        VarExtractor[TensorType[AttributeInvT] | MemRefType[AttributeInvT]]
-    ):
-        inner: VarExtractor[AttributeInvT]
-
-        def extract_var(
-            self, a: TensorType[AttributeInvT] | MemRefType[AttributeInvT]
-        ) -> ConstraintVariableType:
-            return self.inner.extract_var(a.element_type)
-
-    def get_resolvers(
-        self,
-    ) -> dict[
-        str,
-        VarExtractor[TensorType[AttributeCovT] | MemRefType[AttributeCovT]],
-    ]:
-        return {
-            v: self._Extractor(r)
-            for v, r in self.elem_constr.get_variable_extractors().items()
-        }
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isinstance(attr, MemRefType) or isinstance(attr, TensorType):
-            attr = cast(MemRefType[Attribute] | TensorType[Attribute], attr)
-            self.elem_constr.verify(attr.element_type, constraint_context)
-        else:
-            raise VerifyException(f"Expected tensor or memref type, got {attr}")
 
 
 @irdl_attr_definition
