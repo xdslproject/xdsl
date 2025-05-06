@@ -225,6 +225,8 @@ def test_load_registered_dialect():
     ctx.load_registered_dialect("test")
     assert list(ctx.loaded_dialects) == [testDialect]
     assert list(ctx.registered_dialect_names) == ["test"]
+    assert list(ctx.loaded_types) == [DummyType]
+    assert list(ctx.loaded_attrs) == [DummyOp]
 
 
 def test_load_registered_dialect_not_registered():
