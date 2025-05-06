@@ -19,8 +19,8 @@ class Context:
     _loaded_attrs: dict[str, type[Attribute]] = field(
         default_factory=dict[str, type[Attribute]]
     )
-    _loaded_types: dict[str, type[Attribute]] = field(
-        default_factory=dict[str, type[Attribute]]
+    _loaded_types: dict[str, type[TypeAttribute]] = field(
+        default_factory=dict[str, type[TypeAttribute]]
     )
     _registered_dialects: dict[str, Callable[[], Dialect]] = field(
         default_factory=dict[str, Callable[[], Dialect]]
@@ -55,7 +55,7 @@ class Context:
         return self._loaded_attrs.values()
 
     @property
-    def loaded_types(self) -> Iterable[type[Attribute]]:
+    def loaded_types(self) -> Iterable[type[TypeAttribute]]:
         """
         Returns all the loaded types. Not valid across mutations of this object.
         """
@@ -186,7 +186,7 @@ class Context:
             return op_type
         raise Exception(f"Operation {name} is not registered")
 
-    def get_optional_type(self, name: str) -> type[Attribute] | None:
+    def get_optional_type(self, name: str) -> type[TypeAttribute] | None:
         """
         Get a type definition from its name if it exists.
         If the type is not registered, return None unless unregistered types
@@ -213,7 +213,7 @@ class Context:
             self._loaded_types[name] = attr_type
             return attr_type
 
-    def get_type(self, name: str) -> type[Attribute]:
+    def get_type(self, name: str) -> type[TypeAttribute]:
         """
         Get a type definition from its name.
         If the type is not registered, raise an exception unless unregistered

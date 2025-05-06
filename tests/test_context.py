@@ -104,7 +104,7 @@ def test_get_attr():
     ctx.load_attr_or_type(DummyAttr)
 
     assert ctx.get_attr("test.dummy_attr") == DummyAttr
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         _ = ctx.get_attr("test.dummy_attr2")
 
     assert ctx.get_optional_attr("test.dummy_attr") == DummyAttr
@@ -118,7 +118,7 @@ def test_get_type():
     ctx.load_attr_or_type(DummyType)
 
     assert ctx.get_type("test.dummy_type") == DummyType
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         _ = ctx.get_type("test.dummy_attr")
 
     assert ctx.get_optional_type("test.dummy_type") == DummyType
