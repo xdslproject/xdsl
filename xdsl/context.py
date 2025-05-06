@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from xdsl.ir import Attribute, Dialect, Operation, TypeAttribute
+from xdsl.utils.exceptions import UnregisteredConstructException
 
 
 @dataclass
@@ -90,7 +91,7 @@ class Context:
     def load_registered_dialect(self, name: str) -> None:
         """Load a dialect that is already registered in the context."""
         if name not in self._registered_dialects:
-            raise ValueError(f"'{name}' dialect is not registered")
+            raise UnregisteredConstructException(f"'{name}' dialect is not registered")
         dialect = self._registered_dialects[name]()
         self._loaded_dialects[dialect.name] = dialect
 
@@ -184,7 +185,7 @@ class Context:
         """
         if op_type := self.get_optional_op(name, dialect_stack=dialect_stack):
             return op_type
-        raise Exception(f"Operation {name} is not registered")
+        raise UnregisteredConstructException(f"Operation {name} is not registered")
 
     def get_optional_type(self, name: str) -> type[TypeAttribute] | None:
         """
@@ -222,20 +223,16 @@ class Context:
         """
         if attr_type := self.get_optional_type(name):
             return attr_type
-        raise ValueError(f"Type {name} is not registered")
+        raise UnregisteredConstructException(f"Type {name} is not registered")
 
     def get_optional_attr(
         self,
         name: str,
-        create_unregistered_as_type: bool = False,
     ) -> "type[Attribute] | None":
         """
         Get an attribute class from its name if it exists.
         If the attribute is not registered, return None unless unregistered attributes
         are allowed in the context, in which case return an UnregisteredAttr.
-        Since UnregisteredAttr may be a type (for MLIR compatibility), an
-        additional flag is required to create an UnregisterAttr that is
-        also a type.
         """
         # If the attribute is already loaded, returns it.
         if name in self._loaded_attrs:
@@ -255,9 +252,7 @@ class Context:
         if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredAttr
 
-            attr_type = UnregisteredAttr.with_name_and_type(
-                name, create_unregistered_as_type
-            )
+            attr_type = UnregisteredAttr.with_name_and_type(name, False)
             self._loaded_attrs[name] = attr_type
             return attr_type
 
@@ -266,23 +261,19 @@ class Context:
     def get_attr(
         self,
         name: str,
-        create_unregistered_as_type: bool = False,
     ) -> "type[Attribute]":
         """
         Get an attribute class from its name.
         If the attribute is not registered, raise an exception unless unregistered
         attributes are allowed in the context, in which case return an UnregisteredAttr.
-        Since UnregisteredAttr may be a type (for MLIR compatibility), an
-        additional flag is required to create an UnregisterAttr that is
-        also a type.
         """
-        if attr_type := self.get_optional_attr(name, create_unregistered_as_type):
+        if attr_type := self.get_optional_attr(name):
             return attr_type
-        raise ValueError(f"Attribute {name} is not registered")
+        raise UnregisteredConstructException(f"Attribute {name} is not registered")
 
     def get_dialect(self, name: str) -> "Dialect":
         if (dialect := self.get_optional_dialect(name)) is None:
-            raise Exception(f"Dialect {name} is not registered")
+            raise UnregisteredConstructException(f"Dialect {name} is not registered")
         return dialect
 
     def get_optional_dialect(self, name: str) -> "Dialect | None":

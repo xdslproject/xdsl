@@ -15,6 +15,12 @@ if typing.TYPE_CHECKING:
     from xdsl.utils.parse_pipeline import Token
 
 
+class UnregisteredConstructException(Exception):
+    """An exception raised when an operation, type, or attribute is not registered"""
+
+    pass
+
+
 class DiagnosticException(Exception):
     pass
 
