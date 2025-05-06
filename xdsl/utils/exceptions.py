@@ -15,6 +15,20 @@ if typing.TYPE_CHECKING:
     from xdsl.utils.parse_pipeline import Token
 
 
+class UnregisteredConstructException(Exception):
+    """
+    An exception raised when a dialect, operation, type,
+    or attribute is not registered.
+    """
+
+
+class AlreadyRegisteredConstructException(Exception):
+    """
+    An exception raised when a dialect, operation, type,
+    or attribute is registered twice.
+    """
+
+
 class DiagnosticException(Exception):
     pass
 

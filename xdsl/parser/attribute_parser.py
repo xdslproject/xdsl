@@ -239,10 +239,14 @@ class AttrParser(BaseParser):
                     MLIRTokenKind.BARE_IDENT, "Expected attribute name."
                 ).text
             )
-        attr_def = self.ctx.get_optional_attr(
-            attr_name,
-            create_unregistered_as_type=is_type,
-        )
+        if is_type:
+            attr_def = self.ctx.get_optional_type(
+                attr_name,
+            )
+        else:
+            attr_def = self.ctx.get_optional_attr(
+                attr_name,
+            )
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
         if issubclass(attr_def, UnregisteredAttr):

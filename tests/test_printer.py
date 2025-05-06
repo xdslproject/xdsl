@@ -722,7 +722,7 @@ def test_custom_format_attr():
     ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_op(AnyOp)
-    ctx.load_attr(CustomFormatAttr)
+    ctx.load_attr_or_type(CustomFormatAttr)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
