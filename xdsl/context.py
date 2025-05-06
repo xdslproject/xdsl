@@ -4,7 +4,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from xdsl.ir import Attribute, Dialect, Operation, TypeAttribute
-from xdsl.utils.exceptions import UnregisteredConstructException
+from xdsl.utils.exceptions import (
+    AlreadyRegisteredConstructException,
+    UnregisteredConstructException,
+)
 
 
 @dataclass
@@ -85,7 +88,9 @@ class Context:
         requested with `load_registered_dialect`.
         """
         if name in self._registered_dialects:
-            raise ValueError(f"'{name}' dialect is already registered")
+            raise AlreadyRegisteredConstructException(
+                f"'{name}' dialect is already registered"
+            )
         self._registered_dialects[name] = dialect_factory
 
     def load_registered_dialect(self, name: str) -> None:
@@ -108,7 +113,7 @@ class Context:
         `load_registered_dialect` instead.
         """
         if dialect.name in self._registered_dialects:
-            raise ValueError(
+            raise AlreadyRegisteredConstructException(
                 f"'{dialect.name}' dialect is already registered, use 'load_registered_dialect' instead"
             )
         self.register_dialect(dialect.name, lambda: dialect)
@@ -117,7 +122,9 @@ class Context:
     def load_op(self, op: "type[Operation]") -> None:
         """Load an operation definition. Operation names should be unique."""
         if op.name in self._loaded_ops:
-            raise Exception(f"Operation {op.name} has already been loaded")
+            raise AlreadyRegisteredConstructException(
+                f"Operation {op.name} has already been loaded"
+            )
         self._loaded_ops[op.name] = op
 
     def load_attr_or_type(self, attr: type[Attribute]) -> None:
@@ -128,11 +135,15 @@ class Context:
         """
         if issubclass(attr, TypeAttribute):
             if attr.name in self._loaded_types:
-                raise Exception(f"Type {attr.name} has already been loaded")
+                raise AlreadyRegisteredConstructException(
+                    f"Type {attr.name} has already been loaded"
+                )
             self._loaded_types[attr.name] = attr
         else:
             if attr.name in self._loaded_attrs:
-                raise Exception(f"Attribute {attr.name} has already been loaded")
+                raise AlreadyRegisteredConstructException(
+                    f"Attribute {attr.name} has already been loaded"
+                )
             self._loaded_attrs[attr.name] = attr
 
     def _get_known_op(self, name: str) -> "type[Operation] | None":

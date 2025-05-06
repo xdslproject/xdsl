@@ -4,7 +4,10 @@ from xdsl.context import Context
 from xdsl.dialects.builtin import UnregisteredAttr, UnregisteredOp
 from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition
-from xdsl.utils.exceptions import UnregisteredConstructException
+from xdsl.utils.exceptions import (
+    AlreadyRegisteredConstructException,
+    UnregisteredConstructException,
+)
 
 
 @irdl_op_definition
@@ -197,14 +200,20 @@ def test_register_dialect_get_op_attr():
 def test_register_dialect_already_registered():
     ctx = Context()
     ctx.register_dialect("test", lambda: testDialect)
-    with pytest.raises(ValueError, match="'test' dialect is already registered"):
+    with pytest.raises(
+        AlreadyRegisteredConstructException,
+        match="'test' dialect is already registered",
+    ):
         ctx.register_dialect("test", lambda: testDialect2)
 
 
 def test_register_dialect_already_loaded():
     ctx = Context()
     ctx.load_dialect(testDialect)
-    with pytest.raises(ValueError, match="'test' dialect is already registered"):
+    with pytest.raises(
+        AlreadyRegisteredConstructException,
+        match="'test' dialect is already registered",
+    ):
         ctx.register_dialect("test", lambda: testDialect2)
 
 
@@ -236,7 +245,10 @@ def test_load_dialect():
 def test_load_dialect_already_loaded():
     ctx = Context()
     ctx.load_dialect(testDialect)
-    with pytest.raises(ValueError, match="'test' dialect is already registered"):
+    with pytest.raises(
+        AlreadyRegisteredConstructException,
+        match="'test' dialect is already registered",
+    ):
         ctx.load_dialect(testDialect)
 
 
@@ -244,7 +256,7 @@ def test_load_dialect_already_registered():
     ctx = Context()
     ctx.register_dialect("test", lambda: testDialect)
     with pytest.raises(
-        ValueError,
+        AlreadyRegisteredConstructException,
         match="'test' dialect is already registered, use "
         "'load_registered_dialect' instead",
     ):

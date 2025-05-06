@@ -16,7 +16,19 @@ if typing.TYPE_CHECKING:
 
 
 class UnregisteredConstructException(Exception):
-    """An exception raised when an operation, type, or attribute is not registered"""
+    """
+    An exception raised when a dialect, operation, type,
+    or attribute is not registered.
+    """
+
+    pass
+
+
+class AlreadyRegisteredConstructException(Exception):
+    """
+    An exception raised when a dialect, operation, type,
+    or attribute is registered twice.
+    """
 
     pass
 
