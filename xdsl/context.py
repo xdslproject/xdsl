@@ -210,6 +210,7 @@ class Context:
             from xdsl.dialects.builtin import UnregisteredAttr
 
             attr_type = UnregisteredAttr.with_name_and_type(name, True)
+            assert issubclass(attr_type, TypeAttribute)
             self._loaded_types[name] = attr_type
             return attr_type
 
@@ -221,7 +222,7 @@ class Context:
         """
         if attr_type := self.get_optional_type(name):
             return attr_type
-        raise Exception(f"Type {name} is not registered")
+        raise ValueError(f"Type {name} is not registered")
 
     def get_optional_attr(
         self,
@@ -277,7 +278,7 @@ class Context:
         """
         if attr_type := self.get_optional_attr(name, create_unregistered_as_type):
             return attr_type
-        raise Exception(f"Attribute {name} is not registered")
+        raise ValueError(f"Attribute {name} is not registered")
 
     def get_dialect(self, name: str) -> "Dialect":
         if (dialect := self.get_optional_dialect(name)) is None:
