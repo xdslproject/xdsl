@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
     IndexTypeConstr,
     MemRefType,
     SignlessIntegerConstraint,
-    TensorOrMemRefOf,
     TensorType,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
@@ -828,7 +827,7 @@ class TransferReadOp(VectorTransferOperation):
 
     name = "vector.transfer_read"
 
-    source = operand_def(TensorOrMemRefOf(Attribute))
+    source = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
     padding = operand_def()
     mask = opt_operand_def(VectorType[I1])
@@ -933,7 +932,7 @@ class TransferWriteOp(VectorTransferOperation):
     name = "vector.transfer_write"
 
     vector = operand_def(VectorType[Attribute])
-    source = operand_def(TensorOrMemRefOf(Attribute))
+    source = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
     mask = opt_operand_def(VectorType[I1])
 

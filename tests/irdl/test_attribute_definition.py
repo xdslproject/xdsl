@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
+    BuiltinAttribute,
     Data,
     EnumAttribute,
     ParametrizedAttribute,
@@ -870,3 +871,47 @@ def test_constraint_var_fail_not_satisfy_constraint():
         ConstraintVarAttr.new(
             [IntegerAttr(42, IndexType()), IntegerAttr(17, IndexType())]
         )
+
+
+################################################################################
+# Names
+################################################################################
+
+
+def test_non_builtin_name_fail():
+    """
+    Test that the name of an attribute is properly checked
+    when it is not a builtin attribute.
+    """
+    with pytest.raises(PyRDLAttrDefinitionError, match="is not a valid attribute name"):
+
+        @irdl_attr_definition
+        class NonBuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
+            ParametrizedAttribute
+        ):
+            name = "vector"
+
+
+def test_non_builtin_name():
+    """
+    Test that the name of an attribute is properly checked
+    when it is not a builtin attribute.
+    """
+
+    @irdl_attr_definition
+    class NonBuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
+        ParametrizedAttribute
+    ):
+        name = "test.vector"
+
+
+def test_builtin_name():
+    """
+    Test that builtin attribute names are not checked.
+    """
+
+    @irdl_attr_definition
+    class BuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
+        ParametrizedAttribute, BuiltinAttribute
+    ):
+        name = "builtin.vector"

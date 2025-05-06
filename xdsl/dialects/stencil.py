@@ -664,7 +664,10 @@ class ApplyOp(IRDLOperation):
                 # grab the offsets as a tuple[int, ...]
                 offsets = tuple(access.offset)
                 # account for offset_mappings:
-                if access.offset_mapping is not None:
+                if (
+                    access.offset_mapping is not None
+                    and len(offsets) == self.get_rank()
+                ):
                     offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield AccessPattern(tuple(accesses))

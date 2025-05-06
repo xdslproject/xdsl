@@ -123,8 +123,6 @@ class FoldConstsByReassociation(RewritePattern):
                 const2 := u.lhs.owner if u.rhs == op.result else u.rhs.owner,
                 arith.ConstantOp,
             )
-            or op.fastmath is None
-            or u.fastmath is None
             or arith.FastMathFlag.REASSOC not in op.fastmath.flags
             or arith.FastMathFlag.REASSOC not in u.fastmath.flags
             or not isa(c1 := const1.value, builtin.FloatAttr)

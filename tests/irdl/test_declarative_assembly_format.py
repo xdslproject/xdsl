@@ -277,13 +277,42 @@ def test_attr_dict(program: str, generic_program: str):
         ),
     ],
 )
-def test_attr_dict_prop_fallack(program: str, generic_program: str):
+def test_attr_dict_prop_fallback(program: str, generic_program: str):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
         prop = opt_prop_def(Attribute)
         irdl_options = [ParsePropInAttrDict()]
         assembly_format = "attr-dict"
+
+    ctx = Context()
+    ctx.load_op(PropOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.prop false {prop2 = true}",
+            '"test.prop"() <{prop1 = false, prop2 = true}> : () -> ()',
+        ),
+        (
+            "test.prop false {a = 2 : i32, prop2 = true}",
+            '"test.prop"() <{prop1 = false, prop2 = true}> {a = 2 : i32} : () -> ()',
+        ),
+    ],
+)
+def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
+    @irdl_op_definition
+    class PropOp(IRDLOperation):
+        name = "test.prop"
+        prop1 = prop_def(Attribute)
+        prop2 = opt_prop_def(Attribute)
+        irdl_options = [ParsePropInAttrDict()]
+        assembly_format = "$prop1 attr-dict"
 
     ctx = Context()
     ctx.load_op(PropOp)
@@ -1273,7 +1302,7 @@ def test_operands_directive_with_non_variadic_type_directive():
     format_program = FormatProgram(
         (
             OperandsDirective(None),
-            AttrDictDirective(False, set(), False),
+            AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
             TypeDirective(OperandsDirective(None)),
         ),
@@ -1309,7 +1338,7 @@ def test_operands_directive_with_variadic_type_directive():
     format_program = FormatProgram(
         (
             OperandsDirective((False, 1)),
-            AttrDictDirective(False, set(), False),
+            AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
             TypeDirective(OperandsDirective((False, 1))),
         ),
@@ -1718,7 +1747,7 @@ def test_results_directive_with_non_variadic_type_directive():
     # a ResultsDirective, but we can manually make one.
     format_program = FormatProgram(
         (
-            AttrDictDirective(False, set(), False),
+            AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
             TypeDirective(ResultsDirective(None)),
         ),
@@ -1753,7 +1782,7 @@ def test_results_directive_with_variadic_type_directive():
     # a ResultsDirective, but we can manually make one.
     format_program = FormatProgram(
         (
-            AttrDictDirective(False, set(), False),
+            AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
             TypeDirective(ResultsDirective((False, 1))),
         ),
@@ -2177,7 +2206,7 @@ def test_successors():
                 "test.op"() ({
                   "test.op"() [^0] : () -> ()
                 ^0:
-                  test.var_successor ^0 ^0
+                  test.var_successor ^0, ^0
                 }) : () -> ()"""
             ),
             textwrap.dedent(

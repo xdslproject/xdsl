@@ -50,18 +50,18 @@ if __name__ == "__main__":
 # CHECK-NEXT:  )
 # CHECK-EMPTY:
 # CHECK-NEXT:  class complex(TypeAttribute, ParametrizedAttribute):
-# CHECK-NEXT:      p0 : "Float32Type | Float64Type"
+# CHECK-NEXT:      elem : "Float32Type | Float64Type"
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  class NormOp(IRDLOperation):
-# CHECK-NEXT:      o0 : Operand
-# CHECK-NEXT:      r0 : OpResult
+# CHECK-NEXT:      in_ : Operand
+# CHECK-NEXT:      out : OpResult
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  class MulOp(IRDLOperation):
-# CHECK-NEXT:      o0 : Operand
-# CHECK-NEXT:      o1 : Operand
-# CHECK-NEXT:      r0 : OpResult
+# CHECK-NEXT:      lhs : Operand
+# CHECK-NEXT:      rhs : Operand
+# CHECK-NEXT:      res : OpResult
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  Cmath : Dialect

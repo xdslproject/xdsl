@@ -59,6 +59,34 @@ class DmpSwapSwapsInference(RewritePattern):
         if core_lb is None or core_ub is None:
             return
 
+        # if buff_* has fewer dimensions than core_*, we need to find out which dimensions of core_*
+        # those in buff_* map to. This information only exists in the offset_mapping of a stencil.access
+        if len(buff_lb) < len(core_lb):
+            for use in op.swapped_values.uses:
+                if not isinstance(apply_op := use.operation, stencil.ApplyOp):
+                    continue
+                arg_idx = apply_op.operands.index(op.swapped_values)
+                arg = apply_op.region.block.args[arg_idx]
+                for arg_use in arg.uses:
+                    if (
+                        not isinstance(access_op := arg_use.operation, stencil.AccessOp)
+                        or not access_op.offset_mapping
+                    ):
+                        continue
+                    accessed_dims = tuple(access_op.offset_mapping)
+
+                    # reconstruct what dims buff_* maps to
+                    new_lb = [0] * len(core_lb)
+                    new_ub = [0] * len(core_ub)
+                    for idx, dim in enumerate(accessed_dims):
+                        new_lb[dim] = buff_lb.array.data[idx].data
+                        new_ub[dim] = buff_ub.array.data[idx].data
+                    buff_lb = stencil.IndexAttr.get(*new_lb)
+                    buff_ub = stencil.IndexAttr.get(*new_ub)
+
+                    # todo breaking here means we do not verify that all accesses map to the same dimension
+                    break
+
         swaps = builtin.ArrayAttr(
             exchange
             for exchange in op.strategy.halo_exchange_defs(

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from jax._src.core import ClosedJaxpr  # pyright: ignore[reportPrivateImportUsage]
+from jax._src.core import ClosedJaxpr
 
 from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects.builtin import FunctionType, ModuleOp, TensorType, f32

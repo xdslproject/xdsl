@@ -118,6 +118,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ptr_to_riscv.ConvertPtrToRiscvPass
 
+    def get_convert_ptr_to_x86():
+        from xdsl.backend.x86.lowering import convert_ptr_to_x86
+
+        return convert_ptr_to_x86.ConvertPtrToX86Pass
+
     def get_convert_ptr_type_offsets():
         from xdsl.transforms import convert_ptr_type_offsets
 
@@ -242,6 +247,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import eqsat_create_eclasses
 
         return eqsat_create_eclasses.EqsatCreateEclassesPass
+
+    def get_eqsat_serialize_egraph():
+        from xdsl.transforms import eqsat_serialize_egraph
+
+        return eqsat_serialize_egraph.SerializeEGraph
 
     def get_eqsat_extract():
         from xdsl.transforms import eqsat_extract
@@ -493,6 +503,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
 
+    def get_transform_interpreter():
+        from xdsl.transforms import transform_interpreter
+
+        return transform_interpreter.TransformInterpreterPass
+
     def get_varith_fuse_repeated_operands():
         from xdsl.transforms import varith_transformations
 
@@ -523,6 +538,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-llvm": get_convert_ptr_to_llvm,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
+        "convert-ptr-to-x86": get_convert_ptr_to_x86,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-riscv-to-llvm": get_convert_riscv_to_llvm,
@@ -548,6 +564,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "empty-tensor-to-alloc-tensor": get_empty_tensor_to_alloc_tensor,
         "eqsat-add-costs": get_eqsat_add_costs,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
+        "eqsat-serialize-egraph": get_eqsat_serialize_egraph,
         "eqsat-extract": get_eqsat_extract,
         "frontend-desymrefy": get_frontend_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
@@ -598,5 +615,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
     }

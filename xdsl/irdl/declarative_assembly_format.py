@@ -150,19 +150,11 @@ class FormatProgram:
                 "Variadic or optional operand has no type or a single type "
                 operands.append(parser.resolve_operands(uo, ot, parser.pos))
 
-        # Get the properties from the attribute dictionary if no properties are
-        # defined. This is necessary to be compatible with MLIR format, such as
-        # `memref.load`.
-        if state.properties:
-            properties = state.properties
-        else:
-            properties = op_def.split_properties(state.attributes)
-
         return op_type.build(
             result_types=result_types,
             operands=operands,
             attributes=state.attributes,
-            properties=properties,
+            properties=state.properties,
             regions=state.regions,
             successors=state.successors,
         )
@@ -411,9 +403,9 @@ class AttrDictDirective(FormatDirective):
     printed twice otherwise.
     """
 
-    print_properties: bool
+    expected_properties: set[str]
     """
-    If this is set, also print properties as part of the attribute dictionary.
+    Properties that should be printed and parsed as part of this attr-dict.
     This is used to keep compatibility with MLIR which allows that.
     """
 
@@ -423,7 +415,7 @@ class AttrDictDirective(FormatDirective):
             if res is None:
                 res = {}
             else:
-                res = res.data
+                res = dict(res.data)
         else:
             res = parser.parse_optional_attr_dict()
         defined_reserved_keys = self.reserved_attr_names & res.keys()
@@ -433,23 +425,26 @@ class AttrDictDirective(FormatDirective):
                 "assembly format, and thus should not be defined in the attribute "
                 "dictionary."
             )
+
+        props = tuple(k for k in res.keys() if k in self.expected_properties)
+        for name in props:
+            state.properties[name] = res.pop(name)
         state.attributes |= res
-        return bool(res)
+        return bool(res) or bool(props)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if self.print_properties:
-            if any(name in op.attributes for name in op.properties):
-                raise ValueError(
-                    "Cannot print attributes and properties with the same name "
-                    "in a single dictionary"
-                )
-            op_def = op.get_irdl_definition()
-            dictionary = op.attributes | op.properties
-            defs = op_def.properties | op_def.attributes
-        else:
-            op_def = op.get_irdl_definition()
-            dictionary = op.attributes
-            defs = op_def.attributes
+        if not op.attributes.keys().isdisjoint(self.expected_properties):
+            raise ValueError(
+                "Cannot print attributes and properties with the same name "
+                "in a single dictionary"
+            )
+        op_def = op.get_irdl_definition()
+        dictionary = op.attributes | {
+            k: v for k, v in op.properties.items() if k in self.expected_properties
+        }
+        defs = {
+            x: op_def.properties[x] for x in self.expected_properties
+        } | op_def.attributes
 
         reserved_or_default = self.reserved_attr_names.union(
             name
@@ -1007,12 +1002,11 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        successors: list[Successor] = []
-        current_successor = parser.parse_optional_successor()
-        while current_successor is not None:
-            successors.append(current_successor)
-            current_successor = parser.parse_optional_successor()
-
+        successors = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_successor, parser.parse_successor
+        )
+        if successors is None:
+            successors = []
         state.successors[self.index] = successors
 
         return bool(successors)
@@ -1023,7 +1017,7 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
             return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        printer.print_list(successor, printer.print_block_name, delimiter=" ")
+        printer.print_list(successor, printer.print_block_name)
         state.last_was_punctuation = False
         state.should_emit_space = True
 

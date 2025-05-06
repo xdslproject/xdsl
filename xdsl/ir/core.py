@@ -116,6 +116,17 @@ class Attribute(ABC):
         return res.getvalue()
 
 
+class BuiltinAttribute(Attribute, ABC):
+    """
+    This class is used to mark builtin attributes.
+    Unlike other attributes in MLIR, printing and parsing of *Builtin*
+    attributes is handled directly by the parser.
+    Attributes outside of the `builtin` dialect should not inherit from `BuiltinAttribute`.
+    """
+
+    pass
+
+
 class TypeAttribute(Attribute):
     """
     This class should only be inherited by classes inheriting Attribute.
