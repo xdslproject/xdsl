@@ -181,7 +181,16 @@ class ConvertReinterpretCastOp(RewritePattern):
     def match_and_rewrite(
         self, op: memref.ReinterpretCastOp, rewriter: PatternRewriter, /
     ):
-        rewriter.erase_matched_op()
+        rewriter.replace_matched_op(
+            (
+                ptr_cast := ptr.ToPtrOp(
+                    operands=[op.source], result_types=[ptr.PtrType()]
+                ),
+                builtin.UnrealizedConversionCastOp.get(
+                    [ptr_cast.res], [op.result.type]
+                ),
+            )
+        )
 
 
 @dataclass
