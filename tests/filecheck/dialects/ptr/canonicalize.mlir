@@ -8,7 +8,7 @@ func.func @test_from_ptr_0(%mr: memref<f32>) -> memref<f32> {
   // CHECK: return %mr
   %ptr = ptr_xdsl.to_ptr %mr : memref<f32> -> !ptr_xdsl.ptr
   %res = ptr_xdsl.from_ptr %ptr : !ptr_xdsl.ptr -> memref<f32>
-  return %mr : memref<f32>
+  return %res : memref<f32>
 }
 
 // CHECK-LABEL: @test_to_ptr_0
