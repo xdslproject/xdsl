@@ -73,7 +73,6 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 _FieldTypeElement = TypeVar(
     "_FieldTypeElement", bound=Attribute, covariant=True, default=Attribute
@@ -1095,7 +1094,7 @@ class AccessOp(IRDLOperation):
             attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isattr(res_type, StencilTypeConstr):
+        if not StencilTypeConstr.matches(res_type):
             parser.raise_error(
                 "Expected return type to be a stencil.temp or stencil.field"
             )
@@ -1143,7 +1142,7 @@ class AccessOp(IRDLOperation):
         apply.verify_()
 
         temp_type = self.temp.type
-        assert isattr(temp_type, StencilTypeConstr)
+        assert StencilTypeConstr.matches(temp_type)
         if temp_type.get_num_dims() != apply.get_rank():
             if self.offset_mapping is None:
                 raise VerifyException(
@@ -1215,7 +1214,9 @@ class LoadOpMemoryEffect(MemoryEffect):
 
 class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     @staticmethod
-    def matches(attr: TensorType[Attribute], other: Attribute) -> bool:
+    def ranks_and_element_types_match(
+        attr: TensorType[Attribute], other: Attribute
+    ) -> bool:
         return (
             isa(other, TensorType[Attribute])
             and len(attr.get_shape()) == len(other.get_shape())
@@ -1225,7 +1226,9 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         ctx_attr = constraint_context.get_variable(self.name)
         if ctx_attr is not None:
-            if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
+            if isa(
+                attr, TensorType[Attribute]
+            ) and TensorIgnoreSizeConstraint.ranks_and_element_types_match(
                 attr, ctx_attr
             ):
                 return
@@ -1526,7 +1529,9 @@ class ReturnOp(IRDLOperation):
                 op_type = types[j]
                 if op_type != res_type and not (
                     isa(op_type, TensorType[Attribute])
-                    and TensorIgnoreSizeConstraint.matches(op_type, res_type)
+                    and TensorIgnoreSizeConstraint.ranks_and_element_types_match(
+                        op_type, res_type
+                    )
                 ):
                     raise VerifyException(
                         "stencil.return expected operand types to match the parent "

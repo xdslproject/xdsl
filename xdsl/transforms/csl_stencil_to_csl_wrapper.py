@@ -34,7 +34,6 @@ from xdsl.transforms.function_transformations import (
     TIMER_START,
 )
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
@@ -112,12 +111,10 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 )
 
             # retrieve z_dim from done_exchange arg[0]
-            if isattr(
-                field_t := apply_op.done_exchange.block.args[0].type,
-                stencil.StencilTypeConstr,
-            ) and isattr(
-                el_type := field_t.element_type,
-                AnyTensorTypeConstr | MemRefType.constr(),
+            if stencil.StencilTypeConstr.matches(
+                field_t := apply_op.done_exchange.block.args[0].type
+            ) and (AnyTensorTypeConstr | MemRefType.constr()).matches(
+                el_type := field_t.element_type
             ):
                 # unbufferized csl_stencil
                 z_dim = max(z_dim, el_type.get_shape()[-1])
@@ -126,9 +123,8 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 z_dim = max(z_dim, field_t.get_shape()[-1])
 
             num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
-            if isattr(
+            if (AnyTensorTypeConstr | MemRefType.constr()).matches(
                 buf_t := apply_op.receive_chunk.block.args[0].type,
-                AnyTensorTypeConstr | MemRefType.constr(),
             ):
                 chunk_size = max(chunk_size, buf_t.get_shape()[-1])
 

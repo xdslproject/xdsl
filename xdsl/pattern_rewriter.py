@@ -26,7 +26,6 @@ from xdsl.ir import (
 from xdsl.irdl import GenericAttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 @dataclass(eq=False)
@@ -597,7 +596,7 @@ def attr_constr_rewrite_pattern(
     ):
         @wraps(func)
         def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
-            if isattr(typ, constr):
+            if constr.matches(typ):
                 return func(self, typ)
             return None
 
