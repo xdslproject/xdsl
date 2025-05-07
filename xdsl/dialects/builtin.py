@@ -1006,7 +1006,7 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
 
 @irdl_attr_definition
 class ComplexType(
-    StructPackableType[float],
+    StructPackableType[float | int],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
@@ -1025,24 +1025,32 @@ class ComplexType(
     def format(self) -> str:
         return f"<2{self.element_type.format[1]}"
 
-    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float | int]:
         return (values[0] for values in struct.iter_unpack(self.format, buffer))
 
-    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float | int, ...]:
         length = 2 * num
         fmt = self.format[0] + str(length) + self.format[2:]
         return struct.unpack(fmt, buffer)
 
     @overload
-    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None: ...
+    def pack_into(
+        self, buffer: WriteableBuffer, offset: int, value: float | int
+    ) -> None: ...
 
     @overload
     def pack_into(
-        self, buffer: WriteableBuffer, offset: int, value: tuple[float, float]
+        self,
+        buffer: WriteableBuffer,
+        offset: int,
+        value: tuple[float, float] | tuple[int, int],
     ) -> None: ...
 
     def pack_into(
-        self, buffer: WriteableBuffer, offset: int, value: float | tuple[float, float]
+        self,
+        buffer: WriteableBuffer,
+        offset: int,
+        value: float | int | tuple[float, float] | tuple[int, int],
     ) -> None:
         if not isinstance(value, tuple):
             raise NotImplementedError()
