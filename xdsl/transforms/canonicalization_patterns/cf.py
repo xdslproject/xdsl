@@ -314,13 +314,14 @@ def drop_case_helper(
         new_case_operands.append(operands)
 
     if requires_change:
-        elem_type = case_values.get_element_type()
         rewriter.replace_matched_op(
             cf.SwitchOp(
                 op.flag,
                 op.default_block,
                 op.default_operands,
-                DenseIntOrFPElementsAttr.vector_from_list(new_case_values, elem_type),
+                DenseIntOrFPElementsAttr.vector_from_list(
+                    new_case_values, case_values.get_element_type()
+                ),
                 new_case_blocks,
                 new_case_operands,
             )

@@ -1064,11 +1064,9 @@ class ComplexType(
     def pack(self, values: Sequence[float]) -> bytes:
         assert len(values) % 2 == 0
         elem_type = cast(IntegerType | AnyFloat, self.element_type)
-        to_use: Sequence[float | int] = values
-        if isinstance(elem_type, IntegerType):
-            to_use = (int(value) for value in values)
+        converter = int if isinstance(elem_type, IntegerType) else float
         fmt = self.format[0] + str(len(values)) + self.format[2:]
-        return struct.pack(fmt, *to_use)
+        return struct.pack(fmt, (converter(value) for value in values))
 
 
 @irdl_attr_definition
