@@ -3,11 +3,11 @@ import pytest
 from xdsl.dialects import riscv, snitch
 from xdsl.dialects.builtin import IntAttr
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_csr_op():
-    value = TestSSAValue(riscv.Registers.A1)
+    value = create_ssa_value(riscv.Registers.A1)
     stream = IntAttr(0)
     valid = IntAttr(snitch.SnitchResources.dimensions - 1)
     invalid = IntAttr(snitch.SnitchResources.dimensions)

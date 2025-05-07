@@ -20,15 +20,18 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    SameVariadicOperandSize,
     base,
     irdl_attr_definition,
     irdl_op_definition,
     opt_operand_def,
     opt_prop_def,
     region_def,
+    traits_def,
     var_operand_def,
 )
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsTerminator, NoTerminator
+from xdsl.utils.exceptions import VerifyException
 
 
 class ScheduleKind(StrEnum):
@@ -66,31 +69,52 @@ class OrderKindAttr(EnumAttribute[OrderKind], SpacedOpaqueSyntaxAttribute):
 
 
 @irdl_op_definition
-class WsLoopOp(IRDLOperation):
-    name = "omp.wsloop"
+class LoopNestOp(IRDLOperation):
+    name = "omp.loop_nest"
 
     lowerBound = var_operand_def(base(IntegerType) | base(IndexType))
     upperBound = var_operand_def(base(IntegerType) | base(IndexType))
     step = var_operand_def(base(IntegerType) | base(IndexType))
+
+    body = region_def("single_block")
+
+    irdl_options = [SameVariadicOperandSize()]
+
+
+@irdl_op_definition
+class WsLoopOp(IRDLOperation):
+    name = "omp.wsloop"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
     linear_vars = var_operand_def()
     linear_step_vars = var_operand_def(i32)
+    private_vars = var_operand_def()
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
     reduction_vars = var_operand_def()
-    schedule_chunk_var = opt_operand_def()
+    schedule_chunk = opt_operand_def()
 
     reductions = opt_prop_def(ArrayAttr[SymbolRefAttr])
-    schedule_val = opt_prop_def(ScheduleKindAttr)
-    schedule_modifier = opt_prop_def(ScheduleModifierAttr)
+    schedule_kind = opt_prop_def(ScheduleKindAttr)
+    schedule_mod = opt_prop_def(ScheduleModifierAttr)
     simd_modifier = opt_prop_def(UnitAttr)
     nowait = opt_prop_def(UnitAttr)
-    ordered_val = opt_prop_def(IntegerAttr[IntegerType])
-    order_val = opt_prop_def(OrderKindAttr)
+    ordered = opt_prop_def(IntegerAttr[IntegerType])
+    order = opt_prop_def(OrderKindAttr)
     inclusive = opt_prop_def(UnitAttr)
 
-    body = region_def()
+    body = region_def("single_block")
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    traits = traits_def(NoTerminator())
+
+    def verify_(self) -> None:
+        if len(self.body.blocks) == 1 and len(self.body.block.ops) != 1:
+            raise VerifyException(
+                f"Body of {self.name} operation body must consist of one loop nest"
+            )
 
 
 class ProcBindKindEnum(StrEnum):
@@ -108,18 +132,20 @@ class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], SpacedOpaqueSyntaxAttrib
 class ParallelOp(IRDLOperation):
     name = "omp.parallel"
 
-    if_expr_var = opt_operand_def(IntegerType(1))
-    num_threads_var = opt_operand_def(base(IntegerType) | base(IndexType))
     allocate_vars = var_operand_def()
     allocators_vars = var_operand_def()
+    if_expr = opt_operand_def(IntegerType(1))
+    num_threads = opt_operand_def(base(IntegerType) | base(IndexType))
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
+    private_vars = var_operand_def()
     reduction_vars = var_operand_def()
 
     region = region_def()
 
     reductions = opt_prop_def(ArrayAttr[SymbolRefAttr])
-    proc_bind_val = opt_prop_def(ProcBindKindAttr)
+    proc_bind_kind = opt_prop_def(ProcBindKindAttr)
+    privatizers = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -128,14 +154,14 @@ class ParallelOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "omp.yield"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
 class TerminatorOp(IRDLOperation):
     name = "omp.terminator"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 OMP = Dialect(
@@ -144,6 +170,7 @@ OMP = Dialect(
         ParallelOp,
         TerminatorOp,
         WsLoopOp,
+        LoopNestOp,
         YieldOp,
     ],
     [

@@ -7,18 +7,18 @@ from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
 import pytest
 
-from xdsl.frontend.dialects.builtin import (
+from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
-from xdsl.frontend.exception import CodeGenerationException
-from xdsl.frontend.type_conversion import TypeConverter
+from xdsl.frontend.pyast.exception import CodeGenerationException
+from xdsl.frontend.pyast.type_conversion import TypeConverter
 from xdsl.ir import ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition
 
 
 @irdl_attr_definition
 class A(ParametrizedAttribute):
-    name = "a"
+    name = "test.a"
 
 
 class _A(_FrontendType):
@@ -40,7 +40,7 @@ class _C(Generic[T]):
 
 @irdl_attr_definition
 class D(ParametrizedAttribute):
-    name = "d"
+    name = "test.d"
 
 
 class _D(Generic[T], _FrontendType):

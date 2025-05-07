@@ -30,7 +30,7 @@ riscv.assembly_section ".text" {
 
 // -----
 
-%0, %1, %2 = "test.op"() : () -> (!stream.readable<!riscv.freg>, !stream.readable<!riscv.freg>, !riscv.reg)
+%0, %1, %2 = "test.op"() : () -> (!snitch.readable<!riscv.freg>, !snitch.readable<!riscv.freg>, !riscv.reg)
 
 %8 = riscv.li 8 : !riscv.reg
 %9 = riscv.li 8 : !riscv.reg
@@ -65,7 +65,7 @@ riscv_scf.for %13 : !riscv.reg = %11 to %8 step %12 {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (!stream.readable<!riscv.freg>, !stream.readable<!riscv.freg>, !riscv.reg)
+// CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (!snitch.readable<!riscv.freg>, !snitch.readable<!riscv.freg>, !riscv.reg)
 // CHECK-NEXT:    %{{.*}} = riscv.li 8 : !riscv.reg
 // CHECK-NEXT:    %{{.*}} = riscv.li 0 : !riscv.reg
 // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg
@@ -73,9 +73,9 @@ riscv_scf.for %13 : !riscv.reg = %11 to %8 step %12 {
 // CHECK-NEXT:      riscv_scf.for %{{.*}} : !riscv.reg = %{{.*}} to %{{.*}} step %{{.*}} {
 // CHECK-NEXT:        %{{.*}} = riscv.mul %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:        %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-NEXT:        %{{.*}} = riscv.mul %{{.*}}, %{{.*}} {"comment" = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:        %{{.*}} = riscv.mul %{{.*}}, %{{.*}} {comment = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:        %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-NEXT:        %{{.*}} = riscv.fld %{{.*}}, 0 {"comment" = "load double from memref of shape (8, 8)"} : (!riscv.reg) -> !riscv.freg
+// CHECK-NEXT:        %{{.*}} = riscv.fld %{{.*}}, 0 {comment = "load double from memref of shape (8, 8)"} : (!riscv.reg) -> !riscv.freg
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg) -> !riscv.freg
 // CHECK-NEXT:        %{{.*}} = riscv_scf.for %{{.*}} : !riscv.reg = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (!riscv.freg) {
 // CHECK-NEXT:          %{{.*}} = riscv_snitch.read from %{{.*}} : !riscv.freg
@@ -84,7 +84,7 @@ riscv_scf.for %13 : !riscv.reg = %11 to %8 step %12 {
 // CHECK-NEXT:          %{{.*}} = riscv.fadd.d %{{.*}}, %{{.*}} : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-NEXT:          riscv_scf.yield %{{.*}} : !riscv.freg
 // CHECK-NEXT:        }
-// CHECK-NEXT:        riscv.fsd %{{.*}}, %{{.*}}, 0 {"comment" = "store double value to memref of shape (8, 8)"} : (!riscv.reg, !riscv.freg) -> ()
+// CHECK-NEXT:        riscv.fsd %{{.*}}, %{{.*}}, 0 {comment = "store double value to memref of shape (8, 8)"} : (!riscv.reg, !riscv.freg) -> ()
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }

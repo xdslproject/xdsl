@@ -1,8 +1,43 @@
 import abc
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import NamedTuple
 
-from xdsl.ir import SSAValue
+from xdsl.backend.register_type import RegisterType
+from xdsl.ir import Operation, Region, SSAValue
+
+
+class RegisterAllocatableOperation(Operation, abc.ABC):
+    """
+    An abstract base class for operations that can be processed during register
+    allocation.
+    """
+
+    def iter_used_registers(self) -> Iterator[RegisterType]:
+        """
+        The registers whose contents may be overwritten when executing this operation.
+        By default returns the types of operands and results that are allocated
+        registers.
+        """
+        return (
+            val.type
+            for vals in (self.operands, self.results)
+            for val in vals
+            if isinstance(val.type, RegisterType) and val.type.is_allocated
+        )
+
+    @staticmethod
+    def iter_all_used_registers(
+        region: Region,
+    ) -> Iterator[RegisterType]:
+        """
+        All used registers of all operations within a region.
+        """
+        return (
+            reg
+            for op in region.walk()
+            if isinstance(op, RegisterAllocatableOperation)
+            for reg in op.iter_used_registers()
+        )
 
 
 class RegisterConstraints(NamedTuple):
@@ -17,8 +52,7 @@ class RegisterConstraints(NamedTuple):
     inouts: Sequence[Sequence[SSAValue]]
 
 
-class HasRegisterConstraints(abc.ABC):
-
+class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
     @abc.abstractmethod
     def get_register_constraints(self) -> RegisterConstraints:
         """

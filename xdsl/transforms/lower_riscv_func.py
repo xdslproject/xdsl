@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
-from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation
@@ -55,7 +54,7 @@ class LowerSyscallOp(RewritePattern):
             ops.append(gr)
             res = gr.res
 
-            mv = riscv.MVOp(res, rd=cast(riscv.IntRegisterType, op.result.type))
+            mv = riscv.MVOp(res, rd=op.result.type)
             ops.append(mv)
             new_results = mv.results
 
@@ -82,7 +81,7 @@ class LowerRISCVFunc(ModulePass):
 
     insert_exit_syscall: bool = field(default=False)
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         if self.insert_exit_syscall:
             PatternRewriteWalker(
                 InsertExitSyscallOp(), apply_recursively=False

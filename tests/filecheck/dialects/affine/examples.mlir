@@ -7,7 +7,7 @@
   "func.func"() ({
   ^0(%ref : memref<128xi32>):
     %const0 = "arith.constant"() {"value" = 0 : i32} : () -> i32
-    %r = "affine.for"(%const0) <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 1>}> ({
+    %r = "affine.for"(%const0) <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
     ^1(%i : index, %sum : i32):
       %val = "memref.load"(%ref, %i) : (memref<128xi32>, index) -> i32
       %res = "arith.addi"(%sum, %val) : (i32, i32) -> i32
@@ -18,7 +18,7 @@
 
 // CHECK:         func.func private @sum_vec(%{{.*}} : memref<128xi32>) -> i32 {
 // CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
-// CHECK-NEXT:      %{{.*}} = "affine.for"(%const0) <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 1>}> ({
+// CHECK-NEXT:      %{{.*}} = "affine.for"(%const0) <{lowerBoundMap = affine_map<() -> (0)>, upperBoundMap = affine_map<() -> (256)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : index, %{{.*}} : i32):
 // CHECK-NEXT:        %{{.*}} = memref.load %{{.*}}[%{{.*}}] : memref<128xi32>
 // CHECK-NEXT:        %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
@@ -32,11 +32,11 @@
 
   "func.func"() ({
   ^2(%0 : memref<256x256xf32>, %1 : memref<256x256xf32>, %2 : memref<256x256xf32>):
-    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
+    "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
     ^3(%3 : index):
-      "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
+      "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
       ^4(%4 : index):
-        "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
+        "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
         ^5(%5 : index):
           %6 = "memref.load"(%0, %3, %5) : (memref<256x256xf32>, index, index) -> f32
           %7 = "memref.load"(%1, %5, %4) : (memref<256x256xf32>, index, index) -> f32
@@ -54,11 +54,11 @@
   }) {"sym_name" = "affine_mm", "function_type" = (memref<256x256xf32>, memref<256x256xf32>, memref<256x256xf32>) -> memref<256x256xf32>, "sym_visibility" = "private"} : () -> ()
 
 // CHECK:         func.func private @affine_mm(%{{.*}} : memref<256x256xf32>, %{{.*}} : memref<256x256xf32>, %{{.*}} : memref<256x256xf32>) -> memref<256x256xf32> {
-// CHECK-NEXT:      "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
+// CHECK-NEXT:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, upperBoundMap = affine_map<() -> (256)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : index):
-// CHECK-NEXT:        "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
+// CHECK-NEXT:        "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, upperBoundMap = affine_map<() -> (256)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
 // CHECK-NEXT:        ^{{.*}}(%{{.*}} : index):
-// CHECK-NEXT:          "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
+// CHECK-NEXT:          "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, upperBoundMap = affine_map<() -> (256)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
 // CHECK-NEXT:          ^{{.*}}(%{{.*}} : index):
 // CHECK-NEXT:            %{{.*}} = memref.load %{{.*}}[%{{.*}}, %{{.*}}] : memref<256x256xf32>
 // CHECK-NEXT:            %{{.*}} = memref.load %{{.*}}[%{{.*}}, %{{.*}}] : memref<256x256xf32>

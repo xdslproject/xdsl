@@ -50,12 +50,12 @@ def test_pass_lex_errors():
 
 @pytest.mark.parametrize(
     "input_str, pass_name, pass_arg_names",
-    (
+    [
         ("pass-1,", "pass-1", set[str]()),
         ("pass-1{}", "pass-1", set[str]()),
         ("pass-1{arg1=true arg2}", "pass-1", {"arg1", "arg2"}),
         ("pass-1{arg2 arg1=false}", "pass-1", {"arg1", "arg2"}),
-    ),
+    ],
 )
 def test_pass_parser_argument_dict_edge_cases(
     input_str: str, pass_name: str, pass_arg_names: set[str]
@@ -71,12 +71,12 @@ def test_pass_parser_argument_dict_edge_cases(
 
 @pytest.mark.parametrize(
     "input_str",
-    (
+    [
         ("pass-1{"),
         ("pass-1{arg1,arg2}"),
         ("pass-1{arg1=arg2=arg3}"),
         ("pass-1{ }"),
-    ),
+    ],
 )
 def test_pass_parser_cases_fail(input_str: str):
     with pytest.raises(PassPipelineParseError):

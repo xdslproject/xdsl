@@ -7,24 +7,24 @@ print(dialect_to_irdl(Cmath, "cmath"))
 
 # CHECK:      irdl.dialect @cmath {
 
-# CHECK-NEXT:   irdl.attribute @cmath.complex {
+# CHECK-NEXT:   irdl.attribute @complex {
 # CHECK-NEXT:     %{{.*}} = irdl.any
-# CHECK-NEXT:     irdl.parameters(%{{.*}})
+# CHECK-NEXT:     irdl.parameters(elem: %{{.*}})
 # CHECK-NEXT:   }
 
-# CHECK-NEXT:   irdl.operation @cmath.norm {
+# CHECK-NEXT:   irdl.operation @norm {
 # CHECK-NEXT:     %{{.*}} = irdl.any
-# CHECK-NEXT:     irdl.operands(%{{.*}})
+# CHECK-NEXT:     irdl.operands(in: %{{.*}})
 # CHECK-NEXT:     %{{.*}} = irdl.any
-# CHECK-NEXT:     irdl.results(%{{.*}})
+# CHECK-NEXT:     irdl.results(out: %{{.*}})
 # CHECK-NEXT:   }
 
-# CHECK-NEXT:   irdl.operation @cmath.mul {
+# CHECK-NEXT:   irdl.operation @mul {
 # CHECK-NEXT:     %{{.*}} = irdl.any
 # CHECK-NEXT:     %{{.*}} = irdl.any
-# CHECK-NEXT:     irdl.operands(%{{.*}}, %{{.*}})
+# CHECK-NEXT:     irdl.operands(lhs: %{{.*}}, rhs: %{{.*}})
 # CHECK-NEXT:     %{{.*}} = irdl.any
-# CHECK-NEXT:     irdl.results(%{{.*}})
+# CHECK-NEXT:     irdl.results(res: %{{.*}})
 # CHECK-NEXT:   }
 
 # CHECK-NEXT: }

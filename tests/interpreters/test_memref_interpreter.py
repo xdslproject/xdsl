@@ -10,25 +10,25 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
-from xdsl.interpreters.memref import MemrefFunctions
-from xdsl.interpreters.ptr import TypedPtr
+from xdsl.interpreters.memref import MemRefFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 
 interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
 interpreter.register_implementations(ArithFunctions())
-interpreter.register_implementations(MemrefFunctions())
+interpreter.register_implementations(MemRefFunctions())
 
 index = IndexType()
 
 
 def test_functions():
-    alloc_op = memref.Alloc.get(i32, None, (2, 3))
-    zero_op = arith.Constant.from_int_and_width(0, index)
-    one_op = arith.Constant.from_int_and_width(1, index)
-    forty_two_op = arith.Constant.from_int_and_width(42, 32)
-    store_op = memref.Store.get(forty_two_op, alloc_op, (zero_op, one_op))
-    load_42_op = memref.Load.get(alloc_op, (zero_op, one_op))
-    dealloc_op = memref.Dealloc.get(alloc_op)
+    alloc_op = memref.AllocOp.get(i32, None, (2, 3))
+    zero_op = arith.ConstantOp.from_int_and_width(0, index)
+    one_op = arith.ConstantOp.from_int_and_width(1, index)
+    forty_two_op = arith.ConstantOp.from_int_and_width(42, 32)
+    store_op = memref.StoreOp.get(forty_two_op, alloc_op, (zero_op, one_op))
+    load_42_op = memref.LoadOp.get(alloc_op, (zero_op, one_op))
+    dealloc_op = memref.DeallocOp.get(alloc_op)
 
     (shaped_array,) = interpreter.run_op(alloc_op, ())
 
@@ -53,17 +53,17 @@ def test_memref_get_global():
     tensor_type = TensorType(i32, (2, 2))
     module = ModuleOp([])
     with ImplicitBuilder(module.body):
-        memref.Global.get(
+        memref.GlobalOp.get(
             StringAttr("my_global"),
             memref_type,
             DenseIntOrFPElementsAttr.from_list(tensor_type, [1, 2, 3, 4]),
             sym_visibility=StringAttr("public"),
         )
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            fetch = memref.GetGlobal("my_global", memref_type)
+            fetch = memref.GetGlobalOp("my_global", memref_type)
 
     interpreter = Interpreter(module, index_bitwidth=32)
-    interpreter.register_implementations(MemrefFunctions())
+    interpreter.register_implementations(MemRefFunctions())
 
     (result,) = interpreter.run_op(fetch, ())
     assert result == ShapedArray(

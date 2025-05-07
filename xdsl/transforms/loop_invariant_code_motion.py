@@ -1,4 +1,18 @@
-from xdsl.context import MLContext
+"""
+This pass hoists operation that are invariant to the loops.
+
+Similar to MLIR's loop invariant code motion: see external [documentation](https://mlir.llvm.org/doxygen/LoopInvariantCodeMotion_8cpp_source.html).
+
+An operation is loop-invariant if it depends only of values defined outside of the loop.
+LICM moves these operations out of the loop body so that they are not computed more than
+once.
+
+  for i in range(x, N, M):                for i in range(x, N, M):
+    for j in range(0, M, K):    ---->        c[i]= A[1] + b[1]
+      c[i]=A[1]+b[1]
+"""
+
+from xdsl.context import Context
 from xdsl.dialects import builtin, scf
 from xdsl.ir import Operation, Region
 from xdsl.passes import ModulePass
@@ -19,19 +33,20 @@ from xdsl.traits import (
 #  Similar to MLIR's loop invariant code motion:
 #  https://mlir.llvm.org/doxygen/LoopInvariantCodeMotion_8cpp_source.html
 #
-#  An operation is loop-invariant if it depends only of values defined outside of the loop. LICM moves these operations out of the loop body so that they are not computed more than once.
+#  An operation is loop-invariant if it depends only of values defined outside of the loop. LICM moves these operations out of the loop body so that they are not computed more than once. # noqa: E501
 #
 #    for i in range(x, N, M):                for i in range(x, N, M):
 #      for j in range(0, M, K):    ---->        c[i]= A[1] + b[1]
 #        c[i]=A[1]+b[1]
 
 
-#  Checks whether the given op can be hoisted by checking that
-#  - the op and none of its contained operations depend on values inside of the
-#    loop (by means of calling definedOutside).
-#  - the op has no side-effects.
-def canBeHoisted(op: Operation, region_target: Region) -> bool | None:
-    #   Do not move terminators.
+def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
+    """
+    Checks whether the given op can be hoisted by checking that
+    - the op and none of its contained operations depend on values inside of the
+     loop.
+    """
+    #  Do not move terminators.
     if op.has_trait(IsTerminator):
         return False
 
@@ -40,20 +55,19 @@ def canBeHoisted(op: Operation, region_target: Region) -> bool | None:
     # the loop body.
     for child in op.walk():
         for operand in child.operands:
-            for own in operand.owner.walk():
-                if not isinstance(own, scf.For):
-                    if op.is_ancestor(operand.owner):
-                        continue
-                    if region_target.is_ancestor(own):
-                        return False
+            operand_owner = operand.owner
+            assert operand_owner is not None
+            if op.is_ancestor(operand_owner):
+                continue
+            if target_region.is_ancestor(operand_owner):
+                return False
     return True
 
 
 class LoopsInvariantCodeMotion(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
-
-        if any(isinstance(ha, scf.For) for ha in op.body.walk()):
+    def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter) -> None:
+        if any(isinstance(ha, scf.ForOp) for ha in op.body.walk()):
             return
 
         numMoved = 0
@@ -68,12 +82,12 @@ class LoopsInvariantCodeMotion(RewritePattern):
                     # Skip ops that have already been moved. Check if the op can be hoisted.
                     if oper.parent_region() != region:
                         continue
-                    if not canBeHoisted(oper, region):
+                    if not can_be_hoisted(oper, region):
                         continue
                     print("Can be hoisted op: ", oper)
 
                     numMoved = numMoved + 1
-                    if not isinstance(oper, scf.Yield):
+                    if not isinstance(oper, scf.YieldOp):
                         for user in oper.results[0].uses:
                             if user.operation.parent_region is region:
                                 worklist.append(user.operation)
@@ -81,7 +95,7 @@ class LoopsInvariantCodeMotion(RewritePattern):
         # print(numMoved)
 
 
-class ScfForLoopInavarintCodeMotionPass(ModulePass):
+class LoopInvariantCodeMotionPass(ModulePass):
     """
     Folds perfect loop nests if they can be represented with a single loop.
     Currently does this by matching the inner loop range with the outer loop step.
@@ -95,5 +109,5 @@ class ScfForLoopInavarintCodeMotionPass(ModulePass):
 
     name = "licm"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(LoopsInvariantCodeMotion()).rewrite_module(op)

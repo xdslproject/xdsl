@@ -27,7 +27,7 @@ from xdsl.interpreter import (
 from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.ir import Attribute, Operation
 from xdsl.utils.exceptions import InterpretationError
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_import_functions():
@@ -90,7 +90,7 @@ def test_cast():
         integer = interpreter.cast_value(IndexType(), i32, index0)
 
     # Test builtin cast
-    integer_value = TestSSAValue(i32)
+    integer_value = create_ssa_value(i32)
     cast_op = builtin.UnrealizedConversionCastOp.get(
         (integer_value,), result_type=(IndexType(),)
     )
@@ -158,7 +158,6 @@ def test_interpreter_data():
 
 
 def test_run_op_interpreter_args():
-
     @dataclass
     @register_impls
     class TestFunctions(InterpreterFunctions):
@@ -186,7 +185,7 @@ def test_run_op_interpreter_args():
         interpreter.run_op(test_op, ())
 
     op = test.TestOp(
-        (TestSSAValue(TensorType(f32, [4])),),
+        (create_ssa_value(TensorType(f32, [4])),),
         (
             TensorType(f32, [4]),
             TensorType(f32, [4]),
@@ -207,7 +206,7 @@ def test_run_op_interpreter_args():
     assert interpreter.run_op(test_op_2, ()) == (1,)
 
     op_2 = test.TestOp(
-        (TestSSAValue(TensorType(f32, [4])),),
+        (create_ssa_value(TensorType(f32, [4])),),
         (TensorType(f32, [4]),),
     )
     assert interpreter.run_op(op_2, (1,)) == (1,)
@@ -217,7 +216,6 @@ def test_mixed_values():
     @dataclass
     @register_impls
     class TestFuncA(InterpreterFunctions):
-
         @impl_attr(IndexType)
         def index_value(
             self, interpreter: Interpreter, attr: Attribute, attr_type: IndexType
@@ -227,7 +225,6 @@ def test_mixed_values():
     @dataclass
     @register_impls
     class TestFuncB(InterpreterFunctions):
-
         @impl_attr(IntegerType)
         def index_value(
             self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType
@@ -246,3 +243,34 @@ def test_mixed_values():
 
     assert i.value_for_attribute(IntegerAttr(1, i32), i32) == 1
     assert i.value_for_attribute(IntegerAttr(1, i32), index) == 1
+
+
+def test_combined_listener():
+    @dataclass
+    class DemoListener(Interpreter.Listener):
+        strings: list[str]
+        key: str
+
+        def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
+            self.strings.append("will " + self.key)
+
+        def did_interpret_op(self, op: Operation, results: PythonValues) -> None:
+            self.strings.append("did " + self.key)
+
+    @dataclass
+    @register_impls
+    class TestFunctions(InterpreterFunctions):
+        @impl(test.TestOp)
+        def run_test(
+            self, interpreter: Interpreter, op: test.TestOp, args: PythonValues
+        ) -> PythonValues:
+            return ()
+
+    strings: list[str] = []
+    da = DemoListener(strings, "A")
+    db = DemoListener(strings, "B")
+    interpreter = Interpreter(ModuleOp([]), listeners=(da, db))
+    interpreter.register_implementations(TestFunctions())
+    interpreter.run_op(test.TestOp())
+
+    assert strings == ["will A", "will B", "did A", "did B"]

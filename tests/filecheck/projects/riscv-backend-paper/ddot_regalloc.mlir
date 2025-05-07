@@ -1,9 +1,7 @@
 // RUN: xdsl-opt -p riscv-allocate-registers %s | filecheck %s
 
 riscv.assembly_section ".text" {
-    riscv.directive ".globl" "ddot"
-    riscv.directive ".p2align" "2"
-    riscv_func.func @ddot(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
+    riscv_func.func public @ddot(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) attributes {p2align = 2 : i8} {
         %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg
         %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg
         %Z_moved = riscv.mv %Z : (!riscv.reg<a2>) -> !riscv.reg
@@ -27,9 +25,7 @@ riscv.assembly_section ".text" {
 
 
 // CHECK:       riscv.assembly_section ".text" {
-// CHECK-NEXT:      riscv.directive ".globl" "ddot"
-// CHECK-NEXT:      riscv.directive ".p2align" "2"
-// CHECK-NEXT:      riscv_func.func @ddot(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
+// CHECK-NEXT:      riscv_func.func public @ddot(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) attributes {p2align = 2 : i8} {
 // CHECK-NEXT:          %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg<t2>
 // CHECK-NEXT:          %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<t1>
 // CHECK-NEXT:          %Z_moved = riscv.mv %Z : (!riscv.reg<a2>) -> !riscv.reg<t0>
@@ -50,4 +46,3 @@ riscv.assembly_section ".text" {
 // CHECK-NEXT:          riscv_func.return
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
-

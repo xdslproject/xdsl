@@ -3,11 +3,11 @@ import pytest
 from xdsl.dialects import tensor
 from xdsl.dialects.builtin import ModuleOp, TensorType, f32, i32
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.tensor import TensorFunctions
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.exceptions import InterpretationError
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_tensor_empty():
@@ -22,8 +22,8 @@ def test_tensor_reshape():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(TensorFunctions())
     op = tensor.ReshapeOp(
-        TestSSAValue(TensorType(f32, [4, 1])),
-        TestSSAValue(TensorType(i32, [1])),
+        create_ssa_value(TensorType(f32, [4, 1])),
+        create_ssa_value(TensorType(i32, [1])),
         TensorType(f32, [4]),
     )
     a = ShapedArray(TypedPtr.new_float32([1, 2, 3, 4]), [4, 1])
@@ -36,8 +36,8 @@ def test_tensor_reshape_error():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(TensorFunctions())
     op = tensor.ReshapeOp(
-        TestSSAValue(TensorType(f32, [3, 1])),
-        TestSSAValue(TensorType(i32, [1])),
+        create_ssa_value(TensorType(f32, [3, 1])),
+        create_ssa_value(TensorType(i32, [1])),
         TensorType(f32, [3]),
     )
     a = ShapedArray(TypedPtr.new_float32([1, 2, 3]), [3, 1])

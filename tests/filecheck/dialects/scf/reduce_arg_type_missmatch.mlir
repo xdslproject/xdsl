@@ -13,8 +13,7 @@
         %11 = "arith.addf"(%9, %10) : (f64, f64) -> f64
         "scf.reduce.return"(%11) : (f64) -> ()
       }) : (f32) -> ()
-      "scf.yield"() : () -> ()
-    }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f32
+    }) {operandSegmentSizes = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f32
 }) : () -> ()
 
 // CHECK: scf.reduce block argument types must match the operand type  but have f64 and f32

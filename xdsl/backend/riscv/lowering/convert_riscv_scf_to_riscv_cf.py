@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_cf, riscv_scf
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -7,7 +7,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint
+from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
 class LowerRiscvScfForPattern(RewritePattern):
@@ -78,15 +78,13 @@ class LowerRiscvScfForPattern(RewritePattern):
         init_block = op.parent_block()
         assert init_block is not None
 
-        body_args = op.body.blocks[0].args
+        body = op.body.blocks[0]
 
         # TODO: add method to rewriter
-        end_block = init_block.split_before(
-            op, arg_types=(arg.type for arg in body_args)
-        )
+        end_block = init_block.split_before(op, arg_types=body.arg_types)
 
         # The first argument of the loop body block is the loop counter by SCF invariant.
-        loop_var_reg = body_args[0].type
+        loop_var_reg = body.args[0].type
         assert isinstance(loop_var_reg, riscv.IntRegisterType)
 
         # Use the first block of the loop body as the condition block since it is the
@@ -121,7 +119,7 @@ class LowerRiscvScfForPattern(RewritePattern):
             ),
         )
 
-        rewriter.inline_region_before(op.body, end_block)
+        rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
 
         # Move lb to new register to initialize the iv.
         # Skip for loop if condition is not satisfied at start.
@@ -155,7 +153,7 @@ class LowerRiscvScfForPattern(RewritePattern):
 class ConvertRiscvScfToRiscvCfPass(ModulePass):
     name = "convert-riscv-scf-to-riscv-cf"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             LowerRiscvScfForPattern(), walk_regions_first=True
         ).rewrite_module(op)

@@ -14,7 +14,7 @@ module {
 // CHECK-NEXT: }
 
 // CHECK-GENERIC:      "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   "func.func"() <{"sym_name" = "my_func", "function_type" = () -> (), "sym_visibility" = "public"}> ({
+// CHECK-GENERIC-NEXT:   "func.func"() <{sym_name = "my_func", function_type = () -> (), sym_visibility = "public"}> ({
 // CHECK-GENERIC-NEXT:     "func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

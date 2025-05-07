@@ -1,16 +1,16 @@
 import pytest
 
-from xdsl.dialects.arith import Constant
+from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import i32
 from xdsl.ir import Block, Region
 
 
 def test_block_insert():
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(2, i32)
-    c = Constant.from_int_and_width(3, i32)
-    d = Constant.from_int_and_width(4, i32)
-    e = Constant.from_int_and_width(5, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
+    c = ConstantOp.from_int_and_width(3, i32)
+    d = ConstantOp.from_int_and_width(4, i32)
+    e = ConstantOp.from_int_and_width(5, i32)
 
     block = Block()
 
@@ -78,11 +78,11 @@ def test_block_insert():
 
 
 def test_region_insert():
-    a = Block((Constant.from_int_and_width(1, i32),))
-    b = Block((Constant.from_int_and_width(2, i32),))
-    c = Block((Constant.from_int_and_width(3, i32),))
-    d = Block((Constant.from_int_and_width(4, i32),))
-    e = Block((Constant.from_int_and_width(5, i32),))
+    a = Block((ConstantOp.from_int_and_width(1, i32),))
+    b = Block((ConstantOp.from_int_and_width(2, i32),))
+    c = Block((ConstantOp.from_int_and_width(3, i32),))
+    d = Block((ConstantOp.from_int_and_width(4, i32),))
+    e = Block((ConstantOp.from_int_and_width(5, i32),))
 
     region = Region()
 
@@ -150,11 +150,11 @@ def test_region_insert():
 
 
 def test_region_indexing():
-    a = Block((Constant.from_int_and_width(1, i32),))
-    b = Block((Constant.from_int_and_width(2, i32),))
-    c = Block((Constant.from_int_and_width(3, i32),))
-    d = Block((Constant.from_int_and_width(4, i32),))
-    e = Block((Constant.from_int_and_width(5, i32),))
+    a = Block((ConstantOp.from_int_and_width(1, i32),))
+    b = Block((ConstantOp.from_int_and_width(2, i32),))
+    c = Block((ConstantOp.from_int_and_width(3, i32),))
+    d = Block((ConstantOp.from_int_and_width(4, i32),))
+    e = Block((ConstantOp.from_int_and_width(5, i32),))
 
     region = Region((a, b, c, d, e))
 

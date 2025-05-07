@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref, memref_stream
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Attribute
@@ -15,7 +15,6 @@ from xdsl.pattern_rewriter import (
 
 
 class InferFillPattern(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
@@ -71,7 +70,7 @@ class InferFillPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamInferFillPass(ModulePass):
+class MemRefStreamInferFillPass(ModulePass):
     """
     Detects memref_stream.generic operations that can be represented as
     `memref_stream.fill` ops.
@@ -79,7 +78,7 @@ class MemrefStreamInferFillPass(ModulePass):
 
     name = "memref-stream-infer-fill"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             InferFillPattern(),
             apply_recursively=False,

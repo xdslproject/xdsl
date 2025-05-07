@@ -7,9 +7,11 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import ClassVar, TypeAlias, overload
 
+from typing_extensions import deprecated
+
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
 @dataclass(eq=False)
@@ -17,12 +19,12 @@ class BuilderListener:
     """A listener for builder events."""
 
     operation_insertion_handler: list[Callable[[Operation], None]] = field(
-        default_factory=list, kw_only=True
+        default_factory=list[Callable[[Operation], None]], kw_only=True
     )
     """Callbacks that are called when an operation is inserted by the builder."""
 
     block_creation_handler: list[Callable[[Block], None]] = field(
-        default_factory=list, kw_only=True
+        default_factory=list[Callable[[Block], None]], kw_only=True
     )
     """Callback that are called when a block is created by the builder."""
 
@@ -48,31 +50,11 @@ class Builder(BuilderListener):
     A helper class to construct IRs, by keeping track of where to insert an
     operation. It mimics the OpBuilder class from MLIR.
 
-    https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html
+    See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html).
     """
 
     insertion_point: InsertPoint
     """Operations will be inserted at this location."""
-
-    @staticmethod
-    def before(op: Operation) -> Builder:
-        """Creates a builder with the insertion point before an operation."""
-        return Builder(InsertPoint.before(op))
-
-    @staticmethod
-    def after(op: Operation) -> Builder:
-        """Creates a builder with the insertion point after an operation."""
-        return Builder(InsertPoint.after(op))
-
-    @staticmethod
-    def at_start(block: Block) -> Builder:
-        """Creates a builder with the insertion point at the start of a block."""
-        return Builder(InsertPoint.at_start(block))
-
-    @staticmethod
-    def at_end(block: Block) -> Builder:
-        """Creates a builder with the insertion point at the end of a block."""
-        return Builder(InsertPoint.at_end(block))
 
     def insert(self, op: OperationInvT) -> OperationInvT:
         """Inserts `op` at the current insertion point."""
@@ -81,7 +63,7 @@ class Builder(BuilderListener):
 
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
-                "Cannot insert operation explicitly when an implicit " "builder exists."
+                "Cannot insert operation explicitly when an implicit builder exists."
             )
 
         block = self.insertion_point.block
@@ -94,6 +76,24 @@ class Builder(BuilderListener):
 
         return op
 
+    def create_block(
+        self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()
+    ) -> Block:
+        """
+        Create a block at the given location, and set the operation insertion point
+        at the end of the inserted block.
+        """
+        block = Block(arg_types=arg_types)
+        Rewriter.insert_block(block, insert_point)
+
+        self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+        return block
+
+    @deprecated(
+        "Use create_block(BlockInsertPoint.before(insert_before), arg_types) instead"
+    )
     def create_block_before(
         self, insert_before: Block, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -101,14 +101,11 @@ class Builder(BuilderListener):
         Create a block before `insert_before`, and set
         the insertion point at the end of the inserted block.
         """
-        block = Block(arg_types=arg_types)
-        Rewriter.insert_block_before(block, insert_before)
-        self.insertion_point = InsertPoint.at_end(block)
+        return self.create_block(BlockInsertPoint.before(insert_before), arg_types)
 
-        self.handle_block_creation(block)
-
-        return block
-
+    @deprecated(
+        "Use create_block(BlockInsertPoint.after(insert_after), arg_types) instead"
+    )
     def create_block_after(
         self, insert_after: Block, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -116,15 +113,11 @@ class Builder(BuilderListener):
         Create a block after `insert_after`, and set
         the insertion point at the end of the inserted block.
         """
+        return self.create_block(BlockInsertPoint.after(insert_after), arg_types)
 
-        block = Block(arg_types=arg_types)
-        Rewriter.insert_block_after(block, insert_after)
-        self.insertion_point = InsertPoint.at_end(block)
-
-        self.handle_block_creation(block)
-
-        return block
-
+    @deprecated(
+        "Use create_block(BlockInsertPoint.at_start(region), arg_types) instead"
+    )
     def create_block_at_start(
         self, region: Region, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -132,14 +125,9 @@ class Builder(BuilderListener):
         Create a block at the start of `region`, and set
         the insertion point at the end of the inserted block.
         """
-        block = Block(arg_types=arg_types)
-        region.insert_block(block, 0)
-        self.insertion_point = InsertPoint.at_end(block)
+        return self.create_block(BlockInsertPoint.at_start(region), arg_types)
 
-        self.handle_block_creation(block)
-
-        return block
-
+    @deprecated("Use create_block(BlockInsertPoint.at_end(region), arg_types) instead")
     def create_block_at_end(
         self, region: Region, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -147,13 +135,7 @@ class Builder(BuilderListener):
         Create a block at the end of `region`, and set
         the insertion point at the end of the inserted block.
         """
-        block = Block(arg_types=arg_types)
-        region.add_block(block)
-        self.insertion_point = InsertPoint.at_end(block)
-
-        self.handle_block_creation(block)
-
-        return block
+        return self.create_block(BlockInsertPoint.at_end(region), arg_types)
 
     @staticmethod
     def _region_no_args(func: Callable[[Builder], None]) -> Region:
@@ -161,7 +143,7 @@ class Builder(BuilderListener):
         Generates a single-block region.
         """
         block = Block()
-        builder = Builder.at_end(block)
+        builder = Builder(InsertPoint.at_end(block))
         func(builder)
         return Region(block)
 
@@ -179,7 +161,7 @@ class Builder(BuilderListener):
 
         def wrapper(func: _CallableRegionFuncType) -> Region:
             block = Block(arg_types=input_types)
-            builder = Builder.at_start(block)
+            builder = Builder(InsertPoint.at_start(block))
 
             func(builder, block.args)
 
@@ -219,7 +201,7 @@ class Builder(BuilderListener):
 
     @staticmethod
     def region(
-        input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[Builder], None]
+        input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[Builder], None],
     ) -> Callable[[_CallableRegionFuncType], Region] | Region:
         if isinstance(input, Callable):
             return Builder._region_no_args(input)
@@ -294,7 +276,7 @@ class Builder(BuilderListener):
 
     @staticmethod
     def implicit_region(
-        input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[], None]
+        input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[], None],
     ) -> Callable[[_CallableImplicitRegionFuncType], Region] | Region:
         if isinstance(input, Callable):
             return Builder._implicit_region_no_args(input)
@@ -319,7 +301,7 @@ class _ImplicitBuilderStack(threading.local):
     default. There is a stack per thread, guaranteed by inheriting from `threading.local`.
     """
 
-    stack: list[Builder] = field(default_factory=list)
+    stack: list[Builder] = field(default_factory=list[Builder])
 
     def push(self, builder: Builder) -> None:
         self.stack.append(builder)
@@ -349,10 +331,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
     ``` python
     from xdsl.dialects import arith
 
-    block = Block()
-    builder = Builder(block)
-
-    with builder.implicit():
+    with ImplicitBuilder(block):
         arith.Constant.from_int_and_width(5, 32)
 
     assert len(block.ops) == 1
@@ -361,7 +340,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
     """
 
     _stack: ClassVar[_ImplicitBuilderStack] = _ImplicitBuilderStack()
-
+    _old_post_init: Callable[[Operation], None] | None = None
     _builder: Builder
 
     def __init__(self, arg: Builder | Block | Region | None):
@@ -372,10 +351,12 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
         if isinstance(arg, Region):
             arg = arg.block
         if isinstance(arg, Block):
-            arg = Builder.at_end(arg)
+            arg = Builder(InsertPoint.at_end(arg))
         self._builder = arg
 
     def __enter__(self) -> tuple[BlockArgument, ...]:
+        if not type(self)._stack.stack:
+            type(self)._old_post_init = _override_operation_post_init()
         type(self)._stack.push(self._builder)
         return self._builder.insertion_point.block.args
 
@@ -386,6 +367,9 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
         __traceback: TracebackType | None,
     ) -> bool | None:
         type(self)._stack.pop(self._builder)
+        if not type(self)._stack.stack:
+            assert (old_post_init := type(self)._old_post_init)
+            Operation.__post_init__ = old_post_init  # pyright: ignore[reportAttributeAccessIssue]
 
     @classmethod
     def get(cls) -> Builder | None:
@@ -406,7 +390,7 @@ def _op_init_callback(op: Operation):
         b.insert(op)
 
 
-def _override_operation_post_init() -> None:
+def _override_operation_post_init() -> Callable[[Operation], None]:
     old_post_init = Operation.__post_init__
 
     def new_post_init(self: Operation) -> None:
@@ -414,7 +398,4 @@ def _override_operation_post_init() -> None:
         _op_init_callback(self)
 
     Operation.__post_init__ = new_post_init
-
-
-# set up the operation callback for implicit construction
-_override_operation_post_init()
+    return old_post_init

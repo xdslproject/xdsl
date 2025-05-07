@@ -14,16 +14,16 @@ from xdsl.interpreter import (
 
 @register_impls
 class ScfFunctions(InterpreterFunctions):
-    @impl(scf.If)
-    def run_if(self, interpreter: Interpreter, op: scf.If, args: tuple[Any, ...]):
+    @impl(scf.IfOp)
+    def run_if(self, interpreter: Interpreter, op: scf.IfOp, args: tuple[Any, ...]):
         (cond,) = args
         region = op.true_region if cond else op.false_region
         results = interpreter.run_ssacfg_region(region, ())
         return results
 
-    @impl(scf.For)
+    @impl(scf.ForOp)
     def run_for(
-        self, interpreter: Interpreter, op: scf.For, args: PythonValues
+        self, interpreter: Interpreter, op: scf.ForOp, args: PythonValues
     ) -> PythonValues:
         lb, ub, step, *loop_args = args
         loop_args = tuple(loop_args)
@@ -35,6 +35,6 @@ class ScfFunctions(InterpreterFunctions):
 
         return loop_args
 
-    @impl_terminator(scf.Yield)
-    def run_br(self, interpreter: Interpreter, op: scf.Yield, args: tuple[Any, ...]):
+    @impl_terminator(scf.YieldOp)
+    def run_br(self, interpreter: Interpreter, op: scf.YieldOp, args: tuple[Any, ...]):
         return ReturnedValues(args), ()

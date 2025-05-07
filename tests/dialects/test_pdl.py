@@ -4,10 +4,10 @@ import xdsl.dialects.pdl as pdl
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, StringAttr, i32, i64
 from xdsl.ir import Block
-from xdsl.irdl import IRDLOperation, irdl_op_definition
+from xdsl.irdl import IRDLOperation, irdl_op_definition, traits_def
 from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 type_type = pdl.TypeType()
 attribute_type = pdl.AttributeType()
@@ -39,7 +39,7 @@ def test_build_anr():
     assert anr.constraint_name == StringAttr("anr")
     assert anr.args == (type_val,)
     assert len(anr.results) == 1
-    assert [r.type for r in anr.results] == [attribute_type]
+    assert anr.result_types == (attribute_type,)
 
 
 def test_build_rewrite():
@@ -110,9 +110,9 @@ def test_build_pattern():
     assert pattern.body is body
 
     @irdl_op_definition
-    class DummyTerminator(IRDLOperation):
+    class DummyTerminatorOp(IRDLOperation):
         name = "dummy.terminator"
-        traits = frozenset([HasParent(pdl.PatternOp), IsTerminator()])
+        traits = traits_def(HasParent(pdl.PatternOp), IsTerminator())
 
     with pytest.raises(
         VerifyException, match="expected body to terminate with a `pdl.rewrite`"
@@ -120,7 +120,7 @@ def test_build_pattern():
 
         @Builder.implicit_region
         def body() -> None:
-            DummyTerminator()
+            DummyTerminatorOp()
 
         pattern = pdl.PatternOp(1, "pattern", body)
         pattern.verify()
@@ -192,9 +192,9 @@ def test_build_operand():
 
 
 def test_range():
-    val1 = TestSSAValue(pdl.ValueType())
-    val2 = TestSSAValue(pdl.RangeType(pdl.ValueType()))
-    val3 = TestSSAValue(pdl.ValueType())
+    val1 = create_ssa_value(pdl.ValueType())
+    val2 = create_ssa_value(pdl.RangeType(pdl.ValueType()))
+    val3 = create_ssa_value(pdl.ValueType())
 
     range_op = pdl.RangeOp((val1, val2, val3))
 

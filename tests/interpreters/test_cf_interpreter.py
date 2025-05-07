@@ -28,26 +28,26 @@ def sum_to_op():
     epilogue = Block(arg_types=(i32,))
 
     with ImplicitBuilder(prologue):
-        result = arith.Constant.from_int_and_width(0, 32).result
-        i = arith.Constant.from_int_and_width(0, 32).result
-        cf.Branch(loop_iter, result, i)
+        result = arith.ConstantOp.from_int_and_width(0, 32).result
+        i = arith.ConstantOp.from_int_and_width(0, 32).result
+        cf.BranchOp(loop_iter, result, i)
 
     with ImplicitBuilder(loop_iter):
         (n,) = prologue.args
         result, i = loop_iter.args
-        cond = arith.Cmpi(i, n, "sle")
-        cf.ConditionalBranch(cond, loop_body, (result, i), epilogue, (result,))
+        cond = arith.CmpiOp(i, n, "sle")
+        cf.ConditionalBranchOp(cond, loop_body, (result, i), epilogue, (result,))
 
     with ImplicitBuilder(loop_body):
         result, i = loop_iter.args
-        new_result = arith.Addi(result, i)
-        one = arith.Constant.from_int_and_width(1, 32)
-        new_i = arith.Addi(i, one)
-        cf.Branch(loop_iter, new_result, new_i)
+        new_result = arith.AddiOp(result, i)
+        one = arith.ConstantOp.from_int_and_width(1, 32)
+        new_i = arith.AddiOp(i, one)
+        cf.BranchOp(loop_iter, new_result, new_i)
 
     with ImplicitBuilder(epilogue):
         (result,) = epilogue.args
-        func.Return(result)
+        func.ReturnOp(result)
 
     func.FuncOp(
         "sum_to", ((i32,), (i32,)), Region([prologue, loop_iter, loop_body, epilogue])
@@ -63,6 +63,6 @@ def sum_to_interp(n: int) -> int:
     return result
 
 
-@pytest.mark.parametrize("n", (0, 1, 2, 3, 4))
+@pytest.mark.parametrize("n", [0, 1, 2, 3, 4])
 def test_sum_to(n: int):
     assert sum_to_fn(n) == sum_to_interp(n)

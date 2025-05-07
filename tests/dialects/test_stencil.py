@@ -1,11 +1,7 @@
 import pytest
-from conftest import assert_print_op
 
-from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import builtin, func
-from xdsl.dialects.arith import (
-    Addf,
-)
+from xdsl.builder import Builder
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
@@ -14,7 +10,6 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     MemRefType,
-    ModuleOp,
     bf16,
     f16,
     f32,
@@ -23,9 +18,6 @@ from xdsl.dialects.builtin import (
     f128,
     i32,
     i64,
-)
-from xdsl.dialects.func import (
-    FuncOp,
 )
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -46,10 +38,10 @@ from xdsl.dialects.stencil import (
     StoreResultOp,
     TempType,
 )
-from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_stencilboundsattr_verify():
@@ -70,16 +62,16 @@ def test_stencilboundsattr_verify():
 
 
 def test_stencil_return_single_float():
-    float_val1 = TestSSAValue(FloatAttr(4.0, f32))
+    float_val1 = create_ssa_value(FloatAttr(4.0, f32))
     return_op = ReturnOp.get([float_val1])
 
     assert return_op.arg[0] is float_val1
 
 
 def test_stencil_return_multiple_floats():
-    float_val1 = TestSSAValue(FloatAttr(4.0, f32))
-    float_val2 = TestSSAValue(FloatAttr(5.0, f32))
-    float_val3 = TestSSAValue(FloatAttr(6.0, f32))
+    float_val1 = create_ssa_value(FloatAttr(4.0, f32))
+    float_val2 = create_ssa_value(FloatAttr(5.0, f32))
+    float_val3 = create_ssa_value(FloatAttr(6.0, f32))
 
     return_op = ReturnOp.get([float_val1, float_val2, float_val3])
 
@@ -89,16 +81,16 @@ def test_stencil_return_multiple_floats():
 
 
 def test_stencil_return_single_ResultType():
-    result_type_val1 = TestSSAValue(ResultType(f32))
+    result_type_val1 = create_ssa_value(ResultType(f32))
     return_op = ReturnOp.get([result_type_val1])
 
     assert return_op.arg[0] is result_type_val1
 
 
 def test_stencil_return_multiple_ResultType():
-    result_type_val1 = TestSSAValue(ResultType(f32))
-    result_type_val2 = TestSSAValue(ResultType(f32))
-    result_type_val3 = TestSSAValue(ResultType(f32))
+    result_type_val1 = create_ssa_value(ResultType(f32))
+    result_type_val2 = create_ssa_value(ResultType(f32))
+    result_type_val3 = create_ssa_value(ResultType(f32))
 
     return_op = ReturnOp.get([result_type_val1, result_type_val2, result_type_val3])
 
@@ -109,7 +101,7 @@ def test_stencil_return_multiple_ResultType():
 
 def test_stencil_cast_op_verifier():
     field_type = FieldType(3, f32)
-    field = TestSSAValue(field_type)
+    field = create_ssa_value(field_type)
 
     # check that correct op verifies correctly
     cast = CastOp.get(field, StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))))
@@ -139,7 +131,7 @@ def test_stencil_cast_op_verifier():
         cast.verify()
 
     # check that non-dynamic input verifies
-    non_dyn_field = TestSSAValue(FieldType(((-2, 102), (-2, 102), (-2, 102)), f32))
+    non_dyn_field = create_ssa_value(FieldType(((-2, 102), (-2, 102), (-2, 102)), f32))
     cast = CastOp.get(
         non_dyn_field,
         StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))),
@@ -160,7 +152,7 @@ def test_stencil_cast_op_verifier():
 
 
 def test_cast_op_constructor():
-    field = TestSSAValue(FieldType(3, f32))
+    field = create_ssa_value(FieldType(3, f32))
 
     cast = CastOp.get(
         field,
@@ -171,7 +163,7 @@ def test_cast_op_constructor():
 
 
 def test_stencil_apply():
-    result_type_val1 = TestSSAValue(ResultType(f32))
+    result_type_val1 = create_ssa_value(ResultType(f32))
 
     stencil_temptype = TempType(2, f32)
     apply_op = ApplyOp.get([result_type_val1], Block([]), [stencil_temptype])
@@ -200,7 +192,7 @@ def test_stencil_apply_no_results():
 
 @pytest.mark.parametrize(
     "indices",
-    (
+    [
         ([1]),
         ([1, 2]),
         ([1, 2, 3]),
@@ -211,7 +203,7 @@ def test_stencil_apply_no_results():
                 IntAttr(3),
             ]
         ),
-    ),
+    ],
 )
 def test_create_index_attr_from_int_list(indices: list[int | IntAttr]):
     stencil_index_attr = IndexAttr.get(*indices)
@@ -235,24 +227,8 @@ def test_create_index_attr_from_list_edge_case2():
 
 
 @pytest.mark.parametrize(
-    "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
-)
-def test_index_attr_size_from_bounds(indices1: list[int], indices2: list[int]):
-    stencil_index_attr1 = IndexAttr.get(*indices1)
-    stencil_index_attr2 = IndexAttr.get(*indices2)
-
-    size_from_bounds = IndexAttr.size_from_bounds(
-        stencil_index_attr1, stencil_index_attr2
-    )
-    expected_list = [abs(idx1 - idx2) for idx1, idx2 in zip(indices1, indices2)]
-
-    assert size_from_bounds == expected_list
-
-
-@pytest.mark.parametrize(
     "indices",
-    (([1]), ([1, 2]), ([1, 2, 3])),
+    [([1]), ([1, 2]), ([1, 2, 3])],
 )
 def test_index_attr_neg(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
@@ -264,7 +240,7 @@ def test_index_attr_neg(indices: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_add(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -280,7 +256,7 @@ def test_index_attr_add(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_sub(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -296,7 +272,7 @@ def test_index_attr_sub(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_min(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -312,7 +288,7 @@ def test_index_attr_min(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_max(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -328,7 +304,7 @@ def test_index_attr_max(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices",
-    (((1,)), ((1, 2)), ((1, 2, 3))),
+    [((1,)), ((1, 2)), ((1, 2, 3))],
 )
 def test_index_attr_iter(indices: tuple[int, ...]):
     stencil_index_attr = IndexAttr.get(*indices)
@@ -336,7 +312,7 @@ def test_index_attr_iter(indices: tuple[int, ...]):
     assert tuple(stencil_index_attr) == indices
 
 
-@pytest.mark.parametrize("indices", (([1]), ([1, 2]), ([1, 2, 3])))
+@pytest.mark.parametrize("indices", [([1]), ([1, 2]), ([1, 2, 3])])
 def test_index_attr_indices_length(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
     stencil_index_attr_iter = iter(stencil_index_attr)
@@ -347,13 +323,13 @@ def test_index_attr_indices_length(indices: list[int]):
 
 @pytest.mark.parametrize(
     "attr, bounds",
-    (
+    [
         (i32, ((0, 64), (0, 64))),
         (
             i64,
             ((0, 32), (0, 32), (0, 32)),
         ),
-    ),
+    ],
 )
 def test_stencil_fieldtype_constructor_with_ArrayAttr(
     attr: IntegerType, bounds: tuple[tuple[int, int], ...]
@@ -370,11 +346,11 @@ def test_stencil_fieldtype_constructor_with_ArrayAttr(
 
 @pytest.mark.parametrize(
     "attr, bounds",
-    (
+    [
         (i32, ((0, 1), (0, 2))),
         (i32, ((0, 1), (0, 1), (0, 3))),
         (i64, ((0, 1), (0, 1), (0, 3))),
-    ),
+    ],
 )
 def test_stencil_fieldtype_constructor(
     attr: IntegerType, bounds: tuple[tuple[int, int], ...]
@@ -391,10 +367,10 @@ def test_stencil_fieldtype_constructor(
 
 @pytest.mark.parametrize(
     "attr, bounds",
-    (
+    [
         (i32, []),
         (i64, []),
-    ),
+    ],
 )
 def test_stencil_fieldtype_constructor_empty_list(
     attr: IntegerType, bounds: list[tuple[int, int]]
@@ -406,7 +382,7 @@ def test_stencil_fieldtype_constructor_empty_list(
 
 def test_stencil_load():
     field_type = FieldType([(0, 1), (0, 1)], f32)
-    result_type_val1 = TestSSAValue(field_type)
+    result_type_val1 = create_ssa_value(field_type)
 
     load = LoadOp.get(result_type_val1)
 
@@ -421,7 +397,7 @@ def test_stencil_load():
 
 def test_stencil_load_bounds():
     field_type = FieldType([(0, 1), (0, 1)], f32)
-    result_type_val1 = TestSSAValue(field_type)
+    result_type_val1 = create_ssa_value(field_type)
 
     lb = IndexAttr.get(1, 1)
     ub = IndexAttr.get(64, 64)
@@ -440,13 +416,13 @@ def test_stencil_load_bounds():
 
 @pytest.mark.parametrize(
     "attr, dims",
-    (
+    [
         (i32, ((0, 64), (0, 64))),
         (
             i64,
             ((0, 32), (0, 32), (0, 32)),
         ),
-    ),
+    ],
 )
 def test_stencil_temptype_constructor_with_ArrayAttr(
     attr: IntegerType, dims: tuple[tuple[int, int], ...]
@@ -462,11 +438,11 @@ def test_stencil_temptype_constructor_with_ArrayAttr(
 
 @pytest.mark.parametrize(
     "attr, dims",
-    (
+    [
         (i32, ((0, 1), (0, 2))),
         (i32, ((0, 1), (0, 1), (0, 3))),
         (i64, ((0, 1), (0, 1), (0, 3))),
-    ),
+    ],
 )
 def test_stencil_temptype_constructor(
     attr: IntegerType, dims: tuple[tuple[int, int], ...]
@@ -482,10 +458,10 @@ def test_stencil_temptype_constructor(
 
 @pytest.mark.parametrize(
     "attr, dims",
-    (
+    [
         (i32, []),
         (i64, []),
-    ),
+    ],
 )
 def test_stencil_temptype_constructor_empty_list(
     attr: IntegerType, dims: list[tuple[int, int]]
@@ -497,7 +473,7 @@ def test_stencil_temptype_constructor_empty_list(
 
 @pytest.mark.parametrize(
     "float_type",
-    ((bf16), (f16), (f32), (f64), (f80), (f128)),
+    [(bf16), (f16), (f32), (f64), (f80), (f128)],
 )
 def test_stencil_resulttype(float_type: AnyFloat):
     stencil_resulttype = ResultType(float_type)
@@ -508,10 +484,10 @@ def test_stencil_resulttype(float_type: AnyFloat):
 
 def test_stencil_store():
     temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
+    temp_type_ssa_val = create_ssa_value(temp_type)
 
     field_type = FieldType([(0, 2), (0, 2)], f32)
-    field_type_ssa_val = TestSSAValue(field_type)
+    field_type_ssa_val = create_ssa_value(field_type)
 
     lb = IndexAttr.get(1, 1)
     ub = IndexAttr.get(64, 64)
@@ -527,27 +503,6 @@ def test_stencil_store():
     assert len(store_field_type.get_shape()) == 2
     assert len(store_temp_type.get_shape()) == 2
     assert store.bounds is bounds
-
-
-def test_stencil_store_load_overlap():
-    temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
-
-    field_type = FieldType([(0, 2), (0, 2)], f32)
-    field_type_ssa_val = TestSSAValue(field_type)
-
-    lb = IndexAttr.get(1, 1)
-    ub = IndexAttr.get(64, 64)
-    bounds = StencilBoundsAttr.new((lb, ub))
-
-    load = LoadOp.get(field_type_ssa_val, lb, ub)
-    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, bounds)
-
-    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
-        load.verify()
-
-    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
-        store.verify()
 
 
 def test_stencil_index():
@@ -569,7 +524,7 @@ def test_stencil_index():
 
 def test_stencil_access():
     temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
+    temp_type_ssa_val = create_ssa_value(temp_type)
 
     offset = [1, 1]
     offset_index_attr = IndexAttr.get(*offset)
@@ -583,11 +538,14 @@ def test_stencil_access():
 
 def test_stencil_dyn_access():
     temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
+    temp_type_ssa_val = create_ssa_value(temp_type)
 
     lb = IndexAttr.get(0, 0)
     ub = IndexAttr.get(1, 1)
-    offset = (TestSSAValue(builtin.IndexType()), TestSSAValue(builtin.IndexType()))
+    offset = (
+        create_ssa_value(builtin.IndexType()),
+        create_ssa_value(builtin.IndexType()),
+    )
 
     dyn_access = DynAccessOp(temp_type_ssa_val, offset, lb, ub)
 
@@ -599,7 +557,7 @@ def test_stencil_dyn_access():
 
 def test_stencil_access_offset_mapping():
     temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
+    temp_type_ssa_val = create_ssa_value(temp_type)
 
     offset = [1, 1]
     offset_index_attr = IndexAttr.get(*offset)
@@ -618,7 +576,7 @@ def test_stencil_access_offset_mapping():
 
 def test_store_result():
     elem = IndexAttr.get(1)
-    elem_ssa_val = TestSSAValue(elem)
+    elem_ssa_val = create_ssa_value(elem)
     result_type = ResultType(f32)
 
     store_result = StoreResultOp.build(
@@ -631,7 +589,7 @@ def test_store_result():
 
 
 def test_external_load():
-    memref = TestSSAValue(MemRefType(f32, ([5])))
+    memref = create_ssa_value(MemRefType(f32, ([5])))
     field_type = FieldType((5), f32)
 
     external_load = ExternalLoadOp.get(memref, field_type)
@@ -642,8 +600,8 @@ def test_external_load():
 
 
 def test_external_store():
-    field = TestSSAValue(FieldType((5), f32))
-    memref = TestSSAValue(MemRefType(f32, ([5])))
+    field = create_ssa_value(FieldType((5), f32))
+    memref = create_ssa_value(MemRefType(f32, ([5])))
 
     external_store = ExternalStoreOp.build(operands=[field, memref])
 
@@ -653,7 +611,7 @@ def test_external_store():
 
 
 def test_buffer():
-    temp = TestSSAValue(TempType((5), f32))
+    temp = create_ssa_value(TempType((5), f32))
     res_type = TempType((5), f32)
 
     buffer = BufferOp.build(operands=[temp], result_types=[res_type])
@@ -665,7 +623,7 @@ def test_buffer():
 
 def test_access_patterns():
     typ = TempType((5), f32)
-    temp = TestSSAValue(typ)
+    temp = create_ssa_value(typ)
 
     @Builder.implicit_region((typ, typ))
     def apply_op_region(args: tuple[SSAValue, ...]):
@@ -691,75 +649,3 @@ def test_access_patterns():
     assert len(tuple(t1_acc.get_diagonals())) == 2
     assert t0_acc.max_distance() == 1
     assert t1_acc.max_distance() == 1
-
-
-# TODO: Move to a notebook at some point with proper documentation
-def test_1d3pt_stencil_construct():
-    """
-    An example 1d-3pt stencil implementation from XDSL Python-land
-    using the stencil dialect
-    """
-
-    shape = (8,)
-    space_order = 2
-    r = space_order // 2
-    symbolic_shape = (0 - r, shape[0] - r)
-
-    # Domain with halo shape
-    temp0 = TempType(len(shape), f32)
-
-    # Computational domain shape
-    field0 = FieldType([symbolic_shape], f32)
-
-    @ModuleOp
-    @Builder.implicit_region
-    def module():
-        # The kernel body
-        with ImplicitBuilder(func0 := FuncOp("kernel", ([field0, field0], [])).body):
-            field_in = func0.block.args[0]
-            field_out = func0.block.args[1]
-            # Load the input field's values
-            load0 = LoadOp.get(field_in)
-
-            # The computation region
-            with ImplicitBuilder(
-                (
-                    apply := ApplyOp.get(
-                        [load0], Region(Block(arg_types=[temp0])), [temp0]
-                    )
-                ).region
-            ) as args:
-                temp_in = args[0]
-                # Stencil computation
-                stencil_acs_l = AccessOp.get(temp_in, (-1,))
-                stencil_acs_c = AccessOp.get(temp_in, (0,))
-                stencil_acs_r = AccessOp.get(temp_in, (1,))
-                stencil_comp0 = Addf(stencil_acs_l, stencil_acs_c)
-                stencil_comp1 = Addf(stencil_comp0, stencil_acs_r)
-                # Define the return operation
-                ReturnOp.get([stencil_comp1])
-
-            # Apply the computation to the loaded values
-            # Store the computed values to the output field
-            StoreOp.get(apply.results[0], field_out, StencilBoundsAttr(((0, 6),)))
-            func.Return()
-
-    expected = """
-builtin.module {
-  func.func @kernel(%0 : !stencil.field<[-1,7]xf32>, %1 : !stencil.field<[-1,7]xf32>) {
-    %2 = stencil.load %0 : !stencil.field<[-1,7]xf32> -> !stencil.temp<?xf32>
-    %3 = stencil.apply(%4 = %2 : !stencil.temp<?xf32>) -> (!stencil.temp<?xf32>) {
-      %5 = stencil.access %4[-1] : !stencil.temp<?xf32>
-      %6 = stencil.access %4[0] : !stencil.temp<?xf32>
-      %7 = stencil.access %4[1] : !stencil.temp<?xf32>
-      %8 = arith.addf %5, %6 : f32
-      %9 = arith.addf %8, %7 : f32
-      stencil.return %9 : f32
-    }
-    stencil.store %3 to %1 (<[0], [6]>) : !stencil.temp<?xf32> to !stencil.field<[-1,7]xf32>
-    func.return
-  }
-}
-"""  # noqa
-
-    assert_print_op(module, expected, None, print_generic_format=False)

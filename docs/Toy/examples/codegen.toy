@@ -20,16 +20,16 @@ def main() {
 # CHECK-NEXT:      %{{.*}} = "toy.transpose"(%{{.*}}) : (tensor<*xf64>) -> tensor<*xf64>
 # CHECK-NEXT:      %{{.*}} = "toy.mul"(%{{.*}}, %{{.*}}) : (tensor<*xf64>, tensor<*xf64>) -> tensor<*xf64>
 # CHECK-NEXT:      "toy.return"(%{{.*}}) : (tensor<*xf64>) -> ()
-# CHECK-NEXT:    }) {"sym_name" = "multiply_transpose", "function_type" = (tensor<*xf64>, tensor<*xf64>) -> tensor<*xf64>, "sym_visibility" = "private"} : () -> ()
+# CHECK-NEXT:    }) {sym_name = "multiply_transpose", function_type = (tensor<*xf64>, tensor<*xf64>) -> tensor<*xf64>, sym_visibility = "private"} : () -> ()
 # CHECK-NEXT:    "toy.func"() ({
-# CHECK-NEXT:      %{{.*}} = "toy.constant"() {"value" =
+# CHECK-NEXT:      %{{.*}} = "toy.constant"() {value =
 # CHECK-SAME{LITERAL}: dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
 # CHECK-NEXT:      %{{.*}} = "toy.reshape"(%{{.*}}) : (tensor<2x3xf64>) -> tensor<2x3xf64>
-# CHECK-NEXT:      %{{.*}} = "toy.constant"() {"value" = dense<[1.000000e+00, 2.000000e+00, 3.000000e+00, 4.000000e+00, 5.000000e+00, 6.000000e+00]> : tensor<6xf64>} : () -> tensor<6xf64>
+# CHECK-NEXT:      %{{.*}} = "toy.constant"() {value = dense<[1.000000e+00, 2.000000e+00, 3.000000e+00, 4.000000e+00, 5.000000e+00, 6.000000e+00]> : tensor<6xf64>} : () -> tensor<6xf64>
 # CHECK-NEXT:      %{{.*}} = "toy.reshape"(%{{.*}}) : (tensor<6xf64>) -> tensor<2x3xf64>
-# CHECK-NEXT:      %{{.*}} = "toy.generic_call"(%{{.*}}, %{{.*}}) {"callee" = @multiply_transpose} : (tensor<2x3xf64>, tensor<2x3xf64>) -> tensor<*xf64>
-# CHECK-NEXT:      %{{.*}} = "toy.generic_call"(%{{.*}}, %{{.*}}) {"callee" = @multiply_transpose} : (tensor<2x3xf64>, tensor<2x3xf64>) -> tensor<*xf64>
+# CHECK-NEXT:      %{{.*}} = "toy.generic_call"(%{{.*}}, %{{.*}}) {callee = @multiply_transpose} : (tensor<2x3xf64>, tensor<2x3xf64>) -> tensor<*xf64>
+# CHECK-NEXT:      %{{.*}} = "toy.generic_call"(%{{.*}}, %{{.*}}) {callee = @multiply_transpose} : (tensor<2x3xf64>, tensor<2x3xf64>) -> tensor<*xf64>
 # CHECK-NEXT:      "toy.print"(%{{.*}}) : (tensor<*xf64>) -> ()
 # CHECK-NEXT:      "toy.return"() : () -> ()
-# CHECK-NEXT:    }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
+# CHECK-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
 # CHECK-NEXT:  }

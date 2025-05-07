@@ -32,4 +32,3 @@
 // tests with fastmath flags when set to "contract"
 // CHECK-NEXT:    %addf64_fm_contract = riscv.fadd.d %l, %r fastmath<contract> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 %addf64_fm_contract = arith.addf %lhsvf64, %rhsvf64 fastmath<contract> : vector<1xf64>
-

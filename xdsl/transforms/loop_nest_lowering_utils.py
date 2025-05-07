@@ -44,11 +44,15 @@ def indices_for_map(
             )
             if len(used_dims) != affine_map.num_dims:
                 # Remove unused dims
-                selectors = tuple(
+                # used_dims = affine_map.used_dims_bit_vector()
+                used_dims_vector = tuple(
                     dim in used_dims for dim in range(affine_map.num_dims)
                 )
-                new_index_vals = tuple(compress(new_index_vals, selectors))
-                new_affine_map = new_affine_map.compress_dims(selectors)
+                unused_dims_vector = tuple(
+                    not used_dim for used_dim in used_dims_vector
+                )
+                new_index_vals = tuple(compress(new_index_vals, used_dims_vector))
+                new_affine_map = new_affine_map.drop_dims(unused_dims_vector)
 
             rewriter.insert_op(
                 apply_op := affine.ApplyOp(
@@ -89,8 +93,8 @@ INSERT_STORE: TypeAlias = Callable[
 def _insert_loop_nest(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
-    zero_op: arith.Constant,
-    one_op: arith.Constant,
+    zero_op: arith.ConstantOp,
+    one_op: arith.ConstantOp,
     bounds: Sequence[SSAValue],
     iter_args: Sequence[SSAValue],
     make_body: Callable[
@@ -113,11 +117,11 @@ def _insert_loop_nest(
         return make_body(rewriter, insertion_point, (), iter_args)
 
     iter_arg_types = tuple(arg.type for arg in iter_args)
-    loops: list[scf.For] = []
+    loops: list[scf.ForOp] = []
     index = IndexType()
 
     for i, ub in enumerate(bounds):
-        loop = scf.For(
+        loop = scf.ForOp(
             zero_op.result,
             ub,
             one_op.result,
@@ -129,7 +133,7 @@ def _insert_loop_nest(
         rewriter.insert_op(loop, insertion_point)
         if i:
             # Do not insert yield outside of outermost loop
-            rewriter.insert_op(scf.Yield(*loop.results), InsertPoint.after(loop))
+            rewriter.insert_op(scf.YieldOp(*loop.results), InsertPoint.after(loop))
 
         if i + 1 == len(bounds):
             # Innermost loop iteration
@@ -144,7 +148,9 @@ def _insert_loop_nest(
                     "Unexpected number of results from `make_body` helper "
                     f"({len(results)}), expected {len(iter_args)}"
                 )
-            rewriter.insert_op(scf.Yield(*results), InsertPoint.at_end(loop.body.block))
+            rewriter.insert_op(
+                scf.YieldOp(*results), InsertPoint.at_end(loop.body.block)
+            )
 
         insertion_point = InsertPoint.at_start(loop.body.block)
 
@@ -223,13 +229,13 @@ def rewrite_generic_to_loops(
     # ubs are calculated from affine maps and memref dimensions
 
     bound_constant_ops = tuple(
-        arith.Constant(IntegerAttr.from_index_int_value(ub)) for ub in ubs
+        arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in ubs
     )
     rewriter.insert_op_before_matched_op(bound_constant_ops)
     bound_constant_values = tuple(op.result for op in bound_constant_ops)
 
-    zero_op = arith.Constant(IntegerAttr.from_index_int_value(0))
-    one_op = arith.Constant(IntegerAttr.from_index_int_value(1))
+    zero_op = arith.ConstantOp(IntegerAttr.from_index_int_value(0))
+    one_op = arith.ConstantOp(IntegerAttr.from_index_int_value(1))
     if bound_constant_values:
         rewriter.insert_op_before_matched_op((zero_op, one_op))
 
@@ -309,18 +315,18 @@ def rewrite_generic_to_imperfect_loops(
     # ubs are calculated from affine maps and memref dimensions
 
     outer_bound_constant_ops = tuple(
-        arith.Constant(IntegerAttr.from_index_int_value(ub)) for ub in outer_ubs
+        arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in outer_ubs
     )
     inner_bound_constant_ops = tuple(
-        arith.Constant(IntegerAttr.from_index_int_value(ub)) for ub in inner_ubs
+        arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in inner_ubs
     )
     rewriter.insert_op(outer_bound_constant_ops, insertion_point)
     rewriter.insert_op(inner_bound_constant_ops, insertion_point)
     outer_bound_constant_values = tuple(op.result for op in outer_bound_constant_ops)
     inner_bound_constant_values = tuple(op.result for op in inner_bound_constant_ops)
 
-    zero_op = arith.Constant(IntegerAttr.from_index_int_value(0))
-    one_op = arith.Constant(IntegerAttr.from_index_int_value(1))
+    zero_op = arith.ConstantOp(IntegerAttr.from_index_int_value(0))
+    one_op = arith.ConstantOp(IntegerAttr.from_index_int_value(1))
     if outer_bound_constant_values or inner_bound_constant_values:
         rewriter.insert_op_before_matched_op((zero_op, one_op))
 

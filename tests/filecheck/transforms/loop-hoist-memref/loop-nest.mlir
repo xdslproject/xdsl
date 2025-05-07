@@ -90,7 +90,7 @@ func.func public @matmul(%arg0: memref<8x8xf64> {llvm.noalias}, %arg1: memref<8x
   return %arg2 : memref<8x8xf64>
 }
 
-// CHECK:         func.func public @matmul(%arg0 : memref<8x8xf64> {"llvm.noalias"}, %arg1 : memref<8x8xf64> {"llvm.noalias"}, %arg2 : memref<8x8xf64> {"llvm.noalias"}) -> memref<8x8xf64> {
+// CHECK:         func.func public @matmul(%arg0 : memref<8x8xf64> {llvm.noalias}, %arg1 : memref<8x8xf64> {llvm.noalias}, %arg2 : memref<8x8xf64> {llvm.noalias}) -> memref<8x8xf64> {
 // CHECK-NEXT:      %c0 = arith.constant 0 : index
 // CHECK-NEXT:      %c8 = arith.constant 8 : index
 // CHECK-NEXT:      %c1 = arith.constant 1 : index

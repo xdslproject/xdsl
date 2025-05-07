@@ -3,13 +3,13 @@ from xdsl.dialects.builtin import IntegerAttr, IntegerType, MemRefType, TensorTy
 from xdsl.dialects.csl.csl_stencil import AccessOp, ApplyOp
 from xdsl.dialects.stencil import IndexAttr, TempType
 from xdsl.ir import Region, SSAValue
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_access_patterns():
     temp_t = TempType(5, f32)
-    temp = TestSSAValue(temp_t)
-    mref = TestSSAValue(mref_t := MemRefType(tens_t := TensorType(f32, (5,)), (4,)))
+    temp = create_ssa_value(temp_t)
+    mref = create_ssa_value(mref_t := MemRefType(tens_t := TensorType(f32, (5,)), (4,)))
 
     @Builder.implicit_region((mref_t, temp_t))
     def region0(args: tuple[SSAValue, ...]):
@@ -29,7 +29,7 @@ def test_access_patterns():
         AccessOp(t1, IndexAttr.get(0, 0), tens_t)
 
     apply = ApplyOp(
-        operands=[temp, mref, [], []],
+        operands=[temp, mref, [], [], []],
         properties={
             "swaps": None,
             "topo": None,

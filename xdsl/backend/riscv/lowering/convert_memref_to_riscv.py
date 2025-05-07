@@ -7,7 +7,7 @@ from xdsl.backend.riscv.lowering.utils import (
     register_type_for_type,
 )
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref, riscv, riscv_func
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -24,7 +24,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnrealizedConversionCastOp,
 )
-from xdsl.interpreters.ptr import TypedPtr
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Attribute, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -38,10 +38,9 @@ from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import DiagnosticException
 
 
-class ConvertMemrefAllocOp(RewritePattern):
-
+class ConvertMemRefAllocOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter) -> None:
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         op_memref_type = cast(memref.MemRefType[Any], op_memref_type)
         assert isinstance(op_memref_type.element_type, FixedBitwidthType)
@@ -62,9 +61,11 @@ class ConvertMemrefAllocOp(RewritePattern):
         )
 
 
-class ConvertMemrefDeallocOp(RewritePattern):
+class ConvertMemRefDeallocOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Dealloc, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(
+        self, op: memref.DeallocOp, rewriter: PatternRewriter
+    ) -> None:
         rewriter.replace_matched_op(
             (
                 ptr := UnrealizedConversionCastOp.get(
@@ -123,11 +124,7 @@ def get_strided_pointer(
                 ops.extend(
                     (
                         stride_op := riscv.LiOp(stride),
-                        offset_op := riscv.MulOp(
-                            increment,
-                            stride_op.rd,
-                            rd=riscv.IntRegisterType.unallocated(),
-                        ),
+                        offset_op := riscv.MulOp(increment, stride_op.rd),
                     )
                 )
                 stride_op.rd.name_hint = "pointer_dim_stride"
@@ -140,11 +137,7 @@ def get_strided_pointer(
             continue
 
         # Otherwise sum up the products.
-        ops.append(
-            add_op := riscv.AddOp(
-                head, increment, rd=riscv.IntRegisterType.unallocated()
-            )
-        )
+        ops.append(add_op := riscv.AddOp(head, increment))
         add_op.rd.name_hint = "pointer_offset"
         head = add_op.rd
 
@@ -157,12 +150,9 @@ def get_strided_pointer(
             offset_bytes := riscv.MulOp(
                 head,
                 bytes_per_element_op.rd,
-                rd=riscv.IntRegisterType.unallocated(),
                 comment="multiply by element size",
             ),
-            ptr := riscv.AddOp(
-                src_ptr, offset_bytes, rd=riscv.IntRegisterType.unallocated()
-            ),
+            ptr := riscv.AddOp(src_ptr, offset_bytes),
         ]
     )
 
@@ -173,9 +163,9 @@ def get_strided_pointer(
     return ops, ptr.rd
 
 
-class ConvertMemrefStoreOp(RewritePattern):
+class ConvertMemRefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
@@ -208,20 +198,20 @@ class ConvertMemrefStoreOp(RewritePattern):
                             comment=f"store double value to memref of shape {shape}",
                         )
                     case _:
-                        assert False, f"Unexpected floating point type {float_type}"
+                        raise ValueError(f"Unexpected floating point type {float_type}")
 
             case _:
-                assert False, f"Unexpected register type {value.type}"
+                raise ValueError(f"Unexpected register type {value.type}")
 
         rewriter.replace_matched_op(new_op)
 
 
-class ConvertMemrefLoadOp(RewritePattern):
+class ConvertMemRefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
-        assert isinstance(
-            op_memref_type := op.memref.type, memref.MemRefType
-        ), f"{op.memref.type}"
+    def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter):
+        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType), (
+            f"{op.memref.type}"
+        )
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
         mem, *indices = cast_operands_to_regs(rewriter)
@@ -249,10 +239,10 @@ class ConvertMemrefLoadOp(RewritePattern):
                             ptr, 0, comment=f"load double from memref of shape {shape}"
                         )
                     case _:
-                        assert False, f"Unexpected floating point type {float_type}"
+                        raise ValueError(f"Unexpected floating point type {float_type}")
 
             case _:
-                assert False, f"Unexpected register type {result_register_type}"
+                raise ValueError(f"Unexpected register type {result_register_type}")
 
         rewriter.replace_matched_op(
             [
@@ -262,9 +252,9 @@ class ConvertMemrefLoadOp(RewritePattern):
         )
 
 
-class ConvertMemrefGlobalOp(RewritePattern):
+class ConvertMemRefGlobalOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Global, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: memref.GlobalOp, rewriter: PatternRewriter):
         initial_value = op.initial_value
 
         if not isinstance(initial_value, DenseIntOrFPElementsAttr):
@@ -284,16 +274,16 @@ class ConvertMemrefGlobalOp(RewritePattern):
                     raise DiagnosticException(
                         f"Unsupported memref element type for riscv lowering: {element_type}"
                     )
-                ints = [d.value.data for d in initial_value.data]
+                ints = initial_value.get_values()
                 for i in ints:
                     assert isinstance(i, int)
                 ints = cast(list[int], ints)
                 ptr = TypedPtr.new_int32(ints).raw
             case Float32Type():
-                floats = [d.value.data for d in initial_value.data]
+                floats = initial_value.get_values()
                 ptr = TypedPtr.new_float32(floats).raw
             case Float64Type():
-                floats = [d.value.data for d in initial_value.data]
+                floats = initial_value.get_values()
                 ptr = TypedPtr.new_float64(floats).raw
             case _:
                 raise DiagnosticException(
@@ -310,9 +300,9 @@ class ConvertMemrefGlobalOp(RewritePattern):
         rewriter.replace_matched_op(section)
 
 
-class ConvertMemrefGetGlobalOp(RewritePattern):
+class ConvertMemRefGetGlobalOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.GetGlobal, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: memref.GetGlobalOp, rewriter: PatternRewriter):
         rewriter.replace_matched_op(
             [
                 ptr := riscv.LiOp(op.name_.string_value()),
@@ -321,10 +311,9 @@ class ConvertMemrefGetGlobalOp(RewritePattern):
         )
 
 
-class ConvertMemrefSubviewOp(RewritePattern):
-
+class ConvertMemRefSubviewOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Subview, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter):
         # Assumes that the operation is valid, meaning that the subview is indeed a
         # subview, and that if the offset is stated in the layout attribute, then it's
         # correct.
@@ -352,7 +341,7 @@ class ConvertMemrefSubviewOp(RewritePattern):
         source_type = source.type
         assert isinstance(source_type, MemRefType)
         source_type = cast(MemRefType[Attribute], source_type)
-        result_type = cast(MemRefType[Attribute], result.type)
+        result_type = result.type
 
         result_layout_attr = result_type.layout
         if isinstance(result_layout_attr, NoneAttr):
@@ -378,7 +367,7 @@ class ConvertMemrefSubviewOp(RewritePattern):
             return
 
         src = UnrealizedConversionCastOp.get(
-            (source,), (riscv.IntRegisterType.unallocated(),)
+            (source,), (riscv.Registers.UNALLOCATED_INT,)
         )
         src_rd = src.results[0]
 
@@ -387,14 +376,13 @@ class ConvertMemrefSubviewOp(RewritePattern):
             index_ops: list[Operation] = []
 
             dynamic_offset_index = 0
-            for static_offset_attr in op.static_offsets.data:
-                static_offset = static_offset_attr.data
+            for static_offset in op.static_offsets.iter_values():
                 assert isinstance(static_offset, int)
-                if static_offset == memref.Subview.DYNAMIC_INDEX:
+                if static_offset == memref.SubviewOp.DYNAMIC_INDEX:
                     index_ops.append(
                         cast_index_op := UnrealizedConversionCastOp.get(
                             (op.offsets[dynamic_offset_index],),
-                            (riscv.IntRegisterType.unallocated(),),
+                            (riscv.Registers.UNALLOCATED_INT,),
                         )
                     )
                     index_val = cast_index_op.results[0]
@@ -426,25 +414,25 @@ class ConvertMemrefSubviewOp(RewritePattern):
         )
 
 
-class ConvertMemrefToRiscvPass(ModulePass):
+class ConvertMemRefToRiscvPass(ModulePass):
     name = "convert-memref-to-riscv"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        contains_malloc = PatternRewriteWalker(ConvertMemrefAllocOp()).rewrite_module(
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
+        contains_malloc = PatternRewriteWalker(ConvertMemRefAllocOp()).rewrite_module(
             op
         )
         contains_dealloc = PatternRewriteWalker(
-            ConvertMemrefDeallocOp()
+            ConvertMemRefDeallocOp()
         ).rewrite_module(op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertMemrefDeallocOp(),
-                    ConvertMemrefStoreOp(),
-                    ConvertMemrefLoadOp(),
-                    ConvertMemrefGlobalOp(),
-                    ConvertMemrefGetGlobalOp(),
-                    ConvertMemrefSubviewOp(),
+                    ConvertMemRefDeallocOp(),
+                    ConvertMemRefStoreOp(),
+                    ConvertMemRefLoadOp(),
+                    ConvertMemRefGlobalOp(),
+                    ConvertMemRefGetGlobalOp(),
+                    ConvertMemRefSubviewOp(),
                 ]
             )
         ).rewrite_module(op)

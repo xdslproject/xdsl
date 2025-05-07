@@ -33,10 +33,10 @@
 // CHECK-NEXT:      riscv_cf.beq %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
 // CHECK-NEXT:    ^{{.+}}(%{{.+}} : !riscv.reg<a2>, %{{.+}} : !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "else0"
-// CHECK-NEXT:      riscv_cf.bne %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>) attributes {"comment" = "comment"}
+// CHECK-NEXT:      riscv_cf.bne %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>) attributes {comment = "comment"}
 // CHECK-NEXT:    ^{{.+}}(%{{.+}} : !riscv.reg<a2>, %{{.+}} : !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "else1"
-// CHECK-NEXT:      riscv_cf.blt %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>) attributes {"hello" = "world"}
+// CHECK-NEXT:      riscv_cf.blt %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>) attributes {hello = "world"}
 // CHECK-NEXT:    ^{{.+}}(%{{.+}} : !riscv.reg<a2>, %{{.+}} : !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "else2"
 // CHECK-NEXT:      riscv_cf.bge %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
@@ -48,10 +48,10 @@
 // CHECK-NEXT:      riscv_cf.bgeu %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
 // CHECK-NEXT:    ^{{.+}}(%{{.+}} : !riscv.reg<a2>, %{{.+}} : !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "else5"
-// CHECK-NEXT:      riscv_cf.branch ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>) attributes {"hello" = "world"}
+// CHECK-NEXT:      riscv_cf.branch ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>) attributes {hello = "world"}
 // CHECK-NEXT:    ^{{.+}}(%{{.+}} : !riscv.reg<a2>, %{{.+}} : !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "then"
-// CHECK-NEXT:      riscv_cf.j ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>) attributes {"hello" = "world"}
+// CHECK-NEXT:      riscv_cf.j ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>) attributes {hello = "world"}
 // CHECK-NEXT:    }) : () -> ()
 // CHECK-NEXT:  }
 
@@ -90,10 +90,10 @@
 // CHECK-NEXT:      riscv_cf.beq %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>), ^{{.+}}(%4 : !riscv.freg<ft2>, %5 : !riscv.freg<ft3>)
 // CHECK-NEXT:    ^{{.+}}(%{{.+}} : !riscv.freg<ft2>, %{{.+}} : !riscv.freg<ft3>):
 // CHECK-NEXT:      riscv.label "else0"
-// CHECK-NEXT:      riscv_cf.bne %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>), ^{{.+}}(%4 : !riscv.freg<ft2>, %5 : !riscv.freg<ft3>) attributes {"comment" = "comment"}
+// CHECK-NEXT:      riscv_cf.bne %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>), ^{{.+}}(%4 : !riscv.freg<ft2>, %5 : !riscv.freg<ft3>) attributes {comment = "comment"}
 // CHECK-NEXT:    ^{{.+}}(%{{.+}} : !riscv.freg<ft2>, %{{.+}} : !riscv.freg<ft3>):
 // CHECK-NEXT:      riscv.label "else1"
-// CHECK-NEXT:      riscv_cf.blt %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>), ^{{.+}}(%4 : !riscv.freg<ft2>, %5 : !riscv.freg<ft3>) attributes {"hello" = "world"}
+// CHECK-NEXT:      riscv_cf.blt %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>), ^{{.+}}(%4 : !riscv.freg<ft2>, %5 : !riscv.freg<ft3>) attributes {hello = "world"}
 // CHECK-NEXT:    ^{{.+}}(%{{.+}} : !riscv.freg<ft2>, %{{.+}} : !riscv.freg<ft3>):
 // CHECK-NEXT:      riscv.label "else2"
 // CHECK-NEXT:      riscv_cf.bge %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>), ^{{.+}}(%4 : !riscv.freg<ft2>, %5 : !riscv.freg<ft3>)
@@ -105,9 +105,9 @@
 // CHECK-NEXT:      riscv_cf.bgeu %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>), ^{{.+}}(%4 : !riscv.freg<ft2>, %5 : !riscv.freg<ft3>)
 // CHECK-NEXT:    ^{{.+}}(%{{.+}} : !riscv.freg<ft2>, %{{.+}} : !riscv.freg<ft3>):
 // CHECK-NEXT:      riscv.label "else5"
-// CHECK-NEXT:      riscv_cf.branch ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>) attributes {"hello" = "world"}
+// CHECK-NEXT:      riscv_cf.branch ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>) attributes {hello = "world"}
 // CHECK-NEXT:    ^{{.+}}(%{{.+}} : !riscv.freg<ft2>, %{{.+}} : !riscv.freg<ft3>):
 // CHECK-NEXT:      riscv.label "then"
-// CHECK-NEXT:      riscv_cf.j ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>) attributes {"hello" = "world"}
+// CHECK-NEXT:      riscv_cf.j ^{{.+}}(%2 : !riscv.freg<ft2>, %3 : !riscv.freg<ft3>) attributes {hello = "world"}
 // CHECK-NEXT:    }) : () -> ()
 // CHECK-NEXT:  }

@@ -8,8 +8,8 @@
   %4 = "arith.constant"() {"value" = 1000 : index} : () -> index
   "scf.parallel"(%0, %3, %1, %4, %2) ({
   ^bb0(%i: index):
-    "scf.yield"() : () -> ()
-  }) {"operandSegmentSizes" = array<i32: 2, 2, 1, 0>} : (index, index, index, index, index) -> ()
+    "scf.reduce"() : () -> ()
+  }) {operandSegmentSizes = array<i32: 2, 2, 1, 0>} : (index, index, index, index, index) -> ()
 }) : () -> ()
 
 // CHECK: Expected the same number of lower bounds, upper bounds, and steps for scf.parallel. Got 2, 2 and 1.

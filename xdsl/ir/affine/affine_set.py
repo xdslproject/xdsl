@@ -10,7 +10,7 @@ class AffineConstraintKind(Enum):
     eq = "=="
 
 
-@dataclass
+@dataclass(frozen=True)
 class AffineConstraintExpr:
     kind: AffineConstraintKind
     lhs: AffineExpr
@@ -27,9 +27,10 @@ class AffineConstraintExpr:
         if canonicalize:
             lhs = lhs - rhs
             rhs = AffineExpr.constant(0)
-        self.kind = kind
-        self.lhs = lhs
-        self.rhs = rhs
+
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(self, "lhs", lhs)
+        object.__setattr__(self, "rhs", rhs)
 
     def __str__(self) -> str:
         return f"{self.lhs} {self.kind.value} {self.rhs}"

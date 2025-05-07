@@ -18,11 +18,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Affine
 
-    def get_aie():
-        from xdsl.dialects.experimental.aie import AIE
-
-        return AIE
-
     def get_air():
         from xdsl.dialects.experimental.air import AIR
 
@@ -32,6 +27,26 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.arith import Arith
 
         return Arith
+
+    def get_arm():
+        from xdsl.dialects.arm import ARM
+
+        return ARM
+
+    def get_arm_func():
+        from xdsl.dialects.arm_func import ARM_FUNC
+
+        return ARM_FUNC
+
+    def get_arm_neon():
+        from xdsl.dialects.arm_neon import ARM_NEON
+
+        return ARM_NEON
+
+    def get_bigint():
+        from xdsl.dialects.bigint import BigInt
+
+        return BigInt
 
     def get_bufferization():
         from xdsl.dialects.bufferization import Bufferization
@@ -77,6 +92,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.experimental.dmp import DMP
 
         return DMP
+
+    def get_eqsat():
+        from xdsl.dialects.eqsat import EqSat
+
+        return EqSat
 
     def get_fir():
         from xdsl.dialects.experimental.fir import FIR
@@ -134,7 +154,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return LTL
 
     def get_math():
-        from xdsl.dialects.experimental.math import Math
+        from xdsl.dialects.math import Math
 
         return Math
 
@@ -144,14 +164,19 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return MemRef
 
     def get_memref_stream():
-        from xdsl.dialects.memref_stream import MemrefStream
+        from xdsl.dialects.memref_stream import MemRefStream
 
-        return MemrefStream
+        return MemRefStream
 
     def get_ml_program():
         from xdsl.dialects.ml_program import MLProgram
 
         return MLProgram
+
+    def get_mod_arith():
+        from xdsl.dialects.mod_arith import ModArith
+
+        return ModArith
 
     def get_mpi():
         from xdsl.dialects.mpi import MPI
@@ -163,35 +188,25 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return OMP
 
-    def get_onnx():
-        from xdsl.dialects.onnx import ONNX
-
-        return ONNX
-
     def get_pdl():
         from xdsl.dialects.pdl import PDL
 
         return PDL
+
+    def get_pdl_interp():
+        from xdsl.dialects.pdl_interp import PDLInterp
+
+        return PDLInterp
 
     def get_printf():
         from xdsl.dialects.printf import Printf
 
         return Printf
 
-    def get_quantum():
-        from xdsl.dialects.quantum import QUANTUM
+    def get_ptr_xdsl():
+        from xdsl.dialects.ptr import Ptr
 
-        return QUANTUM
-
-    def get_qref():
-        from xdsl.dialects.qref import QREF
-
-        return QREF
-
-    def get_qssa():
-        from xdsl.dialects.qssa import QSSA
-
-        return QSSA
+        return Ptr
 
     def get_riscv_debug():
         from xdsl.dialects.riscv_debug import RISCV_Debug
@@ -248,18 +263,23 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return SnitchStream
 
+    def get_stablehlo():
+        from xdsl.dialects.stablehlo import StableHLO
+
+        return StableHLO
+
     def get_stencil():
         from xdsl.dialects.stencil import Stencil
 
         return Stencil
 
-    def get_stream():
-        from xdsl.dialects.stream import Stream
+    def get_stim():
+        from xdsl.dialects.stim import Stim
 
-        return Stream
+        return Stim
 
     def get_symref():
-        from xdsl.frontend.symref import Symref
+        from xdsl.frontend.pyast.symref import Symref
 
         return Symref
 
@@ -272,6 +292,16 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.test import Test
 
         return Test
+
+    def get_tosa():
+        from xdsl.dialects.tosa import TOSA
+
+        return TOSA
+
+    def get_varith():
+        from xdsl.dialects.varith import Varith
+
+        return Varith
 
     def get_vector():
         from xdsl.dialects.vector import Vector
@@ -288,6 +318,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return X86
 
+    def get_x86_func():
+        from xdsl.dialects.x86_func import X86_FUNC
+
+        return X86_FUNC
+
     def get_transform():
         from xdsl.dialects.transform import Transform
 
@@ -296,9 +331,12 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     return {
         "accfg": get_accfg,
         "affine": get_affine,
-        "aie": get_aie,
         "air": get_air,
         "arith": get_arith,
+        "arm": get_arm,
+        "arm_func": get_arm_func,
+        "arm_neon": get_arm_neon,
+        "bigint": get_bigint,
         "bufferization": get_bufferization,
         "builtin": get_builtin,
         "cf": get_cf,
@@ -308,6 +346,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
         "dmp": get_dmp,
+        "eqsat": get_eqsat,
         "fir": get_fir,
         "fsm": get_fsm,
         "func": get_func,
@@ -323,14 +362,13 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "memref": get_memref,
         "memref_stream": get_memref_stream,
         "ml_program": get_ml_program,
+        "mod_arith": get_mod_arith,
         "mpi": get_mpi,
         "omp": get_omp,
-        "onnx": get_onnx,
         "pdl": get_pdl,
+        "pdl_interp": get_pdl_interp,
         "printf": get_printf,
-        "quantum": get_quantum,
-        "qref": get_qref,
-        "qssa": get_qssa,
+        "ptr_xdsl": get_ptr_xdsl,
         "riscv": get_riscv,
         "riscv_debug": get_riscv_debug,
         "riscv_func": get_riscv_func,
@@ -342,14 +380,18 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,
         "snitch_stream": get_snitch_stream,
+        "stablehlo": get_stablehlo,
         "stencil": get_stencil,
-        "stream": get_stream,
+        "stim": get_stim,
         "symref": get_symref,
         "tensor": get_tensor,
         "test": get_test,
+        "tosa": get_tosa,
+        "varith": get_varith,
         "vector": get_vector,
         "wasm": get_wasm,
         "x86": get_x86,
+        "x86_func": get_x86_func,
         "transform": get_transform,
     }
 

@@ -47,7 +47,7 @@ def test_live_ins():
 
     # To make test failures easier to read
     def rename(
-        mapping: dict[Block, OrderedSet[SSAValue]]
+        mapping: dict[Block, OrderedSet[SSAValue]],
     ) -> dict[str, OrderedSet[str]]:
         return {
             name_per_block[block]: OrderedSet(name_per_value[value] for value in values)

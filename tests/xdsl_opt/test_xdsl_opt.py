@@ -1,25 +1,32 @@
+"""
+This test file needs the other files in the same folder to read and reprint them in the
+test functions below.
+"""
+
 from contextlib import redirect_stdout
 from io import StringIO
+from typing import IO
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, get_all_dialects
 from xdsl.passes import ModulePass
+from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
-from xdsl.xdsl_opt_main import get_all_passes, xDSLOptMain
+from xdsl.xdsl_opt_main import xDSLOptMain
 
 
 def test_dialects_and_passes():
-    assert len(get_all_dialects()) > 0
-    assert len(get_all_passes()) > 0
+    assert get_all_dialects()
+    assert get_all_passes()
 
 
 def test_opt():
     opt = xDSLOptMain(args=[])
-    assert len(opt.available_frontends.keys()) > 0
-    assert len(opt.available_targets.keys()) > 0
-    assert len(opt.available_passes.keys()) > 0
+    assert opt.available_frontends.keys()
+    assert opt.available_targets.keys()
+    assert opt.available_passes.keys()
 
 
 def test_empty_program():
@@ -115,7 +122,7 @@ def test_operation_deletion():
             class RemoveConstantPass(ModulePass):
                 name = "remove-constant"
 
-                def apply(self, ctx: MLContext, op: builtin.ModuleOp):
+                def apply(self, ctx: Context, op: builtin.ModuleOp):
                     if op.ops.first is not None:
                         op.ops.first.detach()
 
@@ -134,7 +141,7 @@ def test_operation_deletion():
 
 def test_print_between_passes():
     filename_in = "tests/xdsl_opt/empty_program.mlir"
-    passes = ["stencil-shape-inference", "dce", "frontend-desymrefy"]
+    passes = ["shape-inference", "dce", "frontend-desymrefy"]
     flags = ["--print-between-passes", "-p", ",".join(passes)]
 
     f = StringIO("")
@@ -155,6 +162,37 @@ def test_diagnostic_exception():
 
     with pytest.raises(DiagnosticException):
         opt.run()
+
+
+def test_verify_diagnostics_output():
+    """
+    Diagnostic exceptions raised when printing output should be redirected to stdout if
+    --verify-diagnostics flag is provided.
+    """
+
+    class TestMain(xDSLOptMain):
+        def register_all_targets(self):
+            def _my_target(prog: builtin.ModuleOp, output: IO[str]):
+                raise DiagnosticException("fail")
+
+            self.available_targets["fail"] = _my_target
+
+        def get_input_stream(self) -> tuple[IO[str], str]:
+            fake_input = StringIO("builtin.module {}")
+            return (fake_input, "mlir")
+
+    opt = TestMain(args=["-t", "fail"])
+    f = StringIO("")
+    with redirect_stdout(f):
+        with pytest.raises(DiagnosticException, match="fail"):
+            opt.run()
+    assert f.getvalue() == ""
+
+    opt = TestMain(args=["--verify-diagnostics", "-t", "fail"])
+    f = StringIO("")
+    with redirect_stdout(f):
+        opt.run()
+    assert f.getvalue() == "fail\n"
 
 
 def test_split_input():

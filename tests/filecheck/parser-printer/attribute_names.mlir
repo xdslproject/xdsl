@@ -3,4 +3,4 @@
 builtin.module attributes {a = i32, _e = i32, "foo" = i32, _ = i32} {
 }
 
-// CHECK: "a" = i32, "_e" = i32, "foo" = i32, "_" = i32
+// CHECK: a = i32, _e = i32, foo = i32, _ = i32

@@ -6,7 +6,6 @@ from typing import cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     ArrayAttr,
     IntegerAttr,
     IntegerType,
@@ -28,11 +27,11 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     opt_prop_def,
     prop_def,
     region_def,
     result_def,
-    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser
@@ -73,7 +72,7 @@ class ParamAttribute(ParametrizedAttribute):
             if parser.parse_optional_keyword("default"):
                 parser.parse_punctuation("=")
                 val = parser.parse_attribute()
-                assert isa(val, AnyIntegerAttr)
+                assert isa(val, IntegerAttr)
                 assert isinstance(val.type, IntegerType)
                 type = val.type
             else:
@@ -95,7 +94,12 @@ class ParamAttribute(ParametrizedAttribute):
 class ImportOp(IRDLOperation):
     """
     Lightweight wrapper around `csl.import_module` that allows specifying field names directly
-    and removes the need for handling structs or setting up struct operands
+    and removes the need for handling structs or setting up struct operands.
+
+    Where existing structs need to be used in the import, they can be passed
+    with an empty field name. This will concatenate them all together.
+
+    Named fields and empty fields can be used in the same import
     """
 
     name = "csl_wrapper.import"
@@ -144,10 +148,13 @@ class ModuleOp(IRDLOperation):
     The layout module has two additional block args `x` and `y` as part of the `@set_tile_code` loop nest.
     Operations using these args need to be lowered to the correct place in the loop nest.
 
+    The layout module has the following args (in order):
+      * set_tile_code params:  `x` and `y`
+      * general params:        `width` and `height` followed by everything specified in `params`
+
     The program module has the following args (in order):
       * general params:        `width` and `height` followed by everything specified in `params`
       * params from layout:    everything defined by `layout_yield_op.fields`
-      * input-output symbols:  any arg from the function lowered into this op, which are exported symbols supporting host-device transfers
     """
 
     name = "csl_wrapper.module"
@@ -155,7 +162,8 @@ class ModuleOp(IRDLOperation):
     width = prop_def(IntegerAttr[IntegerType])
     height = prop_def(IntegerAttr[IntegerType])
     program_name = opt_prop_def(StringAttr)
-    params: ArrayAttr[ParamAttribute] = prop_def(ArrayAttr[ParamAttribute])
+    target = prop_def(StringAttr)
+    params = prop_def(ArrayAttr[ParamAttribute])
 
     layout_module = region_def("single_block")
     program_module = region_def("single_block")
@@ -164,6 +172,7 @@ class ModuleOp(IRDLOperation):
         self,
         width: int | IntegerAttr[IntegerType],
         height: int | IntegerAttr[IntegerType],
+        target: csl.Target | StringAttr,
         params: (
             dict[str, IntegerAttr[IntegerType]] | Sequence[ParamAttribute] | None
         ) = None,
@@ -172,6 +181,8 @@ class ModuleOp(IRDLOperation):
             width = IntegerAttr(width, i16)
         if not isinstance(height, IntegerAttr):
             height = IntegerAttr(height, i16)
+        if not isinstance(target, StringAttr):
+            target = StringAttr(target)
         if params is None:
             params = []
         elif isinstance(params, dict):
@@ -186,6 +197,7 @@ class ModuleOp(IRDLOperation):
                 "width": width,
                 "height": height,
                 "params": params_attr,
+                "target": target,
             },
             regions=[
                 Region(
@@ -210,7 +222,6 @@ class ModuleOp(IRDLOperation):
     def update_program_block_args(
         self,
         yield_args: Iterable[tuple[str, SSAValue]] | None = None,
-        exported_symbols: Iterable[tuple[str | None, Attribute]] | None = None,
     ):
         """
         Update `program_module` BlockArguments by adding
@@ -221,7 +232,9 @@ class ModuleOp(IRDLOperation):
             len(self.program_module.block.args)
             == len(self.layout_module.block.args) - 2
             # minus two as layout_module has additional x and y args
-        ), "program_module block args should only contain args from properties when calling this function"
+        ), (
+            "program_module block args should only contain args from properties when calling this function"
+        )
 
         if yield_args is None:
             yield_args = self.layout_yield_op.items()
@@ -231,14 +244,6 @@ class ModuleOp(IRDLOperation):
                 op.type, len(self.program_module.block.args)
             )
             arg.name_hint = name
-
-        if exported_symbols is not None:
-            for nam, typ in exported_symbols:
-                arg = self.program_module.block.insert_arg(
-                    typ, len(self.program_module.block.args)
-                )
-                if nam is not None:
-                    arg.name_hint = nam
 
     def verify_(self):
         # verify that names are unique
@@ -256,7 +261,7 @@ class ModuleOp(IRDLOperation):
 
         # verify that block args are of the right type for the provided params
         for arg, param in zip(
-            [a.type for a in self.layout_module.block.args[4:]],
+            self.layout_module.block.arg_types[4:],
             self.params,
             strict=True,
         ):
@@ -275,7 +280,7 @@ class ModuleOp(IRDLOperation):
         # verify that params and yielded arguments are typed correctly
         # these may be followed by input-output symbols which we cannot verify, therefore setting `strict=False`
         for got, (name, exp) in zip(
-            [a.type for a in self.program_module.block.args[2:]],
+            self.program_module.block.arg_types[2:],
             itertools.chain(
                 (
                     (param.key.data, cast(Attribute, param.type))
@@ -373,8 +378,12 @@ class YieldOp(IRDLOperation):
     values = var_operand_def(Attribute)
     fields = prop_def(ArrayAttr[StringAttr])
 
-    traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(ModuleOp), Pure()])
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(ModuleOp),
+            Pure(),
+        )
     )
 
     def __init__(

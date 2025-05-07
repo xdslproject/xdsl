@@ -23,7 +23,7 @@
 
 
 // CHECK:         "builtin.module"() ({
-// CHECK-NEXT:      "func.func"() <{"function_type" = () -> (), "sym_name" = "do_nothing"}> ({
+// CHECK-NEXT:      "func.func"() <{function_type = () -> (), sym_name = "do_nothing"}> ({
 // CHECK-NEXT:        "func.return"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:    }) {"gpu.container_module"} : () -> ()
+// CHECK-NEXT:    }) {gpu.container_module} : () -> ()

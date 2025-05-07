@@ -7,8 +7,8 @@
 %c1 = riscv.li 1 : !riscv.reg
 %c2 = riscv.li 2 : !riscv.reg
 
-%readable = riscv_snitch.get_stream : !stream.readable<!riscv.freg<ft0>>
-%writable = riscv_snitch.get_stream : !stream.writable<!riscv.freg<ft1>>
+%readable = riscv_snitch.get_stream : !snitch.readable<!riscv.freg<ft0>>
+%writable = riscv_snitch.get_stream : !snitch.writable<!riscv.freg<ft1>>
 
 %f0 = riscv.get_float_register : !riscv.freg<ft2>
 %f1 = riscv.get_float_register : !riscv.freg<ft3>

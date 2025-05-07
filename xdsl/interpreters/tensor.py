@@ -10,22 +10,19 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.builtin import xtype_for_el_type
-from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.ir import Attribute
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.exceptions import InterpretationError
 
 
 @register_impls
 class TensorFunctions(InterpreterFunctions):
-
     @impl(tensor.EmptyOp)
     def run_empty(
         self, interpreter: Interpreter, op: tensor.EmptyOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         result_type = op.tensor.type
         assert isinstance(result_type, TensorType)
-        result_type = cast(TensorType[Attribute], result_type)
         result_shape = list(result_type.get_shape())
         xtype = xtype_for_el_type(result_type.element_type, interpreter.index_bitwidth)
         return (

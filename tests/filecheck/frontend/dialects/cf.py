@@ -1,18 +1,18 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import i1, i32
-from xdsl.frontend.exception import CodeGenerationException
-from xdsl.frontend.program import FrontendProgram
+from xdsl.frontend.pyast.context import CodeContext
+from xdsl.frontend.pyast.dialects.builtin import i1, i32
+from xdsl.frontend.pyast.exception import CodeGenerationException
+from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
 with CodeContext(p):
-    # CHECK: "cf.assert"(%{{.*}}) <{"msg" = ""}> : (i1) -> ()
+    # CHECK: cf.assert %{{.*}}, ""
     def test_assert_I(cond: i1):
         assert cond
         return
 
-    # CHECK: "cf.assert"(%{{.*}}) <{"msg" = "some message"}> : (i1) -> ()
+    # CHECK: cf.assert %{{.*}}, "some message"
     def test_assert_II(cond: i1):
         assert cond, "some message"
         return

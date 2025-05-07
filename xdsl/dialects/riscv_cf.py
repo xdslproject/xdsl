@@ -15,17 +15,17 @@ from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Successor,
-    VarOperand,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
     successor_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalisationPatternsTrait, IsTerminator
+from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator
 from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import VerifyException
 
@@ -43,7 +43,7 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
     return parser.resolve_operand(unresolved, type)
 
 
-class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv_cf import (
@@ -69,8 +69,8 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = frozenset(
-        [IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()]
+    traits = traits_def(
+        IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()
     )
 
     def __init__(
@@ -197,7 +197,7 @@ class BeqOp(ConditionalBranchOperation):
 
     if (x[rs1] == x[rs2]) pc += sext(offset)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq).
     """
 
     name = "riscv_cf.beq"
@@ -215,7 +215,7 @@ class BneOp(ConditionalBranchOperation):
 
     if (x[rs1] != x[rs2]) pc += sext(offset)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bne
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bne).
     """
 
     name = "riscv_cf.bne"
@@ -233,7 +233,7 @@ class BltOp(ConditionalBranchOperation):
 
     if (x[rs1] <s x[rs2]) pc += sext(offset)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#blt
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#blt).
     """
 
     name = "riscv_cf.blt"
@@ -251,7 +251,7 @@ class BgeOp(ConditionalBranchOperation):
 
     if (x[rs1] >=s x[rs2]) pc += sext(offset)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bge
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bge).
     """
 
     name = "riscv_cf.bge"
@@ -269,7 +269,7 @@ class BltuOp(ConditionalBranchOperation):
 
     if (x[rs1] <u x[rs2]) pc += sext(offset)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bltu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bltu).
     """
 
     name = "riscv_cf.bltu"
@@ -287,7 +287,7 @@ class BgeuOp(ConditionalBranchOperation):
 
     if (x[rs1] >=u x[rs2]) pc += sext(offset)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bgeu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bgeu).
     """
 
     name = "riscv_cf.bgeu"
@@ -309,12 +309,12 @@ class BranchOp(riscv.RISCVAsmOperation):
 
     block_arguments = var_operand_def(RISCVRegisterType)
     successor = successor_def()
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -397,11 +397,11 @@ class JOp(RISCVInstruction):
 
     name = "riscv_cf.j"
 
-    block_arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    block_arguments = var_operand_def(RISCVRegisterType)
 
     successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,

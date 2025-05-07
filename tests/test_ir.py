@@ -1,8 +1,8 @@
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
-from xdsl.dialects.arith import Addi, Arith, Constant, Subi
+from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, SubiOp
 from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
@@ -16,8 +16,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
-    VarRegion,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -25,7 +23,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 @irdl_op_definition
@@ -36,10 +34,10 @@ class TestWithPropOp(IRDLOperation):
 
 
 def test_ops_accessor():
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(2, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi(a, b)
+    c = AddiOp(a, b)
 
     block0 = Block([a, b, c])
     # Create a region to include a, b, c
@@ -49,7 +47,7 @@ def test_ops_accessor():
     assert len(region.block.ops) == 3
 
     # Operation to subtract b from a
-    d = Subi(a, b)
+    d = SubiOp(a, b)
 
     assert d.results[0] != c.results[0]
 
@@ -60,10 +58,10 @@ def test_ops_accessor():
 
 
 def test_ops_accessor_II():
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(2, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi(a, b)
+    c = AddiOp(a, b)
 
     block0 = Block([a, b, c])
     # Create a region to include a, b, c
@@ -73,7 +71,7 @@ def test_ops_accessor_II():
     assert len(region.block.ops) == 3
 
     # Operation to subtract b from a
-    d = Subi(a, b)
+    d = SubiOp(a, b)
 
     assert d.results[0] != c.results[0]
 
@@ -99,14 +97,14 @@ def test_ops_accessor_II():
 def test_ops_accessor_III():
     # Create constants and add them, add them in blocks, blocks in
     # a region and create a function
-    a = Constant(IntegerAttr.from_int_and_width(1, 32), i32)
-    b = Constant(IntegerAttr.from_int_and_width(2, 32), i32)
-    c = Constant(IntegerAttr.from_int_and_width(3, 32), i32)
-    d = Constant(IntegerAttr.from_int_and_width(4, 32), i32)
+    a = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
+    b = ConstantOp(IntegerAttr.from_int_and_width(2, 32), i32)
+    c = ConstantOp(IntegerAttr.from_int_and_width(3, 32), i32)
+    d = ConstantOp(IntegerAttr.from_int_and_width(4, 32), i32)
 
     # Operation to add these constants
-    e = Addi(a, b)
-    f = Addi(c, d)
+    e = AddiOp(a, b)
+    f = AddiOp(c, d)
 
     # Create Blocks and Regions
     block0 = Block([a, b, e])
@@ -136,7 +134,7 @@ def test_ops_accessor_III():
 
 def test_op_operands_assign():
     """Test that we can directly assign `op.operands`."""
-    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op = test.TestOp.create(operands=[val1, val2])
     op.operands = [val2, val1]
     op.verify()
@@ -148,7 +146,7 @@ def test_op_operands_assign():
 
 def test_op_operands_indexing():
     """Test `__getitem__`, `__setitem__`, and `__len__` on `op.operands`."""
-    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op = test.TestOp.create(operands=[val1, val2])
     op.verify()
 
@@ -167,7 +165,7 @@ def test_op_operands_indexing():
 
 def test_op_operands_comparison():
     """Test `__eq__`, and `__hash__` on `op.operands`."""
-    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op1 = test.TestOp.create(operands=[val1, val2])
     op2 = test.TestOp.create(operands=[val1, val2])
     op1.verify()
@@ -488,8 +486,8 @@ def test_split_block_args():
 
     new_block = old_block.split_before(op, arg_types=(i32, i64))
 
-    arg_types = [a.type for a in new_block.args]
-    assert arg_types == [i32, i64]
+    arg_types = new_block.arg_types
+    assert arg_types == (i32, i64)
 
 
 def test_region_clone_into_circular_blocks():
@@ -504,7 +502,7 @@ def test_region_clone_into_circular_blocks():
         "test.op"() [^0] : () -> ()
     }
     """
-    ctx = MLContext(allow_unregistered=True)
+    ctx = Context(allow_unregistered=True)
     region = Parser(ctx, region_str).parse_region()
 
     region2 = Region()
@@ -718,7 +716,7 @@ program_successors = """
     ],
 )
 def test_is_structurally_equivalent(args: list[str], expected_result: bool):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
     ctx.load_dialect(Arith)
@@ -742,16 +740,16 @@ def test_is_structurally_equivalent_properties():
 
 
 def test_is_structurally_equivalent_free_operands():
-    val1 = TestSSAValue(i32)
-    val2 = TestSSAValue(i64)
+    val1 = create_ssa_value(i32)
+    val2 = create_ssa_value(i64)
     op1 = test.TestOp.create(operands=[val1, val2])
     op2 = test.TestOp.create(operands=[val1, val2])
     assert op1.is_structurally_equivalent(op2)
 
 
 def test_is_structurally_equivalent_free_operands_fail():
-    val1 = TestSSAValue(i32)
-    val2 = TestSSAValue(i32)
+    val1 = create_ssa_value(i32)
+    val2 = create_ssa_value(i32)
     op1 = test.TestOp.create(operands=[val1])
     op2 = test.TestOp.create(operands=[val2])
     assert not op1.is_structurally_equivalent(op2)
@@ -770,7 +768,7 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
   }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
 """
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
     ctx.load_dialect(Arith)
@@ -796,13 +794,13 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
 
 
 def test_descriptions():
-    a = Constant.from_int_and_width(1, 32)
+    a = ConstantOp.from_int_and_width(1, 32)
 
     assert str(a.value) == "1 : i32"
     assert f"{a.value}" == "1 : i32"
 
     assert str(a) == "%0 = arith.constant 1 : i32"
-    assert f"{a}" == "Constant(%0 = arith.constant 1 : i32)"
+    assert f"{a}" == "ConstantOp(%0 = arith.constant 1 : i32)"
 
     m = ModuleOp([a])
 
@@ -828,25 +826,23 @@ ModuleOp(
 # ToDo: Create this op without IRDL itself, since it tests fine grained
 # stuff which is supposed to be used with IRDL or PDL.
 @irdl_op_definition
-class CustomOpWithMultipleRegions(IRDLOperation):
+class MultipleRegionsOp(IRDLOperation):
     name = "test.custom_op_with_multiple_regions"
-    region: VarRegion = var_region_def()
+    region = var_region_def()
 
 
 def test_region_index_fetch():
-    a = Constant.from_int_and_width(1, 32)
-    b = Constant.from_int_and_width(2, 32)
-    c = Constant.from_int_and_width(3, 32)
-    d = Constant.from_int_and_width(4, 32)
+    a = ConstantOp.from_int_and_width(1, 32)
+    b = ConstantOp.from_int_and_width(2, 32)
+    c = ConstantOp.from_int_and_width(3, 32)
+    d = ConstantOp.from_int_and_width(4, 32)
 
     region0 = Region([Block([a])])
     region1 = Region([Block([b])])
     region2 = Region([Block([c])])
     region3 = Region([Block([d])])
 
-    op = CustomOpWithMultipleRegions.build(
-        regions=[[region0, region1, region2, region3]]
-    )
+    op = MultipleRegionsOp.build(regions=[[region0, region1, region2, region3]])
 
     assert op.get_region_index(region0) == 0
     assert op.get_region_index(region1) == 1
@@ -855,13 +851,13 @@ def test_region_index_fetch():
 
 
 def test_region_index_fetch_region_unavailability():
-    a = Constant.from_int_and_width(1, 32)
-    b = Constant.from_int_and_width(2, 32)
+    a = ConstantOp.from_int_and_width(1, 32)
+    b = ConstantOp.from_int_and_width(2, 32)
 
     region0 = Region([Block([a])])
     region1 = Region([Block([b])])
 
-    op = CustomOpWithMultipleRegions.build(regions=[[region0]])
+    op = MultipleRegionsOp.build(regions=[[region0]])
 
     assert op.get_region_index(region0) == 0
     with pytest.raises(Exception) as exc_info:
@@ -870,15 +866,15 @@ def test_region_index_fetch_region_unavailability():
 
 
 def test_detach_region():
-    a = Constant.from_int_and_width(1, 32)
-    b = Constant.from_int_and_width(2, 32)
-    c = Constant.from_int_and_width(3, 32)
+    a = ConstantOp.from_int_and_width(1, 32)
+    b = ConstantOp.from_int_and_width(2, 32)
+    c = ConstantOp.from_int_and_width(3, 32)
 
     region0 = Region([Block([a])])
     region1 = Region([Block([b])])
     region2 = Region([Block([c])])
 
-    op = CustomOpWithMultipleRegions.build(regions=[[region0, region1, region2]])
+    op = MultipleRegionsOp.build(regions=[[region0, region1, region2]])
 
     assert op.detach_region(1) == region1
     assert op.detach_region(region0) == region0
@@ -887,39 +883,39 @@ def test_detach_region():
 
 
 @irdl_op_definition
-class CustomVerify(IRDLOperation):
+class CustomVerifyOp(IRDLOperation):
     name = "test.custom_verify_op"
-    val: Operand = operand_def(i64)
+    val = operand_def(i64)
 
     @staticmethod
     def get(val: SSAValue):
-        return CustomVerify.build(operands=[val])
+        return CustomVerifyOp.build(operands=[val])
 
     def verify_(self):
         raise Exception("Custom Verification Check")
 
 
 def test_op_custom_verify_is_called():
-    a = Constant.from_int_and_width(1, i64)
-    b = CustomVerify.get(a.result)
+    a = ConstantOp.from_int_and_width(1, i64)
+    b = CustomVerifyOp.get(a.result)
     with pytest.raises(Exception) as e:
         b.verify()
     assert e.value.args[0] == "Custom Verification Check"
 
 
 def test_op_custom_verify_is_done_last():
-    a = Constant.from_int_and_width(1, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
     # CustomVerify expects a i64, not i32
-    b = CustomVerify.get(a.result)
+    b = CustomVerifyOp.get(a.result)
     with pytest.raises(VerifyException) as e:
         b.verify()
     assert "Custom Verification Check" not in e.value.args[0]
 
 
 def test_block_walk():
-    a = Constant.from_int_and_width(1, 32)
-    b = Constant.from_int_and_width(2, 32)
-    c = Constant.from_int_and_width(3, 32)
+    a = ConstantOp.from_int_and_width(1, 32)
+    b = ConstantOp.from_int_and_width(2, 32)
+    c = ConstantOp.from_int_and_width(3, 32)
 
     ops = [a, b, c]
     block = Block(ops)
@@ -929,8 +925,8 @@ def test_block_walk():
 
 
 def test_region_walk():
-    a = Constant.from_int_and_width(1, 32)
-    b = Constant.from_int_and_width(2, 32)
+    a = ConstantOp.from_int_and_width(1, 32)
+    b = ConstantOp.from_int_and_width(2, 32)
 
     block_a = Block([a])
     block_b = Block([b])
@@ -942,8 +938,8 @@ def test_region_walk():
 
 
 def test_op_walk():
-    a = Constant.from_int_and_width(1, 32)
-    b = Constant.from_int_and_width(2, 32)
+    a = ConstantOp.from_int_and_width(1, 32)
+    b = ConstantOp.from_int_and_width(2, 32)
 
     block_a = Block([a])
     block_b = Block([b])
@@ -964,7 +960,7 @@ def test_op_walk():
 
 
 def test_region_clone():
-    a = Constant.from_int_and_width(1, 32)
+    a = ConstantOp.from_int_and_width(1, 32)
     block_a = Block([a])
     region = Region(block_a)
     region2 = region.clone()
@@ -987,3 +983,17 @@ def test_dialect_name():
         name = "dialect.op"
 
     assert MyOperation.dialect_name() == "dialect"
+
+
+def test_replace_by_if():
+    a = create_ssa_value(i32)
+    b = test.TestOp((a,))
+    c = test.TestOp((a,))
+
+    assert set(u.operation for u in a.uses) == {b, c}
+
+    d = create_ssa_value(i32)
+    a.replace_by_if(d, lambda u: u.operation is not c)
+
+    assert set(u.operation for u in a.uses) == {c}
+    assert set(u.operation for u in d.uses) == {b}

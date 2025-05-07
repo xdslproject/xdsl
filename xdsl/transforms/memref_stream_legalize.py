@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -76,15 +76,15 @@ def _is_safe_to_legalize(op: Operation) -> bool:
     return isinstance(
         op,
         memref_stream.YieldOp
-        | arith.Minimumf
-        | arith.Minnumf
-        | arith.Maximumf
-        | arith.Maxnumf
-        | arith.Addf
-        | arith.Subf
-        | arith.Mulf
-        | arith.Divf
-        | arith.Negf,
+        | arith.MinimumfOp
+        | arith.MinnumfOp
+        | arith.MaximumfOp
+        | arith.MaxnumfOp
+        | arith.AddfOp
+        | arith.SubfOp
+        | arith.MulfOp
+        | arith.DivfOp
+        | arith.NegfOp,
     )
 
 
@@ -116,8 +116,7 @@ def _legalize_block(
 
 
 @dataclass(frozen=True)
-class MemrefStreamGenericLegalize(RewritePattern):
-
+class MemRefStreamGenericLegalize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
@@ -172,7 +171,7 @@ class MemrefStreamGenericLegalize(RewritePattern):
         for i, arg in enumerate(new_body.block.args):
             if i not in legalizations:
                 continue
-            rewriter.modify_block_argument_type(arg, legalizations[i])
+            arg = rewriter.replace_value_with_new_type(arg, legalizations[i])
             to_be_legalized.update(use.operation for use in arg.uses)
         # Legalize payload
         _legalize_block(new_body.block, to_be_legalized, rewriter)
@@ -192,15 +191,15 @@ class MemrefStreamGenericLegalize(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamLegalizePass(ModulePass):
+class MemRefStreamLegalizePass(ModulePass):
     """
     Legalize memref_stream.generic payload and bounds for streaming.
     """
 
     name = "memref-stream-legalize"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([MemrefStreamGenericLegalize()]),
+            GreedyRewritePatternApplier([MemRefStreamGenericLegalize()]),
             apply_recursively=False,
         ).rewrite_module(op)

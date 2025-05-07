@@ -6,14 +6,14 @@ from xdsl.ir import OpResult, SSAValue
 
 from ..dialects import toy
 from ..frontend.ir_gen import IRGen
-from ..frontend.parser import Parser
+from ..frontend.parser import ToyParser
 
 
 def test_convert_ast():
     ast_toy = Path("docs/Toy/examples/ast.toy")
 
     with open(ast_toy) as f:
-        parser = Parser(ast_toy, f.read())
+        parser = ToyParser(ast_toy, f.read())
 
     module_ast = parser.parseModule()
 
@@ -63,7 +63,7 @@ def test_convert_scalar():
     scalar_toy = Path("docs/Toy/examples/scalar.toy")
 
     with open(scalar_toy) as f:
-        parser = Parser(scalar_toy, f.read())
+        parser = ToyParser(scalar_toy, f.read())
 
     module_ast = parser.parseModule()
 

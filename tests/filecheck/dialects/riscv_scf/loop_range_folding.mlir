@@ -53,4 +53,3 @@ riscv_scf.for %2 : !riscv.reg = %lb to %ub step %step {
 // CHECK-NEXT:      "test.op"(%{{.*}}, %{{.*}}) : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
-

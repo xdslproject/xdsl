@@ -35,7 +35,7 @@ class ConstantLike(OpTrait):
     """
     Operation known to be constant-like.
 
-    https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html
+    See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html).
     """
 
 
@@ -50,6 +50,9 @@ class HasParent(OpTrait):
 
     def verify(self, op: Operation) -> None:
         parent = op.parent_op()
+        # Don't check parent when op is detached
+        if parent is None:
+            return
         if isinstance(parent, self.op_types):
             return
         if len(self.op_types) == 1:
@@ -101,7 +104,7 @@ class IsTerminator(OpTrait):
     This trait provides verification and functionality for operations that are
     known to be terminators.
 
-    https://mlir.llvm.org/docs/Traits/#terminator
+    See external [documentation](https://mlir.llvm.org/docs/Traits/#terminator).
     """
 
     def verify(self, op: Operation) -> None:
@@ -116,7 +119,7 @@ class NoTerminator(OpTrait):
     """
     Allow an operation to have single block regions with no terminator.
 
-    https://mlir.llvm.org/docs/Traits/#terminator
+    See external [documentation](https://mlir.llvm.org/docs/Traits/#terminator).
     """
 
     def verify(self, op: Operation) -> None:
@@ -135,8 +138,9 @@ class SingleBlockImplicitTerminator(OpTrait):
     The conditions for the implicit creation of the terminator depend on the operation
     and occur during its creation using the `ensure_terminator` method.
 
-    This should be fully compatible with MLIR's Trait:
-    https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator
+    This should be fully compatible with MLIR's Trait.
+
+    See external [documentation](https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator).
     """
 
     op_type: type[Operation]
@@ -172,9 +176,12 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
         if len(region.blocks) > 1:
             raise VerifyException(f"'{op.name}' does not contain single-block regions")
 
+        from xdsl.dialects.builtin import UnregisteredOp
+
         for block in region.blocks:
             if (
                 (last_op := block.last_op) is not None
+                and not isinstance(last_op, UnregisteredOp)
                 and last_op.has_trait(IsTerminator)
                 and not isinstance(last_op, trait.op_type)
             ):
@@ -192,7 +199,7 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
 
         for block in region.blocks:
             if (last_op := block.last_op) is None or not last_op.has_trait(
-                IsTerminator
+                IsTerminator, value_if_unregistered=False
             ):
                 with ImplicitBuilder(block):
                     trait.op_type.create()
@@ -203,8 +210,9 @@ class IsolatedFromAbove(OpTrait):
     Constrains the contained operations to use only values defined inside this
     operation.
 
-    This should be fully compatible with MLIR's Trait:
-    https://mlir.llvm.org/docs/Traits/#isolatedfromabove
+    This should be fully compatible with MLIR's Trait.
+
+    See external [documentation](https://mlir.llvm.org/docs/Traits/#isolatedfromabove).
     """
 
     def verify(self, op: Operation) -> None:
@@ -231,6 +239,26 @@ class IsolatedFromAbove(OpTrait):
                     # too; in which case it will check itself.
                     if not child_op.has_trait(IsolatedFromAbove):
                         regions += child_op.regions
+
+
+class SymbolUserOpInterface(OpTrait, abc.ABC):
+    """
+    Used to represent operations that reference Symbol operations. This provides the
+    ability to perform safe and efficient verification of symbol uses, as well as
+    additional functionality.
+
+    See external [documentation](https://mlir.llvm.org/docs/Interfaces/#symbolinterfaces).
+    """
+
+    @abc.abstractmethod
+    def verify(self, op: Operation) -> None:
+        """
+        This method should be adapted to the requirements of specific symbol users per
+        operation.
+
+        It corresponds to the verifySymbolUses in upstream MLIR.
+        """
+        raise NotImplementedError()
 
 
 class SymbolTable(OpTrait):
@@ -351,7 +379,7 @@ class SymbolOpInterface(OpTrait):
     More requirements are defined in MLIR; Please see MLIR documentation for Symbol and
     SymbolTable for the requirements that are upcoming in xDSL.
 
-    https://mlir.llvm.org/docs/SymbolsAndSymbolTables/#symbol
+    See external [documentation](https://mlir.llvm.org/docs/SymbolsAndSymbolTables/#symbol).
     """
 
     def get_sym_attr_name(self, op: Operation) -> StringAttr | None:
@@ -401,7 +429,7 @@ class CallableOpInterface(OpTrait, abc.ABC):
     Please see MLIR documentation for CallOpInterface and CallableOpInterface for more
     information.
 
-    https://mlir.llvm.org/docs/Interfaces/#callinterfaces
+    See external [documentation](https://mlir.llvm.org/docs/Interfaces/#callinterfaces).
     """
 
     @classmethod
@@ -424,7 +452,7 @@ class CallableOpInterface(OpTrait, abc.ABC):
 
 
 @dataclass(frozen=True)
-class HasCanonicalisationPatternsTrait(OpTrait):
+class HasCanonicalizationPatternsTrait(OpTrait):
     """
     Provides the rewrite passes to canonicalize an operation.
 
@@ -437,6 +465,23 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     @classmethod
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class HasShapeInferencePatternsTrait(OpTrait):
+    """
+    Provides the rewrite passes to shape infer an operation.
+
+    Each rewrite pattern must have the trait's op as root.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    @abc.abstractmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
 
 
@@ -631,10 +676,42 @@ class RecursiveMemoryEffect(MemoryEffect):
         return effects
 
 
-class Pure(NoMemoryEffect):
+class ConditionallySpeculatable(OpTrait):
+    @classmethod
+    @abc.abstractmethod
+    def is_speculatable(cls, op: Operation) -> bool:
+        raise NotImplementedError()
+
+
+class AlwaysSpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        return True
+
+
+class RecursivelySpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        return all(
+            is_speculatable(o) for r in op.regions for b in r.blocks for o in b.ops
+        )
+
+
+def is_speculatable(op: Operation):
+    trait = op.get_trait(ConditionallySpeculatable)
+    return (trait is not None) and trait.is_speculatable(op)
+
+
+class Pure(NoMemoryEffect, AlwaysSpeculatable):
     """
     In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable, but the latter is nowhere to be
     found here.
+    """
+
+
+class Commutative(OpTrait):
+    """
+    A trait that signals that an operation is commutative.
     """
 
 
@@ -645,7 +722,7 @@ class HasInsnRepresentation(OpTrait, abc.ABC):
     The returned string contains python string.format placeholders where formatted operands are inserted during
     printing.
 
-    See https://sourceware.org/binutils/docs/as/RISC_002dV_002dDirectives.html for more information.
+    See external [documentation](https://sourceware.org/binutils/docs/as/RISC_002dV_002dDirectives.html for more information.).
     """
 
     @abc.abstractmethod
@@ -654,3 +731,56 @@ class HasInsnRepresentation(OpTrait, abc.ABC):
         Return the insn representation of the operation for printing.
         """
         raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class SameOperandsAndResultType(OpTrait):
+    """Constrain the operation to have the same operands and result type."""
+
+    def verify(self, op: Operation) -> None:
+        from xdsl.utils.type import (
+            get_element_type_or_self,
+            get_encoding,
+            have_compatible_shape,
+        )
+
+        if len(op.results) < 1 or len(op.operands) < 1:
+            raise VerifyException(
+                f"'{op.name}' requires at least one result or operand"
+            )
+
+        result_type0 = get_element_type_or_self(op.result_types[0])
+
+        encoding = get_encoding(op.result_types[0])
+
+        for result_type in op.result_types[1:]:
+            result_type_elem = get_element_type_or_self(result_type)
+            if result_type0 != result_type_elem or not have_compatible_shape(
+                op.result_types[0], result_type
+            ):
+                raise VerifyException(
+                    f"'{op.name} requires the same type for all operands and results"
+                )
+
+            element_encoding = get_encoding(result_type)
+
+            if encoding != element_encoding:
+                raise VerifyException(
+                    f"'{op.name} requires the same encoding for all operands and results"
+                )
+
+        for operand_type in op.operand_types:
+            operand_type_elem = get_element_type_or_self(operand_type)
+            if result_type0 != operand_type_elem or not have_compatible_shape(
+                op.result_types[0], operand_type
+            ):
+                raise VerifyException(
+                    f"'{op.name} requires the same type for all operands and results"
+                )
+
+            element_encoding = get_encoding(operand_type)
+
+            if encoding != element_encoding:
+                raise VerifyException(
+                    f"'{op.name} requires the same encoding for all operands and results"
+                )

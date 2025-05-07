@@ -16,7 +16,6 @@ class EncodingException(Exception): ...
 
 
 class WasmBinaryEncodable(abc.ABC):
-
     @abc.abstractmethod
     def encode(self, ctx: WasmBinaryEncodingContext, io: BinaryIO) -> None:
         raise NotImplementedError()

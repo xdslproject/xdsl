@@ -13,122 +13,80 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    # https://github.com/xdslproject/llvm-docker/pkgs/container/llvm
+    container: ghcr.io/xdslproject/llvm:20.1.1
     strategy:
       matrix:
-        python-version: ['3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      MLIR-Version: 98e674c9f16d677d95c67bc130e267fae331e43c
+      COLLECT_COVERAGE: ${{ matrix.python-version == '3.10' }}
     steps:
     - uses: actions/checkout@v4
       with:
         path: xdsl
         fetch-depth: 2
 
-    - name: Install native dependencies
-      uses: awalsh128/cache-apt-pkgs-action@latest
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
       with:
-        packages: mesa-vulkan-drivers
-        version: 1.0
+        enable-cache: true
+        cache-dependency-glob: "xdsl/uv.lock"
 
-    - name: Python Setup
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Upgrade pip
+    - name: Set up Python ${{ matrix.python-version }}
       run: |
-        pip install --upgrade pip
+        # Change directory so that xdsl-opt can be found during installation.
+        cd xdsl
+        uv python install ${{ matrix.python-version }}
 
     - name: Install the package locally and nbval
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        pip install -r requirements.txt
-
-    - name: Cache binaries
-      id: cache-binary
-      uses: actions/cache@v4
-      with:
-        path: llvm-project/build
-        key: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
-        restore-keys: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
-
-    - name: Checkout MLIR
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
-      with:
-        repository: llvm/llvm-project.git
-        path: llvm-project
-        ref: ${{ env.MLIR-Version }}
-
-    - name: Clang Setup
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: egor-tensin/setup-clang@v1
-
-    - name: Ninja Setup
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: lukka/get-cmake@9e431acfe656e5db66cd4930386328fce59cfaba
-
-    - name: MLIR Build Setup
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      run: |
-        mkdir llvm-project/build
-        cd llvm-project/build
-        cmake -G Ninja ../llvm \
-          -DLLVM_ENABLE_PROJECTS=mlir \
-          -DLLVM_TARGETS_TO_BUILD="X86" \
-          -DLLVM_ENABLE_LLD=ON \
-          -DCMAKE_C_COMPILER=clang \
-          -DCMAKE_CXX_COMPILER=clang++ \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DLLVM_ENABLE_ASSERTIONS=ON
-
-    - name: MLIR Build
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      run: |
-        cd llvm-project/build
-        cmake --build . --target mlir-opt mlir-cpu-runner
+        VENV_EXTRAS="--all-extras" make venv
 
     - name: Test with pytest and generate code coverage
       run: |
         cd xdsl
-        pytest -W error --cov --cov-config=.coveragerc .
+        if [ "$COLLECT_COVERAGE" = "true" ]; then
+          uv run pytest -W error --cov
+        else
+          uv run pytest -W error
+        fi
 
     - name: Execute lit tests
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        lit -v tests/filecheck/ -DCOVERAGE
-        lit -v docs/Toy/examples/ -DCOVERAGE
+        if [ "$COLLECT_COVERAGE" = "true" ]; then
+          uv run lit -v tests/filecheck/ -DCOVERAGE
+          uv run lit -v docs/Toy/examples/ -DCOVERAGE
+        else
+          uv run lit -v tests/filecheck/
+          uv run lit -v docs/Toy/examples/
+        fi
 
     - name: Test MLIR dependent examples/tutorials
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
-
-    - name: Test MLIR dependent marimo notebooks
-      run: |
-        cd xdsl
-        # Add mlir-opt to the path
-        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        make tests-marimo-mlir
+        make tests-marimo
 
     - name: Combine coverage data
+      if: matrix.python-version == '3.10'
       run: |
         cd xdsl
-        coverage combine --append
-        coverage report
-        coverage xml
+        uv run coverage combine --append
+        uv run coverage report
+        uv run coverage xml
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.10'
-      uses: Wandalen/wretry.action@v1
+      uses: Wandalen/wretry.action@v3
       with:
         action: codecov/codecov-action@v4
         attempt_delay: 10000
@@ -138,4 +96,5 @@ jobs:
           verbose: true
           root_dir: xdsl
           files: coverage.xml
+          codecov_yml_path: codecov.yml
           token: ${{ secrets.CODECOV_TOKEN }}

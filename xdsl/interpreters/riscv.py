@@ -5,11 +5,12 @@ from typing import Any, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
+    DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
+    StringAttr,
 )
 from xdsl.interpreter import (
     Interpreter,
@@ -20,12 +21,13 @@ from xdsl.interpreter import (
     impl_cast,
     register_impls,
 )
-from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import xtype_for_el_type
+from xdsl.interpreters.utils import ptr
 from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 _T = TypeVar("_T")
 
@@ -77,7 +79,7 @@ class RiscvFunctions(InterpreterFunctions):
         registers = RiscvFunctions.registers(interpreter)
 
         if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name}")
+            raise InterpretationError(f"Value not found for register name {name.data}")
 
         stored_value = registers[name]
 
@@ -149,7 +151,7 @@ class RiscvFunctions(InterpreterFunctions):
         )
 
     @staticmethod
-    def registers(interpreter: Interpreter) -> dict[str, Any]:
+    def registers(interpreter: Interpreter) -> dict[StringAttr, Any]:
         return interpreter.get_data(
             RiscvFunctions,
             REGISTERS_KEY,
@@ -214,7 +216,7 @@ class RiscvFunctions(InterpreterFunctions):
         return data[key]
 
     def get_immediate_value(
-        self, interpreter: Interpreter, imm: AnyIntegerAttr | riscv.LabelAttr
+        self, interpreter: Interpreter, imm: IntegerAttr | riscv.LabelAttr
     ) -> int | ptr.RawPtr:
         match imm:
             case IntegerAttr():
@@ -306,7 +308,7 @@ class RiscvFunctions(InterpreterFunctions):
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SlliOp)
-    def run_shift_left(
+    def run_shift_left_i(
         self,
         interpreter: Interpreter,
         op: riscv.SlliOp,
@@ -316,6 +318,17 @@ class RiscvFunctions(InterpreterFunctions):
         imm = self.get_immediate_value(interpreter, op.immediate)
         assert isinstance(imm, int)
         results = (args[0] << imm,)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.SllOp)
+    def run_shift_left(
+        self,
+        interpreter: Interpreter,
+        op: riscv.SllOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] << args[1],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.MulOp)
@@ -330,6 +343,20 @@ class RiscvFunctions(InterpreterFunctions):
         rhs = to_signed(args[1], self.bitwidth)
 
         results = (lhs * rhs,)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.DivOp)
+    def run_div(
+        self,
+        interpreter: Interpreter,
+        op: riscv.DivOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        lhs = to_signed(args[0], self.bitwidth)
+        rhs = to_signed(args[1], self.bitwidth)
+
+        results = (lhs // rhs,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SwOp)
@@ -427,6 +454,17 @@ class RiscvFunctions(InterpreterFunctions):
     # endregion
 
     # region D extension
+
+    @impl(riscv.FMAddDOp)
+    def run_fmadd_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMAddDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] * args[1] + args[2],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FAddDOp)
     def run_fadd_d(
@@ -549,9 +587,6 @@ class RiscvFunctions(InterpreterFunctions):
     ) -> PythonValues:
         attr = op.res.type
 
-        if not isinstance(attr, riscv.RISCVRegisterType):
-            raise InterpretationError(f"Unexpected type {attr}, expected register type")
-
         if not attr.is_allocated:
             raise InterpretationError(
                 f"Cannot get value for unallocated register {attr}"
@@ -562,7 +597,7 @@ class RiscvFunctions(InterpreterFunctions):
         registers = RiscvFunctions.registers(interpreter)
 
         if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name}")
+            raise InterpretationError(f"Value not found for register name {name.data}")
 
         stored_value = registers[name]
 
@@ -606,13 +641,14 @@ class RiscvFunctions(InterpreterFunctions):
             case IntegerAttr():
                 return attr.value.data
             case builtin.DenseIntOrFPElementsAttr():
-                data = [el.value.data for el in attr.data]
+                assert isa(attr, DenseIntOrFPElementsAttr)
+                data = attr.get_values()
                 data_ptr = ptr.TypedPtr[Any].new(
                     data,
                     xtype=xtype_for_el_type(
                         attr.get_element_type(), interpreter.index_bitwidth
                     ),
                 )
-                return data_ptr
+                return data_ptr.raw
             case _:
                 interpreter.raise_error(f"Unknown value type for int register: {attr}")

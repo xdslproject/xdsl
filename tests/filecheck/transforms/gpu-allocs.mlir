@@ -18,12 +18,12 @@ func.func private @memref_test() {
 // CHECK-NEXT:      %0 = "test.op"() : () -> index
 // CHECK-NEXT:      %1 = "test.op"() : () -> index
 // CHECK-NEXT:      %2 = "test.op"() : () -> index
-// CHECK-NEXT:      %3 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
-// CHECK-NEXT:      %4 = "gpu.alloc"(%0) <{"operandSegmentSizes" = array<i32: 0, 1, 0>}> : (index) -> memref<?xindex>
-// CHECK-NEXT:      %5 = "gpu.alloc"(%0, %1, %2) <{"operandSegmentSizes" = array<i32: 0, 3, 0>}> : (index, index, index) -> memref<?x?x?xindex>
-// CHECK-NEXT:      "gpu.dealloc"(%3) {"operandSegmentSizes" = array<i32: 0, 1>} : (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> ()
-// CHECK-NEXT:      "gpu.dealloc"(%4) {"operandSegmentSizes" = array<i32: 0, 1>} : (memref<?xindex>) -> ()
-// CHECK-NEXT:      "gpu.dealloc"(%5) {"operandSegmentSizes" = array<i32: 0, 1>} : (memref<?x?x?xindex>) -> ()
+// CHECK-NEXT:      %3 = "gpu.alloc"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
+// CHECK-NEXT:      %4 = "gpu.alloc"(%0) <{operandSegmentSizes = array<i32: 0, 1, 0>}> : (index) -> memref<?xindex>
+// CHECK-NEXT:      %5 = "gpu.alloc"(%0, %1, %2) <{operandSegmentSizes = array<i32: 0, 3, 0>}> : (index, index, index) -> memref<?x?x?xindex>
+// CHECK-NEXT:      "gpu.dealloc"(%3) {operandSegmentSizes = array<i32: 0, 1>} : (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> ()
+// CHECK-NEXT:      "gpu.dealloc"(%4) {operandSegmentSizes = array<i32: 0, 1>} : (memref<?xindex>) -> ()
+// CHECK-NEXT:      "gpu.dealloc"(%5) {operandSegmentSizes = array<i32: 0, 1>} : (memref<?x?x?xindex>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }

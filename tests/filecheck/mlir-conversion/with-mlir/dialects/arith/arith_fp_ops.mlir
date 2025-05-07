@@ -7,5 +7,5 @@
   %4 = "arith.negf"(%1) : (f64) -> f64
 }) : ()->()
 
-// CHECK:        "arith.negf"(%0) <{"fastmath" = #arith.fastmath<none>}> : (f32) -> f32
-// CHECK:        "arith.negf"(%1) <{"fastmath" = #arith.fastmath<none>}> : (f64) -> f64
+// CHECK:        "arith.negf"(%0) <{fastmath = #arith.fastmath<none>}> : (f32) -> f32
+// CHECK:        "arith.negf"(%1) <{fastmath = #arith.fastmath<none>}> : (f64) -> f64

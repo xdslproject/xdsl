@@ -2,6 +2,7 @@ from typing import cast
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.irdl import irdl
+from xdsl.dialects.irdl.irdl_to_pyrdl import python_name
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -30,7 +31,6 @@ from xdsl.traits import SymbolTable
 
 @register_impls
 class IRDLFunctions(InterpreterFunctions):
-
     @staticmethod
     def get_dialect(interpreter: Interpreter, name: str) -> Dialect:
         """
@@ -174,7 +174,7 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).operands = list(
-            (f"o{i}", OperandDef(a)) for i, a in enumerate(args)
+            (python_name(name.data), OperandDef(a)) for name, a in zip(op.names, args)
         )
         return ()
 
@@ -185,7 +185,7 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).results = list(
-            (f"r{i}", ResultDef(a)) for i, a in enumerate(args)
+            (python_name(name.data), ResultDef(a)) for name, a in zip(op.names, args)
         )
         return ()
 
@@ -208,11 +208,10 @@ class IRDLFunctions(InterpreterFunctions):
     def run_parameters(
         self, interpreter: Interpreter, op: irdl.ParametersOp, args: PythonValues
     ):
-
         attr_op = cast(irdl.AttributeOp | irdl.TypeOp, op.parent_op())
         attr_name = attr_op.qualified_name
         self._get_attr_def(interpreter, attr_name).parameters = list(
-            (f"p{i}", a) for i, a in enumerate(args)
+            (python_name(name.data), a) for name, a in zip(op.names, args)
         )
         return ()
 
@@ -226,8 +225,8 @@ class IRDLFunctions(InterpreterFunctions):
             match entry:
                 case irdl.OperationOp():
                     operations.append(
-                        type(IRDLOperation)(
-                            entry.sym_name.data,
+                        type(
+                            entry.get_py_class_name(),
                             (IRDLOperation,),
                             dict(IRDLOperation.__dict__)
                             | {"name": entry.qualified_name},
@@ -236,7 +235,7 @@ class IRDLFunctions(InterpreterFunctions):
 
                 case irdl.TypeOp():
                     attributes.append(
-                        type(ParametrizedAttribute)(
+                        type(
                             entry.sym_name.data,
                             (TypeAttribute, ParametrizedAttribute),
                             dict(ParametrizedAttribute.__dict__)

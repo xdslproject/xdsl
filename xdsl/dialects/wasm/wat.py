@@ -21,7 +21,6 @@ class WatPrinter:
 
 
 class WatPrintable(abc.ABC):
-
     @abc.abstractmethod
     def print_wat(self, printer: WatPrinter) -> None:
         raise NotImplementedError()

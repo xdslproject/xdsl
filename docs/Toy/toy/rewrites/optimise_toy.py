@@ -1,10 +1,5 @@
-from typing import cast
-
 from xdsl.dialects.builtin import (
-    ArrayAttr,
     DenseIntOrFPElementsAttr,
-    Float64Type,
-    FloatAttr,
 )
 from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
@@ -54,8 +49,7 @@ class ReshapeReshapeOpPattern(RewritePattern):
             # Input defined by another transpose? If not, no match.
             return
 
-        t = cast(TensorTypeF64, op.res.type)
-        new_op = ReshapeOp.from_input_and_type(reshape_input_op.arg, t)
+        new_op = ReshapeOp.from_input_and_type(reshape_input_op.arg, op.res.type)
         rewriter.replace_matched_op(new_op)
 
 
@@ -77,10 +71,9 @@ class FoldConstantReshapeOpPattern(RewritePattern):
             return
 
         assert isa(op.res.type, TensorTypeF64)
-        assert isa(reshape_input_op.value.data, ArrayAttr[FloatAttr[Float64Type]])
 
         new_value = DenseIntOrFPElementsAttr.create_dense_float(
-            type=op.res.type, data=reshape_input_op.value.data.data
+            type=op.res.type, data=reshape_input_op.value.get_values()
         )
         new_op = ConstantOp(new_value)
         rewriter.replace_matched_op(new_op)

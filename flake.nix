@@ -2,6 +2,7 @@
   description = "xDSL devshell";
 
   inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -17,8 +18,8 @@
             devShells.default = with pkgs; mkShell {
               LD_LIBRARY_PATH = "${stdenv.cc.cc.lib}/lib";
               buildInputs = [
+                uv
                 nodejs_22
-                ruff
               ];
             };
           }

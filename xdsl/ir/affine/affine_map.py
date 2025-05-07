@@ -5,7 +5,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
 
-from xdsl.ir.affine import AffineDimExpr, AffineExpr
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 
 AffineExprBuilderT = AffineExpr | int
 
@@ -50,6 +50,26 @@ class AffineMap:
             symbolic_rank,
             tuple(AffineExpr.dimension(dim) for dim in range(rank))
             + tuple(AffineExpr.symbol(dim) for dim in range(symbolic_rank)),
+        )
+
+    @staticmethod
+    def minor_identity(num_dims: int, num_results: int) -> AffineMap:
+        """
+        Returns an identity affine map (d0, ..., dn) -> (dp, ..., dn) on the most minor
+        dimensions.
+
+        Corresponds to MLIR's `AffineMap::getMinorIdentityMap`.
+        """
+        if num_dims < num_results:
+            raise ValueError(
+                f"Dimension mismatch, expected dims {num_dims} to be greater than or "
+                f"equal to results {num_results}."
+            )
+
+        return AffineMap(
+            num_dims,
+            0,
+            tuple(AffineDimExpr(d) for d in range(num_dims - num_results, num_dims)),
         )
 
     @staticmethod
@@ -114,7 +134,10 @@ class AffineMap:
         result_num_symbols: int,
     ) -> AffineMap:
         """
-        This method substitutes any uses of dimensions and symbols (e.g. dim#0 with dimReplacements[0]) in subexpressions and returns the modified expression mapping.  Because this can be used to eliminate dims and symbols, the client needs to specify the number of dims and symbols in the result.
+        This method substitutes any uses of dimensions and symbols (e.g. dim#0 with
+        dimReplacements[0]) in subexpressions and returns the modified expression
+        mapping.  Because this can be used to eliminate dims and symbols, the client
+        needs to specify the number of dims and symbols in the result.
 
         The returned map always has the same number of results.
         """
@@ -132,9 +155,12 @@ class AffineMap:
         """
         Returns the `AffineMap` resulting from composing `self` with `other`.
 
-        The resulting `AffineMap` has as many dimensions as `other` and as many symbols as the concatenation of `self` and `other` (in which case the symbols of `self` come first).
+        The resulting `AffineMap` has as many dimensions as `other` and as many symbols
+        as the concatenation of `self` and `other` (in which case the symbols of `self`
+        come first).
 
-        Prerequisites: The maps are composable, i.e. that the number of dimensions of `self` matches the number of results of `other`.
+        Prerequisites: The maps are composable, i.e. that the number of dimensions of
+        `self` matches the number of results of `other`.
 
         Example:
         ```
@@ -211,39 +237,144 @@ class AffineMap:
 
     def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> tuple[int, ...]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
-        assert len(dims) == self.num_dims
-        assert len(symbols) == self.num_symbols
+        assert len(dims) == self.num_dims, f"{len(dims)}, {self.num_dims}"
+        assert len(symbols) == self.num_symbols, f"{len(symbols)}, {self.num_symbols}"
         return tuple(expr.eval(dims, symbols) for expr in self.results)
 
-    def compress_dims(self, selectors: Sequence[bool]) -> AffineMap:
+    def drop_dims(self, unused_dims: Sequence[bool]) -> AffineMap:
         """
-        Given a sequence of `selectors` indicating the input dimensions to keep, return a
-        new map only with the new dimensions. The results of `self` must be a subset of
-        the dimensions in `selectors`. The remaining dimensions are remapped to the
-        remaining number.
+        Given a sequence of `unused_dims` indicating the input dimensions to drop,
+        return a new map only with the new dimensions. The results of `self` must be a
+        subset of the dimensions in `selectors`. The remaining dimensions are remapped
+        to the remaining number.
 
         Examples:
         ```
-        (d0, d1, d2) -> (d1, d2) with [0,1,1] gives (d0, d1) -> (d0, d1)
-        (d0, d1, d2) -> (d2, d2) with [1,0,1] gives (d0, d1) -> (d1, d1)
+        (d0, d1, d2) -> (d1, d2) with [1,0,0] gives (d0, d1) -> (d0, d1)
+        (d0, d1, d2) -> (d2, d2) with [0,1,0] gives (d0, d1) -> (d1, d1)
         ```
+
+        Corresponds to MLIR's `compressDims`.
         """
-        if len(selectors) != self.num_dims:
+        if len(unused_dims) != self.num_dims:
             raise ValueError(
-                f"Invalid `selectors`, expected {self.num_dims} `bool` values, got "
-                f"{len(selectors)}"
+                f"Invalid `unused_dims`, expected {self.num_dims} `bool` values, got "
+                f"{len(unused_dims)}"
             )
 
-        result_num_dims = sum(selectors)
+        result_num_dims = sum(not dim for dim in unused_dims)
         new_dims = tuple(
             AffineExpr.dimension(dim)
-            for dim in itertools.accumulate(selectors, initial=0)
+            for dim in itertools.accumulate((not dim for dim in unused_dims), initial=0)
         )
         new_symbols = tuple(AffineExpr.symbol(s) for s in range(self.num_symbols))
 
         return self.replace_dims_and_symbols(
             new_dims, new_symbols, result_num_dims, self.num_symbols
         )
+
+    def used_dims(self) -> set[int]:
+        """
+        Return all dimensions used in the map as a set
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives {d0}
+        (d0, d1, d2) -> (d0, d2) gives {d0, d2}
+        ```
+        """
+        return {
+            expr.position
+            for res_expr in self.results
+            for expr in res_expr.dfs()
+            if isinstance(expr, AffineDimExpr)
+        }
+
+    def used_dims_bit_vector(self) -> tuple[bool, ...]:
+        """
+        Return a tuple of bools with the i-th entry being True if the i-th dimension is used in the map, otherwise it is False.
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives (True, False)
+        (d0, d1, d2) -> (d0, d2) gives (True, False, True)
+        ```
+        """
+
+        used_dims = [False] * self.num_dims
+        for res_expr in self.results:
+            for expr in res_expr.dfs():
+                if isinstance(expr, AffineDimExpr):
+                    used_dims[expr.position] = True
+        return tuple(used_dims)
+
+    def is_minor_identity(self) -> bool:
+        """
+        Returns True if
+        1. there are at most `self.num_dims` results,
+        2. `self.num_symbols` is zero, and
+        3. `self.results` are the last dimensions, in order.
+
+        For example, `(d0, d1, d2) -> (d1, d2)` is a minor identity map.
+
+        Corresponds to MLIR's `AffineMap::isMinorIdentity`.
+        """
+        num_results = len(self.results)
+        return (
+            not self.num_symbols
+            and num_results <= self.num_dims
+            and all(
+                isinstance(r, AffineDimExpr) and d == r.position
+                for d, r in zip(
+                    range(self.num_dims - num_results, self.num_dims),
+                    self.results,
+                    strict=True,
+                )
+            )
+        )
+
+    def is_projected_permutation(self, allow_zero_in_results: bool = False) -> bool:
+        """
+        Returns True if the AffineMap represents a subset (i.e. a projection) of a
+        symbol-less permutation map. `allow_zero_in_results` allows projected
+        permutation maps with constant zero result expressions.
+
+        Examples:
+        ```
+        no_zeros = (d0, d1, d2) -> (d1, d0)
+        with_zeros = (d0, d1, d2) -> (d1, 0, d0)
+        ```
+
+        Equivalent to `isProjectedPermutation` in MLIR.
+        """
+        if self.num_symbols:
+            return False
+
+        # Having more results than inputs means that results have duplicated dims or
+        # zeros that can't be mapped to input dims.
+        if len(self.results) > self.num_dims:
+            return False
+
+        seen = [False] * self.num_dims
+        # A projected permutation can have, at most, only one instance of each input
+        # dimension in the result expressions. Zeros are allowed as long as the
+        # number of result expressions is lower or equal than the number of input
+        # expressions.
+        for expr in self.results:
+            if isinstance(expr, AffineDimExpr):
+                if seen[expr.position]:
+                    return False
+                seen[expr.position] = True
+            else:
+                if (
+                    not allow_zero_in_results
+                    or not isinstance(expr, AffineConstantExpr)
+                    or expr.value != 0
+                ):
+                    return False
+
+        # Results are either dims or zeros and zeros can be mapped to input dims.
+        return True
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.

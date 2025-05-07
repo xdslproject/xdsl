@@ -1,11 +1,12 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.block import block
-from xdsl.frontend.const import Const
-from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import i32
-from xdsl.frontend.exception import FrontendProgramException
-from xdsl.frontend.program import FrontendProgram
+from xdsl.dialects.bigint import AddOp, BigIntegerType
+from xdsl.frontend.pyast.block import block
+from xdsl.frontend.pyast.const import Const
+from xdsl.frontend.pyast.context import CodeContext
+from xdsl.frontend.pyast.dialects.builtin import i32
+from xdsl.frontend.pyast.exception import FrontendProgramException
+from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
 
@@ -237,5 +238,35 @@ with CodeContext(p):
 try:
     p.compile(desymref=False)
     print(p.textual_format())
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot re-register type name 'int'
+    p.register_type(int, BigIntegerType)
+    p.register_type(int, BigIntegerType)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot re-register function 'int.__add__'
+    p.register_function(int.__add__, AddOp)
+    p.register_function(int.__add__, AddOp)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot register multiple source types for IR type 'BigIntegerType'
+    p.register_type(float, BigIntegerType)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+try:
+    # CHECK-NEXT: Cannot register multiple source types for IR type 'BigIntegerType'
+    p.register_type(float, BigIntegerType)
 except FrontendProgramException as e:
     print(e.msg)

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, memref, omp, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp
 from xdsl.ir import Block, Region
@@ -14,6 +14,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 @dataclass
@@ -41,40 +42,60 @@ class ConvertParallel(RewritePattern):
 
         parallel = omp.ParallelOp(
             regions=[Region(Block())],
-            operands=[[], [], [], [], []],
+            operands=[[], [], [], [], [], []],
         )
-        with ImplicitBuilder(parallel.region):
+        rewriter.insertion_point = InsertPoint.at_end(parallel.region.block)
+        with ImplicitBuilder(rewriter):
             if self.chunk is None:
                 chunk_op = []
             else:
                 self.schedule = "static"
-                chunk_op = [arith.Constant.from_int_and_width(self.chunk, IndexType())]
+                chunk_op = [
+                    arith.ConstantOp.from_int_and_width(self.chunk, IndexType())
+                ]
             wsloop = omp.WsLoopOp(
                 operands=[
-                    loop.lowerBound[:collapse],
-                    loop.upperBound[:collapse],
-                    loop.step[:collapse],
+                    [],
+                    [],
+                    [],
                     [],
                     [],
                     [],
                     chunk_op,
                 ],
-                regions=[Region(Block(arg_types=[IndexType()] * collapse))],
+                regions=[Region(Block())],
             )
             if self.schedule is not None:
-                wsloop.schedule_val = omp.ScheduleKindAttr(
+                wsloop.schedule_kind = omp.ScheduleKindAttr(
                     omp.ScheduleKind(self.schedule)
                 )
             omp.TerminatorOp()
-        with ImplicitBuilder(wsloop.body):
+
+        rewriter.insertion_point = InsertPoint.at_end(wsloop.body.block)
+        with ImplicitBuilder(rewriter):
+            loop_nest = omp.LoopNestOp(
+                operands=[
+                    loop.lowerBound[:collapse],
+                    loop.upperBound[:collapse],
+                    loop.step[:collapse],
+                ],
+                regions=[Region(Block(arg_types=[IndexType()] * collapse))],
+            )
+
+        rewriter.insertion_point = InsertPoint.at_end(loop_nest.body.block)
+        with ImplicitBuilder(rewriter):
             scope = memref.AllocaScopeOp(result_types=[[]], regions=[Region(Block())])
             omp.YieldOp()
-        with ImplicitBuilder(scope.scope):
+
+        rewriter.insertion_point = InsertPoint.at_end(scope.scope.block)
+        with ImplicitBuilder(rewriter):
             scope_terminator = memref.AllocaScopeReturnOp(operands=[[]])
+
         for newarg, oldarg in zip(
-            wsloop.body.block.args, loop.body.block.args[:collapse]
+            loop_nest.body.block.args, loop.body.block.args[:collapse]
         ):
             oldarg.replace_by(newarg)
+
         for _ in range(collapse):
             loop.body.block.erase_arg(loop.body.block.args[0])
         if collapse < len(loop.lowerBound):
@@ -87,8 +108,9 @@ class ConvertParallel(RewritePattern):
             new_ops = [new_loop]
         else:
             new_ops = [loop.body.block.detach_op(o) for o in loop.body.block.ops]
-            new_ops.pop()
-        scope.scope.block.insert_ops_before(new_ops, scope_terminator)
+            last_op = new_ops.pop()
+            rewriter.erase_op(last_op)
+        rewriter.insert_op(new_ops, InsertPoint.before(scope_terminator))
 
         rewriter.replace_matched_op(parallel)
 
@@ -125,7 +147,7 @@ class ConvertScfToOpenMPPass(ModulePass):
     schedule: Literal["static", "dynamic", "auto"] | None = None
     chunk: int | None = None
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

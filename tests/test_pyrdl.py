@@ -27,7 +27,7 @@ from xdsl.utils.exceptions import VerifyException
 class BoolData(Data[bool]):
     """An attribute holding a boolean value."""
 
-    name = "bool"
+    name = "test.bool"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> bool:
@@ -41,7 +41,7 @@ class BoolData(Data[bool]):
 class IntData(Data[int]):
     """An attribute holding an integer value."""
 
-    name = "int"
+    name = "test.int"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:
@@ -57,7 +57,7 @@ class IntData(Data[int]):
 class DoubleParamAttr(ParametrizedAttribute):
     """An attribute with two unbounded attribute parameters."""
 
-    name = "param"
+    name = "test.param"
 
     param1: ParameterDef[Attribute]
     param2: ParameterDef[Attribute]
@@ -135,7 +135,7 @@ class LessThan(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(f"{attr} should be of base attribute {IntData.name}")
@@ -225,12 +225,12 @@ def test_allof_verify_multiple_failures():
     """
     constraint = AllOf((LessThan(5), GreaterThan(8)))
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException,
+        match=f"The following constraints were not satisfied:\n{IntData(7)} should "
+        f"hold a value less than 5\n{IntData(7)} should hold a value greater than 8",
+    ):
         constraint.verify(IntData(7), ConstraintContext())
-    assert (
-        e.value.args[0]
-        == f"The following constraints were not satisfied:\n{IntData(7)} should hold a value less than 5\n{IntData(7)} should hold a value greater than 8"
-    )
 
 
 def test_param_attr_verify():

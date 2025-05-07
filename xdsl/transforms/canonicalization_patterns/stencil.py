@@ -1,7 +1,7 @@
 from typing import cast
 
 from xdsl.dialects import stencil
-from xdsl.ir import Attribute, Block, SSAValue
+from xdsl.ir import Block, Region, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -41,7 +41,7 @@ class ApplyRedundantOperands(RewritePattern):
                 continue
             a.replace_by(bbargs[rbargs[i]])
 
-        cse(op.region.block)
+        cse(op.region.block, rewriter)
 
 
 class ApplyUnusedOperands(RewritePattern):
@@ -65,7 +65,7 @@ class ApplyUnusedOperands(RewritePattern):
         new = stencil.ApplyOp.get(
             operands,
             block := Block(arg_types=bbargs_type),
-            [cast(stencil.TempType[Attribute], r.type) for r in op.res],
+            [r.type for r in op.res],
         )
 
         rewriter.inline_block(op.region.block, InsertPoint.at_start(block), block.args)
@@ -95,8 +95,12 @@ class ApplyUnusedResults(RewritePattern):
             results.pop(i)
             return_args.pop(i)
 
-        new = stencil.ApplyOp.get(
-            op.args, block, [cast(stencil.TempType[Attribute], r.type) for r in results]
+        new = stencil.ApplyOp.build(
+            operands=[op.args, op.dest],
+            regions=[Region(block)],
+            result_types=[[r.type for r in results]],
+            properties=op.properties.copy(),
+            attributes=op.attributes.copy(),
         )
 
         replace_results: list[SSAValue | None] = list(new.res)
@@ -105,3 +109,14 @@ class ApplyUnusedResults(RewritePattern):
 
         rewriter.replace_op(old_return, stencil.ReturnOp.get(return_args))
         rewriter.replace_matched_op(new, replace_results)
+
+
+class RemoveCastWithNoEffect(RewritePattern):
+    """
+    Remove `stencil.cast` where input and output types are equal.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stencil.CastOp, rewriter: PatternRewriter) -> None:
+        if op.result.type == op.field.type:
+            rewriter.replace_matched_op([], new_results=[op.field])

@@ -14,5 +14,3 @@ func.func @hello(%n : i32) -> i32 {
 // CHECK-NEXT:       func.return %n : i32
 // CHECK-NEXT:     }
 // CHECK-NEXT:  }
-
-

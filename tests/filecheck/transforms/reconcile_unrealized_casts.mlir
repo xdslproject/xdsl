@@ -49,7 +49,7 @@ builtin.module {
         %1 = "builtin.unrealized_conversion_cast"(%0) : (i16) -> i1
         %2 = "builtin.unrealized_conversion_cast"(%1) : (i1) -> i64
         %3 = "builtin.unrealized_conversion_cast"(%1) : (i1) -> i16
-        "cf.br"(%c0)[^bb1] : (i32) -> ()
+        cf.br ^bb1(%c0 : i32)
         ^bb1(%33: i32):  // pred: ^bb0
         %4 = "builtin.unrealized_conversion_cast"(%3) : (i16) -> i64
         %5 = "test.op"(%2, %4) : (i64, i64) -> i64
@@ -58,7 +58,7 @@ builtin.module {
 
     // CHECK-NEXT:    func.func @cycle_multiblock(%{{.*}} : i64) -> i64 {
     // CHECK-NEXT:      %c0 = "test.op"() : () -> i32
-    // CHECK-NEXT:      "cf.br"(%c0) [^0] : (i32) -> ()
+    // CHECK-NEXT:      cf.br ^0(%c0 : i32)
     // CHECK-NEXT:    ^0(%0 : i32):
     // CHECK-NEXT:      %1 = "test.op"(%{{.*}}, %{{.*}}) : (i64, i64) -> i64
     // CHECK-NEXT:      func.return %1 : i64

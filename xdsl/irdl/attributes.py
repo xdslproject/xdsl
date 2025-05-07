@@ -11,9 +11,11 @@ from dataclasses import dataclass
 from inspect import isclass
 from types import FunctionType, GenericAlias, UnionType
 from typing import (
+    TYPE_CHECKING,
     Annotated,
     Any,
     Generic,
+    TypeAlias,
     TypeVar,
     Union,
     cast,
@@ -22,10 +24,14 @@ from typing import (
     get_type_hints,
 )
 
+if TYPE_CHECKING:
+    from typing_extensions import TypeForm
+
+
 from xdsl.ir import (
     Attribute,
-    AttributeCovT,
     AttributeInvT,
+    BuiltinAttribute,
     Data,
     ParametrizedAttribute,
     TypedAttribute,
@@ -34,7 +40,6 @@ from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
-    get_type_var_mapping,
 )
 from xdsl.utils.runtime_final import runtime_final
 
@@ -81,6 +86,32 @@ class GenericData(Data[_DataElement], ABC):
 _A = TypeVar("_A", bound=Attribute)
 
 ParameterDef = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
+
+
+def check_attr_name(cls: type):
+    """Check that the attribute class has a correct name."""
+    name = None
+    for base in cls.mro():
+        if "name" in base.__dict__:
+            name = base.__dict__["name"]
+            break
+
+    if not isinstance(name, str):
+        raise PyRDLAttrDefinitionError(
+            f"pyrdl attribute definition '{cls.__name__}' does not "
+            "define the attribute name. The attribute name is defined by "
+            "adding a 'name' field with a string value."
+        )
+
+    dialect_attr_name = name.split(".")
+    if len(dialect_attr_name) >= 2:
+        return
+
+    if not issubclass(cls, BuiltinAttribute):
+        raise PyRDLAttrDefinitionError(
+            f"Name '{name}' is not a valid attribute name. It should be of the form "
+            "'<dialect>.<name>'."
+        )
 
 
 def irdl_param_attr_get_param_type_hints(cls: type[_A]) -> list[tuple[str, Any]]:
@@ -160,25 +191,6 @@ class ParamAttrDef:
         name = clsdict["name"]
 
         param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
-        if issubclass(pyrdl_def, TypedAttribute):
-            pyrdl_def = cast(type[TypedAttribute[Attribute]], pyrdl_def)
-            try:
-                param_names = [name for name, _ in param_hints]
-                type_index = param_names.index("type")
-            except ValueError:
-                raise PyRDLAttrDefinitionError(
-                    f"TypedAttribute {pyrdl_def.__name__} should have a 'type' parameter."
-                )
-            typed_hint = param_hints[type_index][1]
-            if get_origin(typed_hint) is Annotated:
-                typed_hint = get_args(typed_hint)[0]
-            type_var = get_type_var_mapping(pyrdl_def)[1][AttributeCovT]
-
-            if typed_hint != type_var:
-                raise ValueError(
-                    "A TypedAttribute `type` parameter must be of the same type"
-                    " as the type variable in the TypedAttribute base class."
-                )
 
         parameters = list[tuple[str, AttrConstraint]]()
         for param_name, param_type in param_hints:
@@ -201,7 +213,7 @@ class ParamAttrDef:
             param_def.verify(param, constraint_context)
 
 
-_PAttrT = TypeVar("_PAttrT", bound=ParametrizedAttribute)
+_PAttrTT = TypeVar("_PAttrTT", bound=type[ParametrizedAttribute])
 
 
 def get_accessors_from_param_attr_def(attr_def: ParamAttrDef):
@@ -219,30 +231,42 @@ def get_accessors_from_param_attr_def(attr_def: ParamAttrDef):
         new_fields[param_name] = param_name_field(idx)
 
     @classmethod
-    def get_irdl_definition(cls: type[_PAttrT]):
+    def get_irdl_definition(cls: type[ParametrizedAttribute]):
         return attr_def
 
     new_fields["get_irdl_definition"] = get_irdl_definition
     return new_fields
 
 
-def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
+def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
     """Decorator used on classes to define a new attribute definition."""
 
     attr_def = ParamAttrDef.from_pyrdl(cls)
     new_fields = get_accessors_from_param_attr_def(attr_def)
 
     if issubclass(cls, TypedAttribute):
-        parameter_names: tuple[str] = tuple(zip(*attr_def.parameters))[0]
-        type_index = parameter_names.index("type")
-        new_fields["get_type_index"] = lambda: type_index
+        type_indexes = tuple(
+            i for i, (p, _) in enumerate(attr_def.parameters) if p == "type"
+        )
+        if not type_indexes:
+            raise PyRDLAttrDefinitionError(
+                f"TypedAttribute {cls.__name__} should have a 'type' parameter."
+            )
+        type_index = type_indexes[0]
 
-    cls = cast(type[_PAttrT], cls)
+        @classmethod
+        def get_type_index(cls: Any) -> int:
+            return type_index
+
+        new_fields["get_type_index"] = get_type_index
 
     return runtime_final(
         dataclass(frozen=True, init=False)(
             type.__new__(
-                type(cls), cls.__name__, (cls,), {**cls.__dict__, **new_fields}
+                type(cls),
+                cls.__name__,
+                (cls,),
+                {**cls.__dict__, **new_fields},
             )
         )
     )
@@ -252,6 +276,7 @@ TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
 
 
 def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
+    check_attr_name(cls)
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
@@ -265,8 +290,30 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     )
 
 
+IRDLGenericAttrConstraint: TypeAlias = (
+    GenericAttrConstraint[AttributeInvT]
+    | Attribute
+    | type[AttributeInvT]
+    | "TypeForm[AttributeInvT]"
+    | ConstraintVar
+    | TypeVar
+)
+"""
+Attribute constraints represented using the IRDL python frontend. Attribute constraints
+can either be:
+- An instance of `AttrConstraint` representing a constraint on an attribute.
+- An instance of `Attribute` representing an equality constraint on an attribute.
+- A type representing a specific attribute class.
+- A TypeForm that can represent both unions and generic attributes.
+- A `ConstraintVar` representing a constraint variable.
+"""
+
+IRDLAttrConstraint = IRDLGenericAttrConstraint[Attribute]
+"""See `IRDLGenericAttrConstraint`."""
+
+
 def irdl_list_to_attr_constraint(
-    pyrdl_constraints: Sequence[Any],
+    pyrdl_constraints: Sequence[IRDLAttrConstraint],
     *,
     allow_type_var: bool = False,
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
@@ -308,7 +355,7 @@ def irdl_list_to_attr_constraint(
 
 
 def irdl_to_attr_constraint(
-    irdl: Any,
+    irdl: IRDLAttrConstraint,
     *,
     allow_type_var: bool = False,
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
@@ -353,7 +400,7 @@ def irdl_to_attr_constraint(
             if irdl in type_var_mapping:
                 return type_var_mapping[irdl]
         if irdl.__bound__ is None:
-            raise Exception("Type variables used in IRDL are expected to" " be bound.")
+            raise Exception("Type variables used in IRDL are expected to be bound.")
         # We do not allow nested type variables.
         return irdl_to_attr_constraint(irdl.__bound__)
 

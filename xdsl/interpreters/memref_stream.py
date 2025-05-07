@@ -15,7 +15,7 @@ from xdsl.interpreters.shaped_array import ShapedArray
 
 
 @register_impls
-class MemrefStreamFunctions(InterpreterFunctions):
+class MemRefStreamFunctions(InterpreterFunctions):
     @impl(memref_stream.GenericOp)
     def run_generic(
         self,
@@ -23,7 +23,6 @@ class MemrefStreamFunctions(InterpreterFunctions):
         op: memref_stream.GenericOp,
         args: tuple[Any, ...],
     ) -> PythonValues:
-
         if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
             raise NotImplementedError(
                 "Interpreter for interleaved operations not yet implemented"

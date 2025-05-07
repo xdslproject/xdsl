@@ -15,12 +15,12 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
-from xdsl.interpreters.memref_stream import MemrefStreamFunctions
-from xdsl.interpreters.ptr import TypedPtr
+from xdsl.interpreters.memref_stream import MemRefStreamFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
 from xdsl.ir.affine import AffineExpr, AffineMap
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 indextype = IndexType()
 
@@ -31,15 +31,15 @@ def index(value: int) -> IntegerAttr[IndexType]:
 
 def test_memref_stream_generic():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(i32, [2, 3])),
-            TestSSAValue(MemRefType(i32, [3, 2])),
+            create_ssa_value(MemRefType(i32, [2, 3])),
+            create_ssa_value(MemRefType(i32, [3, 2])),
         ),
-        (TestSSAValue(MemRefType(i32, [1, 6])),),
+        (create_ssa_value(MemRefType(i32, [1, 6])),),
         (),
         Region(Block(arg_types=(i32, i32, i32))),
         ArrayAttr(
@@ -69,7 +69,7 @@ def test_memref_stream_generic():
     )
 
     with ImplicitBuilder(op.body) as (a, b, _c_init):
-        c = arith.Muli(a, b).result
+        c = arith.MuliOp(a, b).result
         memref_stream.YieldOp(c)
 
     op.verify()
@@ -85,15 +85,15 @@ def test_memref_stream_generic():
 
 def test_memref_stream_generic_scalar():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(i32, [2, 3])),
-            TestSSAValue(i32),
+            create_ssa_value(MemRefType(i32, [2, 3])),
+            create_ssa_value(i32),
         ),
-        (TestSSAValue(MemRefType(i32, [1, 6])),),
+        (create_ssa_value(MemRefType(i32, [1, 6])),),
         (),
         Region(Block(arg_types=(i32, i32, i32))),
         ArrayAttr(
@@ -123,7 +123,7 @@ def test_memref_stream_generic_scalar():
     )
 
     with ImplicitBuilder(op.body) as (a, b, _c_init):
-        c = arith.Muli(a, b).result
+        c = arith.MuliOp(a, b).result
         memref_stream.YieldOp(c)
 
     op.verify()
@@ -139,15 +139,15 @@ def test_memref_stream_generic_scalar():
 
 def test_memref_stream_generic_reduction():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(i32, [3])),
-            TestSSAValue(MemRefType(i32, [3])),
+            create_ssa_value(MemRefType(i32, [3])),
+            create_ssa_value(MemRefType(i32, [3])),
         ),
-        (TestSSAValue(MemRefType(i32, [])),),
+        (create_ssa_value(MemRefType(i32, [])),),
         (),
         Region(Block(arg_types=(i32, i32, i32))),
         ArrayAttr(
@@ -163,8 +163,8 @@ def test_memref_stream_generic_reduction():
     )
 
     with ImplicitBuilder(op.body) as (lhs, rhs, acc):
-        sum = arith.Muli(lhs, rhs).result
-        new_acc = arith.Addi(sum, acc).result
+        sum = arith.MuliOp(lhs, rhs).result
+        new_acc = arith.AddiOp(sum, acc).result
         memref_stream.YieldOp(new_acc)
 
     op.verify()
@@ -180,17 +180,17 @@ def test_memref_stream_generic_reduction():
 
 def test_memref_stream_generic_imperfect_nesting():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     f32 = Float32Type()
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(f32, [3, 2])),
-            TestSSAValue(MemRefType(f32, [2, 3])),
+            create_ssa_value(MemRefType(f32, [3, 2])),
+            create_ssa_value(MemRefType(f32, [2, 3])),
         ),
-        (TestSSAValue(MemRefType(f32, [3, 3])),),
+        (create_ssa_value(MemRefType(f32, [3, 3])),),
         (),
         Region(Block(arg_types=(f32, f32, f32))),
         ArrayAttr(
@@ -212,8 +212,8 @@ def test_memref_stream_generic_imperfect_nesting():
     )
 
     with ImplicitBuilder(op.body) as (lhs, rhs, acc):
-        sum = arith.Mulf(lhs, rhs).result
-        new_acc = arith.Addf(sum, acc).result
+        sum = arith.MulfOp(lhs, rhs).result
+        new_acc = arith.AddfOp(sum, acc).result
         memref_stream.YieldOp(new_acc)
 
     op.verify()
@@ -231,18 +231,18 @@ def test_memref_stream_generic_imperfect_nesting():
 
 def test_memref_stream_generic_reduction_with_initial_value():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     f32 = Float32Type()
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(f32, [3, 2])),
-            TestSSAValue(MemRefType(f32, [2, 3])),
+            create_ssa_value(MemRefType(f32, [3, 2])),
+            create_ssa_value(MemRefType(f32, [2, 3])),
         ),
-        (TestSSAValue(MemRefType(f32, [3, 3])),),
-        (TestSSAValue(f32),),
+        (create_ssa_value(MemRefType(f32, [3, 3])),),
+        (create_ssa_value(f32),),
         Region(Block(arg_types=(f32, f32, f32))),
         ArrayAttr(
             (
@@ -263,8 +263,8 @@ def test_memref_stream_generic_reduction_with_initial_value():
     )
 
     with ImplicitBuilder(op.body) as (lhs, rhs, acc):
-        sum = arith.Mulf(lhs, rhs).result
-        new_acc = arith.Addf(sum, acc).result
+        sum = arith.MulfOp(lhs, rhs).result
+        new_acc = arith.AddfOp(sum, acc).result
         memref_stream.YieldOp(new_acc)
 
     op.verify()
@@ -282,18 +282,18 @@ def test_memref_stream_generic_reduction_with_initial_value():
 
 def test_memref_stream_interleaved_reduction_with_initial_value():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     f32 = Float32Type()
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(f32, [3, 5])),
-            TestSSAValue(MemRefType(f32, [5, 8])),
+            create_ssa_value(MemRefType(f32, [3, 5])),
+            create_ssa_value(MemRefType(f32, [5, 8])),
         ),
-        (TestSSAValue(MemRefType(f32, [3, 8])),),
-        (TestSSAValue(f32),),
+        (create_ssa_value(MemRefType(f32, [3, 8])),),
+        (create_ssa_value(f32),),
         Region(
             Block(
                 arg_types=(f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32)
@@ -334,14 +334,14 @@ def test_memref_stream_interleaved_reduction_with_initial_value():
         acc2,
         acc3,
     ):
-        sum0 = arith.Mulf(lhs0, rhs0).result
-        sum1 = arith.Mulf(lhs1, rhs1).result
-        sum2 = arith.Mulf(lhs2, rhs2).result
-        sum3 = arith.Mulf(lhs3, rhs3).result
-        new_acc0 = arith.Addf(sum0, acc0).result
-        new_acc1 = arith.Addf(sum1, acc1).result
-        new_acc2 = arith.Addf(sum2, acc2).result
-        new_acc3 = arith.Addf(sum3, acc3).result
+        sum0 = arith.MulfOp(lhs0, rhs0).result
+        sum1 = arith.MulfOp(lhs1, rhs1).result
+        sum2 = arith.MulfOp(lhs2, rhs2).result
+        sum3 = arith.MulfOp(lhs3, rhs3).result
+        new_acc0 = arith.AddfOp(sum0, acc0).result
+        new_acc1 = arith.AddfOp(sum1, acc1).result
+        new_acc2 = arith.AddfOp(sum2, acc2).result
+        new_acc3 = arith.AddfOp(sum3, acc3).result
         memref_stream.YieldOp(new_acc0, new_acc1, new_acc2, new_acc3)
 
     op.verify()

@@ -4,7 +4,7 @@ from typing import Literal
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.passes import ModulePass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
@@ -28,7 +28,7 @@ class CustomPass(ModulePass):
 
     optional_bool: bool = False
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
@@ -36,7 +36,7 @@ class CustomPass(ModulePass):
 class EmptyPass(ModulePass):
     name = "empty"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
@@ -47,7 +47,7 @@ class SimplePass(ModulePass):
     a: int | float
     b: int | None
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
@@ -78,7 +78,7 @@ def test_pass_instantiation():
 
 @pytest.mark.parametrize(
     "spec, error_msg",
-    (
+    [
         (PipelinePassSpec("wrong", {"a": (1,)}), "Cannot create Pass simple"),
         (PipelinePassSpec("simple", {}), 'requires argument "a"'),
         (
@@ -91,7 +91,7 @@ def test_pass_instantiation():
             PipelinePassSpec("simple", {"a": ("test",), "literal": ("definitely",)}),
             "Incompatible types",
         ),
-    ),
+    ],
 )
 def test_pass_instantiation_error(spec: PipelinePassSpec, error_msg: str):
     """

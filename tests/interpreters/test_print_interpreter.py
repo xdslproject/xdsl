@@ -40,8 +40,8 @@ def test_print_format():
     @ModuleOp
     @Builder.implicit_region
     def hello():
-        one = arith.Constant.from_int_and_width(1, 32).result
-        two = arith.Constant.from_int_and_width(2, 32).result
+        one = arith.ConstantOp.from_int_and_width(1, 32).result
+        two = arith.ConstantOp.from_int_and_width(2, 32).result
         PrintFormatOp("{} {} {}", one, one, two)
 
     assert _print(hello) == "1 1 2\n"

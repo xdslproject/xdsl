@@ -38,3 +38,60 @@ builtin.module {
 
 // CHECK:       Operation does not verify: Unexpected nested symbols in FlatSymbolRefAttr
 // CHECK-NEXT:  Underlying verification failure: expected empty array, but got ["invalid"]
+
+// -----
+
+func.func @bar() {
+    %1 = "test.op"() : () -> !test.type<"int">
+    %2 = func.call @foo(%1) : (!test.type<"int">) -> !test.type<"int">
+    func.return
+}
+
+// CHECK: '@foo' could not be found in symbol table
+
+// -----
+
+func.func @foo(%0 : !test.type<"int">) -> !test.type<"int">
+
+func.func @bar() {
+    %1 = func.call @foo() : () -> !test.type<"int">
+    func.return
+}
+
+// CHECK: incorrect number of operands for callee
+
+// -----
+
+func.func @foo(%0 : !test.type<"int">)
+
+func.func @bar() {
+    %1 = "test.op"() : () -> !test.type<"int">
+    %2 = func.call @foo(%1) : (!test.type<"int">) -> !test.type<"int">
+    func.return
+}
+
+// CHECK: incorrect number of results for callee
+
+// -----
+
+func.func @foo(%0 : !test.type<"int">) -> !test.type<"int">
+
+func.func @bar() {
+  %1 = "test.op"() : () -> !test.type<"foo">
+  %2 = func.call @foo(%1) : (!test.type<"foo">) -> !test.type<"int">
+  func.return
+}
+
+// CHECK: operand type mismatch: expected operand type !test.type<"int">, but provided !test.type<"foo"> for operand number 0
+
+// -----
+
+func.func @foo(%0 : !test.type<"int">) -> !test.type<"int">
+
+func.func @bar() {
+    %1 = "test.op"() : () -> !test.type<"int">
+    %2 = func.call @foo(%1) : (!test.type<"int">) -> !test.type<"foo">
+    func.return
+}
+
+// CHECK: result type mismatch: expected result type !test.type<"int">, but provided !test.type<"foo"> for result number 0

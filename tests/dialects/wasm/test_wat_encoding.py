@@ -2,6 +2,6 @@ from xdsl.dialects import wasm
 
 
 def test_empty_module():
-    module = wasm.WasmModule()
+    module = wasm.WasmModuleOp()
 
     assert module.wat() == "(module)"

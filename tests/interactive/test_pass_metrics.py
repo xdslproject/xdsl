@@ -1,5 +1,5 @@
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, func, get_all_dialects
 from xdsl.dialects.builtin import (
     IndexType,
@@ -21,12 +21,12 @@ def test_operation_counter():
     with ImplicitBuilder(module.body):
         function = func.FuncOp("hello", ((index,), (index,)))
         with ImplicitBuilder(function.body) as (n,):
-            two = arith.Constant(IntegerAttr(2, index)).result
-            three = arith.Constant(IntegerAttr(2, index)).result
-            res_1 = arith.Muli(n, two)
-            res_2 = arith.Muli(n, three)
-            res = arith.Muli(res_1, res_2)
-            func.Return(res)
+            two = arith.ConstantOp(IntegerAttr(2, index)).result
+            three = arith.ConstantOp(IntegerAttr(2, index)).result
+            res_1 = arith.MuliOp(n, two)
+            res_2 = arith.MuliOp(n, three)
+            res = arith.MuliOp(res_1, res_2)
+            func.ReturnOp(res)
 
     expected_res = {
         "func.func": 1,
@@ -50,7 +50,7 @@ def test_operation_counter_with_parsing_text():
 }
 """
 
-    ctx = MLContext(True)
+    ctx = Context(True)
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
     parser = Parser(ctx, text)
@@ -79,7 +79,7 @@ def test_get_diff_operation_count():
 }
 """
 
-    ctx = MLContext(True)
+    ctx = Context(True)
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
     parser = Parser(ctx, input_text)

@@ -1,36 +1,32 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import cast
+from collections.abc import Generator, Sequence
 
+from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
+    I8,
     FunctionType,
     IntegerAttr,
     IntegerType,
     StringAttr,
     SymbolRefAttr,
+    i8,
 )
 from xdsl.dialects.utils import (
-    parse_call_op_like,
     parse_func_op_like,
-    parse_return_op_like,
-    print_call_op_like,
     print_func_op_like,
-    print_return_op_like,
 )
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
-    OptOpResult,
-    VarOperand,
-    VarOpResult,
     attr_def,
     irdl_op_definition,
     opt_attr_def,
     opt_result_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -43,19 +39,19 @@ from xdsl.traits import (
     IsTerminator,
     SymbolOpInterface,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args: VarOperand = var_operand_def(riscv.IntRegisterType)
-    syscall_num: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
-    result: OptOpResult = opt_result_def(riscv.IntRegisterType)
+    args = var_operand_def(riscv.IntRegisterType)
+    syscall_num = attr_def(IntegerAttr[IntegerType])
+    result = opt_result_def(riscv.IntRegisterType)
 
     def __init__(
         self,
-        num: int | AnyIntegerAttr,
+        num: int | IntegerAttr,
         has_result: bool = False,
         operands: list[SSAValue | Operation] = [],
     ):
@@ -64,7 +60,7 @@ class SyscallOp(IRDLOperation):
         super().__init__(
             operands=[operands],
             attributes={"syscall_num": num},
-            result_types=[riscv.IntRegisterType.unallocated() if has_result else None],
+            result_types=[riscv.Registers.UNALLOCATED_INT if has_result else None],
         )
 
     def verify_(self):
@@ -83,9 +79,13 @@ class CallOp(riscv.RISCVInstruction):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args: VarOperand = var_operand_def(riscv.RISCVRegisterType)
-    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
-    ress: VarOpResult = var_result_def(riscv.RISCVRegisterType)
+    args = var_operand_def(riscv.RISCVRegisterType)
+    callee = attr_def(SymbolRefAttr)
+    ress = var_result_def(riscv.RISCVRegisterType)
+
+    assembly_format = (
+        "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
+    )
 
     def __init__(
         self,
@@ -114,32 +114,20 @@ class CallOp(riscv.RISCVInstruction):
                 f"Function op has too many results ({len(self.results)}), expected fewer than 3"
             )
 
-    def print(self, printer: Printer):
-        print_call_op_like(
-            printer,
-            self,
-            self.callee,
-            self.args,
-            self.attributes,
-            reserved_attr_names=("callee",),
-        )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> CallOp:
-        callee, arguments, results, extra_attributes = parse_call_op_like(
-            parser, reserved_attr_names=("callee",)
-        )
-        ress = cast(tuple[riscv.RISCVRegisterType, ...], results)
-        call = CallOp(callee, arguments, ress)
-        if extra_attributes is not None:
-            call.attributes |= extra_attributes.data
-        return call
-
     def assembly_instruction_name(self) -> str:
         return "jal"
 
     def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
         return (self.callee.string_value(),)
+
+    def iter_used_registers(self) -> Generator[RegisterType, None, None]:
+        # These registers are not guaranteed to hold the same values when the callee
+        # returns, according to the RISC-V calling convention.
+        # https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf
+        yield from riscv.Registers.A
+        yield from riscv.Registers.T
+        yield from riscv.Registers.FA
+        yield from riscv.Registers.FT
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -160,21 +148,20 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(riscv.RISCVAsmOperation):
+class FuncOp(IRDLOperation, AssemblyPrintable):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    sym_name: StringAttr = attr_def(StringAttr)
-    body: Region = region_def()
-    function_type: FunctionType = attr_def(FunctionType)
-    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
+    sym_name = attr_def(StringAttr)
+    body = region_def()
+    function_type = attr_def(FunctionType)
+    sym_visibility = opt_attr_def(StringAttr)
+    p2align = opt_attr_def(IntegerAttr[I8])
 
-    traits = frozenset(
-        [
-            SymbolOpInterface(),
-            FuncOpCallableInterface(),
-            IsolatedFromAbove(),
-        ]
+    traits = traits_def(
+        SymbolOpInterface(),
+        FuncOpCallableInterface(),
+        IsolatedFromAbove(),
     )
 
     def __init__(
@@ -183,16 +170,20 @@ class FuncOp(riscv.RISCVAsmOperation):
         region: Region,
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
         visibility: StringAttr | str | None = None,
+        p2align: int | IntegerAttr[I8] | None = None,
     ):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
         if isinstance(visibility, str):
             visibility = StringAttr(visibility)
+        if isinstance(p2align, int):
+            p2align = IntegerAttr(p2align, i8)
         attributes: dict[str, Attribute | None] = {
             "sym_name": StringAttr(name),
             "function_type": function_type,
             "sym_visibility": visibility,
+            "p2align": p2align,
         }
 
         super().__init__(attributes=attributes, regions=[region])
@@ -200,18 +191,16 @@ class FuncOp(riscv.RISCVAsmOperation):
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         visibility = parser.parse_optional_visibility_keyword()
-        (
-            name,
-            input_types,
-            return_types,
-            region,
-            extra_attrs,
-            arg_attrs,
-        ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
+        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
+            parse_func_op_like(
+                parser,
+                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+            )
         )
         if arg_attrs:
             raise NotImplementedError("arg_attrs not implemented in riscv_func")
+        if res_attrs:
+            raise NotImplementedError("res_attrs not implemented in riscv_func")
         func = FuncOp(name, region, (input_types, return_types), visibility)
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
@@ -231,11 +220,27 @@ class FuncOp(riscv.RISCVAsmOperation):
             reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
 
-    def assembly_line(self) -> str | None:
-        if self.body.blocks:
-            return f"{self.sym_name.data}:"
-        else:
-            return None
+    def print_assembly(self, printer: AssemblyPrinter) -> None:
+        if not self.body.blocks:
+            # Print nothing for function declaration
+            return
+
+        printer.emit_section(".text")
+
+        if self.sym_visibility is not None:
+            match self.sym_visibility.data:
+                case "public":
+                    printer.print_string(f".globl {self.sym_name.data}\n", indent=0)
+                case "private":
+                    printer.print_string(f".local {self.sym_name.data}\n", indent=0)
+                case _:
+                    raise DiagnosticException(
+                        f"Unexpected visibility {self.sym_visibility.data} for function {self.sym_name}"
+                    )
+
+        if self.p2align is not None:
+            printer.print_string(f".p2align {self.p2align.value.data}\n", indent=0)
+        printer.print_string(f"{self.sym_name.data}:\n")
 
 
 @irdl_op_definition
@@ -243,10 +248,12 @@ class ReturnOp(riscv.RISCVInstruction):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values: VarOperand = var_operand_def(riscv.RISCVRegisterType)
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    values = var_operand_def(riscv.RISCVRegisterType)
+    comment = opt_attr_def(StringAttr)
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = traits_def(IsTerminator(), HasParent(FuncOp))
+
+    assembly_format = "attr-dict ($values^ `:` type($values))?"
 
     def __init__(
         self,
@@ -267,16 +274,6 @@ class ReturnOp(riscv.RISCVInstruction):
             raise VerifyException(
                 f"Function op has too many results ({len(self.results)}), expected fewer than 3"
             )
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.values)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ReturnOp:
-        attrs, args = parse_return_op_like(parser)
-        op = ReturnOp(*args)
-        op.attributes.update(attrs)
-        return op
 
     def assembly_instruction_name(self) -> str:
         return "ret"
