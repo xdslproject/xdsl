@@ -12,8 +12,15 @@ Current deviations:
  conflict.
 """
 
-from xdsl.dialects.builtin import AnyAttr, IntegerAttrTypeConstr, MemRefType, UnitAttr
-from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
+from xdsl.dialects.builtin import (
+    AnyAttr,
+    IndexType,
+    IntegerAttrTypeConstr,
+    IntegerType,
+    MemRefType,
+    UnitAttr,
+)
+from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -32,6 +39,9 @@ from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 class PtrType(ParametrizedAttribute, TypeAttribute):
     name = "ptr_xdsl.ptr"
 
+    def __init__(self):
+        super().__init__()
+
 
 @irdl_op_definition
 class PtrAddOp(IRDLOperation):
@@ -43,6 +53,9 @@ class PtrAddOp(IRDLOperation):
 
     assembly_format = "$addr `,` $offset attr-dict `:` `(` type($addr) `,` type($offset) `)` `->` type($result)"
 
+    def __init__(self, addr: SSAValue, offset: SSAValue):
+        super().__init__(operands=(addr, offset), result_types=(PtrType(),))
+
 
 # haven't managed to pass a type here yet. so did it with a hack.
 @irdl_op_definition
@@ -53,6 +66,9 @@ class TypeOffsetOp(IRDLOperation):
     offset = result_def(IntegerAttrTypeConstr)
 
     assembly_format = "$elem_type attr-dict `:` type($offset)"
+
+    def __init__(self, elem_type: Attribute, offset: IndexType | IntegerType):
+        super().__init__(properties={"elem_type": elem_type}, result_types=(offset,))
 
 
 @irdl_op_definition
@@ -68,6 +84,24 @@ class StoreOp(IRDLOperation):
 
     assembly_format = "(`volatile` $volatile^)? $value `,` $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? attr-dict `:` type($value) `,` type($addr)"  # noqa: E501
 
+    def __init__(
+        self,
+        addr: SSAValue,
+        value: SSAValue,
+        *,
+        volatile: bool = False,
+        syncscope: bool = False,
+        ordering: bool = False,
+    ):
+        super().__init__(
+            operands=(addr, value),
+            properties={
+                "volatile": UnitAttr() if volatile else None,
+                "syncscope": UnitAttr() if syncscope else None,
+                "ordering": UnitAttr() if ordering else None,
+            },
+        )
+
 
 @irdl_op_definition
 class LoadOp(IRDLOperation):
@@ -82,6 +116,27 @@ class LoadOp(IRDLOperation):
     invariant = opt_prop_def(UnitAttr)
 
     assembly_format = "(`volatile` $volatile^)? $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? (`invariant` $invariant^)? attr-dict `:` type($addr) `->` type($res)"  # noqa: E501
+
+    def __init__(
+        self,
+        addr: SSAValue,
+        result_type: Attribute,
+        *,
+        volatile: bool = False,
+        syncscope: bool = False,
+        ordering: bool = False,
+        invariant: bool = False,
+    ):
+        super().__init__(
+            operands=(addr,),
+            result_types=(result_type,),
+            properties={
+                "volatile": UnitAttr() if volatile else None,
+                "syncscope": UnitAttr() if syncscope else None,
+                "ordering": UnitAttr() if ordering else None,
+                "invariant": UnitAttr() if invariant else None,
+            },
+        )
 
 
 class ToPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -103,6 +158,9 @@ class ToPtrOp(IRDLOperation):
 
     traits = traits_def(Pure(), ToPtrOpHasCanonicalizationPatternsTrait())
 
+    def __init__(self, source: SSAValue):
+        super().__init__(operands=(source,), result_types=(PtrType(),))
+
 
 class FromPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
@@ -122,6 +180,9 @@ class FromPtrOp(IRDLOperation):
     assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
 
     traits = traits_def(Pure(), FromPtrOpHasCanonicalizationPatternsTrait())
+
+    def __init__(self, source: SSAValue, result_type: MemRefType):
+        super().__init__(operands=(source,), result_types=(result_type,))
 
 
 Ptr = Dialect(
