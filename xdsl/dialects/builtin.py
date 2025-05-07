@@ -2113,11 +2113,12 @@ RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]
 )
 
-AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
+AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
+AnyDenseElementMinusComplex: TypeAlias = IntegerType | IndexType | AnyFloat
 DenseElementCovT = TypeVar(
     "DenseElementCovT",
-    bound=AnyDenseElement | ComplexType,
-    default=AnyDenseElement | ComplexType,
+    bound=AnyDenseElement,
+    default=AnyDenseElement,
     covariant=True,
 )
 
@@ -2279,7 +2280,7 @@ class DenseIntOrFPElementsAttr(
             new_data = cast(Sequence[complex], data)
             return DenseIntOrFPElementsAttr.create_dense_complex(new_type, new_data)
 
-        assert isa(type.element_type, AnyDenseElement)
+        assert isa(type.element_type, AnyDenseElementMinusComplex)
         # zero rank type should only hold 1 value
         if not type.get_shape() and len(data) != 1:
             raise ValueError(
@@ -2312,7 +2313,7 @@ class DenseIntOrFPElementsAttr(
     @staticmethod
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
-        data_type: IntegerType | IndexType | AnyFloat,
+        data_type: AnyDenseElementMinusComplex,
         shape: Sequence[int] | None = None,
     ) -> DenseIntOrFPElementsAttr:
         if not shape:
@@ -2381,9 +2382,7 @@ class DenseIntOrFPElementsAttr(
 
     @staticmethod
     def parse_with_type(parser: AttrParser, type: Attribute) -> TypedAttribute:
-        assert isa(
-            type, RankedStructure[AnyDenseElement] | RankedStructure[ComplexType]
-        )
+        assert isa(type, RankedStructure[AnyDenseElement])
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
     def _print_one_elem(self, val: int | float | complex, printer: Printer):
