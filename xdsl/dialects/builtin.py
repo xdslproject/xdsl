@@ -2273,11 +2273,6 @@ class DenseIntOrFPElementsAttr(
         | Sequence[IntegerAttr]
         | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr:
-        if isinstance(type.element_type, ComplexType):
-            new_type = cast(RankedStructure[ComplexType], type)
-            new_data = cast(Sequence[complex], data)
-            return DenseIntOrFPElementsAttr.create_dense_complex(new_type, new_data)
-
         # zero rank type should only hold 1 value
         if not type.get_shape() and len(data) != 1:
             raise ValueError(
@@ -2302,10 +2297,14 @@ class DenseIntOrFPElementsAttr(
                 Sequence[int] | Sequence[IntegerAttr[IntegerType]], new_data
             )
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
-        else:
+        elif isinstance(type.element_type, IndexType):
             new_type = cast(RankedStructure[IndexType], type)
             new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], new_data)
             return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
+        else:
+            new_type = cast(RankedStructure[ComplexType], type)
+            new_data = cast(Sequence[complex], data)
+            return DenseIntOrFPElementsAttr.create_dense_complex(new_type, new_data)
 
     @overload
     @staticmethod
