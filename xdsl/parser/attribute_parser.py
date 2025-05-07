@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal, NoReturn, Sequence, cast
+from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
 from xdsl.context import Context
