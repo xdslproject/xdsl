@@ -723,6 +723,7 @@ class AttrParser(BaseParser):
         | RankedStructure[IndexType]
         | RankedStructure[AnyFloat]
         | RankedStructure[ComplexType]
+        | RankedStructure[AnyDenseElement]
     ):
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
@@ -731,7 +732,8 @@ class AttrParser(BaseParser):
             base(RankedStructure[IntegerType])
             | base(RankedStructure[IndexType])
             | base(RankedStructure[AnyFloat])
-            | base(RankedStructure[ComplexType]),
+            | base(RankedStructure[ComplexType])
+            | base(RankedStructure[AnyDenseElement]),
         ):
             self.raise_error(
                 "Expected memref, vector or tensor type of "
@@ -744,7 +746,8 @@ class AttrParser(BaseParser):
         return type
 
     def parse_dense_int_or_fp_elements_attr(
-        self, type: RankedStructure[AnyDenseElement] | RankedStructure[ComplexType] | None
+        self,
+        type: RankedStructure[AnyDenseElement] | RankedStructure[ComplexType] | None,
     ) -> DenseIntOrFPElementsAttr:
         dense_contents: (
             tuple[list[AttrParser._TensorLiteralElement], list[int]] | str | None
@@ -808,10 +811,11 @@ class AttrParser(BaseParser):
             # Tensor literal case
             dense_values, shape = dense_contents
             if isinstance(type.element_type, ComplexType):
-                raise NotImplementedError()
-            data_values = [
-                value.to_type(self, type.element_type) for value in dense_values
-            ]
+                data_values = [value.to_complex(self) for value in dense_values]
+            else:
+                data_values = [
+                    value.to_type(self, type.element_type) for value in dense_values
+                ]
             # Elements from _parse_tensor_literal need to be converted to values.
             if shape:
                 # Check that the shape matches the data when given a shaped data.

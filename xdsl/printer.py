@@ -340,6 +340,19 @@ class Printer(BasePrinter):
     def print_float_attr(self, attribute: FloatAttr):
         self.print_float(attribute.value.data, attribute.type)
 
+    def print_complex(self, value: complex, type: ComplexType):
+        self.print_string("(")
+        if isinstance(type.element_type, AnyFloat):
+            self.print_float(value.real, type.element_type)
+        else:
+            self.print_string(str(int(value.real)))
+        self.print_string(",")
+        if isinstance(type.element_type, AnyFloat):
+            self.print_float(value.imag, type.element_type)
+        else:
+            self.print_string(str(int(value.imag)))
+        self.print_string(")")
+
     def print_float(self, value: float, type: AnyFloat):
         if math.isnan(value) or math.isinf(value):
             if isinstance(type, Float16Type):
