@@ -4,7 +4,7 @@ import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Literal, NoReturn, cast
+from typing import Any, Literal, NoReturn, Sequence, cast
 
 import xdsl.parser as affine_parser
 from xdsl.context import Context
@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyDenseElement,
+    AnyDenseElementMinusComplex,
     AnyFloat,
     AnyFloatConstr,
     AnyTensorType,
@@ -64,6 +65,7 @@ from xdsl.utils.bitwise_casts import (
     convert_u64_to_f64,
 )
 from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 from xdsl.utils.lexer import Position, Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
@@ -807,15 +809,10 @@ class AttrParser(BaseParser):
                 )
             return attr
 
-        else:
-            # Tensor literal case
+        # Tensor literal complex case
+        elif isinstance(type.element_type, ComplexType):
             dense_values, shape = dense_contents
-            if isinstance(type.element_type, ComplexType):
-                data_values = [value.to_complex(self) for value in dense_values]
-            else:
-                data_values = [
-                    value.to_type(self, type.element_type) for value in dense_values
-                ]
+            data_values = [value.to_complex(self) for value in dense_values]
             # Elements from _parse_tensor_literal need to be converted to values.
             if shape:
                 # Check that the shape matches the data when given a shaped data.
@@ -829,6 +826,30 @@ class AttrParser(BaseParser):
                 assert len(data_values) == 1, "Fatal error in parser"
                 data_values *= type_num_values
 
+            assert isa(type, RankedStructure[ComplexType])
+            assert isa(data_values, Sequence[complex])
+            return DenseIntOrFPElementsAttr.from_list(type, data_values)
+
+        # Tensor literal case
+        else:
+            dense_values, shape = dense_contents
+            data_values = [
+                value.to_type(self, type.element_type) for value in dense_values
+            ]
+            # Elements from _parse_tensor_literal need to be converted to values.
+            if shape:
+                # Check that the shape matches the data when given a shaped data.
+                # For splat attributes any shape is fine
+                if type_shape != shape:
+                    self.raise_error(
+                        f"Shape mismatch in dense literal. Expected {type_shape} "
+                        f"shape from the type, but got {shape} shape."
+                    )
+            else:
+                assert len(data_values) == 1, "Fatal error in parser"
+                data_values *= type_num_values
+
+        assert isa(type, RankedStructure[AnyDenseElementMinusComplex])
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_dense_attr(self) -> DenseIntOrFPElementsAttr:
