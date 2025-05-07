@@ -85,9 +85,7 @@ def offset_calculations(
     ops.extend(
         [
             bytes_per_element_op := ptr.TypeOffsetOp(
-                operands=[],
-                result_types=[builtin.IndexType()],
-                properties={"elem_type": memref_type.element_type},
+                memref_type.element_type, builtin.IndexType()
             ),
             final_offset := arith.MuliOp(head, bytes_per_element_op),
         ]
@@ -106,22 +104,14 @@ def get_target_ptr(
 ) -> tuple[list[Operation], SSAValue]:
     """Get operations returning a pointer to an element of a memref referenced by indices."""
 
-    ops: list[Operation] = [
-        memref_ptr := ptr.ToPtrOp(
-            operands=[target_memref], result_types=[ptr.PtrType()]
-        )
-    ]
+    ops: list[Operation] = [memref_ptr := ptr.ToPtrOp(target_memref)]
 
     if not indices:
         return ops, memref_ptr.res
 
     offset_ops, offset = offset_calculations(memref_type, indices)
     ops = offset_ops + ops
-    ops.append(
-        target_ptr := ptr.PtrAddOp(
-            operands=[memref_ptr, offset], result_types=[ptr.PtrType()]
-        )
-    )
+    ops.append(target_ptr := ptr.PtrAddOp(memref_ptr.res, offset))
 
     target_ptr.result.name_hint = "offset_pointer"
     return ops, target_ptr.result
@@ -135,7 +125,7 @@ class ConvertStoreOp(RewritePattern):
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
         ops, target_ptr = get_target_ptr(op.memref, memref_type, op.indices)
-        ops.append(ptr.StoreOp(operands=[target_ptr, op.value]))
+        ops.append(ptr.StoreOp(target_ptr, op.value))
 
         rewriter.replace_matched_op(ops)
 
@@ -148,11 +138,7 @@ class ConvertLoadOp(RewritePattern):
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
         ops, target_ptr = get_target_ptr(op.memref, memref_type, op.indices)
-        ops.append(
-            load_result := ptr.LoadOp(
-                operands=[target_ptr], result_types=[memref_type.element_type]
-            )
-        )
+        ops.append(load_result := ptr.LoadOp(target_ptr, memref_type.element_type))
 
         rewriter.replace_matched_op(ops, new_results=[load_result.res])
 
