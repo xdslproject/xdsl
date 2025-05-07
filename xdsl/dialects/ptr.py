@@ -22,7 +22,10 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     result_def,
+    traits_def,
 )
+from xdsl.pattern_rewriter import RewritePattern
+from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 
 
 @irdl_attr_definition
@@ -81,6 +84,14 @@ class LoadOp(IRDLOperation):
     assembly_format = "(`volatile` $volatile^)? $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? (`invariant` $invariant^)? attr-dict `:` type($addr) `->` type($res)"  # noqa: E501
 
 
+class ToPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.ptr import RedundantToPtr
+
+        return (RedundantToPtr(),)
+
+
 @irdl_op_definition
 class ToPtrOp(IRDLOperation):
     name = "ptr_xdsl.to_ptr"
@@ -89,6 +100,16 @@ class ToPtrOp(IRDLOperation):
     res = result_def(PtrType)
 
     assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
+
+    traits = traits_def(Pure(), ToPtrOpHasCanonicalizationPatternsTrait())
+
+
+class FromPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.ptr import RedundantFromPtr
+
+        return (RedundantFromPtr(),)
 
 
 @irdl_op_definition
@@ -99,6 +120,8 @@ class FromPtrOp(IRDLOperation):
     res = result_def(MemRefType)
 
     assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
+
+    traits = traits_def(Pure(), FromPtrOpHasCanonicalizationPatternsTrait())
 
 
 Ptr = Dialect(
