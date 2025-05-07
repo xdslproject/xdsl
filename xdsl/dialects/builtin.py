@@ -2236,6 +2236,10 @@ class DenseIntOrFPElementsAttr(
         data: Sequence[int | float] | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr: ...
 
+    @overload
+    @staticmethod
+    def from_list(type: RankedStructure[ComplexType], data: Sequence[complex]) -> DenseIntOrFPElementsAttr: ...
+
     @staticmethod
     def from_list(
         type: (
@@ -2243,9 +2247,14 @@ class DenseIntOrFPElementsAttr(
             | RankedStructure[AnyFloat]
             | RankedStructure[IntegerType]
             | RankedStructure[IndexType]
+            | RankedStructure[ComplexType]
         ),
-        data: Sequence[int | float] | Sequence[IntegerAttr] | Sequence[FloatAttr],
+        data: Sequence[int | float] | Sequence[complex] | Sequence[IntegerAttr] | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr:
+        if isinstance(type.element_type, ComplexType):
+            raise NotImplementedError()
+
+        assert isa(type.element_type, AnyDenseElement)
         # zero rank type should only hold 1 value
         if not type.get_shape() and len(data) != 1:
             raise ValueError(

@@ -722,8 +722,7 @@ class AttrParser(BaseParser):
         RankedStructure[IntegerType]
         | RankedStructure[IndexType]
         | RankedStructure[AnyFloat]
-        # TODO: Enable when AnyDenseElement contains ComplexType
-        # | RankedStructure[ComplexType]
+        | RankedStructure[ComplexType]
     ):
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
@@ -731,9 +730,8 @@ class AttrParser(BaseParser):
             type,
             base(RankedStructure[IntegerType])
             | base(RankedStructure[IndexType])
-            | base(RankedStructure[AnyFloat]),
-            # TODO: Enable when AnyDenseElement contains ComplexType
-            # | base(RankedStructure[AnyFloat]),
+            | base(RankedStructure[AnyFloat])
+            | base(RankedStructure[ComplexType]),
         ):
             self.raise_error(
                 "Expected memref, vector or tensor type of "
@@ -746,7 +744,7 @@ class AttrParser(BaseParser):
         return type
 
     def parse_dense_int_or_fp_elements_attr(
-        self, type: RankedStructure[AnyDenseElement] | None
+        self, type: RankedStructure[AnyDenseElement] | RankedStructure[ComplexType] | None
     ) -> DenseIntOrFPElementsAttr:
         dense_contents: (
             tuple[list[AttrParser._TensorLiteralElement], list[int]] | str | None
