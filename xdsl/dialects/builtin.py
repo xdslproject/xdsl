@@ -1006,6 +1006,7 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
 
 @irdl_attr_definition
 class ComplexType(
+    Generic[AttributeCovT],
     StructPackableType[float | int],
     ParametrizedAttribute,
     BuiltinAttribute,
@@ -1014,8 +1015,8 @@ class ComplexType(
     name = "complex"
     element_type: ParameterDef[IntegerType | AnyFloat]
 
-    def __init__(self, element_type: IntegerType | AnyFloat) -> None:
-        ParametrizedAttribute.__init__(self, [element_type])
+    def __init__(self, element_type: IntegerType | AnyFloat):
+        super().__init__([element_type])
 
     @property
     def size(self) -> int:
