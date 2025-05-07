@@ -1035,7 +1035,6 @@ class ComplexType(
         return (values[0] for values in struct.iter_unpack(self.format, buffer))
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float | int, ...]:
-        assert num % 2 == 0
         fmt = self.format[0] + str(2 * num) + self.format[2:]
         return struct.unpack(fmt, buffer)
 
