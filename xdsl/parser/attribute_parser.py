@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
 
@@ -11,8 +11,6 @@ from xdsl.context import Context
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
-    AnyDenseElement,
-    AnyDenseElementMinusComplex,
     AnyFloat,
     AnyFloatConstr,
     AnyTensorType,
@@ -65,7 +63,6 @@ from xdsl.utils.bitwise_casts import (
     convert_u64_to_f64,
 )
 from xdsl.utils.exceptions import ParseError, VerifyException
-from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 from xdsl.utils.lexer import Position, Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
@@ -725,7 +722,6 @@ class AttrParser(BaseParser):
         | RankedStructure[IndexType]
         | RankedStructure[AnyFloat]
         | RankedStructure[ComplexType]
-        | RankedStructure[AnyDenseElement]
     ):
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
@@ -734,8 +730,7 @@ class AttrParser(BaseParser):
             base(RankedStructure[IntegerType])
             | base(RankedStructure[IndexType])
             | base(RankedStructure[AnyFloat])
-            | base(RankedStructure[ComplexType])
-            | base(RankedStructure[AnyDenseElement]),
+            | base(RankedStructure[ComplexType]),
         ):
             self.raise_error(
                 "Expected memref, vector or tensor type of "
@@ -749,7 +744,11 @@ class AttrParser(BaseParser):
 
     def parse_dense_int_or_fp_elements_attr(
         self,
-        type: RankedStructure[AnyDenseElement] | RankedStructure[ComplexType] | None,
+        type: RankedStructure[IntegerType]
+        | RankedStructure[IndexType]
+        | RankedStructure[AnyFloat]
+        | RankedStructure[ComplexType]
+        | None,
     ) -> DenseIntOrFPElementsAttr:
         dense_contents: (
             tuple[list[AttrParser._TensorLiteralElement], list[int]] | str | None
@@ -788,7 +787,8 @@ class AttrParser(BaseParser):
                 self.raise_error(
                     "Expected at least one element in the dense literal, but got None"
                 )
-            data_values = []
+            data_values: list[Any] = []
+            return DenseIntOrFPElementsAttr.from_list(type, data_values)
         elif isinstance(dense_contents, str):
             # Hex-encoded string case: convert straight to bytes (without the 0x prefix)
             try:
@@ -826,8 +826,6 @@ class AttrParser(BaseParser):
                 assert len(data_values) == 1, "Fatal error in parser"
                 data_values *= type_num_values
 
-            assert isa(type, RankedStructure[ComplexType])
-            assert isa(data_values, Sequence[complex])
             return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
         # Tensor literal case
@@ -849,7 +847,6 @@ class AttrParser(BaseParser):
                 assert len(data_values) == 1, "Fatal error in parser"
                 data_values *= type_num_values
 
-        assert isa(type, RankedStructure[AnyDenseElementMinusComplex])
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_dense_attr(self) -> DenseIntOrFPElementsAttr:

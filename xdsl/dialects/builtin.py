@@ -2270,7 +2270,8 @@ class DenseIntOrFPElementsAttr(
             | RankedStructure[IndexType]
             | RankedStructure[ComplexType]
         ),
-        data: Sequence[int | float]
+        data: Sequence[Any]
+        | Sequence[int | float]
         | Sequence[complex]
         | Sequence[IntegerAttr]
         | Sequence[FloatAttr],
@@ -2382,7 +2383,13 @@ class DenseIntOrFPElementsAttr(
 
     @staticmethod
     def parse_with_type(parser: AttrParser, type: Attribute) -> TypedAttribute:
-        assert isa(type, RankedStructure[AnyDenseElement])
+        assert isa(
+            type,
+            RankedStructure[IntegerType]
+            | RankedStructure[IndexType]
+            | RankedStructure[AnyFloat]
+            | RankedStructure[ComplexType],
+        )
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
     def _print_one_elem(self, val: int | float | complex, printer: Printer):
