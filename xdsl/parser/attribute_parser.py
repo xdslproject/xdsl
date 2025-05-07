@@ -985,7 +985,11 @@ class AttrParser(BaseParser):
                 return self.value
             return complex(self.value, 0)
 
-        def to_type(self, parser: AttrParser, type: AnyFloat | IntegerType | IndexType | ComplexType):
+        def to_type(
+            self,
+            parser: AttrParser,
+            type: AnyFloat | IntegerType | IndexType | ComplexType,
+        ):
             if isinstance(type, AnyFloat):
                 return self.to_float(parser)
 
@@ -1002,7 +1006,6 @@ class AttrParser(BaseParser):
                     )
                 case ComplexType():
                     return self.to_complex(parser)
-
 
     def _parse_tensor_literal_element(self) -> _TensorLiteralElement:
         """
