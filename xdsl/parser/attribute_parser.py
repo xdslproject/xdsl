@@ -722,6 +722,8 @@ class AttrParser(BaseParser):
         RankedStructure[IntegerType]
         | RankedStructure[IndexType]
         | RankedStructure[AnyFloat]
+        # TODO: Enable when AnyDenseElement contains ComplexType
+        # | RankedStructure[ComplexType]
     ):
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
@@ -730,10 +732,12 @@ class AttrParser(BaseParser):
             base(RankedStructure[IntegerType])
             | base(RankedStructure[IndexType])
             | base(RankedStructure[AnyFloat]),
+            # TODO: Enable when AnyDenseElement contains ComplexType
+            # | base(RankedStructure[AnyFloat]),
         ):
             self.raise_error(
                 "Expected memref, vector or tensor type of "
-                "integer, index, or float type"
+                "integer, index, float, or complex type"
             )
 
         # Check for static shapes in type
@@ -805,6 +809,8 @@ class AttrParser(BaseParser):
         else:
             # Tensor literal case
             dense_values, shape = dense_contents
+            if isinstance(type.element_type, ComplexType):
+                raise NotImplementedError()
             data_values = [
                 value.to_type(self, type.element_type) for value in dense_values
             ]
@@ -935,7 +941,7 @@ class AttrParser(BaseParser):
         """
 
         is_negative: bool
-        value: int | float | bool
+        value: int | float | bool | complex
         """
         An integer, float, boolean, integer complex, or float complex value.
         The tuple should be of type `_TensorLiteralElement`, but python does
@@ -953,6 +959,8 @@ class AttrParser(BaseParser):
             Convert the element to an int value, possibly disallowing negative
             values. Raises an error if the type is compatible.
             """
+            if isinstance(self.value, complex):
+                parser.raise_error("")
             if self.is_negative and not allow_negative:
                 parser.raise_error(
                     "Expected non-negative integer values", at_position=self.span
@@ -971,7 +979,14 @@ class AttrParser(BaseParser):
             Convert the element to a float value. Raises an error if the type
             is compatible.
             """
+            if isinstance(self.value, complex):
+                parser.raise_error("")
             return float(self.value)
+
+        def to_complex(self, parser: AttrParser) -> complex:
+            if isinstance(self.value, complex):
+                return self.value
+            return complex(self.value, 0)
 
         def to_type(self, parser: AttrParser, type: AnyFloat | IntegerType | IndexType):
             if isinstance(type, AnyFloat):
@@ -1004,24 +1019,43 @@ class AttrParser(BaseParser):
 
         # checking for negation
         minus_token = self._parse_optional_token(MLIRTokenKind.MINUS)
+        is_negative = minus_token is not None
+        span = None
 
         # Integer and float case
         if self._current_token.kind == MLIRTokenKind.FLOAT_LIT:
             token = self._consume_token(MLIRTokenKind.FLOAT_LIT)
             value = token.kind.get_float_value(token.span)
+            span = (
+                Span(minus_token.span.start, token.span.end, token.span.input)
+                if is_negative
+                else token.span
+            )
+            value = -value if is_negative else value
         elif self._current_token.kind == MLIRTokenKind.INTEGER_LIT:
             token = self._consume_token(MLIRTokenKind.INTEGER_LIT)
             value = token.kind.get_int_value(token.span)
+            span = (
+                Span(minus_token.span.start, token.span.end, token.span.input)
+                if is_negative
+                else token.span
+            )
+            value = -value if is_negative else value
+        elif self._current_token.kind == MLIRTokenKind.L_PAREN:
+            # Complex
+            token = self._consume_token(MLIRTokenKind.L_PAREN)
+            start = token.span.start
+            input = token.span.input
+            real = self._parse_tensor_literal_element()
+            token = self._consume_token()
+            imag = self._parse_tensor_literal_element()
+            # TODO: allow for integer complex, define custom data type
+            value = complex(real.value, imag.value)
+            token = self._consume_token(MLIRTokenKind.R_PAREN)
+            end = token.span.end
+            span = Span(start, end, input)
         else:
             self.raise_error("Expected either a float, integer, or complex literal")
-
-        if minus_token is None:
-            is_negative = False
-            span = token.span
-        else:
-            is_negative = True
-            value = -value
-            span = Span(minus_token.span.start, token.span.end, token.span.input)
 
         return self._TensorLiteralElement(is_negative, value, span)
 
