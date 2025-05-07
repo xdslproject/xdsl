@@ -1062,8 +1062,12 @@ class ComplexType(
         struct.pack_into(self.format, buffer, offset, value[0], value[1])
 
     def pack(self, values: Sequence[float]) -> bytes:
+        elem_type = cast(IntegerType | AnyFloat, self.element_type)
+        to_use: Sequence[float | int] = values
+        if isinstance(elem_type, IntegerType):
+            to_use = (int(value) for value in values)
         fmt = self.format[0] + str(len(values)) + self.format[2:]
-        return struct.pack(fmt, *values)
+        return struct.pack(fmt, *to_use)
 
 
 @irdl_attr_definition
