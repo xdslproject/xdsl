@@ -1006,7 +1006,7 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
 
 @irdl_attr_definition
 class ComplexType(
-    StructPackableType[tuple[float, float]],
+    StructPackableType[float],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
@@ -1025,34 +1025,32 @@ class ComplexType(
     def format(self) -> str:
         return f"<2{self.element_type.format[1]}"
 
-    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[tuple[float, float]]:
-        values = (values[0] for values in struct.iter_unpack(self.format, buffer))
-        return ((real, imag) for real, imag in zip(values, values))
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        return (values[0] for values in struct.iter_unpack(self.format, buffer))
 
-    def unpack(
-        self, buffer: ReadableBuffer, num: int, /
-    ) -> tuple[tuple[float, float], ...]:
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
         length = 2 * num
         fmt = self.format[0] + str(length) + self.format[2:]
-        unpacked_floats = struct.unpack(fmt, buffer)
-        agg: list[tuple[float, float]] = []
-        for i in range(length // 2):
-            agg.append((unpacked_floats[i * 2], unpacked_floats[i * 2 + 1]))
-        return tuple(agg)
+        return struct.unpack(fmt, buffer)
 
+    @overload
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None: ...
+
+    @overload
     def pack_into(
         self, buffer: WriteableBuffer, offset: int, value: tuple[float, float]
+    ) -> None: ...
+
+    def pack_into(
+        self, buffer: WriteableBuffer, offset: int, value: float | tuple[float, float]
     ) -> None:
+        if not isinstance(value, tuple):
+            raise NotImplementedError()
         struct.pack_into(self.format, buffer, offset, value[0], value[1])
 
-    def pack(self, values: Sequence[tuple[float, float]]) -> bytes:
-        fmt = self.format[0] + str(2 * len(values)) + self.format[2:]
-        import itertools
-
-        floats: Iterator[tuple[float, ...]] = ((value[0], value[1]) for value in values)
-
-        flat_floats = itertools.chain.from_iterable(floats)
-        return struct.pack(fmt, *flat_floats)
+    def pack(self, values: Sequence[float]) -> bytes:
+        fmt = self.format[0] + str(len(values)) + self.format[2:]
+        return struct.pack(fmt, *values)
 
 
 @irdl_attr_definition
