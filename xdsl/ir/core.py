@@ -1308,62 +1308,8 @@ class Operation(IRNode):
             desc = f"\n{desc}\n"
         return f"{self.__class__.__qualname__}({desc})"
 
-    def info(self) -> OperationInfo:
-        """
-        Returns the operation info.
-        """
-        return OperationInfo(self)
-
 
 OperationInvT = TypeVar("OperationInvT", bound=Operation)
-
-
-@dataclass
-class OperationInfo:
-    """
-    Boilerplate helper to use in KnownOps cache.
-
-    This is to compare operations on their name, attributes, properties, results,
-    operands, and matching region structure.
-    """
-
-    op: Operation
-
-    @property
-    def name(self):
-        from xdsl.dialects import builtin
-
-        return (
-            self.op.op_name.data
-            if isinstance(self.op, builtin.UnregisteredOp)
-            else self.op.name
-        )
-
-    def __hash__(self):
-        return hash(
-            (
-                self.name,
-                sum(hash(i) for i in self.op.attributes.items()),
-                sum(hash(i) for i in self.op.properties.items()),
-                hash(self.op.result_types),
-                hash(self.op.operands),
-            )
-        )
-
-    def __eq__(self, other: object):
-        return (
-            isinstance(other, OperationInfo)
-            and hash(self) == hash(other)
-            and self.name == other.name
-            and self.op.attributes == other.op.attributes
-            and self.op.properties == other.op.properties
-            and self.op.operands == other.op.operands
-            and self.op.result_types == other.op.result_types
-            and all(
-                s.is_structurally_equivalent(o)
-                for s, o in zip(self.op.regions, other.op.regions, strict=True)
-            )
-        )
 
 
 @dataclass

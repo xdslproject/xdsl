@@ -3,7 +3,7 @@ from typing import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
-from xdsl.ir import Block, Operation, OperationInfo, Region, Use
+from xdsl.ir import Block, Operation, Region, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import Rewriter
@@ -16,6 +16,53 @@ from xdsl.traits import (
     only_has_effect,
 )
 from xdsl.transforms.dead_code_elimination import is_trivially_dead
+
+
+@dataclass
+class OperationInfo:
+    """
+    Boilerplate helper to use in KnownOps cache.
+
+    This is to compare operations on their name, attributes, properties, results,
+    operands, and matching region structure.
+    """
+
+    op: Operation
+
+    @property
+    def name(self):
+        return (
+            self.op.op_name.data
+            if isinstance(self.op, UnregisteredOp)
+            else self.op.name
+        )
+
+    def __hash__(self):
+        return hash(
+            (
+                self.name,
+                sum(hash(i) for i in self.op.attributes.items()),
+                sum(hash(i) for i in self.op.properties.items()),
+                hash(self.op.result_types),
+                hash(self.op.operands),
+            )
+        )
+
+    def __eq__(self, other: object):
+        return (
+            isinstance(other, OperationInfo)
+            and hash(self) == hash(other)
+            and self.name == other.name
+            and self.op.attributes == other.op.attributes
+            and self.op.properties == other.op.properties
+            and self.op.operands == other.op.operands
+            and self.op.result_types == other.op.result_types
+            and all(
+                s.is_structurally_equivalent(o)
+                for s, o in zip(self.op.regions, other.op.regions, strict=True)
+            )
+        )
+
 
 _D = TypeVar("_D")
 
@@ -36,19 +83,19 @@ class KnownOps:
             self._known_ops = dict(known_ops._known_ops)
 
     def __getitem__(self, k: Operation):
-        return self._known_ops[k.info()]
+        return self._known_ops[OperationInfo(k)]
 
     def __setitem__(self, k: Operation, v: Operation):
-        self._known_ops[k.info()] = v
+        self._known_ops[OperationInfo(k)] = v
 
     def __contains__(self, k: Operation):
-        return k.info() in self._known_ops
+        return OperationInfo(k) in self._known_ops
 
     def get(self, k: Operation, default: _D = None) -> Operation | _D:
-        return self._known_ops.get(k.info(), default)
+        return self._known_ops.get(OperationInfo(k), default)
 
     def pop(self, k: Operation):
-        return self._known_ops.pop(k.info())
+        return self._known_ops.pop(OperationInfo(k))
 
 
 def has_other_side_effecting_op_in_between(
