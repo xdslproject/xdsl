@@ -43,7 +43,6 @@ from xdsl.transforms.csl_stencil_set_global_coeffs import (
     get_dir_and_distance_ops,
 )
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
@@ -358,7 +357,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             return
 
         if (
-            not isattr(accumulator.type, MemRefType)
+            not isa(accumulator.type, MemRefType)
             or not isinstance(op.accumulator, OpResult)
             or not isinstance(alloc := op.accumulator.op, memref.AllocOp)
         ):

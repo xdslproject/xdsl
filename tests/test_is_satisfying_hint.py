@@ -394,8 +394,6 @@ def test_literal():
 
 
 def test_isattr():
-    assert isattr(IntAttr(1), IntAttr)
-    assert not isattr(IntAttr(1), StringAttr)
     assert isattr(IntAttr(1), BaseAttr(IntAttr))
     assert not isattr(IntAttr(1), BaseAttr(StringAttr))
     assert isattr(IntAttr(1), EqAttrConstraint(IntAttr(1)))
