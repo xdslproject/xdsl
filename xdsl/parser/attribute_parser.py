@@ -1023,7 +1023,7 @@ class AttrParser(BaseParser):
     def _parse_tensor_literal_element(self) -> _TensorLiteralElement:
         """
         Parse a tensor literal element, which can be a boolean, an integer
-        literal, or a float literal.
+        literal, float literal, or a complex literal.
         """
         # boolean case
         if self._current_token.text == "true":
