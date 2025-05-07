@@ -144,11 +144,10 @@ class ConvertLoadOp(RewritePattern):
 class ConvertSubviewOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
-        assert isinstance(op_memref_type := op.source.type, memref.MemRefType)
+        assert isa(memref_type := op.source.type, memref.MemRefType)
 
-        memref_type = cast(memref.MemRefType[Any], op_memref_type)
         static_offsets = cast(tuple[int, ...], op.static_offsets.get_values())
-        offsets = cast(list[SSAValue], [])
+        offsets: list[SSAValue] = []
 
         for idx, offset in enumerate(static_offsets):
             if offset == memref.SubviewOp.DYNAMIC_INDEX:
@@ -167,12 +166,9 @@ class ConvertSubviewOp(RewritePattern):
         rewriter.replace_matched_op(
             (
                 *ops,
-                cast_op := builtin.UnrealizedConversionCastOp.get(
-                    [target_ptr], [op.result.type]
-                ),
+                builtin.UnrealizedConversionCastOp.get([target_ptr], [op.result.type]),
             )
         )
-        op.result.replace_by(cast_op.results[0])
 
 
 @dataclass
