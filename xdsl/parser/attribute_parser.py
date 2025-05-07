@@ -805,25 +805,6 @@ class AttrParser(BaseParser):
                 )
             return attr
 
-        # Tensor literal complex case
-        elif isinstance(type.element_type, ComplexType):
-            dense_values, shape = dense_contents
-            data_values = [value.to_complex(self) for value in dense_values]
-            # Elements from _parse_tensor_literal need to be converted to values.
-            if shape:
-                # Check that the shape matches the data when given a shaped data.
-                # For splat attributes any shape is fine
-                if type_shape != shape:
-                    self.raise_error(
-                        f"Shape mismatch in dense literal. Expected {type_shape} "
-                        f"shape from the type, but got {shape} shape."
-                    )
-            else:
-                assert len(data_values) == 1, "Fatal error in parser"
-                data_values *= type_num_values
-
-            return DenseIntOrFPElementsAttr.from_list(type, data_values)
-
         # Tensor literal case
         else:
             dense_values, shape = dense_contents
@@ -1004,7 +985,7 @@ class AttrParser(BaseParser):
                 return self.value
             return complex(self.value, 0)
 
-        def to_type(self, parser: AttrParser, type: AnyFloat | IntegerType | IndexType):
+        def to_type(self, parser: AttrParser, type: AnyFloat | IntegerType | IndexType | ComplexType):
             if isinstance(type, AnyFloat):
                 return self.to_float(parser)
 
@@ -1019,6 +1000,9 @@ class AttrParser(BaseParser):
                     return self.to_int(
                         parser, allow_negative=True, allow_booleans=False
                     )
+                case ComplexType():
+                    return self.to_complex(parser)
+
 
     def _parse_tensor_literal_element(self) -> _TensorLiteralElement:
         """
