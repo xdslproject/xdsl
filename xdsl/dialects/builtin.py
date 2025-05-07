@@ -1062,6 +1062,7 @@ class ComplexType(
         struct.pack_into(self.format, buffer, offset, value[0], value[1])
 
     def pack(self, values: Sequence[float]) -> bytes:
+        assert len(values) % 2 == 0
         elem_type = cast(IntegerType | AnyFloat, self.element_type)
         to_use: Sequence[float | int] = values
         if isinstance(elem_type, IntegerType):
