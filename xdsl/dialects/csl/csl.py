@@ -89,7 +89,6 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
 
 Target = Literal["wse2", "wse3"]
@@ -1794,7 +1793,7 @@ class SymbolExportOp(IRDLOperation):
         )
 
         if isinstance(type_or_op, SSAValue):
-            assert isattr(type_or_op.type, PtrType)
+            assert isinstance(type_or_op.type, PtrType)
             sym_type, ops = type_or_op.type, [type_or_op]
         else:
             var_name = SymbolRefAttr(var_name)
