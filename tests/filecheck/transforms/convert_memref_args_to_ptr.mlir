@@ -14,15 +14,21 @@ func.func @simple(%arg : memref<2x2xf32>) {
 }
 
 // CHECK-NEXT:    func.func @id(%arg : !ptr_xdsl.ptr) -> !ptr_xdsl.ptr {
-// CHECK-NEXT:      func.return %arg : !ptr_xdsl.ptr
+// CHECK-NEXT:      %arg_1 = ptr_xdsl.from_ptr %arg : !ptr_xdsl.ptr -> memref<2x2xf32>
+// CHECK-NEXT:      %arg_2 = ptr_xdsl.to_ptr %arg_1 : memref<2x2xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:      func.return %arg_2 : !ptr_xdsl.ptr
 // CHECK-NEXT:    }
 func.func @id(%arg : memref<2x2xf32>) -> memref<2x2xf32> {
     func.return %arg : memref<2x2xf32>
 }
 
 // CHECK-NEXT:    func.func @id2(%arg : !ptr_xdsl.ptr) -> !ptr_xdsl.ptr {
-// CHECK-NEXT:      %res = func.call @id(%arg) : (!ptr_xdsl.ptr) -> !ptr_xdsl.ptr
-// CHECK-NEXT:      func.return %res : !ptr_xdsl.ptr
+// CHECK-NEXT:      %arg_1 = ptr_xdsl.from_ptr %arg : !ptr_xdsl.ptr -> memref<2x2xf32>
+// CHECK-NEXT:      %arg_2 = ptr_xdsl.to_ptr %arg_1 : memref<2x2xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:      %res = func.call @id(%arg_2) : (!ptr_xdsl.ptr) -> !ptr_xdsl.ptr
+// CHECK-NEXT:      %res_1 = ptr_xdsl.from_ptr %res : !ptr_xdsl.ptr -> memref<2x2xf32>
+// CHECK-NEXT:      %res_2 = ptr_xdsl.to_ptr %res_1 : memref<2x2xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:      func.return %res_2 : !ptr_xdsl.ptr
 // CHECK-NEXT:    }
 func.func @id2(%arg : memref<2x2xf32>) -> memref<2x2xf32> {
     %res = func.call @id(%arg) : (memref<2x2xf32>) -> memref<2x2xf32>
@@ -30,7 +36,9 @@ func.func @id2(%arg : memref<2x2xf32>) -> memref<2x2xf32> {
 }
 
 // CHECK-NEXT:    func.func @first(%arg : !ptr_xdsl.ptr) -> f32 {
-// CHECK-NEXT:      %res = ptr_xdsl.load %arg : !ptr_xdsl.ptr -> f32
+// CHECK-NEXT:      %arg_1 = ptr_xdsl.from_ptr %arg : !ptr_xdsl.ptr -> memref<2x2xf32>
+// CHECK-NEXT:      %pointer = ptr_xdsl.to_ptr %arg_1 : memref<2x2xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:      %res = ptr_xdsl.load %pointer : !ptr_xdsl.ptr -> f32
 // CHECK-NEXT:      func.return %res : f32
 // CHECK-NEXT:    }
 func.func @first(%arg : memref<2x2xf32>) -> f32 {

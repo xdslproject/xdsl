@@ -16,6 +16,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.hints import isa
 
 
 def offset_calculations(
@@ -182,10 +183,10 @@ class LowerMemRefFuncOpPattern(RewritePattern):
                 continue
 
             rewriter.insert_op(
-                cast_op := builtin.UnrealizedConversionCastOp.get([arg], [old_type]),
+                cast_op := ptr.FromPtrOp(arg, old_type),
                 insert_point,
             )
-            arg.replace_by_if(cast_op.results[0], lambda x: x.operation is not cast_op)
+            arg.replace_by_if(cast_op.res, lambda x: x.operation is not cast_op)
 
 
 @dataclass
@@ -199,19 +200,14 @@ class LowerMemRefFuncReturnPattern(RewritePattern):
         if not any(isinstance(arg.type, memref.MemRefType) for arg in op.arguments):
             return
 
-        insert_point = InsertPoint.before(op)
         new_arguments: list[SSAValue] = []
 
         # insert `memref -> ptr` casts for memref return values
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
-                rewriter.insert_op(
-                    cast_op := builtin.UnrealizedConversionCastOp.get(
-                        [argument], [ptr.PtrType()]
-                    ),
-                    insert_point,
-                )
-                new_arguments.append(cast_op.results[0])
+                rewriter.insert_op_before_matched_op(cast_op := ptr.ToPtrOp(argument))
+                new_arguments.append(cast_op.res)
+                cast_op.res.name_hint = argument.name_hint
             else:
                 new_arguments.append(argument)
 
@@ -228,37 +224,31 @@ class LowerMemRefFuncCallPattern(RewritePattern):
             return
 
         # rewrite arguments
-        insert_point = InsertPoint.before(op)
         new_arguments: list[SSAValue] = []
 
         # insert `memref -> ptr` casts for memref arguments values
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
-                rewriter.insert_op(
-                    cast_op := builtin.UnrealizedConversionCastOp.get(
-                        [argument], [ptr.PtrType()]
-                    ),
-                    insert_point,
+                rewriter.insert_op_before_matched_op(cast_op := ptr.ToPtrOp(argument))
+                new_arguments.append(cast_op.res)
+                cast_op.res.name_hint = argument.name_hint
+                argument.replace_by_if(
+                    cast_op.res, lambda x: x.operation is not cast_op
                 )
-                new_arguments.append(cast_op.results[0])
             else:
                 new_arguments.append(argument)
 
-        insert_point = InsertPoint.after(op)
         new_results: list[SSAValue] = []
 
         #  insert `ptr -> memref` casts for return values
         for result in op.results:
-            if isinstance(result.type, memref.MemRefType):
-                rewriter.insert_op(
-                    cast_op := builtin.UnrealizedConversionCastOp.get(
-                        [result],
-                        # TODO: annoying pyright warnings - Sasha, pls help
-                        [result.type],  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
-                    ),
-                    insert_point,
+            if isa(result.type, memref.MemRefType):
+                rewriter.insert_op_after_matched_op(
+                    cast_op := ptr.FromPtrOp(result, result.type)
                 )
-                new_results.append(cast_op.results[0])
+                new_results.append(cast_op.res)
+                cast_op.res.name_hint = result.name_hint
+                result.replace_by_if(cast_op.res, lambda x: x.operation is not cast_op)
             else:
                 new_results.append(result)
 
@@ -270,49 +260,6 @@ class LowerMemRefFuncCallPattern(RewritePattern):
         rewriter.replace_matched_op(
             func.CallOp(op.callee, new_arguments, new_return_types)
         )
-
-
-class ReconcileUnrealizedPtrCasts(RewritePattern):
-    """
-    Eliminates two variants of unrealized ptr casts:
-    - `ptr_xdsl.ptr -> memref.MemRef -> ptr_xdsl.ptr`;
-    - `ptr_xdsl.ptr -> memref.memref` where all uses are `ToPtrOp` operations.
-    """
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: builtin.UnrealizedConversionCastOp, rewriter: PatternRewriter, /
-    ):
-        # preconditions
-        if (
-            len(op.inputs) != 1
-            or len(op.outputs) != 1
-            or not isinstance(op.inputs[0].type, ptr.PtrType)
-            or not isinstance(op.outputs[0].type, memref.MemRefType)
-        ):
-            return
-
-        # erase ptr -> memref -> ptr cast pairs
-        uses = tuple(use for use in op.outputs[0].uses)
-        for use in uses:
-            if (
-                isinstance(use.operation, builtin.UnrealizedConversionCastOp)
-                and isinstance(use.operation.inputs[0].type, memref.MemRefType)
-                and isinstance(use.operation.outputs[0].type, ptr.PtrType)
-            ):
-                use.operation.outputs[0].replace_by(op.inputs[0])
-                rewriter.erase_op(use.operation)
-
-        # erase this cast entirely if all remaining uses are by ToPtr operations
-        cast_ops = [use.operation for use in op.outputs[0].uses]
-        if not all(isinstance(op, ptr.ToPtrOp) for op in cast_ops):
-            return
-
-        for cast_op in cast_ops:
-            cast_op.results[0].replace_by(op.inputs[0])
-            rewriter.erase_op(cast_op)
-
-        rewriter.erase_op(op)
 
 
 @dataclass(frozen=True)
@@ -333,7 +280,6 @@ class ConvertMemRefToPtr(ModulePass):
                         LowerMemRefFuncOpPattern(),
                         LowerMemRefFuncCallPattern(),
                         LowerMemRefFuncReturnPattern(),
-                        ReconcileUnrealizedPtrCasts(),
                     ]
                 )
             ).rewrite_module(op)
