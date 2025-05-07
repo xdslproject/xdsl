@@ -3,7 +3,6 @@ from typing import cast
 
 from xdsl.dialects import arith, cf
 from xdsl.dialects.builtin import (
-    AnyDenseElementMinusComplex,
     BoolAttr,
     DenseIntOrFPElementsAttr,
     IntegerAttr,
@@ -18,7 +17,6 @@ from xdsl.rewriter import InsertPoint
 from xdsl.transforms.canonicalization_patterns.utils import (
     const_evaluate_operand,
 )
-from xdsl.utils.hints import isa
 
 
 class AssertTrue(RewritePattern):
@@ -317,7 +315,6 @@ def drop_case_helper(
 
     if requires_change:
         elem_type = case_values.get_element_type()
-        assert isa(elem_type, AnyDenseElementMinusComplex)
         rewriter.replace_matched_op(
             cf.SwitchOp(
                 op.flag,

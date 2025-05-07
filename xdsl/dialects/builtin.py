@@ -1013,21 +1013,23 @@ class ComplexType(
     TypeAttribute,
 ):
     name = "complex"
-    element_type: ParameterDef[IntegerType | AnyFloat]
+    element_type: ParameterDef[AttributeCovT]
 
-    def __init__(self, element_type: IntegerType | AnyFloat):
+    def __init__(self, element_type: AttributeCovT):
         super().__init__([element_type])
 
-    def get_element_type(self) -> IntegerType | AnyFloat:
+    def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
     @property
     def size(self) -> int:
-        return 2 * self.element_type.size
+        elem_type = cast(IntegerType | AnyFloat, self.element_type)
+        return 2 * elem_type.size
 
     @property
     def format(self) -> str:
-        return f"<2{self.element_type.format[1]}"
+        elem_type = cast(StructPackableType[float | int], self.element_type)
+        return f"<2{elem_type.format[1]}"
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float | int]:
         return (values[0] for values in struct.iter_unpack(self.format, buffer))
@@ -2114,7 +2116,6 @@ RankedStructure: TypeAlias = (
 )
 
 AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
-AnyDenseElementMinusComplex: TypeAlias = IntegerType | IndexType | AnyFloat
 DenseElementCovT = TypeVar(
     "DenseElementCovT",
     bound=AnyDenseElement,
@@ -2247,24 +2248,18 @@ class DenseIntOrFPElementsAttr(
     @staticmethod
     def from_list(
         type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
+            RankedStructure[AnyFloat | IntegerType | IndexType | ComplexType]
             | RankedStructure[AnyFloat]
             | RankedStructure[IntegerType]
             | RankedStructure[IndexType]
         ),
-        data: Sequence[int | float] | Sequence[FloatAttr],
-    ) -> DenseIntOrFPElementsAttr: ...
-
-    @overload
-    @staticmethod
-    def from_list(
-        type: RankedStructure[ComplexType], data: Sequence[complex]
+        data: Sequence[int | float | complex] | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr: ...
 
     @staticmethod
     def from_list(
         type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
+            RankedStructure[AnyFloat | IntegerType | IndexType | ComplexType]
             | RankedStructure[AnyFloat]
             | RankedStructure[IntegerType]
             | RankedStructure[IndexType]
@@ -2281,7 +2276,6 @@ class DenseIntOrFPElementsAttr(
             new_data = cast(Sequence[complex], data)
             return DenseIntOrFPElementsAttr.create_dense_complex(new_type, new_data)
 
-        assert isa(type.element_type, AnyDenseElementMinusComplex)
         # zero rank type should only hold 1 value
         if not type.get_shape() and len(data) != 1:
             raise ValueError(
@@ -2311,10 +2305,26 @@ class DenseIntOrFPElementsAttr(
             new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], new_data)
             return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
 
+    @overload
     @staticmethod
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
-        data_type: AnyDenseElementMinusComplex,
+        data_type: IntegerType | IndexType | AnyFloat,
+        shape: Sequence[int] | None = None,
+    ) -> DenseIntOrFPElementsAttr: ...
+
+    @overload
+    @staticmethod
+    def vector_from_list(
+        data: Sequence[complex],
+        data_type: ComplexType,
+        shape: Sequence[int] | None = None,
+    ) -> DenseIntOrFPElementsAttr: ...
+
+    @staticmethod
+    def vector_from_list(
+        data: Sequence[int | float] | Sequence[complex],
+        data_type: IntegerType | IndexType | AnyFloat | ComplexType,
         shape: Sequence[int] | None = None,
     ) -> DenseIntOrFPElementsAttr:
         if not shape:
