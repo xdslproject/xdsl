@@ -1066,7 +1066,7 @@ class ComplexType(
         elem_type = cast(IntegerType | AnyFloat, self.element_type)
         converter = int if isinstance(elem_type, IntegerType) else float
         fmt = self.format[0] + str(len(values)) + self.format[2:]
-        return struct.pack(fmt, (converter(value) for value in values))
+        return struct.pack(fmt, *(converter(value) for value in values))
 
 
 @irdl_attr_definition
