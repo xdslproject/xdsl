@@ -91,6 +91,16 @@ class ToPtrOp(IRDLOperation):
     assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
 
 
+@irdl_op_definition
+class FromPtrOp(IRDLOperation):
+    name = "ptr_xdsl.from_ptr"
+
+    source = operand_def(PtrType)
+    res = result_def(MemRefType)
+
+    assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
+
+
 Ptr = Dialect(
     "ptr_xdsl",
     [
@@ -99,6 +109,7 @@ Ptr = Dialect(
         StoreOp,
         LoadOp,
         ToPtrOp,
+        FromPtrOp,
     ],
     [
         PtrType,
