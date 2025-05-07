@@ -623,11 +623,11 @@ wheels = [
 
 [[package]]
 name = "filecheck"
-version = "1.0.1"
+version = "1.0.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/93/d2/7e8bf9acf2ccb522fef4845d940b7db14782e6a36929da0ca5a4791bc2b6/filecheck-1.0.1.tar.gz", hash = "sha256:bbc3c49c190bd3af2445426a193ff0b54e1fad5a81ea7c2116c4dc36f36614f2", size = 20480, upload-time = "2024-09-07T13:46:22.689Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/c3/2c1c282331ccf4866043ac2a663ac38f0d8a867b76bb5ea8765104c9e971/filecheck-1.0.2.tar.gz", hash = "sha256:49d2a56e37a8ff9db62ecf33a37c5343fa2bf32e53321339687b0dceb3e09828", size = 19901, upload-time = "2025-05-07T09:00:46.765Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c7/29/827b9f240e03c2cc6a2fd534ac980a12b3c7e8d8aa71c2f1039a5f91e932/filecheck-1.0.1-py3-none-any.whl", hash = "sha256:2d1a0e8784b723a4b04a655cff3af09dd159a31f4e39d477186f5547553124ab", size = 23702, upload-time = "2024-09-07T13:46:21.442Z" },
+    { url = "https://files.pythonhosted.org/packages/da/54/b1370c4c4b9bbcae69c535b30c106d114e2b28cdf7e28842a315bbd9d19d/filecheck-1.0.2-py3-none-any.whl", hash = "sha256:af950e48a82c3923d945d8688b69ff4879c7ec0e9739b17b41a3326a980419ff", size = 23723, upload-time = "2025-05-07T09:00:45.458Z" },
 ]
 
 [[package]]
@@ -3153,7 +3153,7 @@ riscv = [
 requires-dist = [
     { name = "asv", marker = "extra == 'bench'", specifier = ">=0.6.4" },
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
-    { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.1" },
+    { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.2" },
     { name = "flameprof", marker = "extra == 'bench'", specifier = ">=0.4" },
     { name = "immutabledict", specifier = "<4.2.2" },
     { name = "ipykernel", marker = "extra == 'dev'" },
