@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 from xdsl.dialects import eqsat, pdl_interp
-from xdsl.dialects.builtin import SymbolRefAttr
+from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
 from xdsl.dialects.pdl import ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -44,6 +44,19 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     backtrack_stack: list[BacktrackPoint] = field(default_factory=list[BacktrackPoint])
     visited: bool = True
     known_ops: KnownOps = field(default_factory=KnownOps)
+
+    def populate_known_ops(self, module: ModuleOp) -> None:
+        """
+        Populates the known_ops dictionary by traversing the module.
+
+        Args:
+            module: The module to traverse
+        """
+        # Walk through all operations in the module
+        for op in module.walk():
+            # Skip EClassOp instances
+            if not isinstance(op, eqsat.EClassOp):
+                self.known_ops[op] = op
 
     @impl(pdl_interp.GetResultOp)
     def run_getresult(
@@ -205,13 +218,12 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         assert isinstance(new_op, Operation)
 
-        # Check if an identical operation already exists
+        # Check if an identical operation already exists in our known_ops map
         if existing_op := self.known_ops.get(new_op):
             self.rewriter.erase_op(new_op)
             return (existing_op,)
 
-        # Record the newly created operation
-        self.known_ops[new_op] = new_op
+        # No existing eclass for this operation yet
 
         eclass_op = eqsat.EClassOp(
             new_op.results[0],
@@ -220,6 +232,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             eclass_op,
             InsertPoint.after(new_op),
         )
+
+        # Record the newly created operation in our known_ops map
+        self.known_ops[new_op] = new_op
 
         return (new_op,)
 
