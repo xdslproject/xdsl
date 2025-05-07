@@ -699,11 +699,6 @@ class OpOperands(Sequence[SSAValue]):
         new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
         self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
 
-    def append(self, operand: SSAValue) -> None:
-        operand.add_use(Use(self._op, len(self._op._operands)))  # pyright: ignore[reportPrivateUsage]
-        new_operands = (*self._op._operands, operand)  # pyright: ignore[reportPrivateUsage]
-        self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
-
     def __iter__(self) -> Iterator[SSAValue]:
         return iter(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
