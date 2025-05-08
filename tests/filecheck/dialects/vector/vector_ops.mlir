@@ -3,6 +3,10 @@
 func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %i : index, %fvec : vector<2xf32>) {
   %load = vector.load %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
   vector.store %load, %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
+  %load_nontemporal = vector.load %base[%i, %i] {"nontemporal" = false} : memref<4x4xindex>, vector<2xindex>
+  vector.store %load_nontemporal, %base[%i, %i] {"nontemporal" = false} : memref<4x4xindex>, vector<2xindex>
+  %load_nontemporal_1 = vector.load %base[%i, %i] {"nontemporal" = true} : memref<4x4xindex>, vector<2xindex>
+  vector.store %load_nontemporal_1, %base[%i, %i] {"nontemporal" = true} : memref<4x4xindex>, vector<2xindex>
   %broadcast = vector.broadcast %i : index to vector<1xindex>
   %fma = vector.fma %fvec, %fvec, %fvec : vector<2xf32>
   %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
@@ -19,6 +23,10 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
 // CHECK:       func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %i : index, %fvec : vector<2xf32>) {
 // CHECK-NEXT:     %load = vector.load %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
 // CHECK-NEXT:     vector.store %load, %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
+// CHECK-NEXT:     %load_nontemporal = vector.load %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
+// CHECK-NEXT:     vector.store %load_nontemporal, %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
+// CHECK-NEXT:     %load_nontemporal_1 = vector.load %base[%i, %i] {nontemporal = true} : memref<4x4xindex>, vector<2xindex>
+// CHECK-NEXT:     vector.store %load_nontemporal_1, %base[%i, %i] {nontemporal = true} : memref<4x4xindex>, vector<2xindex>
 // CHECK-NEXT:     %broadcast = vector.broadcast %i : index to vector<1xindex>
 // CHECK-NEXT:     %fma = vector.fma %fvec, %fvec, %fvec : vector<2xf32>
 // CHECK-NEXT:     %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
