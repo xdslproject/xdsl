@@ -1012,7 +1012,7 @@ ComplexElementT = TypeVar(
 @irdl_attr_definition
 class ComplexType(
     Generic[ComplexElementT],
-    StructPackableType[float | int],
+    StructPackableType[complex | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
@@ -1034,42 +1034,53 @@ class ComplexType(
     def format(self) -> str:
         return f"<2{self.element_type.format[1]}"
 
-    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float | int]:
+    def iter_unpack(
+        self, buffer: ReadableBuffer, /
+    ) -> Iterator[complex | tuple[int, int]]:
         return (values[0] for values in struct.iter_unpack(self.format, buffer))
 
-    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float | int, ...]:
+    def unpack(
+        self, buffer: ReadableBuffer, num: int, /
+    ) -> tuple[complex, ...] | tuple[tuple[int, int], ...]:
         fmt = self.format[0] + str(2 * num) + self.format[2:]
         return struct.unpack(fmt, buffer)
 
     @overload
     def pack_into(
-        self, buffer: WriteableBuffer, offset: int, value: float | int
+        self, buffer: WriteableBuffer, offset: int, value: complex
     ) -> None: ...
 
     @overload
     def pack_into(
-        self,
-        buffer: WriteableBuffer,
-        offset: int,
-        value: tuple[float, float] | tuple[int, int],
+        self, buffer: WriteableBuffer, offset: int, value: tuple[int, int]
     ) -> None: ...
 
     def pack_into(
-        self,
-        buffer: WriteableBuffer,
-        offset: int,
-        value: float | int | tuple[float, float] | tuple[int, int],
+        self, buffer: WriteableBuffer, offset: int, value: complex | tuple[int, int]
     ) -> None:
-        if not isinstance(value, tuple):
-            raise NotImplementedError()
+        if isinstance(value, complex):
+            struct.pack_into(self.format, buffer, offset, value.real, value.imag)
+        assert isa(value, tuple[int, int])
         struct.pack_into(self.format, buffer, offset, value[0], value[1])
 
-    def pack(self, values: Sequence[float]) -> bytes:
-        assert len(values) % 2 == 0
-        elem_type = cast(IntegerType | AnyFloat, self.element_type)
-        converter = int if isinstance(elem_type, IntegerType) else float
+    @overload
+    def pack(self, values: Sequence[complex]) -> bytes: ...
+
+    @overload
+    def pack(self, values: Sequence[tuple[int, int]]) -> bytes: ...
+
+    @overload
+    def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes: ...
+
+    def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes:
+        import itertools
+
         fmt = self.format[0] + str(len(values)) + self.format[2:]
-        return struct.pack(fmt, *(converter(value) for value in values))
+        if isa(values, Sequence[complex]):
+            return struct.pack(fmt, values)
+        assert isa(values, Sequence[tuple[int, int]])
+        flat_ints: Sequence[int] = list(itertools.chain.from_iterable(values))
+        return struct.pack(fmt, flat_ints)
 
 
 @irdl_attr_definition
