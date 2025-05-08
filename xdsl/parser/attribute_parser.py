@@ -931,10 +931,10 @@ class AttrParser(BaseParser):
     class _TensorLiteralElement:
         """
         The representation of a tensor literal element used during parsing.
-        It is either an integer, float, or boolean. It also has a check if
-        the element has a negative sign (it is already applied to the value).
-        This class is used to parse a tensor literal before the tensor literal
-        type is known
+        It is either an integer, float, boolean, complex, or tuple[int, int].
+        It also has a check if the element has a negative sign (it is already
+        applied to the value). This class is used to parse a tensor literal
+        before the tensor literal type is known.
         """
 
         is_negative: bool
