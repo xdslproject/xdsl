@@ -17,7 +17,7 @@
 %collapsed = tensor.collapse_shape %big_tensor [[0, 1], [2, 3]] : tensor<2x3x2x3xf32> into tensor<6x6xf32>
 %extracted = tensor.extract %t2[%i1] : tensor<2xf32>
 %tensor_with_ins = tensor.insert %extracted into %t2[%i1] : tensor<2xf32>
-%compex_tensor = "test.op"() {"value" = dense<[[(1, 2), (3, 4)], [(5, 6), (7, 8)]]> : tensor<2x2xcomplex<i32>>} : () -> tensor<2x2xcomplex<i32>>
+%complex_tensor = "test.op"() {"value" = dense<[[(1, 2), (3, 4)], [(5, 6), (7, 8)]]> : tensor<2x2xcomplex<i32>>} : () -> tensor<2x2xcomplex<i32>>
 
 
 // CHECK:       module {
