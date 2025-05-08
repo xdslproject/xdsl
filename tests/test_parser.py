@@ -29,7 +29,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import MLIRTokenKind, PunctuationSpelling
 from xdsl.utils.str_enum import StrEnum
 
@@ -114,7 +114,7 @@ def test_parsing():
     parse attribute arguments without the delimiters.
     """
     ctx = Context()
-    ctx.load_attr(DummyAttr)
+    ctx.load_attr_or_type(DummyAttr)
 
     prog = '#dummy.attr "foo"'
     parser = Parser(ctx, prog)
@@ -884,16 +884,14 @@ def test_properties_retrocompatibility():
     assert op.attributes == retro_op.attributes
     assert op.properties == retro_op.properties
 
-    # We ***do not*** try to be smarter than this. If properties are present, we parse
-    # and verify as-is.
+    # Test partial case
     parser = Parser(ctx, '"test.prop_op"() <{first = "str"}> {second = 42} : () -> ()')
-    wrong_op = parser.parse_op()
-    assert list(wrong_op.properties.keys()) == ["first"]
-    assert list(wrong_op.attributes.keys()) == ["second"]
-    with pytest.raises(
-        VerifyException, match="Operation does not verify: property second expected"
-    ):
-        wrong_op.verify()
+    partial_op = parser.parse_op()
+    assert isinstance(partial_op, PropertyOp)
+    partial_op.verify()
+
+    assert op.attributes == partial_op.attributes
+    assert op.properties == partial_op.properties
 
 
 def test_parse_location():

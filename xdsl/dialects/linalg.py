@@ -16,6 +16,9 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
+    IndexType,
+    IndexTypeConstr,
+    IntegerAttr,
     IntegerType,
     MemRefType,
     ShapedType,
@@ -47,13 +50,14 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -388,6 +392,26 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = traits_def(IsTerminator())
 
 
+@irdl_op_definition
+class IndexOp(IRDLOperation):
+    name = "linalg.index"
+
+    dim = prop_def(IntegerAttr[i64])
+
+    result = result_def(IndexTypeConstr)
+
+    traits = traits_def(HasParent(GenericOp))
+
+    assembly_format = "$dim attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        dim: int,
+    ):
+        dim_attr = IntegerAttr(dim, i64)
+        super().__init__(properties={"dim": dim_attr}, result_types=[IndexType()])
+
+
 class NamedOpBase(IRDLOperation, ABC):
     """
     Abstract base class for named ops with hidden region.
@@ -628,6 +652,44 @@ class SubOp(NamedOpBase):
 
 
 @irdl_op_definition
+class SelectOp(NamedOpBase):
+    """
+    Chooses one value based on a binary condition supplied as its first operand.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgselect-linalgselectop).
+    """
+
+    name = "linalg.select"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = arith.SelectOp(*args[: len(inputs)])
+            YieldOp(result)
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
+
+
+@irdl_op_definition
 class FillOp(NamedOpBase):
     """
     Fills the output tensor with the given value.
@@ -677,6 +739,88 @@ class FillOp(NamedOpBase):
                 raise VerifyException(
                     f"Input type is {value.type} but must be an instance of AnyFloat or IntegerType."
                 )
+
+
+@irdl_op_definition
+class MaxOp(NamedOpBase):
+    """
+    Takes the max (signed) between two inputs, elementwise.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmax-linalgmaxop).
+    """
+
+    name = "linalg.max"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+        maxop = (
+            arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
+        )
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = maxop(args[0], args[1])
+            YieldOp(result)
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
+
+
+@irdl_op_definition
+class MinOp(NamedOpBase):
+    """
+    Takes the max (signed) between two inputs, elementwise.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmax-linalgmaxop).
+    """
+
+    name = "linalg.min"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+        minop = (
+            arith.MinimumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MinSIOp
+        )
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = minop(args[0], args[1])
+            YieldOp(result)
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
 
 
 @irdl_op_definition
@@ -843,6 +987,8 @@ class MatmulOp(NamedOpBase):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
+    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
+
     def __init__(
         self,
         inputs: Sequence[SSAValue],
@@ -873,21 +1019,21 @@ class MatmulOp(NamedOpBase):
             YieldOp(mac)
 
         # add linalg.memoized_indexing_maps attribute
-        if not attributes:
-            attributes = {}
-        if "linalg.memoized_indexing_maps" not in attributes:
-            attributes["linalg.memoized_indexing_maps"] = ArrayAttr(
+        properties: dict[str, Attribute] = {
+            "indexing_maps": ArrayAttr(
                 [
                     AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
                     AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
                     AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
                 ]
             )
+        }
 
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=result_types,
+            properties=properties,
             attributes=attributes,
             hidden_region=hidden_region,
         )
@@ -1058,6 +1204,31 @@ class Conv2DNchwFchwOp(ConvOpsBase):
 
 
 @irdl_op_definition
+class Conv2DNgchwFgchwOp(ConvOpsBase):
+    name = "linalg.conv_2d_ngchw_fgchw"
+
+
+@irdl_op_definition
+class Conv2DNgchwGfchwOp(ConvOpsBase):
+    name = "linalg.conv_2d_ngchw_gfchw"
+
+
+@irdl_op_definition
+class Conv2DNhwc_FhwcOp(ConvOpsBase):
+    name = "linalg.conv_2d_nhwc_fhwc"
+
+
+@irdl_op_definition
+class Conv2DNhwc_HwcfOp(ConvOpsBase):
+    name = "linalg.conv_2d_nhwc_hwcf"
+
+
+@irdl_op_definition
+class Conv2DNhwgcGfhwcOp(ConvOpsBase):
+    name = "linalg.conv_2d_nhwgc_gfhwc"
+
+
+@irdl_op_definition
 class BroadcastOp(IRDLOperation):
     """
     Static broadcast operator
@@ -1180,15 +1351,24 @@ Linalg = Dialect(
     [
         GenericOp,
         YieldOp,
+        IndexOp,
         AddOp,
         SubOp,
+        SelectOp,
         FillOp,
+        MaxOp,
+        MinOp,
         MulOp,
         TransposeOp,
         MatmulOp,
         QuantizedMatmulOp,
         PoolingNchwMaxOp,
         Conv2DNchwFchwOp,
+        Conv2DNhwgcGfhwcOp,
+        Conv2DNhwc_HwcfOp,
+        Conv2DNgchwGfchwOp,
+        Conv2DNgchwFgchwOp,
+        Conv2DNhwc_FhwcOp,
         BroadcastOp,
     ],
     [

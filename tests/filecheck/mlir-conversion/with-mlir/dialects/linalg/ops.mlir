@@ -79,7 +79,42 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
             ins(%26, %27: tensor<1x1x5x5xi8>, tensor<1x1x3x3xi8>)
             outs(%28: tensor<1x1x3x3xi32>) -> tensor<1x1x3x3xi32>
 
+%29 = "test.op"() : () -> tensor<2x3xi1>
+%30 = linalg.select ins(%29, %2, %3 : tensor<2x3xi1>, tensor<2x3xf32>, tensor<2x3xf32>) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
+"test.op"(%30) : (tensor<2x3xf32>) -> ()
 
+%31 = linalg.max ins(%2, %3 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
+%32 = linalg.min ins(%2, %3 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
+
+%33, %34, %35 = "test.op"(): () ->  (tensor<1x18x18x9xi8>, tensor<7x3x3x9xi8>, tensor<1x16x16x7xi32>)
+
+%conv_2d_nhwc_fhwc = linalg.conv_2d_nhwc_fhwc {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>}
+            ins(%33, %34: tensor<1x18x18x9xi8>, tensor<7x3x3x9xi8>)
+            outs(%35: tensor<1x16x16x7xi32>) -> tensor<1x16x16x7xi32>
+
+%36, %37, %38 = "test.op"(): () ->  (tensor<1x18x18x9xi8>, tensor<3x3x9x7xi8>, tensor<1x16x16x7xi32>)
+
+%conv_2d_nhwc_hwcf = linalg.conv_2d_nhwc_hwcf {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>}
+            ins(%36, %37: tensor<1x18x18x9xi8>, tensor<3x3x9x7xi8>)
+            outs(%38: tensor<1x16x16x7xi32>) -> tensor<1x16x16x7xi32>
+
+%39, %40, %41 = "test.op"(): () ->  (tensor<1x18x18x8x9xi8>, tensor<8x7x3x3x9xi8>, tensor<1x16x16x8x7xi32>)
+
+%conv_2d_nhwgc_gfhwc = linalg.conv_2d_nhwgc_gfhwc {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>}
+            ins(%39, %40: tensor<1x18x18x8x9xi8>, tensor<8x7x3x3x9xi8>)
+            outs(%41: tensor<1x16x16x8x7xi32>) -> tensor<1x16x16x8x7xi32>
+
+%42, %43, %44 = "test.op"(): () ->  (tensor<1x8x9x18x18xi8>, tensor<8x7x9x3x3xi8>, tensor<1x8x7x16x16xi32>)
+
+%conv_2d_ngchw_gfchw = linalg.conv_2d_ngchw_gfchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>}
+            ins(%42, %43: tensor<1x8x9x18x18xi8>, tensor<8x7x9x3x3xi8>)
+            outs(%44: tensor<1x8x7x16x16xi32>) -> tensor<1x8x7x16x16xi32>
+
+%45, %46, %47 = "test.op"(): () ->  (tensor<1x8x9x18x18xi8>, tensor<7x8x9x3x3xi8>, tensor<1x8x7x16x16xi32>)
+
+%conv_2d_ngchw_fgchw = linalg.conv_2d_ngchw_fgchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>}
+            ins(%45, %46: tensor<1x8x9x18x18xi8>, tensor<7x8x9x3x3xi8>)
+            outs(%47: tensor<1x8x7x16x16xi32>) -> tensor<1x8x7x16x16xi32>
 
 // CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
 // CHECK-NEXT:  #map1 = affine_map<(d0, d1) -> (d0, d1)>
@@ -128,4 +163,19 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 // CHECK-NEXT:    %20 = linalg.quantized_matmul ins(%18#0, %18#1, %c0_i32, %c0_i32_1 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%19 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
 // CHECK-NEXT:    %21:3 = "test.op"() : () -> (tensor<1x1x5x5xi8>, tensor<1x1x3x3xi8>, tensor<1x1x3x3xi32>)
 // CHECK-NEXT:    %22 = linalg.conv_2d_nchw_fchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%21#0, %21#1 : tensor<1x1x5x5xi8>, tensor<1x1x3x3xi8>) outs(%21#2 : tensor<1x1x3x3xi32>) -> tensor<1x1x3x3xi32>
+// CHECK-NEXT:    %23 = "test.op"() : () -> tensor<2x3xi1>
+// CHECK-NEXT:    %24 = linalg.select ins(%23, %1#0, %1#1 : tensor<2x3xi1>, tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    "test.op"(%24) : (tensor<2x3xf32>) -> ()
+// CHECK-NEXT:    %25 = linalg.max ins(%1#0, %1#1 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    %26 = linalg.min ins(%1#0, %1#1 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    %27:3 = "test.op"() : () -> (tensor<1x18x18x9xi8>, tensor<7x3x3x9xi8>, tensor<1x16x16x7xi32>)
+// CHECK-NEXT:    %28 = linalg.conv_2d_nhwc_fhwc {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%27#0, %27#1 : tensor<1x18x18x9xi8>, tensor<7x3x3x9xi8>) outs(%27#2 : tensor<1x16x16x7xi32>) -> tensor<1x16x16x7xi32>
+// CHECK-NEXT:    %29:3 = "test.op"() : () -> (tensor<1x18x18x9xi8>, tensor<3x3x9x7xi8>, tensor<1x16x16x7xi32>)
+// CHECK-NEXT:    %30 = linalg.conv_2d_nhwc_hwcf {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%29#0, %29#1 : tensor<1x18x18x9xi8>, tensor<3x3x9x7xi8>) outs(%29#2 : tensor<1x16x16x7xi32>) -> tensor<1x16x16x7xi32>
+// CHECK-NEXT:    %31:3 = "test.op"() : () -> (tensor<1x18x18x8x9xi8>, tensor<8x7x3x3x9xi8>, tensor<1x16x16x8x7xi32>)
+// CHECK-NEXT:    %32 = linalg.conv_2d_nhwgc_gfhwc {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%31#0, %31#1 : tensor<1x18x18x8x9xi8>, tensor<8x7x3x3x9xi8>) outs(%31#2 : tensor<1x16x16x8x7xi32>) -> tensor<1x16x16x8x7xi32>
+// CHECK-NEXT:    %33:3 = "test.op"() : () -> (tensor<1x8x9x18x18xi8>, tensor<8x7x9x3x3xi8>, tensor<1x8x7x16x16xi32>)
+// CHECK-NEXT:    %34 = linalg.conv_2d_ngchw_gfchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%33#0, %33#1 : tensor<1x8x9x18x18xi8>, tensor<8x7x9x3x3xi8>) outs(%33#2 : tensor<1x8x7x16x16xi32>) -> tensor<1x8x7x16x16xi32>
+// CHECK-NEXT:    %35:3 = "test.op"() : () -> (tensor<1x8x9x18x18xi8>, tensor<7x8x9x3x3xi8>, tensor<1x8x7x16x16xi32>)
+// CHECK-NEXT:    %36 = linalg.conv_2d_ngchw_fgchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%35#0, %35#1 : tensor<1x8x9x18x18xi8>, tensor<7x8x9x3x3xi8>) outs(%35#2 : tensor<1x8x7x16x16xi32>) -> tensor<1x8x7x16x16xi32>
 // CHECK-NEXT:  }

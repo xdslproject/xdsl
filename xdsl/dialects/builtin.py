@@ -23,9 +23,9 @@ from typing_extensions import Self, TypeVar
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
-    AttributeInvT,
     Block,
     BlockOps,
+    BuiltinAttribute,
     Data,
     Dialect,
     Operation,
@@ -75,6 +75,7 @@ from xdsl.traits import (
     NoMemoryEffect,
     NoTerminator,
     OptionalSymbolOpInterface,
+    OpTrait,
     SymbolTable,
 )
 from xdsl.utils.comparisons import (
@@ -84,7 +85,7 @@ from xdsl.utils.comparisons import (
     unsigned_upper_bound,
     unsigned_value_range,
 )
-from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.exceptions import DiagnosticException, PyRDLError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
@@ -131,7 +132,7 @@ class ContainerType(Generic[_ContainerElementTypeT], ABC):
 
 
 @irdl_attr_definition
-class NoneAttr(ParametrizedAttribute):
+class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
     """An attribute representing the absence of an attribute."""
 
     name = "none"
@@ -157,7 +158,9 @@ class ArrayOfConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT]):
+class ArrayAttr(
+    GenericData[tuple[AttributeCovT, ...]], BuiltinAttribute, Iterable[AttributeCovT]
+):
     name = "array"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
@@ -191,7 +194,7 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 
 
 @irdl_attr_definition
-class StringAttr(Data[str]):
+class StringAttr(Data[str], BuiltinAttribute):
     name = "string"
 
     @classmethod
@@ -204,7 +207,7 @@ class StringAttr(Data[str]):
 
 
 @irdl_attr_definition
-class BytesAttr(Data[bytes]):
+class BytesAttr(Data[bytes], BuiltinAttribute):
     name = "bytes"
 
     @classmethod
@@ -217,7 +220,7 @@ class BytesAttr(Data[bytes]):
 
 
 @irdl_attr_definition
-class SymbolNameAttr(ParametrizedAttribute):
+class SymbolNameAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "symbol_name"
     data: ParameterDef[StringAttr]
 
@@ -228,7 +231,7 @@ class SymbolNameAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class SymbolRefAttr(ParametrizedAttribute):
+class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "symbol_ref"
     root_reference: ParameterDef[StringAttr]
     nested_references: ParameterDef[ArrayAttr[StringAttr]]
@@ -313,13 +316,15 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
         self.int_constraint.verify(attr.data, constraint_context)
 
     @dataclass(frozen=True)
-    class _Extractor(VarExtractor[IntAttr]):
+    class _Extractor(VarExtractor[Attribute]):
         inner: VarExtractor[int]
 
-        def extract_var(self, a: IntAttr) -> ConstraintVariableType:
+        def extract_var(self, a: Attribute) -> ConstraintVariableType:
+            if not isinstance(a, IntAttr):
+                raise PyRDLError(f"Inference expected {a} to be an IntAttr")
             return self.inner.extract_var(a.data)
 
-    def get_variable_extractors(self) -> dict[str, VarExtractor[IntAttr]]:
+    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
         return {
             k: self._Extractor(v)
             for k, v in self.int_constraint.get_length_extractors().items()
@@ -513,7 +518,9 @@ Bitwidths: `<B`: 1-8, `<H`: 9-16, `<I`: 17-32, `<Q`: 33-64.
 
 
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthType):
+class IntegerType(
+    ParametrizedAttribute, StructPackableType[int], FixedBitwidthType, BuiltinAttribute
+):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -628,12 +635,12 @@ AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstr
 
 
 @irdl_attr_definition
-class UnitAttr(ParametrizedAttribute):
+class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "unit"
 
 
 @irdl_attr_definition
-class LocationAttr(ParametrizedAttribute):
+class LocationAttr(ParametrizedAttribute, BuiltinAttribute):
     """
     An attribute representing source code location.
     Only supports unknown locations for now.
@@ -643,7 +650,7 @@ class LocationAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class IndexType(ParametrizedAttribute, StructPackableType[int]):
+class IndexType(ParametrizedAttribute, BuiltinAttribute, StructPackableType[int]):
     name = "index"
 
     def print_value_without_type(self, value: int, printer: Printer):
@@ -680,6 +687,7 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 @irdl_attr_definition
 class IntegerAttr(
     Generic[_IntegerAttrType],
+    BuiltinAttribute,
     TypedAttribute,
 ):
     name = "integer"
@@ -807,7 +815,7 @@ class _FloatType(StructPackableType[float], FixedBitwidthType, ABC):
 
 
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, _FloatType):
+class BFloat16Type(ParametrizedAttribute, BuiltinAttribute, _FloatType):
     name = "bf16"
 
     @property
@@ -820,7 +828,7 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, _FloatType):
+class Float16Type(ParametrizedAttribute, BuiltinAttribute, _FloatType):
     name = "f16"
 
     @property
@@ -833,7 +841,7 @@ class Float16Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, _FloatType):
+class Float32Type(ParametrizedAttribute, BuiltinAttribute, _FloatType):
     name = "f32"
 
     @property
@@ -846,7 +854,7 @@ class Float32Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, _FloatType):
+class Float64Type(ParametrizedAttribute, BuiltinAttribute, _FloatType):
     name = "f64"
 
     @property
@@ -859,7 +867,7 @@ class Float64Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, _FloatType):
+class Float80Type(ParametrizedAttribute, BuiltinAttribute, _FloatType):
     name = "f80"
 
     @property
@@ -872,7 +880,7 @@ class Float80Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, _FloatType):
+class Float128Type(ParametrizedAttribute, BuiltinAttribute, _FloatType):
     name = "f128"
 
     @property
@@ -899,7 +907,7 @@ AnyFloatConstr = (
 
 @irdl_attr_definition
 class FloatData(Data[float]):
-    name = "float_data"
+    name = "builtin.float_data"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> float:
@@ -926,7 +934,7 @@ _FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
+class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
     name = "float"
 
     value: ParameterDef[FloatData]
@@ -997,7 +1005,7 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
 
 
 @irdl_attr_definition
-class ComplexType(ParametrizedAttribute, TypeAttribute):
+class ComplexType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "complex"
     element_type: ParameterDef[IntegerType | AnyFloat]
 
@@ -1006,7 +1014,7 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[immutabledict[str, Attribute]]):
+class DictionaryAttr(GenericData[immutabledict[str, Attribute]], BuiltinAttribute):
     name = "dictionary"
 
     def __init__(self, value: Mapping[str, Attribute]):
@@ -1030,7 +1038,7 @@ class DictionaryAttr(GenericData[immutabledict[str, Attribute]]):
 
 
 @irdl_attr_definition
-class TupleType(ParametrizedAttribute):
+class TupleType(ParametrizedAttribute, BuiltinAttribute):
     name = "tuple"
 
     types: ParameterDef[ArrayAttr[Attribute]]
@@ -1044,6 +1052,7 @@ class TupleType(ParametrizedAttribute):
 @irdl_attr_definition
 class VectorType(
     Generic[AttributeCovT],
+    BuiltinAttribute,
     ParametrizedAttribute,
     TypeAttribute,
     ShapedType,
@@ -1081,6 +1090,9 @@ class VectorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
+    def get_scalable_dims(self) -> tuple[bool, ...]:
+        return tuple(bool(i) for i in self.scalable_dims)
+
     def verify(self):
         num_dims = len(self.shape)
         num_scalable_dims = len(self.scalable_dims)
@@ -1090,6 +1102,27 @@ class VectorType(
                 f"equal to number of dimensions {num_dims}."
             )
 
+    @classmethod
+    def constr(
+        cls,
+        element_type: IRDLGenericAttrConstraint[AttributeCovT] | None = None,
+        *,
+        shape: IRDLGenericAttrConstraint[ArrayAttr[IntAttr]] | None = None,
+        scalable_dims: IRDLGenericAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
+    ) -> GenericAttrConstraint[VectorType[AttributeCovT]]:
+        if element_type is None and shape is None and scalable_dims is None:
+            return BaseAttr[VectorType[AttributeCovT]](VectorType)
+        shape_constr = AnyAttr() if shape is None else shape
+        scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
+        return ParamAttrConstraint[VectorType[AttributeCovT]](
+            VectorType,
+            (
+                shape_constr,
+                element_type,
+                scalable_dims_constr,
+            ),
+        )
+
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
 
@@ -1098,6 +1131,7 @@ AnyVectorType: TypeAlias = VectorType[Attribute]
 class TensorType(
     Generic[AttributeCovT],
     ParametrizedAttribute,
+    BuiltinAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[AttributeCovT],
@@ -1137,6 +1171,7 @@ AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
 class UnrankedTensorType(
     Generic[AttributeCovT],
     ParametrizedAttribute,
+    BuiltinAttribute,
     TypeAttribute,
     ContainerType[AttributeCovT],
 ):
@@ -1168,9 +1203,9 @@ class ContainerOf(
 
     def __init__(
         self,
-        elem_constr: AttributeCovT
-        | type[AttributeCovT]
-        | GenericAttrConstraint[AttributeCovT],
+        elem_constr: (
+            AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT]
+        ),
     ) -> None:
         object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
@@ -1250,7 +1285,7 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class DenseResourceAttr(ParametrizedAttribute):
+class DenseResourceAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "dense_resource"
 
     resource_handle: ParameterDef[StringAttr]
@@ -1266,7 +1301,7 @@ class DenseResourceAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class DenseArrayBase(ParametrizedAttribute):
+class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
     name = "array"
 
     elt_type: ParameterDef[IntegerType | AnyFloat]
@@ -1377,11 +1412,14 @@ class DenseArrayBase(ParametrizedAttribute):
 
 
 DenseI64ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i64, BytesAttr])
-"""Type constraint for DenseArrays containing integers of i64 integers."""
+"""Type constraint for DenseArrays containing i64 integers."""
+
+DenseI32ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i32, BytesAttr])
+"""Type constraint for DenseArrays containing i32 integers."""
 
 
 @irdl_attr_definition
-class FunctionType(ParametrizedAttribute, TypeAttribute):
+class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "fun"
 
     inputs: ParameterDef[ArrayAttr[Attribute]]
@@ -1401,7 +1439,7 @@ class FunctionType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class OpaqueAttr(ParametrizedAttribute):
+class OpaqueAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "opaque"
 
     ident: ParameterDef[StringAttr]
@@ -1445,7 +1483,7 @@ class MemRefLayoutAttr(Attribute, ABC):
 
 
 @irdl_attr_definition
-class StridedLayoutAttr(MemRefLayoutAttr, ParametrizedAttribute):
+class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribute):
     """
     An attribute representing a strided layout of a shaped type.
     See external [documentation](https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr).
@@ -1533,7 +1571,7 @@ class StridedLayoutAttr(MemRefLayoutAttr, ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class AffineMapAttr(MemRefLayoutAttr, Data[AffineMap]):
+class AffineMapAttr(MemRefLayoutAttr, BuiltinAttribute, Data[AffineMap]):
     """An Attribute containing an AffineMap object."""
 
     name = "affine_map"
@@ -1556,7 +1594,7 @@ class AffineMapAttr(MemRefLayoutAttr, Data[AffineMap]):
 
 
 @irdl_attr_definition
-class AffineSetAttr(Data[AffineSet]):
+class AffineSetAttr(Data[AffineSet], BuiltinAttribute):
     """An attribute containing an AffineSet object."""
 
     name = "affine_set"
@@ -1679,8 +1717,17 @@ class UnregisteredOp(Operation, ABC):
 
         return UnregisteredOpWithNameOp
 
+    @classmethod
+    def has_trait(
+        cls,
+        trait: type[OpTrait] | OpTrait,
+        *,
+        value_if_unregistered: bool = True,
+    ) -> bool:
+        return value_if_unregistered
 
-class UnregisteredAttr(ParametrizedAttribute, ABC):
+
+class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
     """
     An unregistered attribute or type.
 
@@ -1747,9 +1794,9 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
                     raise VerifyException("Unregistered attribute is_type mismatch")
 
         if is_type:
-            return UnregisteredAttrWithName
-        else:
             return UnregisteredAttrTypeWithName
+        else:
+            return UnregisteredAttrWithName
 
 
 @irdl_op_definition
@@ -1835,7 +1882,7 @@ _UnrankedMemRefTypeElemsInit = TypeVar("_UnrankedMemRefTypeElemsInit", bound=Att
 
 
 @irdl_attr_definition
-class NoneType(ParametrizedAttribute, TypeAttribute):
+class NoneType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "none_type"
 
 
@@ -1843,6 +1890,7 @@ class NoneType(ParametrizedAttribute, TypeAttribute):
 class MemRefType(
     Generic[_MemRefTypeElement],
     ParametrizedAttribute,
+    BuiltinAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[_MemRefTypeElement],
@@ -1982,56 +2030,11 @@ class MemRefType(
         )
 
 
-@dataclass(frozen=True, init=False)
-class TensorOrMemRefOf(
-    GenericAttrConstraint[TensorType[AttributeCovT] | MemRefType[AttributeCovT]]
-):
-    """A type constraint that can be nested once in a memref or a tensor."""
-
-    elem_constr: GenericAttrConstraint[AttributeCovT]
-
-    def __init__(
-        self,
-        elem_constr: AttributeCovT
-        | type[AttributeCovT]
-        | GenericAttrConstraint[AttributeCovT],
-    ) -> None:
-        object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
-
-    @dataclass(frozen=True)
-    class _Extractor(
-        VarExtractor[TensorType[AttributeInvT] | MemRefType[AttributeInvT]]
-    ):
-        inner: VarExtractor[AttributeInvT]
-
-        def extract_var(
-            self, a: TensorType[AttributeInvT] | MemRefType[AttributeInvT]
-        ) -> ConstraintVariableType:
-            return self.inner.extract_var(a.element_type)
-
-    def get_resolvers(
-        self,
-    ) -> dict[
-        str,
-        VarExtractor[TensorType[AttributeCovT] | MemRefType[AttributeCovT]],
-    ]:
-        return {
-            v: self._Extractor(r)
-            for v, r in self.elem_constr.get_variable_extractors().items()
-        }
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isinstance(attr, MemRefType) or isinstance(attr, TensorType):
-            attr = cast(MemRefType[Attribute] | TensorType[Attribute], attr)
-            self.elem_constr.verify(attr.element_type, constraint_context)
-        else:
-            raise VerifyException(f"Expected tensor or memref type, got {attr}")
-
-
 @irdl_attr_definition
 class UnrankedMemRefType(
     Generic[_UnrankedMemRefTypeElems],
     ParametrizedAttribute,
+    BuiltinAttribute,
     TypeAttribute,
     ContainerType[_UnrankedMemRefTypeElems],
 ):
@@ -2059,23 +2062,27 @@ RankedStructure: TypeAlias = (
 )
 
 AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
+DenseElementCovT = TypeVar(
+    "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
+)
 
 
 @irdl_attr_definition
-class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
+class DenseIntOrFPElementsAttr(
+    Generic[DenseElementCovT],
+    TypedAttribute,
+    BuiltinAttribute,
+    ContainerType[DenseElementCovT],
+):
     name = "dense"
-    type: ParameterDef[
-        RankedStructure[IntegerType]
-        | RankedStructure[IndexType]
-        | RankedStructure[AnyFloat]
-    ]
+    type: ParameterDef[RankedStructure[DenseElementCovT]]
     data: ParameterDef[BytesAttr]
 
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...]:
         return self.type.get_shape()
 
-    def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
+    def get_element_type(self) -> DenseElementCovT:
         return self.type.get_element_type()
 
     def __len__(self) -> int:
@@ -2099,7 +2106,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     def create_dense_index(
         type: RankedStructure[IndexType],
         data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
-    ) -> DenseIntOrFPElementsAttr:
+    ) -> DenseIntOrFPElementsAttr[IndexType]:
         if len(data) and isinstance(data[0], IntegerAttr):
             data = [
                 el.value.data for el in cast(Sequence[IntegerAttr[IndexType]], data)
@@ -2113,7 +2120,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     def create_dense_int(
         type: RankedStructure[IntegerType],
         data: Sequence[int] | Sequence[IntegerAttr[IntegerType]],
-    ) -> DenseIntOrFPElementsAttr:
+    ) -> DenseIntOrFPElementsAttr[IntegerType]:
         if len(data) and isinstance(data[0], IntegerAttr):
             data = [
                 el.value.data for el in cast(Sequence[IntegerAttr[IntegerType]], data)
@@ -2143,8 +2150,8 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     @staticmethod
     def create_dense_float(
         type: RankedStructure[AnyFloat],
-        data: Sequence[int | float] | Sequence[FloatAttr],
-    ) -> DenseIntOrFPElementsAttr:
+        data: Sequence[float] | Sequence[FloatAttr],
+    ) -> DenseIntOrFPElementsAttr[AnyFloat]:
         if len(data) and isa(data[0], FloatAttr):
             data = [el.value.data for el in cast(Sequence[FloatAttr], data)]
         else:

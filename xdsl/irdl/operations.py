@@ -309,8 +309,8 @@ class SameVariadicSuccessorSize(SameVariadicSize):
 @dataclass
 class ParsePropInAttrDict(IRDLOption):
     """
-    Parse properties in the attribute dictionary instead of requiring them to
-    be in the assembly format.
+    Allows properties to be omitted from the assembly format, causing them
+    to be parsed as part of the attribute dictionary.
     This should only be used to ensure MLIR compatibility, it is otherwise
     bad design to use it.
     """
@@ -924,17 +924,25 @@ class OpDef:
     """The internal IRDL definition of an operation."""
 
     name: str = field(kw_only=False)
-    operands: list[tuple[str, OperandDef]] = field(default_factory=list)
-    results: list[tuple[str, ResultDef]] = field(default_factory=list)
-    properties: dict[str, PropertyDef] = field(default_factory=dict)
-    attributes: dict[str, AttributeDef] = field(default_factory=dict)
-    regions: list[tuple[str, RegionDef]] = field(default_factory=list)
-    successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
-    options: list[IRDLOption] = field(default_factory=list)
+    operands: list[tuple[str, OperandDef]] = field(
+        default_factory=list[tuple[str, OperandDef]]
+    )
+    results: list[tuple[str, ResultDef]] = field(
+        default_factory=list[tuple[str, ResultDef]]
+    )
+    properties: dict[str, PropertyDef] = field(default_factory=dict[str, PropertyDef])
+    attributes: dict[str, AttributeDef] = field(default_factory=dict[str, AttributeDef])
+    regions: list[tuple[str, RegionDef]] = field(
+        default_factory=list[tuple[str, RegionDef]]
+    )
+    successors: list[tuple[str, SuccessorDef]] = field(
+        default_factory=list[tuple[str, SuccessorDef]]
+    )
+    options: list[IRDLOption] = field(default_factory=list[IRDLOption])
     traits: OpTraits = field(default_factory=lambda: traits_def())
 
     accessor_names: dict[str, tuple[str, Literal["attribute", "property"]]] = field(
-        default_factory=dict
+        default_factory=dict[str, tuple[str, Literal["attribute", "property"]]]
     )
     """
     Mapping from the accessor name to the attribute or property name.
@@ -1226,17 +1234,6 @@ class OpDef:
         # Verify traits.
         for trait in self.traits:
             trait.verify(op)
-
-    def split_properties(self, attr_dict: dict[str, Attribute]) -> dict[str, Attribute]:
-        """
-        Remove all entries of an attribute dictionary that are defined as properties
-        by the operation definition, and return them in a new dictionary.
-        """
-        properties: dict[str, Attribute] = {}
-        for property_name in self.properties.keys():
-            if property_name in attr_dict:
-                properties[property_name] = attr_dict.pop(property_name)
-        return properties
 
 
 class VarIRConstruct(Enum):

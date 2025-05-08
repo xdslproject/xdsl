@@ -23,7 +23,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     VarConstraint,
-    attr_def,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -97,13 +96,13 @@ class ApplyOp(IRDLOperation):
         assert len(operands) == m.num_dims + m.num_symbols, f"{len(operands)} {m}"
         printer.print_string(" ")
         printer.print_attribute(self.map)
-        printer.print_string(" ")
+        printer.print_string(" (")
         if m.num_dims:
-            printer.print_string("(")
             printer.print_list(
                 operands[: m.num_dims], lambda el: printer.print_operand(el)
             )
-            printer.print_string(")")
+        printer.print_string(")")
+
         if m.num_symbols:
             printer.print_string("[")
             printer.print_list(
@@ -206,7 +205,7 @@ class IfOp(IRDLOperation):
     args = var_operand_def(IndexType)
     res = var_result_def()
 
-    condition = attr_def(AffineSetAttr)
+    condition = prop_def(AffineSetAttr)
 
     then_region = region_def("single_block")
     else_region = region_def()

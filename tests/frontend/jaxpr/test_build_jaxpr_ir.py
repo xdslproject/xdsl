@@ -6,7 +6,7 @@ import pytest
 try:
     from jax import make_jaxpr  # pyright: ignore[reportUnknownVariableType]
     from jax import numpy as jnp
-    from jax._src.core import ClosedJaxpr  # pyright: ignore[reportPrivateImportUsage]
+    from jax._src.core import ClosedJaxpr
 except ImportError as exc:
     print(exc)
     pytest.skip("jax is an optional dependency", allow_module_level=True)

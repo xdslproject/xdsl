@@ -22,7 +22,7 @@ from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
 from xdsl.ir.affine import AffineExpr, AffineMap
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_unimplemented_inputs():
@@ -52,10 +52,10 @@ def test_linalg_generic():
 
     op = linalg.GenericOp(
         (
-            TestSSAValue(MemRefType(i32, [2, 3])),
-            TestSSAValue(MemRefType(i32, [3, 2])),
+            create_ssa_value(MemRefType(i32, [2, 3])),
+            create_ssa_value(MemRefType(i32, [3, 2])),
         ),
-        (TestSSAValue(MemRefType(i32, [1, 6])),),
+        (create_ssa_value(MemRefType(i32, [1, 6])),),
         Region(Block(arg_types=(i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(2)),
@@ -98,10 +98,10 @@ def test_linalg_generic_scalar():
 
     op = linalg.GenericOp(
         (
-            TestSSAValue(MemRefType(i32, [2, 3])),
-            TestSSAValue(i32),
+            create_ssa_value(MemRefType(i32, [2, 3])),
+            create_ssa_value(i32),
         ),
-        (TestSSAValue(MemRefType(i32, [1, 6])),),
+        (create_ssa_value(MemRefType(i32, [1, 6])),),
         Region(Block(arg_types=(i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(2)),
@@ -144,10 +144,10 @@ def test_linalg_generic_reduction():
 
     op = linalg.GenericOp(
         (
-            TestSSAValue(MemRefType(i32, [3])),
-            TestSSAValue(MemRefType(i32, [3])),
+            create_ssa_value(MemRefType(i32, [3])),
+            create_ssa_value(MemRefType(i32, [3])),
         ),
-        (TestSSAValue(MemRefType(i32, [])),),
+        (create_ssa_value(MemRefType(i32, [])),),
         Region(Block(arg_types=(i32, i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(1)),
@@ -176,10 +176,10 @@ def test_linalg_add():
     interpreter.register_implementations(LinalgFunctions())
     op = linalg.AddOp(
         (
-            TestSSAValue(TensorType(f32, [2, 2])),
-            TestSSAValue(TensorType(f32, [2, 2])),
+            create_ssa_value(TensorType(f32, [2, 2])),
+            create_ssa_value(TensorType(f32, [2, 2])),
         ),
-        (TestSSAValue(TensorType(f32, [2, 2])),),
+        (create_ssa_value(TensorType(f32, [2, 2])),),
         (TensorType(f32, [2, 2]),),
     )
 
@@ -198,8 +198,8 @@ def test_fill_op():
     interpreter.register_implementations(LinalgFunctions())
     constant = arith.ConstantOp(FloatAttr(1.0, f32))
     op = linalg.FillOp(
-        (TestSSAValue(constant.result.type),),
-        (TestSSAValue(TensorType(f32, [2, 3])),),
+        (create_ssa_value(constant.result.type),),
+        (create_ssa_value(TensorType(f32, [2, 3])),),
         (TensorType(f32, [2, 3]),),
     )
     a = ShapedArray(TypedPtr.new_float32([1.0]), [1])
@@ -215,10 +215,10 @@ def test_linalg_mul():
     interpreter.register_implementations(LinalgFunctions())
     op = linalg.MulOp(
         (
-            TestSSAValue(TensorType(f32, [2, 2])),
-            TestSSAValue(TensorType(f32, [2, 2])),
+            create_ssa_value(TensorType(f32, [2, 2])),
+            create_ssa_value(TensorType(f32, [2, 2])),
         ),
-        (TestSSAValue(TensorType(f32, [2, 2])),),
+        (create_ssa_value(TensorType(f32, [2, 2])),),
         (TensorType(f32, [2, 2]),),
     )
 
@@ -234,8 +234,8 @@ def test_linalg_transpose():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
     op = linalg.TransposeOp(
-        TestSSAValue(TensorType(f32, [3, 2])),
-        TestSSAValue(TensorType(f32, [2, 3])),
+        create_ssa_value(TensorType(f32, [3, 2])),
+        create_ssa_value(TensorType(f32, [2, 3])),
         DenseArrayBase.from_list(i64, [1, 0]),
         TensorType(f32, [2, 3]),
     )
@@ -253,10 +253,10 @@ def test_linalg_matmul():
     interpreter.register_implementations(LinalgFunctions())
     op = linalg.MatmulOp(
         (
-            TestSSAValue(TensorType(f32, [3, 2])),
-            TestSSAValue(TensorType(f32, [2, 3])),
+            create_ssa_value(TensorType(f32, [3, 2])),
+            create_ssa_value(TensorType(f32, [2, 3])),
         ),
-        (TestSSAValue(TensorType(f32, [3, 3])),),
+        (create_ssa_value(TensorType(f32, [3, 3])),),
         (TensorType(f32, [3, 3]),),
     )
 
@@ -276,10 +276,10 @@ def test_linalg_pooling_nchw_max():
     interpreter.register_implementations(LinalgFunctions())
     op = linalg.PoolingNchwMaxOp(
         (
-            TestSSAValue(TensorType(f32, [1, 1, 4, 4])),
-            TestSSAValue(TensorType(f32, [2, 2])),
+            create_ssa_value(TensorType(f32, [1, 1, 4, 4])),
+            create_ssa_value(TensorType(f32, [2, 2])),
         ),
-        (TestSSAValue(TensorType(f32, [1, 1, 3, 3])),),
+        (create_ssa_value(TensorType(f32, [1, 1, 3, 3])),),
         (TensorType(f32, [1, 1, 3, 3]),),
         {
             "dilations": DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
@@ -309,10 +309,10 @@ def test_linalg_pooling_nchw_max_strides_two():
     interpreter.register_implementations(LinalgFunctions())
     op = linalg.PoolingNchwMaxOp(
         (
-            TestSSAValue(TensorType(f32, [1, 1, 4, 4])),
-            TestSSAValue(TensorType(f32, [2, 2])),
+            create_ssa_value(TensorType(f32, [1, 1, 4, 4])),
+            create_ssa_value(TensorType(f32, [2, 2])),
         ),
-        (TestSSAValue(TensorType(f32, [1, 1, 2, 2])),),
+        (create_ssa_value(TensorType(f32, [1, 1, 2, 2])),),
         (TensorType(f32, [1, 1, 2, 2]),),
         {
             "dilations": DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
@@ -342,10 +342,10 @@ def test_linalg_conv_2d_nchw_fchw():
     interpreter.register_implementations(LinalgFunctions())
     op = linalg.Conv2DNchwFchwOp(
         (
-            TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
-            TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
+            create_ssa_value(TensorType(f32, [1, 1, 5, 5])),
+            create_ssa_value(TensorType(f32, [1, 1, 3, 3])),
         ),
-        (TestSSAValue(TensorType(f32, [1, 1, 3, 3])),),
+        (create_ssa_value(TensorType(f32, [1, 1, 3, 3])),),
         (TensorType(f32, [1, 1, 3, 3]),),
         {
             "dilations": DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),

@@ -50,10 +50,10 @@ class Dialect:
     _name: str
 
     _operations: list[type[Operation]] = field(
-        default_factory=list, init=True, repr=True
+        default_factory=list[type["Operation"]], init=True, repr=True
     )
     _attributes: list[type[Attribute]] = field(
-        default_factory=list, init=True, repr=True
+        default_factory=list[type["Attribute"]], init=True, repr=True
     )
 
     @property
@@ -114,6 +114,17 @@ class Attribute(ABC):
         printer = Printer(stream=res)
         printer.print_attribute(self)
         return res.getvalue()
+
+
+class BuiltinAttribute(Attribute, ABC):
+    """
+    This class is used to mark builtin attributes.
+    Unlike other attributes in MLIR, printing and parsing of *Builtin*
+    attributes is handled directly by the parser.
+    Attributes outside of the `builtin` dialect should not inherit from `BuiltinAttribute`.
+    """
+
+    pass
 
 
 class TypeAttribute(Attribute):
@@ -466,7 +477,7 @@ class Use:
 class IRWithUses(ABC):
     """IRNode which stores a list of its uses."""
 
-    uses: set[Use] = field(init=False, default_factory=set, repr=False)
+    uses: set[Use] = field(init=False, default_factory=set[Use], repr=False)
     """All uses of the value."""
 
     def add_use(self, use: Use):
@@ -736,7 +747,7 @@ class OpTraits(Iterable[OpTrait]):
     @property
     def traits(self) -> frozenset[OpTrait]:
         """Returns a copy of this instance's traits."""
-        if not isinstance(self._traits, frozenset):
+        if callable(self._traits):
             self._traits = frozenset(self._traits())
         return self._traits
 
@@ -770,14 +781,14 @@ class Operation(IRNode):
     This list should be empty for non-terminator operations.
     """
 
-    properties: dict[str, Attribute] = field(default_factory=dict)
+    properties: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
     """
     The properties attached to the operation.
     Properties are inherent to the definition of an operation's semantics, and
     thus cannot be discarded by transformations.
     """
 
-    attributes: dict[str, Attribute] = field(default_factory=dict)
+    attributes: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
     """The attributes attached to the operation."""
 
     regions: tuple[Region, ...] = field(default=())
@@ -1172,12 +1183,6 @@ class Operation(IRNode):
         Check if the operation implements a trait with the given parameters.
         If the operation is not registered, return value_if_unregisteed instead.
         """
-
-        from xdsl.dialects.builtin import UnregisteredOp
-
-        if issubclass(cls, UnregisteredOp):
-            return value_if_unregistered
-
         return cls.get_trait(trait) is not None
 
     @classmethod

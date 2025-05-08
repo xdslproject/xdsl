@@ -4,7 +4,7 @@
 
 "snitch_stream.streaming_region"(%ptr0, %ptr1, %ptr2) <{
     "stride_patterns" = [#snitch_stream.stride_pattern<ub = [], strides = []>],
-    "operandSegmentSizes" = array<i32: 2, 1>
+    operandSegmentSizes = array<i32: 2, 1>
 }> ({
 ^0(%s0 : !snitch.readable<!riscv.freg>, %s1 : !snitch.readable<!riscv.freg>, %s2 : !snitch.writable<!riscv.freg>):
     %c5 = riscv.li 5 : !riscv.reg

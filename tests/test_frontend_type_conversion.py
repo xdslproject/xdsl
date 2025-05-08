@@ -18,7 +18,7 @@ from xdsl.irdl import irdl_attr_definition
 
 @irdl_attr_definition
 class A(ParametrizedAttribute):
-    name = "a"
+    name = "test.a"
 
 
 class _A(_FrontendType):
@@ -40,7 +40,7 @@ class _C(Generic[T]):
 
 @irdl_attr_definition
 class D(ParametrizedAttribute):
-    name = "d"
+    name = "test.d"
 
 
 class _D(Generic[T], _FrontendType):

@@ -1,11 +1,14 @@
-from typing import Generic
+from typing_extensions import deprecated
 
-import pytest
+from xdsl.dialects.test import TestOp
+from xdsl.ir import AttributeCovT, OpResult
 
-from xdsl.ir import AttributeCovT, Block, Operation, SSAValue
+
+def create_ssa_value(t: AttributeCovT) -> OpResult[AttributeCovT]:
+    op = TestOp(result_types=(t,))
+    return op.results[0]  # pyright: ignore[reportReturnType]
 
 
-class TestSSAValue(Generic[AttributeCovT], SSAValue[AttributeCovT]):
-    @property
-    def owner(self) -> Operation | Block:
-        pytest.fail("Attempting to get the owner of a `TestSSAValue`")
+@deprecated("Please use `create_ssa_value` instead")
+def TestSSAValue(t: AttributeCovT) -> OpResult[AttributeCovT]:
+    return create_ssa_value(t)

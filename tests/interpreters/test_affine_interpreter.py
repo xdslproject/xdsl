@@ -11,7 +11,7 @@ from xdsl.interpreters.memref import MemRefFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir.affine import AffineMap
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 index = IndexType()
 
@@ -97,7 +97,7 @@ def test_apply():
 
     assert interpreter.run_op(
         affine.ApplyOp(
-            (TestSSAValue(index), TestSSAValue(index)),
+            (create_ssa_value(index), create_ssa_value(index)),
             AffineMapAttr(AffineMap.from_callable(lambda d0, d1: (d0 + d1,))),
         ),
         (1, 2),

@@ -44,7 +44,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_simple_forgotten_op():
@@ -722,7 +722,7 @@ def test_custom_format_attr():
     ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_op(AnyOp)
-    ctx.load_attr(CustomFormatAttr)
+    ctx.load_attr_or_type(CustomFormatAttr)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -734,7 +734,7 @@ def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}} : () -> ()
+"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr, arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}}> : () -> ()
     """
 
     ctx = Context()
@@ -934,7 +934,7 @@ def test_get_printed_name():
     ctx.load_dialect(Builtin)
 
     printer = Printer()
-    val = TestSSAValue(i32)
+    val = create_ssa_value(i32)
 
     # Test printing without constraints
     stream = StringIO()
@@ -949,7 +949,7 @@ def test_get_printed_name():
     assert f"%{picked_name}" == printer.stream.getvalue()
 
     # Test printing with name hint
-    val = TestSSAValue(i32)
+    val = create_ssa_value(i32)
     val.name_hint = "foo"
     printed = StringIO()
     picked_name = Printer(printed).print_ssa_value(val)

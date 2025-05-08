@@ -8,6 +8,8 @@
     ],
     "Op": [
       "Test_AndOp",
+      "Test_AnyAttrOfOp",
+      "Test_AnyAttrOfSingleOp",
       "Test_AnyOp",
       "Test_AssemblyFormat",
       "Test_AssemblyFormatLong",
@@ -118,6 +120,24 @@
     "bitwidth": 32,
     "summary": "32-bit signless integer"
   },
+  "I32Attr": {
+    "!name": "I32Attr",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "TypedAttrBase",
+      "SignlessIntegerAttrBase",
+      "TypedSignlessIntegerAttrBase"
+    ],
+    "baseAttr": null,
+    "summary": "32-bit signless integer attribute",
+    "valueType": {
+      "def": "I32",
+      "kind": "def",
+      "printable": "I32"
+    }
+  },
   "Index": {
     "!name": "Index",
     "!superclasses": [
@@ -150,6 +170,22 @@
     "bitwidth": 64,
     "summary": "64-bit signed integer"
   },
+  "StrAttr": {
+    "!name": "StrAttr",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "StringBasedAttr"
+    ],
+    "baseAttr": null,
+    "summary": "string attribute",
+    "valueType": {
+      "def": "NoneType",
+      "kind": "def",
+      "printable": "NoneType"
+    }
+  },
   "Test_AndOp": {
     "!name": "Test_AndOp",
     "!superclasses": [
@@ -160,9 +196,9 @@
       "args": [
         [
           {
-            "def": "anonymous_327",
+            "def": "anonymous_338",
             "kind": "def",
-            "printable": "anonymous_327"
+            "printable": "anonymous_338"
           },
           "in"
         ]
@@ -173,7 +209,7 @@
         "kind": "def",
         "printable": "ins"
       },
-      "printable": "(ins anonymous_327:$in)"
+      "printable": "(ins anonymous_338:$in)"
     },
     "assemblyFormat": null,
     "opDialect": {
@@ -182,6 +218,134 @@
       "printable": "Test_Dialect"
     },
     "opName": "and",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_AnyAttrOfOp": {
+    "!name": "Test_AnyAttrOfOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "anonymous_354",
+            "kind": "def",
+            "printable": "anonymous_354"
+          },
+          "attr"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins anonymous_354:$attr)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "any_attr_of_i32_str",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_AnyAttrOfSingleOp": {
+    "!name": "Test_AnyAttrOfSingleOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "anonymous_356",
+            "kind": "def",
+            "printable": "anonymous_356"
+          },
+          "attr"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins anonymous_356:$attr)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "any_attr_of_i32",
     "regions": {
       "args": [],
       "kind": "dag",
@@ -414,9 +578,9 @@
         ],
         [
           {
-            "def": "anonymous_329",
+            "def": "anonymous_340",
             "kind": "def",
-            "printable": "anonymous_329"
+            "printable": "anonymous_340"
           },
           "opt"
         ]
@@ -427,7 +591,7 @@
         "kind": "def",
         "printable": "ins"
       },
-      "printable": "(ins I16Attr:$int_attr, Test_TestAttr:$in, anonymous_329:$opt)"
+      "printable": "(ins I16Attr:$int_attr, Test_TestAttr:$in, anonymous_340:$opt)"
     },
     "assemblyFormat": null,
     "opDialect": {
@@ -478,17 +642,17 @@
       "args": [
         [
           {
-            "def": "anonymous_331",
+            "def": "anonymous_342",
             "kind": "def",
-            "printable": "anonymous_331"
+            "printable": "anonymous_342"
           },
           "tensor"
         ],
         [
           {
-            "def": "anonymous_334",
+            "def": "anonymous_345",
             "kind": "def",
-            "printable": "anonymous_334"
+            "printable": "anonymous_345"
           },
           "vector"
         ]
@@ -499,7 +663,7 @@
         "kind": "def",
         "printable": "ins"
       },
-      "printable": "(ins anonymous_331:$tensor, anonymous_334:$vector)"
+      "printable": "(ins anonymous_342:$tensor, anonymous_345:$vector)"
     },
     "assemblyFormat": null,
     "opDialect": {
@@ -630,9 +794,9 @@
       "args": [
         [
           {
-            "def": "anonymous_336",
+            "def": "anonymous_347",
             "kind": "def",
-            "printable": "anonymous_336"
+            "printable": "anonymous_347"
           },
           "in"
         ]
@@ -643,7 +807,7 @@
         "kind": "def",
         "printable": "ins"
       },
-      "printable": "(ins anonymous_336:$in)"
+      "printable": "(ins anonymous_347:$in)"
     },
     "assemblyFormat": null,
     "opDialect": {
@@ -879,9 +1043,9 @@
         ],
         [
           {
-            "def": "anonymous_338",
+            "def": "anonymous_349",
             "kind": "def",
-            "printable": "anonymous_338"
+            "printable": "anonymous_349"
           },
           null
         ]
@@ -892,7 +1056,7 @@
         "kind": "def",
         "printable": "ins"
       },
-      "printable": "(ins I32:$a, SI64:$b, UI8:$c, Index:$d, F32:$e, NoneType:$f, anonymous_338)"
+      "printable": "(ins I32:$a, SI64:$b, UI8:$c, Index:$d, F32:$e, NoneType:$f, anonymous_349)"
     },
     "assemblyFormat": null,
     "opDialect": {
@@ -943,17 +1107,17 @@
       "args": [
         [
           {
-            "def": "anonymous_341",
+            "def": "anonymous_352",
             "kind": "def",
-            "printable": "anonymous_341"
+            "printable": "anonymous_352"
           },
           "variadic"
         ],
         [
           {
-            "def": "anonymous_342",
+            "def": "anonymous_353",
             "kind": "def",
-            "printable": "anonymous_342"
+            "printable": "anonymous_353"
           },
           "optional"
         ],
@@ -972,7 +1136,7 @@
         "kind": "def",
         "printable": "ins"
       },
-      "printable": "(ins anonymous_341:$variadic, anonymous_342:$optional, Test_SingletonCType:$required)"
+      "printable": "(ins anonymous_352:$variadic, anonymous_353:$optional, Test_SingletonCType:$required)"
     },
     "assemblyFormat": null,
     "opDialect": {
@@ -1025,8 +1189,8 @@
     "bitwidth": 8,
     "summary": "8-bit unsigned integer"
   },
-  "anonymous_327": {
-    "!name": "anonymous_327",
+  "anonymous_338": {
+    "!name": "anonymous_338",
     "!superclasses": [
       "Constraint",
       "TypeConstraint",
@@ -1047,8 +1211,8 @@
     ],
     "summary": " and any type"
   },
-  "anonymous_329": {
-    "!name": "anonymous_329",
+  "anonymous_340": {
+    "!name": "anonymous_340",
     "!superclasses": [
       "Constraint",
       "AttrConstraint",
@@ -1063,28 +1227,38 @@
     "summary": "",
     "valueType": null
   },
-  "anonymous_331": {
-    "!name": "anonymous_331",
+  "anonymous_342": {
+    "!name": "anonymous_342",
     "!superclasses": [
       "Constraint",
       "TypeConstraint",
       "Type",
       "ConfinedType"
     ],
+    "baseType": {
+      "def": "AnyType",
+      "kind": "def",
+      "printable": "AnyType"
+    },
     "summary": ""
   },
-  "anonymous_334": {
-    "!name": "anonymous_334",
+  "anonymous_345": {
+    "!name": "anonymous_345",
     "!superclasses": [
       "Constraint",
       "TypeConstraint",
       "Type",
       "ConfinedType"
     ],
+    "baseType": {
+      "def": "AnyType",
+      "kind": "def",
+      "printable": "AnyType"
+    },
     "summary": ""
   },
-  "anonymous_336": {
-    "!name": "anonymous_336",
+  "anonymous_347": {
+    "!name": "anonymous_347",
     "!superclasses": [
       "Constraint",
       "TypeConstraint",
@@ -1110,8 +1284,8 @@
     ],
     "summary": " or  or "
   },
-  "anonymous_338": {
-    "!name": "anonymous_338",
+  "anonymous_349": {
+    "!name": "anonymous_349",
     "!superclasses": [
       "Constraint",
       "TypeConstraint",
@@ -1120,6 +1294,11 @@
       "SameBuildabilityAs",
       "Complex"
     ],
+    "baseType": {
+      "def": "AnyComplex",
+      "kind": "def",
+      "printable": "AnyComplex"
+    },
     "elementType": {
       "def": "F8E4M3FN",
       "kind": "def",
@@ -1127,8 +1306,8 @@
     },
     "summary": "complex type with f8E4M3FN type elements"
   },
-  "anonymous_341": {
-    "!name": "anonymous_341",
+  "anonymous_352": {
+    "!name": "anonymous_352",
     "!superclasses": [
       "Constraint",
       "TypeConstraint",
@@ -1141,8 +1320,8 @@
     },
     "summary": "variadic of "
   },
-  "anonymous_342": {
-    "!name": "anonymous_342",
+  "anonymous_353": {
+    "!name": "anonymous_353",
     "!superclasses": [
       "Constraint",
       "TypeConstraint",
@@ -1154,5 +1333,48 @@
       "printable": "Test_SingletonBType"
     },
     "summary": ""
+  },
+  "anonymous_354": {
+    "!name": "anonymous_354",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "AnyAttrOf"
+    ],
+    "allowedAttributes": [
+      {
+        "def": "I32Attr",
+        "kind": "def",
+        "printable": "I32Attr"
+      },
+      {
+        "def": "StrAttr",
+        "kind": "def",
+        "printable": "StrAttr"
+      }
+    ],
+    "baseAttr": null,
+    "summary": "32-bit signless integer attribute or string attribute",
+    "valueType": null
+  },
+  "anonymous_356": {
+    "!name": "anonymous_356",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "AnyAttrOf"
+    ],
+    "allowedAttributes": [
+      {
+        "def": "I32Attr",
+        "kind": "def",
+        "printable": "I32Attr"
+      }
+    ],
+    "baseAttr": null,
+    "summary": "32-bit signless integer attribute",
+    "valueType": null
   }
 }

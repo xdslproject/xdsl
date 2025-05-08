@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, func, stencil
+from xdsl.dialects.stencil import StencilBoundsAttr
 from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -14,11 +15,14 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.shape_inference import infer_shapes
+from xdsl.utils.exceptions import PassFailedException
 
 
 @dataclass
 class ShapeAnalysis(TypeConversionPattern):
-    seen: set[stencil.TempType[Attribute]] = field(default_factory=set)
+    seen: set[stencil.TempType[Attribute]] = field(
+        default_factory=set[stencil.TempType[Attribute]]
+    )
 
     @attr_type_rewrite_pattern
     def convert_type(self, typ: stencil.TempType[Attribute], /) -> Attribute | None:
@@ -31,7 +35,11 @@ class ShapeMinimisation(TypeConversionPattern):
 
     @attr_type_rewrite_pattern
     def convert_type(self, typ: stencil.FieldType[Attribute], /) -> Attribute | None:
-        if typ.bounds != self.shape and self.shape:
+        if (
+            typ.bounds != self.shape
+            and self.shape
+            and len(self.shape.ub) == typ.get_num_dims()
+        ):
             return stencil.FieldType(self.shape, typ.element_type)
 
 
@@ -57,6 +65,8 @@ class RestrictStoreOp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
+        if len(self.restrict) != len(op.bounds.ub):
+            return
         new_bounds = [
             (min(lower_bound, bound_lim), min(upper_bound, bound_lim))
             for lower_bound, upper_bound, bound_lim in zip(
@@ -102,15 +112,30 @@ class StencilShapeMinimize(ModulePass):
         )
         if not bounds:
             return
-        shape: stencil.StencilBoundsAttr = bounds.pop()
+        dim_shapes = dict[int, StencilBoundsAttr]()
+
+        # construct one minimal shape for each number of dimensions
         for b in bounds:
-            shape = shape | b
+            dims = len(b.ub)
+            if dims in dim_shapes:
+                dim_shapes[dims] |= b
+            else:
+                dim_shapes[dims] = b
+
+        if self.restrict and len(dim_shapes) != 1:
+            raise PassFailedException(
+                "Cannot restrict stencil programs with different dimensionality"
+            )
+
+        shape_minimisations = [
+            ShapeMinimisation(shape=shape) for shape in dim_shapes.values()
+        ]
 
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ShapeMinimisation(shape=shape),
+                    *shape_minimisations,
                     FuncOpShapeUpdate(),
                 ]
-            )
+            ),
         ).rewrite_module(op)

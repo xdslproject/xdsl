@@ -15,7 +15,7 @@ from xdsl.ir import Attribute, ParametrizedAttribute, SSAValue
 from xdsl.irdl import BaseAttr, EqAttrConstraint, ParameterDef, irdl_attr_definition
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 class Class1:
@@ -394,8 +394,6 @@ def test_literal():
 
 
 def test_isattr():
-    assert isattr(IntAttr(1), IntAttr)
-    assert not isattr(IntAttr(1), StringAttr)
     assert isattr(IntAttr(1), BaseAttr(IntAttr))
     assert not isattr(IntAttr(1), BaseAttr(StringAttr))
     assert isattr(IntAttr(1), EqAttrConstraint(IntAttr(1)))
@@ -408,14 +406,14 @@ def test_isattr():
 
 
 def test_ssavalue():
-    a = TestSSAValue(i32)
+    a = create_ssa_value(i32)
 
     assert isa(a, SSAValue)
     assert isa(a, SSAValue[IntegerType])
     assert not isa(a, SSAValue[StringAttr])
     assert not isa(a, SSAValue[IntegerAttr[IntegerType]])
 
-    b = TestSSAValue(IntegerAttr(2, i32))
+    b = create_ssa_value(IntegerAttr(2, i32))
 
     assert isa(b, SSAValue[IntegerAttr[IntegerType]])
     assert not isa(b, SSAValue[IntegerAttr[IndexType]])

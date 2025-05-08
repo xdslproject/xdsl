@@ -89,7 +89,9 @@ class AttrParser(BaseParser):
 
     ctx: Context
 
-    attribute_aliases: dict[str, Attribute] = field(default_factory=dict)
+    attribute_aliases: dict[str, Attribute] = field(
+        default_factory=dict[str, Attribute]
+    )
     """
     A dictionary of aliases for attributes.
     The key is the alias name, including the `!` or `#` prefix.
@@ -237,10 +239,14 @@ class AttrParser(BaseParser):
                     MLIRTokenKind.BARE_IDENT, "Expected attribute name."
                 ).text
             )
-        attr_def = self.ctx.get_optional_attr(
-            attr_name,
-            create_unregistered_as_type=is_type,
-        )
+        if is_type:
+            attr_def = self.ctx.get_optional_type(
+                attr_name,
+            )
+        else:
+            attr_def = self.ctx.get_optional_attr(
+                attr_name,
+            )
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
         if issubclass(attr_def, UnregisteredAttr):

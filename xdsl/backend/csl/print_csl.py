@@ -90,21 +90,23 @@ class CslPrintContext:
     _INDENT = "  "
     output: IO[str]
 
-    variables: dict[SSAValue, str] = field(default_factory=dict)
+    variables: dict[SSAValue, str] = field(default_factory=dict[SSAValue, str])
 
     _counter: int = field(default=0)
 
     _prefix: str = field(default="")
     _symbols_to_export: dict[str, tuple[TypeAttribute, bool | None]] = field(
-        default_factory=dict
+        default_factory=dict[str, tuple[TypeAttribute, bool | None]]
     )
 
-    _binops: dict[str, str] = field(default_factory=dict)
+    _binops: dict[str, str] = field(default_factory=dict[str, str])
     """
     Maps operation name => operand for binary operands
     """
 
-    _cmp_ops: dict[str, dict[str, str | None]] = field(default_factory=dict)
+    _cmp_ops: dict[str, dict[str, str | None]] = field(
+        default_factory=dict[str, dict[str, str | None]]
+    )
 
     def register_binops(self):
         self._binops.update(
@@ -452,8 +454,8 @@ class CslPrintContext:
                 return str(val.data)
             case StringAttr() as s:
                 return f'"{s.data}"'
-            case DenseIntOrFPElementsAttr(type=typ):
-                return f"{self.mlir_type_to_csl_type(typ)} {{ {', '.join(self.attribute_value_to_str(a) for a in attr.iter_attrs())} }}"  # noqa: E501
+            case DenseIntOrFPElementsAttr():
+                return f"{self.mlir_type_to_csl_type(attr.get_type())} {{ {', '.join(self.attribute_value_to_str(a) for a in attr.iter_attrs())} }}"  # noqa: E501
             case _:
                 return f"<!unknown value {attr}>"
 

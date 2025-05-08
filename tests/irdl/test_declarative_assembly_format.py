@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     ModuleOp,
+    StringAttr,
     UnitAttr,
 )
 from xdsl.dialects.test import Test, TestType
@@ -276,13 +277,42 @@ def test_attr_dict(program: str, generic_program: str):
         ),
     ],
 )
-def test_attr_dict_prop_fallack(program: str, generic_program: str):
+def test_attr_dict_prop_fallback(program: str, generic_program: str):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
         prop = opt_prop_def(Attribute)
         irdl_options = [ParsePropInAttrDict()]
         assembly_format = "attr-dict"
+
+    ctx = Context()
+    ctx.load_op(PropOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.prop false {prop2 = true}",
+            '"test.prop"() <{prop1 = false, prop2 = true}> : () -> ()',
+        ),
+        (
+            "test.prop false {a = 2 : i32, prop2 = true}",
+            '"test.prop"() <{prop1 = false, prop2 = true}> {a = 2 : i32} : () -> ()',
+        ),
+    ],
+)
+def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
+    @irdl_op_definition
+    class PropOp(IRDLOperation):
+        name = "test.prop"
+        prop1 = prop_def(Attribute)
+        prop2 = opt_prop_def(Attribute)
+        irdl_options = [ParsePropInAttrDict()]
+        assembly_format = "$prop1 attr-dict"
 
     ctx = Context()
     ctx.load_op(PropOp)
@@ -390,7 +420,7 @@ def test_unqualified_attr(program: str, generic_program: str):
         assembly_format = "$attr attr-dict"
 
     ctx = Context()
-    ctx.load_attr(ParamOne)
+    ctx.load_attr_or_type(ParamOne)
     ctx.load_op(UnqualifiedAttrOp)
 
     check_equivalence(program, generic_program, ctx)
@@ -1272,7 +1302,7 @@ def test_operands_directive_with_non_variadic_type_directive():
     format_program = FormatProgram(
         (
             OperandsDirective(None),
-            AttrDictDirective(False, set(), False),
+            AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
             TypeDirective(OperandsDirective(None)),
         ),
@@ -1308,7 +1338,7 @@ def test_operands_directive_with_variadic_type_directive():
     format_program = FormatProgram(
         (
             OperandsDirective((False, 1)),
-            AttrDictDirective(False, set(), False),
+            AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
             TypeDirective(OperandsDirective((False, 1))),
         ),
@@ -1717,7 +1747,7 @@ def test_results_directive_with_non_variadic_type_directive():
     # a ResultsDirective, but we can manually make one.
     format_program = FormatProgram(
         (
-            AttrDictDirective(False, set(), False),
+            AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
             TypeDirective(ResultsDirective(None)),
         ),
@@ -1752,7 +1782,7 @@ def test_results_directive_with_variadic_type_directive():
     # a ResultsDirective, but we can manually make one.
     format_program = FormatProgram(
         (
-            AttrDictDirective(False, set(), False),
+            AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
             TypeDirective(ResultsDirective((False, 1))),
         ),
@@ -2176,7 +2206,7 @@ def test_successors():
                 "test.op"() ({
                   "test.op"() [^0] : () -> ()
                 ^0:
-                  test.var_successor ^0 ^0
+                  test.var_successor ^0, ^0
                 }) : () -> ()"""
             ),
             textwrap.dedent(
@@ -2318,7 +2348,7 @@ def test_eq_attr_inference():
         assembly_format = "attr-dict $index"
 
     ctx = Context()
-    ctx.load_attr(UnitType)
+    ctx.load_attr_or_type(UnitType)
     ctx.load_op(OneOperandEqTypeOp)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
@@ -2345,7 +2375,7 @@ def test_all_of_attr_inference():
         assembly_format = "attr-dict $index"
 
     ctx = Context()
-    ctx.load_attr(UnitType)
+    ctx.load_attr_or_type(UnitType)
     ctx.load_op(OneOperandEqTypeAllOfNestedOp)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
@@ -2392,7 +2422,7 @@ def test_nested_inference():
 
     ctx = Context()
     ctx.load_op(TwoOperandsNestedVarOp)
-    ctx.load_attr(ParamOne)
+    ctx.load_attr_or_type(ParamOne)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
         """\
@@ -2430,7 +2460,7 @@ def test_nested_inference_variable():
 
     ctx = Context()
     ctx.load_op(ResultTypeIsOperandParamOp)
-    ctx.load_attr(ParamOne)
+    ctx.load_attr_or_type(ParamOne)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
         """\
@@ -2473,7 +2503,7 @@ def test_non_verifying_inference():
 
     ctx = Context()
     ctx.load_op(OneOperandOneResultNestedOp)
-    ctx.load_attr(ParamOne)
+    ctx.load_attr_or_type(ParamOne)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
         """\
@@ -2502,10 +2532,12 @@ def test_variadic_length_inference():
     ctx = Context()
     ctx.load_op(RangeVarOp)
     ctx.load_dialect(Test)
-    program = textwrap.dedent("""\
+    program = textwrap.dedent(
+        """\
     %in0, %in1 = "test.op"() : () -> (index, index)
     %out0, %out1 = test.range_var %in0, %in1 : index, index
-    """)
+    """
+    )
 
     parser = Parser(ctx, program)
     test_op = parser.parse_optional_operation()
@@ -2527,10 +2559,12 @@ def test_int_var_inference():
     ctx = Context()
     ctx.load_op(IntVarOp)
     ctx.load_dialect(Test)
-    program = textwrap.dedent("""\
+    program = textwrap.dedent(
+        """\
     %in0, %in1 = "test.op"() : () -> (index, index)
     %out0, %out1 = test.int_var %in0, %in1
-    """)
+    """
+    )
 
     parser = Parser(ctx, program)
     test_op = parser.parse_optional_operation()
@@ -2664,6 +2698,44 @@ def test_optional_group_optional_operand_anchor(
 
     ctx = Context()
     ctx.load_op(OptionalGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> i32\ntest.optional_optional_group with "prop" %0',
+            '%0 = "test.op"() : () -> i32\n"test.optional_optional_group"(%0) <{prop="prop"}> : (i32) -> ()',
+        ),
+        (
+            'test.optional_optional_group with "prop"',
+            '"test.optional_optional_group"() <{prop="prop"}>: () -> ()',
+        ),
+        (
+            "test.optional_optional_group",
+            '"test.optional_optional_group"() : () -> ()',
+        ),
+    ],
+)
+def test_optional_optional_group_optional_operand_anchor(
+    program: str,
+    generic_program: str,
+):
+    @irdl_op_definition
+    class OptionalOptionalGroupOp(IRDLOperation):
+        name = "test.optional_optional_group"
+
+        prop = opt_prop_def(StringAttr)
+        arg = opt_operand_def(I32)
+
+        assembly_format = "(`with` $prop^ ($arg^)?)? attr-dict"
+
+    ctx = Context()
+    ctx.load_op(OptionalOptionalGroupOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
@@ -3172,7 +3244,7 @@ class ParamExtractorOp(IRDLOperation):
 
 def test_param_extraction_fails():
     ctx = Context()
-    ctx.load_attr(DoubleParamAttr)
+    ctx.load_attr_or_type(DoubleParamAttr)
     ctx.load_op(ParamExtractorOp)
     ctx.load_dialect(Test)
     parser = Parser(

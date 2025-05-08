@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
+    BuiltinAttribute,
     Data,
     ParametrizedAttribute,
     TypedAttribute,
@@ -85,6 +86,32 @@ class GenericData(Data[_DataElement], ABC):
 _A = TypeVar("_A", bound=Attribute)
 
 ParameterDef = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
+
+
+def check_attr_name(cls: type):
+    """Check that the attribute class has a correct name."""
+    name = None
+    for base in cls.mro():
+        if "name" in base.__dict__:
+            name = base.__dict__["name"]
+            break
+
+    if not isinstance(name, str):
+        raise PyRDLAttrDefinitionError(
+            f"pyrdl attribute definition '{cls.__name__}' does not "
+            "define the attribute name. The attribute name is defined by "
+            "adding a 'name' field with a string value."
+        )
+
+    dialect_attr_name = name.split(".")
+    if len(dialect_attr_name) >= 2:
+        return
+
+    if not issubclass(cls, BuiltinAttribute):
+        raise PyRDLAttrDefinitionError(
+            f"Name '{name}' is not a valid attribute name. It should be of the form "
+            "'<dialect>.<name>'."
+        )
 
 
 def irdl_param_attr_get_param_type_hints(cls: type[_A]) -> list[tuple[str, Any]]:
@@ -249,6 +276,7 @@ TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
 
 
 def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
+    check_attr_name(cls)
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):

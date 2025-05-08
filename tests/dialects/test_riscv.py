@@ -12,12 +12,12 @@ from xdsl.dialects.builtin import (
 from xdsl.parser import Parser
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.utils.exceptions import ParseError, VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_add_op():
-    a1 = TestSSAValue(riscv.Registers.A1)
-    a2 = TestSSAValue(riscv.Registers.A2)
+    a1 = create_ssa_value(riscv.Registers.A1)
+    a2 = create_ssa_value(riscv.Registers.A2)
     add_op = riscv.AddOp(a1, a2, rd=riscv.Registers.A0)
     a0 = add_op.rd
 
@@ -55,8 +55,8 @@ def test_is_non_zero():
 
 
 def test_csr_op():
-    a1 = TestSSAValue(riscv.Registers.A1)
-    zero = TestSSAValue(riscv.Registers.ZERO)
+    a1 = create_ssa_value(riscv.Registers.A1)
+    zero = create_ssa_value(riscv.Registers.ZERO)
     csr = IntegerAttr(16, i32)
     # CsrrwOp
     riscv.CsrrwOp(rs1=a1, csr=csr, rd=riscv.Registers.A2).verify()
@@ -152,7 +152,7 @@ def test_return_op():
 def test_immediate_i_inst():
     # I-Type - 12-bits signed immediate
     lb, ub = Signedness.SIGNED.value_range(12)
-    a1 = TestSSAValue(riscv.Registers.A1)
+    a1 = create_ssa_value(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
         riscv.AddiOp(a1, ub, rd=riscv.Registers.A0)
@@ -167,8 +167,8 @@ def test_immediate_i_inst():
 def test_immediate_s_inst():
     # S-Type - 12-bits signed immediate
     lb, ub = Signedness.SIGNED.value_range(12)
-    a1 = TestSSAValue(riscv.Registers.A1)
-    a2 = TestSSAValue(riscv.Registers.A2)
+    a1 = create_ssa_value(riscv.Registers.A1)
+    a2 = create_ssa_value(riscv.Registers.A2)
 
     with pytest.raises(VerifyException):
         riscv.SwOp(a1, a2, ub)
@@ -198,7 +198,7 @@ def test_immediate_u_j_inst():
 
 def test_immediate_jalr_inst():
     # Jalr - 12-bits immediate
-    a1 = TestSSAValue(riscv.Registers.A1)
+    a1 = create_ssa_value(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
         riscv.JalrOp(a1, 1 << 12, rd=riscv.Registers.A0)
@@ -227,7 +227,7 @@ def test_immediate_pseudo_inst():
 
 def test_immediate_shift_inst():
     # Shift instructions (SLLI, SRLI, SRAI) - 5-bits immediate
-    a1 = TestSSAValue(riscv.Registers.A1)
+    a1 = create_ssa_value(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
         riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
@@ -240,21 +240,21 @@ def test_immediate_shift_inst():
 
 def test_float_register():
     with pytest.raises(
-        VerifyException, match="Invalid register name ft9 for register set RV32I."
+        VerifyException, match="Invalid register name ft9 for register type riscv.reg."
     ):
         riscv.IntRegisterType.from_name("ft9")
     with pytest.raises(
-        VerifyException, match="Invalid register name a0 for register set RV32F."
+        VerifyException, match="Invalid register name a0 for register type riscv.freg."
     ):
         riscv.FloatRegisterType.from_name("a0")
 
-    a1 = TestSSAValue(riscv.Registers.A1)
-    a2 = TestSSAValue(riscv.Registers.A2)
+    a1 = create_ssa_value(riscv.Registers.A1)
+    a2 = create_ssa_value(riscv.Registers.A2)
     with pytest.raises(VerifyException, match="Operation does not verify"):
         riscv.FAddSOp(a1, a2).verify()
 
-    f1 = TestSSAValue(riscv.Registers.FT0)
-    f2 = TestSSAValue(riscv.Registers.FT1)
+    f1 = create_ssa_value(riscv.Registers.FT0)
+    f2 = create_ssa_value(riscv.Registers.FT1)
     riscv.FAddSOp(f1, f2).verify()
 
 
