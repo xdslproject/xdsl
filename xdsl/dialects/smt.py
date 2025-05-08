@@ -70,7 +70,7 @@ class VariadicBoolOp(IRDLOperation):
     assembly_format = "$inputs attr-dict"
 
     def __init__(self, operands: Sequence[SSAValue]):
-        super().__init__(operands=operands, result_types=[BoolType()])
+        super().__init__(operands=[operands], result_types=[BoolType()])
 
 
 @irdl_op_definition
