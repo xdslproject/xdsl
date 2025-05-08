@@ -40,6 +40,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_operand_def,
+    opt_prop_def,
     opt_result_def,
     prop_def,
     result_def,
@@ -62,7 +63,9 @@ class LoadOp(IRDLOperation):
     base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
     result = result_def(VectorType)
+    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
+    irdl_options = [ParsePropInAttrDict()]
     assembly_format = (
         "$base `[` $indices `]` attr-dict `:` type($base) `,` type($result)"
     )
@@ -98,7 +101,9 @@ class StoreOp(IRDLOperation):
     vector = operand_def(VectorType)
     base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
+    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
+    irdl_options = [ParsePropInAttrDict()]
     assembly_format = (
         "$vector `,` $base `[` $indices `]` attr-dict `:` type($base) `,` type($vector)"
     )

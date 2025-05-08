@@ -38,13 +38,11 @@ class VectorLoadToPtr(RewritePattern):
         )
 
         # Compute the linearized offset
-        cast_op = ptr.ToPtrOp(operands=[memory], result_types=[ptr.PtrType()])
-        add_op = ptr.PtrAddOp(
-            operands=[cast_op.results[0], apply_op.result], result_types=[ptr.PtrType()]
-        )
+        cast_op = ptr.ToPtrOp(memory)
+        add_op = ptr.PtrAddOp(cast_op.res, apply_op.result)
 
         # Load a vector from the pointer
-        load_op = ptr.LoadOp(operands=add_op.results, result_types=[vector_ty])
+        load_op = ptr.LoadOp(add_op.result, vector_ty)
 
         rewriter.replace_matched_op([apply_op, cast_op, add_op, load_op])
 
