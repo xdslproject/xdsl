@@ -980,10 +980,26 @@ class AttrParser(BaseParser):
                 parser.raise_error("")
             return float(self.value)
 
-        def to_complex(self, parser: AttrParser) -> complex | tuple[int, int]:
-            if isinstance(self.value, (complex, tuple)):
+        def to_complex(
+            self, parser: AttrParser, type: IntegerType | AnyFloat
+        ) -> complex | tuple[int, int]:
+            if isinstance(self.value, complex) and isinstance(type, AnyFloat):
                 return self.value
-            return complex(self.value, 0)
+            elif isinstance(self.value, tuple) and isinstance(type, IntegerType):
+                return self.value
+            elif isinstance(self.value, complex) and isinstance(type, IntegerType):
+                return (int(self.value.real), int(self.value.imag))
+            elif isinstance(self.value, tuple) and isinstance(type, AnyFloat):
+                return complex(self.value[0], self.value[1])
+            elif (not isinstance(self.value, (complex, tuple))) and isinstance(
+                type, AnyFloat
+            ):
+                return complex(self.value, 0.0)
+            elif (not isinstance(self.value, (complex, tuple))) and isinstance(
+                type, IntegerType
+            ):
+                return (int(self.value), 0)
+            parser.raise_error(f"Cannot convert {self.value} into {type}")
 
         def to_type(
             self,
@@ -1005,7 +1021,7 @@ class AttrParser(BaseParser):
                         parser, allow_negative=True, allow_booleans=False
                     )
                 case ComplexType():
-                    return self.to_complex(parser)
+                    return self.to_complex(parser, type.element_type)
 
     def _parse_optional_int(self) -> tuple[int, Span] | None:
         pos = self._current_token.span.start
