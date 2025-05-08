@@ -55,9 +55,6 @@ class PDLInterpRewritePattern(RewritePattern):
         # Call the matcher function on the operation
         self.interpreter.call_op(self.matcher, (xdsl_op,))
 
-        # # Reset rewriter
-        # self.functions.clear_rewriter()
-
 
 @register_impls
 @dataclass
