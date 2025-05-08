@@ -181,6 +181,13 @@ class ReadOp(RISCVAsmOperation):
     def assembly_line(self) -> str | None:
         return None
 
+    def iter_used_registers(self):
+        # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
+        # registers
+        yield riscv.Registers.FT0
+        yield riscv.Registers.FT1
+        yield riscv.Registers.FT2
+
 
 @irdl_op_definition
 class WriteOp(RISCVAsmOperation):
@@ -198,6 +205,13 @@ class WriteOp(RISCVAsmOperation):
 
     def assembly_line(self) -> str | None:
         return None
+
+    def iter_used_registers(self):
+        # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
+        # registers
+        yield riscv.Registers.FT0
+        yield riscv.Registers.FT1
+        yield riscv.Registers.FT2
 
 
 ALLOWED_FREP_OP_TYPES = (

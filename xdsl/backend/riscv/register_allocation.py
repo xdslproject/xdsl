@@ -13,16 +13,7 @@ from xdsl.dialects.riscv import Registers, RISCVAsmOperation, RISCVRegisterType
 from xdsl.ir import Attribute, Block, Operation, SSAValue
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
-from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
 from xdsl.utils.exceptions import DiagnosticException
-
-
-def _uses_snitch_stream(func: riscv_func.FuncOp) -> bool:
-    """Utility method to detect use of read/write ops of the `snitch_stream` dialect."""
-
-    return any(
-        isinstance(op, riscv_snitch.ReadOp | riscv_snitch.WriteOp) for op in func.walk()
-    )
 
 
 class RegisterAllocator(abc.ABC):
@@ -76,8 +67,6 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     available_registers: RegisterQueue
     live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
     new_value_by_old_value: dict[SSAValue, SSAValue]
-
-    exclude_snitch_reserved: bool = True
 
     def __init__(self, available_registers: RegisterQueue) -> None:
         self.available_registers = available_registers
@@ -307,9 +296,6 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             for reg in RegisterAllocatableOperation.iter_all_used_registers(func.body)
             if isinstance(reg, RISCVRegisterType)
         }
-
-        if self.exclude_snitch_reserved and _uses_snitch_stream(func):
-            preallocated |= get_snitch_reserved()
 
         for pa_reg in preallocated:
             self.available_registers.reserve_register(pa_reg)
