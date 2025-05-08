@@ -342,13 +342,17 @@ class Printer(BasePrinter):
 
     def print_complex(self, value: complex | tuple[int, int], type: ComplexType):
         self.print_string("(")
-        real : float | int
-        imag : float | int
+        real: float | int
+        imag: float | int
         if isinstance(value, complex):
             real = value.real
             imag = value.imag
         else:
-            assert isinstance(value, tuple) and isinstance(value[0], int) and isinstance(value[1], int)
+            assert (
+                isinstance(value, tuple)
+                and isinstance(value[0], int)
+                and isinstance(value[1], int)
+            )
             real = value[0]
             imag = value[1]
         if isinstance(type.element_type, AnyFloat):
