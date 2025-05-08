@@ -340,17 +340,26 @@ class Printer(BasePrinter):
     def print_float_attr(self, attribute: FloatAttr):
         self.print_float(attribute.value.data, attribute.type)
 
-    def print_complex(self, value: complex, type: ComplexType):
+    def print_complex(self, value: complex | tuple[int, int], type: ComplexType):
         self.print_string("(")
-        if isinstance(type.element_type, AnyFloat):
-            self.print_float(value.real, type.element_type)
+        real : float | int
+        imag : float | int
+        if isinstance(value, complex):
+            real = value.real
+            imag = value.imag
         else:
-            self.print_string(str(int(value.real)))
+            assert isinstance(value, tuple) and isinstance(value[0], int) and isinstance(value[1], int)
+            real = value[0]
+            imag = value[1]
+        if isinstance(type.element_type, AnyFloat):
+            self.print_float(real, type.element_type)
+        else:
+            self.print_string(str(int(real)))
         self.print_string(",")
         if isinstance(type.element_type, AnyFloat):
-            self.print_float(value.imag, type.element_type)
+            self.print_float(imag, type.element_type)
         else:
-            self.print_string(str(int(value.imag)))
+            self.print_string(str(int(imag)))
         self.print_string(")")
 
     def print_float(self, value: float, type: AnyFloat):

@@ -2421,18 +2421,18 @@ class DenseIntOrFPElementsAttr(
         assert isa(type, RankedStructure[AnyDenseElement])
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
-    def _print_one_elem(self, val: int | float | complex, printer: Printer):
+    def _print_one_elem(self, val: int | float | complex | tuple[int, int], printer: Printer):
         if isinstance(val, int):
             element_type = cast(IntegerType | IndexType, self.get_element_type())
             element_type.print_value_without_type(val, printer)
         elif isinstance(val, float):
             printer.print_float(val, cast(AnyFloat, self.get_element_type()))
-        else:  # Complex
+        else:
             printer.print_complex(val, cast(ComplexType, self.get_element_type()))
 
     def _print_dense_list(
         self,
-        array: Sequence[int] | Sequence[float] | Sequence[complex],
+        array: Sequence[int] | Sequence[float] | Sequence[complex] | Sequence[tuple[int, int]],
         shape: Sequence[int],
         printer: Printer,
     ):
@@ -2453,10 +2453,6 @@ class DenseIntOrFPElementsAttr(
     def print_without_type(self, printer: Printer):
         printer.print_string("dense<")
         data = self.get_values()
-        if isinstance(self.get_element_type(), ComplexType):
-            data = list(
-                complex(data[i * 2], data[i * 2 + 1]) for i in range(len(data) // 2)
-            )
         shape = self.get_shape() if self.shape_is_complete else (len(data),)
         assert shape is not None, "If shape is complete, then it cannot be None"
         if len(data) == 0:
