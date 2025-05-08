@@ -3,10 +3,10 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, pdl_interp
-from xdsl.interpreter import Interpreter
-from xdsl.interpreters.pdl_interp import PDLInterpFunctions
+from xdsl.interpreters.pdl_interp import PDLInterpRewritePattern
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
+from xdsl.pattern_rewriter import PatternRewriteWalker
 
 
 @dataclass(frozen=True)
@@ -26,16 +26,9 @@ class ApplyPDLInterpPass(ModulePass):
             pdl_interp_module = op
         matcher = None
         for cur in pdl_interp_module.walk():
-            if isinstance(cur, pdl_interp.FuncOp):
-                if cur.sym_name.data == "matcher":
-                    matcher = cur
-                    break
+            if isinstance(cur, pdl_interp.FuncOp) and cur.sym_name.data == "matcher":
+                matcher = cur
+                break
         assert matcher is not None, "matcher function not found"
-        interpreter = Interpreter(op)
-        implementations = PDLInterpFunctions(ctx)
-        interpreter.register_implementations(implementations)
-        for root in op.walk():
-            implementations.clear_rewriter()
-            if root == op:
-                continue  # can't rewrite the module itself
-            interpreter.call_op(matcher, (root,))
+        rewrite_pattern = PDLInterpRewritePattern(matcher, ctx, None)
+        PatternRewriteWalker(rewrite_pattern).rewrite_module(op)
