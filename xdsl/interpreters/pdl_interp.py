@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import IO, Any, cast
+from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
-from xdsl.dialects.builtin import ModuleOp, StringAttr
+from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -18,42 +18,9 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
-from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
-
-
-@dataclass
-class PDLInterpRewritePattern(RewritePattern):
-    """
-    A rewrite pattern that uses the pdl_interp dialect for matching and rewriting operations.
-    """
-
-    ctx: Context
-    interpreter: Interpreter
-    functions: PDLInterpFunctions
-    matcher: pdl_interp.FuncOp
-
-    def __init__(
-        self, matcher: pdl_interp.FuncOp, ctx: Context, file: IO[str] | None = None
-    ):
-        # Create interpreter and register implementations
-        self.ctx = ctx
-        self.functions = PDLInterpFunctions(ctx)
-        module = matcher.parent_op()
-        assert isinstance(module, ModuleOp)
-        self.interpreter = Interpreter(module=module, file=file)
-        self.interpreter.register_implementations(self.functions)
-        if matcher.sym_name.data != "matcher":
-            raise ValueError("Matcher function name must be 'matcher'")
-        self.matcher = matcher
-
-    def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
-        # Setup the rewriter
-        self.functions.rewriter = rewriter
-
-        # Call the matcher function on the operation
-        self.interpreter.call_op(self.matcher, (xdsl_op,))
 
 
 @register_impls
