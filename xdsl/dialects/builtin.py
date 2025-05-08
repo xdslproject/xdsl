@@ -1004,32 +1004,35 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
 
+ComplexElementT = TypeVar(
+    "ComplexElementT", bound=IntegerType | AnyFloat, default=IntegerType | AnyFloat
+)
+
+
 @irdl_attr_definition
 class ComplexType(
-    Generic[AttributeCovT],
+    Generic[ComplexElementT],
     StructPackableType[float | int],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
 ):
     name = "complex"
-    element_type: ParameterDef[AttributeCovT]
+    element_type: ParameterDef[ComplexElementT]
 
     def __init__(self, element_type: AttributeCovT):
         super().__init__([element_type])
 
-    def get_element_type(self) -> AttributeCovT:
+    def get_element_type(self) -> ComplexElementT:
         return self.element_type
 
     @property
     def size(self) -> int:
-        elem_type = cast(IntegerType | AnyFloat, self.element_type)
-        return 2 * elem_type.size
+        return 2 * self.element_type.size
 
     @property
     def format(self) -> str:
-        elem_type = cast(StructPackableType[float | int], self.element_type)
-        return f"<2{elem_type.format[1]}"
+        return f"<2{self.element_type.format[1]}"
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float | int]:
         return (values[0] for values in struct.iter_unpack(self.format, buffer))
