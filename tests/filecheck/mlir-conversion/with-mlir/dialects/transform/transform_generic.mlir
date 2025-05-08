@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | filecheck %s
+// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | filecheck %s
 
 %0 = "test.op"() : () -> !transform.op<"builtin.module">
 // CHECK: %1 = "transform.apply_registered_pass"(%0) <{options = "", pass_name = "foo"}> : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
