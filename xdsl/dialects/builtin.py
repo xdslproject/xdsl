@@ -1036,7 +1036,7 @@ class ComplexType(
 
     def iter_unpack(
         self, buffer: ReadableBuffer, /
-    ) -> Iterator[complex | tuple[int, int]]:
+    ) -> Iterator[complex] | Iterator[tuple[int, int]]:
         return (values[0] for values in struct.iter_unpack(self.format, buffer))
 
     def unpack(
@@ -2366,13 +2366,23 @@ class DenseIntOrFPElementsAttr(
         """
         Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        return self.get_element_type().iter_unpack(self.data.data)
+        if isinstance(
+            eltype := self.get_element_type(), IntegerType | IndexType | AnyFloat
+        ):
+            return eltype.iter_unpack(self.data.data)
+        else:
+            raise NotImplementedError()
 
     def get_values(self) -> Sequence[int] | Sequence[float]:
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        return self.get_element_type().unpack(self.data.data, len(self))
+        if isinstance(
+            eltype := self.get_element_type(), IntegerType | IndexType | AnyFloat
+        ):
+            return eltype.unpack(self.data.data, len(self))
+        else:
+            raise NotImplementedError()
 
     def iter_attrs(self) -> Iterator[IntegerAttr] | Iterator[FloatAttr]:
         """
