@@ -956,7 +956,7 @@ class AttrParser(BaseParser):
             Convert the element to an int value, possibly disallowing negative
             values. Raises an error if the type is compatible.
             """
-            if isinstance(self.value, (complex, tuple)):
+            if isinstance(self.value, complex | tuple):
                 parser.raise_error("")
             if self.is_negative and not allow_negative:
                 parser.raise_error(
@@ -976,7 +976,7 @@ class AttrParser(BaseParser):
             Convert the element to a float value. Raises an error if the type
             is compatible.
             """
-            if isinstance(self.value, (complex, tuple)):
+            if isinstance(self.value, complex | tuple):
                 parser.raise_error("")
             return float(self.value)
 
@@ -991,11 +991,11 @@ class AttrParser(BaseParser):
                 return (int(self.value.real), int(self.value.imag))
             elif isinstance(self.value, tuple) and isinstance(type, AnyFloat):
                 return complex(self.value[0], self.value[1])
-            elif (not isinstance(self.value, (complex, tuple))) and isinstance(
+            elif (not isinstance(self.value, complex | tuple)) and isinstance(
                 type, AnyFloat
             ):
                 return complex(self.value, 0.0)
-            elif (not isinstance(self.value, (complex, tuple))) and isinstance(
+            elif (not isinstance(self.value, complex | tuple)) and isinstance(
                 type, IntegerType
             ):
                 return (int(self.value), 0)

@@ -348,11 +348,9 @@ class Printer(BasePrinter):
             real = value.real
             imag = value.imag
         else:
-            assert (
-                isinstance(value, tuple)
-                and isinstance(value[0], int)
-                and isinstance(value[1], int)
-            )
+            assert isinstance(value, tuple)
+            assert isinstance(value[0], int)
+            assert isinstance(value[1], int)
             real = value[0]
             imag = value[1]
         if isinstance(type.element_type, AnyFloat):
