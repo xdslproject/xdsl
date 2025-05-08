@@ -1043,7 +1043,9 @@ class ComplexType(
         self, buffer: ReadableBuffer, num: int, /
     ) -> tuple[complex, ...] | tuple[tuple[int, int], ...]:
         fmt = self.format[0] + str(2 * num) + self.format[2:]
-        return struct.unpack(fmt, buffer)
+        values : Sequence[int] | Sequence[float] = struct.unpack(fmt, buffer)
+        constructor = complex if isinstance(values[0], float) else lambda r, i: (r, i)
+        return tuple(constructor(values[i * 2], values[i * 2 + 1]) for i in range(len(values) // 2))
 
     @overload
     def pack_into(
@@ -1075,12 +1077,15 @@ class ComplexType(
     def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes:
         import itertools
 
-        fmt = self.format[0] + str(len(values)) + self.format[2:]
+        fmt = self.format[0] + str(2 * len(values)) + self.format[2:]
         if isa(values, Sequence[complex]):
-            return struct.pack(fmt, values)
+            tuple_of_floats = ((value.real, value.imag) for value in values)
+            flat_floats = list(itertools.chain.from_iterable(tuple_of_floats))
+            return struct.pack(fmt, *flat_floats)
+
         assert isa(values, Sequence[tuple[int, int]])
         flat_ints: Sequence[int] = list(itertools.chain.from_iterable(values))
-        return struct.pack(fmt, flat_ints)
+        return struct.pack(fmt, *flat_ints)
 
 
 @irdl_attr_definition
@@ -2234,14 +2239,10 @@ class DenseIntOrFPElementsAttr(
 
     @staticmethod
     def create_dense_complex(
-        data_type: RankedStructure[ComplexType], data: Sequence[complex]
+        data_type: RankedStructure[ComplexType], data: Sequence[complex] | Sequence[tuple[int, int]]
     ) -> DenseIntOrFPElementsAttr[ComplexType]:
-        import itertools
-
-        floats = ((value.real, value.imag) for value in data)
-        flat_floats = list(itertools.chain.from_iterable(floats))
         return DenseIntOrFPElementsAttr(
-            [data_type, BytesAttr(data_type.element_type.pack(flat_floats))]
+            [data_type, BytesAttr(data_type.element_type.pack(data))]
         )
 
     @overload
@@ -2373,16 +2374,11 @@ class DenseIntOrFPElementsAttr(
         else:
             raise NotImplementedError()
 
-    def get_values(self) -> Sequence[int] | Sequence[float]:
+    def get_values(self) -> Sequence[int] | Sequence[float] | Sequence[complex] | Sequence[tuple[int, int]]:
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        if isinstance(
-            eltype := self.get_element_type(), IntegerType | IndexType | AnyFloat
-        ):
-            return eltype.unpack(self.data.data, len(self))
-        else:
-            raise NotImplementedError()
+        return self.get_element_type().unpack(self.data.data, len(self))
 
     def iter_attrs(self) -> Iterator[IntegerAttr] | Iterator[FloatAttr]:
         """
