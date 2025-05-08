@@ -1794,9 +1794,9 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
                     raise VerifyException("Unregistered attribute is_type mismatch")
 
         if is_type:
-            return UnregisteredAttrWithName
-        else:
             return UnregisteredAttrTypeWithName
+        else:
+            return UnregisteredAttrWithName
 
 
 @irdl_op_definition

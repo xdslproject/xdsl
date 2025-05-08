@@ -19,6 +19,7 @@ from xdsl.dialects.test import TestType
 from xdsl.ir import Attribute, Block, Region
 from xdsl.irdl import (
     AnyAttr,
+    AnyInt,
     AnyOf,
     AttributeDef,
     AttrSizedOperandSegments,
@@ -27,6 +28,7 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintVar,
     EqAttrConstraint,
+    IntVarConstraint,
     IRDLOperation,
     OpDef,
     OperandDef,
@@ -407,6 +409,41 @@ def test_range_var_fail_not_satisfy_constraint():
     )
     with pytest.raises(VerifyException, match='Unexpected attribute !test.type<"foo">'):
         op.verify()
+
+
+@irdl_op_definition
+class SameLengthOp(IRDLOperation):
+    """
+    An operation that has the same number of results and operands.
+    """
+
+    name = "test.same_length"
+
+    LENGTH: ClassVar = IntVarConstraint("length", AnyInt())
+    operand = var_operand_def(RangeOf(AnyAttr(), length=LENGTH))
+    result = var_result_def(RangeOf(AnyAttr(), length=LENGTH))
+
+
+def test_same_length_op():
+    operand1 = create_ssa_value(i32)
+    operand2 = create_ssa_value(i32)
+
+    op1 = SameLengthOp.create(operands=[operand1, operand2], result_types=[i32, i32])
+    op1.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="incorrect length for range variable:\ninteger 2 expected from int variable 'length', but got 1",
+    ):
+        op2 = SameLengthOp.create(operands=[operand1, operand2], result_types=[i32])
+        op2.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="incorrect length for range variable:\ninteger 1 expected from int variable 'length', but got 2",
+    ):
+        op3 = SameLengthOp.create(operands=[operand1], result_types=[i32, i32])
+        op3.verify()
 
 
 @irdl_op_definition

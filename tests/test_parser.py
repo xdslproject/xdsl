@@ -114,7 +114,7 @@ def test_parsing():
     parse attribute arguments without the delimiters.
     """
     ctx = Context()
-    ctx.load_attr(DummyAttr)
+    ctx.load_attr_or_type(DummyAttr)
 
     prog = '#dummy.attr "foo"'
     parser = Parser(ctx, prog)

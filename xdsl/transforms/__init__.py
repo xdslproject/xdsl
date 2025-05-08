@@ -178,6 +178,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return varith_transformations.ConvertVarithToArithPass
 
+    def get_convert_vector_to_ptr():
+        from xdsl.transforms import convert_vector_to_ptr
+
+        return convert_vector_to_ptr.ConvertVectorToPtrPass
+
     def get_jax_use_donated_arguments():
         from xdsl.transforms import jax_use_donated_arguments
 
@@ -550,6 +555,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "convert-varith-to-arith": get_convert_varith_to_arith,
+        "convert-vector-to-ptr": get_convert_vector_to_ptr,
         "jax-use-donated-arguments": get_jax_use_donated_arguments,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,

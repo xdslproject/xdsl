@@ -2,11 +2,11 @@ import abc
 import json
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
-from itertools import chain
 from typing import cast
 
 from ordered_set import OrderedSet
 
+from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_queue import RegisterQueue
 from xdsl.dialects import riscv, riscv_func, riscv_scf, riscv_snitch
 from xdsl.dialects.riscv import Registers, RISCVAsmOperation, RISCVRegisterType
@@ -15,34 +15,6 @@ from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
 from xdsl.utils.exceptions import DiagnosticException
-
-
-def gather_allocated(
-    func: riscv_func.FuncOp,
-) -> set[RISCVRegisterType]:
-    """Utility method to gather already allocated registers"""
-
-    allocated: set[RISCVRegisterType] = set()
-
-    for op in func.walk():
-        if not isinstance(op, RISCVAsmOperation):
-            continue
-
-        if isinstance(op, riscv_func.CallOp):
-            # These registers are not guaranteed to hold the same values when the callee
-            # returns, according to the RISC-V calling convention.
-            # https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf
-            allocated.update(riscv.Registers.A)
-            allocated.update(riscv.Registers.T)
-            allocated.update(riscv.Registers.FA)
-            allocated.update(riscv.Registers.FT)
-
-        for param in chain(op.operands, op.results):
-            if isinstance(param.type, RISCVRegisterType) and param.type.is_allocated:
-                if not param.type.register_name.data.startswith("j"):
-                    allocated.add(param.type)
-
-    return allocated
 
 
 def _uses_snitch_stream(func: riscv_func.FuncOp) -> bool:
@@ -330,7 +302,11 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."
             )
 
-        preallocated: set[RISCVRegisterType] = gather_allocated(func)
+        preallocated = {
+            reg
+            for reg in RegisterAllocatableOperation.iter_all_used_registers(func.body)
+            if isinstance(reg, RISCVRegisterType)
+        }
 
         if self.exclude_snitch_reserved and _uses_snitch_stream(func):
             preallocated |= get_snitch_reserved()
