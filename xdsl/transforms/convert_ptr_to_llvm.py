@@ -69,6 +69,18 @@ class ConvertPtrAddOp(RewritePattern):
         )
 
 
+class ConvertToPtrOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ptr.ToPtrOp, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op((), op.operands)
+
+
+class ConvertFromPtrOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ptr.FromPtrOp, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op((), op.operands)
+
+
 class RewritePtrTypes(TypeConversionPattern):
     """
     Replaces `ptr_dxdsl.ptr` with `llvm.ptr`.
@@ -89,6 +101,8 @@ class ConvertPtrToLLVMPass(ModulePass):
                     ConvertStoreOp(),
                     ConvertLoadOp(),
                     ConvertPtrAddOp(),
+                    ConvertToPtrOp(),
+                    ConvertFromPtrOp(),
                     RewritePtrTypes(),
                 ]
             )
