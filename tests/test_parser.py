@@ -952,7 +952,7 @@ def test_parse_complex(value: str):
     parser = Parser(Context(), value)
     with pytest.raises(
         ParseError,
-        match="Complex value must be either \(float, float\) or \(int, int\)",
+        match=re.escape("Complex value must be either (float, float) or (int, int)"),
     ):
         parser._parse_optional_complex()
 
