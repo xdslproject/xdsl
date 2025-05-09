@@ -2234,6 +2234,7 @@ class DenseIntOrFPElementsAttr(
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
 
     @staticmethod
+    @deprecated("Please use `create_dense_{int/float}` instead.")
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
         data_type: IntegerType | IndexType | AnyFloat,
@@ -2241,8 +2242,14 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr:
         if not shape:
             shape = [len(data)]
-        t = VectorType(data_type, shape)
-        return DenseIntOrFPElementsAttr.from_list(t, data)
+        if isinstance(data_type, AnyFloat):
+            return DenseIntOrFPElementsAttr.create_dense_float(
+                VectorType(data_type, shape), data
+            )
+        else:
+            return DenseIntOrFPElementsAttr.from_list(
+                VectorType(data_type, shape), data
+            )
 
     @staticmethod
     def tensor_from_list(
