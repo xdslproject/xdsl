@@ -40,7 +40,8 @@ builtin.module attributes  {"transform.with_named_sequence"} {
   %27:2 = "transform.split_handle"(%24) <{fail_on_payload_too_small = true, pass_through_empty_handle = true}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
   %28 = "transform.structured.match"(%24) <{"op_attrs" = {"qmatmul_0"}}> : (!transform.any_op) -> !transform.any_op
   %29 = "test.op"() : () -> !transform.op<"builtin.module">
-  %30 = "transform.apply_registered_pass"(%29) {pass_name = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+  %30 = transform.apply_registered_pass "foo" to %29 : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+  %31 = transform.apply_registered_pass "foo" to %30 {options = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 }
 
 
@@ -56,15 +57,15 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:   %4 = "test.op"() : () -> !transform.param<i64>
 //CHECK-NEXT:   %5 = "test.op"() : () -> !transform.type
 //CHECK-NEXT:   transform.named_sequence @__transform_main(%arg0: !transform.any_op, %arg1: !transform.op<"linalg.quantized_matmul">, %arg2: !transform.op<"linalg.elemwise_binary">) {
-//CHECK-NEXT:     %21 = transform.cast %arg1 : !transform.op<"linalg.quantized_matmul"> to !transform.any_op
+//CHECK-NEXT:     %22 = transform.cast %arg1 : !transform.op<"linalg.quantized_matmul"> to !transform.any_op
 //CHECK-NEXT:     %tiled_op, %forall_op = transform.structured.tile_using_forall %arg1 tile_sizes [4, 32] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op)
 //CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %arg1 tile_sizes [8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:     transform.yield
 //CHECK-NEXT:   }
 //CHECK-NEXT:   transform.sequence  failures(propagate) {
 //CHECK-NEXT:   ^bb0(%arg0: !transform.any_op):
-//CHECK-NEXT:     %21 = select "linalg.quantized_matmul" in %arg0 : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
-//CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %21 tile_sizes [8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+//CHECK-NEXT:     %22 = select "linalg.quantized_matmul" in %arg0 : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
+//CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %22 tile_sizes [8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:   }
 //CHECK-NEXT:   %6 = "test.op"() : () -> !transform.any_op
 //CHECK-NEXT:   %7 = transform.get_producer_of_operand %6[0] : (!transform.any_op) -> !transform.any_op
@@ -85,4 +86,5 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:   %18 = transform.structured.match attributes {qmatmul_0} in %14 : (!transform.any_op) -> !transform.any_op
 //CHECK-NEXT:   %19 = "test.op"() : () -> !transform.op<"builtin.module">
 //CHECK-NEXT:   %20 = transform.apply_registered_pass "foo" to %19 : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+//CHECK-NEXT:   %21 = transform.apply_registered_pass "foo" to %20 {options = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 //CHECK-NEXT: }

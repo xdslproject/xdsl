@@ -391,6 +391,14 @@ class PatternRewriter(Builder, PatternRewriterListener):
         """Move the region blocks to an existing region."""
         self.inline_region(region, BlockInsertPoint.at_end(target))
 
+    def notify_op_modified(self, op: Operation) -> None:
+        """
+        Notify the rewriter that an operation was modified in the pattern.
+        This will correctly update the rewriter state.
+        """
+        self.has_done_action = True
+        self.handle_operation_modification(op)
+
 
 class RewritePattern(ABC):
     """

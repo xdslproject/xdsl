@@ -1004,13 +1004,27 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
 
-@irdl_attr_definition
-class ComplexType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
-    name = "complex"
-    element_type: ParameterDef[IntegerType | AnyFloat]
+ComplexElementT = TypeVar(
+    "ComplexElementT", bound=IntegerType | AnyFloat, default=IntegerType | AnyFloat
+)
 
-    def __init__(self, element_type: IntegerType | AnyFloat) -> None:
-        ParametrizedAttribute.__init__(self, [element_type])
+
+@irdl_attr_definition
+class ComplexType(
+    Generic[ComplexElementT],
+    ParametrizedAttribute,
+    BuiltinAttribute,
+    ContainerType[ComplexElementT],
+    TypeAttribute,
+):
+    name = "complex"
+    element_type: ParameterDef[ComplexElementT]
+
+    def __init__(self, element_type: ComplexElementT):
+        super().__init__([element_type])
+
+    def get_element_type(self) -> ComplexElementT:
+        return self.element_type
 
 
 @irdl_attr_definition
@@ -2102,6 +2116,14 @@ class DenseIntOrFPElementsAttr(
         # Product of dimensions needs to equal length
         return n == len(self)
 
+    def verify(self) -> None:
+        # zero rank type should only hold 1 value
+        data_len = len(self.get_values())
+        if not self.type.get_shape() and data_len != 1:
+            raise VerifyException(
+                f"A zero-rank {self.type.name} can only hold 1 value but {data_len} were given."
+            )
+
     @staticmethod
     def create_dense_index(
         type: RankedStructure[IndexType],
@@ -2197,12 +2219,6 @@ class DenseIntOrFPElementsAttr(
         ),
         data: Sequence[int | float] | Sequence[IntegerAttr] | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr:
-        # zero rank type should only hold 1 value
-        if not type.get_shape() and len(data) != 1:
-            raise ValueError(
-                f"A zero-rank {type.name} can only hold 1 value but {len(data)} were given."
-            )
-
         # splat value given
         if len(data) == 1 and prod(type.get_shape()) != 1:
             new_data = (data[0],) * prod(type.get_shape())

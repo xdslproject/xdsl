@@ -344,7 +344,8 @@ def test_DenseIntOrFPElementsAttr_from_list():
 
     # illegal zero-rank tensor
     with pytest.raises(
-        ValueError, match="A zero-rank tensor can only hold 1 value but 2 were given."
+        VerifyException,
+        match="A zero-rank tensor can only hold 1 value but 2 were given.",
     ):
         DenseIntOrFPElementsAttr.tensor_from_list([5.5, 5.6], f32, [])
 

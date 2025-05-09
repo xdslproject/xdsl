@@ -329,21 +329,15 @@ class PDLInterpFunctions(InterpreterFunctions):
     def call_func(
         self, interpreter: Interpreter, op: pdl_interp.FuncOp, args: tuple[Any, ...]
     ):
+        if self._rewriter is None:
+            raise InterpretationError(
+                "Expected an active rewriter when calling a pdl_interp function."
+            )
         if op.sym_name.data == "matcher":
-            if self._rewriter is not None:
-                raise InterpretationError(
-                    "Cannot call matcher with an active rewriter."
-                )
-            assert self._rewriter is None
             assert len(args) == 1
             root_op = args[0]
             assert isinstance(root_op, Operation)
-            self.rewriter = PatternRewriter(root_op)
-        else:
-            if self._rewriter is None:
-                raise InterpretationError(
-                    "Expected an active rewriter when calling a rewrite routine."
-                )
+            self.rewriter.current_operation = root_op
 
         return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
 
