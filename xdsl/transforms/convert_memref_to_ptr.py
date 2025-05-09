@@ -235,19 +235,14 @@ class LowerMemRefFuncCallPattern(RewritePattern):
             else:
                 new_arguments.append(argument)
 
-        new_results: list[SSAValue] = []
-
         #  insert `ptr -> memref` casts for return values
         for result in op.results:
             if isa(result.type, memref.MemRefType):
                 rewriter.insert_op_after_matched_op(
                     cast_op := ptr.FromPtrOp(result, result.type)
                 )
-                new_results.append(cast_op.res)
                 cast_op.res.name_hint = result.name_hint
                 result.replace_by_if(cast_op.res, lambda x: x.operation is not cast_op)
-            else:
-                new_results.append(result)
 
         new_return_types = [
             ptr.PtrType() if isinstance(type, memref.MemRefType) else type
