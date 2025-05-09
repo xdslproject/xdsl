@@ -2216,21 +2216,13 @@ class DenseIntOrFPElementsAttr(
         ),
         data: Sequence[int | float] | Sequence[IntegerAttr] | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr:
-        # splat value given
-        if len(data) == 1 and prod(type.get_shape()) != 1:
-            new_data = (data[0],) * prod(type.get_shape())
-        else:
-            new_data = data
-
         if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedStructure[AnyFloat], type)
-            new_data = cast(
-                Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], new_data
-            )
+            new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
         else:
             new_type = cast(RankedStructure[IntegerType | IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr], new_data)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr], data)
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
 
     @staticmethod
