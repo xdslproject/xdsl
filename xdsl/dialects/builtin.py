@@ -1012,7 +1012,7 @@ ComplexElementT = TypeVar(
 @irdl_attr_definition
 class ComplexType(
     Generic[ComplexElementT],
-    PackableType[complex | tuple[int, int]],
+    PackableType[tuple[float, float] | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
     ContainerType[ComplexElementT],
@@ -1035,67 +1035,52 @@ class ComplexType(
     def size(self) -> int:
         return 2 * self.element_type.size
 
-    def iter_unpack(
-        self, buffer: ReadableBuffer, /
-    ) -> Iterator[complex] | Iterator[tuple[int, int]]:
-        if isinstance(elem_type := self.element_type, IntegerType):
-            values = (value for value in elem_type.iter_unpack(buffer))
-            return ((real, imag) for real, imag in zip(values, values))
-        assert isinstance(elem_type, AnyFloat)
-        values = (value for value in elem_type.iter_unpack(buffer))
-        return (complex(real, imag) for real, imag in zip(values, values))
+    def iter_unpack(self, buffer: ReadableBuffer, /):
+        values = (value for value in self.element_type.iter_unpack(buffer))
+        return ((real, imag) for real, imag in zip(values, values))
 
-    def unpack(
-        self, buffer: ReadableBuffer, num: int, /
-    ) -> tuple[complex, ...] | tuple[tuple[int, int], ...]:
-        how_many = 2 * num
-        if isinstance(elem_type := self.element_type, IntegerType):
-            values = (value for value in elem_type.unpack(buffer, how_many))
-            return tuple((real, imag) for real, imag in zip(values, values))
-        assert isinstance(elem_type, AnyFloat)
-        values = (value for value in elem_type.unpack(buffer, how_many))
-        return tuple(complex(real, imag) for real, imag in zip(values, values))
+    def unpack(self, buffer: ReadableBuffer, num: int, /):
+        values = (value for value in self.element_type.unpack(buffer, 2 * num))
+        return tuple((real, imag) for real, imag in zip(values, values))
+
+    @overload
+    def pack_into(
+        self: ComplexType[IntegerType],
+        buffer: WriteableBuffer,
+        offset: int,
+        value: tuple[int, int],
+    ) -> None: ...
+
+    @overload
+    def pack_into(
+        self: ComplexType[AnyFloat],
+        buffer: WriteableBuffer,
+        offset: int,
+        value: tuple[float, float],
+    ) -> None: ...
 
     def pack_into(
-        self, buffer: WriteableBuffer, offset: int, value: complex | tuple[int, int]
+        self,
+        buffer: WriteableBuffer,
+        offset: int,
+        value: tuple[float, float] | tuple[int, int],
     ) -> None:
-        if isinstance(elem_type := self.element_type, IntegerType):
-            assert isa(value, tuple[int, int])
-            elem_type.pack_into(buffer, 2 * offset, value[0])
-            elem_type.pack_into(buffer, 2 * offset + 1, value[1])
-            return
-
-        assert isinstance(elem_type, AnyFloat)
-        assert isinstance(value, complex)
-        elem_type.pack_into(buffer, 2 * offset, value.real)
-        elem_type.pack_into(buffer, 2 * offset + 1, value.imag)
+        self.element_type.pack_into(buffer, 2 * offset, value[0])  # pyright: ignore[reportArgumentType]
+        self.element_type.pack_into(buffer, 2 * offset + 1, value[1])  # pyright: ignore[reportArgumentType]
+        return
 
     @overload
-    def pack(self, values: Sequence[complex]) -> bytes: ...
+    def pack(
+        self: ComplexType[AnyFloat], values: Sequence[tuple[float, float]]
+    ) -> bytes: ...
 
     @overload
-    def pack(self, values: Sequence[tuple[int, int]]) -> bytes: ...
+    def pack(
+        self: ComplexType[IntegerType], values: Sequence[tuple[int, int]]
+    ) -> bytes: ...
 
-    @overload
-    def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes:
-        """The case where the input Sequence may contain complex and tuple[int, int]
-        is invalid. The Sequence may only contain complex values or tuple[int, int]
-        values."""
-
-    def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes:
-        import itertools
-
-        if isinstance(elem_type := self.element_type, IntegerType):
-            assert isa(values, Sequence[tuple[int, int]])
-            flat_ints: Sequence[int] = list(itertools.chain.from_iterable(values))
-            return elem_type.pack(flat_ints)
-        assert isinstance(elem_type, AnyFloat)
-        assert isa(values, Sequence[complex])
-        float_tuple_sequence = ((value.real, value.imag) for value in values)
-        flat_floats: Sequence[float] = list(
-            itertools.chain.from_iterable(float_tuple_sequence)
-        )
-        return elem_type.pack(flat_floats)
+    def pack(self, values: Sequence[tuple[float, float] | tuple[int, int]]) -> bytes:
+        return self.element_type.pack(tuple(val for vals in values for val in vals))  # pyright: ignore[reportArgumentType]
 
 
 @irdl_attr_definition
