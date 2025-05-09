@@ -6,6 +6,7 @@ import pytest
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyTensorType,
     ArrayAttr,
     BFloat16Type,
@@ -128,6 +129,13 @@ def test_IntegerType_size():
     assert IntegerType(16).size == 2
     assert IntegerType(32).size == 4
     assert IntegerType(64).size == 8
+
+
+@pytest.mark.parametrize(
+    "elem_ty", [IntegerType(1), IntegerType(32), Float16Type(), Float32Type()]
+)
+def test_ComplexType_size(elem_ty: AnyFloat | IntegerType):
+    assert ComplexType(elem_ty).size == elem_ty.size * 2
 
 
 def test_IntegerType_normalized():
@@ -306,6 +314,26 @@ def test_IntegerType_packing():
         match="argument out of range|format requires -9223372036854775808 <= number <= 9223372036854775807",
     ):
         i64.pack((9223372036854775808,))
+
+    nums_complex_i32 = ((-128, -1), (0, 1), (127, 128))
+    complex_i32 = ComplexType(i32)
+    buffer_complex_i32 = complex_i32.pack(nums_complex_i32)
+    unpacked_complex_i32 = complex_i32.unpack(buffer_complex_i32, len(nums_complex_i32))
+    assert nums_complex_i32 == unpacked_complex_i32
+    assert (
+        tuple(val for val in complex_i32.iter_unpack(buffer_complex_i32))
+        == nums_complex_i32
+    )
+
+    nums_complex_f32 = ((-128.0, -1.0), (0.0, 1.0), (127.0, 128.0))
+    complex_f32 = ComplexType(f32)
+    buffer_complex_f32 = complex_f32.pack(nums_complex_f32)
+    unpacked_complex_f32 = complex_f32.unpack(buffer_complex_f32, len(nums_complex_f32))
+    assert nums_complex_f32 == unpacked_complex_f32
+    assert (
+        tuple(val for val in complex_f32.iter_unpack(buffer_complex_f32))
+        == nums_complex_f32
+    )
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
