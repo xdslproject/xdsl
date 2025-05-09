@@ -2106,7 +2106,7 @@ class DenseIntOrFPElementsAttr(
         # zero rank type should only hold 1 value
         data_len = len(self.get_values())
         if not self.type.get_shape() and data_len != 1:
-            raise ValueError(
+            raise VerifyException(
                 f"A zero-rank {self.type.name} can only hold 1 value but {data_len} were given."
             )
 
