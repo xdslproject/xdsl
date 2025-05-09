@@ -1048,11 +1048,12 @@ class ComplexType(
     def unpack(
         self, buffer: ReadableBuffer, num: int, /
     ) -> tuple[complex, ...] | tuple[tuple[int, int], ...]:
+        how_many = 2 * num
         if isinstance(elem_type := self.element_type, IntegerType):
-            values = (value for value in elem_type.unpack(buffer, 2 * num))
+            values = (value for value in elem_type.unpack(buffer, how_many))
             return tuple((real, imag) for real, imag in zip(values, values))
         assert isinstance(elem_type, AnyFloat)
-        values = (value for value in elem_type.unpack(buffer, num))
+        values = (value for value in elem_type.unpack(buffer, how_many))
         return tuple(complex(real, imag) for real, imag in zip(values, values))
 
     def pack_into(
