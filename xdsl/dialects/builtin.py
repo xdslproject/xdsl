@@ -1004,13 +1004,27 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
 
-@irdl_attr_definition
-class ComplexType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
-    name = "complex"
-    element_type: ParameterDef[IntegerType | AnyFloat]
+ComplexElementT = TypeVar(
+    "ComplexElementT", bound=IntegerType | AnyFloat, default=IntegerType | AnyFloat
+)
 
-    def __init__(self, element_type: IntegerType | AnyFloat) -> None:
-        ParametrizedAttribute.__init__(self, [element_type])
+
+@irdl_attr_definition
+class ComplexType(
+    Generic[ComplexElementT],
+    ParametrizedAttribute,
+    BuiltinAttribute,
+    ContainerType[ComplexElementT],
+    TypeAttribute,
+):
+    name = "complex"
+    element_type: ParameterDef[ComplexElementT]
+
+    def __init__(self, element_type: ComplexElementT):
+        super().__init__([element_type])
+
+    def get_element_type(self) -> ComplexElementT:
+        return self.element_type
 
 
 @irdl_attr_definition
