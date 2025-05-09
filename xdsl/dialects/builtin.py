@@ -1028,51 +1028,46 @@ class ComplexType(
         return self.element_type
 
     @property
-    def size(self) -> int:
-        return 2 * self.element_type.size
-
-    @property
     def format(self) -> str:
         return f"<2{self.element_type.format[1]}"
+
+    @property
+    def size(self) -> int:
+        return 2 * self.element_type.size
 
     def iter_unpack(
         self, buffer: ReadableBuffer, /
     ) -> Iterator[complex] | Iterator[tuple[int, int]]:
-        return (values[0] for values in struct.iter_unpack(self.format, buffer))
+        if isinstance(elem_type := self.element_type, IntegerType):
+            values = (value for value in elem_type.iter_unpack(buffer))
+            return ((real, imag) for real, imag in zip(values, values))
+        assert isinstance(elem_type, AnyFloat)
+        values = (value for value in elem_type.iter_unpack(buffer))
+        return (complex(real, imag) for real, imag in zip(values, values))
 
     def unpack(
         self, buffer: ReadableBuffer, num: int, /
     ) -> tuple[complex, ...] | tuple[tuple[int, int], ...]:
-        fmt = self.format[0] + str(2 * num) + self.format[2:]
-        values: Sequence[int] | Sequence[float] = struct.unpack(fmt, buffer)
-        if isa(values, Sequence[float]):
-            return tuple(
-                complex(values[i * 2], values[i * 2 + 1])
-                for i in range(len(values) // 2)
-            )
-
-        assert isa(values, Sequence[int])
-        return tuple(
-            (values[i * 2], values[i * 2 + 1]) for i in range(len(values) // 2)
-        )
-
-    @overload
-    def pack_into(
-        self, buffer: WriteableBuffer, offset: int, value: complex
-    ) -> None: ...
-
-    @overload
-    def pack_into(
-        self, buffer: WriteableBuffer, offset: int, value: tuple[int, int]
-    ) -> None: ...
+        if isinstance(elem_type := self.element_type, IntegerType):
+            values = (value for value in elem_type.unpack(buffer, 2 * num))
+            return tuple((real, imag) for real, imag in zip(values, values))
+        assert isinstance(elem_type, AnyFloat)
+        values = (value for value in elem_type.unpack(buffer, num))
+        return tuple(complex(real, imag) for real, imag in zip(values, values))
 
     def pack_into(
         self, buffer: WriteableBuffer, offset: int, value: complex | tuple[int, int]
     ) -> None:
-        if isinstance(value, complex):
-            struct.pack_into(self.format, buffer, offset, value.real, value.imag)
-        assert isa(value, tuple[int, int])
-        struct.pack_into(self.format, buffer, offset, value[0], value[1])
+        if isinstance(elem_type := self.element_type, IntegerType):
+            assert isa(value, tuple[int, int])
+            elem_type.pack_into(buffer, 2*offset, value[0])
+            elem_type.pack_into(buffer, 2*offset+1, value[1])
+            return
+
+        assert isinstance(elem_type, AnyFloat)
+        assert isinstance(value, complex)
+        elem_type.pack_into(buffer, 2*offset, value.real)
+        elem_type.pack_into(buffer, 2*offset+1, value.imag)
 
     @overload
     def pack(self, values: Sequence[complex]) -> bytes: ...
@@ -1081,20 +1076,22 @@ class ComplexType(
     def pack(self, values: Sequence[tuple[int, int]]) -> bytes: ...
 
     @overload
-    def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes: ...
+    def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes:
+        """The case where the input Sequence may contain complex and tuple[int, int]
+        is invalid. The Sequence may only contain complex values or tuple[int, int]
+        values."""
 
     def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes:
         import itertools
-
-        fmt = self.format[0] + str(2 * len(values)) + self.format[2:]
-        if isa(values, Sequence[complex]):
-            tuple_of_floats = ((value.real, value.imag) for value in values)
-            flat_floats = list(itertools.chain.from_iterable(tuple_of_floats))
-            return struct.pack(fmt, *flat_floats)
-
-        assert isa(values, Sequence[tuple[int, int]])
-        flat_ints: Sequence[int] = list(itertools.chain.from_iterable(values))
-        return struct.pack(fmt, *flat_ints)
+        if isinstance(elem_type := self.element_type, IntegerType):
+            assert isa(values, Sequence[tuple[int, int]])
+            flat_ints: Sequence[int] = list(itertools.chain.from_iterable(values))
+            return elem_type.pack(flat_ints)
+        assert isinstance(elem_type, AnyFloat)
+        assert isa(values, Sequence[complex])
+        float_tuple_sequence = ((value.real, value.imag) for value in values)
+        flat_floats: Sequence[float] = list(itertools.chain.from_iterable(float_tuple_sequence))
+        return elem_type.pack(flat_floats)
 
 
 @irdl_attr_definition
