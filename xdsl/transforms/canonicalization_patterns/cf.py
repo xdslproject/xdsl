@@ -4,8 +4,9 @@ from typing import cast
 from xdsl.dialects import arith, cf
 from xdsl.dialects.builtin import (
     BoolAttr,
-    DenseIntOrFPElementsAttr,
+    DenseIntElementsAttr,
     IntegerAttr,
+    VectorType,
 )
 from xdsl.ir import Block, BlockArgument, Operation, SSAValue
 from xdsl.pattern_rewriter import (
@@ -319,8 +320,9 @@ def drop_case_helper(
                 op.flag,
                 op.default_block,
                 op.default_operands,
-                DenseIntOrFPElementsAttr.vector_from_list(
-                    new_case_values, case_values.get_element_type()
+                DenseIntElementsAttr.create_dense_int(
+                    VectorType(case_values.get_element_type(), (len(new_case_values),)),
+                    new_case_values,
                 ),
                 new_case_blocks,
                 new_case_operands,

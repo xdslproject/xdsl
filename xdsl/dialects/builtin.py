@@ -2347,6 +2347,9 @@ class DenseIntOrFPElementsAttr(
         printer.print_string(">")
 
 
+DenseIntElementsAttr: TypeAlias = DenseIntOrFPElementsAttr[IndexType | IntegerType]
+
+
 Builtin = Dialect(
     "builtin",
     [
