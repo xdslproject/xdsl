@@ -458,7 +458,7 @@ class Printer(BasePrinter):
         # Complex types have MLIR shorthands but XDSL does not.
         if isa(attribute, ComplexType):
             self.print_string("complex<")
-            self.print_attribute(attribute.element_type)
+            self.print_attribute(attribute.get_element_type())
             self.print_string(">")
             return
 
