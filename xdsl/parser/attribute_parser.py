@@ -1049,9 +1049,10 @@ class AttrParser(BaseParser):
         imag, _ = self._parse_int_or_float()
         real_ty = type(real)
         imag_ty = type(imag)
-        assert real_ty == imag_ty, (
-            "Complex type must be either (float, float) or (int, int)"
-        )
+        if real_ty != imag_ty:
+            self.raise_error(
+                "Complex value must be either (float, float) or (int, int)"
+            )
         token = self._consume_token(MLIRTokenKind.R_PAREN)
         end = token.span.end
         is_float = (real_ty, imag_ty) == (float, float)
