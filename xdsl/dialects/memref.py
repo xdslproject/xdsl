@@ -76,7 +76,7 @@ class LoadOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    nontemporal = opt_prop_def(BoolAttr)
+    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
     memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType())
@@ -115,7 +115,7 @@ class StoreOp(IRDLOperation):
 
     name = "memref.store"
 
-    nontemporal = opt_prop_def(BoolAttr)
+    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
     value = operand_def(T)
     memref = operand_def(MemRefType.constr(element_type=T))

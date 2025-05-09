@@ -103,7 +103,7 @@ class ConvertPtrToLLVMPass(ModulePass):
                     ConvertPtrAddOp(),
                     ConvertToPtrOp(),
                     ConvertFromPtrOp(),
-                    RewritePtrTypes(),
+                    RewritePtrTypes(recursive=True),
                 ]
             )
         ).rewrite_module(op)
