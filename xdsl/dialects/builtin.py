@@ -2227,6 +2227,7 @@ class DenseIntOrFPElementsAttr(
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
 
     @staticmethod
+    @deprecated("Please use `create_dense_{int/float}` instead.")
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
         data_type: IntegerType | IndexType | AnyFloat,
