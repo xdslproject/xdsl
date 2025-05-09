@@ -15,6 +15,18 @@ ptr_xdsl.store %2, %0  : i32, !ptr_xdsl.ptr
 // CHECK-NEXT: %6 = "llvm.inttoptr"(%5) : (i64) -> !llvm.ptr
 %3 = ptr_xdsl.ptradd %0, %1 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 
+// CHECK-NEXT: func.func private @example(!llvm.ptr) -> !llvm.ptr
 func.func private @example(!ptr_xdsl.ptr) -> !ptr_xdsl.ptr
 
-// CHECK-NEXT: func.func private @example(!llvm.ptr) -> !llvm.ptr
+// CHECK-NEXT: %memref, %ptr = "test.op"() : () -> (memref<1xf32>, !llvm.ptr)
+%memref, %ptr = "test.op"() : () -> (memref<1xf32>, !ptr_xdsl.ptr)
+
+// CHECK-NEXT: "test.op"(%memref) : (memref<1xf32>) -> ()
+%to_ptr = ptr_xdsl.to_ptr %memref : memref<1xf32> -> !ptr_xdsl.ptr
+"test.op"(%to_ptr) : (!ptr_xdsl.ptr) -> ()
+
+// CHECK-NEXT: "test.op"(%ptr) : (!llvm.ptr) -> ()
+%from_ptr = ptr_xdsl.from_ptr %ptr : !ptr_xdsl.ptr -> memref<1xf32>
+"test.op"(%from_ptr) : (memref<1xf32>) -> ()
+
+// CHECK-NEXT: }
