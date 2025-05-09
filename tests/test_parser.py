@@ -947,6 +947,16 @@ def test_parse_str_enum(keyword: str, expected: MyEnum | None):
         assert parser.parse_str_enum(MyEnum) == expected
 
 
+@pytest.mark.parametrize("value", ["(1., 2)", "(1, 2.)"])
+def test_parse_complex(value: str):
+    parser = Parser(Context(), value)
+    with pytest.raises(
+        ParseError,
+        match="Complex value must be either \(float, float\) or \(int, int\)",
+    ):
+        parser._parse_optional_complex()
+
+
 class MySingletonEnum(StrEnum):
     A = "a"
 
