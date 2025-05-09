@@ -18,14 +18,15 @@ ptr_xdsl.store %2, %0  : i32, !ptr_xdsl.ptr
 // CHECK-NEXT: func.func private @example(!llvm.ptr) -> !llvm.ptr
 func.func private @example(!ptr_xdsl.ptr) -> !ptr_xdsl.ptr
 
-// CHECK-NEXT: "test.op"() : () -> memref<1xf32>
-// CHECK-NEXT: "test.op"() : () -> !llvm.ptr
-%memref = "test.op"() : () -> memref<1xf32>
-%ptr = "test.op"() : () -> !ptr_xdsl.ptr
+// CHECK-NEXT: %memref, %ptr = "test.op"() : () -> (memref<1xf32>, !llvm.ptr)
+%memref, %ptr = "test.op"() : () -> (memref<1xf32>, !llvm.ptr)
+
+// CHECK-NEXT: "test.op"(%memref) : (!llvm.ptr) -> ()
+%to_ptr = ptr_xdsl.to_ptr %memref : memref<1xf32> -> !ptr_xdsl.ptr
+"test.op"(%to_ptr) : (!ptr_xdsl.ptr) -> ()
+
+// CHECK-NEXT: "test.op"(%ptr) : (!llvm.ptr) -> ()
+%from_ptr = ptr_xdsl.from_ptr %ptr : !ptr_xdsl.ptr -> memref<1xf32>
+"test.op"(%from_ptr) : (!ptr_xdsl.ptr) -> ()
 
 // CHECK-NEXT: }
-%to_ptr = ptr_xdsl.to_ptr %memref : memref<1xf32> -> !ptr_xdsl.ptr
-ptr_xdsl.from_ptr %to_ptr : !ptr_xdsl.ptr -> memref<1xf32>
-
-%from_ptr = ptr_xdsl.from_ptr %ptr : !ptr_xdsl.ptr -> memref<1xf32>
-ptr_xdsl.to_ptr %from_ptr : memref<1xf32> -> !ptr_xdsl.ptr
