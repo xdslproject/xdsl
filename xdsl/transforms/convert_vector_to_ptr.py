@@ -1,11 +1,16 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import affine, builtin, memref, ptr, vector
+from xdsl.dialects import affine, arith, builtin, memref, ptr, vector
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     FixedBitwidthType,
+    IndexType,
+    IntegerAttr,
+    NoneAttr,
+    StridedLayoutAttr,
 )
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -32,19 +37,31 @@ class VectorLoadToPtr(RewritePattern):
 
         # Build an affine.apply to compute the linearized offset
         layout_map = memory_ty.get_affine_map_in_bytes()
-        apply_op = affine.ApplyOp(
-            map_operands=op.indices,
-            affine_map=AffineMapAttr(layout_map),
+
+        map_operands = list(op.indices)
+        ops: list[Operation] = []
+
+        if isinstance(memory_ty.layout, StridedLayoutAttr) and isinstance(
+            memory_ty.layout.offset, NoneAttr
+        ):
+            ops.append(zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())))
+            map_operands.append(zero_op.result)
+
+        ops.append(
+            apply_op := affine.ApplyOp(
+                map_operands=map_operands,
+                affine_map=AffineMapAttr(layout_map),
+            )
         )
 
         # Compute the linearized offset
-        cast_op = ptr.ToPtrOp(memory)
-        add_op = ptr.PtrAddOp(cast_op.res, apply_op.result)
+        ops.append(cast_op := ptr.ToPtrOp(memory))
+        ops.append(add_op := ptr.PtrAddOp(cast_op.res, apply_op.result))
 
         # Load a vector from the pointer
-        load_op = ptr.LoadOp(add_op.result, vector_ty)
+        ops.append(ptr.LoadOp(add_op.result, vector_ty))
 
-        rewriter.replace_matched_op([apply_op, cast_op, add_op, load_op])
+        rewriter.replace_matched_op(ops)
 
 
 @dataclass(frozen=True)

@@ -62,4 +62,12 @@
 // CHECK-NEXT:   %v2_1 = ptr_xdsl.to_ptr %m2 : memref<2x32xf32> -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v2_2 = ptr_xdsl.ptradd %v2_1, %v2 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v2_3 = ptr_xdsl.load %v2_2 : !ptr_xdsl.ptr -> vector<8xf32>
+
+// -----
+
+%m3 = "test.op"(): () -> memref<8xf32, strided<[1], offset: ?>>
+%j3 = arith.constant 0: index
+%v3 = vector.load %m3[%j3]: memref<8xf32, strided<[1], offset: ?>>, vector<8xf32>
+
+
 // CHECK-NEXT: }
