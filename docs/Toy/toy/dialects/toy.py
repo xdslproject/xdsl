@@ -117,7 +117,7 @@ class ConstantOp(IRDLOperation):
         return list(self.get_type().get_shape())
 
     def get_data(self) -> list[float]:
-        return list(self.value.get_values())
+        return list(self.value.get_float_values())
 
 
 class InferAddOpShapeTrait(ToyShapeInferenceTrait):
