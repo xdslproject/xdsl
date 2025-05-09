@@ -6,6 +6,7 @@ import pytest
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyTensorType,
     AnyVectorType,
     ArrayAttr,
@@ -134,7 +135,7 @@ def test_IntegerType_size():
 @pytest.mark.parametrize(
     "elem_ty", [IntegerType(1), IntegerType(32), Float16Type(), Float32Type()]
 )
-def test_ComplexType_size(elem_ty):
+def test_ComplexType_size(elem_ty: AnyFloat | IntegerType):
     assert ComplexType(elem_ty).size == elem_ty.size * 2
 
 
