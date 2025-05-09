@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     AnyDenseElement,
     AnyFloat,
-    AnyFloatConstr,
     AnyTensorType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -521,7 +520,7 @@ class AttrParser(BaseParser):
 
     def _parse_complex_attrs(self) -> ComplexType:
         element_type = self.parse_attribute()
-        if not (base(IntegerType) | AnyFloatConstr).matches(element_type):
+        if not isinstance(element_type, IntegerType | AnyFloat):
             self.raise_error(
                 "Complex type must be parameterized by an integer or float type!"
             )
