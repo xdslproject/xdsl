@@ -1382,7 +1382,7 @@ class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
         if isinstance(data_type, IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
             return DenseArrayBase.create_dense_int(data_type, _data)
-        elif AnyFloatConstr.matches(data_type):
+        elif isinstance(data_type, AnyFloat):
             _data = cast(Sequence[int | float] | Sequence[FloatData], data)
             return DenseArrayBase.create_dense_float(data_type, _data)
         else:

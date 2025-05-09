@@ -226,7 +226,7 @@ class ApplyOp(IRDLOperation):
 
     field = operand_def(stencil.StencilTypeConstr | MemRefType.constr())
 
-    accumulator = operand_def(AnyTensorTypeConstr | MemRefType.constr())
+    accumulator = operand_def(TensorType | MemRefType)
 
     args_rchunk = var_operand_def(Attribute)
     args_dexchng = var_operand_def(Attribute)
@@ -360,9 +360,7 @@ class ApplyOp(IRDLOperation):
                 )
 
         # typecheck required (only) block arguments
-        assert (AnyTensorTypeConstr | MemRefType.constr()).matches(
-            self.accumulator.type,
-        )
+        assert isa(self.accumulator.type, TensorType | MemRefType)
         chunk_region_req_types = [
             type(self.accumulator.type)(
                 self.accumulator.type.get_element_type(),
@@ -461,7 +459,7 @@ class AccessOp(IRDLOperation):
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(AnyTensorTypeConstr | MemRefType.constr())
+    result = result_def(TensorType | MemRefType)
 
     traits = traits_def(HasAncestor(stencil.ApplyOp, ApplyOp), Pure())
 
@@ -542,7 +540,7 @@ class AccessOp(IRDLOperation):
                 result_types=[res_type.get_element_type()],
                 properties=props,
             )
-        elif AnyTensorTypeConstr.matches(res_type):
+        elif isa(res_type, TensorType):
             return cls.build(
                 operands=[temp],
                 result_types=[
@@ -583,7 +581,7 @@ class AccessOp(IRDLOperation):
                     f"stencil.StencilType or memref.MemRefType but found {self.op.type}"
                 )
         else:
-            if not (AnyTensorTypeConstr | MemRefType.constr()).matches(self.op.type):
+            if not isa(self.op.type, TensorType | MemRefType):
                 raise VerifyException(
                     f"{type(self)} access to neighbor data requires type "
                     f"memref.MemRefType or TensorType but found {self.op.type}"

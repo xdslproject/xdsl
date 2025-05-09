@@ -5,7 +5,6 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, stencil
 from xdsl.dialects.builtin import (
-    AnyTensorTypeConstr,
     ArrayAttr,
     DictionaryAttr,
     IndexType,
@@ -113,9 +112,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             # retrieve z_dim from done_exchange arg[0]
             if stencil.StencilTypeConstr.matches(
                 field_t := apply_op.done_exchange.block.args[0].type
-            ) and (AnyTensorTypeConstr | MemRefType.constr()).matches(
-                el_type := field_t.element_type
-            ):
+            ) and isa(el_type := field_t.element_type, TensorType | MemRefType):
                 # unbufferized csl_stencil
                 z_dim = max(z_dim, el_type.get_shape()[-1])
             elif isa(field_t, memref.MemRefType[Attribute]):
@@ -123,8 +120,9 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 z_dim = max(z_dim, field_t.get_shape()[-1])
 
             num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
-            if (AnyTensorTypeConstr | MemRefType.constr()).matches(
+            if isa(
                 buf_t := apply_op.receive_chunk.block.args[0].type,
+                TensorType | MemRefType,
             ):
                 chunk_size = max(chunk_size, buf_t.get_shape()[-1])
 

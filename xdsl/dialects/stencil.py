@@ -1094,7 +1094,7 @@ class AccessOp(IRDLOperation):
             attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not StencilTypeConstr.matches(res_type):
+        if not isa(res_type, StencilType):
             parser.raise_error(
                 "Expected return type to be a stencil.temp or stencil.field"
             )
@@ -1142,7 +1142,7 @@ class AccessOp(IRDLOperation):
         apply.verify_()
 
         temp_type = self.temp.type
-        assert StencilTypeConstr.matches(temp_type)
+        assert isa(temp_type, StencilType)
         if temp_type.get_num_dims() != apply.get_rank():
             if self.offset_mapping is None:
                 raise VerifyException(
