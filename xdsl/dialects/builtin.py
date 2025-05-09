@@ -1060,14 +1060,14 @@ class ComplexType(
     ) -> None:
         if isinstance(elem_type := self.element_type, IntegerType):
             assert isa(value, tuple[int, int])
-            elem_type.pack_into(buffer, 2*offset, value[0])
-            elem_type.pack_into(buffer, 2*offset+1, value[1])
+            elem_type.pack_into(buffer, 2 * offset, value[0])
+            elem_type.pack_into(buffer, 2 * offset + 1, value[1])
             return
 
         assert isinstance(elem_type, AnyFloat)
         assert isinstance(value, complex)
-        elem_type.pack_into(buffer, 2*offset, value.real)
-        elem_type.pack_into(buffer, 2*offset+1, value.imag)
+        elem_type.pack_into(buffer, 2 * offset, value.real)
+        elem_type.pack_into(buffer, 2 * offset + 1, value.imag)
 
     @overload
     def pack(self, values: Sequence[complex]) -> bytes: ...
@@ -1083,6 +1083,7 @@ class ComplexType(
 
     def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes:
         import itertools
+
         if isinstance(elem_type := self.element_type, IntegerType):
             assert isa(values, Sequence[tuple[int, int]])
             flat_ints: Sequence[int] = list(itertools.chain.from_iterable(values))
@@ -1090,7 +1091,9 @@ class ComplexType(
         assert isinstance(elem_type, AnyFloat)
         assert isa(values, Sequence[complex])
         float_tuple_sequence = ((value.real, value.imag) for value in values)
-        flat_floats: Sequence[float] = list(itertools.chain.from_iterable(float_tuple_sequence))
+        flat_floats: Sequence[float] = list(
+            itertools.chain.from_iterable(float_tuple_sequence)
+        )
         return elem_type.pack(flat_floats)
 
 
