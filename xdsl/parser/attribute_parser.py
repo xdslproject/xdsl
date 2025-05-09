@@ -989,6 +989,10 @@ class AttrParser(BaseParser):
                     )
 
     def _parse_optional_int(self) -> tuple[int, Span] | None:
+        """Parses an optional int. Includes parsing the minus token.
+
+        May rollback if the token after `-` is not a integer literal.
+        """
         pos = self._current_token.span.start
 
         # checking for negation
@@ -1010,6 +1014,10 @@ class AttrParser(BaseParser):
         return value, span
 
     def _parse_optional_float(self) -> tuple[float, Span] | None:
+        """Parses an optional float. Includes parsing the minus token.
+
+        May rollback if the token after `-` is not a float literal.
+        """
         pos = self._current_token.span.start
 
         # checking for negation
@@ -1033,9 +1041,36 @@ class AttrParser(BaseParser):
     def _parse_optional_int_or_float(
         self,
     ) -> tuple[int, Span] | tuple[float, Span] | None:
-        if retval := self._parse_optional_int():
-            return retval
-        return self._parse_optional_float()
+        """This version does not call self._parse_optional_int()
+        and self._parse_optional_float() for efficiency. It inlines
+        both and hoists parsing the minus_token.
+
+        May rollback if the token after `-` is not either an integer
+        or float literal.
+        """
+        pos = self._current_token.span.start
+
+        # checking for negation
+        minus_token = self._parse_optional_token(MLIRTokenKind.MINUS)
+        is_negative = minus_token is not None
+
+        if self._current_token.kind == MLIRTokenKind.INTEGER_LIT:
+            token = self._consume_token(MLIRTokenKind.INTEGER_LIT)
+            value = token.kind.get_int_value(token.span)
+        elif self._current_token.kind == MLIRTokenKind.FLOAT_LIT:
+            token = self._consume_token(MLIRTokenKind.FLOAT_LIT)
+            value = token.kind.get_float_value(token.span)
+        else:
+            self._resume_from(pos)
+            return None
+
+        if is_negative:
+            span = Span(minus_token.span.start, token.span.end, token.span.input)
+            value = -value
+        else:
+            span = token.span
+
+        return value, span
 
     def _parse_optional_complex(self) -> tuple[complex | tuple[int, int], Span] | None:
         if self._current_token.kind != MLIRTokenKind.L_PAREN:
