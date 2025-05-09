@@ -232,9 +232,6 @@ class LowerMemRefFuncCallPattern(RewritePattern):
                 rewriter.insert_op_before_matched_op(cast_op := ptr.ToPtrOp(argument))
                 new_arguments.append(cast_op.res)
                 cast_op.res.name_hint = argument.name_hint
-                argument.replace_by_if(
-                    cast_op.res, lambda x: x.operation is not cast_op
-                )
             else:
                 new_arguments.append(argument)
 
