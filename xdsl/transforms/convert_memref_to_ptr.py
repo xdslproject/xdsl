@@ -311,7 +311,6 @@ class ConvertMemRefToPtr(ModulePass):
                     ConvertStoreOp(),
                     ConvertLoadOp(),
                     ConvertSubviewOp(),
-                    ConvertReinterpretCastOp(),
                 ]
             )
         ).rewrite_module(op)
