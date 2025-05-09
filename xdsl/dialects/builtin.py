@@ -2102,6 +2102,14 @@ class DenseIntOrFPElementsAttr(
         # Product of dimensions needs to equal length
         return n == len(self)
 
+    def verify(self) -> None:
+        # zero rank type should only hold 1 value
+        data_len = len(self.get_values())
+        if not self.type.get_shape() and data_len != 1:
+            raise VerifyException(
+                f"A zero-rank {self.type.name} can only hold 1 value but {data_len} were given."
+            )
+
     @staticmethod
     def create_dense_index(
         type: RankedStructure[IndexType],
@@ -2197,12 +2205,6 @@ class DenseIntOrFPElementsAttr(
         ),
         data: Sequence[int | float] | Sequence[IntegerAttr] | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr:
-        # zero rank type should only hold 1 value
-        if not type.get_shape() and len(data) != 1:
-            raise ValueError(
-                f"A zero-rank {type.name} can only hold 1 value but {len(data)} were given."
-            )
-
         # splat value given
         if len(data) == 1 and prod(type.get_shape()) != 1:
             new_data = (data[0],) * prod(type.get_shape())
