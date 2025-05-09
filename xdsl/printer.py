@@ -74,6 +74,7 @@ from xdsl.utils.bitwise_casts import (
     convert_f64_to_u64,
 )
 from xdsl.utils.diagnostic import Diagnostic
+from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import MLIRLexer
 
 
@@ -455,7 +456,7 @@ class Printer(BasePrinter):
             return
 
         # Complex types have MLIR shorthands but XDSL does not.
-        if isinstance(attribute, ComplexType):
+        if isa(attribute, ComplexType):
             self.print_string("complex<")
             self.print_attribute(attribute.element_type)
             self.print_string(">")
