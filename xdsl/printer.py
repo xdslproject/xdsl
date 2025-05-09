@@ -340,6 +340,30 @@ class Printer(BasePrinter):
     def print_float_attr(self, attribute: FloatAttr):
         self.print_float(attribute.value.data, attribute.type)
 
+    def print_complex(self, value: complex | tuple[int, int], type: ComplexType):
+        self.print_string("(")
+        real: float | int
+        imag: float | int
+        if isinstance(value, complex):
+            real = value.real
+            imag = value.imag
+        else:
+            assert isinstance(value, tuple)
+            assert isinstance(value[0], int)
+            assert isinstance(value[1], int)
+            real = value[0]
+            imag = value[1]
+        if isinstance(type.element_type, AnyFloat):
+            self.print_float(real, type.element_type)
+        else:
+            self.print_string(str(int(real)))
+        self.print_string(",")
+        if isinstance(type.element_type, AnyFloat):
+            self.print_float(imag, type.element_type)
+        else:
+            self.print_string(str(int(imag)))
+        self.print_string(")")
+
     def print_float(self, value: float, type: AnyFloat):
         if math.isnan(value) or math.isinf(value):
             if isinstance(type, Float16Type):
@@ -457,7 +481,8 @@ class Printer(BasePrinter):
         # Complex types have MLIR shorthands but XDSL does not.
         if isinstance(attribute, ComplexType):
             self.print_string("complex<")
-            self.print_attribute(attribute.element_type)
+            elem_type = cast(IntegerType | AnyFloat, attribute.get_element_type())
+            self.print_attribute(elem_type)
             self.print_string(">")
             return
 

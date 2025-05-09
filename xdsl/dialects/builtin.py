@@ -1004,13 +1004,96 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
 
-@irdl_attr_definition
-class ComplexType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
-    name = "complex"
-    element_type: ParameterDef[IntegerType | AnyFloat]
+ComplexElementT = TypeVar(
+    "ComplexElementT", bound=IntegerType | AnyFloat, default=IntegerType | AnyFloat
+)
 
-    def __init__(self, element_type: IntegerType | AnyFloat) -> None:
-        ParametrizedAttribute.__init__(self, [element_type])
+
+@irdl_attr_definition
+class ComplexType(
+    Generic[ComplexElementT],
+    StructPackableType[complex | tuple[int, int]],
+    ParametrizedAttribute,
+    BuiltinAttribute,
+    TypeAttribute,
+):
+    name = "complex"
+    element_type: ParameterDef[ComplexElementT]
+
+    def __init__(self, element_type: AttributeCovT):
+        super().__init__([element_type])
+
+    def get_element_type(self) -> ComplexElementT:
+        return self.element_type
+
+    @property
+    def size(self) -> int:
+        return 2 * self.element_type.size
+
+    @property
+    def format(self) -> str:
+        return f"<2{self.element_type.format[1]}"
+
+    def iter_unpack(
+        self, buffer: ReadableBuffer, /
+    ) -> Iterator[complex] | Iterator[tuple[int, int]]:
+        return (values[0] for values in struct.iter_unpack(self.format, buffer))
+
+    def unpack(
+        self, buffer: ReadableBuffer, num: int, /
+    ) -> tuple[complex, ...] | tuple[tuple[int, int], ...]:
+        fmt = self.format[0] + str(2 * num) + self.format[2:]
+        values: Sequence[int] | Sequence[float] = struct.unpack(fmt, buffer)
+        if isa(values, Sequence[float]):
+            return tuple(
+                complex(values[i * 2], values[i * 2 + 1])
+                for i in range(len(values) // 2)
+            )
+
+        assert isa(values, Sequence[int])
+        return tuple(
+            (values[i * 2], values[i * 2 + 1]) for i in range(len(values) // 2)
+        )
+
+    @overload
+    def pack_into(
+        self, buffer: WriteableBuffer, offset: int, value: complex
+    ) -> None: ...
+
+    @overload
+    def pack_into(
+        self, buffer: WriteableBuffer, offset: int, value: tuple[int, int]
+    ) -> None: ...
+
+    def pack_into(
+        self, buffer: WriteableBuffer, offset: int, value: complex | tuple[int, int]
+    ) -> None:
+        if isinstance(value, complex):
+            struct.pack_into(self.format, buffer, offset, value.real, value.imag)
+        assert isa(value, tuple[int, int])
+        struct.pack_into(self.format, buffer, offset, value[0], value[1])
+
+    @overload
+    def pack(self, values: Sequence[complex]) -> bytes: ...
+
+    @overload
+    def pack(self, values: Sequence[tuple[int, int]]) -> bytes: ...
+
+    @overload
+    def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes: ...
+
+    def pack(self, values: Sequence[complex | tuple[int, int]]) -> bytes:
+        import itertools
+
+        fmt = self.format[0] + str(2 * len(values)) + self.format[2:]
+        if isa(values, Sequence[complex]):
+            tuple_of_floats = ((value.real, value.imag) for value in values)
+            flat_floats = list(itertools.chain.from_iterable(tuple_of_floats))
+            return struct.pack(fmt, *flat_floats)
+
+        assert isa(values, Sequence[tuple[int, int]])
+        flat_ints: Sequence[int] = list(itertools.chain.from_iterable(values))
+        return struct.pack(fmt, *flat_ints)
 
 
 @irdl_attr_definition
@@ -2061,9 +2144,12 @@ RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]
 )
 
-AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
+AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
 DenseElementCovT = TypeVar(
-    "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
+    "DenseElementCovT",
+    bound=AnyDenseElement,
+    default=AnyDenseElement,
+    covariant=True,
 )
 
 
@@ -2167,6 +2253,15 @@ class DenseIntOrFPElementsAttr(
 
         return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
 
+    @staticmethod
+    def create_dense_complex(
+        data_type: RankedStructure[ComplexType],
+        data: Sequence[complex] | Sequence[tuple[int, int]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType]:
+        return DenseIntOrFPElementsAttr(
+            [data_type, BytesAttr(data_type.element_type.pack(data))]
+        )
+
     @overload
     @staticmethod
     def from_list(
@@ -2187,23 +2282,28 @@ class DenseIntOrFPElementsAttr(
     @staticmethod
     def from_list(
         type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
+            RankedStructure[AnyFloat | IntegerType | IndexType | ComplexType]
             | RankedStructure[AnyFloat]
             | RankedStructure[IntegerType]
             | RankedStructure[IndexType]
         ),
-        data: Sequence[int | float] | Sequence[FloatAttr],
+        data: Sequence[int | float | complex] | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr: ...
 
     @staticmethod
     def from_list(
         type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
+            RankedStructure[AnyFloat | IntegerType | IndexType | ComplexType]
             | RankedStructure[AnyFloat]
             | RankedStructure[IntegerType]
             | RankedStructure[IndexType]
+            | RankedStructure[ComplexType]
         ),
-        data: Sequence[int | float] | Sequence[IntegerAttr] | Sequence[FloatAttr],
+        data: Sequence[Any]
+        | Sequence[int | float]
+        | Sequence[complex]
+        | Sequence[IntegerAttr]
+        | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr:
         # splat value given
         if len(data) == 1 and prod(type.get_shape()) != 1:
@@ -2223,15 +2323,35 @@ class DenseIntOrFPElementsAttr(
                 Sequence[int] | Sequence[IntegerAttr[IntegerType]], new_data
             )
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
-        else:
+        elif isinstance(type.element_type, IndexType):
             new_type = cast(RankedStructure[IndexType], type)
             new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], new_data)
             return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
+        else:
+            new_type = cast(RankedStructure[ComplexType], type)
+            new_data = cast(Sequence[complex], data)
+            return DenseIntOrFPElementsAttr.create_dense_complex(new_type, new_data)
 
+    @overload
     @staticmethod
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
         data_type: IntegerType | IndexType | AnyFloat,
+        shape: Sequence[int] | None = None,
+    ) -> DenseIntOrFPElementsAttr: ...
+
+    @overload
+    @staticmethod
+    def vector_from_list(
+        data: Sequence[complex],
+        data_type: ComplexType,
+        shape: Sequence[int] | None = None,
+    ) -> DenseIntOrFPElementsAttr: ...
+
+    @staticmethod
+    def vector_from_list(
+        data: Sequence[int | float] | Sequence[complex],
+        data_type: IntegerType | IndexType | AnyFloat | ComplexType,
         shape: Sequence[int] | None = None,
     ) -> DenseIntOrFPElementsAttr:
         if not shape:
@@ -2258,13 +2378,21 @@ class DenseIntOrFPElementsAttr(
         """
         Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        return self.get_element_type().iter_unpack(self.data.data)
+        if isinstance(
+            eltype := self.get_element_type(), IntegerType | IndexType | AnyFloat
+        ):
+            return eltype.iter_unpack(self.data.data)
+        raise NotImplementedError()
 
     def get_values(self) -> Sequence[int] | Sequence[float]:
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        return self.get_element_type().unpack(self.data.data, len(self))
+        if isinstance(
+            eltype := self.get_element_type(), IntegerType | IndexType | AnyFloat
+        ):
+            return eltype.unpack(self.data.data, len(self))
+        raise NotImplementedError()
 
     def iter_attrs(self) -> Iterator[IntegerAttr] | Iterator[FloatAttr]:
         """
@@ -2273,8 +2401,10 @@ class DenseIntOrFPElementsAttr(
         """
         if isinstance(eltype := self.get_element_type(), IntegerType | IndexType):
             return IntegerAttr.iter_unpack(eltype, self.data.data)
-        else:
+        elif isinstance(eltype, AnyFloat):
             return FloatAttr.iter_unpack(eltype, self.data.data)
+        else:
+            raise NotImplementedError()
 
     def get_attrs(self) -> Sequence[IntegerAttr] | Sequence[FloatAttr]:
         """
@@ -2283,8 +2413,10 @@ class DenseIntOrFPElementsAttr(
         """
         if isinstance(eltype := self.get_element_type(), IntegerType | IndexType):
             return IntegerAttr.unpack(eltype, self.data.data, len(self))
-        else:
+        elif isinstance(eltype, AnyFloat):
             return FloatAttr.unpack(eltype, self.data.data, len(self))
+        else:
+            raise NotImplementedError()
 
     def is_splat(self) -> bool:
         """
@@ -2299,16 +2431,23 @@ class DenseIntOrFPElementsAttr(
         assert isa(type, RankedStructure[AnyDenseElement])
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
-    def _print_one_elem(self, val: int | float, printer: Printer):
+    def _print_one_elem(
+        self, val: int | float | complex | tuple[int, int], printer: Printer
+    ):
         if isinstance(val, int):
             element_type = cast(IntegerType | IndexType, self.get_element_type())
             element_type.print_value_without_type(val, printer)
-        else:  # float
+        elif isinstance(val, float):
             printer.print_float(val, cast(AnyFloat, self.get_element_type()))
+        else:
+            printer.print_complex(val, cast(ComplexType, self.get_element_type()))
 
     def _print_dense_list(
         self,
-        array: Sequence[int] | Sequence[float],
+        array: Sequence[int]
+        | Sequence[float]
+        | Sequence[complex]
+        | Sequence[tuple[int, int]],
         shape: Sequence[int],
         printer: Printer,
     ):
