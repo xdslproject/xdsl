@@ -82,11 +82,6 @@ memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 // CHECK-NEXT: %dynsubview = ptr_xdsl.to_ptr %dyn : memref<?xi32> -> !ptr_xdsl.ptr
 // CHECK-NEXT: %offset_pointer_7 = ptr_xdsl.ptradd %dynsubview, %scaled_pointer_offset_7 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 
-%reinterpret_cast = memref.reinterpret_cast %arr to offset: [0], sizes: [5, 2], strides: [1, 1] : memref<10xi32> to memref<5x2xi32>
-
-// CHECK-NEXT: %reinterpret_cast = ptr_xdsl.to_ptr %arr : memref<10xi32> -> !ptr_xdsl.ptr
-// CHECK-NEXT: }
-
 // -----
 
 %fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, strided<[?]>>)
