@@ -1012,7 +1012,7 @@ ComplexElementT = TypeVar(
 @irdl_attr_definition
 class ComplexType(
     Generic[ComplexElementT],
-    StructPackableType[complex | tuple[int, int]],
+    PackableType[complex | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
     ContainerType[ComplexElementT],
@@ -1028,8 +1028,8 @@ class ComplexType(
         return self.element_type
 
     @property
-    def format(self) -> str:
-        return f"<2{self.element_type.format[1]}"
+    def compile_time_size(self) -> int:
+        return 2 * self.element_type.compile_time_size
 
     @property
     def size(self) -> int:
