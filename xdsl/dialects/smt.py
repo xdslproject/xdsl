@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 from xdsl.dialects.builtin import BoolAttr
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -65,7 +63,7 @@ class VariadicBoolOp(IRDLOperation):
 
     assembly_format = "$inputs attr-dict"
 
-    def __init__(self, operands: Sequence[SSAValue]):
+    def __init__(self, *operands: SSAValue):
         super().__init__(operands=[operands], result_types=[BoolType()])
 
 

@@ -27,6 +27,6 @@ def test_variadic_bool_op(op_type: type[VariadicBoolOp]):
     arg1 = create_ssa_value(BoolType())
     arg2 = create_ssa_value(BoolType())
     arg3 = create_ssa_value(BoolType())
-    op = op_type([arg1, arg2, arg3])
+    op = op_type(arg1, arg2, arg3)
     assert op.result.type == BoolType()
     assert list(op.inputs) == [arg1, arg2, arg3]
