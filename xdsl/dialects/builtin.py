@@ -2118,14 +2118,7 @@ class DenseIntOrFPElementsAttr(
         type: RankedStructure[IndexType],
         data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
     ) -> DenseIntOrFPElementsAttr[IndexType]:
-        if len(data) and isinstance(data[0], IntegerAttr):
-            data = [
-                el.value.data for el in cast(Sequence[IntegerAttr[IndexType]], data)
-            ]
-        else:
-            data = cast(Sequence[int], data)
-
-        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
+        return DenseIntOrFPElementsAttr.create_dense_int(type, data)
 
     @staticmethod
     def create_dense_int(
