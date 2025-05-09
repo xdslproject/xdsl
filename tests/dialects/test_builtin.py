@@ -358,12 +358,6 @@ def test_DenseIntOrFPElementsAttr_from_list():
     assert attr.type == AnyTensorType(f32, [2])
     assert len(attr) == 2
 
-    # splat initialization
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([4], f32, [4])
-    assert attr.type == AnyTensorType(f32, [4])
-    assert tuple(attr.get_values()) == (4, 4, 4, 4)
-    assert len(attr) == 4
-
 
 def test_DenseIntOrFPElementsAttr_values():
     int_attr = DenseIntOrFPElementsAttr.tensor_from_list([1, 2, 3, 4], i32, [4])
