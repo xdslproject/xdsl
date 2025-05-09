@@ -179,9 +179,7 @@ class ConvertReinterpretCastOp(RewritePattern):
     ):
         rewriter.replace_matched_op(
             (
-                ptr_cast := ptr.ToPtrOp(
-                    operands=[op.source], result_types=[ptr.PtrType()]
-                ),
+                ptr_cast := ptr.ToPtrOp(op.source),
                 builtin.UnrealizedConversionCastOp.get(
                     [ptr_cast.res], [op.result.type]
                 ),
