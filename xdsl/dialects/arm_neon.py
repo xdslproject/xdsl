@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from xdsl.dialects.arm.assembly import AssemblyInstructionArg, square_brackets_reg
+from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg, square_brackets_reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import (
@@ -28,6 +28,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
     var_operand_def,
     var_result_def,
@@ -173,9 +174,9 @@ class VariadicNeonRegArg(AssemblyInstructionArg):
     ):
         self.arrangement = arrangement
         vectors: Sequence[VectorWithArrangement] = []
-        for reg in regs:
-            assert isinstance(reg.type, NEONRegisterType)
-            vectors.append(VectorWithArrangement(reg, self.arrangement))
+        for register in regs:
+            assert isinstance(register.type, NEONRegisterType)
+            vectors.append(VectorWithArrangement(register, self.arrangement))
 
         self.regs = vectors
 
@@ -328,6 +329,47 @@ class DSSFmlaVecScalarOp(ARMInstruction):
 
 
 @irdl_op_definition
+class DSDupOp(ARMInstruction):
+    """
+    Duplicate general-purpose register to vector.
+    """
+
+    name = "arm_neon.ds.dup"
+    s = operand_def(IntRegisterType)
+    d = result_def(NEONRegisterType)
+    arrangement = prop_def(NeonArrangementAttr)
+
+    assembly_format = "$s $arrangement attr-dict `:` type($s) `->` `(` type($d) `)`"
+
+    def __init__(
+        self,
+        s: Operation | SSAValue,
+        *,
+        d: NEONRegisterType,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=(s,),
+            attributes={
+                "comment": comment,
+                "arrangement": arrangement,
+            },
+            result_types=(d,),
+        )
+
+    def assembly_line_args(self):
+        return (
+            VectorWithArrangement(self.d, self.arrangement),
+            reg(self.s),
+        )
+
+
+@irdl_op_definition
 class DVarSLd1Op(ARMInstruction):
     """
     Neon structure load instruction reads data from memory into 64-bit Neon registers.
@@ -436,6 +478,7 @@ ARM_NEON = Dialect(
     [
         DSSFmlaVecScalarOp,
         DSSFMulVecScalarOp,
+        DSDupOp,
         DVarSSt1Op,
         DVarSLd1Op,
         GetRegisterOp,
