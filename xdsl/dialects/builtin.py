@@ -2168,9 +2168,9 @@ class DenseIntOrFPElementsAttr(
 
     @staticmethod
     def create_dense_float(
-        type: RankedStructure[AnyFloat],
-        data: Sequence[float] | Sequence[FloatAttr],
-    ) -> DenseIntOrFPElementsAttr[AnyFloat]:
+        type: RankedStructure[_FloatAttrType],
+        data: Sequence[float] | Sequence[FloatAttr[_FloatAttrType]],
+    ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
         if len(data) and isa(data[0], FloatAttr):
             data = [el.value.data for el in cast(Sequence[FloatAttr], data)]
         else:
