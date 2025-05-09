@@ -1214,11 +1214,9 @@ class LoadOpMemoryEffect(MemoryEffect):
 
 class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     @staticmethod
-    def ranks_and_element_types_match(
-        attr: TensorType[Attribute], other: Attribute
-    ) -> bool:
+    def ranks_and_element_types_match(attr: TensorType, other: Attribute) -> bool:
         return (
-            isa(other, TensorType[Attribute])
+            isa(other, TensorType)
             and len(attr.get_shape()) == len(other.get_shape())
             and attr.get_element_type() == other.get_element_type()
         )
@@ -1528,7 +1526,7 @@ class ReturnOp(IRDLOperation):
             for j in range(unroll_factor * i, unroll_factor * (i + 1)):
                 op_type = types[j]
                 if op_type != res_type and not (
-                    isa(op_type, TensorType[Attribute])
+                    isa(op_type, TensorType)
                     and TensorIgnoreSizeConstraint.ranks_and_element_types_match(
                         op_type, res_type
                     )
