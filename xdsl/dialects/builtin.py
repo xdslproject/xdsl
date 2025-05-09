@@ -18,7 +18,7 @@ from typing import (
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self, TypeVar, deprecated
 
 from xdsl.ir import (
     Attribute,
@@ -2080,6 +2080,8 @@ DenseElementCovT = TypeVar(
     "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
 )
 
+DenseElementT = TypeVar("DenseElementT", bound=AnyDenseElement, default=AnyDenseElement)
+
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
@@ -2125,45 +2127,40 @@ class DenseIntOrFPElementsAttr(
             )
 
     @staticmethod
+    @deprecated("Please use `create_dense_int` instead.")
     def create_dense_index(
         type: RankedStructure[IndexType],
         data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
     ) -> DenseIntOrFPElementsAttr[IndexType]:
-        if len(data) and isinstance(data[0], IntegerAttr):
-            data = [
-                el.value.data for el in cast(Sequence[IntegerAttr[IndexType]], data)
-            ]
-        else:
-            data = cast(Sequence[int], data)
-
-        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
+        return DenseIntOrFPElementsAttr.create_dense_int(type, data)
 
     @staticmethod
     def create_dense_int(
-        type: RankedStructure[IntegerType],
-        data: Sequence[int] | Sequence[IntegerAttr[IntegerType]],
-    ) -> DenseIntOrFPElementsAttr[IntegerType]:
+        type: RankedStructure[_IntegerAttrType],
+        data: Sequence[int] | Sequence[IntegerAttr[_IntegerAttrType]],
+    ) -> DenseIntOrFPElementsAttr[_IntegerAttrType]:
         if len(data) and isinstance(data[0], IntegerAttr):
-            data = [
-                el.value.data for el in cast(Sequence[IntegerAttr[IntegerType]], data)
-            ]
+            data = [el.value.data for el in cast(Sequence[IntegerAttr], data)]
         else:
             data = cast(Sequence[int], data)
 
         # ints are normalized
-        normalized_values = tuple(
-            type.element_type.normalized_value(value) for value in data
-        )
+        if isinstance(type.element_type, IntegerType):
+            normalized_values = tuple(
+                type.element_type.normalized_value(value) for value in data
+            )
 
-        for value in normalized_values:
-            if value is None:
-                min_value, max_value = type.element_type.value_range()
-                raise ValueError(
-                    f"Integer value {value} is out of range for type {type.element_type} which supports "
-                    f"values in the range [{min_value}, {max_value})"
-                )
+            for value in normalized_values:
+                if value is None:
+                    min_value, max_value = type.element_type.value_range()
+                    raise ValueError(
+                        f"Integer value {value} is out of range for type {type.element_type} which supports "
+                        f"values in the range [{min_value}, {max_value})"
+                    )
 
-        normalized_values = cast(Sequence[int], tuple(normalized_values))
+            normalized_values = cast(Sequence[int], tuple(normalized_values))
+        else:
+            normalized_values = data
 
         return DenseIntOrFPElementsAttr(
             [type, BytesAttr(type.element_type.pack(normalized_values))]
@@ -2231,16 +2228,10 @@ class DenseIntOrFPElementsAttr(
                 Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], new_data
             )
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
-        elif isinstance(type.element_type, IntegerType):
-            new_type = cast(RankedStructure[IntegerType], type)
-            new_data = cast(
-                Sequence[int] | Sequence[IntegerAttr[IntegerType]], new_data
-            )
-            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
         else:
-            new_type = cast(RankedStructure[IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], new_data)
-            return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
+            new_type = cast(RankedStructure[IntegerType | IndexType], type)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr], new_data)
+            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
 
     @staticmethod
     def vector_from_list(
