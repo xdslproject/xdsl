@@ -85,7 +85,7 @@ class ConstantOp(IRDLOperation):
     """
 
     name = "toy.constant"
-    value = attr_def(DenseIntOrFPElementsAttr)
+    value = attr_def(DenseIntOrFPElementsAttr[Float64Type])
     res = result_def(TensorTypeF64)
 
     traits = traits_def(Pure())
@@ -95,12 +95,16 @@ class ConstantOp(IRDLOperation):
 
     @staticmethod
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
-        value = DenseIntOrFPElementsAttr.tensor_from_list(data, f64, shape)
+        value = DenseIntOrFPElementsAttr.create_dense_float(
+            TensorType(f64, shape), data
+        )
         return ConstantOp(value)
 
     @staticmethod
     def from_value(value: float) -> ConstantOp:
-        return ConstantOp(DenseIntOrFPElementsAttr.tensor_from_list([value], f64, []))
+        return ConstantOp(
+            DenseIntOrFPElementsAttr.create_dense_float(TensorType(f64, []), (value,))
+        )
 
     def verify_(self) -> None:
         if not self.res.type == self.value.type:
