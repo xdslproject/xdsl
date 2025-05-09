@@ -15,10 +15,14 @@ ptr_xdsl.store %2, %0  : i32, !ptr_xdsl.ptr
 // CHECK-NEXT: %6 = "llvm.inttoptr"(%5) : (i64) -> !llvm.ptr
 %3 = ptr_xdsl.ptradd %0, %1 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 
-%memref = "test.op"() : () -> memref<1xf32>
-
 // CHECK-NEXT: "test.op"() : () -> memref<1xf32>
+// CHECK-NEXT: "test.op"() : () -> !llvm.ptr
+%memref = "test.op"() : () -> memref<1xf32>
+%ptr = "test.op"() : () -> !ptr_xdsl.ptr
+
 // CHECK-NEXT: }
 %to_ptr = ptr_xdsl.to_ptr %memref : memref<1xf32> -> !ptr_xdsl.ptr
-%from_ptr = ptr_xdsl.from_ptr %to_ptr : !ptr_xdsl.ptr -> memref<1xf32>
+ptr_xdsl.from_ptr %to_ptr : !ptr_xdsl.ptr -> memref<1xf32>
+
+%from_ptr = ptr_xdsl.from_ptr %ptr : !ptr_xdsl.ptr -> memref<1xf32>
 ptr_xdsl.to_ptr %from_ptr : memref<1xf32> -> !ptr_xdsl.ptr
