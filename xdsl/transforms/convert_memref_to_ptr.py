@@ -122,8 +122,7 @@ def get_target_ptr(
 class ConvertStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter, /):
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
-        memref_type = cast(memref.MemRefType[Any], op_memref_type)
+        assert isa(memref_type := op.memref.type, memref.MemRefType)
 
         ops, target_ptr = get_target_ptr(op.memref, memref_type, op.indices)
         ops.append(ptr.StoreOp(target_ptr, op.value))
@@ -135,12 +134,9 @@ class ConvertStoreOp(RewritePattern):
 class ConvertLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter, /):
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
-        memref_type = cast(memref.MemRefType[Any], op_memref_type)
-
+        assert isa(memref_type := op.memref.type, memref.MemRefType)
         ops, target_ptr = get_target_ptr(op.memref, memref_type, op.indices)
         ops.append(load_result := ptr.LoadOp(target_ptr, memref_type.element_type))
-
         rewriter.replace_matched_op(ops, new_results=[load_result.res])
 
 
@@ -226,7 +222,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
         # rewrite arguments
         new_arguments: list[SSAValue] = []
 
-        # insert `memref -> ptr` casts for memref arguments values
+        # insert `memref -> ptr` casts for memref arguments values, if necessary
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
                 rewriter.insert_op_before_matched_op(cast_op := ptr.ToPtrOp(argument))
@@ -235,23 +231,24 @@ class LowerMemRefFuncCallPattern(RewritePattern):
             else:
                 new_arguments.append(argument)
 
-        #  insert `ptr -> memref` casts for return values
-        for result in op.results:
-            if isa(result.type, memref.MemRefType):
-                rewriter.insert_op_after_matched_op(
-                    cast_op := ptr.FromPtrOp(result, result.type)
-                )
-                cast_op.res.name_hint = result.name_hint
-                result.replace_by_if(cast_op.res, lambda x: x.operation is not cast_op)
-
         new_return_types = [
             ptr.PtrType() if isinstance(type, memref.MemRefType) else type
             for type in op.result_types
         ]
 
-        rewriter.replace_matched_op(
-            func.CallOp(op.callee, new_arguments, new_return_types)
-        )
+        new_ops: list[Operation] = [
+            call_op := func.CallOp(op.callee, new_arguments, new_return_types)
+        ]
+        new_results = list(call_op.results)
+
+        #  insert `ptr -> memref` casts for return values, if necessary
+        for i, (new_result, old_result) in enumerate(zip(call_op.results, op.results)):
+            new_result.name_hint = old_result.name_hint
+            if isa(old_result.type, memref.MemRefType):
+                new_ops.append(cast_op := ptr.FromPtrOp(new_result, old_result.type))
+                new_results[i] = cast_op.res
+
+        rewriter.replace_matched_op(new_ops, new_results)
 
 
 @dataclass(frozen=True)
