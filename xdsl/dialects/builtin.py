@@ -2247,7 +2247,9 @@ class DenseIntOrFPElementsAttr(
                 VectorType(data_type, shape), data
             )
         else:
-            return DenseIntOrFPElementsAttr.from_list(
+            assert isinstance(data_type, IntegerType | IndexType)
+            data = cast(Sequence[int], data)
+            return DenseIntOrFPElementsAttr.create_dense_int(
                 VectorType(data_type, shape), data
             )
 
