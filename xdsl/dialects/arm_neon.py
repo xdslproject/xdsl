@@ -23,6 +23,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
     var_operand_def,
     var_result_def,
@@ -312,7 +313,7 @@ class DSDupOp(ARMInstruction):
     name = "arm_neon.ds.dup"
     s = operand_def(IntRegisterType)
     d = result_def(NEONRegisterType)
-    arrangement = attr_def(NeonArrangementAttr)
+    arrangement = prop_def(NeonArrangementAttr)
 
     assembly_format = "$s $arrangement attr-dict `:` type($s) `->` `(` type($d) `)`"
 
