@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TypeAlias
 
-from xdsl.dialects.builtin import BoolAttr, IntegerAttr
+from xdsl.dialects.builtin import BoolAttr
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     AtLeast,
@@ -27,9 +26,6 @@ class BoolType(ParametrizedAttribute, TypeAttribute):
     name = "smt.bool"
 
 
-NonFuncSMTType: TypeAlias = BoolType
-
-
 @irdl_op_definition
 class ConstantBoolOp(IRDLOperation):
     """
@@ -48,12 +44,12 @@ class ConstantBoolOp(IRDLOperation):
     assembly_format = "$value attr-dict"
 
     def __init__(self, value: bool):
-        value_attr = IntegerAttr(-1 if value else 0, 1)
+        value_attr = BoolAttr.from_bool(value)
         super().__init__(properties={"value": value_attr}, result_types=[BoolType()])
 
     @property
     def value(self) -> bool:
-        return self.value_attr.value.data != 0
+        return bool(self.value_attr)
 
 
 class VariadicBoolOp(IRDLOperation):
@@ -109,4 +105,13 @@ class XOrOp(VariadicBoolOp):
     name = "smt.xor"
 
 
-SMT = Dialect("smt", [ConstantBoolOp, AndOp, OrOp, XOrOp], [BoolType])
+SMT = Dialect(
+    "smt",
+    [
+        ConstantBoolOp,
+        AndOp,
+        OrOp,
+        XOrOp,
+    ],
+    [BoolType],
+)
