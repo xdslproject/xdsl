@@ -14,3 +14,7 @@ ptr_xdsl.store %2, %0  : i32, !ptr_xdsl.ptr
 // CHECK-NEXT: %5 = arith.addi %4, %3 : i64
 // CHECK-NEXT: %6 = "llvm.inttoptr"(%5) : (i64) -> !llvm.ptr
 %3 = ptr_xdsl.ptradd %0, %1 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+
+func.func private @example(!ptr_xdsl.ptr) -> !ptr_xdsl.ptr
+
+// CHECK-NEXT: func.func private @example(!llvm.ptr) -> !llvm.ptr
