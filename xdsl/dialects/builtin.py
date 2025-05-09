@@ -2207,6 +2207,7 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr: ...
 
     @staticmethod
+    @deprecated("Please use `create_dense_{int/float}` instead.")
     def from_list(
         type: (
             RankedStructure[AnyFloat | IntegerType | IndexType]
