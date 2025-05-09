@@ -14,3 +14,10 @@ ptr_xdsl.store %2, %0  : i32, !ptr_xdsl.ptr
 // CHECK-NEXT: %5 = arith.addi %4, %3 : i64
 // CHECK-NEXT: %6 = "llvm.inttoptr"(%5) : (i64) -> !llvm.ptr
 %3 = ptr_xdsl.ptradd %0, %1 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+
+%4 = "test.op"() : () -> memref<1xf32>
+
+// CHECK-NEXT: "test.op"() : () -> memref<1xf32>
+// CHECK-NEXT: }
+%5 = ptr_xdsl.to_ptr %4 : memref<1xf32> -> !ptr_xdsl.ptr
+%6 = ptr_xdsl.from_ptr %5 : !ptr_xdsl.ptr -> memref<1xf32>
