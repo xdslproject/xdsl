@@ -788,6 +788,24 @@ def test_parse_optional_int_or_float_numeric(numeric: str, is_int: bool):
     assert span.text == numeric
 
 
+@pytest.mark.parametrize("nonnumeric", ["--", "+", "a", "{", "(1.0, 1.0)"])
+def test_parse_int_or_float_nonnumeric(nonnumeric: str):
+    parser = Parser(Context(), nonnumeric)
+    with pytest.raises(ParseError):
+        parser._parse_int_or_float()
+
+
+@pytest.mark.parametrize("numeric,is_int", [("1", True), ("1.0", False)])
+def test_parse_int_or_float_numeric(numeric: str, is_int: bool):
+    parser = Parser(Context(), numeric)
+    value_span = parser._parse_int_or_float()
+    assert value_span is not None
+    value, span = value_span
+    caster = int if is_int else bool
+    assert value == caster(numeric)
+    assert span.text == numeric
+
+
 @pytest.mark.parametrize(
     "text, allow_boolean, allow_negative",
     [
