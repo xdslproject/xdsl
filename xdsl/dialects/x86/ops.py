@@ -8,6 +8,11 @@ from typing import IO, Generic, TypeVar
 from typing_extensions import Self
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
+from xdsl.backend.register_allocatable import (
+    HasRegisterConstraints,
+    RegisterConstraints,
+)
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
@@ -64,7 +69,9 @@ R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
 R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 
 
-class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
+class X86AsmOperation(
+    IRDLOperation, HasRegisterConstraints, OneLineAssemblyPrintable, ABC
+):
     """
     Base class for operations that can be a part of x86 assembly printing.
     """
@@ -72,6 +79,17 @@ class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     @abstractmethod
     def assembly_line(self) -> str | None:
         raise NotImplementedError()
+
+    def iter_used_registers(self):
+        return (
+            val.type
+            for vals in (self.operands, self.results)
+            for val in vals
+            if isinstance(val.type, RegisterType) and val.type.is_allocated
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(self.operands, self.results, ())
 
 
 class X86CustomFormatOperation(IRDLOperation, ABC):
@@ -227,6 +245,9 @@ class R_RR_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.r1, self.r2
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((self.r2,), (), ((self.r1, self.result),))
 
 
 @irdl_op_definition

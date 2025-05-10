@@ -1,6 +1,6 @@
 from ordered_set import OrderedSet
 
-from xdsl.backend.riscv.register_allocation import live_ins_per_block
+from xdsl.backend.register_allocator import live_ins_per_block
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects.builtin import i32
 from xdsl.dialects.test import TestOp
