@@ -12,17 +12,22 @@ once.
       c[i]=A[1]+b[1]
 """
 
+from typing import Callable, Sequence
+from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import builtin, scf
 from xdsl.ir import Operation, Region
+from xdsl.ir.core import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
+    Worklist,
     op_type_rewrite_pattern,
 )
-from xdsl.traits import IsTerminator
+from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.traits import IsTerminator, is_side_effect_free, is_speculatable
 
 
 def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
@@ -41,7 +46,6 @@ def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
     for child in op.walk():
         for operand in child.operands:
             operand_owner = operand.owner
-            assert operand_owner is not None
             if op.is_ancestor(operand_owner):
                 continue
             if target_region.is_ancestor(operand_owner):
@@ -49,33 +53,64 @@ def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
     return True
 
 
+def _move_loop_invariant_code(
+    regions: Sequence[Region],
+    should_move_out_of_region: Callable[[Operation, Region], bool],
+    move_out_of_region: Callable[[Operation, Region], None],
+):
+    num_moved = 0
+    for region in regions:
+        # add top-level operations in the loop body to the worklist
+        worklist = [op for block in region.blocks for op in block.ops]
+
+        while worklist:
+            op = worklist.pop(0)
+            # Skip ops that have already been moved. Check if the op can be hoisted.
+            if op.parent_region() != region:
+                continue
+
+            if not (
+                should_move_out_of_region(op, region) and can_be_hoisted(op, region)
+            ):
+                continue
+
+            move_out_of_region(op, region)
+            num_moved += 1
+
+            # Since the op has been moved, we need to check its users within the
+            # top-level of the loop body.
+
+            for res in op.results:
+                for use in res.uses:
+                    user = use.operation
+                    if user.parent_region() == region:
+                        worklist.append(user)
+
+    return num_moved
+
+
+def _should_move_out_of_region(op: Operation, region: Region) -> bool:
+    return is_side_effect_free(op) and is_speculatable(op)
+
+
+def move_loop_invariant_code(loop: scf.ForOp):
+    loop_regions = tuple(op.body for op in loop.walk() if isinstance(op, scf.ForOp))
+
+    builder = Builder(InsertPoint.before(loop))
+
+    def _move_out_of_region(op: Operation, region: Region) -> None:
+        op.detach()
+        builder.insert(op)
+
+    _move_loop_invariant_code(
+        loop_regions, _should_move_out_of_region, _move_out_of_region
+    )
+
+
 class LoopsInvariantCodeMotion(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter) -> None:
-        if any(isinstance(ha, scf.ForOp) for ha in op.body.walk()):
-            return
-
-        numMoved = 0
-
-        worklist: list[Operation] = []
-
-        for region in op.regions:  # iter thorugh the regions
-            for ops in region.block.ops:
-                worklist.append(ops)
-                while worklist:
-                    oper = worklist.pop()
-                    # Skip ops that have already been moved. Check if the op can be hoisted.
-                    if oper.parent_region() != region:
-                        continue
-                    if not can_be_hoisted(oper, region):
-                        continue
-                    print("Can be hoisted op: ", oper)
-
-                    numMoved = numMoved + 1
-                    if not isinstance(oper, scf.YieldOp):
-                        for user in oper.results[0].uses:
-                            if user.operation.parent_region is region:
-                                worklist.append(user.operation)
+        move_loop_invariant_code(op)
 
 
 class LoopInvariantCodeMotionPass(ModulePass):
@@ -93,4 +128,6 @@ class LoopInvariantCodeMotionPass(ModulePass):
     name = "licm"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(LoopsInvariantCodeMotion()).rewrite_module(op)
+        PatternRewriteWalker(
+            LoopsInvariantCodeMotion(), walk_reverse=True
+        ).rewrite_module(op)
