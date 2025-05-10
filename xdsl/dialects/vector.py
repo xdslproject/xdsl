@@ -1046,6 +1046,16 @@ class BitCastOp(IRDLOperation):
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($result)"
 
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[source],
+            result_types=[result_type],
+        )
+
     def verify_(self):
         assert isa(source_type := self.source.type, VectorType[Attribute])
         result_type = self.result.type
