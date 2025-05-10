@@ -141,6 +141,38 @@ class ConvertLoadOp(RewritePattern):
 
 
 @dataclass
+class ConvertSubviewOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
+        assert isa(memref_type := op.source.type, memref.MemRefType)
+
+        static_offsets = cast(tuple[int, ...], op.static_offsets.get_values())
+        offsets: list[SSAValue] = []
+
+        for idx, offset in enumerate(static_offsets):
+            if offset == memref.SubviewOp.DYNAMIC_INDEX:
+                offsets.append(op.offsets[idx])
+            else:
+                rewriter.insert_op_before_matched_op(
+                    const_op := arith.ConstantOp(
+                        builtin.IntegerAttr(offset, builtin.IndexType())
+                    )
+                )
+                const_op.result.name_hint = f"c{offset}"
+                offsets.append(const_op.result)
+
+        # We can treat a subview as getting a pointer to the first element in the subview.
+        ops, target_ptr = get_target_ptr(op.source, memref_type, offsets)
+
+        rewriter.replace_matched_op(
+            (
+                *ops,
+                builtin.UnrealizedConversionCastOp.get([target_ptr], [op.result.type]),
+            )
+        )
+
+
+@dataclass
 class LowerMemRefFuncOpPattern(RewritePattern):
     """
     Rewrites function arguments of MemRefType to PtrType.
@@ -259,7 +291,13 @@ class ConvertMemRefToPtr(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()])
+            GreedyRewritePatternApplier(
+                [
+                    ConvertStoreOp(),
+                    ConvertLoadOp(),
+                    ConvertSubviewOp(),
+                ]
+            )
         ).rewrite_module(op)
 
         if self.lower_func:

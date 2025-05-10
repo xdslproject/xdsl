@@ -66,6 +66,22 @@ memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 // CHECK-NEXT:  %flv2 = ptr_xdsl.to_ptr %fmem : memref<f64> -> !ptr_xdsl.ptr
 // CHECK-NEXT:  %flv2_1 = ptr_xdsl.load %flv2 : !ptr_xdsl.ptr -> f64
 
+%subview = memref.subview %arr[5][5][1] : memref<10xi32> to memref<5xi32>
+
+// CHECK-NEXT: %c5 = arith.constant 5 : index
+// CHECK-NEXT: %bytes_per_element_6 = ptr_xdsl.type_offset i32 : index
+// CHECK-NEXT: %scaled_pointer_offset_6 = arith.muli %c5, %bytes_per_element_6 : index
+// CHECK-NEXT: %subview = ptr_xdsl.to_ptr %arr : memref<10xi32> -> !ptr_xdsl.ptr
+// CHECK-NEXT: %offset_pointer_6 = ptr_xdsl.ptradd %subview, %scaled_pointer_offset_6 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+
+%size, %dyn = "test.op"() : () -> (index, memref<?xi32>)
+%dynsubview = memref.subview %dyn[%idx][%size][1] : memref<?xi32> to memref<?xi32>
+
+// CHECK: %bytes_per_element_7 = ptr_xdsl.type_offset i32 : index
+// CHECK-NEXT: %scaled_pointer_offset_7 = arith.muli %idx, %bytes_per_element_7 : index
+// CHECK-NEXT: %dynsubview = ptr_xdsl.to_ptr %dyn : memref<?xi32> -> !ptr_xdsl.ptr
+// CHECK-NEXT: %offset_pointer_7 = ptr_xdsl.ptradd %dynsubview, %scaled_pointer_offset_7 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+
 // -----
 
 %fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, strided<[?]>>)
