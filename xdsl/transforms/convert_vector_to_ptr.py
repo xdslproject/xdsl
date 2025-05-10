@@ -46,6 +46,7 @@ class VectorLoadToPtr(RewritePattern):
             memory_ty.layout.offset, NoneAttr
         ):
             ops.append(zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())))
+            zero_op.result.name_hint = "c0"
             map_operands.append(zero_op.result)
 
         ops.append(
@@ -89,6 +90,7 @@ class VectorStoreToPtr(RewritePattern):
             memory_ty.layout.offset, NoneAttr
         ):
             ops.append(zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())))
+            zero_op.result.name_hint = "c0"
             map_operands.append(zero_op.result)
 
         ops.append(
