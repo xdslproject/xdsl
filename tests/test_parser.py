@@ -783,7 +783,7 @@ def test_parse_optional_int_or_float_numeric(numeric: str, is_int: bool):
     value_span = parser._parse_optional_int_or_float()
     assert value_span is not None
     value, span = value_span
-    caster = int if is_int else bool
+    caster = int if is_int else float
     assert value == caster(numeric)
     assert span.text == numeric
 
@@ -801,7 +801,7 @@ def test_parse_int_or_float_numeric(numeric: str, is_int: bool):
     value_span = parser._parse_int_or_float()
     assert value_span is not None
     value, span = value_span
-    caster = int if is_int else bool
+    caster = int if is_int else float
     assert value == caster(numeric)
     assert span.text == numeric
 
