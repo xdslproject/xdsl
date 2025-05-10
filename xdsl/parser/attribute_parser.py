@@ -1098,7 +1098,8 @@ class AttrParser(BaseParser):
 
     def _parse_int_or_float(self) -> tuple[int, Span] | tuple[float, Span]:
         retval = self._parse_optional_int_or_float()
-        assert retval is not None, "either an int or float must be present"
+        if retval is None:
+            self.raise_error("either an int or float must be present")
         return retval
 
     def _parse_tensor_literal_element(self) -> _TensorLiteralElement:
