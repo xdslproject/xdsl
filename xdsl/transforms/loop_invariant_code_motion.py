@@ -22,22 +22,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.traits import (
-    IsTerminator,
-    # is_side_effect_free,
-    # only_has_effect,
-)
-
-#  This pass hoists operation that are invariant to the loops.
-#
-#  Similar to MLIR's loop invariant code motion:
-#  https://mlir.llvm.org/doxygen/LoopInvariantCodeMotion_8cpp_source.html
-#
-#  An operation is loop-invariant if it depends only of values defined outside of the loop. LICM moves these operations out of the loop body so that they are not computed more than once. # noqa: E501
-#
-#    for i in range(x, N, M):                for i in range(x, N, M):
-#      for j in range(0, M, K):    ---->        c[i]= A[1] + b[1]
-#        c[i]=A[1]+b[1]
+from xdsl.traits import IsTerminator
 
 
 def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
@@ -91,8 +76,6 @@ class LoopsInvariantCodeMotion(RewritePattern):
                         for user in oper.results[0].uses:
                             if user.operation.parent_region is region:
                                 worklist.append(user.operation)
-
-        # print(numMoved)
 
 
 class LoopInvariantCodeMotionPass(ModulePass):
