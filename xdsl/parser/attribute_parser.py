@@ -1072,7 +1072,7 @@ class AttrParser(BaseParser):
 
         return value, span
 
-    def _parse_optional_complex(self) -> tuple[complex | tuple[int, int], Span] | None:
+    def _parse_optional_complex(self) -> tuple[tuple[float, float] | tuple[int, int], Span] | None:
         if self._current_token.kind != MLIRTokenKind.L_PAREN:
             return None
 
@@ -1090,8 +1090,7 @@ class AttrParser(BaseParser):
             )
         token = self._consume_token(MLIRTokenKind.R_PAREN)
         end = token.span.end
-        is_float = (real_ty, imag_ty) == (float, float)
-        value = complex(real, imag) if is_float else (int(real), int(imag))
+        value = (real, imag)
         span = Span(start, end, input)
         return value, span
 
