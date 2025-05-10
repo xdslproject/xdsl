@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import ClassVar, Literal, cast
 
 from xdsl.dialects.arith import FastMathFlagsAttr
@@ -16,10 +15,8 @@ from xdsl.dialects.builtin import (
     DenseI64ArrayConstr,
     IndexType,
     IndexTypeConstr,
-    IntegerAttr,
     MemRefType,
     SignlessIntegerConstraint,
-    StringAttr,
     TensorType,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
@@ -1123,6 +1120,7 @@ class ReductionOp(IRDLOperation):
         parser.parse_characters("<")
         kind = parser.parse_str_enum(CombiningKindFlag)
         parser.parse_characters(">")
+        parser.parse_characters(",")
 
         vector = parser.parse_unresolved_operand()
 
@@ -1146,7 +1144,7 @@ class ReductionOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(" <")
         printer.print(f"{self.kind.data[0]}")
-        printer.print("> ", self.vector)
+        printer.print(">, ", self.vector)
         if self.acc is not None:
             printer.print_string(", ", indent=0)
             printer.print(self.acc)
