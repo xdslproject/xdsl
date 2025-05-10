@@ -1072,7 +1072,9 @@ class AttrParser(BaseParser):
 
         return value, span
 
-    def _parse_optional_complex(self) -> tuple[tuple[float, float] | tuple[int, int], Span] | None:
+    def _parse_optional_complex(
+        self,
+    ) -> tuple[tuple[float, float] | tuple[int, int], Span] | None:
         if self._current_token.kind != MLIRTokenKind.L_PAREN:
             return None
 
