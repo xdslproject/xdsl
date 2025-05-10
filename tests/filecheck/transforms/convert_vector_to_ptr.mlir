@@ -127,9 +127,9 @@ vector.store %v5, %m5[%i5,%j5]: memref<2x8xf16>, vector<8xf16>
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %m6 = "test.op"() : () -> memref<8xf32, strided<[1], offset: ?>>
 // CHECK-NEXT:   %i6 = arith.constant 0 : index
-// CHECK-NEXT:   %v6 = arith.constant 0 : index
-// CHECK-NEXT:   %v6_1 = affine.apply affine_map<(d0)[s0] -> (((s0 * 4) + (d0 * 4)))> (%i6)[%v6]
-// CHECK-NEXT:   %v6_2 = ptr_xdsl.to_ptr %m6 : memref<8xf32, strided<[1], offset: ?>> -> !ptr_xdsl.ptr
-// CHECK-NEXT:   %v6_3 = ptr_xdsl.ptradd %v6_2, %v6_1 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
-// CHECK-NEXT:   %v6_4 = ptr_xdsl.load %v6_3 : !ptr_xdsl.ptr -> vector<8xf32>
+// CHECK-NEXT:   %c0 = arith.constant 0 : index
+// CHECK-NEXT:   %v6 = affine.apply affine_map<(d0)[s0] -> (((s0 * 4) + (d0 * 4)))> (%i6)[%c0]
+// CHECK-NEXT:   %v6_1 = ptr_xdsl.to_ptr %m6 : memref<8xf32, strided<[1], offset: ?>> -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %v6_2 = ptr_xdsl.ptradd %v6_1, %v6 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %v6_3 = ptr_xdsl.load %v6_2 : !ptr_xdsl.ptr -> vector<8xf32>
 // CHECK-NEXT: }
