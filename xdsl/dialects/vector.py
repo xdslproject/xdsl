@@ -30,15 +30,15 @@ from xdsl.dialects.utils import (
     split_dynamic_index_list,
     verify_dynamic_index_list,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
 from xdsl.ir.affine import AffineMap
-from xdsl.ir.core import BitEnumAttribute
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
@@ -49,7 +49,6 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.irdl.attributes import irdl_attr_definition
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import Pure
