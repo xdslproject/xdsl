@@ -27,7 +27,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self, TypeVar, deprecated
+from typing_extensions import Self, TypeVar
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
@@ -2184,11 +2184,6 @@ class Region(IRNode):
             self.add_block(block)
         else:
             self.insert_block_before(block, next_block)
-
-    @deprecated("Please use `region.blocks[index]`")
-    def block_at_index(self, index: int) -> Block:
-        """Returns the block at the index, or raises IndexError"""
-        return self.blocks[index]
 
     def insert_block(self, blocks: Block | Iterable[Block], index: int) -> None:
         """

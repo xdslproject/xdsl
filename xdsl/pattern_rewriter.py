@@ -8,8 +8,6 @@ from functools import wraps
 from types import UnionType
 from typing import TypeVar, Union, final, get_args, get_origin
 
-from typing_extensions import deprecated
-
 from xdsl.builder import Builder, BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
@@ -120,30 +118,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
     def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations after the matched operation."""
         self.insert_op(op, InsertPoint.after(self.current_operation))
-
-    @deprecated("Please use `insert_op` instead")
-    def insert_op_at_end(self, op: Operation | Sequence[Operation], block: Block):
-        """Insert operations at the end of a block."""
-        self.insert_op(op, InsertPoint.at_end(block))
-
-    @deprecated("Please use `insert_op` instead")
-    def insert_op_at_start(self, op: Operation | Sequence[Operation], block: Block):
-        """Insert operations at the start of a block."""
-        self.insert_op(op, InsertPoint.at_start(block))
-
-    @deprecated("Please use `insert_op` instead")
-    def insert_op_before(
-        self, op: Operation | Sequence[Operation], target_op: Operation
-    ):
-        """Insert operations before an operation."""
-        self.insert_op(op, InsertPoint.before(target_op))
-
-    @deprecated("Please use `insert_op` instead")
-    def insert_op_after(
-        self, op: Operation | Sequence[Operation], target_op: Operation
-    ):
-        """Insert operations after an operation."""
-        self.insert_op(op, InsertPoint.after(target_op))
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
@@ -287,30 +261,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
 
-    @deprecated("Please use `inline_block` instead")
-    def inline_block_at_end(
-        self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations to the end of another block.
-        This block should not be a parent of the block to move to.
-        """
-        self.inline_block(
-            block, InsertPoint.at_end(target_block), arg_values=arg_values
-        )
-
-    @deprecated("Please use `inline_block` instead")
-    def inline_block_at_start(
-        self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations to the start of another block.
-        This block should not be a parent of the block to move to.
-        """
-        self.inline_block(
-            block, InsertPoint.at_start(target_block), arg_values=arg_values
-        )
-
     def inline_block_before_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
     ):
@@ -321,16 +271,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.inline_block(
             block, InsertPoint.before(self.current_operation), arg_values=arg_values
         )
-
-    @deprecated("Please use `inline_block` instead")
-    def inline_block_before(
-        self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations before the given operation.
-        The block should not be a parent of the operation.
-        """
-        self.inline_block(block, InsertPoint.before(op), arg_values=arg_values)
 
     def inline_block_after_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
@@ -343,16 +283,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
             block, InsertPoint.after(self.current_operation), arg_values=arg_values
         )
 
-    @deprecated("Please use `inline_block` instead")
-    def inline_block_after(
-        self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations after the given operation.
-        The block should not be a parent of the operation.
-        """
-        self.inline_block(block, InsertPoint.after(op), arg_values=arg_values)
-
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
         """Move the region blocks to a new region."""
         self.has_done_action = True
@@ -363,33 +293,13 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         Rewriter.inline_region(region, insertion_point)
 
-    @deprecated(
-        "Please use `inline_region(region, BlockInsertPoint.before(target))` instead"
-    )
-    def inline_region_before(self, region: Region, target: Block) -> None:
-        """Move the region blocks to an existing region."""
-        self.inline_region(region, BlockInsertPoint.before(target))
-
-    @deprecated(
-        "Please use `inline_region(region, BlockInsertPoint.after(target))` instead"
-    )
-    def inline_region_after(self, region: Region, target: Block) -> None:
-        """Move the region blocks to an existing region."""
-        self.inline_region(region, BlockInsertPoint.after(target))
-
-    @deprecated(
-        "Please use `inline_region(region, BlockInsertPoint.at_start(target))` instead"
-    )
-    def inline_region_at_start(self, region: Region, target: Region) -> None:
-        """Move the region blocks to an existing region."""
-        self.inline_region(region, BlockInsertPoint.at_start(target))
-
-    @deprecated(
-        "Please use `inline_region(region, BlockInsertPoint.at_end(target))` instead"
-    )
-    def inline_region_at_end(self, region: Region, target: Region) -> None:
-        """Move the region blocks to an existing region."""
-        self.inline_region(region, BlockInsertPoint.at_end(target))
+    def notify_op_modified(self, op: Operation) -> None:
+        """
+        Notify the rewriter that an operation was modified in the pattern.
+        This will correctly update the rewriter state.
+        """
+        self.has_done_action = True
+        self.handle_operation_modification(op)
 
 
 class RewritePattern(ABC):

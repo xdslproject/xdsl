@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import ClassVar
 
-from xdsl.dialects.arm.assembly import AssemblyInstructionArg, square_brackets_reg
+from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg, square_brackets_reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
@@ -16,10 +17,13 @@ from xdsl.ir import (
     StrEnum,
 )
 from xdsl.irdl import (
+    VarConstraint,
     attr_def,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
     var_operand_def,
     var_result_def,
@@ -146,9 +150,9 @@ class VariadicNeonRegArg(AssemblyInstructionArg):
     ):
         self.arrangement = arrangement
         vectors: Sequence[VectorWithArrangement] = []
-        for reg in regs:
-            assert isinstance(reg.type, NEONRegisterType)
-            vectors.append(VectorWithArrangement(reg, self.arrangement))
+        for register in regs:
+            assert isinstance(register.type, NEONRegisterType)
+            vectors.append(VectorWithArrangement(register, self.arrangement))
 
         self.regs = vectors
 
@@ -247,19 +251,75 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     See external [documentation](https://developer.arm.com/documentation/100069/0606/SIMD-Vector-Instructions/FMLA--vector-).
     """
 
+    SAME_NEON_REGISTER_TYPE: ClassVar = VarConstraint(
+        "SAME_NEON_REGISTER_TYPE", base(NEONRegisterType)
+    )
+
     name = "arm_neon.dss.fmla"
-    d = result_def(NEONRegisterType)
+    res = result_def(SAME_NEON_REGISTER_TYPE)
+    d = operand_def(SAME_NEON_REGISTER_TYPE)
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
     scalar_idx = attr_def(IntegerAttr[i8])
     arrangement = attr_def(NeonArrangementAttr)
 
-    assembly_format = "$s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
+    assembly_format = (
+        "$d `,` $s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` \
+        `(` type($s1) `,` type($s2) `)` `->` type($res)"
+    )
 
     def __init__(
         self,
+        d: Operation | SSAValue,
         s1: Operation | SSAValue,
         s2: Operation | SSAValue,
+        *,
+        res: NEONRegisterType,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=(d, s1, s2),
+            attributes={
+                "comment": comment,
+                "arrangement": arrangement,
+            },
+            result_types=(res,),
+        )
+
+    def assembly_instruction_name(self) -> str:
+        return "fmla"
+
+    def assembly_line_args(self):
+        return (
+            VectorWithArrangement(self.res, self.arrangement),
+            VectorWithArrangement(self.s1, self.arrangement),
+            VectorWithArrangement(
+                self.s2, self.arrangement, index=self.scalar_idx.value.data
+            ),
+        )
+
+
+@irdl_op_definition
+class DSDupOp(ARMInstruction):
+    """
+    Duplicate general-purpose register to vector.
+    """
+
+    name = "arm_neon.ds.dup"
+    s = operand_def(IntRegisterType)
+    d = result_def(NEONRegisterType)
+    arrangement = prop_def(NeonArrangementAttr)
+
+    assembly_format = "$s $arrangement attr-dict `:` type($s) `->` `(` type($d) `)`"
+
+    def __init__(
+        self,
+        s: Operation | SSAValue,
         *,
         d: NEONRegisterType,
         arrangement: NeonArrangement | NeonArrangementAttr,
@@ -270,7 +330,7 @@ class DSSFmlaVecScalarOp(ARMInstruction):
         if isinstance(arrangement, NeonArrangement):
             arrangement = NeonArrangementAttr(arrangement)
         super().__init__(
-            operands=(s1, s2),
+            operands=(s,),
             attributes={
                 "comment": comment,
                 "arrangement": arrangement,
@@ -278,16 +338,10 @@ class DSSFmlaVecScalarOp(ARMInstruction):
             result_types=(d,),
         )
 
-    def assembly_instruction_name(self) -> str:
-        return "fmla"
-
     def assembly_line_args(self):
         return (
             VectorWithArrangement(self.d, self.arrangement),
-            VectorWithArrangement(self.s1, self.arrangement),
-            VectorWithArrangement(
-                self.s2, self.arrangement, index=self.scalar_idx.value.data
-            ),
+            reg(self.s),
         )
 
 
@@ -400,6 +454,7 @@ ARM_NEON = Dialect(
     [
         DSSFmlaVecScalarOp,
         DSSFMulVecScalarOp,
+        DSDupOp,
         DVarSSt1Op,
         DVarSLd1Op,
         GetRegisterOp,
