@@ -62,4 +62,74 @@
 // CHECK-NEXT:   %v2_1 = ptr_xdsl.to_ptr %m2 : memref<2x32xf32> -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v2_2 = ptr_xdsl.ptradd %v2_1, %v2 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v2_3 = ptr_xdsl.load %v2_2 : !ptr_xdsl.ptr -> vector<8xf32>
+
+// -----
+
+%m3 = "test.op"(): () -> memref<16xf32>
+%v3 = "test.op"(): () -> vector<8xf32>
+%i3 = arith.constant 0: index
+vector.store %v3, %m3[%i3]: memref<16xf32>, vector<8xf32>
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %m3 = "test.op"() : () -> memref<16xf32>
+// CHECK-NEXT:   %v3 = "test.op"() : () -> vector<8xf32>
+// CHECK-NEXT:   %i3 = arith.constant 0 : index
+// CHECK-NEXT:   %0 = affine.apply affine_map<(d0) -> ((d0 * 4))> (%i3)
+// CHECK-NEXT:   %1 = ptr_xdsl.to_ptr %m3 : memref<16xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %2 = ptr_xdsl.ptradd %1, %0 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:   ptr_xdsl.store %v3, %2 : vector<8xf32>, !ptr_xdsl.ptr
+// CHECK-NEXT: }
+
+// -----
+
+%m4 = "test.op"(): () -> memref<2x8xf32>
+%v4 = "test.op"(): () -> vector<8xf32>
+%i4 = arith.constant 0: index
+%j4 = arith.constant 0: index
+vector.store %v4, %m4[%i4,%j4]: memref<2x8xf32>, vector<8xf32>
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %m4 = "test.op"() : () -> memref<2x8xf32>
+// CHECK-NEXT:   %v4 = "test.op"() : () -> vector<8xf32>
+// CHECK-NEXT:   %i4 = arith.constant 0 : index
+// CHECK-NEXT:   %j4 = arith.constant 0 : index
+// CHECK-NEXT:   %0 = affine.apply affine_map<(d0, d1) -> (((d0 * 32) + (d1 * 4)))> (%i4, %j4)
+// CHECK-NEXT:   %1 = ptr_xdsl.to_ptr %m4 : memref<2x8xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %2 = ptr_xdsl.ptradd %1, %0 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:   ptr_xdsl.store %v4, %2 : vector<8xf32>, !ptr_xdsl.ptr
+// CHECK-NEXT: }
+
+// -----
+
+%m5 = "test.op"(): () -> memref<2x8xf16>
+%v5 = "test.op"(): () -> vector<8xf16>
+%i5 = arith.constant 0: index
+%j5 = arith.constant 0: index
+vector.store %v5, %m5[%i5,%j5]: memref<2x8xf16>, vector<8xf16>
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %m5 = "test.op"() : () -> memref<2x8xf16>
+// CHECK-NEXT:   %v5 = "test.op"() : () -> vector<8xf16>
+// CHECK-NEXT:   %i5 = arith.constant 0 : index
+// CHECK-NEXT:   %j5 = arith.constant 0 : index
+// CHECK-NEXT:   %0 = affine.apply affine_map<(d0, d1) -> (((d0 * 16) + (d1 * 2)))> (%i5, %j5)
+// CHECK-NEXT:   %1 = ptr_xdsl.to_ptr %m5 : memref<2x8xf16> -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %2 = ptr_xdsl.ptradd %1, %0 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:   ptr_xdsl.store %v5, %2 : vector<8xf16>, !ptr_xdsl.ptr
+// CHECK-NEXT: }
+
+// -----
+
+%m6 = "test.op"(): () -> memref<8xf32, strided<[1], offset: ?>>
+%i6 = arith.constant 0: index
+%v6 = vector.load %m6[%i6]: memref<8xf32, strided<[1], offset: ?>>, vector<8xf32>
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %m6 = "test.op"() : () -> memref<8xf32, strided<[1], offset: ?>>
+// CHECK-NEXT:   %i6 = arith.constant 0 : index
+// CHECK-NEXT:   %c0 = arith.constant 0 : index
+// CHECK-NEXT:   %v6 = affine.apply affine_map<(d0)[s0] -> (((s0 * 4) + (d0 * 4)))> (%i6)[%c0]
+// CHECK-NEXT:   %v6_1 = ptr_xdsl.to_ptr %m6 : memref<8xf32, strided<[1], offset: ?>> -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %v6_2 = ptr_xdsl.ptradd %v6_1, %v6 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %v6_3 = ptr_xdsl.load %v6_2 : !ptr_xdsl.ptr -> vector<8xf32>
 // CHECK-NEXT: }
