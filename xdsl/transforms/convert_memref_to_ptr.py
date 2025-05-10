@@ -158,6 +158,7 @@ class ConvertSubviewOp(RewritePattern):
                         builtin.IntegerAttr(offset, builtin.IndexType())
                     )
                 )
+                const_op.result.name_hint = f"c{offset}"
                 offsets.append(const_op.result)
 
         # We can treat a subview as getting a pointer to the first element in the subview.
@@ -167,22 +168,6 @@ class ConvertSubviewOp(RewritePattern):
             (
                 *ops,
                 builtin.UnrealizedConversionCastOp.get([target_ptr], [op.result.type]),
-            )
-        )
-
-
-@dataclass
-class ConvertReinterpretCastOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref.ReinterpretCastOp, rewriter: PatternRewriter, /
-    ):
-        rewriter.replace_matched_op(
-            (
-                ptr_cast := ptr.ToPtrOp(op.source),
-                builtin.UnrealizedConversionCastOp.get(
-                    [ptr_cast.res], [op.result.type]
-                ),
             )
         )
 
