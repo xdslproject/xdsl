@@ -68,9 +68,9 @@ memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 
 %subview = memref.subview %arr[5][5][1] : memref<10xi32> to memref<5xi32>
 
-// CHECK-NEXT: %3 = arith.constant 5 : index
+// CHECK-NEXT: %c5 = arith.constant 5 : index
 // CHECK-NEXT: %bytes_per_element_6 = ptr_xdsl.type_offset i32 : index
-// CHECK-NEXT: %scaled_pointer_offset_6 = arith.muli %3, %bytes_per_element_6 : index
+// CHECK-NEXT: %scaled_pointer_offset_6 = arith.muli %c5, %bytes_per_element_6 : index
 // CHECK-NEXT: %subview = ptr_xdsl.to_ptr %arr : memref<10xi32> -> !ptr_xdsl.ptr
 // CHECK-NEXT: %offset_pointer_6 = ptr_xdsl.ptradd %subview, %scaled_pointer_offset_6 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 
