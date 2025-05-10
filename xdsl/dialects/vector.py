@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, cast
+from dataclasses import dataclass
+from typing import ClassVar, Literal, cast
 
+from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     I1,
     AffineMapAttr,
@@ -14,6 +16,7 @@ from xdsl.dialects.builtin import (
     DenseI64ArrayConstr,
     IndexType,
     IndexTypeConstr,
+    IntegerAttr,
     MemRefType,
     SignlessIntegerConstraint,
     StringAttr,
@@ -32,6 +35,7 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.ir.affine import AffineMap
+from xdsl.ir.core import BitEnumAttribute
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -48,13 +52,14 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.irdl.operations import attr_def
+from xdsl.irdl.attributes import irdl_attr_definition
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import assert_isa, isa
 from xdsl.utils.lexer import Position
+from xdsl.utils.str_enum import StrEnum
 
 DYNAMIC_INDEX: int = -(2**63)
 
@@ -1040,19 +1045,114 @@ class TransferWriteOp(VectorTransferOperation):
         )
 
 
+class CombiningKindFlag(StrEnum):
+    """
+    Values specifying the kind of combining operation.
+    """
+
+    ADD = "add"
+    MUL = "mul"
+    MINUI = "minui"
+    MINSI = "minsi"
+    MINF = "minf"
+    MAXUI = "maxui"
+    MAXSI = "maxsi"
+    MAXF = "maxf"
+    AND = "and"
+    OR = "or"
+    XOR = "xor"
+
+
+@irdl_attr_definition
+class CombiningKindAttr(BitEnumAttribute[CombiningKindFlag]):
+    """
+    A mirror of LLVM's vector.kind attribute.
+    """
+
+    name = "vector.kind"
+
+    def __init__(
+        self,
+        kind: None
+        | Sequence[CombiningKindFlag]
+        | Literal[
+            "add",
+            "mul",
+            "minui",
+            "minsi",
+            "minf",
+            "maxui",
+            "maxsi",
+            "maxf",
+            "and",
+            "or",
+            "xor",
+        ],
+    ):
+        super().__init__(kind)
+
+
 @irdl_op_definition
-class ContractOp(IRDLOperation):
-    name = "vector.contract"
+class ReductionOp(IRDLOperation):
+    name = "vector.reduction"
 
     _T: ClassVar = VarConstraint("T", AnyAttr())
+    _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
-    lhs = operand_def(VectorType)
-    rhs = operand_def(VectorType)
-    acc = operand_def(_T)
+    vector = operand_def(_V)
+    acc = opt_operand_def(_T)
     result = result_def(_T)
+    kind = prop_def(CombiningKindAttr)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
-    indexing_maps = attr_def(ArrayAttr[AffineMapAttr])
-    iterator_types = attr_def(ArrayAttr[StringAttr])
+    def __init__(
+        self,
+        vector: SSAValue | Operation,
+        kind: CombiningKindFlag,
+        result_type: Attribute,
+        acc: SSAValue | Operation | None = None,
+    ):
+        super().__init__(
+            operands=[vector, acc],
+            result_types=[result_type],
+            properties={"kind": CombiningKindAttr([kind])},
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        parser.parse_characters("<")
+        kind = parser.parse_str_enum(CombiningKindFlag)
+        parser.parse_characters(">")
+
+        vector = parser.parse_unresolved_operand()
+
+        if parser.parse_optional_characters(",") is not None:
+            acc = parser.parse_unresolved_operand()
+        else:
+            acc = None
+
+        parser.parse_characters(":")
+        vector_type = parser.parse_type()
+        parser.parse_characters("into")
+        result_type = parser.parse_type()
+
+        return ReductionOp(
+            vector=parser.resolve_operand(vector, vector_type),
+            kind=kind,
+            result_type=result_type,
+            acc=parser.resolve_operand(acc, result_type) if acc is not None else None,
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" <")
+        printer.print(f"{self.kind.data[0]}")
+        printer.print("> ", self.vector)
+        if self.acc is not None:
+            printer.print_string(", ", indent=0)
+            printer.print(self.acc)
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ", indent=0)
+        printer.print(self.vector.type, " into ", self.result.type)
 
 
 Vector = Dialect(
@@ -1072,6 +1172,7 @@ Vector = Dialect(
         InsertElementOp,
         TransferReadOp,
         TransferWriteOp,
+        ReductionOp,
     ],
-    [],
+    [CombiningKindAttr],
 )
