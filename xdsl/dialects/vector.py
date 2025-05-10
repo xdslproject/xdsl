@@ -1038,6 +1038,25 @@ class TransferWriteOp(VectorTransferOperation):
         )
 
 
+@irdl_op_definition
+class BitCastOp(IRDLOperation):
+    name = "vector.bitcast"
+    source = operand_def(VectorType)
+    result = result_def(VectorType)
+
+    assembly_format = "$source attr-dict `:` type($source) `to` type($result)"
+
+    def verify_(self):
+        assert isa(source_type := self.source.type, VectorType[Attribute])
+        result_type = self.result.type
+        assert isa(result_type := self.result.type, VectorType[Attribute])
+
+        if source_type.get_num_dims() != result_type.get_num_dims():
+            raise VerifyException(
+                f"Expected source rank ({source_type.get_num_dims()}) to match dest rank ({result_type.get_num_dims()})."
+            )
+
+
 Vector = Dialect(
     "vector",
     [
@@ -1055,6 +1074,7 @@ Vector = Dialect(
         InsertElementOp,
         TransferReadOp,
         TransferWriteOp,
+        BitCastOp,
     ],
     [],
 )
