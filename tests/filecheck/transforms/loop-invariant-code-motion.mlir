@@ -8,8 +8,10 @@
 // CHECK-NEXT:      %c1 = arith.constant 1 : index
 // CHECK-NEXT:      %c5 = arith.constant 5 : index
 // CHECK-NEXT:      scf.for %i = %c0 to %c8 step %c1 {
+// CHECK-NEXT:        %l = arith.addi %i, %c5 : index
 // CHECK-NEXT:        scf.for %j = %c0 to %c8 step %c1 {
-// CHECK-NEXT:          "test.op"(%c5) : (index) -> ()
+// CHECK-NEXT:          %k = arith.addi %i, %j : index
+// CHECK-NEXT:          "test.op"(%c5, %k, %l) : (index, index, index) -> ()
 // CHECK-NEXT:        }
 // CHECK-NEXT:      }
 // CHECK-NEXT:      func.return
@@ -21,7 +23,9 @@ func.func public @bla() {
   scf.for %i = %c0 to %c8 step %c1 {
     scf.for %j = %c0 to %c8 step %c1 {
       %c5 = arith.constant 5 : index
-      "test.op"(%c5): (index) -> ()
+      %k = arith.addi %i, %j : index
+      %l = arith.addi %i, %c5 : index
+      "test.op"(%c5, %k, %l) : (index, index, index) -> ()
     }
   }
   return

@@ -12,21 +12,20 @@ once.
       c[i]=A[1]+b[1]
 """
 
-from typing import Callable, Sequence
+from collections.abc import Callable, Sequence
+
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import builtin, scf
 from xdsl.ir import Operation, Region
-from xdsl.ir.core import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
-    Worklist,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.rewriter import InsertPoint
 from xdsl.traits import IsTerminator, is_side_effect_free, is_speculatable
 
 
@@ -94,7 +93,7 @@ def _should_move_out_of_region(op: Operation, region: Region) -> bool:
 
 
 def move_loop_invariant_code(loop: scf.ForOp):
-    loop_regions = tuple(op.body for op in loop.walk() if isinstance(op, scf.ForOp))
+    loop_regions = (loop.body,)
 
     builder = Builder(InsertPoint.before(loop))
 
@@ -129,5 +128,5 @@ class LoopInvariantCodeMotionPass(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            LoopsInvariantCodeMotion(), walk_reverse=True
+            LoopsInvariantCodeMotion(), walk_reverse=True, walk_regions_first=True
         ).rewrite_module(op)
