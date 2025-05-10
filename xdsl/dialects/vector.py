@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     IndexTypeConstr,
     MemRefType,
     SignlessIntegerConstraint,
+    StringAttr,
     TensorType,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
@@ -47,6 +48,7 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
+from xdsl.irdl.operations import attr_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import Pure
@@ -1036,6 +1038,21 @@ class TransferWriteOp(VectorTransferOperation):
             in_bounds=in_bounds,
             result_type=shaped_type if isinstance(shaped_type, TensorType) else None,
         )
+
+
+@irdl_op_definition
+class ContractOp(IRDLOperation):
+    name = "vector.contract"
+
+    _T: ClassVar = VarConstraint("T", AnyAttr())
+
+    lhs = operand_def(VectorType)
+    rhs = operand_def(VectorType)
+    acc = operand_def(_T)
+    result = result_def(_T)
+
+    indexing_maps = attr_def(ArrayAttr[AffineMapAttr])
+    iterator_types = attr_def(ArrayAttr[StringAttr])
 
 
 Vector = Dialect(
