@@ -99,7 +99,7 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
 def needs_update_shape(
     op_type: Attribute, succ_req_type: TensorType[Attribute]
 ) -> bool:
-    assert isa(op_type, TensorType[Attribute])
+    assert isa(op_type, TensorType)
     return op_type.get_shape() != succ_req_type.get_shape()
 
 

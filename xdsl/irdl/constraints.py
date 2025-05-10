@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator, Sequence, Set
 from dataclasses import KW_ONLY, dataclass, field
 from inspect import isclass
-from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, TypeAlias, TypeGuard, TypeVar, cast
 
 from typing_extensions import assert_never
 
@@ -198,6 +198,16 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     def get_unique_base(self) -> type[Attribute] | None:
         """Get the unique base type that can satisfy the constraint, if any."""
         return None
+
+    def matches(self, attr: Attribute) -> TypeGuard[AttributeCovT]:
+        """
+        A helper method to check whether a given attribute matches `self`.
+        """
+        try:
+            self.verify(attr, ConstraintContext())
+            return True
+        except VerifyException:
+            return False
 
     def __or__(
         self, value: GenericAttrConstraint[_AttributeCovT], /

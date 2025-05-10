@@ -87,7 +87,6 @@ from xdsl.utils.comparisons import (
 )
 from xdsl.utils.exceptions import DiagnosticException, PyRDLError, VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 if TYPE_CHECKING:
     from _typeshed import ReadableBuffer, WriteableBuffer
@@ -1458,7 +1457,7 @@ class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
         if isinstance(data_type, IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
             return DenseArrayBase.create_dense_int(data_type, _data)
-        elif isattr(data_type, AnyFloatConstr):
+        elif isinstance(data_type, AnyFloat):
             _data = cast(Sequence[int | float] | Sequence[FloatData], data)
             return DenseArrayBase.create_dense_float(data_type, _data)
         else:

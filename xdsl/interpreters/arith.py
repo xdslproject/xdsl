@@ -10,9 +10,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.irdl import base
 from xdsl.utils.exceptions import InterpretationError
-from xdsl.utils.isattr import isattr
 
 
 @register_impls
@@ -21,9 +19,8 @@ class ArithFunctions(InterpreterFunctions):
     def run_constant(
         self, interpreter: Interpreter, op: arith.ConstantOp, args: PythonValues
     ) -> PythonValues:
-        value = op.value
         interpreter.interpreter_assert(
-            isattr(op.value, base(IntegerAttr) | base(FloatAttr)),
+            isinstance(op.value, IntegerAttr | FloatAttr),
             f"arith.constant not implemented for {type(op.value)}",
         )
         value = cast(IntegerAttr, op.value)
