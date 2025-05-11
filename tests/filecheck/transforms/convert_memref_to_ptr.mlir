@@ -66,6 +66,11 @@ memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 // CHECK-NEXT:  %flv2 = ptr_xdsl.to_ptr %fmem : memref<f64> -> !ptr_xdsl.ptr
 // CHECK-NEXT:  %flv2_1 = ptr_xdsl.load %flv2 : !ptr_xdsl.ptr -> f64
 
+%cast = "memref.cast"(%arr) : (memref<10xi32>) ->  memref<?xi32>
+%cast2 = "memref.cast"(%cast) : (memref<?xi32>) -> memref<10xi32>
+
+// CHECK-NEXT: }
+
 // -----
 
 %fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, strided<[?]>>)

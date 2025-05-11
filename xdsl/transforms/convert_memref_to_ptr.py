@@ -141,6 +141,18 @@ class ConvertLoadOp(RewritePattern):
 
 
 @dataclass
+class ConvertCastOp(RewritePattern):
+    """
+    Converts `memref.cast` to `ptr.cast`.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.CastOp, rewriter: PatternRewriter, /):
+        assert isa(op.source.type, memref.MemRefType)
+        rewriter.replace_matched_op((), (op.source,))
+
+
+@dataclass
 class LowerMemRefFuncOpPattern(RewritePattern):
     """
     Rewrites function arguments of MemRefType to PtrType.
@@ -259,7 +271,9 @@ class ConvertMemRefToPtr(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()])
+            GreedyRewritePatternApplier(
+                [ConvertStoreOp(), ConvertLoadOp(), ConvertCastOp()]
+            )
         ).rewrite_module(op)
 
         if self.lower_func:
