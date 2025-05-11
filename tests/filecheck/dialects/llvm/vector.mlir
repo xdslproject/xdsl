@@ -141,4 +141,3 @@
 
 %vfrem = llvm.frem %vf1, %vf1 : vector<8xf32>
 // CHECK: %vfrem = llvm.frem %vf1, %vf1 : vector<8xf32>
-
