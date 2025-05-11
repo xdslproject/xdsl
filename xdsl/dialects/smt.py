@@ -175,6 +175,8 @@ class DistinctOp(IRDLOperation):
     inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
     result = result_def(BoolType())
 
+    traits = traits_def(Pure())
+
     @classmethod
     def parse(cls, parser: Parser) -> DistinctOp:
         operands, attr_dict = _parse_same_operand_type_variadic_to_bool_op(parser)
@@ -211,6 +213,8 @@ class EqOp(IRDLOperation):
 
     inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
     result = result_def(BoolType())
+
+    traits = traits_def(Pure())
 
     @classmethod
     def parse(cls, parser: Parser) -> EqOp:
