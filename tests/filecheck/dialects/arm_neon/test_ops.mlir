@@ -27,3 +27,7 @@ arm_neon.dvars.st1 %v1, %v2, %v3, %v4 [%x1] S {comment = "st1 op"} : (!arm_neon.
 // CHECK: %v11, %v12, %v13, %v14 = arm_neon.dvars.ld1 [%x1] S {comment = "ld1 op"} : !arm.reg<x1> -> (!arm_neon.reg<v11>, !arm_neon.reg<v12>, !arm_neon.reg<v13>, !arm_neon.reg<v14>)
 // CHECK-ASM: ld1 {v11.4S, v12.4S, v13.4S, v14.4S}, [x1] # ld1 op
 %v11, %v12, %v13, %v14 = arm_neon.dvars.ld1 [%x1] S {comment = "ld1 op"} : !arm.reg<x1> -> (!arm_neon.reg<v11>, !arm_neon.reg<v12>, !arm_neon.reg<v13>, !arm_neon.reg<v14>)
+
+// CHECK: %ds_dup = arm_neon.ds.dup %x1 S {comment = "Duplicate general-purpose register to vector"} : !arm.reg<x1> -> (!arm_neon.reg<v1>)
+// CHECK-ASM: dup v1.4S, x1 # Duplicate general-purpose register to vector
+%ds_dup = arm_neon.ds.dup %x1 S {comment = "Duplicate general-purpose register to vector"} : !arm.reg<x1> -> !arm_neon.reg<v1>

@@ -18,7 +18,7 @@ from typing import (
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self, TypeVar, deprecated
 
 from xdsl.ir import (
     Attribute,
@@ -1004,13 +1004,88 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
 
-@irdl_attr_definition
-class ComplexType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
-    name = "complex"
-    element_type: ParameterDef[IntegerType | AnyFloat]
+ComplexElementT = TypeVar(
+    "ComplexElementT", bound=IntegerType | AnyFloat, default=IntegerType | AnyFloat
+)
 
-    def __init__(self, element_type: IntegerType | AnyFloat) -> None:
-        ParametrizedAttribute.__init__(self, [element_type])
+
+@irdl_attr_definition
+class ComplexType(
+    Generic[ComplexElementT],
+    PackableType[tuple[float, float] | tuple[int, int]],
+    ParametrizedAttribute,
+    BuiltinAttribute,
+    ContainerType[ComplexElementT],
+    TypeAttribute,
+):
+    name = "complex"
+    element_type: ParameterDef[ComplexElementT]
+
+    def __init__(self, element_type: ComplexElementT):
+        super().__init__([element_type])
+
+    def get_element_type(self) -> ComplexElementT:
+        return self.element_type
+
+    @property
+    def compile_time_size(self) -> int:
+        return 2 * self.element_type.compile_time_size
+
+    @property
+    def size(self) -> int:
+        return 2 * self.element_type.size
+
+    def iter_unpack(self, buffer: ReadableBuffer, /):
+        values = (value for value in self.element_type.iter_unpack(buffer))
+        return ((real, imag) for real, imag in zip(values, values))
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /):
+        values = (value for value in self.element_type.unpack(buffer, 2 * num))
+        return tuple((real, imag) for real, imag in zip(values, values))
+
+    @overload
+    def pack_into(
+        self: ComplexType[IntegerType],
+        buffer: WriteableBuffer,
+        offset: int,
+        value: tuple[int, int],
+    ) -> None: ...
+
+    @overload
+    def pack_into(
+        self: ComplexType[AnyFloat],
+        buffer: WriteableBuffer,
+        offset: int,
+        value: tuple[float, float],
+    ) -> None: ...
+
+    def pack_into(
+        self,
+        buffer: WriteableBuffer,
+        offset: int,
+        value: tuple[float, float] | tuple[int, int],
+    ) -> None:
+        self.element_type.pack_into(buffer, 2 * offset, value[0])  # pyright: ignore[reportArgumentType]
+        self.element_type.pack_into(buffer, 2 * offset + 1, value[1])  # pyright: ignore[reportArgumentType]
+        return
+
+    @overload
+    def pack(
+        self: ComplexType[AnyFloat], values: Sequence[tuple[float, float]]
+    ) -> bytes: ...
+
+    @overload
+    def pack(
+        self: ComplexType[IntegerType], values: Sequence[tuple[int, int]]
+    ) -> bytes: ...
+
+    @overload
+    def pack(
+        self, values: Sequence[tuple[int, int]] | Sequence[tuple[float, float]]
+    ) -> bytes: ...
+
+    def pack(self, values: Sequence[tuple[float, float] | tuple[int, int]]) -> bytes:
+        return self.element_type.pack(tuple(val for vals in values for val in vals))  # pyright: ignore[reportArgumentType]
 
 
 @irdl_attr_definition
@@ -2066,6 +2141,8 @@ DenseElementCovT = TypeVar(
     "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
 )
 
+DenseElementT = TypeVar("DenseElementT", bound=AnyDenseElement, default=AnyDenseElement)
+
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
@@ -2102,46 +2179,49 @@ class DenseIntOrFPElementsAttr(
         # Product of dimensions needs to equal length
         return n == len(self)
 
+    def verify(self) -> None:
+        # zero rank type should only hold 1 value
+        data_len = len(self.get_values())
+        if not self.type.get_shape() and data_len != 1:
+            raise VerifyException(
+                f"A zero-rank {self.type.name} can only hold 1 value but {data_len} were given."
+            )
+
     @staticmethod
+    @deprecated("Please use `create_dense_int` instead.")
     def create_dense_index(
         type: RankedStructure[IndexType],
         data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
     ) -> DenseIntOrFPElementsAttr[IndexType]:
-        if len(data) and isinstance(data[0], IntegerAttr):
-            data = [
-                el.value.data for el in cast(Sequence[IntegerAttr[IndexType]], data)
-            ]
-        else:
-            data = cast(Sequence[int], data)
-
-        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
+        return DenseIntOrFPElementsAttr.create_dense_int(type, data)
 
     @staticmethod
     def create_dense_int(
-        type: RankedStructure[IntegerType],
-        data: Sequence[int] | Sequence[IntegerAttr[IntegerType]],
-    ) -> DenseIntOrFPElementsAttr[IntegerType]:
+        type: RankedStructure[_IntegerAttrType],
+        data: Sequence[int] | Sequence[IntegerAttr[_IntegerAttrType]],
+    ) -> DenseIntOrFPElementsAttr[_IntegerAttrType]:
         if len(data) and isinstance(data[0], IntegerAttr):
-            data = [
-                el.value.data for el in cast(Sequence[IntegerAttr[IntegerType]], data)
-            ]
+            data = [el.value.data for el in cast(Sequence[IntegerAttr], data)]
         else:
             data = cast(Sequence[int], data)
 
         # ints are normalized
-        normalized_values = tuple(
-            type.element_type.normalized_value(value) for value in data
-        )
+        if isinstance(type.element_type, IntegerType):
+            normalized_values = tuple(
+                type.element_type.normalized_value(value) for value in data
+            )
 
-        for value in normalized_values:
-            if value is None:
-                min_value, max_value = type.element_type.value_range()
-                raise ValueError(
-                    f"Integer value {value} is out of range for type {type.element_type} which supports "
-                    f"values in the range [{min_value}, {max_value})"
-                )
+            for value in normalized_values:
+                if value is None:
+                    min_value, max_value = type.element_type.value_range()
+                    raise ValueError(
+                        f"Integer value {value} is out of range for type {type.element_type} which supports "
+                        f"values in the range [{min_value}, {max_value})"
+                    )
 
-        normalized_values = cast(Sequence[int], tuple(normalized_values))
+            normalized_values = cast(Sequence[int], tuple(normalized_values))
+        else:
+            normalized_values = data
 
         return DenseIntOrFPElementsAttr(
             [type, BytesAttr(type.element_type.pack(normalized_values))]
@@ -2149,9 +2229,9 @@ class DenseIntOrFPElementsAttr(
 
     @staticmethod
     def create_dense_float(
-        type: RankedStructure[AnyFloat],
-        data: Sequence[float] | Sequence[FloatAttr],
-    ) -> DenseIntOrFPElementsAttr[AnyFloat]:
+        type: RankedStructure[_FloatAttrType],
+        data: Sequence[float] | Sequence[FloatAttr[_FloatAttrType]],
+    ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
         if len(data) and isa(data[0], FloatAttr):
             data = [el.value.data for el in cast(Sequence[FloatAttr], data)]
         else:
@@ -2197,12 +2277,6 @@ class DenseIntOrFPElementsAttr(
         ),
         data: Sequence[int | float] | Sequence[IntegerAttr] | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr:
-        # zero rank type should only hold 1 value
-        if not type.get_shape() and len(data) != 1:
-            raise ValueError(
-                f"A zero-rank {type.name} can only hold 1 value but {len(data)} were given."
-            )
-
         # splat value given
         if len(data) == 1 and prod(type.get_shape()) != 1:
             new_data = (data[0],) * prod(type.get_shape())
@@ -2215,18 +2289,13 @@ class DenseIntOrFPElementsAttr(
                 Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], new_data
             )
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
-        elif isinstance(type.element_type, IntegerType):
-            new_type = cast(RankedStructure[IntegerType], type)
-            new_data = cast(
-                Sequence[int] | Sequence[IntegerAttr[IntegerType]], new_data
-            )
-            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
         else:
-            new_type = cast(RankedStructure[IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], new_data)
-            return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
+            new_type = cast(RankedStructure[IntegerType | IndexType], type)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr], new_data)
+            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
 
     @staticmethod
+    @deprecated("Please use `create_dense_{int/float}` instead.")
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
         data_type: IntegerType | IndexType | AnyFloat,
@@ -2234,8 +2303,16 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr:
         if not shape:
             shape = [len(data)]
-        t = VectorType(data_type, shape)
-        return DenseIntOrFPElementsAttr.from_list(t, data)
+        if isinstance(data_type, AnyFloat):
+            return DenseIntOrFPElementsAttr.create_dense_float(
+                VectorType(data_type, shape), data
+            )
+        else:
+            assert isinstance(data_type, IntegerType | IndexType)
+            data = cast(Sequence[int], data)
+            return DenseIntOrFPElementsAttr.create_dense_int(
+                VectorType(data_type, shape), data
+            )
 
     @staticmethod
     def tensor_from_list(
@@ -2338,6 +2415,9 @@ class DenseIntOrFPElementsAttr(
         else:
             self._print_dense_list(data, shape, printer)
         printer.print_string(">")
+
+
+DenseIntElementsAttr: TypeAlias = DenseIntOrFPElementsAttr[IndexType | IntegerType]
 
 
 Builtin = Dialect(
