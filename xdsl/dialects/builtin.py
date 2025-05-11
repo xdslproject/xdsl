@@ -1012,6 +1012,7 @@ ComplexElementT = TypeVar(
 @irdl_attr_definition
 class ComplexType(
     Generic[ComplexElementT],
+    PackableType[tuple[float, float] | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
     ContainerType[ComplexElementT],
@@ -1025,6 +1026,66 @@ class ComplexType(
 
     def get_element_type(self) -> ComplexElementT:
         return self.element_type
+
+    @property
+    def compile_time_size(self) -> int:
+        return 2 * self.element_type.compile_time_size
+
+    @property
+    def size(self) -> int:
+        return 2 * self.element_type.size
+
+    def iter_unpack(self, buffer: ReadableBuffer, /):
+        values = (value for value in self.element_type.iter_unpack(buffer))
+        return ((real, imag) for real, imag in zip(values, values))
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /):
+        values = (value for value in self.element_type.unpack(buffer, 2 * num))
+        return tuple((real, imag) for real, imag in zip(values, values))
+
+    @overload
+    def pack_into(
+        self: ComplexType[IntegerType],
+        buffer: WriteableBuffer,
+        offset: int,
+        value: tuple[int, int],
+    ) -> None: ...
+
+    @overload
+    def pack_into(
+        self: ComplexType[AnyFloat],
+        buffer: WriteableBuffer,
+        offset: int,
+        value: tuple[float, float],
+    ) -> None: ...
+
+    def pack_into(
+        self,
+        buffer: WriteableBuffer,
+        offset: int,
+        value: tuple[float, float] | tuple[int, int],
+    ) -> None:
+        self.element_type.pack_into(buffer, 2 * offset, value[0])  # pyright: ignore[reportArgumentType]
+        self.element_type.pack_into(buffer, 2 * offset + 1, value[1])  # pyright: ignore[reportArgumentType]
+        return
+
+    @overload
+    def pack(
+        self: ComplexType[AnyFloat], values: Sequence[tuple[float, float]]
+    ) -> bytes: ...
+
+    @overload
+    def pack(
+        self: ComplexType[IntegerType], values: Sequence[tuple[int, int]]
+    ) -> bytes: ...
+
+    @overload
+    def pack(
+        self, values: Sequence[tuple[int, int]] | Sequence[tuple[float, float]]
+    ) -> bytes: ...
+
+    def pack(self, values: Sequence[tuple[float, float] | tuple[int, int]]) -> bytes:
+        return self.element_type.pack(tuple(val for vals in values for val in vals))  # pyright: ignore[reportArgumentType]
 
 
 @irdl_attr_definition
