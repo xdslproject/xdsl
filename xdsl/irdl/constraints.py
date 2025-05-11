@@ -737,6 +737,18 @@ class AnyInt(IntConstraint):
 
 
 @dataclass(frozen=True)
+class AtLeast(IntConstraint):
+    """Constrain an integer to be at least a given value."""
+
+    bound: int
+    """The minimum value the integer can take."""
+
+    def verify(self, i: int, constraint_context: ConstraintContext) -> None:
+        if i < self.bound:
+            raise VerifyException(f"expected integer >= {self.bound}, got {i}")
+
+
+@dataclass(frozen=True)
 class IntVarConstraint(IntConstraint):
     """
     Constrain an integer with the given constraint, and constrain all occurences
