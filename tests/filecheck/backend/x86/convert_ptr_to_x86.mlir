@@ -31,10 +31,52 @@
 
 // CHECK: The vector size and target architecture are inconsistent.
 %ptr4 = "test.op"(): () -> !ptr_xdsl.ptr
-%v4 = ptr_xdsl.load %ptr4 : !ptr_xdsl.ptr -> vector<8xf64>
+%v4 = ptr_xdsl.load %ptr4 : !ptr_xdsl.ptr -> vector<16xf32>
 
 // -----
 
 // CHECK: Float precision must be half, single or double.
 %ptr5 = "test.op"(): () -> !ptr_xdsl.ptr
 %v5 = ptr_xdsl.load %ptr5 : !ptr_xdsl.ptr -> vector<1xf128>
+
+// -----
+
+%ptr6 = "test.op"(): () -> !ptr_xdsl.ptr
+%v6 = "test.op"(): () -> vector<8xf32>
+ptr_xdsl.store %v6, %ptr6 : vector<8xf32>, !ptr_xdsl.ptr
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %ptr6 = "test.op"() : () -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %v6 = "test.op"() : () -> vector<8xf32>
+// CHECK-NEXT:   %0 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %1 = builtin.unrealized_conversion_cast %v6 : vector<8xf32> to !x86.avx2reg
+// CHECK-NEXT:   x86.mr.vmovups %0, %1, 0 : (!x86.reg, !x86.avx2reg) -> ()
+// CHECK-NEXT: }
+
+// -----
+
+%ptr6 = "test.op"(): () -> !ptr_xdsl.ptr
+%v6 = "test.op"(): () -> vector<4xf64>
+ptr_xdsl.store %v6, %ptr6 : vector<4xf64>, !ptr_xdsl.ptr
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %ptr6 = "test.op"() : () -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %v6 = "test.op"() : () -> vector<4xf64>
+// CHECK-NEXT:   %0 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %1 = builtin.unrealized_conversion_cast %v6 : vector<4xf64> to !x86.avx2reg
+// CHECK-NEXT:   x86.mr.vmovapd %0, %1, 0 : (!x86.reg, !x86.avx2reg) -> ()
+// CHECK-NEXT: }
+
+// -----
+
+// CHECK: Half-precision vector load is not implemented yet.
+%ptr6 = "test.op"(): () -> !ptr_xdsl.ptr
+%v6 = "test.op"(): () -> vector<16xf16>
+ptr_xdsl.store %v6, %ptr6 : vector<16xf16>, !ptr_xdsl.ptr
+
+// -----
+
+// CHECK: Float precision must be half, single or double.
+%ptr6 = "test.op"(): () -> !ptr_xdsl.ptr
+%v6 = "test.op"(): () -> vector<1xf128>
+ptr_xdsl.store %v6, %ptr6 : vector<1xf128>, !ptr_xdsl.ptr
