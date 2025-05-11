@@ -73,6 +73,11 @@ memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 // CHECK-NEXT:  %fmemcast2 = ptr_xdsl.to_ptr %fmemcast : memref<f64> -> !ptr_xdsl.ptr
 // CHECK-NEXT:  %fmemcast2_1 = builtin.unrealized_conversion_cast %fmemcast2 : !ptr_xdsl.ptr to memref<5x2xf64>
 
+%cast = "memref.cast"(%arr) : (memref<10xi32>) ->  memref<?xi32>
+%cast2 = "memref.cast"(%cast) : (memref<?xi32>) -> memref<10xi32>
+
+// CHECK-NEXT: }
+
 // -----
 
 %fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, strided<[?]>>)
