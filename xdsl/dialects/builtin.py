@@ -1292,6 +1292,30 @@ class ContainerOf(
             self.elem_constr.verify(attr, constraint_context)
 
 
+class VectorOf(
+    Generic[AttributeCovT],
+    GenericAttrConstraint[VectorType[AttributeCovT] | TensorType[AttributeCovT]],
+):
+    """A type constraint that can be nested in a vector."""
+
+    elem_constr: GenericAttrConstraint[AttributeCovT]
+
+    def __init__(
+        self,
+        elem_constr: (
+            AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT]
+        ),
+    ) -> None:
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if isinstance(attr, VectorType):
+            attr = cast(VectorType[Attribute], attr)
+            self.elem_constr.verify(attr.element_type, constraint_context)
+        else:
+            self.elem_constr.verify(attr, constraint_context)
+
+
 VectorOrTensorOf: TypeAlias = (
     VectorType[AttributeCovT]
     | TensorType[AttributeCovT]
