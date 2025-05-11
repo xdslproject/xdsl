@@ -76,20 +76,15 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
-LLVMCompatibleNumericConstraint = AnyOf(
+LLVMCompatibleSignlessIntegerConstraint = AnyOf(
     [
-        AnyFloatConstr,
         SignlessIntegerConstraint,
-        VectorOf(AnyFloatConstr),
         VectorOf(SignlessIntegerConstraint),
     ]
 )
 
-LLVMCompatibleNumericType: TypeAlias = (
-    AnyFloat
-    | AnySignlessIntegerType
-    | VectorType[AnyFloat]
-    | VectorType[AnySignlessIntegerType]
+LLVMCompatibleSignlessIntegerType: TypeAlias = (
+    AnySignlessIntegerType | VectorType[AnySignlessIntegerType]
 )
 
 LLVMCompatibleFloatConstraint = AnyOf(
@@ -101,6 +96,16 @@ LLVMCompatibleFloatConstraint = AnyOf(
 
 LLVMCompatibleFloatType: TypeAlias = AnyFloat | VectorType[AnyFloat]
 
+LLVMCompatibleNumericConstraint = AnyOf(
+    [
+        LLVMCompatibleSignlessIntegerConstraint,
+        LLVMCompatibleFloatConstraint,
+    ]
+)
+
+LLVMCompatibleNumericType: TypeAlias = (
+    LLVMCompatibleSignlessIntegerType | LLVMCompatibleFloatType
+)
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -403,7 +408,7 @@ class LinkageAttr(ParametrizedAttribute):
 class ArithmeticBinOperation(IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T: ClassVar = VarConstraint("T", LLVMCompatibleNumericConstraint)
+    T: ClassVar = VarConstraint("T", LLVMCompatibleSignlessIntegerConstraint)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -470,7 +475,7 @@ class OverflowAttr(OverflowAttrBase):
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
 
-    T: ClassVar = VarConstraint("T", LLVMCompatibleNumericConstraint)
+    T: ClassVar = VarConstraint("T", LLVMCompatibleSignlessIntegerConstraint)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -519,7 +524,7 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
 class ArithmeticBinOpExact(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use an exact flag."""
 
-    T: ClassVar = VarConstraint("T", LLVMCompatibleNumericConstraint)
+    T: ClassVar = VarConstraint("T", LLVMCompatibleSignlessIntegerConstraint)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -576,7 +581,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use a disjoint flag."""
 
-    T: ClassVar = VarConstraint("T", LLVMCompatibleNumericConstraint)
+    T: ClassVar = VarConstraint("T", LLVMCompatibleSignlessIntegerConstraint)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -607,9 +612,9 @@ class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
 
 
 class IntegerConversionOp(IRDLOperation, ABC):
-    arg = operand_def(LLVMCompatibleNumericConstraint)
+    arg = operand_def(LLVMCompatibleSignlessIntegerConstraint)
 
-    res = result_def(LLVMCompatibleNumericConstraint)
+    res = result_def(LLVMCompatibleSignlessIntegerConstraint)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -640,8 +645,8 @@ class IntegerConversionOp(IRDLOperation, ABC):
 
 
 class IntegerConversionOpNNeg(IRDLOperation, ABC):
-    arg = operand_def(LLVMCompatibleNumericConstraint)
-    res = result_def(LLVMCompatibleNumericConstraint)
+    arg = operand_def(LLVMCompatibleSignlessIntegerConstraint)
+    res = result_def(LLVMCompatibleSignlessIntegerConstraint)
     traits = traits_def(NoMemoryEffect())
     non_neg = opt_prop_def(UnitAttr, prop_name="nonNeg")
 
@@ -665,8 +670,8 @@ class IntegerConversionOpNNeg(IRDLOperation, ABC):
 
 
 class IntegerConversionOpOverflow(IRDLOperation, ABC):
-    arg = operand_def(LLVMCompatibleNumericConstraint)
-    res = result_def(LLVMCompatibleNumericConstraint)
+    arg = operand_def(LLVMCompatibleSignlessIntegerConstraint)
+    res = result_def(LLVMCompatibleSignlessIntegerConstraint)
     overflowFlags = opt_prop_def(OverflowAttr)
     traits = traits_def(NoMemoryEffect())
 
