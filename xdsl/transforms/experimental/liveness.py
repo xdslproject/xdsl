@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import IO, cast
+from typing_extensions import Self
 
 from xdsl.dialects import builtin, func
 from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
@@ -80,7 +81,8 @@ class BlockInfoBuilder:
     # Updates live-out information of the current block. It iterates over all
     # successors and unifies their live-in values with the current live-out
     # values.
-    def update_liveout(self, builders: dict[Block, "BlockInfoBuilder"]):
+    def update_liveout(self, builders: dict[Block, Self]):
+        assert self.block.last_op
         for succ in self.block.last_op.successors:
             builder = builders[succ]
             self.out_values = self.out_values.union(builder.in_values)
@@ -307,6 +309,7 @@ class Liveness:
                 assert isinstance(start, Operation)
                 result.append(start)
 
+            assert block.last_op
             for successor in block.last_op.successors:
                 if (
                     self.get_liveness(successor).is_livein(value)
