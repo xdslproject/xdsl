@@ -2327,9 +2327,10 @@ class DenseIntOrFPElementsAttr(
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
         else:
             assert isa(type, RankedStructure[ComplexType])
-            assert isa(new_data, Sequence[tuple[int, int]] | Sequence[tuple[float, float]])
+            assert isa(
+                new_data, Sequence[tuple[int, int]] | Sequence[tuple[float, float]]
+            )
             return DenseIntOrFPElementsAttr.create_dense_complex(type, new_data)
-
 
     @staticmethod
     @deprecated("Please use `create_dense_{int/float}` instead.")
@@ -2394,15 +2395,20 @@ class DenseIntOrFPElementsAttr(
         assert isinstance(el_type, AnyFloat), el_type
         return el_type.unpack(self.data.data, len(self))
 
-    def get_values(self) -> Sequence[int] | Sequence[float]:
+    def get_complex_values(self) -> Sequence[tuple[int, int]] | Sequence[tuple[float, float]]
+        """
+        Return all the values of the elements in this DenseIntOrFPElementsAttr,
+        checking that the elements are complex.
+        """
+        el_type = self.get_element_type()
+        assert isinstance(el_type, ComplexType), el_type
+        return el_type.unpack(self.data.data, len(self))
+
+    def get_values(self) -> Sequence[int] | Sequence[float] | Sequence[tuple[int, int]] | Sequence[tuple[float, float]]:
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        if isinstance(
-            eltype := self.get_element_type(), IntegerType | IndexType | AnyFloat
-        ):
-            return eltype.unpack(self.data.data, len(self))
-        raise NotImplementedError()
+        return self.get_element_type().unpack(self.data.data, len(self))
 
     def iter_attrs(self) -> Iterator[IntegerAttr] | Iterator[FloatAttr]:
         """
@@ -2439,16 +2445,25 @@ class DenseIntOrFPElementsAttr(
         assert isa(type, RankedStructure[AnyDenseElement])
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
-    def _print_one_elem(self, val: int | float, printer: Printer):
+    def _print_one_elem(
+        self, val: int | float | tuple[int, int] | tuple[float, float], printer: Printer
+    ):
         if isinstance(val, int):
             element_type = cast(IntegerType | IndexType, self.get_element_type())
             element_type.print_value_without_type(val, printer)
-        else:  # float
+        elif isinstance(val, float):  # float
             printer.print_float(val, cast(AnyFloat, self.get_element_type()))
+        else:  # complex
+            element_type = self.get_element_type()
+            assert isinstance(element_type, ComplexType)
+            printer.print_complex(val, element_type)
 
     def _print_dense_list(
         self,
-        array: Sequence[int] | Sequence[float],
+        array: Sequence[int]
+        | Sequence[float]
+        | Sequence[tuple[int, int]]
+        | Sequence[tuple[float, float]],
         shape: Sequence[int],
         printer: Printer,
     ):
