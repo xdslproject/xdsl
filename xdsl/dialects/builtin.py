@@ -2299,13 +2299,7 @@ class DenseIntOrFPElementsAttr(
 
     @staticmethod
     def from_list(
-        type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType | ComplexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-            | RankedStructure[ComplexType]
-        ),
+        type: RankedStructure[AnyDenseElement],
         data: Sequence[Any]
         | Sequence[int | float | tuple[int, int] | tuple[float, float]]
         | Sequence[IntegerAttr]
