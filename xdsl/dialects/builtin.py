@@ -2334,6 +2334,24 @@ class DenseIntOrFPElementsAttr(
         """
         return self.get_element_type().iter_unpack(self.data.data)
 
+    def get_int_values(self) -> Sequence[int]:
+        """
+        Return all the values of the elements in this DenseIntOrFPElementsAttr,
+        checking that the elements are integers.
+        """
+        el_type = self.get_element_type()
+        assert isinstance(el_type, IntegerType | IndexType), el_type
+        return el_type.unpack(self.data.data, len(self))
+
+    def get_float_values(self) -> Sequence[float]:
+        """
+        Return all the values of the elements in this DenseIntOrFPElementsAttr,
+        checking that the elements are floats.
+        """
+        el_type = self.get_element_type()
+        assert isinstance(el_type, AnyFloat), el_type
+        return el_type.unpack(self.data.data, len(self))
+
     def get_values(self) -> Sequence[int] | Sequence[float]:
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
