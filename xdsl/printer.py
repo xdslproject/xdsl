@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     BoolAttr,
     BytesAttr,
     ComplexType,
+    ComplexElementT,
     DenseArrayBase,
     DenseResourceAttr,
     DictionaryAttr,
@@ -341,7 +342,9 @@ class Printer(BasePrinter):
     def print_float_attr(self, attribute: FloatAttr):
         self.print_float(attribute.value.data, attribute.type)
 
-    def print_complex_float(self, value: tuple[float, float], type: ComplexType):
+    def print_complex_float(
+        self, value: tuple[float, float], type: ComplexType[ComplexElementT]
+    ):
         assert isinstance(type.element_type, AnyFloat)
         self.print_string("(")
         real, imag = value[0], value[1]
@@ -350,7 +353,9 @@ class Printer(BasePrinter):
         self.print_float(imag, type.element_type)
         self.print_string(")")
 
-    def print_complex_int(self, value: tuple[int, int], type: ComplexType):
+    def print_complex_int(
+        self, value: tuple[int, int], type: ComplexType[ComplexElementT]
+    ):
         assert isinstance(type.element_type, IntegerType)
         self.print_string("(")
         real, imag = value[0], value[1]
@@ -360,7 +365,9 @@ class Printer(BasePrinter):
         self.print_string(")")
 
     def print_complex(
-        self, value: tuple[float, float] | tuple[int, int], type: ComplexType
+        self,
+        value: tuple[float, float] | tuple[int, int],
+        type: ComplexType[ComplexElementT],
     ):
         if isinstance(type.element_type, IntegerType):
             assert isa(value, tuple[int, int])
