@@ -988,63 +988,10 @@ class AttrParser(BaseParser):
                         parser, allow_negative=True, allow_booleans=False
                     )
 
-    def _parse_optional_int(self) -> tuple[int, Span] | None:
-        """Parses an optional int. Includes parsing the minus token.
-
-        May rollback if the token after `-` is not a integer literal.
-        """
-        pos = self._current_token.span.start
-
-        # checking for negation
-        minus_token = self._parse_optional_token(MLIRTokenKind.MINUS)
-        is_negative = minus_token is not None
-
-        if not self._current_token.kind == MLIRTokenKind.INTEGER_LIT:
-            self._resume_from(pos)
-            return None
-
-        token = self._consume_token(MLIRTokenKind.INTEGER_LIT)
-        value = token.kind.get_int_value(token.span)
-        span = (
-            Span(minus_token.span.start, token.span.end, token.span.input)
-            if is_negative
-            else token.span
-        )
-        value = -value if is_negative else value
-        return value, span
-
-    def _parse_optional_float(self) -> tuple[float, Span] | None:
-        """Parses an optional float. Includes parsing the minus token.
-
-        May rollback if the token after `-` is not a float literal.
-        """
-        pos = self._current_token.span.start
-
-        # checking for negation
-        minus_token = self._parse_optional_token(MLIRTokenKind.MINUS)
-        is_negative = minus_token is not None
-
-        if not self._current_token.kind == MLIRTokenKind.FLOAT_LIT:
-            self._resume_from(pos)
-            return None
-
-        token = self._consume_token(MLIRTokenKind.FLOAT_LIT)
-        value = token.kind.get_float_value(token.span)
-        span = (
-            Span(minus_token.span.start, token.span.end, token.span.input)
-            if is_negative
-            else token.span
-        )
-        value = -value if is_negative else value
-        return value, span
-
     def _parse_optional_int_or_float(
         self,
     ) -> tuple[int, Span] | tuple[float, Span] | None:
-        """This version does not call self._parse_optional_int()
-        and self._parse_optional_float() for efficiency. It inlines
-        both and hoists parsing the minus_token.
-
+        """
         May rollback if the token after `-` is not either an integer
         or float literal.
         """
