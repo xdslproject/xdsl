@@ -2132,10 +2132,10 @@ AnyUnrankedMemRefType: TypeAlias = UnrankedMemRefType[Attribute]
 AnyUnrankedMemRefTypeConstr = BaseAttr[AnyUnrankedMemRefType](UnrankedMemRefType)
 
 RankedStructure: TypeAlias = (
-    VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]
+    VectorType[AttributeCovT | ComplexType] | TensorType[AttributeCovT | ComplexType] | MemRefType[AttributeCovT | ComplexType]
 )
 
-AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
+AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
 DenseElementCovT = TypeVar(
     "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
 )
@@ -2145,10 +2145,10 @@ DenseElementT = TypeVar("DenseElementT", bound=AnyDenseElement, default=AnyDense
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
-    Generic[DenseElementCovT],
+    Generic[DenseElementCovT | ComplexType],
     TypedAttribute,
     BuiltinAttribute,
-    ContainerType[DenseElementCovT],
+    ContainerType[DenseElementCovT | ComplexType],
 ):
     name = "dense"
     type: ParameterDef[RankedStructure[DenseElementCovT]]
@@ -2222,6 +2222,7 @@ class DenseIntOrFPElementsAttr(
         else:
             normalized_values = data
 
+        assert not isinstance(type.element_type, ComplexType)
         return DenseIntOrFPElementsAttr(
             [type, BytesAttr(type.element_type.pack(normalized_values))]
         )
@@ -2236,6 +2237,7 @@ class DenseIntOrFPElementsAttr(
         else:
             data = cast(Sequence[float], data)
 
+        assert not isinstance(type.element_type, ComplexType)
         return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
 
     @overload
