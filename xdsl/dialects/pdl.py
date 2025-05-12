@@ -632,7 +632,7 @@ class RangeOp(IRDLOperation):
 
             if isa(arguments[0].type, RangeType[AnyPDLType]):
                 result_type = RangeType(arguments[0].type.element_type)
-            elif AnyPDLTypeConstr.matches(arguments[0].type):
+            elif AnyPDLTypeConstr.verifies(arguments[0].type):
                 result_type = RangeType(arguments[0].type)
             else:
                 raise ValueError(

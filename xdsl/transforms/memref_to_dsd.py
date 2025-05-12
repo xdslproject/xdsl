@@ -42,7 +42,7 @@ class LowerAllocOpPass(RewritePattern):
         assert (
             MemRefType[ZerosOpAttr]
             .constr(element_type=csl.ZerosOpAttrConstr)
-            .matches(memref_type := op.memref.type)
+            .verifies(memref_type := op.memref.type)
         )
         zeros_op = csl.ZerosOp(memref_type)
 

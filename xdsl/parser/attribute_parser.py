@@ -727,7 +727,7 @@ class AttrParser(BaseParser):
             base(RankedStructure[IntegerType])
             | base(RankedStructure[IndexType])
             | base(RankedStructure[AnyFloat])
-        ).matches(
+        ).verifies(
             type,
         ):
             self.raise_error(

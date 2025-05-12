@@ -174,7 +174,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             "all swaps need to be of uniform size"
         )
 
-        assert (MemRefType.constr() | stencil.StencilTypeConstr).matches(
+        assert (MemRefType.constr() | stencil.StencilTypeConstr).verifies(
             op.input_stencil.type
         )
         assert isa(

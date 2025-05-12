@@ -459,7 +459,7 @@ class AccessOpToMemRef(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
-        assert StencilTypeConstr.matches(temp)
+        assert StencilTypeConstr.verifies(temp)
         assert isinstance(temp.bounds, StencilBoundsAttr)
 
         memref_offset = op.offset

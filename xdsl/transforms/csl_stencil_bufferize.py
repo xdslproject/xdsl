@@ -183,7 +183,7 @@ class ApplyOpBufferize(RewritePattern):
                 arg_types=[
                     (
                         tensor_to_memref_type(arg.type)
-                        if AnyTensorTypeConstr.matches(arg.type)
+                        if AnyTensorTypeConstr.verifies(arg.type)
                         else arg.type
                     )
                     for arg in args

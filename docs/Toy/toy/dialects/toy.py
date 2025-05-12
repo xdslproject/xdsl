@@ -421,7 +421,7 @@ class ReshapeOp(IRDLOperation):
     traits = traits_def(Pure(), ReshapeOpHasCanonicalizationPatternsTrait())
 
     def __init__(self, arg: SSAValue, shape: list[int]):
-        if not AnyTensorTypeF64Constr.matches(arg.type):
+        if not AnyTensorTypeF64Constr.verifies(arg.type):
             raise ValueError(
                 f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
                 " {AnyTensorTypeF64}"
@@ -432,7 +432,7 @@ class ReshapeOp(IRDLOperation):
 
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
-        if not AnyTensorTypeF64Constr.matches(arg.type):
+        if not AnyTensorTypeF64Constr.verifies(arg.type):
             raise ValueError(
                 f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
                 " {AnyTensorTypeF64}"

@@ -169,6 +169,16 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         """
         ...
 
+    def verifies(self, attr: Attribute) -> TypeGuard[AttributeCovT]:
+        """
+        A helper method to check whether a given attribute matches `self`.
+        """
+        try:
+            self.verify(attr, ConstraintContext())
+            return True
+        except VerifyException:
+            return False
+
     def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
         """
         Get a dictionary of constraint variables to extractors for these variables,
@@ -198,16 +208,6 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     def get_unique_base(self) -> type[Attribute] | None:
         """Get the unique base type that can satisfy the constraint, if any."""
         return None
-
-    def matches(self, attr: Attribute) -> TypeGuard[AttributeCovT]:
-        """
-        A helper method to check whether a given attribute matches `self`.
-        """
-        try:
-            self.verify(attr, ConstraintContext())
-            return True
-        except VerifyException:
-            return False
 
     def __or__(
         self, value: GenericAttrConstraint[_AttributeCovT], /

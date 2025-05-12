@@ -187,7 +187,7 @@ class ExtractCslModules(RewritePattern):
     def _collect_yield_args(yield_op: csl_wrapper.YieldOp) -> list[csl.ParamOp]:
         params = list[csl.ParamOp]()
         for s, v in yield_op.items():
-            assert csl.ParamOpAttrConstr.matches(ty := v.type)
+            assert csl.ParamOpAttrConstr.verifies(ty := v.type)
             params.append(csl.ParamOp(s, ty))
         return params
 

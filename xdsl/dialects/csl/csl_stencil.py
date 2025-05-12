@@ -534,7 +534,7 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if stencil.StencilTypeConstr.matches(res_type):
+        if stencil.StencilTypeConstr.verifies(res_type):
             return cls.build(
                 operands=[temp],
                 result_types=[res_type.get_element_type()],
@@ -548,7 +548,7 @@ class AccessOp(IRDLOperation):
                 ],
                 properties=props,
             )
-        elif MemRefType.constr().matches(res_type):
+        elif MemRefType.constr().verifies(res_type):
             return cls.build(
                 operands=[temp],
                 result_types=[
@@ -568,7 +568,7 @@ class AccessOp(IRDLOperation):
                         f"{type(self)} access to own data requires{self.op.type} but "
                         f"found {self.result.type}"
                     )
-            elif stencil.StencilTypeConstr.matches(self.op.type):
+            elif stencil.StencilTypeConstr.verifies(self.op.type):
                 if not self.result.type == self.op.type.get_element_type():
                     raise VerifyException(
                         f"{type(self)} access to own data requires "

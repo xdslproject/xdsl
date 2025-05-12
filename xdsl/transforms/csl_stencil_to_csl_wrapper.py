@@ -110,7 +110,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 )
 
             # retrieve z_dim from done_exchange arg[0]
-            if stencil.StencilTypeConstr.matches(
+            if stencil.StencilTypeConstr.verifies(
                 field_t := apply_op.done_exchange.block.args[0].type
             ) and isa(el_type := field_t.element_type, TensorType | MemRefType):
                 # unbufferized csl_stencil

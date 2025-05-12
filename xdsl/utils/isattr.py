@@ -6,8 +6,8 @@ from xdsl.ir import AttributeInvT
 from xdsl.irdl import GenericAttrConstraint
 
 
-@deprecated("Please use hint.matches(arg) or isa(arg, hint) instead")
+@deprecated("Please use hint.verifies(arg) or isa(arg, hint) instead")
 def isattr(
     arg: Any, hint: GenericAttrConstraint[AttributeInvT]
 ) -> TypeGuard[AttributeInvT]:
-    return hint.matches(arg)
+    return hint.verifies(arg)

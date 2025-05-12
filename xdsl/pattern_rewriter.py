@@ -596,7 +596,7 @@ def attr_constr_rewrite_pattern(
     ):
         @wraps(func)
         def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
-            if constr.matches(typ):
+            if constr.verifies(typ):
                 return func(self, typ)
             return None
 
