@@ -789,6 +789,7 @@ def test_float():
     "expected, value",
     [
         ("(-3.000000e+00,-3.000000e+00)", (-3.0, -3.0)),
+        ("(3.000000e+00,3.000000e+00)", (3.0, 3.0)),
     ],
 )
 def test_complex_float(expected: str, value: tuple[float, float]):
@@ -797,6 +798,46 @@ def test_complex_float(expected: str, value: tuple[float, float]):
     printer.stream = io
     type = ComplexType(f32)
     printer.print_complex_float(value, type)
+    assert io.getvalue() == expected
+
+
+@pytest.mark.parametrize(
+    "expected, value",
+    [
+        ("(-3,-3)", (-3, -3)),
+        ("(3,3)", (3, 3)),
+    ],
+)
+def test_complex_int(expected: str, value: tuple[int, int]):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    type = ComplexType(i32)
+    printer.print_complex_int(value, type)
+    assert io.getvalue() == expected
+
+
+@pytest.mark.parametrize(
+    "expected, value",
+    [
+        ("(-3,-3)", (-3, -3), True),
+        ("(3,3)", (3, 3), True),
+        ("(-3.000000e+00,-3.000000e+00)", (-3.0, -3.0), False),
+        ("(3.000000e+00,3.000000e+00)", (3.0, 3.0), False),
+    ],
+)
+def test_complex(
+    expected: str, value: tuple[int, int] | tuple[float, float], is_int: bool
+):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    if is_int:
+        type = ComplexType(i32)
+        printer.print_complex(value, type)
+    else:
+        type = ComplexType(f32)
+        printer.print_complex(value, type)
     assert io.getvalue() == expected
 
 
