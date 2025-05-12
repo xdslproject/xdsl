@@ -2135,7 +2135,7 @@ RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]
 )
 
-AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
+AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
 DenseElementCovT = TypeVar(
     "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
 )
@@ -2240,6 +2240,25 @@ class DenseIntOrFPElementsAttr(
 
     @overload
     @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType], data: Sequence[tuple[int, int]]
+    ) -> DenseIntOrFPElementsAttr[ComplexType]: ...
+
+    @overload
+    @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType], data: Sequence[tuple[float, float]]
+    ) -> DenseIntOrFPElementsAttr[ComplexType]: ...
+
+    @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType],
+        data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType]:
+        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
+
+    @overload
+    @staticmethod
     def from_list(
         type: (
             RankedStructure[AnyFloat | IntegerType | IndexType]
@@ -2266,15 +2285,25 @@ class DenseIntOrFPElementsAttr(
         data: Sequence[int | float] | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr: ...
 
+    @overload
     @staticmethod
     def from_list(
-        type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-        ),
-        data: Sequence[int | float] | Sequence[IntegerAttr] | Sequence[FloatAttr],
+        type: RankedStructure[ComplexType], data: Sequence[tuple[int, int]]
+    ) -> DenseIntOrFPElementsAttr: ...
+
+    @overload
+    @staticmethod
+    def from_list(
+        type: RankedStructure[ComplexType], data: Sequence[tuple[float, float]]
+    ) -> DenseIntOrFPElementsAttr: ...
+
+    @staticmethod
+    def from_list(
+        type: RankedStructure[AnyDenseElement],
+        data: Sequence[Any]
+        | Sequence[int | float | tuple[int, int] | tuple[float, float]]
+        | Sequence[IntegerAttr]
+        | Sequence[FloatAttr],
     ) -> DenseIntOrFPElementsAttr:
         # splat value given
         if len(data) == 1 and prod(type.get_shape()) != 1:
@@ -2288,10 +2317,12 @@ class DenseIntOrFPElementsAttr(
                 Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], new_data
             )
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
-        else:
+        elif isinstance(type.element_type, IntegerType):
             new_type = cast(RankedStructure[IntegerType | IndexType], type)
             new_data = cast(Sequence[int] | Sequence[IntegerAttr], new_data)
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
+        else:
+            raise NotImplementedError()
 
     @staticmethod
     @deprecated("Please use `create_dense_{int/float}` instead.")
@@ -2332,7 +2363,11 @@ class DenseIntOrFPElementsAttr(
         """
         Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        return self.get_element_type().iter_unpack(self.data.data)
+        if isinstance(
+            eltype := self.get_element_type(), IntegerType | IndexType | AnyFloat
+        ):
+            return eltype.iter_unpack(self.data.data)
+        raise NotImplementedError()
 
     def get_int_values(self) -> Sequence[int]:
         """
@@ -2356,7 +2391,11 @@ class DenseIntOrFPElementsAttr(
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        return self.get_element_type().unpack(self.data.data, len(self))
+        if isinstance(
+            eltype := self.get_element_type(), IntegerType | IndexType | AnyFloat
+        ):
+            return eltype.unpack(self.data.data, len(self))
+        raise NotImplementedError()
 
     def iter_attrs(self) -> Iterator[IntegerAttr] | Iterator[FloatAttr]:
         """
@@ -2365,8 +2404,9 @@ class DenseIntOrFPElementsAttr(
         """
         if isinstance(eltype := self.get_element_type(), IntegerType | IndexType):
             return IntegerAttr.iter_unpack(eltype, self.data.data)
-        else:
+        elif isinstance(eltype, AnyFloat):
             return FloatAttr.iter_unpack(eltype, self.data.data)
+        raise NotImplementedError()
 
     def get_attrs(self) -> Sequence[IntegerAttr] | Sequence[FloatAttr]:
         """
@@ -2375,8 +2415,9 @@ class DenseIntOrFPElementsAttr(
         """
         if isinstance(eltype := self.get_element_type(), IntegerType | IndexType):
             return IntegerAttr.unpack(eltype, self.data.data, len(self))
-        else:
+        elif isinstance(eltype, AnyFloat):
             return FloatAttr.unpack(eltype, self.data.data, len(self))
+        raise NotImplementedError()
 
     def is_splat(self) -> bool:
         """
