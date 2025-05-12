@@ -2132,10 +2132,12 @@ AnyUnrankedMemRefType: TypeAlias = UnrankedMemRefType[Attribute]
 AnyUnrankedMemRefTypeConstr = BaseAttr[AnyUnrankedMemRefType](UnrankedMemRefType)
 
 RankedStructure: TypeAlias = (
-    VectorType[AttributeCovT | ComplexType] | TensorType[AttributeCovT | ComplexType] | MemRefType[AttributeCovT | ComplexType]
+    VectorType[AttributeCovT | ComplexType]
+    | TensorType[AttributeCovT | ComplexType]
+    | MemRefType[AttributeCovT | ComplexType]
 )
 
-AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
+AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
 DenseElementCovT = TypeVar(
     "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
 )
@@ -2145,10 +2147,10 @@ DenseElementT = TypeVar("DenseElementT", bound=AnyDenseElement, default=AnyDense
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
-    Generic[DenseElementCovT | ComplexType],
+    Generic[DenseElementCovT],
     TypedAttribute,
     BuiltinAttribute,
-    ContainerType[DenseElementCovT | ComplexType],
+    ContainerType[DenseElementCovT],
 ):
     name = "dense"
     type: ParameterDef[RankedStructure[DenseElementCovT]]
@@ -2159,7 +2161,7 @@ class DenseIntOrFPElementsAttr(
         return self.type.get_shape()
 
     def get_element_type(self) -> DenseElementCovT:
-        return self.type.get_element_type()
+        return self.type.get_element_type()  # pyright: ignore[reportReturnType]
 
     def __len__(self) -> int:
         return len(self.data.data) // self.type.element_type.compile_time_size
@@ -2319,12 +2321,15 @@ class DenseIntOrFPElementsAttr(
                 Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], new_data
             )
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
-        elif isinstance(type.element_type, IntegerType):
+        elif isinstance(type.element_type, IntegerType | IndexType):
             new_type = cast(RankedStructure[IntegerType | IndexType], type)
             new_data = cast(Sequence[int] | Sequence[IntegerAttr], new_data)
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
         else:
-            raise NotImplementedError()
+            assert isa(type, RankedStructure[ComplexType])
+            assert isa(new_data, Sequence[tuple[int, int]] | Sequence[tuple[float, float]])
+            return DenseIntOrFPElementsAttr.create_dense_complex(type, new_data)
+
 
     @staticmethod
     @deprecated("Please use `create_dense_{int/float}` instead.")
