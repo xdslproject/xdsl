@@ -777,7 +777,9 @@ def test_parse_optional_int_or_float_nonnumeric(nonnumeric: str):
     assert parser._parse_optional_int_or_float() is None
 
 
-@pytest.mark.parametrize("numeric,is_int", [("1", True), ("1.0", False), ("-1", True), ("-1.0", False)])
+@pytest.mark.parametrize(
+    "numeric,is_int", [("1", True), ("1.0", False), ("-1", True), ("-1.0", False)]
+)
 def test_parse_optional_int_or_float_numeric(numeric: str, is_int: bool):
     parser = Parser(Context(), numeric)
     value_span = parser._parse_optional_int_or_float()
