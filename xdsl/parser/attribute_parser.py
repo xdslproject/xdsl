@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     AnyDenseElement,
     AnyFloat,
-    AnyFloatConstr,
     AnyTensorType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -64,7 +63,6 @@ from xdsl.utils.bitwise_casts import (
     convert_u64_to_f64,
 )
 from xdsl.utils.exceptions import ParseError, VerifyException
-from xdsl.utils.isattr import isattr
 from xdsl.utils.lexer import Position, Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
 
@@ -522,7 +520,7 @@ class AttrParser(BaseParser):
 
     def _parse_complex_attrs(self) -> ComplexType:
         element_type = self.parse_attribute()
-        if not isattr(element_type, base(IntegerType) | AnyFloatConstr):
+        if not isinstance(element_type, IntegerType | AnyFloat):
             self.raise_error(
                 "Complex type must be parameterized by an integer or float type!"
             )
@@ -725,11 +723,12 @@ class AttrParser(BaseParser):
     ):
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
-        if not isattr(
-            type,
+        if not (
             base(RankedStructure[IntegerType])
             | base(RankedStructure[IndexType])
-            | base(RankedStructure[AnyFloat]),
+            | base(RankedStructure[AnyFloat])
+        ).verifies(
+            type,
         ):
             self.raise_error(
                 "Expected memref, vector or tensor type of "
