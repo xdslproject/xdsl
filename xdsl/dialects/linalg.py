@@ -561,9 +561,7 @@ class NamedOpBase(IRDLOperation, ABC):
 
         for op in operands:
             op_type = op.type
-            if isa(op_type, MemRefType[Attribute]):
-                element_type = op_type.get_element_type()
-            elif isa(op_type, TensorType[Attribute]):
+            if isa(op_type, MemRefType | TensorType):
                 element_type = op_type.get_element_type()
             else:  # int or float
                 element_type = op_type

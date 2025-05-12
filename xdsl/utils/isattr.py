@@ -1,21 +1,13 @@
 from typing import Any, TypeGuard
 
+from typing_extensions import deprecated
+
 from xdsl.ir import AttributeInvT
 from xdsl.irdl import GenericAttrConstraint
-from xdsl.utils.exceptions import VerifyException
 
 
+@deprecated("Please use hint.verifies(arg) or isa(arg, hint) instead")
 def isattr(
     arg: Any, hint: GenericAttrConstraint[AttributeInvT]
 ) -> TypeGuard[AttributeInvT]:
-    """
-    A helper method to check whether a given attribute has a given type or conforms to a
-    given constraint.
-    """
-    from xdsl.irdl import ConstraintContext
-
-    try:
-        hint.verify(arg, ConstraintContext())
-        return True
-    except VerifyException:
-        return False
+    return hint.verifies(arg)

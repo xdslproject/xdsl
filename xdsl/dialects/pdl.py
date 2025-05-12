@@ -45,7 +45,6 @@ from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, NoTerminator, OptionalSymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
@@ -633,7 +632,7 @@ class RangeOp(IRDLOperation):
 
             if isa(arguments[0].type, RangeType[AnyPDLType]):
                 result_type = RangeType(arguments[0].type.element_type)
-            elif isattr(arguments[0].type, AnyPDLTypeConstr):
+            elif AnyPDLTypeConstr.verifies(arguments[0].type):
                 result_type = RangeType(arguments[0].type)
             else:
                 raise ValueError(
