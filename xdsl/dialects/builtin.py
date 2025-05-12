@@ -2395,7 +2395,9 @@ class DenseIntOrFPElementsAttr(
         assert isinstance(el_type, AnyFloat), el_type
         return el_type.unpack(self.data.data, len(self))
 
-    def get_complex_values(self) -> Sequence[tuple[int, int]] | Sequence[tuple[float, float]]:
+    def get_complex_values(
+        self,
+    ) -> Sequence[tuple[int, int]] | Sequence[tuple[float, float]]:
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr,
         checking that the elements are complex.
@@ -2404,7 +2406,14 @@ class DenseIntOrFPElementsAttr(
         assert isinstance(el_type, ComplexType), el_type
         return el_type.unpack(self.data.data, len(self))
 
-    def get_values(self) -> Sequence[int] | Sequence[float] | Sequence[tuple[int, int]] | Sequence[tuple[float, float]]:
+    def get_values(
+        self,
+    ) -> (
+        Sequence[int]
+        | Sequence[float]
+        | Sequence[tuple[int, int]]
+        | Sequence[tuple[float, float]]
+    ):
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
