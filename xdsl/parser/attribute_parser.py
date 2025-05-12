@@ -11,7 +11,6 @@ from xdsl.context import Context
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
-    AnyDenseElement,
     AnyFloat,
     AnyTensorType,
     AnyUnrankedTensorType,
@@ -743,7 +742,12 @@ class AttrParser(BaseParser):
         return type
 
     def parse_dense_int_or_fp_elements_attr(
-        self, type: RankedStructure[AnyDenseElement] | None
+        self,
+        type: RankedStructure[IntegerType]
+        | RankedStructure[IndexType]
+        | RankedStructure[AnyFloat]
+        | RankedStructure[ComplexType]
+        | None,
     ) -> DenseIntOrFPElementsAttr:
         dense_contents: (
             tuple[list[AttrParser._TensorLiteralElement], list[int]] | str | None
