@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 from typing import ClassVar, TypeAlias
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import BoolAttr
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
@@ -13,7 +16,6 @@ from xdsl.irdl import (
     base,
     irdl_attr_definition,
     irdl_op_definition,
-    irdl_to_attr_constraint,
     prop_def,
     result_def,
     traits_def,
@@ -150,8 +152,36 @@ def _print_same_operand_type_variadic_to_bool_op(
     printer.print(" : ", operands[0].type)
 
 
+class VariadicPredicateOp(IRDLOperation, ABC):
+    """
+    A predicate with a variadic number (but at least 2) operands.
+    """
+
+    T: ClassVar = VarConstraint("T", base(NonFuncSMTType))
+
+    inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
+    result = result_def(BoolType())
+
+    traits = traits_def(Pure())
+
+    @classmethod
+    def parse(cls: type[Self], parser: Parser) -> Self:
+        operands, attr_dict = _parse_same_operand_type_variadic_to_bool_op(parser)
+        op = cls(*operands)
+        op.attributes = attr_dict
+        return op
+
+    def print(self, printer: Printer):
+        _print_same_operand_type_variadic_to_bool_op(
+            printer, self.inputs, self.attributes
+        )
+
+    def __init__(self, *operands: SSAValue):
+        super().__init__(operands=[operands], result_types=[BoolType()])
+
+
 @irdl_op_definition
-class DistinctOp(IRDLOperation):
+class DistinctOp(VariadicPredicateOp):
     """
     This operation compares the operands and returns true iff all operands are not
     identical to any of the other operands. The semantics are equivalent to the
@@ -170,31 +200,9 @@ class DistinctOp(IRDLOperation):
 
     name = "smt.distinct"
 
-    T: ClassVar = VarConstraint("T", irdl_to_attr_constraint(NonFuncSMTType))
-
-    inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
-    result = result_def(BoolType())
-
-    traits = traits_def(Pure())
-
-    @classmethod
-    def parse(cls, parser: Parser) -> DistinctOp:
-        operands, attr_dict = _parse_same_operand_type_variadic_to_bool_op(parser)
-        op = DistinctOp(*operands)
-        op.attributes = attr_dict
-        return op
-
-    def print(self, printer: Printer):
-        _print_same_operand_type_variadic_to_bool_op(
-            printer, self.inputs, self.attributes
-        )
-
-    def __init__(self, *operands: SSAValue):
-        super().__init__(operands=[operands], result_types=[BoolType()])
-
 
 @irdl_op_definition
-class EqOp(IRDLOperation):
+class EqOp(VariadicPredicateOp):
     """
     This operation compares the operands and returns true iff all operands are
     identical. The semantics are equivalent to the `=` operator defined in the
@@ -208,28 +216,6 @@ class EqOp(IRDLOperation):
     """
 
     name = "smt.eq"
-
-    T: ClassVar = VarConstraint("T", irdl_to_attr_constraint(NonFuncSMTType))
-
-    inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
-    result = result_def(BoolType())
-
-    traits = traits_def(Pure())
-
-    @classmethod
-    def parse(cls, parser: Parser) -> EqOp:
-        operands, attr_dict = _parse_same_operand_type_variadic_to_bool_op(parser)
-        op = EqOp(*operands)
-        op.attributes = attr_dict
-        return op
-
-    def print(self, printer: Printer):
-        _print_same_operand_type_variadic_to_bool_op(
-            printer, self.inputs, self.attributes
-        )
-
-    def __init__(self, *operands: SSAValue):
-        super().__init__(operands=[operands], result_types=[BoolType()])
 
 
 SMT = Dialect(
