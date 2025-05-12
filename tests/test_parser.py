@@ -745,7 +745,7 @@ def test_parse_optional_int_noninteger(noninteger: str):
     assert parser._parse_optional_int() is None
 
 
-@pytest.mark.parametrize("integer", ["-1", "0", "123"])
+@pytest.mark.parametrize("integer", ["1", "-1", "0", "123"])
 def test_parse_optional_int(integer: str):
     parser = Parser(Context(), integer)
     value_span = parser._parse_optional_int()
@@ -761,7 +761,7 @@ def test_parse_optional_float_nonfloat(nonfloat: str):
     assert parser._parse_optional_float() is None
 
 
-@pytest.mark.parametrize("floatval", ["1.0", "0.0", "43.3e-54"])
+@pytest.mark.parametrize("floatval", ["1.0", "-1.0", "0.0", "43.3e-54"])
 def test_parse_optional_float(floatval: str):
     parser = Parser(Context(), floatval)
     value_span = parser._parse_optional_float()
@@ -777,7 +777,7 @@ def test_parse_optional_int_or_float_nonnumeric(nonnumeric: str):
     assert parser._parse_optional_int_or_float() is None
 
 
-@pytest.mark.parametrize("numeric,is_int", [("1", True), ("1.0", False)])
+@pytest.mark.parametrize("numeric,is_int", [("1", True), ("1.0", False), ("-1", True), ("-1.0", False)])
 def test_parse_optional_int_or_float_numeric(numeric: str, is_int: bool):
     parser = Parser(Context(), numeric)
     value_span = parser._parse_optional_int_or_float()

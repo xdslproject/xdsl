@@ -11,6 +11,7 @@ from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
     AnyFloat,
     Builtin,
+    ComplexType,
     FloatAttr,
     FunctionType,
     IntAttr,
@@ -782,6 +783,21 @@ def test_float():
     _test_float_print("0x4D95DCF5", 22e8 / 7, f32)
     _test_float_print("3.14285714e+16", 22e16 / 7, f32)
     _test_float_print("-3.14285707", -22 / 7, f32)
+
+@pytest.mark.parametrize(
+    "expected, value",
+    [
+        ("(-3.000000e+00,-3.000000e+00)", (-3., -3.)),
+    ]
+)
+def test_complex_float(expected: str, value: tuple[float, float]):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    type = ComplexType(f32)
+    printer.print_complex_float(value, type)
+    assert io.getvalue() == expected
+
 
 
 def test_float_attr():
