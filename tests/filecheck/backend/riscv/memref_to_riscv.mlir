@@ -93,7 +93,7 @@ memref.store %scalar_x_i32, %m_scalar_i32[] {"nontemporal" = false} : memref<i32
 // CHECK-NEXT:       riscv.label "global"
 // CHECK-NEXT:       riscv.directive ".word" "0x0,0x3ff00000,0x0,0x40000000"
 // CHECK-NEXT:   }
-"memref.global"() <{"sym_name" = "global", "sym_visibility" = "public", "type" = memref<2x3xf64>, "initial_value" = dense<[1, 2]> : tensor<2xi32>}> : () -> ()
+"memref.global"() <{"sym_name" = "global", "sym_visibility" = "public", "type" = memref<2xf64>, "initial_value" = dense<[1, 2]> : tensor<2xf64>}> : () -> ()
 
 // CHECK-NEXT:    %global = riscv.li "global" : !riscv.reg
 // CHECK-NEXT:    %global_1 = builtin.unrealized_conversion_cast %global : !riscv.reg to memref<2xi32>
