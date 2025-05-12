@@ -361,8 +361,10 @@ class Printer(BasePrinter):
 
     def print_complex(self, value: tuple[float, float] | tuple[int, int], type: ComplexType):
         if isinstance(type.element_type, IntegerType):
+            assert isa(value, tuple[int, int])
             self.print_complex_int(value, type)
         else:
+            assert isa(value, tuple[float, float])
             self.print_complex_float(value, type)
 
     def print_float(self, value: float, type: AnyFloat):
