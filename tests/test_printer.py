@@ -818,7 +818,7 @@ def test_complex_int(expected: str, value: tuple[int, int]):
 
 
 @pytest.mark.parametrize(
-    "expected, value",
+    "expected, value, is_int",
     [
         ("(-3,-3)", (-3, -3), True),
         ("(3,3)", (3, 3), True),
