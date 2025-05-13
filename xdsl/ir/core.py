@@ -2012,6 +2012,10 @@ class Region(IRNode):
         )
 
     def find_ancestor_block_in_region(self, block: Block) -> Block | None:
+        """
+        Returns 'block' if 'block' lies in this region, or otherwise finds
+        the ancestor of 'block' that lies in this region.
+        """
         curr_block = block
         while curr_block.parent_region() != self:
             parent_op = curr_block.parent_op()
