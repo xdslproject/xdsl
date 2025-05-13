@@ -6,10 +6,6 @@ Similar to MLIR's loop invariant code motion: see external [documentation](https
 An operation is loop-invariant if it depends only of values defined outside of the loop.
 LICM moves these operations out of the loop body so that they are not computed more than
 once.
-
-  for i in range(x, N, M):                for i in range(x, N, M):
-    for j in range(0, M, K):    ---->        c[i]= A[1] + b[1]
-      c[i]=A[1]+b[1]
 """
 
 from collections.abc import Callable, Sequence
@@ -106,7 +102,7 @@ def move_loop_invariant_code(loop: scf.ForOp):
     )
 
 
-class LoopsInvariantCodeMotion(RewritePattern):
+class LoopInvariantCodeMotion(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter) -> None:
         move_loop_invariant_code(op)
@@ -114,19 +110,13 @@ class LoopsInvariantCodeMotion(RewritePattern):
 
 class LoopInvariantCodeMotionPass(ModulePass):
     """
-    Folds perfect loop nests if they can be represented with a single loop.
-    Currently does this by matching the inner loop range with the outer loop step.
-    If the inner iteration space fits perfectly in the outer iteration step, then merge.
-    Other conditions:
-     - the only use of the induction arguments must be an add operation, this op is fused
-       into a single induction argument,
-     - the lower bound of the inner loop must be 0,
-     - the loops must have no iteration arguments.
+    Moves operations without side effects out of loops, provided they do not depend on
+    values defined the loops.
     """
 
     name = "licm"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            LoopsInvariantCodeMotion(), walk_reverse=True, walk_regions_first=True
+            LoopInvariantCodeMotion(), walk_reverse=True, walk_regions_first=True
         ).rewrite_module(op)
