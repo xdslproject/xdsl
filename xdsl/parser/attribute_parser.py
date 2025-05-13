@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
 
@@ -820,7 +820,13 @@ class AttrParser(BaseParser):
                 assert len(data_values) == 1, "Fatal error in parser"
                 data_values *= type_num_values
 
-        return DenseIntOrFPElementsAttr.from_list(type, data_values)
+        if isinstance(type.element_type, AnyFloat):
+            new_type = cast(RankedStructure[AnyFloat], type)
+            return DenseIntOrFPElementsAttr.create_dense_float(new_type, data_values)
+        else:
+            new_type = cast(RankedStructure[IntegerType | IndexType], type)
+            new_data = cast(Sequence[int], data_values)
+            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
 
     def _parse_builtin_dense_attr(self) -> DenseIntOrFPElementsAttr:
         return self.parse_dense_int_or_fp_elements_attr(None)
