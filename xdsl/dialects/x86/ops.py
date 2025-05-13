@@ -368,7 +368,7 @@ class R_M_Operation(
         return {"offset"}
 
 
-class R_RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class R_RImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one register and an immediate value.
     """
@@ -471,7 +471,7 @@ class M_MR_Operation(
         return {"offset"}
 
 
-class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class M_MImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one memory reference and an immediate value.
     """
@@ -531,7 +531,7 @@ class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
         return {"immediate", "offset"}
 
 
-class R_RRI_Operation(
+class R_RRImm_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
@@ -583,7 +583,7 @@ class R_RRI_Operation(
         return {"immediate"}
 
 
-class R_RMI_Operation(
+class R_RMImm_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
@@ -1281,7 +1281,7 @@ class RM_leaOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
+class RI_AddOp(R_RImm_Operation[GeneralRegisterType]):
     """
     Adds the immediate value to r1 and stores the result in r1.
     ```C
@@ -1291,11 +1291,11 @@ class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
-    name = "x86.ri.add"
+    name = "x86.rimm.add"
 
 
 @irdl_op_definition
-class RI_SubOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_SubOp(R_RImm_Operation[GeneralRegisterType]):
     """
     Subtracts the immediate value from r1 and stores the result in r1.
     ```C
@@ -1305,11 +1305,11 @@ class RI_SubOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
-    name = "x86.ri.sub"
+    name = "x86.rimm.sub"
 
 
 @irdl_op_definition
-class RI_AndOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_AndOp(R_RImm_Operation[GeneralRegisterType]):
     """
     bitwise and of r1 and immediate, stored in r1
     ```C
@@ -1319,11 +1319,11 @@ class RI_AndOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
-    name = "x86.ri.and"
+    name = "x86.rimm.and"
 
 
 @irdl_op_definition
-class RI_OrOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_OrOp(R_RImm_Operation[GeneralRegisterType]):
     """
     bitwise or of r1 and immediate, stored in r1
     ```C
@@ -1333,11 +1333,11 @@ class RI_OrOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
-    name = "x86.ri.or"
+    name = "x86.rimm.or"
 
 
 @irdl_op_definition
-class RI_XorOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_XorOp(R_RImm_Operation[GeneralRegisterType]):
     """
     bitwise xor of r1 and immediate, stored in r1
     ```C
@@ -1347,11 +1347,11 @@ class RI_XorOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
-    name = "x86.ri.xor"
+    name = "x86.rimm.xor"
 
 
 @irdl_op_definition
-class RI_MovOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_MovOp(R_RImm_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into r1.
     ```C
@@ -1361,7 +1361,7 @@ class RI_MovOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.ri.mov"
+    name = "x86.rimm.mov"
 
 
 @irdl_op_definition
@@ -1439,7 +1439,7 @@ class MR_MovOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class MI_AddOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_AddOp(M_MImm_Operation[GeneralRegisterType]):
     """
     Adds the immediate value to the memory location pointed to by r1.
     [x[r1]] = [x[r1]] + immediate
@@ -1447,11 +1447,11 @@ class MI_AddOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
-    name = "x86.mi.add"
+    name = "x86.mimm.add"
 
 
 @irdl_op_definition
-class MI_SubOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_SubOp(M_MImm_Operation[GeneralRegisterType]):
     """
     Subtracts the immediate value from the memory location pointed to by r1.
     [x[r1]] = [x[r1]] - immediate
@@ -1459,11 +1459,11 @@ class MI_SubOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
-    name = "x86.mi.sub"
+    name = "x86.mimm.sub"
 
 
 @irdl_op_definition
-class MI_AndOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_AndOp(M_MImm_Operation[GeneralRegisterType]):
     """
     bitwise and of immediate and [r1], stored in [r1]
     ```C
@@ -1473,11 +1473,11 @@ class MI_AndOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
-    name = "x86.mi.and"
+    name = "x86.mimm.and"
 
 
 @irdl_op_definition
-class MI_OrOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_OrOp(M_MImm_Operation[GeneralRegisterType]):
     """
     bitwise or of immediate and [r1], stored in [r1]
     ```C
@@ -1487,11 +1487,11 @@ class MI_OrOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
-    name = "x86.mi.or"
+    name = "x86.mimm.or"
 
 
 @irdl_op_definition
-class MI_XorOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_XorOp(M_MImm_Operation[GeneralRegisterType]):
     """
     bitwise xor of immediate and [r1], stored in [r1]
     ```C
@@ -1501,11 +1501,11 @@ class MI_XorOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
-    name = "x86.mi.xor"
+    name = "x86.mimm.xor"
 
 
 @irdl_op_definition
-class MI_MovOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_MovOp(M_MImm_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into the memory location pointed to by r1.
     [x[r1]] = immediate
@@ -1513,11 +1513,11 @@ class MI_MovOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.mi.mov"
+    name = "x86.mimm.mov"
 
 
 @irdl_op_definition
-class RRI_ImulOp(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RRImm_ImulOp(R_RRImm_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the source register and stores the result in the destination register.
     x[r1] = x[r2] * immediate
@@ -1529,7 +1529,7 @@ class RRI_ImulOp(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RMI_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RMImm_ImulOp(R_RMImm_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the memory location pointed to by r2 and stores the result in r1.
     x[r1] = [x[r2]] * immediate
@@ -1537,7 +1537,7 @@ class RMI_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
-    name = "x86.rmi.imul"
+    name = "x86.rmimm.imul"
 
 
 @irdl_op_definition
@@ -2126,7 +2126,7 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class RI_CmpOp(X86Instruction, X86CustomFormatOperation):
+class RImm_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2134,7 +2134,7 @@ class RI_CmpOp(X86Instruction, X86CustomFormatOperation):
     See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
-    name = "x86.ri.cmp"
+    name = "x86.rimm.cmp"
 
     r1 = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
@@ -2240,7 +2240,7 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
+class MImm_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2248,7 +2248,7 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
-    name = "x86.mi.cmp"
+    name = "x86.mimm.cmp"
 
     r1 = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
