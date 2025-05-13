@@ -63,3 +63,22 @@
 // CHECK-NEXT:   %v2_2 = ptr_xdsl.ptradd %v2_1, %v2 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v2_3 = ptr_xdsl.load %v2_2 : !ptr_xdsl.ptr -> vector<8xf32>
 // CHECK-NEXT: }
+
+// -----
+
+%m0 = "test.op"(): () -> memref<2x8xf32>
+%i0 = arith.constant 0: index
+%j0 = arith.constant 0: index
+%v0 = "test.op"(): () -> vector<8xf32>
+vector.store %v0, %m0[%i0,%j0]: memref<2x8xf32>, vector<8xf32>
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %m0 = "test.op"() : () -> memref<2x8xf32>
+// CHECK-NEXT:   %i0 = arith.constant 0 : index
+// CHECK-NEXT:   %j0 = arith.constant 0 : index
+// CHECK-NEXT:   %v0 = "test.op"() : () -> vector<8xf32>
+// CHECK-NEXT:   %0 = affine.apply affine_map<(d0, d1) -> (((d0 * 32) + (d1 * 4)))> (%i0, %j0)
+// CHECK-NEXT:   %1 = ptr_xdsl.to_ptr %m0 : memref<2x8xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %2 = ptr_xdsl.ptradd %1, %0 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:   ptr_xdsl.store %v0, %2 : vector<8xf32>, !ptr_xdsl.ptr
+// CHECK-NEXT: }
