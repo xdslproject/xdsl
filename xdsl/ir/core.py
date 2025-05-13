@@ -1800,12 +1800,13 @@ class Block(IRNode, IRWithUses):
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
 
-    def find_ancestor_op_in_block(self, other_op: Operation) -> Operation | None:
-        for op in self.ops:
-            if op.is_ancestor(other_op):
-                return op
+    def find_ancestor_op_in_block(self, op: Operation) -> Operation | None:
+        curr_op = op
+        while curr_op.parent_block() != self:
+            if (curr_op := curr_op.parent_op()) is None:
+                return None
 
-        return None
+        return curr_op
 
     def is_structurally_equivalent(
         self,
