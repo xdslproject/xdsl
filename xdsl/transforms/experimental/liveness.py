@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import IO, cast
+
 from typing_extensions import Self
 
 from xdsl.dialects import builtin, func
