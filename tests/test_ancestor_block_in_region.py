@@ -33,4 +33,4 @@ def test_ancestor_block_in_region_different_region():
     reg_1_2 = Region()
     test.TestOp(regions=[reg_1_1, reg_1_2])
 
-    assert reg_1_2.find_ancestor_block_in_region(blk_2) is not blk_1
+    assert reg_1_2.find_ancestor_block_in_region(blk_2) is None
