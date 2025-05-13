@@ -44,6 +44,17 @@ def vector_type_to_register_type(
 
 
 @dataclass
+class PtrAddToX86(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter):
+        x86_reg_type = x86.register.UNALLOCATED_GENERAL
+        ptr_cast_op = UnrealizedConversionCastOp.get((op.addr,), (x86_reg_type,))
+        offset_cast_op = UnrealizedConversionCastOp.get((op.offset,), (x86_reg_type,))
+        add_op = x86.RR_AddOp(ptr_cast_op, offset_cast_op, result=x86_reg_type)
+        rewriter.replace_matched_op([ptr_cast_op, offset_cast_op, add_op])
+
+
+@dataclass
 class PtrStoreToX86(RewritePattern):
     arch: str
 
@@ -135,6 +146,7 @@ class ConvertPtrToX86Pass(ModulePass):
                 [
                     PtrLoadToX86(self.arch),
                     PtrStoreToX86(self.arch),
+                    PtrAddToX86(),
                 ]
             ),
             apply_recursively=False,

@@ -110,3 +110,17 @@ ptr_xdsl.store %v6, %ptr6 : vector<1xf128>, !ptr_xdsl.ptr
 %ptr6 = "test.op"(): () -> !ptr_xdsl.ptr
 %v6 = "test.op"(): () -> f32
 ptr_xdsl.store %v6, %ptr6 : f32, !ptr_xdsl.ptr
+
+// -----
+
+%p = "test.op"(): () -> !ptr_xdsl.ptr
+%idx = "test.op"(): () -> index
+%r0 = ptr_xdsl.ptradd %p, %idx : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %p = "test.op"() : () -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %idx = "test.op"() : () -> index
+// CHECK-NEXT:   %r0 = builtin.unrealized_conversion_cast %p : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %r0_1 = builtin.unrealized_conversion_cast %idx : index to !x86.reg
+// CHECK-NEXT:   %r0_2 = x86.rr.add %r0, %r0_1 : (!x86.reg, !x86.reg) -> !x86.reg
+// CHECK-NEXT: }
