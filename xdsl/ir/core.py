@@ -2015,6 +2015,8 @@ class Region(IRNode):
         """
         Returns 'block' if 'block' lies in this region, or otherwise finds
         the ancestor of 'block' that lies in this region.
+
+        Returns None if no ancestor block that lies in this region is found.
         """
         curr_block = block
         while curr_block.parent_region() != self:
