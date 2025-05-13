@@ -1951,14 +1951,14 @@ class DirectiveOp(X86AsmOperation, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class S_JmpOp(X86Instruction, X86CustomFormatOperation):
+class C_JmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Unconditional jump to the label specified in destination.
 
     See external [documentation](https://www.felixcloutier.com/x86/jmp).
     """
 
-    name = "x86.s.jmp"
+    name = "x86.c.jmp"
 
     block_values = var_operand_def(X86RegisterType)
 
@@ -2311,333 +2311,333 @@ class MImm_CmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class S_JaOp(ConditionalJumpOperation):
+class C_JaOp(ConditionalJumpOperation):
     """
     Jump if above (CF=0 and ZF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.ja"
+    name = "x86.c.ja"
 
 
 @irdl_op_definition
-class S_JaeOp(ConditionalJumpOperation):
+class C_JaeOp(ConditionalJumpOperation):
     """
     Jump if above or equal (CF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jae"
+    name = "x86.c.jae"
 
 
 @irdl_op_definition
-class S_JbOp(ConditionalJumpOperation):
+class C_JbOp(ConditionalJumpOperation):
     """
     Jump if below (CF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jb"
+    name = "x86.c.jb"
 
 
 @irdl_op_definition
-class S_JbeOp(ConditionalJumpOperation):
+class C_JbeOp(ConditionalJumpOperation):
     """
     Jump if below or equal (CF=1 or ZF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jbe"
+    name = "x86.c.jbe"
 
 
 @irdl_op_definition
-class S_JcOp(ConditionalJumpOperation):
+class C_JcOp(ConditionalJumpOperation):
     """
     Jump if carry (CF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jc"
+    name = "x86.c.jc"
 
 
 @irdl_op_definition
-class S_JeOp(ConditionalJumpOperation):
+class C_JeOp(ConditionalJumpOperation):
     """
     Jump if equal (ZF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.je"
+    name = "x86.c.je"
 
 
 @irdl_op_definition
-class S_JgOp(ConditionalJumpOperation):
+class C_JgOp(ConditionalJumpOperation):
     """
     Jump if greater (ZF=0 and SF=OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jg"
+    name = "x86.c.jg"
 
 
 @irdl_op_definition
-class S_JgeOp(ConditionalJumpOperation):
+class C_JgeOp(ConditionalJumpOperation):
     """
     Jump if greater or equal (SF=OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jge"
+    name = "x86.c.jge"
 
 
 @irdl_op_definition
-class S_JlOp(ConditionalJumpOperation):
+class C_JlOp(ConditionalJumpOperation):
     """
     Jump if less (SF≠OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jl"
+    name = "x86.c.jl"
 
 
 @irdl_op_definition
-class S_JleOp(ConditionalJumpOperation):
+class C_JleOp(ConditionalJumpOperation):
     """
     Jump if less or equal (ZF=1 or SF≠OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jle"
+    name = "x86.c.jle"
 
 
 @irdl_op_definition
-class S_JnaOp(ConditionalJumpOperation):
+class C_JnaOp(ConditionalJumpOperation):
     """
     Jump if not above (CF=1 or ZF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jna"
+    name = "x86.c.jna"
 
 
 @irdl_op_definition
-class S_JnaeOp(ConditionalJumpOperation):
+class C_JnaeOp(ConditionalJumpOperation):
     """
     Jump if not above or equal (CF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnae"
+    name = "x86.c.jnae"
 
 
 @irdl_op_definition
-class S_JnbOp(ConditionalJumpOperation):
+class C_JnbOp(ConditionalJumpOperation):
     """
     Jump if not below (CF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnb"
+    name = "x86.c.jnb"
 
 
 @irdl_op_definition
-class S_JnbeOp(ConditionalJumpOperation):
+class C_JnbeOp(ConditionalJumpOperation):
     """
     Jump if not below or equal (CF=0 and ZF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnbe"
+    name = "x86.c.jnbe"
 
 
 @irdl_op_definition
-class S_JncOp(ConditionalJumpOperation):
+class C_JncOp(ConditionalJumpOperation):
     """
     Jump if not carry (CF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnc"
+    name = "x86.c.jnc"
 
 
 @irdl_op_definition
-class S_JneOp(ConditionalJumpOperation):
+class C_JneOp(ConditionalJumpOperation):
     """
     Jump if not equal (ZF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jne"
+    name = "x86.c.jne"
 
 
 @irdl_op_definition
-class S_JngOp(ConditionalJumpOperation):
+class C_JngOp(ConditionalJumpOperation):
     """
     Jump if not greater (ZF=1 or SF≠OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jng"
+    name = "x86.c.jng"
 
 
 @irdl_op_definition
-class S_JngeOp(ConditionalJumpOperation):
+class C_JngeOp(ConditionalJumpOperation):
     """
     Jump if not greater or equal (SF≠OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnge"
+    name = "x86.c.jnge"
 
 
 @irdl_op_definition
-class S_JnlOp(ConditionalJumpOperation):
+class C_JnlOp(ConditionalJumpOperation):
     """
     Jump if not less (SF=OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnl"
+    name = "x86.c.jnl"
 
 
 @irdl_op_definition
-class S_JnleOp(ConditionalJumpOperation):
+class C_JnleOp(ConditionalJumpOperation):
     """
     Jump if not less or equal (ZF=0 and SF=OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnle"
+    name = "x86.c.jnle"
 
 
 @irdl_op_definition
-class S_JnoOp(ConditionalJumpOperation):
+class C_JnoOp(ConditionalJumpOperation):
     """
     Jump if not overflow (OF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jno"
+    name = "x86.c.jno"
 
 
 @irdl_op_definition
-class S_JnpOp(ConditionalJumpOperation):
+class C_JnpOp(ConditionalJumpOperation):
     """
     Jump if not parity (PF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnp"
+    name = "x86.c.jnp"
 
 
 @irdl_op_definition
-class S_JnsOp(ConditionalJumpOperation):
+class C_JnsOp(ConditionalJumpOperation):
     """
     Jump if not sign (SF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jns"
+    name = "x86.c.jns"
 
 
 @irdl_op_definition
-class S_JnzOp(ConditionalJumpOperation):
+class C_JnzOp(ConditionalJumpOperation):
     """
     Jump if not zero (ZF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnz"
+    name = "x86.c.jnz"
 
 
 @irdl_op_definition
-class S_JoOp(ConditionalJumpOperation):
+class C_JoOp(ConditionalJumpOperation):
     """
     Jump if overflow (OF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jo"
+    name = "x86.c.jo"
 
 
 @irdl_op_definition
-class S_JpOp(ConditionalJumpOperation):
+class C_JpOp(ConditionalJumpOperation):
     """
     Jump if parity (PF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jp"
+    name = "x86.c.jp"
 
 
 @irdl_op_definition
-class S_JpeOp(ConditionalJumpOperation):
+class C_JpeOp(ConditionalJumpOperation):
     """
     Jump if parity even (PF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jpe"
+    name = "x86.c.jpe"
 
 
 @irdl_op_definition
-class S_JpoOp(ConditionalJumpOperation):
+class C_JpoOp(ConditionalJumpOperation):
     """
     Jump if parity odd (PF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jpo"
+    name = "x86.c.jpo"
 
 
 @irdl_op_definition
-class S_JsOp(ConditionalJumpOperation):
+class C_JsOp(ConditionalJumpOperation):
     """
     Jump if sign (SF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.js"
+    name = "x86.c.js"
 
 
 @irdl_op_definition
-class S_JzOp(ConditionalJumpOperation):
+class C_JzOp(ConditionalJumpOperation):
     """
     Jump if zero (ZF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jz"
+    name = "x86.c.jz"
 
 
 @irdl_op_definition
