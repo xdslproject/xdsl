@@ -137,8 +137,8 @@ def build_block_mapping(operation: Operation) -> dict[Block, BlockInfoBuilder]:
 # This class represents liveness information on block level.
 @dataclass
 class LivenessBlockInfo:
-    in_values: set[SSAValue] = field(default_factory=set)
-    out_values: set[SSAValue] = field(default_factory=set)
+    in_values: set[SSAValue] = field(default_factory=set[SSAValue])
+    out_values: set[SSAValue] = field(default_factory=set[SSAValue])
 
     def __init__(self, block: Block):
         self.block = block
