@@ -31,6 +31,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StridedLayoutAttr,
     SymbolRefAttr,
+    TensorType,
     UnrealizedConversionCastOp,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
@@ -361,6 +362,20 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     assert value3 == 4.0
     assert isinstance(value4, float)
     assert value4 == 5.0
+
+
+def test_DenseIntOrFPElementsAttr_splat():
+    attr_int = DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [3]), 4)
+    assert len(attr_int) == 3
+    assert tuple(attr_int.get_int_values()) == (4, 4, 4)
+    assert attr_int.is_splat()
+
+    attr_float = DenseIntOrFPElementsAttr.create_dense_float(
+        TensorType(f32, [2, 2]), 4.5
+    )
+    assert len(attr_float) == 4
+    assert tuple(attr_float.get_float_values()) == (4.5, 4.5, 4.5, 4.5)
+    assert attr_float.is_splat()
 
 
 def test_DenseIntOrFPElementsAttr_from_list():
