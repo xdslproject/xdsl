@@ -1775,6 +1775,10 @@ class Block(IRNode, IRWithUses):
             op.drop_all_references()
 
     def find_ancestor_op_in_block(self, op: Operation) -> Operation | None:
+        """
+        Traverse up the operation hierarchy starting from the owner of operand to
+        find the ancestor operation that resides in the block.
+        """
         curr_op = op
         while curr_op.parent_block() != self:
             if (curr_op := curr_op.parent_op()) is None:
