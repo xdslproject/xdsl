@@ -739,6 +739,43 @@ def test_parse_int(
         )
 
 
+@pytest.mark.parametrize("nonnumeric", ["--", "+", "a", "{", "(1.0, 1.0)"])
+def test_parse_optional_int_or_float_nonnumeric(nonnumeric: str):
+    parser = Parser(Context(), nonnumeric)
+    assert parser._parse_optional_int_or_float() is None
+
+
+@pytest.mark.parametrize(
+    "numeric,is_int", [("1", True), ("1.0", False), ("-1", True), ("-1.0", False)]
+)
+def test_parse_optional_int_or_float_numeric(numeric: str, is_int: bool):
+    parser = Parser(Context(), numeric)
+    value_span = parser._parse_optional_int_or_float()
+    assert value_span is not None
+    value, span = value_span
+    caster = int if is_int else float
+    assert value == caster(numeric)
+    assert span.text == numeric
+
+
+@pytest.mark.parametrize("nonnumeric", ["--", "+", "a", "{", "(1.0, 1.0)"])
+def test_parse_int_or_float_nonnumeric(nonnumeric: str):
+    parser = Parser(Context(), nonnumeric)
+    with pytest.raises(ParseError):
+        parser._parse_int_or_float()
+
+
+@pytest.mark.parametrize("numeric,is_int", [("1", True), ("1.0", False)])
+def test_parse_int_or_float_numeric(numeric: str, is_int: bool):
+    parser = Parser(Context(), numeric)
+    value_span = parser._parse_int_or_float()
+    assert value_span is not None
+    value, span = value_span
+    caster = int if is_int else float
+    assert value == caster(numeric)
+    assert span.text == numeric
+
+
 @pytest.mark.parametrize(
     "text, allow_boolean, allow_negative",
     [
@@ -945,6 +982,36 @@ def test_parse_str_enum(keyword: str, expected: MyEnum | None):
             parser.parse_str_enum(MyEnum)
     else:
         assert parser.parse_str_enum(MyEnum) == expected
+
+
+@pytest.mark.parametrize("value", ["(1., 2)", "(1, 2.)"])
+def test_parse_optional_complex_error(value: str):
+    parser = Parser(Context(), value)
+    with pytest.raises(
+        ParseError,
+        match=re.escape("Complex value must be either (float, float) or (int, int)"),
+    ):
+        parser._parse_optional_complex()
+
+
+@pytest.mark.parametrize("noncomplex", ["1", "-1", "A", "{"])
+def test_parse_optional_complex_noncomplex(noncomplex: str):
+    parser = Parser(Context(), noncomplex)
+    assert parser._parse_optional_complex() is None
+
+
+@pytest.mark.parametrize(
+    "toks, pyval", [("(-1., 2.)", (-1.0, 2.0)), ("(1, 2)", (1, 2))]
+)
+def test_parse_optional_complex_success(
+    toks: str, pyval: tuple[int, int] | tuple[float, float]
+):
+    parser = Parser(Context(), toks)
+    value_and_span = parser._parse_optional_complex()
+    assert value_and_span is not None
+    value, span = value_and_span
+    assert value == pyval
+    assert span.text == toks
 
 
 class MySingletonEnum(StrEnum):
