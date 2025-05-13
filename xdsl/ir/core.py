@@ -1041,6 +1041,10 @@ class Operation(IRNode):
         return None
 
     def is_before_in_block(self, other_op: Operation) -> bool:
+        """
+        Return true if the current operation is located strictly before other_op.
+        False otherwise.
+        """
         if (
             parent_block := self.parent_block()
         ) is None or other_op.parent_block() is not parent_block:
