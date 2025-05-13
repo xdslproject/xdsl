@@ -1774,6 +1774,14 @@ class Block(IRNode, IRWithUses):
         for op in self.ops:
             op.drop_all_references()
 
+    def find_ancestor_op_in_block(self, op: Operation) -> Operation | None:
+        curr_op = op
+        while curr_op.parent_block() != self:
+            if (curr_op := curr_op.parent_op()) is None:
+                return None
+
+        return curr_op
+
     def erase(self, safe_erase: bool = True) -> None:
         """
         Erase the block, and remove all its references to other operations.
