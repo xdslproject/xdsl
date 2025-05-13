@@ -1041,16 +1041,15 @@ class Operation(IRNode):
         return None
 
     def is_before_in_block(self, other_op: Operation) -> bool:
-        parent_block = self.parent_block()
-        assert isinstance(parent_block, Block)
-
-        if parent_block.get_operation_index(self) < parent_block.get_operation_index(
-            other_op
-        ):
-            return True
-        else:
+        if (parent_block := self.parent_block()) is None or other_op.parent_block() is not parent_block:
             return False
 
+        op = self
+        while op is not None:
+            if op is other_op:
+                return True
+            op = op.next_op
+        return False
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
