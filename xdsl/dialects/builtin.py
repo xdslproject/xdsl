@@ -2244,8 +2244,9 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
         if isinstance(data, FloatAttr):
             data = data.value.data
-        assert not isinstance(data, int)  # WHY???
-        if isinstance(data, float):
+        if isinstance(
+            data, float | int
+        ):  # Pyright allows an int to be passed into this function
             data = (data,) * prod(type.get_shape())
         if len(data) and isa(data[0], FloatAttr):
             data = [el.value.data for el in cast(Sequence[FloatAttr], data)]
