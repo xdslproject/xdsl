@@ -2011,6 +2011,17 @@ class Region(IRNode):
             else None
         )
 
+    def find_ancestor_block_in_region(self, block: Block) -> Block | None:
+        curr_block = block
+        while curr_block.parent_region() != self:
+            parent_op = curr_block.parent_op()
+            if not parent_op or not parent_op.parent_block():
+                return None
+            curr_block = parent_op.parent_block()
+            assert isinstance(curr_block, Block)
+
+        return curr_block
+
     @property
     def blocks(self) -> RegionBlocks:
         """
