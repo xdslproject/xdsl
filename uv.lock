@@ -1165,14 +1165,14 @@ source = { git = "https://github.com/superlopuh/lz-string.git#d435be09f8aa454ce0
 
 [[package]]
 name = "marimo"
-version = "0.13.7"
+version = "0.13.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "docutils" },
     { name = "itsdangerous" },
     { name = "jedi" },
-    { name = "loro" },
+    { name = "loro", marker = "python_full_version >= '3.11'" },
     { name = "markdown" },
     { name = "narwhals" },
     { name = "packaging" },
@@ -1186,9 +1186,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d4/38/1a6043ad4c3ad890c3ffc62e1321c7204b8676c957847e6bb8e79ea56830/marimo-0.13.7.tar.gz", hash = "sha256:a04969e8453f166082780c40286d0d7b6950bd7564fd4e9e03e6504ff24d3a74", size = 11961032, upload-time = "2025-05-12T16:14:52.655Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9c/74/462c379fabb081c693c6b7610d5efe012e9d7ae90c9ced996da9dae23775/marimo-0.13.8.tar.gz", hash = "sha256:db4440a4618e1467980c27b25ccf2b1c3e30f02607966fa2930cc7afc3f52a91", size = 11966261, upload-time = "2025-05-14T05:21:34.246Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/fb/7974179faba10f9649c85bdb772993675fc42e6d912f3267635c862d1081/marimo-0.13.7-py3-none-any.whl", hash = "sha256:cbf466fa819c54d9ff0a20302e8a7218e423c6c65ca1fb6225d5d3bc3a27495d", size = 12335120, upload-time = "2025-05-12T16:14:48.906Z" },
+    { url = "https://files.pythonhosted.org/packages/04/4b/60e8b0b1d54e7eb095d8b5a2c5e9195b41780d6d86e2cf0bec29e7ffcbac/marimo-0.13.8-py3-none-any.whl", hash = "sha256:2c355460de12a01d85b0b47ab2b64aaa6868b2c7eab7378c398e764cc530eed6", size = 12342585, upload-time = "2025-05-14T05:21:37.629Z" },
 ]
 
 [[package]]
@@ -3196,7 +3196,7 @@ requires-dist = [
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.6.0" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
     { name = "lzstring2", marker = "extra == 'docs'", git = "https://github.com/superlopuh/lz-string.git" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.13.7" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.13.8" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.1" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.49" },
