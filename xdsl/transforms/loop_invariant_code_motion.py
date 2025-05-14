@@ -99,5 +99,8 @@ class LoopInvariantCodeMotionPass(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            LoopInvariantCodeMotion(), walk_reverse=True, walk_regions_first=True
+            LoopInvariantCodeMotion(),
+            apply_recursively=False,
+            walk_regions_first=True,
+            walk_reverse=True,
         ).rewrite_module(op)
