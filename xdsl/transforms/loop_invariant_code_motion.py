@@ -50,7 +50,6 @@ def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
 
 def _move_loop_invariant_code(
     region: Region,
-    should_move_out_of_region: Callable[[Operation, Region], bool],
     move_out_of_region: Callable[[Operation, Region], None],
 ):
     # add top-level operations in the loop body to the worklist
@@ -62,7 +61,11 @@ def _move_loop_invariant_code(
         if op.parent_region() != region:
             continue
 
-        if not (should_move_out_of_region(op, region) and can_be_hoisted(op, region)):
+        if not (
+            is_side_effect_free(op)
+            and is_speculatable(op)
+            and can_be_hoisted(op, region)
+        ):
             continue
 
         move_out_of_region(op, region)
@@ -77,10 +80,6 @@ def _move_loop_invariant_code(
                     worklist.append(user)
 
 
-def _should_move_out_of_region(op: Operation, region: Region) -> bool:
-    return is_side_effect_free(op) and is_speculatable(op)
-
-
 def move_loop_invariant_code(loop: scf.ForOp):
     builder = Builder(InsertPoint.before(loop))
 
@@ -88,9 +87,7 @@ def move_loop_invariant_code(loop: scf.ForOp):
         op.detach()
         builder.insert(op)
 
-    _move_loop_invariant_code(
-        loop.body, _should_move_out_of_region, _move_out_of_region
-    )
+    _move_loop_invariant_code(loop.body, _move_out_of_region)
 
 
 class LoopInvariantCodeMotion(RewritePattern):
