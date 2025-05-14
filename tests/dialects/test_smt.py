@@ -5,6 +5,8 @@ from xdsl.dialects.smt import (
     AndOp,
     BoolType,
     ConstantBoolOp,
+    DistinctOp,
+    EqOp,
     OrOp,
     VariadicBoolOp,
     XOrOp,
@@ -22,7 +24,7 @@ def test_constant_bool():
     assert op.value_attr == IntegerAttr(0, 1)
 
 
-@pytest.mark.parametrize("op_type", [AndOp, OrOp, XOrOp])
+@pytest.mark.parametrize("op_type", [AndOp, OrOp, XOrOp, EqOp, DistinctOp])
 def test_variadic_bool_op(op_type: type[VariadicBoolOp]):
     arg1 = create_ssa_value(BoolType())
     arg2 = create_ssa_value(BoolType())
