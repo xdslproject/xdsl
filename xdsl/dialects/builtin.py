@@ -2197,9 +2197,17 @@ class DenseIntOrFPElementsAttr(
     @staticmethod
     def create_dense_int(
         type: RankedStructure[_IntegerAttrType],
-        data: Sequence[int] | Sequence[IntegerAttr[_IntegerAttrType]],
+        data: int
+        | IntegerAttr[_IntegerAttrType]
+        | Sequence[int]
+        | Sequence[IntegerAttr[_IntegerAttrType]],
     ) -> DenseIntOrFPElementsAttr[_IntegerAttrType]:
-        if len(data) and isinstance(data[0], IntegerAttr):
+        if isinstance(data, IntegerAttr):
+            data = data.value.data
+
+        if isinstance(data, int):
+            data = (data,) * prod(type.get_shape())
+        elif len(data) and isinstance(data[0], IntegerAttr):
             data = [el.value.data for el in cast(Sequence[IntegerAttr], data)]
         else:
             data = cast(Sequence[int], data)
@@ -2229,8 +2237,17 @@ class DenseIntOrFPElementsAttr(
     @staticmethod
     def create_dense_float(
         type: RankedStructure[_FloatAttrType],
-        data: Sequence[float] | Sequence[FloatAttr[_FloatAttrType]],
+        data: float
+        | FloatAttr[_FloatAttrType]
+        | Sequence[float]
+        | Sequence[FloatAttr[_FloatAttrType]],
     ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
+        if isinstance(data, FloatAttr):
+            data = data.value.data
+        if isinstance(
+            data, float | int
+        ):  # Pyright allows an int to be passed into this function
+            data = (data,) * prod(type.get_shape())
         if len(data) and isa(data[0], FloatAttr):
             data = [el.value.data for el in cast(Sequence[FloatAttr], data)]
         else:
