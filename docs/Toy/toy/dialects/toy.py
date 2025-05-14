@@ -53,7 +53,6 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
@@ -121,7 +120,7 @@ class ConstantOp(IRDLOperation):
         return list(self.get_type().get_shape())
 
     def get_data(self) -> list[float]:
-        return list(self.value.get_values())
+        return list(self.value.get_float_values())
 
 
 class InferAddOpShapeTrait(ToyShapeInferenceTrait):
@@ -426,7 +425,7 @@ class ReshapeOp(IRDLOperation):
     traits = traits_def(Pure(), ReshapeOpHasCanonicalizationPatternsTrait())
 
     def __init__(self, arg: SSAValue, shape: list[int]):
-        if not isattr(arg.type, AnyTensorTypeF64Constr):
+        if not AnyTensorTypeF64Constr.verifies(arg.type):
             raise ValueError(
                 f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
                 " {AnyTensorTypeF64}"
@@ -437,7 +436,7 @@ class ReshapeOp(IRDLOperation):
 
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
-        if not isattr(arg.type, AnyTensorTypeF64Constr):
+        if not AnyTensorTypeF64Constr.verifies(arg.type):
             raise ValueError(
                 f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
                 " {AnyTensorTypeF64}"
