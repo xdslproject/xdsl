@@ -783,7 +783,6 @@ class AttrParser(BaseParser):
                     "Expected at least one element in the dense literal, but got None"
                 )
             data_values: list[Any] = []
-            return DenseIntOrFPElementsAttr.from_list(type, data_values)
         elif isinstance(dense_contents, str):
             # Hex-encoded string case: convert straight to bytes (without the 0x prefix)
             try:

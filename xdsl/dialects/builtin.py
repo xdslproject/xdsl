@@ -2136,9 +2136,7 @@ AnyUnrankedMemRefType: TypeAlias = UnrankedMemRefType[Attribute]
 AnyUnrankedMemRefTypeConstr = BaseAttr[AnyUnrankedMemRefType](UnrankedMemRefType)
 
 RankedStructure: TypeAlias = (
-    VectorType[AttributeCovT | ComplexType]
-    | TensorType[AttributeCovT | ComplexType]
-    | MemRefType[AttributeCovT | ComplexType]
+    VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]
 )
 
 AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
@@ -2165,7 +2163,7 @@ class DenseIntOrFPElementsAttr(
         return self.type.get_shape()
 
     def get_element_type(self) -> DenseElementCovT:
-        return self.type.get_element_type()  # pyright: ignore[reportReturnType]
+        return self.type.get_element_type()
 
     def __len__(self) -> int:
         return len(self.data.data) // self.type.element_type.compile_time_size
@@ -2325,7 +2323,6 @@ class DenseIntOrFPElementsAttr(
 
     @overload
     @staticmethod
-    @deprecated("Please use `create_dense_{int/float}` instead.")
     def from_list(
         type: RankedStructure[ComplexType], data: Sequence[tuple[int, int]]
     ) -> DenseIntOrFPElementsAttr: ...
@@ -2337,6 +2334,7 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr: ...
 
     @staticmethod
+    @deprecated("Please use `create_dense_{int/float}` instead.")
     def from_list(
         type: RankedStructure[AnyDenseElement],
         data: Sequence[Any]
