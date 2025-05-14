@@ -637,6 +637,7 @@ I16 = Annotated[IntegerType, i16]
 I8 = Annotated[IntegerType, i8]
 I1 = Annotated[IntegerType, i1]
 
+_IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
 
 SignlessIntegerConstraint = ParamAttrConstraint(
     IntegerType, [IntAttr, SignednessAttr(Signedness.SIGNLESS)]
@@ -1394,7 +1395,6 @@ DenseArrayT = TypeVar(
     default=IntegerType | AnyFloat,
     covariant=True,
 )
-_IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
 
 
 @irdl_attr_definition
