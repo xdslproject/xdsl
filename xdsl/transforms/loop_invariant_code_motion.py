@@ -53,7 +53,6 @@ def _move_loop_invariant_code(
     should_move_out_of_region: Callable[[Operation, Region], bool],
     move_out_of_region: Callable[[Operation, Region], None],
 ):
-    num_moved = 0
     for region in regions:
         # add top-level operations in the loop body to the worklist
         worklist = [op for block in region.blocks for op in block.ops]
@@ -70,7 +69,6 @@ def _move_loop_invariant_code(
                 continue
 
             move_out_of_region(op, region)
-            num_moved += 1
 
             # Since the op has been moved, we need to check its users within the
             # top-level of the loop body.
@@ -80,8 +78,6 @@ def _move_loop_invariant_code(
                     user = use.operation
                     if user.parent_region() == region:
                         worklist.append(user)
-
-    return num_moved
 
 
 def _should_move_out_of_region(op: Operation, region: Region) -> bool:
