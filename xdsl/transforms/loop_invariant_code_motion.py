@@ -46,10 +46,7 @@ def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
     return True
 
 
-def _move_loop_invariant_code(
-    region: Region,
-    builder: Builder,
-):
+def _move_loop_invariant_code(region: Region, builder: Builder):
     # add top-level operations in the loop body to the worklist
     worklist = [op for block in region.blocks for op in block.ops]
 
