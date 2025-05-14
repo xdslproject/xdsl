@@ -8,7 +8,7 @@ LICM moves these operations out of the loop body so that they are not computed m
 once.
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 
 from xdsl.builder import Builder
 from xdsl.context import Context
@@ -49,35 +49,32 @@ def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
 
 
 def _move_loop_invariant_code(
-    regions: Sequence[Region],
+    region: Region,
     should_move_out_of_region: Callable[[Operation, Region], bool],
     move_out_of_region: Callable[[Operation, Region], None],
 ):
-    for region in regions:
-        # add top-level operations in the loop body to the worklist
-        worklist = [op for block in region.blocks for op in block.ops]
+    # add top-level operations in the loop body to the worklist
+    worklist = [op for block in region.blocks for op in block.ops]
 
-        while worklist:
-            op = worklist.pop(0)
-            # Skip ops that have already been moved. Check if the op can be hoisted.
-            if op.parent_region() != region:
-                continue
+    while worklist:
+        op = worklist.pop(0)
+        # Skip ops that have already been moved. Check if the op can be hoisted.
+        if op.parent_region() != region:
+            continue
 
-            if not (
-                should_move_out_of_region(op, region) and can_be_hoisted(op, region)
-            ):
-                continue
+        if not (should_move_out_of_region(op, region) and can_be_hoisted(op, region)):
+            continue
 
-            move_out_of_region(op, region)
+        move_out_of_region(op, region)
 
-            # Since the op has been moved, we need to check its users within the
-            # top-level of the loop body.
+        # Since the op has been moved, we need to check its users within the
+        # top-level of the loop body.
 
-            for res in op.results:
-                for use in res.uses:
-                    user = use.operation
-                    if user.parent_region() == region:
-                        worklist.append(user)
+        for res in op.results:
+            for use in res.uses:
+                user = use.operation
+                if user.parent_region() == region:
+                    worklist.append(user)
 
 
 def _should_move_out_of_region(op: Operation, region: Region) -> bool:
@@ -85,8 +82,6 @@ def _should_move_out_of_region(op: Operation, region: Region) -> bool:
 
 
 def move_loop_invariant_code(loop: scf.ForOp):
-    loop_regions = (loop.body,)
-
     builder = Builder(InsertPoint.before(loop))
 
     def _move_out_of_region(op: Operation, region: Region) -> None:
@@ -94,7 +89,7 @@ def move_loop_invariant_code(loop: scf.ForOp):
         builder.insert(op)
 
     _move_loop_invariant_code(
-        loop_regions, _should_move_out_of_region, _move_out_of_region
+        loop.body, _should_move_out_of_region, _move_out_of_region
     )
 
 
