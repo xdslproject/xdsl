@@ -11,11 +11,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return ApplyIndividualRewritePass
 
-    def get_apply_eqsat_pdl():
-        from xdsl.transforms import apply_eqsat_pdl
-
-        return apply_eqsat_pdl.ApplyEqsatPDLPass
-
     def get_apply_eqsat_pdl_interp():
         from xdsl.transforms import apply_eqsat_pdl_interp
 
@@ -527,7 +522,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
     return {
         "apply-individual-rewrite": get_apply_individual_rewrite,
-        "apply-eqsat-pdl": get_apply_eqsat_pdl,
         "apply-eqsat-pdl-interp": get_apply_eqsat_pdl_interp,
         "apply-pdl": get_apply_pdl,
         "apply-pdl-interp": get_apply_pdl_interp,
