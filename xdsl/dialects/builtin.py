@@ -2216,6 +2216,7 @@ class DenseIntOrFPElementsAttr(
                 value = type.element_type.get_normalized_value(data)
             else:
                 value = data
+            assert not isinstance(type.element_type, ComplexType)
             return DenseIntOrFPElementsAttr(
                 [
                     type,
@@ -2258,6 +2259,7 @@ class DenseIntOrFPElementsAttr(
         if isinstance(
             data, float | int
         ):  # Pyright allows an int to be passed into this function
+            assert not isinstance(type.element_type, ComplexType)
             return DenseIntOrFPElementsAttr(
                 [
                     type,
