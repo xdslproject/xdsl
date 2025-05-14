@@ -155,6 +155,26 @@ def test_IntegerType_normalized():
     assert ui8.normalized_value(255) == 255
 
 
+def test_IntegerType_get_normalized():
+    si8 = IntegerType(8, Signedness.SIGNED)
+    ui8 = IntegerType(8, Signedness.UNSIGNED)
+
+    assert i8.get_normalized_value(-1) == -1
+    assert i8.get_normalized_value(1) == 1
+    assert i8.get_normalized_value(255) == -1
+
+    assert si8.get_normalized_value(-1) == -1
+    assert si8.get_normalized_value(1) == 1
+
+    with pytest.raises(ValueError, match=r".*\[-128, 128\).*"):
+        assert si8.get_normalized_value(255)
+
+    with pytest.raises(ValueError, match=r".*\[0, 256\).*"):
+        assert ui8.get_normalized_value(-1) is None
+    assert ui8.get_normalized_value(1) == 1
+    assert ui8.get_normalized_value(255) == 255
+
+
 def test_IntegerType_truncated():
     si8 = IntegerType(8, Signedness.SIGNED)
     ui8 = IntegerType(8, Signedness.UNSIGNED)
