@@ -588,6 +588,20 @@ class IntegerType(
 
         return value
 
+    def get_normalized_value(self, value: int) -> int:
+        """
+        Normalises an integer value similarly to the `normalized_value` function,
+        but throws a ValueError when the value falls outside the type's range.
+        """
+        v = self.normalized_value(value)
+        if v is None:
+            min_value, max_value = self.value_range()
+            raise ValueError(
+                f"Integer value {value} is out of range for type {self} which supports "
+                f"values in the range [{min_value}, {max_value})"
+            )
+        return v
+
     @property
     def bitwidth(self) -> int:
         return self.width.data
@@ -1400,18 +1414,8 @@ class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
             value_list = cast(Sequence[int], data)
 
         normalized_values = tuple(
-            data_type.normalized_value(value) for value in value_list
+            data_type.get_normalized_value(value) for value in value_list
         )
-
-        for i, value in enumerate(normalized_values):
-            if value is None:
-                min_value, max_value = data_type.value_range()
-                raise ValueError(
-                    f"Integer value {value_list[i]} is out of range for type {data_type} which supports "
-                    f"values in the range [{min_value}, {max_value})"
-                )
-
-        normalized_values = cast(Sequence[int], normalized_values)
 
         bytes_data = data_type.pack(normalized_values)
 
@@ -2202,12 +2206,25 @@ class DenseIntOrFPElementsAttr(
         | Sequence[int]
         | Sequence[IntegerAttr[_IntegerAttrType]],
     ) -> DenseIntOrFPElementsAttr[_IntegerAttrType]:
+        # Splat case
         if isinstance(data, IntegerAttr):
             data = data.value.data
-
         if isinstance(data, int):
-            data = (data,) * prod(type.get_shape())
-        elif len(data) and isinstance(data[0], IntegerAttr):
+            if isinstance(type.element_type, IntegerType):
+                value = type.element_type.get_normalized_value(data)
+            else:
+                value = data
+            return DenseIntOrFPElementsAttr(
+                [
+                    type,
+                    BytesAttr(
+                        type.element_type.pack((value,)) * prod(type.get_shape())
+                    ),
+                ]
+            )
+
+        # Non-splat case
+        if len(data) and isinstance(data[0], IntegerAttr):
             data = [el.value.data for el in cast(Sequence[IntegerAttr], data)]
         else:
             data = cast(Sequence[int], data)
@@ -2215,18 +2232,8 @@ class DenseIntOrFPElementsAttr(
         # ints are normalized
         if isinstance(type.element_type, IntegerType):
             normalized_values = tuple(
-                type.element_type.normalized_value(value) for value in data
+                type.element_type.get_normalized_value(value) for value in data
             )
-
-            for value in normalized_values:
-                if value is None:
-                    min_value, max_value = type.element_type.value_range()
-                    raise ValueError(
-                        f"Integer value {value} is out of range for type {type.element_type} which supports "
-                        f"values in the range [{min_value}, {max_value})"
-                    )
-
-            normalized_values = cast(Sequence[int], tuple(normalized_values))
         else:
             normalized_values = data
 
@@ -2242,12 +2249,20 @@ class DenseIntOrFPElementsAttr(
         | Sequence[float]
         | Sequence[FloatAttr[_FloatAttrType]],
     ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
+        # Splat case
         if isinstance(data, FloatAttr):
             data = data.value.data
         if isinstance(
             data, float | int
         ):  # Pyright allows an int to be passed into this function
-            data = (data,) * prod(type.get_shape())
+            return DenseIntOrFPElementsAttr(
+                [
+                    type,
+                    BytesAttr(type.element_type.pack((data,)) * prod(type.get_shape())),
+                ]
+            )
+
+        # Non-splat case
         if len(data) and isa(data[0], FloatAttr):
             data = [el.value.data for el in cast(Sequence[FloatAttr], data)]
         else:
