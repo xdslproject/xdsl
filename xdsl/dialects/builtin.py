@@ -1388,11 +1388,25 @@ class DenseResourceAttr(ParametrizedAttribute, BuiltinAttribute):
         return DenseResourceAttr([handle, type])
 
 
+DenseArrayT = TypeVar(
+    "DenseArrayT",
+    bound=IntegerType | AnyFloat,
+    default=IntegerType | AnyFloat,
+    covariant=True,
+)
+_IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
+
+
 @irdl_attr_definition
-class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
+class DenseArrayBase(
+    Generic[DenseArrayT],
+    ContainerType[DenseArrayT],
+    ParametrizedAttribute,
+    BuiltinAttribute,
+):
     name = "array"
 
-    elt_type: ParameterDef[IntegerType | AnyFloat]
+    elt_type: ParameterDef[DenseArrayT]
     data: ParameterDef[BytesAttr]
 
     def verify(self):
@@ -1404,10 +1418,13 @@ class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
                 f"size {elt_size}"
             )
 
+    def get_element_type(self) -> DenseArrayT:
+        return self.elt_type
+
     @staticmethod
     def create_dense_int(
-        data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
-    ) -> DenseArrayBase:
+        data_type: _IntegerTypeInvT, data: Sequence[int] | Sequence[IntAttr]
+    ) -> DenseArrayBase[_IntegerTypeInvT]:
         if len(data) and isinstance(data[0], IntAttr):
             value_list = tuple(d.data for d in cast(Sequence[IntAttr], data))
         else:
@@ -1423,8 +1440,8 @@ class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
 
     @staticmethod
     def create_dense_float(
-        data_type: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
-    ) -> DenseArrayBase:
+        data_type: _FloatAttrTypeInvT, data: Sequence[float] | Sequence[FloatData]
+    ) -> DenseArrayBase[_FloatAttrTypeInvT]:
         if len(data) and isinstance(data[0], int | float):
             vals = data
         else:
