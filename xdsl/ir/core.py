@@ -1040,6 +1040,23 @@ class Operation(IRNode):
             return self.attributes[name]
         return None
 
+    def is_before_in_block(self, other_op: Operation) -> bool:
+        """
+        Return true if the current operation is located strictly before other_op.
+        False otherwise.
+        """
+        if (
+            parent_block := self.parent_block()
+        ) is None or other_op.parent_block() is not parent_block:
+            return False
+
+        op = self.next_op
+        while op is not None:
+            if op is other_op:
+                return True
+            op = op.next_op
+        return False
+
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
