@@ -106,12 +106,13 @@ def get_target_ptr(
     """Get operations returning a pointer to an element of a memref referenced by indices."""
 
     ops: list[Operation] = [memref_ptr := ptr.ToPtrOp(target_memref)]
+    memref_ptr.res.name_hint = target_memref.name_hint
 
     if not indices:
         return ops, memref_ptr.res
 
     offset_ops, offset = offset_calculations(memref_type, indices)
-    ops = offset_ops + ops
+    ops.extend(offset_ops)
     ops.append(target_ptr := ptr.PtrAddOp(memref_ptr.res, offset))
 
     target_ptr.result.name_hint = "offset_pointer"
