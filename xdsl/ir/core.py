@@ -2020,11 +2020,9 @@ class Region(IRNode):
         """
         curr_block = block
         while curr_block.parent_region() != self:
-            parent_op = curr_block.parent_op()
-            if not parent_op or not parent_op.parent_block():
+            curr_block = curr_block.parent_block()
+            if curr_block is None:
                 return None
-            curr_block = parent_op.parent_block()
-            assert isinstance(curr_block, Block)
 
         return curr_block
 
