@@ -504,7 +504,7 @@ class Printer(BasePrinter):
             self.print_string("]")
             return
 
-        if isinstance(attribute, DenseArrayBase):
+        if isa(attribute, DenseArrayBase):
             self.print_string("array<")
             self.print_attribute(attribute.elt_type)
             if len(attribute) == 0:
