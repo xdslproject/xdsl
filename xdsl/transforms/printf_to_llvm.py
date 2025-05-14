@@ -103,7 +103,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
             _key_from_str(val),
             constant=True,
             linkage="internal",
-            value=builtin.DenseIntOrFPElementsAttr.from_list(t_type, data),
+            value=builtin.DenseIntOrFPElementsAttr([t_type, builtin.BytesAttr(data)]),
         )
 
     @op_type_rewrite_pattern
