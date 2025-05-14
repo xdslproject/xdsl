@@ -222,6 +222,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
+        has_done_action_checkpoint = self.rewriter.has_done_action
         (new_op,) = PDLInterpFunctions.run_create_operation(
             self, interpreter, op, args
         ).values
@@ -233,6 +234,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             # CSE can have removed the existing operation, here we check if it is still in use:
             if existing_op.results and existing_op.results[0].uses:
                 self.rewriter.erase_op(new_op)
+                self.rewriter.has_done_action = has_done_action_checkpoint
                 return (existing_op,)
             else:
                 # if CSE has removed the existing operation, we can remove it from our known_ops map:

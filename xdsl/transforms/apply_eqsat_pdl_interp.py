@@ -7,6 +7,8 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
+from xdsl.pattern_rewriter import PatternRewriteWalker
+from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 
 
 @dataclass(frozen=True)
@@ -35,10 +37,5 @@ class ApplyEqsatPDLInterpPass(ModulePass):
         implementations = EqsatPDLInterpFunctions(ctx)
         implementations.populate_known_ops(op)
         interpreter.register_implementations(implementations)
-        for _ in range(10):
-            for root in op.walk():
-                implementations.clear_rewriter()
-                if root == op:
-                    continue  # can't rewrite the module itself
-                interpreter.call_op(matcher, (root,))
-                # cse(op) # rebuild
+        rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
+        PatternRewriteWalker(rewrite_pattern).rewrite_module(op)
