@@ -162,13 +162,23 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         assert len(input_op.results) == 1, (
             "ReplaceOp currently only supports replacing operations that have a single result"
         )
-        if len(input_op.results[0].uses) != 1 or not isinstance(
-            original_eclass := next(iter(input_op.results[0].uses)).operation,
-            eqsat.EClassOp,
-        ):
+
+        it = iter(input_op.results[0].uses)
+        original_eclass = next(it).operation
+        if not isinstance(original_eclass, eqsat.EClassOp):
             raise InterpretationError(
-                "Replaced operation result can only be used by a single e-class operation"
+                "Replaced operation result must be used by an EClassOp"
             )
+        operands_to_delete: list[int] = []
+        if len(input_op.results[0].uses) != 1:
+            for use in it:
+                if use.operation is not original_eclass:
+                    raise InterpretationError(
+                        "Replaced operation result must be used by a single EClassOp"
+                    )
+                operands_to_delete.append(use.index)
+        for index in operands_to_delete:
+            original_eclass.delete_operand(index)
 
         repl_values = (
             (args[1],) if isinstance(op.repl_values.types[0], ValueType) else args[1]
@@ -220,8 +230,13 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         # Check if an identical operation already exists in our known_ops map
         if existing_op := self.known_ops.get(new_op):
-            self.rewriter.erase_op(new_op)
-            return (existing_op,)
+            # CSE can have removed the existing operation, here we check if it is still in use:
+            if existing_op.results and existing_op.results[0].uses:
+                self.rewriter.erase_op(new_op)
+                return (existing_op,)
+            else:
+                # if CSE has removed the existing operation, we can remove it from our known_ops map:
+                self.known_ops.pop(existing_op)
 
         # No existing eclass for this operation yet
 
