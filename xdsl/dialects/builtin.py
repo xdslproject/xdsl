@@ -2512,8 +2512,7 @@ class DenseIntOrFPElementsAttr(
         elif isinstance(val, float):  # float
             printer.print_float(val, cast(AnyFloat, self.get_element_type()))
         else:  # complex
-            element_type = self.get_element_type()
-            assert isinstance(element_type, ComplexType)
+            assert isinstance(element_type := self.get_element_type(), ComplexType)
             printer.print_complex(val, element_type)
 
     def _print_dense_list(
