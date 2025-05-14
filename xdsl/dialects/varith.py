@@ -182,7 +182,7 @@ class VarithSwitchOp(IRDLOperation):
             cases = [("default", self.default_arg)] + [
                 (str(c), arg)
                 for (c, arg) in zip(
-                    self.case_values.get_values(),
+                    self.case_values.get_int_values(),
                     self.args,
                     strict=True,
                 )

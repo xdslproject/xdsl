@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
     DenseArrayBase,
-    DenseIntOrFPElementsAttr,
+    DenseIntElementsAttr,
     IndexType,
     IndexTypeConstr,
     IntegerAttr,
@@ -561,9 +561,7 @@ class NamedOpBase(IRDLOperation, ABC):
 
         for op in operands:
             op_type = op.type
-            if isa(op_type, MemRefType[Attribute]):
-                element_type = op_type.get_element_type()
-            elif isa(op_type, TensorType[Attribute]):
+            if isa(op_type, MemRefType | TensorType):
                 element_type = op_type.get_element_type()
             else:  # int or float
                 element_type = op_type
@@ -1107,8 +1105,8 @@ class PoolingOpsBase(NamedOpBase, ABC):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    strides = attr_def(DenseIntOrFPElementsAttr)
-    dilations = attr_def(DenseIntOrFPElementsAttr)
+    strides = attr_def(DenseIntElementsAttr)
+    dilations = attr_def(DenseIntElementsAttr)
 
 
 @irdl_op_definition
@@ -1153,8 +1151,8 @@ class ConvOpsBase(NamedOpBase, ABC):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    strides = attr_def(DenseIntOrFPElementsAttr)
-    dilations = attr_def(DenseIntOrFPElementsAttr)
+    strides = attr_def(DenseIntElementsAttr)
+    dilations = attr_def(DenseIntElementsAttr)
 
     def __init__(
         self,

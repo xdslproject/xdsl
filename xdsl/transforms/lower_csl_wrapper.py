@@ -16,7 +16,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 __DEFAULT_PROG_NAME = "pe_program"
 """
@@ -188,7 +187,7 @@ class ExtractCslModules(RewritePattern):
     def _collect_yield_args(yield_op: csl_wrapper.YieldOp) -> list[csl.ParamOp]:
         params = list[csl.ParamOp]()
         for s, v in yield_op.items():
-            assert isattr(ty := v.type, csl.ParamOpAttrConstr)
+            assert csl.ParamOpAttrConstr.verifies(ty := v.type)
             params.append(csl.ParamOp(s, ty))
         return params
 

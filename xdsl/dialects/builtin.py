@@ -87,7 +87,6 @@ from xdsl.utils.comparisons import (
 )
 from xdsl.utils.exceptions import DiagnosticException, PyRDLError, VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 if TYPE_CHECKING:
     from _typeshed import ReadableBuffer, WriteableBuffer
@@ -588,6 +587,20 @@ class IntegerType(
                 return value - unsigned_ub
 
         return value
+
+    def get_normalized_value(self, value: int) -> int:
+        """
+        Normalises an integer value similarly to the `normalized_value` function,
+        but throws a ValueError when the value falls outside the type's range.
+        """
+        v = self.normalized_value(value)
+        if v is None:
+            min_value, max_value = self.value_range()
+            raise ValueError(
+                f"Integer value {value} is out of range for type {self} which supports "
+                f"values in the range [{min_value}, {max_value})"
+            )
+        return v
 
     @property
     def bitwidth(self) -> int:
@@ -1401,18 +1414,8 @@ class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
             value_list = cast(Sequence[int], data)
 
         normalized_values = tuple(
-            data_type.normalized_value(value) for value in value_list
+            data_type.get_normalized_value(value) for value in value_list
         )
-
-        for i, value in enumerate(normalized_values):
-            if value is None:
-                min_value, max_value = data_type.value_range()
-                raise ValueError(
-                    f"Integer value {value_list[i]} is out of range for type {data_type} which supports "
-                    f"values in the range [{min_value}, {max_value})"
-                )
-
-        normalized_values = cast(Sequence[int], normalized_values)
 
         bytes_data = data_type.pack(normalized_values)
 
@@ -1458,7 +1461,7 @@ class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
         if isinstance(data_type, IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
             return DenseArrayBase.create_dense_int(data_type, _data)
-        elif isattr(data_type, AnyFloatConstr):
+        elif isinstance(data_type, AnyFloat):
             _data = cast(Sequence[int | float] | Sequence[FloatData], data)
             return DenseArrayBase.create_dense_float(data_type, _data)
         else:
@@ -2198,8 +2201,29 @@ class DenseIntOrFPElementsAttr(
     @staticmethod
     def create_dense_int(
         type: RankedStructure[_IntegerAttrType],
-        data: Sequence[int] | Sequence[IntegerAttr[_IntegerAttrType]],
+        data: int
+        | IntegerAttr[_IntegerAttrType]
+        | Sequence[int]
+        | Sequence[IntegerAttr[_IntegerAttrType]],
     ) -> DenseIntOrFPElementsAttr[_IntegerAttrType]:
+        # Splat case
+        if isinstance(data, IntegerAttr):
+            data = data.value.data
+        if isinstance(data, int):
+            if isinstance(type.element_type, IntegerType):
+                value = type.element_type.get_normalized_value(data)
+            else:
+                value = data
+            return DenseIntOrFPElementsAttr(
+                [
+                    type,
+                    BytesAttr(
+                        type.element_type.pack((value,)) * prod(type.get_shape())
+                    ),
+                ]
+            )
+
+        # Non-splat case
         if len(data) and isinstance(data[0], IntegerAttr):
             data = [el.value.data for el in cast(Sequence[IntegerAttr], data)]
         else:
@@ -2208,18 +2232,8 @@ class DenseIntOrFPElementsAttr(
         # ints are normalized
         if isinstance(type.element_type, IntegerType):
             normalized_values = tuple(
-                type.element_type.normalized_value(value) for value in data
+                type.element_type.get_normalized_value(value) for value in data
             )
-
-            for value in normalized_values:
-                if value is None:
-                    min_value, max_value = type.element_type.value_range()
-                    raise ValueError(
-                        f"Integer value {value} is out of range for type {type.element_type} which supports "
-                        f"values in the range [{min_value}, {max_value})"
-                    )
-
-            normalized_values = cast(Sequence[int], tuple(normalized_values))
         else:
             normalized_values = data
 
@@ -2230,8 +2244,25 @@ class DenseIntOrFPElementsAttr(
     @staticmethod
     def create_dense_float(
         type: RankedStructure[_FloatAttrType],
-        data: Sequence[float] | Sequence[FloatAttr[_FloatAttrType]],
+        data: float
+        | FloatAttr[_FloatAttrType]
+        | Sequence[float]
+        | Sequence[FloatAttr[_FloatAttrType]],
     ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
+        # Splat case
+        if isinstance(data, FloatAttr):
+            data = data.value.data
+        if isinstance(
+            data, float | int
+        ):  # Pyright allows an int to be passed into this function
+            return DenseIntOrFPElementsAttr(
+                [
+                    type,
+                    BytesAttr(type.element_type.pack((data,)) * prod(type.get_shape())),
+                ]
+            )
+
+        # Non-splat case
         if len(data) and isa(data[0], FloatAttr):
             data = [el.value.data for el in cast(Sequence[FloatAttr], data)]
         else:
@@ -2268,6 +2299,7 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr: ...
 
     @staticmethod
+    @deprecated("Please use `create_dense_{int/float}` instead.")
     def from_list(
         type: (
             RankedStructure[AnyFloat | IntegerType | IndexType]
@@ -2279,19 +2311,22 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr:
         # splat value given
         if len(data) == 1 and prod(type.get_shape()) != 1:
-            new_data = (data[0],) * prod(type.get_shape())
+            new_data = data[0]
         else:
             new_data = data
 
         if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedStructure[AnyFloat], type)
             new_data = cast(
-                Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], new_data
+                float | FloatAttr | Sequence[float] | Sequence[FloatAttr[AnyFloat]],
+                new_data,
             )
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
         else:
             new_type = cast(RankedStructure[IntegerType | IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr], new_data)
+            new_data = cast(
+                int | IntegerAttr | Sequence[int] | Sequence[IntegerAttr], new_data
+            )
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
 
     @staticmethod
@@ -2315,6 +2350,7 @@ class DenseIntOrFPElementsAttr(
             )
 
     @staticmethod
+    @deprecated("Please use `create_dense_{int/float}` instead.")
     def tensor_from_list(
         data: (
             Sequence[int]
@@ -2326,14 +2362,44 @@ class DenseIntOrFPElementsAttr(
         data_type: IntegerType | IndexType | AnyFloat,
         shape: Sequence[int],
     ) -> DenseIntOrFPElementsAttr:
-        t = TensorType(data_type, shape)
-        return DenseIntOrFPElementsAttr.from_list(t, data)
+        if isinstance(data_type, AnyFloat):
+            new_data = cast(Sequence[float] | Sequence[FloatAttr], data)
+            if len(new_data) == 1 and prod(shape) != 1:
+                new_data = new_data[0]
+            return DenseIntOrFPElementsAttr.create_dense_float(
+                TensorType(data_type, shape), new_data
+            )
+        else:
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr], data)
+            if len(new_data) == 1 and prod(shape) != 1:
+                new_data = new_data[0]
+            return DenseIntOrFPElementsAttr.create_dense_int(
+                TensorType(data_type, shape), new_data
+            )
 
     def iter_values(self) -> Iterator[int] | Iterator[float]:
         """
         Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
         """
         return self.get_element_type().iter_unpack(self.data.data)
+
+    def get_int_values(self) -> Sequence[int]:
+        """
+        Return all the values of the elements in this DenseIntOrFPElementsAttr,
+        checking that the elements are integers.
+        """
+        el_type = self.get_element_type()
+        assert isinstance(el_type, IntegerType | IndexType), el_type
+        return el_type.unpack(self.data.data, len(self))
+
+    def get_float_values(self) -> Sequence[float]:
+        """
+        Return all the values of the elements in this DenseIntOrFPElementsAttr,
+        checking that the elements are floats.
+        """
+        el_type = self.get_element_type()
+        assert isinstance(el_type, AnyFloat), el_type
+        return el_type.unpack(self.data.data, len(self))
 
     def get_values(self) -> Sequence[int] | Sequence[float]:
         """

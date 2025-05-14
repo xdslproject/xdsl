@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator, Sequence, Set
 from dataclasses import KW_ONLY, dataclass, field
 from inspect import isclass
-from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, TypeAlias, TypeGuard, TypeVar, cast
 
 from typing_extensions import assert_never
 
@@ -168,6 +168,16 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         or raise an exception otherwise.
         """
         ...
+
+    def verifies(self, attr: Attribute) -> TypeGuard[AttributeCovT]:
+        """
+        A helper method to check whether a given attribute matches `self`.
+        """
+        try:
+            self.verify(attr, ConstraintContext())
+            return True
+        except VerifyException:
+            return False
 
     def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
         """
@@ -734,6 +744,18 @@ class AnyInt(IntConstraint):
 
     def verify(self, i: int, constraint_context: ConstraintContext) -> None:
         pass
+
+
+@dataclass(frozen=True)
+class AtLeast(IntConstraint):
+    """Constrain an integer to be at least a given value."""
+
+    bound: int
+    """The minimum value the integer can take."""
+
+    def verify(self, i: int, constraint_context: ConstraintContext) -> None:
+        if i < self.bound:
+            raise VerifyException(f"expected integer >= {self.bound}, got {i}")
 
 
 @dataclass(frozen=True)

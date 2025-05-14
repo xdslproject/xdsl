@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     BFloat16Type,
     BoolAttr,
     BytesAttr,
+    ComplexElementT,
     ComplexType,
     DenseArrayBase,
     DenseResourceAttr,
@@ -340,6 +341,40 @@ class Printer(BasePrinter):
 
     def print_float_attr(self, attribute: FloatAttr):
         self.print_float(attribute.value.data, attribute.type)
+
+    def print_complex_float(
+        self, value: tuple[float, float], type: ComplexType[ComplexElementT]
+    ):
+        assert isinstance(type.element_type, AnyFloat)
+        self.print_string("(")
+        real, imag = value[0], value[1]
+        self.print_float(real, type.element_type)
+        self.print_string(",")
+        self.print_float(imag, type.element_type)
+        self.print_string(")")
+
+    def print_complex_int(
+        self, value: tuple[int, int], type: ComplexType[ComplexElementT]
+    ):
+        assert isinstance(type.element_type, IntegerType)
+        self.print_string("(")
+        real, imag = value[0], value[1]
+        self.print_string(str(real))
+        self.print_string(",")
+        self.print_string(str(imag))
+        self.print_string(")")
+
+    def print_complex(
+        self,
+        value: tuple[float, float] | tuple[int, int],
+        type: ComplexType[ComplexElementT],
+    ):
+        if isinstance(type.element_type, IntegerType):
+            assert isa(value, tuple[int, int])
+            self.print_complex_int(value, type)
+        else:
+            assert isa(value, tuple[float, float])
+            self.print_complex_float(value, type)
 
     def print_float(self, value: float, type: AnyFloat):
         if math.isnan(value) or math.isinf(value):
