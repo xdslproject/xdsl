@@ -535,7 +535,7 @@ class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
             fold_switch(
                 op,
                 rewriter,
-                cast(int, case_values.get_values()[pred.index - 1]),
+                case_values.get_int_values()[pred.index - 1],
             )
         else:
 
