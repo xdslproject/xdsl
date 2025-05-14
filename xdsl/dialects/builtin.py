@@ -2331,6 +2331,7 @@ class DenseIntOrFPElementsAttr(
             )
 
     @staticmethod
+    @deprecated("Please use `create_dense_{int/float}` instead.")
     def tensor_from_list(
         data: (
             Sequence[int]
@@ -2342,8 +2343,20 @@ class DenseIntOrFPElementsAttr(
         data_type: IntegerType | IndexType | AnyFloat,
         shape: Sequence[int],
     ) -> DenseIntOrFPElementsAttr:
-        t = TensorType(data_type, shape)
-        return DenseIntOrFPElementsAttr.from_list(t, data)
+        if isinstance(data_type, AnyFloat):
+            new_data = cast(Sequence[float] | Sequence[FloatAttr], data)
+            if len(new_data) == 1 and prod(shape) != 1:
+                new_data = new_data[0]
+            return DenseIntOrFPElementsAttr.create_dense_float(
+                TensorType(data_type, shape), new_data
+            )
+        else:
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr], data)
+            if len(new_data) == 1 and prod(shape) != 1:
+                new_data = new_data[0]
+            return DenseIntOrFPElementsAttr.create_dense_int(
+                TensorType(data_type, shape), new_data
+            )
 
     def iter_values(self) -> Iterator[int] | Iterator[float]:
         """
