@@ -8,6 +8,8 @@ LICM moves these operations out of the loop body so that they are not computed m
 once.
 """
 
+from collections import deque
+
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import builtin, scf
@@ -48,10 +50,10 @@ def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
 
 def _move_loop_invariant_code(region: Region, builder: Builder):
     # add top-level operations in the loop body to the worklist
-    worklist = [op for block in region.blocks for op in block.ops]
+    worklist = deque(op for block in region.blocks for op in block.ops)
 
     while worklist:
-        op = worklist.pop(0)
+        op = worklist.popleft()
         # Skip ops that have already been moved. Check if the op can be hoisted.
         if op.parent_region() != region:
             continue
