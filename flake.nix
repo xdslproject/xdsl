@@ -20,6 +20,7 @@
               buildInputs = [
                 uv
                 nodejs_22
+                llvmPackages_20.mlir
               ];
             };
           }

@@ -406,24 +406,15 @@ class GlobalOp(IRDLOperation):
 
     sym_name = prop_def(StringAttr)
     sym_visibility = prop_def(StringAttr)
-    type = prop_def(Attribute)
-    initial_value = prop_def(Attribute)
+    type = prop_def(MemRefType)
+    initial_value = prop_def(UnitAttr | DenseIntOrFPElementsAttr)
     constant = opt_prop_def(UnitAttr)
     alignment = opt_prop_def(IntegerAttr[I64])
 
     traits = traits_def(SymbolOpInterface())
 
     def verify_(self) -> None:
-        if not isinstance(self.type, MemRefType):
-            raise Exception("Global expects a MemRefType")
-
-        if not isinstance(self.initial_value, UnitAttr | DenseIntOrFPElementsAttr):
-            raise Exception(
-                "Global initial value is expected to be a "
-                "dense type or an unit attribute"
-            )
         if self.alignment is not None:
-            assert isinstance(self.alignment, IntegerAttr)
             alignment_value = self.alignment.value.data
             # Alignment has to be a power of two
             if not (is_power_of_two(alignment_value)):

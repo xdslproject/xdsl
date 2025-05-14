@@ -1138,9 +1138,6 @@ class OpDef:
                         op_def.operands.append((field_name, operand_def))
                         continue
                     case _AttributeFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert not isinstance(value.param, GenericRangeConstraint)
-                        assert issubclass(value.cls, AttributeDef)
                         constraint = get_constraint(value.param)
                         attribute_def = value.cls(constraint, value.default_value)
                         ir_name = field_name if value.ir_name is None else value.ir_name
@@ -1148,9 +1145,6 @@ class OpDef:
                         op_def.accessor_names[field_name] = (ir_name, "attribute")
                         continue
                     case _PropertyFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert not isinstance(value.param, GenericRangeConstraint)
-                        assert issubclass(value.cls, PropertyDef)
                         constraint = get_constraint(value.param)
                         property_def = value.cls(constraint, value.default_value)
                         ir_name = field_name if value.ir_name is None else value.ir_name
@@ -1158,15 +1152,11 @@ class OpDef:
                         op_def.accessor_names[field_name] = (ir_name, "property")
                         continue
                     case _RegionFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert issubclass(value.cls, RegionDef)
                         constraint = get_range_constraint(value.entry_args)
                         region_def = value.cls(constraint)
                         op_def.regions.append((field_name, region_def))
                         continue
                     case _SuccessorFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert issubclass(value.cls, SuccessorDef)
                         successor_def = value.cls()
                         op_def.successors.append((field_name, successor_def))
                         continue
