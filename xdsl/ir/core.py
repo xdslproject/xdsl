@@ -2025,6 +2025,21 @@ class Region(IRNode):
             else None
         )
 
+    def find_ancestor_block_in_region(self, block: Block) -> Block | None:
+        """
+        Returns 'block' if 'block' lies in this region, or otherwise finds
+        the ancestor of 'block' that lies in this region.
+
+        Returns None if no ancestor block that lies in this region is found.
+        """
+        curr_block = block
+        while curr_block.parent_region() != self:
+            curr_block = curr_block.parent_block()
+            if curr_block is None:
+                return None
+
+        return curr_block
+
     @property
     def blocks(self) -> RegionBlocks:
         """
