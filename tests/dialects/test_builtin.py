@@ -7,7 +7,6 @@ import pytest
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     AnyFloat,
-    AnyTensorType,
     ArrayAttr,
     BFloat16Type,
     BoolAttr,
@@ -31,6 +30,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StridedLayoutAttr,
     SymbolRefAttr,
+    TensorType,
     UnrealizedConversionCastOp,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
@@ -153,6 +153,26 @@ def test_IntegerType_normalized():
     assert ui8.normalized_value(-1) is None
     assert ui8.normalized_value(1) == 1
     assert ui8.normalized_value(255) == 255
+
+
+def test_IntegerType_get_normalized():
+    si8 = IntegerType(8, Signedness.SIGNED)
+    ui8 = IntegerType(8, Signedness.UNSIGNED)
+
+    assert i8.get_normalized_value(-1) == -1
+    assert i8.get_normalized_value(1) == 1
+    assert i8.get_normalized_value(255) == -1
+
+    assert si8.get_normalized_value(-1) == -1
+    assert si8.get_normalized_value(1) == 1
+
+    with pytest.raises(ValueError, match=r".*\[-128, 128\).*"):
+        assert si8.get_normalized_value(255)
+
+    with pytest.raises(ValueError, match=r".*\[0, 256\).*"):
+        assert ui8.get_normalized_value(-1) is None
+    assert ui8.get_normalized_value(1) == 1
+    assert ui8.get_normalized_value(255) == 255
 
 
 def test_IntegerType_truncated():
@@ -337,7 +357,7 @@ def test_IntegerType_packing():
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
-    check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [2])
+    check1 = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f64, [2]), [4, 5])
 
     value1 = check1.get_attrs()[0].value.data
     value2 = check1.get_attrs()[1].value.data
@@ -351,7 +371,7 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     t1 = FloatAttr(4.0, f32)
     t2 = FloatAttr(5.0, f32)
 
-    check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32, [2])
+    check2 = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, [2]), [t1, t2])
 
     value3 = check2.get_attrs()[0].value.data
     value4 = check2.get_attrs()[1].value.data
@@ -363,10 +383,24 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     assert value4 == 5.0
 
 
-def test_DenseIntOrFPElementsAttr_from_list():
+def test_DenseIntOrFPElementsAttr_splat():
+    attr_int = DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [3]), 4)
+    assert len(attr_int) == 3
+    assert tuple(attr_int.get_int_values()) == (4, 4, 4)
+    assert attr_int.is_splat()
+
+    attr_float = DenseIntOrFPElementsAttr.create_dense_float(
+        TensorType(f32, [2, 2]), 4.5
+    )
+    assert len(attr_float) == 4
+    assert tuple(attr_float.get_float_values()) == (4.5, 4.5, 4.5, 4.5)
+    assert attr_float.is_splat()
+
+
+def test_DenseIntOrFPElementsAttr_initialization():
     # legal zero-rank tensor
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
-    assert attr.type == AnyTensorType(f32, [])
+    attr = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, []), [5.5])
+    assert attr.type == TensorType(f32, [])
     assert len(attr) == 1
 
     # illegal zero-rank tensor
@@ -374,27 +408,23 @@ def test_DenseIntOrFPElementsAttr_from_list():
         VerifyException,
         match="A zero-rank tensor can only hold 1 value but 2 were given.",
     ):
-        DenseIntOrFPElementsAttr.tensor_from_list([5.5, 5.6], f32, [])
+        DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, []), [5.5, 5.6])
 
     # legal 1 element tensor
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [1])
-    assert attr.type == AnyTensorType(f32, [1])
+    attr = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, [1]), [5.5])
+    assert attr.type == TensorType(f32, [1])
     assert len(attr) == 1
 
     # legal normal tensor
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5, 5.6], f32, [2])
-    assert attr.type == AnyTensorType(f32, [2])
+    attr = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, [2]), [5.5, 5.6])
+    assert attr.type == TensorType(f32, [2])
     assert len(attr) == 2
-
-    # splat initialization
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([4], f32, [4])
-    assert attr.type == AnyTensorType(f32, [4])
-    assert tuple(attr.get_values()) == (4, 4, 4, 4)
-    assert len(attr) == 4
 
 
 def test_DenseIntOrFPElementsAttr_values():
-    int_attr = DenseIntOrFPElementsAttr.tensor_from_list([1, 2, 3, 4], i32, [4])
+    int_attr = DenseIntOrFPElementsAttr.create_dense_int(
+        TensorType(i32, [4]), [1, 2, 3, 4]
+    )
     assert tuple(int_attr.get_values()) == (1, 2, 3, 4)
     assert tuple(int_attr.iter_values()) == (1, 2, 3, 4)
     assert tuple(int_attr.get_attrs()) == (
@@ -410,8 +440,8 @@ def test_DenseIntOrFPElementsAttr_values():
         IntegerAttr(4, i32),
     )
 
-    index_attr = DenseIntOrFPElementsAttr.tensor_from_list(
-        [1, 2, 3, 4], IndexType(), [4]
+    index_attr = DenseIntOrFPElementsAttr.create_dense_int(
+        TensorType(IndexType(), [4]), [1, 2, 3, 4]
     )
     assert tuple(index_attr.get_values()) == (1, 2, 3, 4)
     assert tuple(index_attr.iter_values()) == (1, 2, 3, 4)
@@ -428,8 +458,9 @@ def test_DenseIntOrFPElementsAttr_values():
         IntegerAttr(4, IndexType()),
     )
 
-    float_attr = DenseIntOrFPElementsAttr.tensor_from_list(
-        [1.0, 2.0, 3.0, 4.0], f32, [4]
+    float_attr = DenseIntOrFPElementsAttr.create_dense_float(
+        TensorType(f32, [4]),
+        [1.0, 2.0, 3.0, 4.0],
     )
     assert tuple(float_attr.get_values()) == (1.0, 2.0, 3.0, 4.0)
     assert tuple(float_attr.iter_values()) == (1.0, 2.0, 3.0, 4.0)
