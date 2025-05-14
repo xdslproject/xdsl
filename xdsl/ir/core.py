@@ -1041,6 +1041,10 @@ class Operation(IRNode):
         return None
 
     def is_before_in_block(self, other_op: Operation) -> bool:
+        """
+        Return true if the current operation is located strictly before other_op.
+        False otherwise.
+        """
         if (
             parent_block := self.parent_block()
         ) is None or other_op.parent_block() is not parent_block:
@@ -1787,6 +1791,20 @@ class Block(IRNode, IRWithUses):
         for op in self.ops:
             op.drop_all_references()
 
+    def find_ancestor_op_in_block(self, op: Operation) -> Operation | None:
+        """
+        Traverse up the operation hierarchy starting from op to find the ancestor
+        operation that resides in the block.
+
+        Returns None if no ancestor is found.
+        """
+        curr_op = op
+        while curr_op.parent_block() != self:
+            if (curr_op := curr_op.parent_op()) is None:
+                return None
+
+        return curr_op
+
     def erase(self, safe_erase: bool = True) -> None:
         """
         Erase the block, and remove all its references to other operations.
@@ -2033,6 +2051,12 @@ class Region(IRNode):
         )
 
     def find_ancestor_block_in_region(self, block: Block) -> Block | None:
+        """
+        Returns 'block' if 'block' lies in this region, or otherwise finds
+        the ancestor of 'block' that lies in this region.
+
+        Returns None if no ancestor block that lies in this region is found.
+        """
         curr_block = block
         while curr_block.parent_region() != self:
             curr_block = curr_block.parent_block()
