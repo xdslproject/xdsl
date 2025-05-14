@@ -20,9 +20,6 @@ class RISCVRegisterAllocation(ModulePass):
 
     limit_registers: int | None = None
 
-    exclude_snitch_reserved: bool = True
-    """Excludes floating-point registers that are used by the Snitch ISA extensions."""
-
     add_regalloc_stats: bool = False
     """
     Inserts a comment with register allocation info in the IR.
@@ -53,7 +50,6 @@ class RISCVRegisterAllocation(ModulePass):
                 allocator = allocator_strategies[self.allocation_strategy](
                     riscv_register_queue
                 )
-                allocator.exclude_snitch_reserved = self.exclude_snitch_reserved
                 allocator.allocate_func(
                     inner_op, add_regalloc_stats=self.add_regalloc_stats
                 )

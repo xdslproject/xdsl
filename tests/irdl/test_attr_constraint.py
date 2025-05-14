@@ -61,7 +61,7 @@ def test_attr_constraint_get_unique_base(
 
 def test_param_attr_constraint_inference():
     class BaseWrapAttr(ParametrizedAttribute):
-        name = "wrap"
+        name = "test.wrap"
 
         inner: ParameterDef[Attribute]
 
@@ -110,17 +110,17 @@ def test_param_attr_constraint_inference():
 
 def test_base_attr_constraint_inference():
     class BaseNoParamAttr(ParametrizedAttribute):
-        name = "no_param"
+        name = "test.no_param"
 
     @irdl_attr_definition
     class WithParamAttr(ParametrizedAttribute):
-        name = "with_param"
+        name = "test.with_param"
 
         inner: ParameterDef[Attribute]
 
     @irdl_attr_definition
     class DataAttr(Data[int]):
-        name = "data"
+        name = "test.data"
 
     @irdl_attr_definition
     class NoParamAttr(BaseNoParamAttr): ...

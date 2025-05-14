@@ -44,9 +44,9 @@ Here are some examples of first PRs from existing contributors:
 The first step is finding a missing optimisation pattern.
 You're welcome to come up with your own, or do one of the following:
 
-- `x / 1 -> x`
 - `x * 2ⁱ -> x << i`
 - `x >> 0 -> x`
+- `x * 1 -> x`
 
 The patterns are defined in
 [xdsl/transforms/canonicalization_patterns/riscv.py](xdsl/transforms/canonicalization_patterns/riscv.py).

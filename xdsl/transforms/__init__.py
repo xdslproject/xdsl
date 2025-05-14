@@ -128,6 +128,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ptr_to_riscv.ConvertPtrToRiscvPass
 
+    def get_convert_ptr_to_x86():
+        from xdsl.backend.x86.lowering import convert_ptr_to_x86
+
+        return convert_ptr_to_x86.ConvertPtrToX86Pass
+
     def get_convert_ptr_type_offsets():
         from xdsl.transforms import convert_ptr_type_offsets
 
@@ -182,6 +187,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import varith_transformations
 
         return varith_transformations.ConvertVarithToArithPass
+
+    def get_convert_vector_to_ptr():
+        from xdsl.transforms import convert_vector_to_ptr
+
+        return convert_vector_to_ptr.ConvertVectorToPtrPass
 
     def get_jax_use_donated_arguments():
         from xdsl.transforms import jax_use_donated_arguments
@@ -545,6 +555,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-llvm": get_convert_ptr_to_llvm,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
+        "convert-ptr-to-x86": get_convert_ptr_to_x86,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-riscv-to-llvm": get_convert_riscv_to_llvm,
@@ -556,6 +567,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "convert-varith-to-arith": get_convert_varith_to_arith,
+        "convert-vector-to-ptr": get_convert_vector_to_ptr,
         "jax-use-donated-arguments": get_jax_use_donated_arguments,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,

@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
     IndexTypeConstr,
     MemRefType,
     SignlessIntegerConstraint,
-    TensorOrMemRefOf,
     TensorType,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
@@ -41,6 +40,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_operand_def,
+    opt_prop_def,
     opt_result_def,
     prop_def,
     result_def,
@@ -63,7 +63,9 @@ class LoadOp(IRDLOperation):
     base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
     result = result_def(VectorType)
+    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
+    irdl_options = [ParsePropInAttrDict()]
     assembly_format = (
         "$base `[` $indices `]` attr-dict `:` type($base) `,` type($result)"
     )
@@ -99,7 +101,9 @@ class StoreOp(IRDLOperation):
     vector = operand_def(VectorType)
     base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
+    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
+    irdl_options = [ParsePropInAttrDict()]
     assembly_format = (
         "$vector `,` $base `[` $indices `]` attr-dict `:` type($base) `,` type($vector)"
     )
@@ -828,7 +832,7 @@ class TransferReadOp(VectorTransferOperation):
 
     name = "vector.transfer_read"
 
-    source = operand_def(TensorOrMemRefOf(Attribute))
+    source = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
     padding = operand_def()
     mask = opt_operand_def(VectorType[I1])
@@ -933,7 +937,7 @@ class TransferWriteOp(VectorTransferOperation):
     name = "vector.transfer_write"
 
     vector = operand_def(VectorType[Attribute])
-    source = operand_def(TensorOrMemRefOf(Attribute))
+    source = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
     mask = opt_operand_def(VectorType[I1])
 
