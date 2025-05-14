@@ -92,7 +92,7 @@ class LoopInvariantCodeMotion(RewritePattern):
 class LoopInvariantCodeMotionPass(ModulePass):
     """
     Moves operations without side effects out of loops, provided they do not depend on
-    values defined the loops.
+    values defined in the loops.
     """
 
     name = "licm"
