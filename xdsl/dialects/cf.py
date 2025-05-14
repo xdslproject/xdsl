@@ -306,7 +306,7 @@ class SwitchOp(IRDLOperation):
                 cases = cases + [
                     (str(c), block, operands)
                     for (c, block, operands) in zip(
-                        self.case_values.get_values(),
+                        self.case_values.get_int_values(),
                         self.case_blocks,
                         self.case_operand,
                     )

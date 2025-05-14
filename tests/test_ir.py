@@ -998,7 +998,6 @@ def test_replace_by_if():
     assert set(u.operation for u in a.uses) == {c}
     assert set(u.operation for u in d.uses) == {b}
 
-
 def test_ancestor_block_in_region_nested():
     # lvl 3
     op_3 = test.TestOp()
@@ -1031,3 +1030,15 @@ def test_ancestor_block_in_region_different_region():
     test.TestOp(regions=[reg_1_1, reg_1_2])
 
     assert reg_1_2.find_ancestor_block_in_region(blk_2) is None
+
+def test_find_ancestor_op_in_block():
+    op1 = test.TestOp()
+    op2 = test.TestOp(regions=[Region(Block([op1]))])
+    op3 = test.TestOp(regions=[Region(Block([op2]))])
+
+    blk_top = Block([op3])
+    op4 = test.TestOp(regions=[Region(blk_top)])
+
+    assert blk_top.find_ancestor_op_in_block(op1) is op3
+    assert blk_top.find_ancestor_op_in_block(op4) is None
+

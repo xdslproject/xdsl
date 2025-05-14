@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     ArrayAttr,
     ContainerType,
-    DenseIntOrFPElementsAttr,
+    DenseIntElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -225,9 +225,9 @@ class ParallelOp(IRDLOperation):
 
     reductions = prop_def(ArrayAttr[StringAttr])
     lowerBoundsMap = prop_def(AffineMapAttr)
-    lowerBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    lowerBoundsGroups = prop_def(DenseIntElementsAttr)
     upperBoundsMap = prop_def(AffineMapAttr)
-    upperBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    upperBoundsGroups = prop_def(DenseIntElementsAttr)
     steps = prop_def(ArrayAttr[IntegerAttr[IntegerType]])
 
     res = var_result_def()
@@ -247,11 +247,11 @@ class ParallelOp(IRDLOperation):
                 "Expected as many operands as results, lower bound args and upper bound args."
             )
 
-        if sum(self.lowerBoundsGroups.get_values()) != len(
+        if sum(self.lowerBoundsGroups.get_int_values()) != len(
             self.lowerBoundsMap.data.results
         ):
             raise VerifyException("Expected a lower bound group for each lower bound")
-        if sum(self.upperBoundsGroups.get_values()) != len(
+        if sum(self.upperBoundsGroups.get_int_values()) != len(
             self.upperBoundsMap.data.results
         ):
             raise VerifyException("Expected an upper bound group for each upper bound")
