@@ -825,6 +825,9 @@ class AttrParser(BaseParser):
         if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedStructure[AnyFloat], type)
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, data_values)
+        elif isinstance(type.element_type, ComplexType):
+            new_type = cast(RankedStructure[ComplexType], type)
+            return DenseIntOrFPElementsAttr.create_dense_complex(new_type, data_values)
         else:
             new_type = cast(RankedStructure[IntegerType | IndexType], type)
             new_data = cast(Sequence[int], data_values)
