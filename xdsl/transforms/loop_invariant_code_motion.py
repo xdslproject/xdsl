@@ -8,8 +8,6 @@ LICM moves these operations out of the loop body so that they are not computed m
 once.
 """
 
-from collections.abc import Callable
-
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import builtin, scf
@@ -50,7 +48,7 @@ def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
 
 def _move_loop_invariant_code(
     region: Region,
-    move_out_of_region: Callable[[Operation, Region], None],
+    builder: Builder,
 ):
     # add top-level operations in the loop body to the worklist
     worklist = [op for block in region.blocks for op in block.ops]
@@ -68,7 +66,8 @@ def _move_loop_invariant_code(
         ):
             continue
 
-        move_out_of_region(op, region)
+        op.detach()
+        builder.insert(op)
 
         # Since the op has been moved, we need to check its users within the
         # top-level of the loop body.
@@ -82,12 +81,7 @@ def _move_loop_invariant_code(
 
 def move_loop_invariant_code(loop: scf.ForOp):
     builder = Builder(InsertPoint.before(loop))
-
-    def _move_out_of_region(op: Operation, region: Region) -> None:
-        op.detach()
-        builder.insert(op)
-
-    _move_loop_invariant_code(loop.body, _move_out_of_region)
+    _move_loop_invariant_code(loop.body, builder)
 
 
 class LoopInvariantCodeMotion(RewritePattern):
