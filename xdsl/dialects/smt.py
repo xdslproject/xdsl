@@ -9,7 +9,6 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import BoolAttr
 from xdsl.ir import (
     Attribute,
-    Block,
     Dialect,
     ParametrizedAttribute,
     Region,
@@ -230,15 +229,15 @@ class EqOp(VariadicPredicateOp):
 
 
 class QuantifierOp(IRDLOperation, ABC):
-    result = result_def(BoolType())
+    result = result_def(BoolType)
     body = region_def("single_block")
 
     traits = traits_def(Pure())
 
     assembly_format = "attr-dict-with-keyword $body"
 
-    def __init__(self) -> None:
-        super().__init__(result_types=[BoolType()], regions=[Region([Block()])])
+    def __init__(self, body: Region) -> None:
+        super().__init__(result_types=[BoolType()], regions=[body])
 
     def verify_(self) -> None:
         if not isinstance(yield_op := self.body.block.last_op, YieldOp):
