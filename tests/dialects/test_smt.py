@@ -3,7 +3,6 @@ import pytest
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.smt import (
     AndOp,
-    Block,
     BoolType,
     ConstantBoolOp,
     DistinctOp,
@@ -12,11 +11,11 @@ from xdsl.dialects.smt import (
     ForallOp,
     OrOp,
     QuantifierOp,
-    Region,
     VariadicBoolOp,
     XOrOp,
     YieldOp,
 )
+from xdsl.ir import Block, Region
 from xdsl.utils.test_value import create_ssa_value
 
 
