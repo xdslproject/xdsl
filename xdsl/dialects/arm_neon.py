@@ -7,7 +7,6 @@ from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg, square_brack
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
-from xdsl.dialects.stencil import IndexAttr
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -207,8 +206,8 @@ class DSSFMulOp(ARMInstruction):
     arrangement = prop_def(NeonArrangementAttr)
 
     assembly_format = (
-      "$s1 `,` $s2 (`[` $scalar_idx^ `]`)? $arrangement attr-dict "
-      "`:` functional-type(operands, $d)"
+        "$s1 `,` $s2 (`[` $scalar_idx^ `]`)? $arrangement attr-dict "
+        "`:` functional-type(operands, $d)"
     )
 
     def __init__(
@@ -217,7 +216,7 @@ class DSSFMulOp(ARMInstruction):
         s2: Operation | SSAValue,
         *,
         d: NEONRegisterType,
-        scalar_idx: IndexAttr | None,
+        scalar_idx: IntegerAttr | None,
         arrangement: NeonArrangement | NeonArrangementAttr,
         comment: str | StringAttr | None = None,
     ):
