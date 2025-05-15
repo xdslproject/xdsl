@@ -370,6 +370,59 @@ class DSDupOp(ARMInstruction):
 
 
 @irdl_op_definition
+class DSVecMovOp(ARMInstruction):
+    """
+    Variant of MOV instruction which extracts a value from a specified lane in a NEON
+    register into a general-purpose register.
+    e.g. MOV X0, V3.S[1]
+    Set X0 to the value of the second single word (bits 32-63) in V3.
+    This instruction is an alias of UMOV.
+    """
+
+    name = "arm_neon.dsvec.mov"
+    s = operand_def(NEONRegisterType)
+    d = result_def(IntRegisterType)
+    scalar_idx = prop_def(IntegerAttr[i8])
+    arrangement = prop_def(NeonArrangementAttr)
+    assembly_format = (
+        "$s `[` $scalar_idx `]` $arrangement attr-dict `:` type($s) `->` type($d)"
+    )
+
+    def __init__(
+        self,
+        s: Operation | SSAValue,
+        *,
+        d: IntRegisterType,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        scalar_idx: IntegerAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=(s,),
+            attributes={
+                "comment": comment,
+            },
+            properties={
+                "arrangement": arrangement,
+                "scalar_idx": scalar_idx,
+            },
+            result_types=(d,),
+        )
+
+    def assembly_line_args(self):
+        return (
+            reg(self.d),
+            VectorWithArrangement(
+                self.s, self.arrangement, index=self.scalar_idx.value.data
+            ),
+        )
+
+
+@irdl_op_definition
 class DVarSLd1Op(ARMInstruction):
     """
     Neon structure load instruction reads data from memory into 64-bit Neon registers.
@@ -479,6 +532,7 @@ ARM_NEON = Dialect(
         DSSFmlaVecScalarOp,
         DSSFMulVecScalarOp,
         DSDupOp,
+        DSVecMovOp,
         DVarSSt1Op,
         DVarSLd1Op,
         GetRegisterOp,
