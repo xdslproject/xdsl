@@ -16,7 +16,7 @@
         in
           {
             devShells.default = with pkgs; mkShell {
-              LD_LIBRARY_PATH = "${stdenv.cc.cc.lib}/lib";
+              LD_LIBRARY_PATH = lib.makeLibraryPath [ stdenv.cc.cc.lib zlib ];
               buildInputs = [
                 uv
                 nodejs_22
