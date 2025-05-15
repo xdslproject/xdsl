@@ -348,7 +348,8 @@ class DSDupOp(ARMInstruction):
 @irdl_op_definition
 class DSVecMovOp(ARMInstruction):
     """
-    Variant of MOV instruction which extracts a value from a specified lane in a NEON register into a general-purpose register.
+    Variant of MOV instruction which extracts a value from a specified lane in a NEON
+    register into a general-purpose register.
     e.g. MOV X0, V3.S[1]
     Set X0 to the value of the second single word (bits 32-63) in V3.
     This instruction is an alias of UMOV.
@@ -369,6 +370,7 @@ class DSVecMovOp(ARMInstruction):
         *,
         d: IntRegisterType,
         arrangement: NeonArrangement | NeonArrangementAttr,
+        scalar_idx: IntegerAttr,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -379,7 +381,10 @@ class DSVecMovOp(ARMInstruction):
             operands=(s,),
             attributes={
                 "comment": comment,
+            },
+            properties={
                 "arrangement": arrangement,
+                "scalar_idx": scalar_idx,
             },
             result_types=(d,),
         )
