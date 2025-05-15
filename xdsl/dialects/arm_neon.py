@@ -274,7 +274,7 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     d = operand_def(SAME_NEON_REGISTER_TYPE)
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
-    scalar_idx = attr_def(IntegerAttr[i8])
+    scalar_idx = prop_def(IntegerAttr[i8])
     arrangement = prop_def(NeonArrangementAttr)
 
     assembly_format = (
