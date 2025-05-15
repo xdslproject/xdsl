@@ -735,13 +735,13 @@ class SwitchOperationNameOp(IRDLOperation):
         case_values: Iterable[StringAttr],
         input_op: SSAValue,
         default_dest: Block,
-        cases: Iterable[Block],
+        cases: Sequence[Block],
     ) -> None:
         case_values = ArrayAttr(case_values)
         super().__init__(
             operands=[input_op],
             properties={"caseValues": case_values},
-            successors=[default_dest, *cases],
+            successors=[default_dest, cases],
         )
 
 
