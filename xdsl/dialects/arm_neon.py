@@ -192,7 +192,7 @@ class DSSFMulVecScalarOp(ARMInstruction):
     See external [documentation](https://developer.arm.com/documentation/ddi0602/2024-12/SIMD-FP-Instructions/FMUL--vector---Floating-point-multiply--vector--?lang=en#T_option__4).
     """
 
-    name = "arm_neon.dss.fmulvec"
+    name = "arm_neon.dss.fmulvecscalar"
     d = result_def(NEONRegisterType)
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
@@ -233,6 +233,59 @@ class DSSFMulVecScalarOp(ARMInstruction):
             VectorWithArrangement(
                 self.s2, self.arrangement, index=self.scalar_idx.value.data
             ),
+        )
+
+
+@irdl_op_definition
+class DSSFMulVecOp(ARMInstruction):
+    """
+    Floating-point Multiply (vector). This instruction multiplies corresponding
+    floating-point values in the vectors in the two source NEON registers,
+    places the result in a vector, and writes the vector to the destination.
+
+    See external [documentation](https://developer.arm.com/documentation/100069/0606/SIMD-Vector-Instructions/FMUL--vector-).
+    """
+
+    name = "arm_neon.dss.fmulvec"
+    d = result_def(NEONRegisterType)
+    s1 = operand_def(NEONRegisterType)
+    s2 = operand_def(NEONRegisterType)
+    arrangement = prop_def(NeonArrangementAttr)
+
+    assembly_format = "$s1 `,` $s2 $arrangement attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
+
+    def __init__(
+        self,
+        s1: Operation | SSAValue,
+        s2: Operation | SSAValue,
+        *,
+        d: NEONRegisterType,
+        arrangement: NeonArrangement | NeonArrangementAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(arrangement, NeonArrangement):
+            arrangement = NeonArrangementAttr(arrangement)
+        super().__init__(
+            operands=(s1, s2),
+            attributes={
+                "comment": comment,
+            },
+            properties={
+                "arrangement": arrangement,
+            },
+            result_types=(d,),
+        )
+
+    def assembly_instruction_name(self) -> str:
+        return "fmul"
+
+    def assembly_line_args(self):
+        return (
+            VectorWithArrangement(self.d, self.arrangement),
+            VectorWithArrangement(self.s1, self.arrangement),
+            VectorWithArrangement(self.s2, self.arrangement),
         )
 
 
@@ -507,6 +560,7 @@ ARM_NEON = Dialect(
     [
         DSSFmlaVecScalarOp,
         DSSFMulVecScalarOp,
+        DSSFMulVecOp,
         DSDupOp,
         DSVecMovOp,
         DVarSSt1Op,
