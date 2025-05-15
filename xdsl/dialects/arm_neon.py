@@ -199,6 +199,7 @@ class DSSFMulOp(ARMInstruction):
     See external [documentation](https://developer.arm.com/documentation/ddi0602/2024-12/SIMD-FP-Instructions/FMUL--vector---Floating-point-multiply--vector--?lang=en#T_option__4).
     """
 
+    name = "arm_neon.dss.fmul"
     d = result_def(NEONRegisterType)
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
@@ -234,9 +235,6 @@ class DSSFMulOp(ARMInstruction):
             result_types=(d,),
         )
 
-    def assembly_instruction_name(self) -> str:
-        return "fmul"
-
     def assembly_line_args(self):
         return (
             VectorWithArrangement(self.d, self.arrangement),
@@ -244,7 +242,9 @@ class DSSFMulOp(ARMInstruction):
             VectorWithArrangement(
                 self.s2,
                 self.arrangement,
-                self.scalar_idx.value.data if self.scalar_idx is not None else None,
+                index=self.scalar_idx.value.data
+                if self.scalar_idx is not None
+                else None,
             ),
         )
 
