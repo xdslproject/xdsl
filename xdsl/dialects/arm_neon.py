@@ -28,6 +28,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     prop_def,
     result_def,
     var_operand_def,
@@ -203,27 +204,35 @@ class GetRegisterOp(ARMOperation):
 
 
 @irdl_op_definition
-class DSSFMulVecScalarOp(ARMInstruction):
+class DSSFMulOp(ARMInstruction):
     """
-    Floating-point multiply (mixed: first source operand is a vector, second is a scalar. Destination is a vector)
-    This instruction multiplies each of the floating-point values in the first source operand by the
-    second source operand and writes the resulting values to the corresponding lanes of the destination.
+    Floating-point multiply. Different instruction types supported:
+
+    1. Vector:  multiplies corresponding floating-point values in the vectors in the two
+    source NEON registers, and writes the result vector to the destination.
+
+    See external [documentation](https://developer.arm.com/documentation/100069/0606/SIMD-Vector-Instructions/FMUL--vector-).
+
+    2. Mixed: (first source operand is a vector, second is a scalar. Destination is a vector)
+    This instruction multiplies each of the floating-point values in the first source
+    operand by the second source operand and writes the resulting values to the corresponding
+    lanes of the destination.
     Encoding: FMUL <Vd>.<T>, <Vn>.<T>, <Vm>.<idx>.
-    Vd, Vn, Vm specify the regs. The <T> specifier determines element arrangement (size and count).
-    The <idx> specifier determines the index of Vm at which the second source operand (scalar) can be found,
-    preceded by a size specifier.
 
     See external [documentation](https://developer.arm.com/documentation/ddi0602/2024-12/SIMD-FP-Instructions/FMUL--vector---Floating-point-multiply--vector--?lang=en#T_option__4).
     """
 
-    name = "arm_neon.dss.fmulvec"
+    name = "arm_neon.dss.fmul"
     d = result_def(NEONRegisterType)
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
-    scalar_idx = attr_def(IntegerAttr[i8])
-    arrangement = attr_def(NeonArrangementAttr)
+    scalar_idx = opt_prop_def(IntegerAttr[i8])
+    arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = "$s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
+    assembly_format = (
+        "$s1 `,` $s2 (`[` $scalar_idx^ `]`)? $arrangement attr-dict "
+        "`:` functional-type(operands, $d)"
+    )
 
     def __init__(
         self,
@@ -231,6 +240,7 @@ class DSSFMulVecScalarOp(ARMInstruction):
         s2: Operation | SSAValue,
         *,
         d: NEONRegisterType,
+        scalar_idx: IntegerAttr | None,
         arrangement: NeonArrangement | NeonArrangementAttr,
         comment: str | StringAttr | None = None,
     ):
@@ -242,20 +252,24 @@ class DSSFMulVecScalarOp(ARMInstruction):
             operands=(s1, s2),
             attributes={
                 "comment": comment,
+            },
+            properties={
+                "scalar_idx": scalar_idx,
                 "arrangement": arrangement,
             },
             result_types=(d,),
         )
-
-    def assembly_instruction_name(self) -> str:
-        return "fmul"
 
     def assembly_line_args(self):
         return (
             VectorWithArrangement(self.d, self.arrangement),
             VectorWithArrangement(self.s1, self.arrangement),
             VectorWithArrangement(
-                self.s2, self.arrangement, index=self.scalar_idx.value.data
+                self.s2,
+                self.arrangement,
+                index=self.scalar_idx.value.data
+                if self.scalar_idx is not None
+                else None,
             ),
         )
 
@@ -530,7 +544,7 @@ ARM_NEON = Dialect(
     "arm_neon",
     [
         DSSFmlaVecScalarOp,
-        DSSFMulVecScalarOp,
+        DSSFMulOp,
         DSDupOp,
         DSVecMovOp,
         DVarSSt1Op,
