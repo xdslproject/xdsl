@@ -597,8 +597,7 @@ class CreateOperationOp(IRDLOperation):
     @staticmethod
     def _parse_input_list(parser: Parser) -> list[SSAValue]:
         values: list[SSAValue] = []
-        parser.parse_punctuation("(")
-        if not parser.parse_optional_punctuation(")"):
+        if parser.parse_optional_punctuation("("):
             values = parser.parse_comma_separated_list(
                 delimiter=Parser.Delimiter.NONE,
                 parse=lambda: parser.parse_operand(),
@@ -676,8 +675,6 @@ class CreateOperationOp(IRDLOperation):
         printer.print_attribute(self.constraint_name)
         if self.input_operands:
             CreateOperationOp._print_input_list(printer, self.input_operands)
-        else:
-            printer.print_string("() ", indent=0)
         if self.input_attributes:
             printer.print_string(" {", indent=0)
             printer.print_list(
@@ -703,7 +700,7 @@ class GetDefiningOpOp(IRDLOperation):
     """
 
     name = "pdl_interp.get_defining_op"
-    value = operand_def(ValueType | ArrayAttr[ValueType])
+    value = operand_def(ValueType | RangeType[ValueType])
     input_op = result_def(OperationType)
 
     assembly_format = "`of` $value `:` type($value) attr-dict"
