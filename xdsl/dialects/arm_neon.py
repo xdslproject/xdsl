@@ -245,11 +245,7 @@ class DSSFMulOp(ARMInstruction):
             VectorWithArrangement(
                 self.s2,
                 self.arrangement,
-                **(
-                    {"index": self.scalar_idx.value.data}
-                    if self.scalar_idx is not None
-                    else {}
-                ),
+                self.scalar_idx.value.data if self.scalar_idx is not None else None,
             ),
         )
 
