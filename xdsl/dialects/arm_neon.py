@@ -206,8 +206,10 @@ class DSSFMulOp(ARMInstruction):
     scalar_idx = opt_prop_def(IntegerAttr[i8])
     arrangement = prop_def(NeonArrangementAttr)
 
-    assembly_format = "$s1 `,` $s2 (`[` $scalar_idx^ `]`)? $arrangement attr-dict `:` \
-    functional-type(operands, $d)"
+    assembly_format = (
+      "$s1 `,` $s2 (`[` $scalar_idx^ `]`)? $arrangement attr-dict "
+      "`:` functional-type(operands, $d)"
+    )
 
     def __init__(
         self,
