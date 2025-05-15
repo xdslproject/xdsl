@@ -45,6 +45,10 @@
     %x20 = arith.constant {"test" = dense<(1.2,3.4)> : tensor<1xcomplex<f32>>} 0 : i64
     // CHECK: test = dense<(1.200000e+00,3.400000e+00)>
     %x21 = arith.constant {"test" = dense<[(1.2,3.4)]> : tensor<1xcomplex<f32>>} 0 : i64
+    // CHECK: test = dense<(1,2)>
+    %x22 = arith.constant {"test" = dense<(1,2)> : tensor<1xcomplex<i32>>} 0 : i64
+    // CHECK: test = dense<(1,2)>
+    %x23 = arith.constant {"test" = dense<[(1,2)]> : tensor<1xcomplex<i32>>} 0 : i64
     "func.return"() : () -> ()
   }) {"function_type" = () -> (), "sym_name" = "builtin"} : () -> ()
   "test.op"() {"value"= {"one"=1 : i64, "two"=2 : i64, "three"="three"}} : () -> ()
