@@ -1,5 +1,10 @@
 // RUN: XDSL_ROUNDTRIP
 
+%const1 = smt.declare_fun : !smt.bool
+%const_with_name = smt.declare_fun "bool_name": !smt.bool
+%func1 = smt.declare_fun : !smt.func<() !smt.bool>
+%func2 = smt.declare_fun : !smt.func<(!smt.bool) !smt.bool>
+
 %arg1 = smt.constant true
 %arg2 = smt.constant false
 %arg3 = smt.constant false
