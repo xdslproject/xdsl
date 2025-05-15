@@ -7,6 +7,7 @@ from typing import Annotated, ClassVar, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     I64,
     AnyFloatConstr,
     ArrayAttr,
@@ -758,9 +759,9 @@ class SubviewOp(IRDLOperation):
         for input_size in reversed(source_shape[1:]):
             source_strides.insert(0, source_strides[0] * input_size)
         if isinstance(source_type.layout, StridedLayoutAttr):
-            if isinstance(source_type.layout.offset, IntAttr):
+            if source_type.layout.offset.data != DYNAMIC_INDEX:
                 source_offset = source_type.layout.offset.data
-            if isa(source_type.layout.strides, ArrayAttr[IntAttr]):
+            if IntAttr(DYNAMIC_INDEX) not in source_type.layout.strides:
                 source_strides = [s.data for s in source_type.layout.strides]
 
         layout_strides = [a * b for (a, b) in zip(strides, source_strides)]

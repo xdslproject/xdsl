@@ -308,7 +308,7 @@ builtin.module {
   }
 
 // CHECK:         func.func @stencil_buffer(%0 : memref<72xf64>, %1 : memref<72xf64>) {
-// CHECK-NEXT:      %2 = memref.alloc() : memref<64xf64, strided<[1], offset: -1>>
+// CHECK-NEXT:      %2 = memref.alloc() : memref<64xf64, strided<[1], offset: ?>>
 // CHECK-NEXT:      %3 = memref.subview %1[4] [64] [1] : memref<72xf64> to memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:      %4 = memref.subview %0[4] [64] [1] : memref<72xf64> to memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:      %5 = arith.constant 1 : index
@@ -319,7 +319,7 @@ builtin.module {
 // CHECK-NEXT:        %9 = arith.constant -1 : index
 // CHECK-NEXT:        %10 = arith.addi %8, %9 : index
 // CHECK-NEXT:        %11 = memref.load %4[%10] : memref<64xf64, strided<[1], offset: 4>>
-// CHECK-NEXT:        memref.store %11, %2[%8] : memref<64xf64, strided<[1], offset: -1>>
+// CHECK-NEXT:        memref.store %11, %2[%8] : memref<64xf64, strided<[1], offset: ?>>
 // CHECK-NEXT:        scf.reduce
 // CHECK-NEXT:      }) : (index, index, index) -> ()
 // CHECK-NEXT:      %12 = arith.constant 0 : index
@@ -329,11 +329,11 @@ builtin.module {
 // CHECK-NEXT:      ^1(%15 : index):
 // CHECK-NEXT:        %16 = arith.constant 1 : index
 // CHECK-NEXT:        %17 = arith.addi %15, %16 : index
-// CHECK-NEXT:        %18 = memref.load %2[%17] : memref<64xf64, strided<[1], offset: -1>>
+// CHECK-NEXT:        %18 = memref.load %2[%17] : memref<64xf64, strided<[1], offset: ?>>
 // CHECK-NEXT:        memref.store %18, %3[%15] : memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:        scf.reduce
 // CHECK-NEXT:      }) : (index, index, index) -> ()
-// CHECK-NEXT:      memref.dealloc %2 : memref<64xf64, strided<[1], offset: -1>>
+// CHECK-NEXT:      memref.dealloc %2 : memref<64xf64, strided<[1], offset: ?>>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
