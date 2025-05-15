@@ -646,6 +646,11 @@ SignlessIntegerConstraint = ParamAttrConstraint(
 AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstraint]
 """Type alias constrained to signless IntegerType."""
 
+_IntegerType = TypeVar(
+    "_IntegerType", bound=IntegerType, covariant=True, default=IntegerType
+)
+_IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType)
+
 
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
@@ -1018,7 +1023,10 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
 
 
 ComplexElementT = TypeVar(
-    "ComplexElementT", bound=IntegerType | AnyFloat, default=IntegerType | AnyFloat
+    "ComplexElementT",
+    bound=IntegerType | AnyFloat,
+    default=IntegerType | AnyFloat,
+    covariant=True,
 )
 
 
@@ -2277,14 +2285,23 @@ class DenseIntOrFPElementsAttr(
     @overload
     @staticmethod
     def create_dense_complex(
-        type: RankedStructure[ComplexType], data: Sequence[tuple[int, int]]
-    ) -> DenseIntOrFPElementsAttr[ComplexType]: ...
+        type: RankedStructure[ComplexType[_IntegerTypeInvT]],
+        data: Sequence[tuple[int, int]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[_IntegerTypeInvT]]: ...
 
     @overload
     @staticmethod
     def create_dense_complex(
-        type: RankedStructure[ComplexType], data: Sequence[tuple[float, float]]
-    ) -> DenseIntOrFPElementsAttr[ComplexType]: ...
+        type: RankedStructure[ComplexType[_FloatAttrTypeInvT]],
+        data: Sequence[tuple[float, float]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
+
+    @overload
+    @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType[ComplexElementT]],
+        data: Sequence[tuple[float, float]] | Sequence[tuple[float, float]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementT]]: ...
 
     @staticmethod
     def create_dense_complex(
