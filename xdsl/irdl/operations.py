@@ -56,10 +56,13 @@ from .constraints import (  # noqa: TID251
     AttrConstraint,
     ConstraintContext,
     ConstraintVar,
+    ConstraintVariableType,
     GenericRangeConstraint,
     RangeConstraint,
     RangeOf,
+    VarExtractor,
     attr_constr_coercion,
+    merge_extractor_dicts,
     range_constr_coercion,
     single_range_constr_coercion,
 )
@@ -952,6 +955,42 @@ class OpDef:
     """
     assembly_format: str | None = field(default=None)
 
+    extractors: dict[str, VarExtractor[Operation]] = field(
+        default_factory=dict[str, VarExtractor[Operation]]
+    )
+
+    @dataclass(frozen=True)
+    class _LengthResolver(VarExtractor[Operation]):
+        field: str
+        inner: VarExtractor[int]
+
+        def extract_var(self, a: Operation) -> ConstraintVariableType:
+            return self.inner.extract_var(len(getattr(a, self.field)))
+
+    @dataclass(frozen=True)
+    class _TypeResolver(VarExtractor[Operation]):
+        field: str
+        inner: VarExtractor[Attribute]
+
+        def extract_var(self, a: Operation) -> ConstraintVariableType:
+            return self.inner.extract_var(getattr(a, self.field).type)
+
+    @dataclass(frozen=True)
+    class _TypeRangeResolver(VarExtractor[Operation]):
+        field: str
+        inner: VarExtractor[Sequence[Attribute]]
+
+        def extract_var(self, a: Operation) -> ConstraintVariableType:
+            return self.inner.extract_var(tuple(a.type for a in getattr(a, self.field)))
+
+    @dataclass(frozen=True)
+    class _AttrResolver(VarExtractor[Operation]):
+        field: str
+        inner: VarExtractor[Attribute]
+
+        def extract_var(self, a: Operation) -> ConstraintVariableType:
+            return self.inner.extract_var(getattr(a, self.field))
+
     @staticmethod
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
         """Decorator used on classes to define a new operation definition."""
@@ -983,6 +1022,9 @@ class OpDef:
         # If an operation subclass overrides a superclass field, only keep the definition
         # of the subclass.
         field_names = set[str]()
+
+        # We keep track of extractors while iterating through the fields
+        extractor_dicts: list[dict[str, VarExtractor[Operation]]] = []
 
         # Get all fields of the class, including the parent classes
         for parent_cls in pyrdl_def.mro():
@@ -1116,11 +1158,29 @@ class OpDef:
                                 )
                             constraint = get_constraint(value.param)
                             result_def = value.cls(constraint)
+                            extractor_dicts.append(
+                                {
+                                    v: OpDef._TypeResolver(field_name, r)
+                                    for v, r in constraint.get_variable_extractors().items()
+                                }
+                            )
                         else:
                             constraint = get_range_constraint(value.param)
                             result_def = value.cls(constraint)
+                            extractor_dicts.append(
+                                {
+                                    v: OpDef._TypeRangeResolver(field_name, r)
+                                    for v, r in constraint.get_variable_extractors().items()
+                                }
+                            )
+                            extractor_dicts.append(
+                                {
+                                    v: OpDef._LengthResolver(field_name, r)
+                                    for v, r in constraint.get_length_extractors().items()
+                                }
+                            )
                         op_def.results.append((field_name, result_def))
-                        continue
+
                     case _OperandFieldDef():
                         if not issubclass(value.cls, VariadicDef):
                             if isinstance(value.param, GenericRangeConstraint):
@@ -1131,40 +1191,64 @@ class OpDef:
                                 )
                             constraint = get_constraint(value.param)
                             operand_def = value.cls(constraint)
+                            extractor_dicts.append(
+                                {
+                                    v: OpDef._TypeResolver(field_name, r)
+                                    for v, r in constraint.get_variable_extractors().items()
+                                }
+                            )
                         else:
                             constraint = get_range_constraint(value.param)
                             operand_def = cast(type[VarOperandDef], value.cls)(
                                 constraint
                             )
+                            extractor_dicts.append(
+                                {
+                                    v: OpDef._TypeRangeResolver(field_name, r)
+                                    for v, r in constraint.get_variable_extractors().items()
+                                }
+                            )
+                            extractor_dicts.append(
+                                {
+                                    v: OpDef._LengthResolver(field_name, r)
+                                    for v, r in constraint.get_length_extractors().items()
+                                }
+                            )
                         op_def.operands.append((field_name, operand_def))
-                        continue
                     case _AttributeFieldDef():
                         constraint = get_constraint(value.param)
                         attribute_def = value.cls(constraint, value.default_value)
                         ir_name = field_name if value.ir_name is None else value.ir_name
                         op_def.attributes[ir_name] = attribute_def
                         op_def.accessor_names[field_name] = (ir_name, "attribute")
-                        continue
+                        extractor_dicts.append(
+                            {
+                                v: OpDef._AttrResolver(field_name, r)
+                                for v, r in constraint.get_variable_extractors().items()
+                            }
+                        )
+
                     case _PropertyFieldDef():
                         constraint = get_constraint(value.param)
                         property_def = value.cls(constraint, value.default_value)
                         ir_name = field_name if value.ir_name is None else value.ir_name
                         op_def.properties[ir_name] = property_def
                         op_def.accessor_names[field_name] = (ir_name, "property")
-                        continue
+                        extractor_dicts.append(
+                            {
+                                v: OpDef._AttrResolver(field_name, r)
+                                for v, r in constraint.get_variable_extractors().items()
+                            }
+                        )
                     case _RegionFieldDef():
                         constraint = get_range_constraint(value.entry_args)
                         region_def = value.cls(constraint)
                         op_def.regions.append((field_name, region_def))
-                        continue
                     case _SuccessorFieldDef():
                         successor_def = value.cls()
                         op_def.successors.append((field_name, successor_def))
-                        continue
                     case _:
-                        pass
-
-                raise wrong_field_exception(field_name)
+                        raise wrong_field_exception(field_name)
 
         op_def.assembly_format = pyrdl_def.assembly_format
         assert inspect.ismethod(Operation.parse)
@@ -1178,10 +1262,15 @@ class OpDef:
                 "variable) and the print and parse methods."
             )
 
+        op_def.extractors = merge_extractor_dicts(*extractor_dicts)
+
         return op_def
 
     def verify(self, op: Operation):
         """Given an IRDL definition, verify that an operation satisfies its invariants."""
+
+        # Try to extract
+        _variables = {k: v.extract_var(op) for k, v in self.extractors.items()}
 
         # Mapping from type variables to their concrete types.
         constraint_context = ConstraintContext()
