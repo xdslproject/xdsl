@@ -735,7 +735,7 @@ class SwitchOperationNameOp(IRDLOperation):
 
     def __init__(
         self,
-        case_values: Iterable[StringAttr],
+        case_values: ArrayAttr[StringAttr] | Iterable[StringAttr],
         input_op: SSAValue,
         default_dest: Block,
         cases: Sequence[Block],
