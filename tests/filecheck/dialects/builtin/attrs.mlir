@@ -41,6 +41,16 @@
     %x18 = arith.constant {"array" = array<i8: 255>, "dense" = dense<255> : vector<i8>, "test" = 255 : i8} -1 : i8
     // CHECK: %x19 = arith.constant dense<[[-51, 24, -4], [-97, -74, 73], [67, -124, -109]]> : tensor<3x3xi8>
     %x19 = arith.constant dense<"0xCD18FC9FB649438493"> : tensor<3x3xi8>
+    // CHECK: test = dense<(1.200000e+00,3.400000e+00)>
+    %x20 = arith.constant {"test" = dense<(1.2,3.4)> : tensor<1xcomplex<f32>>} 0 : i64
+    // CHECK: test = dense<(1.200000e+00,3.400000e+00)>
+    %x21 = arith.constant {"test" = dense<[(1.2,3.4)]> : tensor<1xcomplex<f32>>} 0 : i64
+    // CHECK: test = dense<(1,2)>
+    %x22 = arith.constant {"test" = dense<(1,2)> : tensor<1xcomplex<i32>>} 0 : i64
+    // CHECK: test = dense<(1,2)>
+    %x24 = arith.constant {"test" = dense<[(1,2)]> : tensor<1xcomplex<i32>>} 0 : i64
+    // CHECK: test = dense<(true,false)>
+    %x25 = arith.constant {"test" = dense<[(true,false)]> : tensor<1xcomplex<i1>>} 0 : i64
     "func.return"() : () -> ()
   }) {"function_type" = () -> (), "sym_name" = "builtin"} : () -> ()
   "test.op"() {"value"= {"one"=1 : i64, "two"=2 : i64, "three"="three"}} : () -> ()

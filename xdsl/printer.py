@@ -356,7 +356,15 @@ class Printer(BasePrinter):
     def print_complex_int(
         self, value: tuple[int, int], type: ComplexType[ComplexElementT]
     ):
-        assert isinstance(type.element_type, IntegerType)
+        assert isinstance(elem_ty := type.element_type, IntegerType)
+        if (elem_ty.width.data == 1):
+            self.print_string("(")
+            real, imag = value[0], value[1]
+            self.print_string("true" if real else "false")
+            self.print_string(",")
+            self.print_string("true" if imag else "false")
+            self.print_string(")")
+            return
         self.print_string("(")
         real, imag = value[0], value[1]
         self.print_string(str(real))
