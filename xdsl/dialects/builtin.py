@@ -228,6 +228,21 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     def get_unique_base(self) -> type[Attribute] | None:
         return ArrayAttr
 
+    @dataclass(frozen=True)
+    class _Extractor(VarExtractor[Attribute]):
+        inner: VarExtractor[Sequence[Attribute]]
+
+        def extract_var(self, a: Attribute) -> ConstraintVariableType:
+            assert isinstance(a, ArrayAttr)
+            a = cast(ArrayAttr[Attribute], a)
+            return self.inner.extract_var(a.data)
+
+    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
+        return {
+            k: self._Extractor(v)
+            for k, v in self.elem_range_constraint.get_variable_extractors().items()
+        }
+
 
 @irdl_attr_definition
 class StringAttr(Data[str], BuiltinAttribute):
