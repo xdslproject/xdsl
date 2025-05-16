@@ -7,10 +7,15 @@ from xdsl.dialects.smt import (
     ConstantBoolOp,
     DistinctOp,
     EqOp,
+    ExistsOp,
+    ForallOp,
     OrOp,
+    QuantifierOp,
     VariadicBoolOp,
     XOrOp,
+    YieldOp,
 )
+from xdsl.ir import Block, Region
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -32,3 +37,12 @@ def test_variadic_bool_op(op_type: type[VariadicBoolOp]):
     op = op_type(arg1, arg2, arg3)
     assert op.result.type == BoolType()
     assert list(op.inputs) == [arg1, arg2, arg3]
+
+
+@pytest.mark.parametrize("op_type", [ExistsOp, ForallOp])
+def test_quantifier_op(op_type: type[QuantifierOp]):
+    arg1 = create_ssa_value(BoolType())
+    region = Region([Block()])
+    region.block.add_op(YieldOp(arg1))
+    op = op_type(body=region)
+    assert op.returned_value == arg1

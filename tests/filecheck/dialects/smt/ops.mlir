@@ -11,6 +11,13 @@
 %eq = smt.eq %arg1, %arg2, %arg3 : !smt.bool
 %distinct = smt.distinct %arg1, %arg2, %arg3 : !smt.bool
 
+%exists = smt.exists {
+    smt.yield %arg1 : !smt.bool
+}
+%forall = smt.forall {
+    smt.yield %arg1 : !smt.bool
+}
+
 // CHECK:         %arg1 = smt.constant true
 // CHECK-NEXT:    %arg2 = smt.constant false
 // CHECK-NEXT:    %arg3 = smt.constant false
@@ -19,3 +26,9 @@
 // CHECK-NEXT:    %xor = smt.xor %arg1, %arg2, %arg3
 // CHECK-NEXT:    %eq = smt.eq %arg1, %arg2, %arg3 : !smt.bool
 // CHECK-NEXT:    %distinct = smt.distinct %arg1, %arg2, %arg3 : !smt.bool
+// CHECK-NEXT:    %exists = smt.exists {
+// CHECK-NEXT:      smt.yield %arg1 : !smt.bool
+// CHECK-NEXT:    }
+// CHECK-NEXT:    %forall = smt.forall {
+// CHECK-NEXT:      smt.yield %arg1 : !smt.bool
+// CHECK-NEXT:    }
