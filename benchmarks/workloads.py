@@ -6,14 +6,16 @@ import random
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
+    IndexType,
     IntegerAttr,
     ModuleOp,
     TensorType,
     i8,
     i32,
 )
+from xdsl.dialects.scf import ForOp, YieldOp
 from xdsl.dialects.test import TestOp
-from xdsl.ir import Operation
+from xdsl.ir import Block, Operation, Region
 
 RANDOM_SEED = 0
 HEX_CHARS = "0123456789ABCDEF"
@@ -25,7 +27,8 @@ class WorkloadBuilder:
     @classmethod
     def wrap_module(cls, ops: list[str]) -> str:
         """Wrap a list of operations as a module."""
-        workload = f'"builtin.module"() ({{\n  {"\n  ".join(ops)}\n}}) : () -> ()'
+        joined_ops = "\n  ".join(ops)
+        workload = f'"builtin.module"() ({{\n  {joined_ops}\n}}) : () -> ()'
         return workload
 
     @classmethod
@@ -69,6 +72,52 @@ class WorkloadBuilder:
     def constant_folding(cls, size: int = 100) -> str:
         """Generate a constant folding workload of a given size."""
         return str(cls.constant_folding_module(size=size))
+        return WorkloadBuilder.wrap_module([])
+
+    @classmethod
+    def loop_unrolling_module(cls, size: int = 100) -> ModuleOp:
+        """Generate a loop unrolling workload of a given size.
+
+        The output of running the command
+        `print(WorkloadBuilder().loop_unrolling_module(size=5))` is shown
+        below:
+
+        ```mlir
+        builtin.module {
+            %0 = arith.constant 0 : index
+            %1 = arith.constant 5 : index
+            %2 = arith.constant 1 : index
+            %3 = scf.for %4 = %0 to %1 step %2 iter_args(%5 = %0) -> (index) {
+                %6 = arith.addi %5, %4 : index
+                scf.yield %6 : index
+            }
+            "test.op"(%3) : (index) -> ()
+        }
+        ```
+        """
+        assert size >= 0
+        start = ConstantOp(IntegerAttr(0, IndexType()))
+        stop = ConstantOp(IntegerAttr(size, IndexType()))
+        step = ConstantOp(IntegerAttr(1, IndexType()))
+
+        body_block = Block(arg_types=(IndexType(), IndexType()))
+        new_sum = AddiOp(body_block.args[0], body_block.args[1])
+        body_block.add_op(new_sum)
+        yield_op = YieldOp(new_sum)
+        body_block.add_op(yield_op)
+
+        for_loop = ForOp(
+            lb=start, ub=stop, step=step, iter_args=[start], body=Region(body_block)
+        )
+
+        # test_op = TestOp(for_loop.results[0])
+        # return ModuleOp([start, stop, step, for_loop, test_op])
+        return ModuleOp([start, stop, step, for_loop])
+
+    @classmethod
+    def loop_unrolling(cls, size: int = 100) -> str:
+        """Generate a loop unrolling workload of a given size."""
+        return str(cls.loop_unrolling_module(size=size))
 
     @classmethod
     def large_dense_attr(cls, x: int = 1024, y: int = 1024) -> str:

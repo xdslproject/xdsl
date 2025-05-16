@@ -12,6 +12,7 @@ from xdsl.dialects.arith import (
     SubiOp,
 )
 from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp
+from xdsl.dialects.scf import Scf
 from xdsl.ir import Region
 from xdsl.ir.post_order import PostOrderIterator
 from xdsl.irdl import VarIRConstruct, get_variadic_sizes
@@ -30,12 +31,15 @@ from xdsl.transforms.dead_code_elimination import (
     result_only_effects,
     would_be_trivially_dead,
 )
+from xdsl.transforms.scf_for_loop_unroll import ScfForLoopUnrollPass
 
 CTX = Context(allow_unregistered=True)
 CTX.load_dialect(Arith)
 CTX.load_dialect(Builtin)
+CTX.load_dialect(Scf)
 
 CANONICALIZE_PASS = CanonicalizePass()
+UNROLL_PASS = ScfForLoopUnrollPass()
 
 
 def parse_module(context: Context, contents: str) -> ModuleOp:
@@ -47,9 +51,9 @@ def parse_module(context: Context, contents: str) -> ModuleOp:
 class ConstantFolding:
     """Benchmark rewriting in xDSL."""
 
-    WORKLOAD_CONSTANT_20 = parse_module(CTX, WorkloadBuilder.constant_folding(20))
-    WORKLOAD_CONSTANT_100 = parse_module(CTX, WorkloadBuilder.constant_folding(100))
-    WORKLOAD_CONSTANT_1000 = parse_module(CTX, WorkloadBuilder.constant_folding(1_000))
+    WORKLOAD_CONSTANT_20 = WorkloadBuilder.constant_folding_module(20)
+    WORKLOAD_CONSTANT_100 = WorkloadBuilder.constant_folding_module(100)
+    WORKLOAD_CONSTANT_1000 = WorkloadBuilder.constant_folding_module(1_000)
 
     workload_constant_20: ModuleOp
     workload_constant_100: ModuleOp
@@ -84,6 +88,26 @@ class ConstantFolding:
     def time_constant_folding_1000(self) -> None:
         """Time canonicalizing constant folding for 1000 items."""
         CANONICALIZE_PASS.apply(CTX, self.workload_constant_1000)
+
+
+class LoopUnrolling:
+    """Benchmark rewriting in xDSL."""
+
+    WORKLOAD_LOOP_20 = WorkloadBuilder.loop_unrolling_module()
+
+    workload_loop_20: ModuleOp
+
+    def setup(self) -> None:
+        """Setup the benchmarks."""
+        self.setup_loop_unrolling_20()
+
+    def setup_loop_unrolling_20(self) -> None:
+        """Setup the constant folding 20 items benchmark."""
+        self.workload_loop_20 = LoopUnrolling.WORKLOAD_LOOP_20.clone()
+
+    def time_loop_unrolling_20(self) -> None:
+        """Time canonicalizing constant folding for 20 items."""
+        UNROLL_PASS.apply(CTX, self.workload_loop_20)
 
 
 class RewritingMicrobenchmarks:
@@ -364,6 +388,7 @@ if __name__ == "__main__":
 
     GENERAL = PatternRewriting()
     CONSTANT_FOLDING = ConstantFolding()
+    LOOP_UNROLLING = LoopUnrolling()
     CANONICALIZATION = Canonicalization()
     REMOVE_UNUSED = RemoveUnused()
     REGION_DCE = RegionDCE()
@@ -380,6 +405,11 @@ if __name__ == "__main__":
             "ConstantFolding.1000": Benchmark(
                 CONSTANT_FOLDING.time_constant_folding_1000,
                 CONSTANT_FOLDING.setup_constant_folding_1000,
+            ),
+            # ================================================================ #
+            "LoopUnrolling.20": Benchmark(
+                LOOP_UNROLLING.time_loop_unrolling_20,
+                LOOP_UNROLLING.setup_loop_unrolling_20,
             ),
             # ================================================================ #
             "General.region_walk": Benchmark(GENERAL.time_region_walk, GENERAL.setup),
@@ -488,3 +518,5 @@ if __name__ == "__main__":
             ),
         }
     )
+
+    print(LOOP_UNROLLING.workload_loop_20)
