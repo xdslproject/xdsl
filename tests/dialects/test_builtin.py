@@ -46,7 +46,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
-from xdsl.irdl import ConstraintContext
+from xdsl.irdl import ConstraintContext, RangeOf, RangeVarConstraint, eq
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -764,3 +764,20 @@ def test_vector_constr():
         constr.verify(VectorType(i32, [1, 2], scalable_dims), ConstraintContext())
     with pytest.raises(VerifyException):
         constr.verify(VectorType(i64, [1]), ConstraintContext())
+
+
+def test_array_constr():
+    constr = ArrayAttr.constr(i32)
+    assert constr.verifies(ArrayAttr([]))
+    assert constr.verifies(ArrayAttr([i32]))
+    assert not constr.verifies(ArrayAttr([i64]))
+
+    T = RangeVarConstraint("T", RangeOf(eq(i32)))
+    constr = ArrayAttr.constr(T)
+    assert constr.can_infer({"T"})
+
+    ctx = ConstraintContext()
+    ctx.set_range_variable("T", (i32, i32))
+    assert constr.infer(ctx) == ArrayAttr([i32, i32])
+
+    assert constr.get_unique_base() == ArrayAttr

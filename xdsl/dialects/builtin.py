@@ -51,6 +51,7 @@ from xdsl.irdl import (
     ConstraintVariableType,
     GenericAttrConstraint,
     GenericData,
+    GenericRangeConstraint,
     IntConstraint,
     IRDLAttrConstraint,
     IRDLGenericAttrConstraint,
@@ -58,6 +59,7 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
+    RangeOf,
     VarExtractor,
     attr_constr_coercion,
     base,
@@ -137,25 +139,6 @@ class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "none"
 
 
-@dataclass(frozen=True)
-class ArrayOfConstraint(AttrConstraint):
-    """
-    A constraint that enforces an ArrayData whose elements all satisfy
-    the elem_constr.
-    """
-
-    elem_constr: AttrConstraint
-
-    def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
-        object.__setattr__(self, "elem_constr", attr_constr_coercion(constr))
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, ArrayAttr):
-            raise VerifyException(f"expected ArrayData attribute, but got {attr}")
-        for e in cast(ArrayAttr[Attribute], attr).data:
-            self.elem_constr.verify(e, constraint_context)
-
-
 @irdl_attr_definition
 class ArrayAttr(
     GenericData[tuple[AttributeCovT, ...]], BuiltinAttribute, Iterable[AttributeCovT]
@@ -183,13 +166,67 @@ class ArrayAttr(
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
         assert len(args) == 1
-        return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
+        return ArrayOfConstraint(RangeOf(irdl_to_attr_constraint(args[0])))
 
     def __len__(self):
         return len(self.data)
 
     def __iter__(self) -> Iterator[AttributeCovT]:
         return iter(self.data)
+
+    @staticmethod
+    def constr(
+        constr: (
+            IRDLGenericAttrConstraint[AttributeCovT]
+            | GenericRangeConstraint[AttributeCovT]
+        ),
+    ) -> GenericAttrConstraint[ArrayAttr[AttributeCovT]]:
+        return ArrayOfConstraint(constr)
+
+
+@dataclass(frozen=True)
+class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
+    elem_range_constraint: GenericRangeConstraint[AttributeCovT]
+    """
+    A constraint that enforces an ArrayData whose elements all satisfy
+    the elem_constr.
+    """
+
+    def __init__(
+        self,
+        constr: (
+            IRDLGenericAttrConstraint[Attribute] | GenericRangeConstraint[AttributeCovT]
+        ),
+    ):
+        if isinstance(constr, GenericRangeConstraint):
+            object.__setattr__(self, "elem_range_constraint", constr)
+        else:
+            object.__setattr__(
+                self, "elem_range_constraint", RangeOf(irdl_to_attr_constraint(constr))
+            )
+
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        if not isinstance(attr, ArrayAttr):
+            raise VerifyException(
+                f"expected ArrayAttr attribute, but got '{type(attr)}'"
+            )
+        attr = cast(ArrayAttr[Attribute], attr)
+        self.elem_range_constraint.verify(attr.data, constraint_context)
+
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.elem_range_constraint.can_infer(
+            var_constraint_names, length_known=False
+        )
+
+    def infer(self, context: ConstraintContext) -> ArrayAttr[AttributeCovT]:
+        return ArrayAttr(self.elem_range_constraint.infer(context, length=None))
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        return ArrayAttr
 
 
 @irdl_attr_definition
