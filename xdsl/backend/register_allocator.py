@@ -1,9 +1,12 @@
+import abc
 from collections.abc import Sequence
 from typing import cast
 
+from ordered_set import OrderedSet
+
 from xdsl.backend.register_queue import RegisterQueue
 from xdsl.backend.register_type import RegisterType
-from xdsl.ir import Attribute, SSAValue
+from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.rewriter import Rewriter
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -107,3 +110,61 @@ class ValueAllocator:
     def free_value(self, val: SSAValue) -> None:
         if isinstance(val.type, self.register_base_class) and val.type.is_allocated:
             self.available_registers.push(val.type)
+
+
+def _live_ins_per_block(
+    block: Block, acc: dict[Block, OrderedSet[SSAValue]]
+) -> OrderedSet[SSAValue]:
+    res = OrderedSet[SSAValue]([])
+
+    for op in reversed(block.ops):
+        # Remove values defined in the block
+        # We are traversing backwards, so cannot use the value removed here again
+        res.difference_update(op.results)
+        # Add values used in the block
+        res.update(op.operands)
+
+        # Process inner blocks
+        for region in op.regions:
+            for inner in region.blocks:
+                # Add the values used in the inner block
+                res.update(_live_ins_per_block(inner, acc))
+
+    # Remove the block arguments
+    res.difference_update(block.args)
+
+    acc[block] = res
+
+    return res
+
+
+def live_ins_per_block(block: Block) -> dict[Block, OrderedSet[SSAValue]]:
+    """
+    Returns a mapping from a block to the set of values used in it but defined outside of
+    it.
+    """
+    res: dict[Block, OrderedSet[SSAValue]] = {}
+    _ = _live_ins_per_block(block, res)
+    return res
+
+
+class BlockAllocator(ValueAllocator, abc.ABC):
+    """
+    Abstract base class for allocators that can process blocks at a time.
+    """
+
+    live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
+
+    def __init__(
+        self,
+        available_registers: RegisterQueue,
+        register_base_class: type[RegisterType],
+    ) -> None:
+        self.live_ins_per_block = {}
+        super().__init__(available_registers, register_base_class)
+
+    @abc.abstractmethod
+    def allocate_block(self, block: Block):
+        """
+        For each operation in the block, allocate the registers.
+        """
