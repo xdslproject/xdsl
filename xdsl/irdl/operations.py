@@ -42,6 +42,7 @@ from xdsl.utils.exceptions import (
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_mapping,
+    isa,
 )
 
 from .attributes import (  # noqa: TID251
@@ -1363,7 +1364,7 @@ def get_variadic_sizes_from_attr(
             f"Expected {size_attribute_name} {container_name} in {op.name} operation."
         )
     attribute = container[size_attribute_name]
-    if not isinstance(attribute, DenseArrayBase):
+    if not isa(attribute, DenseArrayBase):
         raise VerifyException(
             f"{size_attribute_name} {container_name} is expected "
             "to be a DenseArrayBase."
