@@ -357,7 +357,7 @@ class Printer(BasePrinter):
         self, value: tuple[int, int], type: ComplexType[ComplexElementT]
     ):
         assert isinstance(elem_ty := type.element_type, IntegerType)
-        if (elem_ty.width.data == 1):
+        if elem_ty.width.data == 1:
             self.print_string("(")
             real, imag = value[0], value[1]
             self.print_string("true" if real else "false")
