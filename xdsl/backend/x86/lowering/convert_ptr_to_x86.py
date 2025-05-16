@@ -29,7 +29,8 @@ class PtrAddToX86(RewritePattern):
         ptr_cast_op = UnrealizedConversionCastOp.get((op.addr,), (x86_reg_type,))
         offset_cast_op = UnrealizedConversionCastOp.get((op.offset,), (x86_reg_type,))
         add_op = x86.RR_AddOp(ptr_cast_op, offset_cast_op, result=x86_reg_type)
-        rewriter.replace_matched_op([ptr_cast_op, offset_cast_op, add_op])
+        res_cast_op = UnrealizedConversionCastOp.get((add_op.result,), (ptr.PtrType(),))
+        rewriter.replace_matched_op([ptr_cast_op, offset_cast_op, add_op, res_cast_op])
 
 
 @dataclass
@@ -109,7 +110,8 @@ class PtrLoadToX86(RewritePattern):
             offset=0,
             result=vector_type_to_register_type(value_type, self.arch),
         )
-        rewriter.replace_matched_op([cast_op, mov_op])
+        res_cast_op = UnrealizedConversionCastOp.get(mov_op.results, (value_type,))
+        rewriter.replace_matched_op([cast_op, mov_op, res_cast_op])
 
 
 @dataclass(frozen=True)
