@@ -401,19 +401,23 @@ def test_create_operation():
     # Create test values
     c0 = create_ssa_value(i32)
     c1 = create_ssa_value(i32)
-    attr = StringAttr("test")
+    attr = StringAttr("test_attr")
+    prop = StringAttr("test_prop")
 
     # Test create operation
     create_op = pdl_interp.CreateOperationOp(
         name="test.op",
         inferred_result_types=UnitAttr(),
-        input_attribute_names=[StringAttr("attr")],
+        input_attribute_names=[StringAttr("attr"), StringAttr("prop2")],
         input_operands=[c0, c1],
-        input_attributes=[create_ssa_value(pdl.AttributeType())],
+        input_attributes=[
+            create_ssa_value(pdl.AttributeType()),
+            create_ssa_value(pdl.AttributeType()),
+        ],
         input_result_types=[create_ssa_value(pdl.TypeType())],
     )
 
-    result = interpreter.run_op(create_op, (c0, c1, attr, i32))
+    result = interpreter.run_op(create_op, (c0, c1, attr, prop, i32))
 
     assert len(result) == 1
     assert isinstance(result[0], test.TestOp)
@@ -421,6 +425,7 @@ def test_create_operation():
     assert len(created_op.operands) == 2
     assert created_op.ops == (c0, c1)
     assert created_op.attributes["attr"] is attr
+    assert created_op.prop2 is prop
     assert len(created_op.results) == 1
     assert created_op.results[0].type == i32
     # Verify that the operation was inserted:
