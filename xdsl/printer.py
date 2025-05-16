@@ -9,6 +9,7 @@ from itertools import chain
 from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     AffineSetAttr,
     AnyFloat,
@@ -595,9 +596,9 @@ class Printer(BasePrinter):
         if isinstance(attribute, StridedLayoutAttr):
             self.print_string("strided<[")
 
-            def print_int_or_question(value: IntAttr | NoneAttr) -> None:
+            def print_int_or_question(value: IntAttr) -> None:
                 self.print_string(
-                    f"{value.data}" if isinstance(value, IntAttr) else "?"
+                    f"{value.data}" if value.data != DYNAMIC_INDEX else "?"
                 )
 
             self.print_list(attribute.strides.data, print_int_or_question, ", ")
@@ -618,7 +619,7 @@ class Printer(BasePrinter):
                     attribute.shape.data,
                     lambda x: (
                         self.print_string(f"{x.data}")
-                        if x.data != -1
+                        if x.data != DYNAMIC_INDEX
                         else self.print_string("?")
                     ),
                     "x",
