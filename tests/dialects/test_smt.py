@@ -1,14 +1,16 @@
 import pytest
 
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.builtin import IntegerAttr, StringAttr
 from xdsl.dialects.smt import (
     AndOp,
     BoolType,
     ConstantBoolOp,
+    DeclareFunOp,
     DistinctOp,
     EqOp,
     ExistsOp,
     ForallOp,
+    FuncType,
     OrOp,
     QuantifierOp,
     VariadicBoolOp,
@@ -29,6 +31,12 @@ def test_constant_bool():
     assert op.value_attr == IntegerAttr(0, 1)
 
 
+def test_function_type():
+    func_type = FuncType([BoolType(), BoolType()], BoolType())
+    assert list(func_type.domain_types) == [BoolType(), BoolType()]
+    assert func_type.range_type == BoolType()
+
+
 @pytest.mark.parametrize("op_type", [AndOp, OrOp, XOrOp, EqOp, DistinctOp])
 def test_variadic_bool_op(op_type: type[VariadicBoolOp]):
     arg1 = create_ssa_value(BoolType())
@@ -46,3 +54,13 @@ def test_quantifier_op(op_type: type[QuantifierOp]):
     region.block.add_op(YieldOp(arg1))
     op = op_type(body=region)
     assert op.returned_value == arg1
+
+
+def test_declare_fun():
+    op = DeclareFunOp(BoolType(), "foo")
+    assert op.name_prefix == StringAttr("foo")
+    assert op.result.type == BoolType()
+
+    op = DeclareFunOp(BoolType())
+    assert op.name_prefix is None
+    assert op.result.type == BoolType()
