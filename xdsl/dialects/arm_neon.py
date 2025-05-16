@@ -18,7 +18,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     VarConstraint,
-    attr_def,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -274,8 +273,8 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     d = operand_def(SAME_NEON_REGISTER_TYPE)
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
-    scalar_idx = attr_def(IntegerAttr[i8])
-    arrangement = attr_def(NeonArrangementAttr)
+    scalar_idx = prop_def(IntegerAttr[i8])
+    arrangement = prop_def(NeonArrangementAttr)
 
     assembly_format = (
         "$d `,` $s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` \
@@ -289,6 +288,7 @@ class DSSFmlaVecScalarOp(ARMInstruction):
         s2: Operation | SSAValue,
         *,
         res: NEONRegisterType,
+        scalar_idx: IntegerAttr,
         arrangement: NeonArrangement | NeonArrangementAttr,
         comment: str | StringAttr | None = None,
     ):
@@ -300,6 +300,9 @@ class DSSFmlaVecScalarOp(ARMInstruction):
             operands=(d, s1, s2),
             attributes={
                 "comment": comment,
+            },
+            properties={
+                "scalar_idx": scalar_idx,
                 "arrangement": arrangement,
             },
             result_types=(res,),
@@ -422,7 +425,7 @@ class DVarSLd1Op(ARMInstruction):
     name = "arm_neon.dvars.ld1"
     s = operand_def(IntRegisterType)
     dest_regs = var_result_def(NEONRegisterType)
-    arrangement = attr_def(NeonArrangementAttr)
+    arrangement = prop_def(NeonArrangementAttr)
 
     assembly_format = " ` ` `[` $s `]` $arrangement attr-dict `:` type($s) `->` `(` type($dest_regs) `)`"
 
@@ -446,6 +449,8 @@ class DVarSLd1Op(ARMInstruction):
             operands=(s,),
             attributes={
                 "comment": comment,
+            },
+            properties={
                 "arrangement": arrangement,
             },
             result_types=[result_types],
@@ -474,7 +479,7 @@ class DVarSSt1Op(ARMInstruction):
     name = "arm_neon.dvars.st1"
     d = operand_def(IntRegisterType)
     src_regs = var_operand_def(NEONRegisterType)
-    arrangement = attr_def(NeonArrangementAttr)
+    arrangement = prop_def(NeonArrangementAttr)
 
     assembly_format = "$src_regs ` ` `[` $d `]` $arrangement attr-dict `:` `(` type($src_regs) `)` `->` type($d)"
 
@@ -498,6 +503,8 @@ class DVarSSt1Op(ARMInstruction):
             operands=[*src_regs],
             attributes={
                 "comment": comment,
+            },
+            properties={
                 "arrangement": arrangement,
             },
             result_types=(d,),
