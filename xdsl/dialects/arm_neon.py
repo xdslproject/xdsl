@@ -18,7 +18,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     VarConstraint,
-    attr_def,
     base,
     irdl_attr_definition,
     irdl_op_definition,
