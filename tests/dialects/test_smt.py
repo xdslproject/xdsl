@@ -3,6 +3,7 @@ import pytest
 from xdsl.dialects.builtin import IntegerAttr, StringAttr
 from xdsl.dialects.smt import (
     AndOp,
+    ApplyFuncOp,
     BoolType,
     ConstantBoolOp,
     DeclareFunOp,
@@ -63,4 +64,13 @@ def test_declare_fun():
 
     op = DeclareFunOp(BoolType())
     assert op.name_prefix is None
+    assert op.result.type == BoolType()
+
+
+def test_apply_func():
+    func = create_ssa_value(FuncType([BoolType(), BoolType()], BoolType()))
+    arg1 = create_ssa_value(BoolType())
+    arg2 = create_ssa_value(BoolType())
+    op = ApplyFuncOp(func, (arg1, arg2))
+
     assert op.result.type == BoolType()
