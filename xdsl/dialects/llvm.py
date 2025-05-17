@@ -1030,7 +1030,7 @@ class GEPOp(IRDLOperation):
         ptr_type = ptr_val.type
 
         props: dict[str, Attribute] = {
-            "rawConstantIndices": DenseArrayBase.create_dense_int(i32, indices),
+            "rawConstantIndices": DenseArrayBase.from_list(i32, indices),
         }
 
         if not ptr_type.is_typed():
@@ -1683,7 +1683,7 @@ class CallOp(IRDLOperation):
     CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
     op_bundle_sizes = prop_def(
         DenseArrayBase.constr(i32),
-        default_value=DenseArrayBase.create_dense_int(i32, ()),
+        default_value=DenseArrayBase.from_list(i32, ()),
     )
     TailCallKind = prop_def(
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
@@ -1696,7 +1696,7 @@ class CallOp(IRDLOperation):
         self,
         callee: str | SymbolRefAttr | StringAttr,
         *args: SSAValue | Operation,
-        op_bundle_sizes: DenseArrayBase = DenseArrayBase.create_dense_int(i32, ()),
+        op_bundle_sizes: DenseArrayBase = DenseArrayBase.from_list(i32, ()),
         op_bundle_operands: tuple[SSAValue, ...] = (),
         return_type: Attribute | None = None,
         calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
