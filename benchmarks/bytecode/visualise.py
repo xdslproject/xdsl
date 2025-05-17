@@ -38,12 +38,16 @@ $ python3 benchmarks/microbenchmarks.py IRTraversal.iterate_block_ops dis
     // ===========================================
     // Disassembling `ops`:
     // ===========================================
-    >>> # Unable to retrieve function body!
+    // >>> # Unable to retrieve function body!
+    // >>>
+    // ===========================================
 
         // ===========================================
         // Disassembling `__init__`:
         // ===========================================
-        >>> # Unable to retrieve function body!
+        // >>> # Unable to retrieve function body!
+        // >>>
+        // ===========================================
 
     // ===========================================
     // Disassembling `__iter__`:
@@ -64,12 +68,16 @@ $ python3 benchmarks/microbenchmarks.py IRTraversal.iterate_block_ops dis
         // ===========================================
         // Disassembling `first`:
         // ===========================================
-        >>> # Unable to retrieve function body!
+        // >>> # Unable to retrieve function body!
+        // >>>
+        // ===========================================
 
             // ===========================================
             // Disassembling `first_op`:
             // ===========================================
-            >>> # Unable to retrieve function body!
+            // >>> # Unable to retrieve function body!
+            // >>>
+            // ===========================================
 
     // ===========================================
     // Disassembling `__next__`:
@@ -106,7 +114,9 @@ $ python3 benchmarks/microbenchmarks.py IRTraversal.iterate_block_ops dis
         // ===========================================
         // Disassembling `next_op`:
         // ===========================================
-        >>> # Unable to retrieve function body!
+        // >>> # Unable to retrieve function body!
+        // >>>
+        // ===========================================
 ```
 '''
 
@@ -176,5 +186,7 @@ def print_bytecode(func: Callable[[], Any], indent: int = 4, repeats: bool = Fal
             bytecode = dis.Bytecode(obj).dis()
             print(bytecode)
         except OSError:
-            print(" " * depth * indent + ">>> # Unable to retrieve function body!")
+            print(" " * depth * indent + "// >>> # Unable to retrieve function body!")
+            print(" " * depth * indent + "// >>>")
+            print(f"{' ' * depth * indent}// {'=' * 43}")
         print()
