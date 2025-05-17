@@ -2,6 +2,7 @@ import abc
 import dis
 import gc
 import inspect
+import math
 import sys
 import time
 import types
@@ -10,11 +11,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+FUNCTION_DELIMITER_LENGTH = 45
+MIN_TIME_PADDING = 100
+
 PYTHON_VERSION = sys.version_info
 PERF_COUNTER_RESOLUTION = time.get_clock_info("perf_counter").resolution
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class StopEvent:
     """An event with a previous timestamp."""
 
@@ -22,14 +26,14 @@ class StopEvent:
     exception: Exception | None
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class _LogMessage:
     """An event with a previous timestamp."""
 
     message: Any
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class TracedEvent(abc.ABC):
     """An event in a trace, having both a current and previous timestamp."""
 
@@ -47,7 +51,7 @@ class TracedEvent(abc.ABC):
     ) -> "TracedEvent": ...
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class CallEvent(TracedEvent):
     """A call event in a trace."""
 
@@ -80,7 +84,7 @@ class CallEvent(TracedEvent):
         )
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class LineEvent(TracedEvent):
     """A call event in a trace."""
 
@@ -110,7 +114,7 @@ class LineEvent(TracedEvent):
         )
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class ReturnEvent(TracedEvent):
     """A call event in a trace."""
 
@@ -130,7 +134,7 @@ class ReturnEvent(TracedEvent):
         )
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class ExceptionEvent(TracedEvent):
     """A call event in a trace."""
 
@@ -156,7 +160,7 @@ class ExceptionEvent(TracedEvent):
         )
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class OpcodeEvent(TracedEvent):
     """A call event in a trace."""
 
@@ -232,7 +236,7 @@ class BytecodeProfiler:
         """Reset the profiler."""
         self.__init__()
 
-    def trace__collect_all_events(
+    def _trace__collect_all_events(
         self, frame: types.FrameType, event: str, arg: Any
     ) -> Callable[..., Any] | None:
         """Collect all events emitted by the function being traced."""
@@ -251,19 +255,22 @@ class BytecodeProfiler:
         )
 
         self._prev_timestamp = time.perf_counter()
-        return self.trace__collect_all_events
+        return self._trace__collect_all_events
 
-    def collect_all_events(
+    def _collect_all_events(
         self, func: Callable[..., Any], *args: list[Any], **kwargs: dict[str, Any]
     ) -> None:
         """Collect all events emitted when invoking a function."""
+        if PYTHON_VERSION.minor < 10:
+            raise RuntimeError("Tracing only supported for Python versions >=3.10!")
+
         gcold = gc.isenabled()
         gc.disable()
         old_trace = sys.gettrace()
         exception = None
 
         try:
-            sys.settrace(self.trace__collect_all_events)
+            sys.settrace(self._trace__collect_all_events)
             try:
                 self._prev_timestamp = time.perf_counter()
                 func(*args, **kwargs)
@@ -279,6 +286,121 @@ class BytecodeProfiler:
 
         self._events.append(StopEvent(finish_timestamp, exception))
 
+    def _calculate_elapsed_times(
+        self,
+    ) -> dict[TracedEvent | StopEvent | _LogMessage, float]:
+        """Construct timing information from the event sequence."""
+        elapsed_times: dict[TracedEvent | StopEvent | _LogMessage, float] = {}
+
+        prev_line_stack: list[LineEvent] = []
+        call_stack: list[CallEvent] = []
+        for event in self._events:
+            elapsed_times[event] = 0.0
+
+        # TODO: Need to check in ceval loop where it is dispatched!!!
+
+        for event in self._events:
+            if isinstance(event, StopEvent) or isinstance(event, _LogMessage):
+                continue
+
+            event_elapsed = event.now_timestamp - event.prev_timestamp
+            if isinstance(event, CallEvent):
+                # Function events contribute to function runtime
+                call_stack.append(event)
+                for function in call_stack:
+                    elapsed_times[function] += event_elapsed
+            elif isinstance(event, LineEvent):
+                # Line events contribute to line and function runtimes
+                prev_line_stack.append(event)
+                elapsed_times[event] += event_elapsed
+                for function in call_stack:
+                    elapsed_times[function] += event_elapsed
+            elif isinstance(event, ReturnEvent):
+                # Return events contribute to return and function runtimes
+                elapsed_times[event] += event_elapsed
+                for function in call_stack:
+                    elapsed_times[function] += event_elapsed
+                # Pop the returning function from the call stack
+                assert len(call_stack) > 0
+                call_stack.pop()
+                # Exiting a function starts affecting the invoking line/opcode again
+                if len(prev_line_stack) > 0:
+                    prev_line_stack.pop()
+                    # TODO: prev opcode?
+            elif isinstance(event, ExceptionEvent):
+                # Exception events contribute to exception and function runtimes
+                elapsed_times[event] += event_elapsed
+                for function in call_stack:
+                    elapsed_times[function] += event_elapsed
+                # TODO: prev line and opcode?
+            elif isinstance(event, OpcodeEvent):
+                # Opcode events contribute to opcode, line, and function runtimes
+                elapsed_times[event] += event_elapsed
+                if len(prev_line_stack) > 0:
+                    elapsed_times[prev_line_stack[-1]] += event_elapsed
+                for function in call_stack:
+                    elapsed_times[function] += event_elapsed
+
+        return elapsed_times
+
+    def _print_events(self, trace_name: str, indent_size: int = 4) -> None:
+        """Print a string representation of the traced events."""
+
+        def padded_time(message: str, prefix: str, elapsed: float) -> str:
+            """Get a padded string containing the time for a trace event."""
+            resolution_ns = PERF_COUNTER_RESOLUTION * 1000000000
+            elapsed_ns = elapsed * 1000000000
+
+            def round_to_resolution(measurement: float, resolution: float) -> float:
+                """Round a floating point value to a resolution."""
+                if resolution == 0:
+                    return measurement
+
+                factor = 10 ** math.floor(math.log10(resolution))
+                return round(measurement / factor) * factor
+
+            return (
+                " " * max(1, MIN_TIME_PADDING - len(message))
+                + prefix
+                + f" {round_to_resolution(elapsed_ns, resolution_ns):<4} ns"
+            )
+
+        # Get the timing information
+        elapsed_times = self._calculate_elapsed_times()
+
+        # Print the events with this timing information
+        print(f"//// Trace of `{trace_name}` :")
+        indent = -indent_size
+        for event in self._events:
+            if isinstance(event, CallEvent):
+                indent += indent_size
+                contents = f" {event.file.stem}:{event.lineno} `{event.name}` "
+                line = f"\n{' ' * indent}// =={contents:{'='}{'^'}{FUNCTION_DELIMITER_LENGTH - 4}}=="
+                print(line + " " + padded_time(line, "==", elapsed_times[event]))
+            elif isinstance(event, LineEvent):
+                line = f"{' ' * indent}// >>> {event.contents}"
+                print(line + padded_time(line, "##", elapsed_times[event]))
+            elif isinstance(event, ReturnEvent):
+                print(f"{' ' * (indent)}// {'=' * FUNCTION_DELIMITER_LENGTH}\n")
+                indent -= indent_size
+            elif isinstance(event, ExceptionEvent):
+                contents = f" `{event.exception.__qualname__}` "
+                line = f"\n{' ' * indent}// !!{contents:{'!'}{'^'}{FUNCTION_DELIMITER_LENGTH - 4}}!!"
+                print(line + " " + padded_time(line, "==", elapsed_times[event]))
+            elif isinstance(event, OpcodeEvent):
+                curr_instr = "-->" if event.curr_instr else ""
+                jump = ">> " if event.jump else ""
+                line_no = event.lineno if event.lineno is not None else ""
+                arg = event.arg if event.arg is not None else ""
+                line = (
+                    " " * indent
+                    + f"{line_no:>3} {curr_instr:>3} {jump:>3} {event.offset:<3} "
+                    + f"{event.opname:<20} {arg:<3} {'(' + event.argrepr + ')':<20} "
+                )
+                print(line + padded_time(line, "//", elapsed_times[event]))
+            else:
+                pass  # TODO: Handle stop and log messages
+
     def profile_function(
         self,
         func: Callable[[], Any],
@@ -286,9 +408,8 @@ class BytecodeProfiler:
         **kwargs: dict[str, Any],
     ) -> None:
         self.reset()
-        self.collect_all_events(func, *args, **kwargs)
-        for event in self._events:
-            print(event)
+        self._collect_all_events(func, *args, **kwargs)
+        self._print_events(func.__qualname__)
 
 
 def print_bytecode(func: Callable[[], Any]) -> None:

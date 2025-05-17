@@ -11,7 +11,7 @@ from pathlib import Path
 from statistics import mean, median, stdev
 from typing import Any, NamedTuple, cast
 
-from benchmarks.bytecode.trace import print_bytecode
+from benchmarks.bytecode.trace_ import print_bytecode
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = (
