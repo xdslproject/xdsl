@@ -11,7 +11,7 @@ import types
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Self, cast
+from typing import Any, cast
 
 FUNCTION_DELIMITER_LENGTH = 45
 MIN_TIME_PADDING = 100
@@ -46,7 +46,7 @@ class EventTrace(abc.ABC):
         )
 
     @classmethod
-    def get_median(cls, traces: list[Self]) -> Self:
+    def get_median(cls, traces: list[Any]) -> Any:
         """Get a trace with the median +/- standard error elapsed time."""
         assert len(traces) > 0
         assert all(x == traces[0] for x in traces)
@@ -56,7 +56,7 @@ class EventTrace(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_frame(cls, frame: types.FrameType, arg: Any) -> Self: ...
+    def from_frame(cls, frame: types.FrameType, arg: Any) -> Any: ...
 
     @abc.abstractmethod
     def show(
@@ -89,7 +89,7 @@ class OpcodeTrace(EventTrace):
         return None
 
     @classmethod
-    def from_frame(cls, frame: types.FrameType, arg: None) -> Self:
+    def from_frame(cls, frame: types.FrameType, arg: None) -> Any:
         """Construct the opcode representation from a frame object."""
         instruction = cls.get_opcode(frame)
         assert instruction is not None
@@ -131,7 +131,7 @@ class LineTrace(EventTrace):
     contents: str
 
     @classmethod
-    def from_frame(cls, frame: types.FrameType, arg: None) -> Self:
+    def from_frame(cls, frame: types.FrameType, arg: None) -> Any:
         """Construct the line representation from a frame object."""
         try:
             frameinfo = inspect.getframeinfo(frame)
@@ -161,7 +161,7 @@ class FunctionTrace(EventTrace):
     return_time: float | None = None
 
     @classmethod
-    def from_frame(cls, frame: types.FrameType, arg: None) -> Self:
+    def from_frame(cls, frame: types.FrameType, arg: None) -> Any:
         """Construct the function representation from a frame object."""
         return cls(
             name=frame.f_code.co_qualname,
@@ -193,7 +193,7 @@ class ExceptionTrace(EventTrace):
         cls,
         frame: types.FrameType,
         arg: tuple[type, Exception, types.TracebackType | None],
-    ) -> Self:
+    ) -> Any:
         """Construct the line representation from a frame object."""
         return cls(*arg)
 
@@ -215,7 +215,7 @@ class ReturnTrace(EventTrace):
     return_value: Any
 
     @classmethod
-    def from_frame(cls, frame: types.FrameType, arg: Any) -> Self:
+    def from_frame(cls, frame: types.FrameType, arg: Any) -> Any:
         """Construct the line representation from a frame object."""
         return cls(return_value=arg)
 
@@ -442,27 +442,27 @@ def print_bytecode(
 
 
 if __name__ == "__main__":
-    from xdsl.irdl import (
-        IRDLOperation,
-        irdl_op_definition,
-        traits_def,
-    )
-    from xdsl.traits import OpTrait
+    # from xdsl.irdl import (
+    #     IRDLOperation,
+    #     irdl_op_definition,
+    #     traits_def,
+    # )
+    # from xdsl.traits import OpTrait
 
-    class TraitA(OpTrait):
-        """An example trait."""
+    # class TraitA(OpTrait):
+    #     """An example trait."""
 
-    @irdl_op_definition
-    class HasTraitAOp(IRDLOperation):
-        """An operation which has a trait A."""
+    # @irdl_op_definition
+    # class HasTraitAOp(IRDLOperation):
+    #     """An operation which has a trait A."""
 
-        name = "has_trait_a"
-        traits = traits_def(TraitA())
+    #     name = "has_trait_a"
+    #     traits = traits_def(TraitA())
 
-    HAS_TRAIT_A_OP = HasTraitAOp()
+    # HAS_TRAIT_A_OP = HasTraitAOp()
 
-    def has_trait_function():
-        HAS_TRAIT_A_OP.has_trait(TraitA)
+    # def has_trait_function():
+    #     HAS_TRAIT_A_OP.has_trait(TraitA)
 
     def inner_function(x: int | str | float):
         assert x
