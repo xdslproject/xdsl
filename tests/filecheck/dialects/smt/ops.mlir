@@ -10,6 +10,12 @@
 // CHECK-NEXT: %func1 = smt.declare_fun : !smt.func<() !smt.bool>
 // CHECK-NEXT: %func2 = smt.declare_fun : !smt.func<(!smt.bool) !smt.bool
 
+smt.apply_func %func1() : !smt.func<() !smt.bool>
+smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
+
+// CHECK-NEXT:    smt.apply_func %func1() : !smt.func<() !smt.bool>
+// CHECK-NEXT:    smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
+
 %arg1 = smt.constant true
 %arg2 = smt.constant false
 %arg3 = smt.constant false
