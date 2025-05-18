@@ -6,7 +6,6 @@ import pytest
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
-    DYNAMIC_INDEX,
     AnyFloat,
     ArrayAttr,
     BFloat16Type,
@@ -656,17 +655,17 @@ def test_unrealized_conversion_cast():
 @pytest.mark.parametrize(
     "strides, offset, expected_strides, expected_offset",
     [
-        ([2], None, ArrayAttr([IntAttr(2)]), IntAttr(DYNAMIC_INDEX)),
-        ([None], 2, ArrayAttr([IntAttr(DYNAMIC_INDEX)]), IntAttr(2)),
-        ([IntAttr(2)], DYNAMIC_INDEX, ArrayAttr([IntAttr(2)]), IntAttr(DYNAMIC_INDEX)),
-        ([DYNAMIC_INDEX], IntAttr(2), ArrayAttr([IntAttr(DYNAMIC_INDEX)]), IntAttr(2)),
+        ([2], None, ArrayAttr([IntAttr(2)]), NoneAttr()),
+        ([None], 2, ArrayAttr([NoneAttr()]), IntAttr(2)),
+        ([IntAttr(2)], NoneAttr(), ArrayAttr([IntAttr(2)]), NoneAttr()),
+        ([NoneAttr()], IntAttr(2), ArrayAttr([NoneAttr()]), IntAttr(2)),
     ],
 )
 def test_strided_constructor(
-    strides: ArrayAttr[IntAttr] | Sequence[int | None | IntAttr],
-    offset: int | None | IntAttr,
+    strides: ArrayAttr[IntAttr | NoneAttr] | Sequence[int | None | IntAttr | NoneAttr],
+    offset: int | None | IntAttr | NoneAttr,
     expected_strides: ArrayAttr[IntAttr | NoneAttr],
-    expected_offset: IntAttr,
+    expected_offset: IntAttr | NoneAttr,
 ):
     strided = StridedLayoutAttr(strides, offset)
     assert strided.strides == expected_strides

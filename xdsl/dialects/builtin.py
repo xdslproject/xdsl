@@ -1568,7 +1568,7 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
 
     Strides must be positive and the offset must be non-negative. Both the strides and
     the offset may be dynamic, i.e. their value may not be known at compile time. This
-    is expressed as a ? in the assembly syntax and as ShapedType::kDynamic in the code.
+    is expressed as a ? in the assembly syntax and as `NoneAttr` in the code.
     Stride and offset values must satisfy the constraints above at runtime, the behavior
     is undefined otherwise.
     Contrary to MLIR, and we do not restrict offsets and strides to 64-bits
@@ -1577,21 +1577,23 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
 
     name = "strided"
 
-    strides: ParameterDef[ArrayAttr[IntAttr]]
-    offset: ParameterDef[IntAttr]
+    strides: ParameterDef[ArrayAttr[IntAttr | NoneAttr]]
+    offset: ParameterDef[IntAttr | NoneAttr]
 
     def __init__(
         self,
-        strides: (ArrayAttr[IntAttr] | Sequence[int | None | IntAttr]),
-        offset: int | None | IntAttr = 0,
+        strides: (
+            ArrayAttr[IntAttr | NoneAttr] | Sequence[int | None | IntAttr | NoneAttr]
+        ),
+        offset: int | None | IntAttr | NoneAttr = 0,
     ) -> None:
         if not isinstance(strides, ArrayAttr):
-            strides_values: list[IntAttr] = []
+            strides_values: list[IntAttr | NoneAttr] = []
             for stride in strides:
                 if isinstance(stride, int):
                     strides_values.append(IntAttr(stride))
                 elif stride is None:
-                    strides_values.append(IntAttr(DYNAMIC_INDEX))
+                    strides_values.append(NoneAttr())
                 else:
                     strides_values.append(stride)
             strides = ArrayAttr(strides_values)
@@ -1599,18 +1601,35 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
         if isinstance(offset, int):
             offset = IntAttr(offset)
         if offset is None:
-            offset = IntAttr(DYNAMIC_INDEX)
+            offset = NoneAttr()
 
         super().__init__([strides, offset])
 
+    def verify(self) -> None:
+        if isinstance(self.offset, IntAttr) and self.offset.data < 0:
+            raise VerifyException(
+                f"Invalid offset {self.offset.data} for strided layout, which must be "
+                "nonnegative."
+            )
+
+        for i, stride in enumerate(self.strides):
+            if isinstance(stride, IntAttr) and stride.data <= 0:
+                raise VerifyException(
+                    f"Invalid stride {stride.data} at index {i} for strided layout, "
+                    "which must be positive."
+                )
+
     def get_strides(self) -> Sequence[int | None]:
         return tuple(
-            None if stride.data == DYNAMIC_INDEX else stride.data
+            None if isinstance(stride, NoneAttr) else stride.data
             for stride in self.strides
         )
 
     def get_offset(self) -> int | None:
-        return None if self.offset.data == DYNAMIC_INDEX else self.offset.data
+        if isinstance(self.offset, NoneAttr):
+            return None
+        else:
+            return self.offset.data
 
     def get_affine_map(self) -> AffineMap:
         """
@@ -1630,19 +1649,18 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
         result = AffineConstantExpr(0)
 
         # add offset
-        if self.offset.data == DYNAMIC_INDEX:
+        if isinstance(self.offset, IntAttr):
+            result += AffineConstantExpr(self.offset.data)
+        else:  # NoneAttr
             result += AffineSymExpr(nb_symbols)
             nb_symbols += 1
-        else:
-            result += AffineConstantExpr(self.offset.data)
 
         for dim, stride in enumerate(self.strides.data):
-            if stride.data == DYNAMIC_INDEX:
+            if isinstance(stride, IntAttr):
+                stride_expr = AffineConstantExpr(stride.data)
+            else:  # NoneAttr
                 stride_expr = AffineSymExpr(nb_symbols)
                 nb_symbols += 1
-            else:
-                stride_expr = AffineConstantExpr(stride.data)
-
             result += AffineDimExpr(dim) * stride_expr
 
         return AffineMap(len(self.strides), nb_symbols, (result,))

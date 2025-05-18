@@ -6,11 +6,11 @@ from typing import cast
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl, memref
 from xdsl.dialects.builtin import (
-    DYNAMIC_INDEX,
     AffineMapAttr,
     ArrayAttr,
     Float16Type,
     Float32Type,
+    IntAttr,
     IntegerAttr,
     MemRefType,
     ModuleOp,
@@ -52,9 +52,8 @@ class LowerAllocOpPass(RewritePattern):
             else csl.DsdKind.mem4d_dsd
         )
         offsets = None
-        if (
-            isinstance(memref_type.layout, StridedLayoutAttr)
-            and memref_type.layout.offset.data != DYNAMIC_INDEX
+        if isinstance(memref_type.layout, StridedLayoutAttr) and isinstance(
+            memref_type.layout.offset, IntAttr
         ):
             offsets = ArrayAttr([IntegerAttr(memref_type.layout.offset, 16)])
 

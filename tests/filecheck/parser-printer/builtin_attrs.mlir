@@ -269,9 +269,9 @@
   // CHECK: type_attr = index
 
   "func.func"() ({}) {function_type = () -> (),
-                      strided = strided<[1, 0x23, -23, -0x21, ?], offset: -3>,
+                      strided = strided<[1, 0x23, 23, 0x21, ?], offset: 3>,
                       sym_name = "strided"} : () -> ()
-  // CHECK: strided = strided<[1, 35, -23, -33, ?], offset: -3>
+  // CHECK: strided = strided<[1, 35, 23, 33, ?], offset: 3>
 
   "func.func"() ({}) {function_type = () -> (),
                       strided = strided<[], offset: ?>,

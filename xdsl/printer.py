@@ -596,9 +596,9 @@ class Printer(BasePrinter):
         if isinstance(attribute, StridedLayoutAttr):
             self.print_string("strided<[")
 
-            def print_int_or_question(value: IntAttr) -> None:
+            def print_int_or_question(value: IntAttr | NoneAttr) -> None:
                 self.print_string(
-                    f"{value.data}" if value.data != DYNAMIC_INDEX else "?"
+                    f"{value.data}" if isinstance(value, IntAttr) else "?"
                 )
 
             self.print_list(attribute.strides.data, print_int_or_question, ", ")
