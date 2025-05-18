@@ -590,3 +590,54 @@ def test_func():
         interpreter.call_op("matcher", (op,))
     pdl_interp_functions.rewriter = PatternRewriter(op)
     interpreter.call_op("matcher", (op,))
+
+
+def test_switch_operation_name():
+    interpreter = Interpreter(ModuleOp([]))
+    pdl_interp_functions = PDLInterpFunctions(Context())
+    interpreter.register_implementations(pdl_interp_functions)
+
+    case1 = Block()
+    case2 = Block()
+    case3 = Block()
+    default = Block()
+
+    switch_op = pdl_interp.SwitchOperationNameOp(
+        [
+            StringAttr("test.someop"),
+            StringAttr("test.yetanotherop"),
+            StringAttr("test.op"),
+        ],
+        create_ssa_value(pdl.OperationType()),
+        default,
+        [case1, case2, case3],
+    )
+
+    op = test.TestOp()
+
+    switch_result = pdl_interp_functions.run_switch_operation_name(
+        interpreter,
+        switch_op,
+        (op,),
+    )
+
+    assert isinstance(switch_result.terminator_value, Successor)
+    assert isinstance(switch_result.terminator_value.block, Block)
+    assert switch_result.terminator_value.block is case3
+
+    switch_op = pdl_interp.SwitchOperationNameOp(
+        [StringAttr("test.someop"), StringAttr("test.yetanotherop")],
+        create_ssa_value(pdl.OperationType()),
+        default,
+        [case1, case2, case3],
+    )
+
+    switch_result = pdl_interp_functions.run_switch_operation_name(
+        interpreter,
+        switch_op,
+        (op,),
+    )
+
+    assert isinstance(switch_result.terminator_value, Successor)
+    assert isinstance(switch_result.terminator_value.block, Block)
+    assert switch_result.terminator_value.block is default
