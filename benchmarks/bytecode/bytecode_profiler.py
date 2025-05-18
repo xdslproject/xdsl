@@ -229,6 +229,27 @@ EVENT_NAME_LOOKUP: dict[str, type[TracedEvent]] = {
 }
 
 
+def round_to_resolution(measurement: float, resolution: float) -> float:
+    """Round a floating point value to a resolution."""
+    if resolution == 0:
+        return measurement
+
+    factor = 10 ** math.floor(math.log10(resolution))
+    return round(measurement / factor) * factor
+
+
+def padded_time(message: str, prefix: str, elapsed: float) -> str:
+    """Get a padded string containing the time for a trace event."""
+    resolution_ns = PERF_COUNTER_RESOLUTION * 1000000000
+    elapsed_ns = elapsed * 1000000000
+
+    return (
+        " " * max(1, MIN_TIME_PADDING - len(message))
+        + prefix
+        + f" {round_to_resolution(elapsed_ns, resolution_ns):<4} ns"
+    )
+
+
 @dataclass
 class BytecodeProfiler:
     """A profiler for Python (>=3.7) bytecode."""
@@ -236,6 +257,7 @@ class BytecodeProfiler:
     events: list[TracedEvent | StopEvent | _LogMessage] = field(default_factory=list)  # pyright: ignore[reportUnknownVariableType]
     _prev_timestamp: float | None = None
     uninstrumented_time: float | None = None
+    empty_instrumented_time: float | None = None
     instrumented_time: float | None = None
 
     def reset(self) -> None:
@@ -243,9 +265,10 @@ class BytecodeProfiler:
         self.__init__()
 
     def _trace__empty(
-        self, _frame: types.FrameType, _event: str, _arg: Any
+        self, frame: types.FrameType, _event: str, _arg: Any
     ) -> Callable[..., Any] | None:
         """Trace function which does nothing."""
+        return self._trace__empty
 
     def _trace__collect_all_events(
         self, frame: types.FrameType, event: str, arg: Any
@@ -296,14 +319,33 @@ class BytecodeProfiler:
             except Exception as _exc:
                 pass
             finally:
+                finish_timestamp = time.perf_counter()
                 self.uninstrumented_time = (
-                    time.perf_counter() - start_timestamp
+                    finish_timestamp - start_timestamp
                     if start_timestamp is not None
                     else 0.0
                 )
 
-            sys.settrace(self._trace__collect_all_events)
+            # Measure the time taken to run the function once with empty tracing
+            start_timestamp = None
             try:
+                sys.settrace(self._trace__empty)
+                start_timestamp = time.perf_counter()
+                func(*args, **kwargs)
+            except Exception as _exc:
+                pass
+            finally:
+                finish_timestamp = time.perf_counter()
+                self.empty_instrumented_time = (
+                    finish_timestamp - start_timestamp
+                    if start_timestamp is not None
+                    else 0.0
+                )
+                sys.settrace(old_trace)
+
+            # Measure the time taken to run the function once with tracing
+            try:
+                sys.settrace(self._trace__collect_all_events)
                 self._prev_timestamp = time.perf_counter()
                 func(*args, **kwargs)
             except Exception as exc:
@@ -339,25 +381,56 @@ class BytecodeProfiler:
         cls,
         events: list[TracedEvent | StopEvent | _LogMessage],
         uninstrumented_time: float | None,
+        empty_instrumented_time: float | None,
         instrumented_time: float | None,
     ) -> dict[TracedEvent | StopEvent | _LogMessage, float]:
         """Construct timing information from the event sequence."""
         assert uninstrumented_time is not None
+        assert empty_instrumented_time is not None
         assert instrumented_time is not None
 
         elapsed_times: dict[TracedEvent | StopEvent | _LogMessage, float] = {}
 
+        tracing_time = 0.0
         for event in events:
             elapsed_times[event] = 0.0
+            if isinstance(event, TracedEvent) or isinstance(event, StopEvent):
+                tracing_time += event.now_timestamp - event.prev_timestamp
 
         prev_opcode: OpcodeEvent | None = None
         for event in events:
-            if isinstance(event, OpcodeEvent) or isinstance(event, StopEvent):
+            if isinstance(event, OpcodeEvent):
                 if prev_opcode is not None:
                     elapsed_times[prev_opcode] += (
                         event.now_timestamp - event.prev_timestamp
                     )
                 prev_opcode = event
+            elif isinstance(event, StopEvent):
+                if prev_opcode is not None:
+                    elapsed_times[prev_opcode] += (
+                        event.now_timestamp - event.prev_timestamp
+                    )
+
+        print(f"Uninstrumented = {uninstrumented_time * 1000000000:.1f}ns")
+        print(f"Empty instrumented = {empty_instrumented_time * 1000000000:.1f}ns")
+        print(f"Instrumented = {instrumented_time * 1000000000:.1f}ns")
+        print(f"Tracing = {tracing_time * 1000000000:.1f}ns")
+        print(
+            f"Uninstrumented + Tracing = {(uninstrumented_time + tracing_time) * 1000000000:.1f}ns"
+        )
+        print(f"Non-tracing = {(instrumented_time - tracing_time) * 1000000000:.1f}ns")
+        # TODO: Good idea: trace event creation and times separately with some
+        # good key to recombine them (or switch ot namedtuples/cython?)
+        average_nontracing_time = (instrumented_time - tracing_time) / len(events)
+
+        for event in events:
+            if isinstance(event, OpcodeEvent):
+                print(
+                    f"Measured = {(elapsed_times[event] - average_nontracing_time) * 1000000000:.1f}ns,\t"
+                    f"Original = {elapsed_times[event] * 1000000000:.1f}ns,\t"
+                    f"Offset = {average_nontracing_time * 1000000000:.1f}ns,\t"
+                )
+
         return elapsed_times
 
     @classmethod
@@ -369,25 +442,6 @@ class BytecodeProfiler:
         indent_size: int = 4,
     ) -> None:
         """Print a string representation of the traced events."""
-
-        def padded_time(message: str, prefix: str, elapsed: float) -> str:
-            """Get a padded string containing the time for a trace event."""
-            resolution_ns = PERF_COUNTER_RESOLUTION * 1000000000
-            elapsed_ns = elapsed * 1000000000
-
-            def round_to_resolution(measurement: float, resolution: float) -> float:
-                """Round a floating point value to a resolution."""
-                if resolution == 0:
-                    return measurement
-
-                factor = 10 ** math.floor(math.log10(resolution))
-                return round(measurement / factor) * factor
-
-            return (
-                " " * max(1, MIN_TIME_PADDING - len(message))
-                + prefix
-                + f" {round_to_resolution(elapsed_ns, resolution_ns):<4} ns"
-            )
 
         # Print the events with this timing information
         print(f"//// Trace of `{trace_name}` :")
@@ -413,14 +467,15 @@ def print_bytecode(
     profiler = BytecodeProfiler()
     profiler.profile(func, *args, **kwargs)
 
-    elapsed_times = BytecodeProfiler.calculate_elapsed_times(
+    _elapsed_times = BytecodeProfiler.calculate_elapsed_times(
         events=profiler.events,
         uninstrumented_time=profiler.uninstrumented_time,
+        empty_instrumented_time=profiler.empty_instrumented_time,
         instrumented_time=profiler.instrumented_time,
     )
-    BytecodeProfiler.print_events(
-        profiler.events, elapsed_times, trace_name=func.__qualname__
-    )
+    # BytecodeProfiler.print_events(
+    #     profiler.events, elapsed_times, trace_name=func.__qualname__
+    # )
 
 
 if __name__ == "__main__":
