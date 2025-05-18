@@ -298,6 +298,9 @@ class Liveness:
             to_process.pop()
             block_info = self.get_liveness(block)
 
+            if not block_info:
+                continue
+
             # Note that start and end will be in the same block.
             start = block_info.get_start_operation(value)
             assert isinstance(start, Operation)
@@ -312,34 +315,41 @@ class Liveness:
 
             assert block.last_op
             for successor in block.last_op.successors:
-                if (
-                    self.get_liveness(successor).is_livein(value)
-                    and successor not in visited
-                ):
+                if (succ_liveness := self.get_liveness(successor)) is None:
+                    continue
+                if succ_liveness.is_livein(value) and successor not in visited:
                     to_process.append(successor)
                     visited.add(successor)
         return result
 
     # Gets liveness info (if any) for the block.
     def get_liveness(self, block: Block):
-        it = block_mapping[block]
-
-        # FIXME: fix for the case when there is not info
-        return it
+        try:
+            it = block_mapping[block]
+            return it
+        except KeyError:
+            return None
 
     # Returns a reference to a set containing live-in values.
     def get_livein(self, block: Block):
-        self.get_liveness(block).in_values
+        if (_liveness := self.get_liveness(block)) is None:
+            return None
+        else:
+            _liveness.in_values
 
     # Returns a reference to a set containing live-out values.
     def get_liveoiut(self, block: Block):
-        self.get_liveness(block).out_values
+        if (_liveness := self.get_liveness(block)) is None:
+            return None
+        else:
+            _liveness.out_values
 
     # Returns true if `value` is not live after `operation`.
     def is_dead_after(self, value: SSAValue, operation: Operation):
         block = operation.parent_block()
         assert isinstance(block, Block)
         block_info = self.get_liveness(block)
+        assert block_info
 
         # The given value escapes the associated block.
         if block_info.is_liveout(value):
@@ -402,6 +412,7 @@ class Liveness:
             assert isinstance(block, Block)
             print(f"// - Block: {block_ids[block]}", file=output)
             liveness = self.get_liveness(block)
+            assert liveness
             print("// --- LiveIn: ", file=output, end="")
             print_value_refs(liveness.in_values)
             print("\n// --- LiveOut: ", file=output, end="")
