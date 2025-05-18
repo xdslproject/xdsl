@@ -7,7 +7,14 @@ from typing import ClassVar, TypeAlias
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import BoolAttr
-from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AtLeast,
     IRDLOperation,
@@ -17,13 +24,16 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     prop_def,
+    region_def,
     result_def,
     traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import ConstantLike, Pure
+from xdsl.traits import ConstantLike, HasParent, IsTerminator, Pure
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
@@ -218,6 +228,73 @@ class EqOp(VariadicPredicateOp):
     name = "smt.eq"
 
 
+class QuantifierOp(IRDLOperation, ABC):
+    result = result_def(BoolType)
+    body = region_def("single_block")
+
+    traits = traits_def(Pure())
+
+    assembly_format = "attr-dict-with-keyword $body"
+
+    def __init__(self, body: Region) -> None:
+        super().__init__(result_types=[BoolType()], regions=[body])
+
+    def verify_(self) -> None:
+        if not isinstance(yield_op := self.body.block.last_op, YieldOp):
+            raise VerifyException("region expects an `smt.yield` terminator")
+        if tuple(yield_op.operand_types) != (BoolType(),):
+            raise VerifyException(
+                "region yield terminator must have a single boolean operand, "
+                f"got {tuple(str(type) for type in yield_op.operand_types)}"
+            )
+
+    @property
+    def returned_value(self) -> SSAValue[BoolType]:
+        """
+        The value returned by the quantifier. This is the value that is passed
+        to the `smt.yield` terminator of the operation region.
+        This function will asserts if the region is not correctly terminated by
+        an `smt.yield` operation with a single boolean operand.
+        """
+        assert isinstance(yield_op := self.body.block.last_op, YieldOp)
+        assert isa(ret_value := yield_op.values[0], SSAValue[BoolType])
+        return ret_value
+
+
+@irdl_op_definition
+class ExistsOp(QuantifierOp):
+    """
+    This operation represents the `exists` quantifier as described in the SMT-LIB 2.7
+    standard. It is part of the language itself rather than a theory or logic.
+    """
+
+    name = "smt.exists"
+
+
+@irdl_op_definition
+class ForallOp(QuantifierOp):
+    """
+    This operation represents the `forall` quantifier as described in the SMT-LIB 2.7
+    standard. It is part of the language itself rather than a theory or logic.
+    """
+
+    name = "smt.forall"
+
+
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    name = "smt.yield"
+
+    values = var_operand_def(NonFuncSMTType)
+
+    assembly_format = "($values^ `:` type($values))? attr-dict"
+
+    traits = traits_def(IsTerminator(), HasParent(ExistsOp, ForallOp))
+
+    def __init__(self, *values: SSAValue):
+        super().__init__(operands=[values], result_types=[])
+
+
 SMT = Dialect(
     "smt",
     [
@@ -227,6 +304,9 @@ SMT = Dialect(
         XOrOp,
         DistinctOp,
         EqOp,
+        ExistsOp,
+        ForallOp,
+        YieldOp,
     ],
     [BoolType],
 )

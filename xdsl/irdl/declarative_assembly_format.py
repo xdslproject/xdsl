@@ -1145,6 +1145,20 @@ class OptionalAttributeVariable(AttributeVariable):
     The directive will request a space to be printed after.
     """
 
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        # Only qualified optional attributes can be optionally parsed currently.
+        # Other attributes are parsed as required attributes.
+        if self.unique_base is None:
+            attr = parser.parse_optional_attribute()
+            if attr is None:
+                return False
+            if self.is_property:
+                state.properties[self.name] = attr
+            else:
+                state.attributes[self.name] = attr
+            return True
+        return super().parse(parser, state)
+
     def is_present(self, op: IRDLOperation) -> bool:
         if self.is_property:
             attr = op.properties.get(self.name)
@@ -1154,6 +1168,9 @@ class OptionalAttributeVariable(AttributeVariable):
 
     def is_anchorable(self) -> bool:
         return True
+
+    def is_optional_like(self) -> bool:
+        return self.unique_base is None
 
 
 class OptionalUnitAttrVariable(OptionalAttributeVariable):
