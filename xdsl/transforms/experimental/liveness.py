@@ -338,7 +338,7 @@ class Liveness:
             _liveness.in_values
 
     # Returns a reference to a set containing live-out values.
-    def get_liveoiut(self, block: Block):
+    def get_liveout(self, block: Block):
         if (_liveness := self.get_liveness(block)) is None:
             return None
         else:
