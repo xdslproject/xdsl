@@ -15,7 +15,8 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue
+from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
@@ -305,38 +306,39 @@ class PDLInterpFunctions(InterpreterFunctions):
 
         # Split args into operands, attributes and result types based on operand segments
         operands = list(args[0 : len(op.input_operands)])
-        attributes = list(
-            args[
-                len(op.input_operands) : len(op.input_operands)
-                + len(op.input_attributes)
-            ]
-        )
-        result_types = list(args[len(op.input_operands) + len(op.input_attributes) :])
 
-        # Verify all arguments have correct types
-        for operand in operands:
-            assert isinstance(operand, SSAValue)
-        for attr in attributes:
-            assert isinstance(attr, Attribute)
-        for res_type in result_types:
-            assert isinstance(res_type, TypeAttribute)
-
-        # Create attribute dictionary using input_attribute_names
         attr_names: list[str] = [
             cast(StringAttr, name).data for name in op.input_attribute_names.data
         ]
-        attr_dict = dict(zip(attr_names, attributes))
+
+        assert issubclass(op_type, IRDLOperation)
+        existing_properties = op_type.get_irdl_definition().properties.keys()
+
+        attributes: dict[str, Attribute] = {}
+        properties: dict[str, Attribute] = {}
+        for name, prop_or_attr in zip(
+            attr_names,
+            args[
+                len(op.input_operands) : len(op.input_operands)
+                + len(op.input_attributes)
+            ],
+        ):
+            if name in existing_properties:
+                properties[name] = prop_or_attr
+            else:
+                attributes[name] = prop_or_attr
+        result_types = list(args[len(op.input_operands) + len(op.input_attributes) :])
 
         # Create the new operation
         result_op = op_type.create(
             operands=operands,
             result_types=result_types,
-            attributes=attr_dict,
+            attributes=attributes,
+            properties=properties,
         )
 
         self.rewriter.insert_op_before_matched_op(result_op)
 
-        # Return the created operation
         return (result_op,)
 
     @impl_callable(pdl_interp.FuncOp)

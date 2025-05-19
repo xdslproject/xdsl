@@ -51,6 +51,7 @@ module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
     %attr = pdl_interp.create_attribute 10 : i64 
     %0 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value) {"attrA" = %attr}  -> (%arg2 : !pdl.type)
+    %nooperands = pdl_interp.create_operation "test.testop" {"attrA" = %attr} -> (%arg2 : !pdl.type)
     %1 = pdl_interp.get_result 0 of %0
     %2 = pdl_interp.create_operation "arith.addi"(%arg3, %1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
     %3 = pdl_interp.get_result 0 of %2
@@ -112,12 +113,13 @@ module @rewriters {
 // CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {
 // CHECK-NEXT:         %0 = pdl_interp.create_attribute 10 : i64
 // CHECK-NEXT:         %1 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value) {"attrA" = %0} -> (%arg2 : !pdl.type)
-// CHECK-NEXT:         %2 = pdl_interp.get_result 0 of %1
-// CHECK-NEXT:         %3 = pdl_interp.create_operation "arith.addi"(%arg3, %2 : !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
-// CHECK-NEXT:         %4 = pdl_interp.get_result 0 of %3
-// CHECK-NEXT:         %5 = pdl_interp.get_results of %3 : !pdl.range<value>
-// CHECK-NEXT:         %6 = pdl_interp.get_results 0 of %3 : !pdl.range<value>
-// CHECK-NEXT:         pdl_interp.replace %arg4 with (%5 : !pdl.range<value>)
+// CHECK-NEXT:         %2 = pdl_interp.create_operation "test.testop" {"attrA" = %0}  -> (%arg2 : !pdl.type)
+// CHECK-NEXT:         %3 = pdl_interp.get_result 0 of %1
+// CHECK-NEXT:         %4 = pdl_interp.create_operation "arith.addi"(%arg3, %3 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
+// CHECK-NEXT:         %5 = pdl_interp.get_result 0 of %4
+// CHECK-NEXT:         %6 = pdl_interp.get_results of %4 : !pdl.range<value>
+// CHECK-NEXT:         %7 = pdl_interp.get_results 0 of %4 : !pdl.range<value>
+// CHECK-NEXT:         pdl_interp.replace %arg4 with (%6 : !pdl.range<value>)
 // CHECK-NEXT:         pdl_interp.finalize
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }
