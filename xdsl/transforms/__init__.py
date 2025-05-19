@@ -303,6 +303,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return inline_snrt.InlineSnrtPass
 
+    def get_licm():
+        from xdsl.transforms import loop_invariant_code_motion
+
+        return loop_invariant_code_motion.LoopInvariantCodeMotionPass
+
     def get_lift_arith_to_linalg():
         from xdsl.transforms.lift_arith_to_linalg import LiftArithToLinalg
 
@@ -590,6 +595,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "inline-snrt": get_inline_snrt,
+        "licm": get_licm,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-fuse-multiply-add": get_linalg_fuse_multiply_add,
         "linalg-to-csl": get_linalg_to_csl,
