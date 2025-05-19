@@ -102,5 +102,4 @@ class LoopInvariantCodeMotionPass(ModulePass):
             LoopInvariantCodeMotion(),
             apply_recursively=False,
             walk_regions_first=True,
-            walk_reverse=True,
         ).rewrite_module(op)
