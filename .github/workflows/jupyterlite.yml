@@ -15,7 +15,7 @@ jobs:
           path: xdsl
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
 
       - name: Set up Python
         run: uv python install 3.11
@@ -27,7 +27,7 @@ jobs:
       - name: Build xDSL source distribution
         run: |
           cd xdsl
-          python setup.py sdist
+          uv build
 
       # Pyodide is cached, so cloned only if not present in the cache, otherwise
       # just checked out to whatever desired version and partially rebuilt.

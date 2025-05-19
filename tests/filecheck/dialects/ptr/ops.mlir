@@ -16,3 +16,6 @@ ptr_xdsl.store %v, %p : i32, !ptr_xdsl.ptr
 
 // CHECK-NEXT: %pm = ptr_xdsl.to_ptr %m : memref<10xi32> -> !ptr_xdsl.ptr
 %pm = ptr_xdsl.to_ptr %m : memref<10xi32> -> !ptr_xdsl.ptr
+
+// CHECK-NEXT: %mp = ptr_xdsl.from_ptr %p : !ptr_xdsl.ptr -> memref<10xi32>
+%mp = ptr_xdsl.from_ptr %p : !ptr_xdsl.ptr -> memref<10xi32>

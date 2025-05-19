@@ -23,6 +23,7 @@ from xdsl.dialects.arith import (
     FloatingPointLikeBinaryOperation,
     FloorDivSIOp,
     FPToSIOp,
+    FPToUIOp,
     IndexCastOp,
     MaximumfOp,
     MaxSIOp,
@@ -47,11 +48,10 @@ from xdsl.dialects.arith import (
     SubiOp,
     TruncFOp,
     TruncIOp,
+    UIToFPOp,
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
-    AnyTensorType,
-    AnyVectorType,
     DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
@@ -68,9 +68,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
-from xdsl.irdl import base
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.isattr import isattr
 from xdsl.utils.test_value import create_ssa_value
 
 _BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
@@ -197,10 +195,7 @@ def test_addui_extend(
         if sum_type:
             assert op.sum.type == sum_type
         assert op.overflow.type == AddUIExtendedOp.infer_overflow_type(lhs_type)
-        if isattr(
-            container_type := op.overflow.type,
-            base(AnyVectorType) | base(AnyTensorType),
-        ):
+        if isinstance(container_type := op.overflow.type, VectorType | TensorType):
             assert container_type.element_type == i1
         else:
             assert op.overflow.type == i1
@@ -249,7 +244,7 @@ class Test_float_arith_construction:
         op = func(self.a, self.b, flags)
         assert op.operands[0].owner is self.a
         assert op.operands[1].owner is self.b
-        assert op.fastmath == flags
+        assert op.fastmath == (flags or FastMathFlagsAttr("none"))
 
 
 def test_select_op():
@@ -334,6 +329,17 @@ def test_cast_fp_and_si_ops():
     assert fp.input == a.result
     assert fp.result == si.input
     assert isinstance(si.result.type, IntegerType)
+    assert fp.result.type == f32
+
+
+def test_cast_fp_and_ui_ops():
+    a = ConstantOp.from_int_and_width(0, 32)
+    fp = UIToFPOp(a, f32)
+    ui = FPToUIOp(fp, i32)
+
+    assert fp.input == a.result
+    assert fp.result == ui.input
+    assert isinstance(ui.result.type, IntegerType)
     assert fp.result.type == f32
 
 

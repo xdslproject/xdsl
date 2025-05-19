@@ -117,4 +117,11 @@
 // CHECK-NEXT:      func.return %{{.*}} : f32
 // CHECK-NEXT:    }
 
+  // Check that an affine.apply with an affine map is printed correctly.
+
+  %c0 = arith.constant 2 : index
+  %0 = affine.apply affine_map<()[s0] -> (s0 * 4)>()[%c0]
+  // CHECK: %{{.*}} = arith.constant 2 : index
+  // CHECK-NEXT: %{{.*}} = affine.apply affine_map<()[{{.*}}] -> (({{.*}} * 4))> ()[%{{.*}}]
+
 }) : () -> ()

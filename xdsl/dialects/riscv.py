@@ -2430,6 +2430,16 @@ class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.mulhu"
 
 
+class DivOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            DivideByOneIdentity,
+        )
+
+        return (DivideByOneIdentity(),)
+
+
 ## Division Operations
 @irdl_op_definition
 class DivOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2442,6 +2452,7 @@ class DivOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.div"
+    traits = traits_def(DivOpHasCanonicalizationPatternsTrait(), Pure())
 
 
 @irdl_op_definition

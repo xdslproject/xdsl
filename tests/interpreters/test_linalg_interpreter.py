@@ -282,8 +282,12 @@ def test_linalg_pooling_nchw_max():
         (create_ssa_value(TensorType(f32, [1, 1, 3, 3])),),
         (TensorType(f32, [1, 1, 3, 3]),),
         {
-            "dilations": DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
-            "strides": DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
+            "dilations": DenseIntOrFPElementsAttr.create_dense_int(
+                TensorType(i64, [2]), 1
+            ),
+            "strides": DenseIntOrFPElementsAttr.create_dense_int(
+                TensorType(i64, [2]), 1
+            ),
         },
     )
     a = ShapedArray(TypedPtr.new_float32(list(range(1, 17))), [1, 1, 4, 4])
@@ -315,8 +319,12 @@ def test_linalg_pooling_nchw_max_strides_two():
         (create_ssa_value(TensorType(f32, [1, 1, 2, 2])),),
         (TensorType(f32, [1, 1, 2, 2]),),
         {
-            "dilations": DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
-            "strides": DenseIntOrFPElementsAttr.tensor_from_list([2], i64, [2]),
+            "dilations": DenseIntOrFPElementsAttr.create_dense_int(
+                TensorType(i64, [2]), 1
+            ),
+            "strides": DenseIntOrFPElementsAttr.create_dense_int(
+                TensorType(i64, [2]), 2
+            ),
         },
     )
     a = ShapedArray(
@@ -348,8 +356,12 @@ def test_linalg_conv_2d_nchw_fchw():
         (create_ssa_value(TensorType(f32, [1, 1, 3, 3])),),
         (TensorType(f32, [1, 1, 3, 3]),),
         {
-            "dilations": DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
-            "strides": DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
+            "dilations": DenseIntOrFPElementsAttr.create_dense_int(
+                TensorType(i64, [2]), 1
+            ),
+            "strides": DenseIntOrFPElementsAttr.create_dense_int(
+                TensorType(i64, [2]), 1
+            ),
         },
     )
     a = ShapedArray(TypedPtr.new_float32(list(range(25))), [1, 1, 5, 5])

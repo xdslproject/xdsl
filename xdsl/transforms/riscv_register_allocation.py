@@ -20,17 +20,6 @@ class RISCVRegisterAllocation(ModulePass):
 
     limit_registers: int | None = None
 
-    exclude_preallocated: bool = True
-    """
-    Enables tracking of already allocated registers and excludes them from the
-    available set.
-    This does not keep track of any liveness information and the preallocated registers
-    are excluded completely from any further allocation decisions.
-    """
-
-    exclude_snitch_reserved: bool = True
-    """Excludes floating-point registers that are used by the Snitch ISA extensions."""
-
     add_regalloc_stats: bool = False
     """
     Inserts a comment with register allocation info in the IR.
@@ -61,8 +50,6 @@ class RISCVRegisterAllocation(ModulePass):
                 allocator = allocator_strategies[self.allocation_strategy](
                     riscv_register_queue
                 )
-                allocator.exclude_preallocated = self.exclude_preallocated
-                allocator.exclude_snitch_reserved = self.exclude_snitch_reserved
                 allocator.allocate_func(
                     inner_op, add_regalloc_stats=self.add_regalloc_stats
                 )

@@ -69,7 +69,6 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
 
 GEP_USE_SSA_VAL = -2147483648
@@ -1586,7 +1585,7 @@ class ConstantOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
-        if isattr(self.value, IntegerAttr) and self.result.type == IntegerType(64):
+        if isa(self.value, IntegerAttr) and self.result.type == IntegerType(64):
             self.value.print_without_type(printer)
         else:
             printer.print(self.value)

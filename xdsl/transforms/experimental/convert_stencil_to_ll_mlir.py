@@ -55,7 +55,6 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -460,7 +459,7 @@ class AccessOpToMemRef(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
-        assert isattr(temp, StencilTypeConstr)
+        assert StencilTypeConstr.verifies(temp)
         assert isinstance(temp.bounds, StencilBoundsAttr)
 
         memref_offset = op.offset

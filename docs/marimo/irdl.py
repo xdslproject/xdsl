@@ -439,7 +439,7 @@ def _(Printer, printer):
 
     @irdl_attr_definition
     class MyIntAttr(Data[int]):
-        name = "my_int"
+        name = "test.my_int"
 
         @classmethod
         def parse_parameter(cls, parser: AttrParser) -> int:
@@ -478,7 +478,7 @@ def _(IntAttr, StringAttr, irdl_attr_definition):
     @irdl_attr_definition
     class MyIntegerType(ParametrizedAttribute):
         # Name of the type. This is used for printing and parsing.
-        name = "integer_type"
+        name = "test.integer_type"
 
         # Only parameter of the type, with an `EqAttrConstraint` constraint.
         # Note the use of the attribute constraint coercion.
@@ -697,7 +697,7 @@ def _(
 
     @irdl_op_definition
     class BinaryOp(IRDLOperation):
-        name = "binary_op"
+        name = "test.binary_op"
 
         T: ClassVar = VarConstraint("T", base(IntegerType))
 
@@ -744,7 +744,7 @@ def _(
 
     @irdl_op_definition
     class AddVariadicOp(IRDLOperation):
-        name = "add_variadic"
+        name = "test.add_variadic"
         ops = var_operand_def(i32)
         res = result_def(i32)
 
@@ -791,7 +791,7 @@ def _(
 
     @irdl_op_definition
     class AddVariadic2Op(IRDLOperation):
-        name = "add_variadic"
+        name = "test.add_variadic"
         ops1 = var_operand_def(i32)
         ops2 = var_operand_def(i32)
         res = result_def(i32)
@@ -837,7 +837,7 @@ def _(
 
     @irdl_op_definition
     class AddVariadic2Op2(IRDLOperation):
-        name = "add_optional"
+        name = "test.add_optional"
         ops1 = operand_def(i32)
         ops2 = opt_operand_def(i32)
         res = result_def(i32)
@@ -880,7 +880,7 @@ def _(IRDLOperation, StringAttr, irdl_op_definition, printer):
 
     @irdl_op_definition
     class StringAttrOp(IRDLOperation):
-        name = "string_attr_op"
+        name = "test.string_attr_op"
         value = attr_def(StringAttr)
 
 
@@ -957,7 +957,7 @@ def _(IRDLOperation, i32, irdl_op_definition, printer):
 
     @irdl_op_definition
     class WhileOp(IRDLOperation):
-        name = "while_op"
+        name = "test.while_op"
         value = region_def()
         traits = traits_def(NoTerminator())
 
@@ -1008,7 +1008,7 @@ def _(
 
     @irdl_op_definition
     class MyAddiOp(IRDLOperation):
-        name = "std.addi"
+        name = "test.addi"
         input1 = operand_def(IntegerType)
         input2 = operand_def(IntegerType)
         output = result_def(IntegerType)

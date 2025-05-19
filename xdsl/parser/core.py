@@ -862,7 +862,7 @@ class Parser(AttrParser):
         regions = self.parse_region_list()
 
         # Parse attribute dictionary
-        attrs = self.parse_optional_attr_dict()
+        attributes = self.parse_optional_attr_dict()
 
         self.parse_punctuation(":", "function type signature expected")
 
@@ -875,16 +875,19 @@ class Parser(AttrParser):
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 
-        # Properties retrocompatibility : if no properties dictionary was present at all,
-        # We extract them from the attribute dictionary by name.
-        if issubclass(op_type, IRDLOperation) and not properties:
-            properties = op_type.get_irdl_definition().split_properties(attrs)
+        # Properties retrocompatibility :
+        # We extract properties from the attribute dictionary by name.
+        if issubclass(op_type, IRDLOperation):
+            op_def = op_type.get_irdl_definition()
+            for property_name in op_def.properties.keys():
+                if property_name in attributes and property_name not in properties:
+                    properties[property_name] = attributes.pop(property_name)
 
         return op_type.create(
             operands=operands,
             result_types=func_type.outputs.data,
             properties=properties,
-            attributes=attrs,
+            attributes=attributes,
             successors=successors,
             regions=regions,
         )
