@@ -112,10 +112,9 @@ class DeclareFunOp(IRDLOperation):
     ):
         if isinstance(name_prefix, str):
             name_prefix = StringAttr(name_prefix)
-        properties: dict[str, Attribute] = (
-            {"namePrefix": name_prefix} if name_prefix else {}
+        super().__init__(
+            result_types=[result_type], properties={"namePrefix": name_prefix}
         )
-        super().__init__(result_types=[result_type], properties=properties)
 
 
 @irdl_op_definition
