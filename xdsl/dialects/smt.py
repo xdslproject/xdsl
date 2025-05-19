@@ -71,9 +71,9 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
             domain_types = parser.parse_comma_separated_list(
                 parser.Delimiter.PAREN, parser.parse_type
             )
-            range_types = parser.parse_type()
+            range_type = parser.parse_type()
 
-        return (ArrayAttr(domain_types), range_types)
+        return (ArrayAttr(domain_types), range_type)
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<(")
@@ -107,9 +107,13 @@ class DeclareFunOp(IRDLOperation):
 
     assembly_format = "($namePrefix^)? attr-dict `:` type($result)"
 
-    def __init__(self, result_type: SMTType, name_prefix: str | None = None):
+    def __init__(
+        self, result_type: SMTType, name_prefix: StringAttr | str | None = None
+    ):
+        if isinstance(name_prefix, str):
+            name_prefix = StringAttr(name_prefix)
         properties: dict[str, Attribute] = (
-            {"namePrefix": StringAttr(name_prefix)} if name_prefix else {}
+            {"namePrefix": name_prefix} if name_prefix else {}
         )
         super().__init__(result_types=[result_type], properties=properties)
 
@@ -377,5 +381,8 @@ SMT = Dialect(
         ForallOp,
         YieldOp,
     ],
-    [BoolType, FuncType],
+    [
+        BoolType,
+        FuncType,
+    ],
 )
