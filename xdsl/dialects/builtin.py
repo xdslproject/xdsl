@@ -188,8 +188,8 @@ class ArrayAttr(
 class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     elem_range_constraint: GenericRangeConstraint[AttributeCovT]
     """
-    A constraint that enforces an ArrayData whose elements all satisfy
-    the elem_constr.
+    A constraint that enforces an ArrayData whose elements satisfy
+    the underlying range constraint.
     """
 
     def __init__(
@@ -210,11 +210,10 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
         attr: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        if not isinstance(attr, ArrayAttr):
+        if not isa(attr, ArrayAttr):
             raise VerifyException(
                 f"expected ArrayAttr attribute, but got '{type(attr)}'"
             )
-        attr = cast(ArrayAttr[Attribute], attr)
         self.elem_range_constraint.verify(attr.data, constraint_context)
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
