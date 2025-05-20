@@ -63,10 +63,24 @@ class MultiplyImmediatePowerOfTwo(RewritePattern):
     def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
         if (log_rs1 := exact_log2(op.rs1)) is not None:
             rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.SlliOp(op.rs2, log_rs1, rd=rd))
+            rewriter.replace_matched_op(
+                riscv.SlliOp(
+                    op.rs2,
+                    log_rs1,
+                    rd=rd,
+                    comment=op.comment,
+                )
+            )
         elif (log_rs2 := exact_log2(op.rs2)) is not None:
             rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.SlliOp(op.rs1, log_rs2, rd=rd))
+            rewriter.replace_matched_op(
+                riscv.SlliOp(
+                    op.rs1,
+                    log_rs2,
+                    rd=rd,
+                    comment=op.comment,
+                )
+            )
 
 
 class DivideByOneIdentity(RewritePattern):
