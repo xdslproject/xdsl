@@ -240,62 +240,62 @@ class DS_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
     register.
     """
 
-    s = operand_def(R1InvT)
-    d = result_def(R1InvT)
+    r1 = operand_def(R1InvT)
+    r2 = result_def(R1InvT)
 
     def __init__(
         self,
-        s: Operation | SSAValue | None = None,
+        r1: Operation | SSAValue | None = None,
         *,
         comment: str | StringAttr | None = None,
-        d: R1InvT | None = None,
+        r2: R1InvT | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
-            operands=[s],
+            operands=[r1],
             attributes={
                 "comment": comment,
             },
-            result_types=[d],
+            result_types=[r2],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.d, self.s)
+        return (self.r2, self.r1)
 
 
-class I_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class R_Operation(X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one register acting as both source and destination.
     """
 
     INOUT: ClassVar = VarConstraint("INOUT", base(GeneralRegisterType))
 
-    s = operand_def(INOUT)
-    d = result_def(INOUT)
+    r1_source = operand_def(INOUT)
+    r1_destination = result_def(INOUT)
 
     def __init__(
         self,
-        s: Operation | SSAValue,
+        r1_source: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
-        s = SSAValue.get(s)
-        assert isinstance(s.type, GeneralRegisterType)
+        r1_source = SSAValue.get(r1_source)
+        assert isinstance(r1_source.type, GeneralRegisterType)
 
         super().__init__(
-            operands=[s],
+            operands=[r1_source],
             attributes={
                 "comment": comment,
             },
-            result_types=[s.type],
+            result_types=[r1_source.type],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.s,)
+        return (self.r1_source,)
 
 
 class R_RM_Operation(
@@ -411,14 +411,14 @@ class DImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
     """
 
     imm = attr_def(IntegerAttr)
-    d = result_def(R1InvT)
+    r1 = result_def(R1InvT)
 
     def __init__(
         self,
         imm: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        d: R1InvT,
+        r1: R1InvT,
     ):
         if isinstance(imm, int):
             imm = IntegerAttr(imm, 32)  # the default immediate size is 32 bits
@@ -430,11 +430,11 @@ class DImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
                 "imm": imm,
                 "comment": comment,
             },
-            result_types=[d],
+            result_types=[r1],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.d, self.imm
+        return self.r1, self.imm
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1108,7 +1108,7 @@ class R_PopOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class I_NegOp(I_Operation[GeneralRegisterType]):
+class I_NegOp(R_Operation):
     """
     Negates r1 and stores the result in r1.
     ```C
@@ -1122,7 +1122,7 @@ class I_NegOp(I_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class I_NotOp(I_Operation[GeneralRegisterType]):
+class I_NotOp(R_Operation):
     """
     bitwise not of r1, stored in r1
     ```C
@@ -1136,7 +1136,7 @@ class I_NotOp(I_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class I_IncOp(I_Operation[GeneralRegisterType]):
+class I_IncOp(R_Operation):
     """
     Increments r1 by 1 and stores the result in r1.
     ```C
@@ -1150,7 +1150,7 @@ class I_IncOp(I_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class I_DecOp(I_Operation[GeneralRegisterType]):
+class I_DecOp(R_Operation):
     """
     Decrements r1 by 1 and stores the result in r1.
     ```C

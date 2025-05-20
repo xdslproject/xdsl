@@ -145,7 +145,7 @@ class LowerReturnOp(RewritePattern):
         cast_op = builtin.UnrealizedConversionCastOp.get(
             (return_value,), (x86.register.UNALLOCATED_GENERAL,)
         )
-        mov_op = x86.ops.DS_MovOp(cast_op, d=return_passing_register)
+        mov_op = x86.ops.DS_MovOp(cast_op, r2=return_passing_register)
         ret_op = x86_func.RetOp()
 
         rewriter.replace_matched_op([cast_op, mov_op, ret_op])
