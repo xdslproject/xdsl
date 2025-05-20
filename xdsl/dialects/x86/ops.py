@@ -410,42 +410,46 @@ class DImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
     value.
     """
 
-    imm = attr_def(IntegerAttr)
+    immediate = attr_def(IntegerAttr)
     r1 = result_def(R1InvT)
 
     def __init__(
         self,
-        imm: int | IntegerAttr,
+        immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         r1: R1InvT,
     ):
-        if isinstance(imm, int):
-            imm = IntegerAttr(imm, 32)  # the default immediate size is 32 bits
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
             attributes={
-                "imm": imm,
+                "immediate": immediate,
                 "comment": comment,
             },
             result_types=[r1],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.r1, self.imm
+        return self.r1, self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         return {
-            "imm": parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
+            "immediate": parse_immediate_value(
+                parser, IntegerType(32, Signedness.SIGNED)
+            )
         }
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print_string(" ", indent=0)
-        print_immediate_value(printer, self.imm)
-        return {"imm"}
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 class R_RImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
