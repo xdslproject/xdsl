@@ -545,7 +545,10 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
     def get(
         arg: SSAValue | Operation, *, type: type[AttributeInvT] = Attribute
     ) -> SSAValue[AttributeInvT]:
-        "Get a new SSAValue from either a SSAValue, or an operation with a single result."
+        """
+        Get a new SSAValue from either a SSAValue, or an operation with a single result.
+        Checks that the resulting SSAValue is of the supplied type, if provided.
+        """
         match arg:
             case SSAValue():
                 if type is Attribute or isinstance(arg.type, type):
