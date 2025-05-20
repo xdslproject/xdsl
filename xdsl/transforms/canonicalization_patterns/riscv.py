@@ -548,12 +548,8 @@ def exact_log2(value: SSAValue) -> int | None:
     if (v := get_constant_value(value)) is None:
         return
 
-    if v.value.data < 1:
+    if v.value.data < 0:
         return
 
-    # Since we use 32-bit signed integers, we can hardcode all 31 powers of 2.
-    powers_of_two = [1 << i for i in range(31)]
-    try:
-        return powers_of_two.index(v.value.data)
-    except ValueError:
-        return
+    if int.bit_count(v.value.data) == 1:
+        return int.bit_length(v.value.data) - 1
