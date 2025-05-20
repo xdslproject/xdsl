@@ -206,9 +206,9 @@ class ImpliesOp(IRDLOperation):
 
     name = "smt.implies"
 
-    lhs = operand_def(base(BoolType))
-    rhs = operand_def(base(BoolType))
-    result = result_def(BoolType())
+    lhs = operand_def(BoolType)
+    rhs = operand_def(BoolType)
+    result = result_def(BoolType)
 
     traits = traits_def(Pure())
 
