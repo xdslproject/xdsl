@@ -47,6 +47,7 @@ You're welcome to come up with your own, or do one of the following:
 - `x + x * n -> x * (n + 1)` (where `n` is an immediate)
 - `x >> 0 -> x`
 - `x * 1 -> x`
+- `n * x -> x * n` (where `n` is an immediate)
 
 The patterns are defined in
 [xdsl/transforms/canonicalization_patterns/riscv.py](xdsl/transforms/canonicalization_patterns/riscv.py).
