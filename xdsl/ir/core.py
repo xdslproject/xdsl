@@ -548,7 +548,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         "Get a new SSAValue from either a SSAValue, or an operation with a single result."
         match arg:
             case SSAValue():
-                if type == Attribute or isinstance(arg.type, type):
+                if type is Attribute or isinstance(arg.type, type):
                     return cast(SSAValue[AttributeInvT], arg)
                 raise ValueError(
                     f"SSAValue.get: Expected {type.name} type but got SSAValue with type {arg.type}."
