@@ -2,7 +2,15 @@ from abc import ABC
 
 import pytest
 
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.bufferization import TensorFromMemRefConstraint
+from xdsl.dialects.builtin import (
+    MemRefType,
+    StringAttr,
+    TensorType,
+    UnrankedMemRefType,
+    UnrankedTensorType,
+    i32,
+)
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
@@ -153,3 +161,29 @@ def test_base_attr_constraint_inference():
 def test_constraint_repr(constr: AttrConstraint, expected: str):
     assert repr(constr) == expected
     assert eval(repr(constr)) == constr
+
+
+@pytest.mark.parametrize(
+    "input, output",
+    [
+        (TensorType(i32, [2, 2]), MemRefType(i32, [2, 2])),
+        (UnrankedTensorType(i32), UnrankedMemRefType.from_type(i32)),
+    ],
+)
+def test_tensor_to_memref(
+    input: TensorType | UnrankedTensorType, output: MemRefType | UnrankedMemRefType
+):
+    assert TensorFromMemRefConstraint.tensor_to_memref(input) == output
+
+
+@pytest.mark.parametrize(
+    "input, output",
+    [
+        (MemRefType(i32, [2, 2]), TensorType(i32, [2, 2])),
+        (UnrankedMemRefType.from_type(i32), UnrankedTensorType(i32)),
+    ],
+)
+def test_memref_to_tensor(
+    input: MemRefType | UnrankedMemRefType, output: TensorType | UnrankedTensorType
+):
+    assert TensorFromMemRefConstraint.memref_to_tensor(input) == output
