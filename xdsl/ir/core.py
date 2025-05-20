@@ -27,7 +27,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self, TypeForm, TypeVar
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
@@ -542,16 +542,27 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         return name is None or cls._name_regex.fullmatch(name)
 
     @staticmethod
-    def get(arg: SSAValue | Operation) -> SSAValue:
-        "Get a new SSAValue from either a SSAValue, or an operation with a single result."
+    def get(
+        arg: SSAValue | Operation, *, type: TypeForm[AttributeInvT] = Attribute
+    ) -> SSAValue[AttributeInvT]:
+        """
+        Get a new SSAValue from either a SSAValue, or an operation with a single result.
+        Checks that the resulting SSAValue is of the supplied type, if provided.
+        """
+        from xdsl.utils.hints import isa
+
         match arg:
             case SSAValue():
-                return arg
+                if type is Attribute or isa(arg.type, type):
+                    return cast(SSAValue[AttributeInvT], arg)
+                raise ValueError(
+                    f"SSAValue.get: Expected {type} but got SSAValue with type {arg.type}."
+                )
             case Operation():
                 if len(arg.results) == 1:
-                    return arg.results[0]
+                    return SSAValue.get(arg.results[0], type=type)
                 raise ValueError(
-                    "SSAValue.build: expected operation with a single result."
+                    "SSAValue.get: expected operation with a single result."
                 )
 
     def replace_by(self, value: SSAValue) -> None:
