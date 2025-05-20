@@ -1122,7 +1122,7 @@ class I_NegOp(R_Operation):
     See external [documentation](https://www.felixcloutier.com/x86/neg).
     """
 
-    name = "x86.i.neg"
+    name = "x86.r.neg"
 
 
 @irdl_op_definition
@@ -1136,7 +1136,7 @@ class I_NotOp(R_Operation):
     See external [documentation](https://www.felixcloutier.com/x86/not).
     """
 
-    name = "x86.i.not"
+    name = "x86.r.not"
 
 
 @irdl_op_definition
@@ -1150,7 +1150,7 @@ class I_IncOp(R_Operation):
     See external [documentation](https://www.felixcloutier.com/x86/inc).
     """
 
-    name = "x86.i.inc"
+    name = "x86.r.inc"
 
 
 @irdl_op_definition
@@ -1164,7 +1164,7 @@ class I_DecOp(R_Operation):
     See external [documentation](https://www.felixcloutier.com/x86/dec).
     """
 
-    name = "x86.i.dec"
+    name = "x86.r.dec"
 
 
 @irdl_op_definition
