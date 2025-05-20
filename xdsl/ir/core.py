@@ -27,7 +27,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self, TypeForm, TypeVar
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
@@ -543,18 +543,20 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
     @staticmethod
     def get(
-        arg: SSAValue | Operation, *, type: type[AttributeInvT] = Attribute
+        arg: SSAValue | Operation, *, type: TypeForm[AttributeInvT] = Attribute
     ) -> SSAValue[AttributeInvT]:
         """
         Get a new SSAValue from either a SSAValue, or an operation with a single result.
         Checks that the resulting SSAValue is of the supplied type, if provided.
         """
+        from xdsl.utils.hints import isa
+
         match arg:
             case SSAValue():
-                if type is Attribute or isinstance(arg.type, type):
+                if type is Attribute or isa(arg.type, type):
                     return cast(SSAValue[AttributeInvT], arg)
                 raise ValueError(
-                    f"SSAValue.get: Expected {type.name} type but got SSAValue with type {arg.type}."
+                    f"SSAValue.get: Expected {type} but got SSAValue with type {arg.type}."
                 )
             case Operation():
                 if len(arg.results) == 1:

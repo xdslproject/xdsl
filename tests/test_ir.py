@@ -5,10 +5,13 @@ from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, SubiOp
 from xdsl.dialects.builtin import (
     Builtin,
+    Float64Type,
+    IndexType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
     StringAttr,
+    TensorType,
     i32,
     i64,
 )
@@ -1081,9 +1084,47 @@ def test_ssa_get_on_ssa():
 
     with pytest.raises(
         ValueError,
-        match="SSAValue.get: Expected string type but got SSAValue with type i32",
+        match="SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> but got SSAValue with type i32",
     ):
-        SSAValue.get(ssa_value, type=StringAttr)
+        SSAValue.get(ssa_value, type=IndexType)
+
+
+def test_ssa_get_with_typeform():
+    ssa_value = create_ssa_value(i32)
+
+    assert SSAValue.get(ssa_value, type=IntegerType | IndexType) == ssa_value
+    assert SSAValue.get(ssa_value, type=IntegerType | IndexType).type == i32
+
+    with pytest.raises(
+        ValueError,
+        match="SSAValue.get: Expected xdsl.dialects.builtin.Float64Type | xdsl.dialects.builtin.IndexType but got SSAValue with type i32",
+    ):
+        SSAValue.get(ssa_value, type=Float64Type | IndexType)
+
+    tensor_type = TensorType(i32, [2, 2])
+    ssa_value_tensor = create_ssa_value(tensor_type)
+
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType]) == ssa_value_tensor
+    )
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType]).type == tensor_type
+    )
+
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType | IndexType])
+        == ssa_value_tensor
+    )
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType | IndexType]).type
+        == tensor_type
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"SSAValue.get: Expected xdsl.dialects.builtin.TensorType\[xdsl.dialects.builtin.Float64Type \| xdsl.dialects.builtin.IndexType\] but got SSAValue with type tensor<2x2xi32>.",
+    ):
+        SSAValue.get(ssa_value_tensor, type=TensorType[Float64Type | IndexType])
 
 
 def test_ssa_get_on_op():
@@ -1096,9 +1137,9 @@ def test_ssa_get_on_op():
 
     with pytest.raises(
         ValueError,
-        match="SSAValue.get: Expected string type but got SSAValue with type i32",
+        match="SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> but got SSAValue with type i32",
     ):
-        SSAValue.get(op1, type=StringAttr)
+        SSAValue.get(op1, type=IndexType)
 
     op2 = test.TestOp(result_types=[i32, i32])
     with pytest.raises(
