@@ -103,10 +103,8 @@ class LoadOp(IRDLOperation):
     def get(
         cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
     ) -> Self:
-        ssa_value = SSAValue.get(ref)
-        ssa_value_type = ssa_value.type
-        ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
-        return cls(operands=[ref, indices], result_types=[ssa_value_type.element_type])
+        ssa_value = SSAValue.get(ref, type=MemRefType)
+        return cls(operands=[ref, indices], result_types=[ssa_value.type.element_type])
 
 
 @irdl_op_definition
@@ -601,8 +599,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
         Create an ExtractStridedMetaDataOp that extracts the metadata from the
         operation (source) that produces a memref.
         """
-        source_type = SSAValue.get(source).type
-        assert isa(source_type, MemRefType[Attribute])
+        source_type = SSAValue.get(source, type=MemRefType).type
         source_shape = source_type.get_shape()
         # Return a rank zero memref with the memref type
         base_buffer_type = MemRefType(
