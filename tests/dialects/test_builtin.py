@@ -483,6 +483,7 @@ def test_DenseIntOrFPElementsAttr_values():
         [(1.0, 2.0), (3.0, 4.0)],
     )
     assert tuple(complex_f32_attr.get_complex_values()) == ((1.0, 2.0), (3.0, 4.0))
+    assert tuple(complex_f32_attr.get_values()) == ((1.0, 2.0), (3.0, 4.0))
     with pytest.raises(NotImplementedError):
         complex_f32_attr.iter_values()
     with pytest.raises(NotImplementedError):
@@ -495,7 +496,8 @@ def test_DenseIntOrFPElementsAttr_values():
         TensorType(complex_i32, [2]),
         [(1, 2), (3, 4)],
     )
-    assert tuple(complex_i32_attr.get_complex_values()) == ((1.0, 2.0), (3.0, 4.0))
+    assert tuple(complex_i32_attr.get_complex_values()) == ((1, 2), (3, 4))
+    assert tuple(complex_i32_attr.get_values()) == ((1, 2), (3, 4))
     with pytest.raises(NotImplementedError):
         complex_i32_attr.iter_values()
     with pytest.raises(NotImplementedError):
