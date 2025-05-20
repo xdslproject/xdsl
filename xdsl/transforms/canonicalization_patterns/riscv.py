@@ -58,6 +58,17 @@ class MultiplyImmediateZero(RewritePattern):
             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
 
 
+class MultiplyImmediatePowerOfTwo(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
+        if (log_rs1 := exact_log2(op.rs1)) is not None:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.SlliOp(op.rs2, log_rs1, rd=rd))
+        elif (log_rs2 := exact_log2(op.rs2)) is not None:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.SlliOp(op.rs1, log_rs2, rd=rd))
+
+
 class DivideByOneIdentity(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.DivOp, rewriter: PatternRewriter) -> None:
@@ -517,3 +528,18 @@ def get_constant_value(value: SSAValue) -> riscv.Imm32Attr | None:
 
     if isinstance(value.op, riscv.LiOp) and isinstance(value.op.immediate, IntegerAttr):
         return value.op.immediate
+
+
+def exact_log2(value: SSAValue) -> int | None:
+    if (v := get_constant_value(value)) is None:
+        return
+
+    if v.value.data < 1:
+        return
+
+    # Since we use 32-bit signed integers, we can hardcode all 31 powers of 2.
+    powers_of_two = [1 << i for i in range(31)]
+    try:
+        return powers_of_two.index(v.value.data)
+    except ValueError:
+        return

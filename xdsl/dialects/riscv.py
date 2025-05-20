@@ -2369,11 +2369,16 @@ class MulOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
+            MultiplyImmediatePowerOfTwo,
             MultiplyImmediates,
             MultiplyImmediateZero,
         )
 
-        return (MultiplyImmediates(), MultiplyImmediateZero())
+        return (
+            MultiplyImmediates(),
+            MultiplyImmediateZero(),
+            MultiplyImmediatePowerOfTwo(),
+        )
 
 
 @irdl_op_definition
