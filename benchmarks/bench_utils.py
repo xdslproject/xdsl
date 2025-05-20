@@ -11,7 +11,7 @@ from pathlib import Path
 from statistics import mean, median, stdev
 from typing import Any, NamedTuple, cast
 
-from benchmarks.bytecode.trace_ import print_bytecode
+from benchmarks.bytecode.bytecode_profiler import profile_bytecode
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = (
@@ -258,7 +258,7 @@ def dis_benchmark(
     _, (test, setup) = benchmark_runs[0]
     if setup is not None:
         setup()
-    print_bytecode(test)
+    profile_bytecode(test)
 
 
 def show(
