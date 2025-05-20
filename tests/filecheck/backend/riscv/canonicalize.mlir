@@ -27,9 +27,10 @@ builtin.module {
   %c2 = riscv.li 2 : !riscv.reg
   %c3 = riscv.li 3 : !riscv.reg
   %c8 = riscv.li 8 : !riscv.reg
+  %cm8 = riscv.li -8 : !riscv.reg
 
   // Don't optimise out unused immediates
-  "test.op"(%zero, %c0, %c1, %c2, %c3, %c8) : (!riscv.reg<zero>, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg) -> ()
+  "test.op"(%zero, %c0, %c1, %c2, %c3, %c8, %cm8) : (!riscv.reg<zero>, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg) -> ()
 
   %load_zero_zero = riscv.li 0 : !riscv.reg<zero>
   "test.op"(%load_zero_zero) : (!riscv.reg<zero>) -> ()
@@ -51,6 +52,9 @@ builtin.module {
 
   %multiply_immediate_lpow2 = riscv.mul %i1, %c8 : (!riscv.reg<a1>, !riscv.reg) -> !riscv.reg<a0>
   "test.op" (%multiply_immediate_lpow2) : (!riscv.reg<a0>) -> ()
+
+  %multiply_immediate_rmpow2 = riscv.mul %cm8, %i1 : (!riscv.reg, !riscv.reg<a1>) -> !riscv.reg<a0>
+  "test.op" (%multiply_immediate_rmpow2) : (!riscv.reg<a0>) -> ()
 
   %div_lhs_const = riscv.div %i1, %c1 : (!riscv.reg<a1>, !riscv.reg) -> !riscv.reg<a0>
   "test.op"(%div_lhs_const) : (!riscv.reg<a0>) -> ()
@@ -166,7 +170,8 @@ builtin.module {
 // CHECK-NEXT:   %c2 = riscv.li 2 : !riscv.reg
 // CHECK-NEXT:   %c3 = riscv.li 3 : !riscv.reg
 // CHECK-NEXT:   %c8 = riscv.li 8 : !riscv.reg
-// CHECK-NEXT:   "test.op"(%zero, %c0_1, %c1, %c2, %c3, %c8) : (!riscv.reg<zero>, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg) -> ()
+// CHECK-NEXT:   %cm8 = riscv.li -8 : !riscv.reg
+// CHECK-NEXT:   "test.op"(%zero, %c0_1, %c1, %c2, %c3, %c8, %cm8) : (!riscv.reg<zero>, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg) -> ()
 
 // CHECK-NEXT:   %load_zero_zero = riscv.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   "test.op"(%load_zero_zero) : (!riscv.reg<zero>) -> ()
@@ -188,6 +193,9 @@ builtin.module {
 
 // CHECK-NEXT:   %multiply_immediate_lpow2 = riscv.slli %i1, 3 : (!riscv.reg<a1>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%multiply_immediate_lpow2) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %multiply_immediate_rmpow2 = riscv.mul %cm8, %i1 : (!riscv.reg, !riscv.reg<a1>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%multiply_immediate_rmpow2) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %div_lhs_const = riscv.mv %i1 : (!riscv.reg<a1>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%div_lhs_const) : (!riscv.reg<a0>) -> ()
