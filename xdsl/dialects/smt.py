@@ -131,7 +131,10 @@ class DeclareFunOp(IRDLOperation):
 
 @irdl_op_definition
 class ApplyFuncOp(IRDLOperation):
-    """ """
+    """
+    This operation performs a function application as described in the SMT-LIB
+    2.7 standard. It is part of the SMT-LIB core theory.
+    """
 
     name = "smt.apply_func"
 
