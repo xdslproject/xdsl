@@ -202,8 +202,6 @@ class ImpliesOp(IRDLOperation):
     """
     This operation performs a boolean implication. The semantics are equivalent
     to the `=>` operator in the Core theory of the SMT-LIB Standard 2.7.
-
-    It supports a variadic number of operands, but requires at least two.
     """
 
     name = "smt.implies"
