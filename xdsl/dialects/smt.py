@@ -17,13 +17,18 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AtLeast,
+    GenericAttrConstraint,
+    GenericRangeConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParameterDef,
     RangeOf,
+    RangeVarConstraint,
     VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
     opt_prop_def,
     prop_def,
     region_def,
@@ -82,6 +87,13 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
         printer.print_attribute(self.range_type)
         printer.print_string(">")
 
+    @staticmethod
+    def constr(
+        domain: GenericRangeConstraint[NonFuncSMTType],
+        range: GenericAttrConstraint[NonFuncSMTType],
+    ) -> GenericAttrConstraint[FuncType]:
+        return ParamAttrConstraint(FuncType, (ArrayAttr.constr(domain), range))
+
 
 SMTType: TypeAlias = NonFuncSMTType | FuncType
 
@@ -114,6 +126,31 @@ class DeclareFunOp(IRDLOperation):
             name_prefix = StringAttr(name_prefix)
         super().__init__(
             result_types=[result_type], properties={"namePrefix": name_prefix}
+        )
+
+
+@irdl_op_definition
+class ApplyFuncOp(IRDLOperation):
+    """
+    This operation performs a function application as described in the SMT-LIB
+    2.7 standard. It is part of the SMT-LIB core theory.
+    """
+
+    name = "smt.apply_func"
+
+    DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(base(NonFuncSMTType)))
+    RANGE: ClassVar = VarConstraint("RANGE", base(NonFuncSMTType))
+
+    func = operand_def(FuncType.constr(DOMAIN, RANGE))
+    args = var_operand_def(DOMAIN)
+
+    result = result_def(RANGE)
+
+    assembly_format = "$func `(` $args `)` attr-dict `:` type($func)"
+
+    def __init__(self, func: SSAValue[FuncType], *args: SSAValue):
+        super().__init__(
+            operands=[func, tuple(args)], result_types=[func.type.range_type]
         )
 
 
@@ -370,6 +407,7 @@ SMT = Dialect(
     "smt",
     [
         DeclareFunOp,
+        ApplyFuncOp,
         ConstantBoolOp,
         AndOp,
         OrOp,
