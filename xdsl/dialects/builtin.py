@@ -23,6 +23,7 @@ from typing_extensions import Self, TypeVar, deprecated
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
+    AttributeInvT,
     Block,
     BlockOps,
     BuiltinAttribute,
@@ -177,10 +178,10 @@ class ArrayAttr(
     @staticmethod
     def constr(
         constr: (
-            IRDLGenericAttrConstraint[AttributeCovT]
-            | GenericRangeConstraint[AttributeCovT]
+            IRDLGenericAttrConstraint[AttributeInvT]
+            | GenericRangeConstraint[AttributeInvT]
         ),
-    ) -> GenericAttrConstraint[ArrayAttr[AttributeCovT]]:
+    ) -> GenericAttrConstraint[ArrayAttr[AttributeInvT]]:
         return ArrayOfConstraint(constr)
 
 
