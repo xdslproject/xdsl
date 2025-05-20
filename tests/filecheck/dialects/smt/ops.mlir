@@ -26,6 +26,10 @@
 %or = smt.and %arg1, %arg2, %arg3
 %xor = smt.xor %arg1, %arg2, %arg3
 
+// CHECK-NEXT:    %implies = smt.implies %arg1, %arg2
+
+%implies = smt.implies %arg1, %arg2
+
 // CHECK-NEXT:    %eq = smt.eq %arg1, %arg2, %arg3 : !smt.bool
 // CHECK-NEXT:    %distinct = smt.distinct %arg1, %arg2, %arg3 : !smt.bool
 

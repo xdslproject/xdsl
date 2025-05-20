@@ -24,6 +24,7 @@ from xdsl.irdl import (
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
     opt_prop_def,
     prop_def,
     region_def,
@@ -194,6 +195,29 @@ class XOrOp(VariadicBoolOp):
     """
 
     name = "smt.xor"
+
+
+@irdl_op_definition
+class ImpliesOp(IRDLOperation):
+    """
+    This operation performs a boolean implication. The semantics are equivalent
+    to the `=>` operator in the Core theory of the SMT-LIB Standard 2.7.
+
+    It supports a variadic number of operands, but requires at least two.
+    """
+
+    name = "smt.implies"
+
+    lhs = operand_def(base(BoolType))
+    rhs = operand_def(base(BoolType))
+    result = result_def(BoolType())
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$lhs `,` $rhs attr-dict"
+
+    def __init__(self, lhs: SSAValue, rhs: SSAValue):
+        super().__init__(operands=[lhs, rhs], result_types=[BoolType()])
 
 
 def _parse_same_operand_type_variadic_to_bool_op(
@@ -374,6 +398,7 @@ SMT = Dialect(
         AndOp,
         OrOp,
         XOrOp,
+        ImpliesOp,
         DistinctOp,
         EqOp,
         ExistsOp,
