@@ -148,8 +148,10 @@ class ApplyFuncOp(IRDLOperation):
 
     assembly_format = "$func `(` $args `)` attr-dict `:` type($func)"
 
-    def __init__(self, func: SSAValue[FuncType], args: Sequence[SSAValue]):
-        super().__init__(operands=[func, args], result_types=[func.type.range_type])
+    def __init__(self, func: SSAValue[FuncType], *args: SSAValue):
+        super().__init__(
+            operands=[func, tuple(args)], result_types=[func.type.range_type]
+        )
 
 
 @irdl_op_definition

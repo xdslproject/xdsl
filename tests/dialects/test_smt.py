@@ -71,6 +71,6 @@ def test_apply_func():
     func = create_ssa_value(FuncType([BoolType(), BoolType()], BoolType()))
     arg1 = create_ssa_value(BoolType())
     arg2 = create_ssa_value(BoolType())
-    op = ApplyFuncOp(func, (arg1, arg2))
+    op = ApplyFuncOp(func, arg1, arg2)
 
     assert op.result.type == BoolType()
