@@ -50,6 +50,7 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintContext,
     ConstraintVariableType,
+    ConstraintVarType,
     GenericAttrConstraint,
     GenericData,
     GenericRangeConstraint,
@@ -61,7 +62,6 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     RangeOf,
-    VarExtractor,
     attr_constr_coercion,
     base,
     irdl_attr_definition,
@@ -228,20 +228,13 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     def get_unique_base(self) -> type[Attribute] | None:
         return ArrayAttr
 
-    @dataclass(frozen=True)
-    class _Extractor(VarExtractor[Attribute]):
-        inner: VarExtractor[Sequence[Attribute]]
+    def variables(self) -> dict[str, ConstraintVarType]:
+        return self.elem_range_constraint.variables()
 
-        def extract_var(self, a: Attribute) -> ConstraintVariableType:
-            assert isinstance(a, ArrayAttr)
-            a = cast(ArrayAttr[Attribute], a)
-            return self.inner.extract_var(a.data)
-
-    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
-        return {
-            k: self._Extractor(v)
-            for k, v in self.elem_range_constraint.get_variable_extractors().items()
-        }
+    def extract_var(self, attr: Attribute, var: str) -> ConstraintVariableType:
+        if not isa(attr, ArrayAttr):
+            raise PyRDLError(f"Inference expected {attr} to be a ArrayAttr")
+        return self.elem_range_constraint.extract_var(attr.data, var)
 
 
 @irdl_attr_definition
@@ -366,20 +359,13 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
             raise VerifyException(f"attribute {attr} expected to be an IntAttr")
         self.int_constraint.verify(attr.data, constraint_context)
 
-    @dataclass(frozen=True)
-    class _Extractor(VarExtractor[Attribute]):
-        inner: VarExtractor[int]
+    def variables(self) -> dict[str, ConstraintVarType]:
+        return self.int_constraint.variables()
 
-        def extract_var(self, a: Attribute) -> ConstraintVariableType:
-            if not isinstance(a, IntAttr):
-                raise PyRDLError(f"Inference expected {a} to be an IntAttr")
-            return self.inner.extract_var(a.data)
-
-    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
-        return {
-            k: self._Extractor(v)
-            for k, v in self.int_constraint.get_length_extractors().items()
-        }
+    def extract_var(self, attr: Attribute, var: str) -> ConstraintVariableType:
+        if not isinstance(attr, IntAttr):
+            raise PyRDLError(f"Inference expected {attr} to be an IntAttr")
+        return self.int_constraint.extract_var(attr.data, var)
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)
