@@ -12,6 +12,7 @@ from xdsl.dialects.smt import (
     ExistsOp,
     ForallOp,
     FuncType,
+    ImpliesOp,
     OrOp,
     QuantifierOp,
     VariadicBoolOp,
@@ -46,6 +47,15 @@ def test_variadic_bool_op(op_type: type[VariadicBoolOp]):
     op = op_type(arg1, arg2, arg3)
     assert op.result.type == BoolType()
     assert list(op.inputs) == [arg1, arg2, arg3]
+
+
+def test_implies_op():
+    arg1 = create_ssa_value(BoolType())
+    arg2 = create_ssa_value(BoolType())
+    op = ImpliesOp(arg1, arg2)
+    assert op.result.type == BoolType()
+    assert op.lhs == arg1
+    assert op.rhs == arg2
 
 
 @pytest.mark.parametrize("op_type", [ExistsOp, ForallOp])

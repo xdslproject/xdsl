@@ -31,6 +31,10 @@ smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
 %or = smt.and %arg1, %arg2, %arg3
 %xor = smt.xor %arg1, %arg2, %arg3
 
+// CHECK-NEXT:    %implies = smt.implies %arg1, %arg2
+
+%implies = smt.implies %arg1, %arg2
+
 // CHECK-NEXT:    %eq = smt.eq %arg1, %arg2, %arg3 : !smt.bool
 // CHECK-NEXT:    %distinct = smt.distinct %arg1, %arg2, %arg3 : !smt.bool
 
