@@ -283,8 +283,7 @@ class I_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
-        if isinstance(s, Operation):
-            s = SSAValue.get(s)
+        s = SSAValue.get(s)
         assert isinstance(s.type, GeneralRegisterType)
 
         super().__init__(
