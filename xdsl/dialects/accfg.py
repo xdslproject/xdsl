@@ -139,9 +139,6 @@ class LaunchOp(IRDLOperation):
     ):
         state_val = SSAValue.get(state, type=StateType)
 
-        # if not isinstance(state_val.type, StateType):
-        #     raise ValueError("`state` SSA Value must be of type `accfg.state`!")
-
         param_names_tuple: tuple[StringAttr, ...] = tuple(
             StringAttr(name) if isinstance(name, str) else name for name in param_names
         )

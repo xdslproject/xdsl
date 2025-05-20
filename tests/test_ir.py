@@ -3,7 +3,15 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, SubiOp
-from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
+from xdsl.dialects.builtin import (
+    Builtin,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    StringAttr,
+    i32,
+    i64,
+)
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
 from xdsl.ir import (
@@ -1062,3 +1070,38 @@ def test_find_ancestor_op_in_block():
 
     assert blk_top.find_ancestor_op_in_block(op1) is op3
     assert blk_top.find_ancestor_op_in_block(op4) is None
+
+
+def test_ssa_get_on_ssa():
+    ssa_value = create_ssa_value(i32)
+
+    assert SSAValue.get(ssa_value) == ssa_value
+    assert SSAValue.get(ssa_value, type=IntegerType) == ssa_value
+    assert SSAValue.get(ssa_value, type=IntegerType).type == i32
+
+    with pytest.raises(
+        ValueError,
+        match="SSAValue.get: Expected string type but got SSAValue with type i32",
+    ):
+        SSAValue.get(ssa_value, type=StringAttr)
+
+
+def test_ssa_get_on_op():
+    op1 = test.TestOp(result_types=[i32])
+
+    assert SSAValue.get(op1).owner == op1
+    assert SSAValue.get(op1).type == i32
+    assert SSAValue.get(op1, type=IntegerType).owner == op1
+    assert SSAValue.get(op1, type=IntegerType).type == i32
+
+    with pytest.raises(
+        ValueError,
+        match="SSAValue.get: Expected string type but got SSAValue with type i32",
+    ):
+        SSAValue.get(op1, type=StringAttr)
+
+    op2 = test.TestOp(result_types=[i32, i32])
+    with pytest.raises(
+        ValueError, match="SSAValue.get: expected operation with a single result."
+    ):
+        SSAValue.get(op2)
