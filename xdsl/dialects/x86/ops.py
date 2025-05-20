@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, Generic, TypeVar
+from typing import IO, ClassVar, Generic, TypeVar
 
 from typing_extensions import Self
 
@@ -24,7 +24,9 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Successor,
+    VarConstraint,
     attr_def,
+    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -232,34 +234,69 @@ class R_RR_Operation(
         return self.r1, self.r2
 
 
-class R_R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class DS_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
-    A base class for x86 operations that have one register acting as both source and destination.
+    A base class for x86 operations that have one source register and one destination
+    register.
     """
 
-    source = operand_def(R1InvT)
-    destination = result_def(R1InvT)
+    s = operand_def(R1InvT)
+    d = result_def(R1InvT)
 
     def __init__(
         self,
-        source: Operation | SSAValue | None = None,
+        s: Operation | SSAValue | None = None,
         *,
         comment: str | StringAttr | None = None,
-        destination: R1InvT | None = None,
+        d: R1InvT | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
-            operands=[source],
+            operands=[s],
             attributes={
                 "comment": comment,
             },
-            result_types=[destination],
+            result_types=[d],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
+        return (self.d, self.s)
+
+
+class I_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations that have one register acting as both source and destination.
+    """
+
+    INOUT: ClassVar = VarConstraint("INOUT", base(GeneralRegisterType))
+
+    s = operand_def(INOUT)
+    d = result_def(INOUT)
+
+    def __init__(
+        self,
+        s: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(s, Operation):
+            s = SSAValue.get(s)
+        assert isinstance(s.type, GeneralRegisterType)
+
+        super().__init__(
+            operands=[s],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[s.type],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.s,)
 
 
 class R_RM_Operation(
@@ -366,6 +403,50 @@ class R_M_Operation(
         printer.print(", ")
         print_immediate_value(printer, self.offset)
         return {"offset"}
+
+
+class DImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations that have one destination register and an immediate
+    value.
+    """
+
+    imm = attr_def(IntegerAttr)
+    d = result_def(R1InvT)
+
+    def __init__(
+        self,
+        imm: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        d: R1InvT,
+    ):
+        if isinstance(imm, int):
+            imm = IntegerAttr(imm, 32)  # the default immediate size is 32 bits
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "imm": imm,
+                "comment": comment,
+            },
+            result_types=[d],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.d, self.imm
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        return {
+            "imm": parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
+        }
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print_string(" ", indent=0)
+        print_immediate_value(printer, self.imm)
+        return {"imm"}
 
 
 class R_RImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
@@ -940,7 +1021,7 @@ class RR_XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class DS_MovOp(DS_Operation[GeneralRegisterType]):
     """
     Copies the value of r1 into r2.
     ```C
@@ -950,7 +1031,7 @@ class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.rr.mov"
+    name = "x86.ds.mov"
 
 
 @irdl_op_definition
@@ -1028,7 +1109,7 @@ class R_PopOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class R_NegOp(R_R_Operation[GeneralRegisterType]):
+class I_NegOp(I_Operation[GeneralRegisterType]):
     """
     Negates r1 and stores the result in r1.
     ```C
@@ -1038,11 +1119,11 @@ class R_NegOp(R_R_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/neg).
     """
 
-    name = "x86.r.neg"
+    name = "x86.i.neg"
 
 
 @irdl_op_definition
-class R_NotOp(R_R_Operation[GeneralRegisterType]):
+class I_NotOp(I_Operation[GeneralRegisterType]):
     """
     bitwise not of r1, stored in r1
     ```C
@@ -1052,11 +1133,11 @@ class R_NotOp(R_R_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/not).
     """
 
-    name = "x86.r.not"
+    name = "x86.i.not"
 
 
 @irdl_op_definition
-class R_IncOp(R_R_Operation[GeneralRegisterType]):
+class I_IncOp(I_Operation[GeneralRegisterType]):
     """
     Increments r1 by 1 and stores the result in r1.
     ```C
@@ -1066,11 +1147,11 @@ class R_IncOp(R_R_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/inc).
     """
 
-    name = "x86.r.inc"
+    name = "x86.i.inc"
 
 
 @irdl_op_definition
-class R_DecOp(R_R_Operation[GeneralRegisterType]):
+class I_DecOp(I_Operation[GeneralRegisterType]):
     """
     Decrements r1 by 1 and stores the result in r1.
     ```C
@@ -1080,7 +1161,7 @@ class R_DecOp(R_R_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/dec).
     """
 
-    name = "x86.r.dec"
+    name = "x86.i.dec"
 
 
 @irdl_op_definition
@@ -1351,7 +1432,7 @@ class RImm_XorOp(R_RImm_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_MovOp(R_RImm_Operation[GeneralRegisterType]):
+class DImm_MovOp(DImm_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into r1.
     ```C
@@ -1361,7 +1442,7 @@ class RImm_MovOp(R_RImm_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.rimm.mov"
+    name = "x86.dimm.mov"
 
 
 @irdl_op_definition
