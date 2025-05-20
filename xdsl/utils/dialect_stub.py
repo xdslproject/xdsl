@@ -26,6 +26,7 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     PropertyDef,
+    RangeOf,
     RegionDef,
     ResultDef,
     SuccessorDef,
@@ -97,7 +98,7 @@ class DialectStubGenerator:
             case AllOf(constraints):
                 self._import(typing, "Annotated")
                 return f"Annotated[{', '.join(self._generate_constraint_type(c) for c in reversed(constraints))}]"  # noqa: E501
-            case ArrayOfConstraint(constraint):
+            case ArrayOfConstraint(RangeOf(constraint)):
                 self._import(xdsl.dialects.builtin, ArrayAttr)
                 return f"ArrayAttr[{self._generate_constraint_type(constraint)}]"
             case AnyAttr():
