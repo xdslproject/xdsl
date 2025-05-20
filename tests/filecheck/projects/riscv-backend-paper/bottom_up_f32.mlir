@@ -91,13 +91,17 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      mv t2, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d}}_for:
-// CHECK-NEXT:      slli a2, t2, 1
+// CHECK-NEXT:      li a2, 2
+// CHECK-NEXT:      mul a2, t2, a2
 // CHECK-NEXT:      li t6, 18
 // CHECK-NEXT:      mul a2, a2, t6
-// CHECK-NEXT:      slli a2, a2, 3                               # multiply by element size
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      mul a2, a2, t6                               # multiply by element size
 // CHECK-NEXT:      add a2, t1, a2
-// CHECK-NEXT:      slli t6, t2, 3
-// CHECK-NEXT:      slli t6, t6, 3                               # multiply by element size
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      mul t6, t2, t6
+// CHECK-NEXT:      li t5, 8
+// CHECK-NEXT:      mul t6, t6, t5                               # multiply by element size
 // CHECK-NEXT:      add t6, t0, t6
 // CHECK-NEXT:      li t5, 3
 // CHECK-NEXT:      scfgwi t5, 64                                # dm 0 dim 0 bound
