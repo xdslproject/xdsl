@@ -647,11 +647,6 @@ SignlessIntegerConstraint = ParamAttrConstraint(
 AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstraint]
 """Type alias constrained to signless IntegerType."""
 
-_IntegerType = TypeVar(
-    "_IntegerType", bound=IntegerType, covariant=True, default=IntegerType
-)
-_IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
-
 
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
