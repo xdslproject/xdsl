@@ -39,12 +39,22 @@ def test_blockinfo_liveout():
     print(block_mapping.keys())
     bm = block_mapping[op3.regions[0].blocks[0]]
 
-    print("IN: ", bm.in_values)
-    print("OUT: ", bm.out_values)
-
     assert set([op1.results[0]]) == bm.out_values
 
     # Liveness
     _liveness = liveness.Liveness(op3)
 
     assert set([op1.results[0]]) == _liveness.get_liveout(op3.regions[0].blocks[0])
+
+
+def test_dead_value():
+    op1 = test.TestOp(result_types=[i32])
+    op2 = test.TestOp(result_types=[i32])
+    op3 = test.TestOp(operands=[op1.results[0]])
+    op4 = test.TestOp(regions=[Region(Block([op1, op2, op3]))])
+
+    _liveness = liveness.Liveness(op4)
+    val = op1.results[0]
+
+    assert not _liveness.is_dead_after(val, op2)
+    assert _liveness.is_dead_after(val, op3)
