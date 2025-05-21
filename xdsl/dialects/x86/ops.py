@@ -1,9 +1,36 @@
+"""
+The `x86` dialect contains operations that represent x86 assembly operations.
+
+In x86, the assembly operations may have different meaning depending on the types of
+arguments.
+For example, the [`mov` instruction](https://www.felixcloutier.com/x86/mov) can assign
+an immediate value to a register, or move the contents of another register.
+In order to disambiguate the two, we use a mnemonic in the operation name to communicate
+which operands are expected, for example `x86.ds.mov` is the version that moves the
+contents of one register to another, and `x86.di.mov` is the version that sets the
+immediate value passed in to the register.
+The mnemonic encodes the types of the assembly instruction arguments, in order.
+
+Here are the possible mnemonic values and what they stand for:
+
+
+- `s`: Source register
+- `d`: Destination register
+- `r`: Register used both as a source and destination
+- `i`: Immediate value
+- `m`: Memory
+- `c`: Condition
+
+This dialect is structured into abstract base classes, which are prefixed with the
+mnemonic that corresponds to the subclassing operations (e.g. `DS_Operation`).
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, Generic, TypeVar
+from typing import IO, Generic, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -197,17 +224,17 @@ class X86Instruction(X86AsmOperation):
 # region: Operation Base Classes
 
 
-class R_RR_Operation(
+class RS_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
     A base class for x86 operations that have two registers.
     """
 
-    r1 = operand_def(R1InvT)
+    r1_source = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
 
-    result = result_def(R1InvT)
+    r1_destination = result_def(R1InvT)
 
     def __init__(
         self,
@@ -215,65 +242,68 @@ class R_RR_Operation(
         r2: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        result: R1InvT,
+        r1_destination: R1InvT | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
+        r1 = SSAValue.get(r1)
+        if r1_destination is None:
+            r1_destination = cast(R1InvT, r1.type)
 
         super().__init__(
             operands=[r1, r2],
             attributes={
                 "comment": comment,
             },
-            result_types=[result],
+            result_types=[r1_destination],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.r1, self.r2
+        return self.r1_source, self.r2
 
 
-class R_R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one register acting as both source and destination.
     """
 
-    source = operand_def(R1InvT)
-    destination = result_def(R1InvT)
+    r1_source = operand_def(R1InvT)
+    r1_destination = result_def(R1InvT)
 
     def __init__(
         self,
-        source: Operation | SSAValue | None = None,
+        r1_source: Operation | SSAValue | None = None,
         *,
         comment: str | StringAttr | None = None,
-        destination: R1InvT | None = None,
+        r1_destination: R1InvT | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
-
         super().__init__(
-            operands=[source],
+            operands=[r1_source],
             attributes={
                 "comment": comment,
             },
-            result_types=[destination],
+            result_types=[r1_destination],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
+        return (self.r1_source,)
 
 
-class R_RM_Operation(
+class RM_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
-    A base class for x86 operations that have one register and one memory access with an optional offset.
+    A base class for x86 operations that have one inout register and one memory access
+    with an optional offset.
     """
 
-    r1 = operand_def(R1InvT)
+    r1_source = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
     offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
-    result = result_def(R1InvT)
+    r1_destination = result_def(R1InvT)
 
     def __init__(
         self,
@@ -300,6 +330,57 @@ class R_RM_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.r2, self.offset)
+        destination = assembly_arg_str(self.r1_source)
+        return (destination, memory_access)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+class DM_Operation(
+    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that load from memory (m, r2) into a destination
+    register (d, r1).
+    """
+
+    r2 = operand_def(R2InvT)  # memory source
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    r1 = result_def(R1InvT)  # destination register
+
+    def __init__(
+        self,
+        r2: Operation | SSAValue,
+        offset: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        r1: R1InvT,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            operands=[r2],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[r1],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.r2, self.offset)
         destination = assembly_arg_str(self.r1)
         return (destination, memory_access)
 
@@ -316,61 +397,9 @@ class R_RM_Operation(
         return {"offset"}
 
 
-class R_M_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
+class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
-    A base class for x86 operations that have one register and one memory access with an optional offset.
-    """
-
-    r1 = operand_def(R1InvT)
-    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-
-    result = result_def(R2InvT)
-
-    def __init__(
-        self,
-        r1: Operation | SSAValue,
-        offset: int | IntegerAttr,
-        *,
-        comment: str | StringAttr | None = None,
-        result: R2InvT,
-    ):
-        if isinstance(offset, int):
-            offset = IntegerAttr(offset, 64)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[r1],
-            attributes={
-                "offset": offset,
-                "comment": comment,
-            },
-            result_types=[result],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        memory_access = memory_access_str(self.r1, self.offset)
-        destination = assembly_arg_str(self.result)
-        return (destination, memory_access)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        print_immediate_value(printer, self.offset)
-        return {"offset"}
-
-
-class R_RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
-    """
-    A base class for x86 operations that have one register and an immediate value.
+    A base class for x86 operations that have one inout register and an immediate value.
     """
 
     r1 = operand_def(R1InvT)
@@ -421,7 +450,7 @@ class R_RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
         return {"immediate"}
 
 
-class M_MR_Operation(
+class MS_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
@@ -471,7 +500,7 @@ class M_MR_Operation(
         return {"offset"}
 
 
-class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one memory reference and an immediate value.
     """
@@ -531,11 +560,12 @@ class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
         return {"immediate", "offset"}
 
 
-class R_RRI_Operation(
+class DSI_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
-    A base class for x86 operations that have one destination register, one source register and an immediate value.
+    A base class for x86 operations that have one destination register, one source
+    register and an immediate value.
     """
 
     r2 = operand_def(R2InvT)
@@ -583,11 +613,11 @@ class R_RRI_Operation(
         return {"immediate"}
 
 
-class R_RMI_Operation(
+class DMI_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
-    A base class for x86 operations that have one source register, one memory reference and an immediate value.
+    A base class for x86 operations that have one destination register, one memory reference and an immediate value.
     """
 
     r2 = operand_def(R2InvT)
@@ -856,7 +886,7 @@ class RRROperation(
 
 
 @irdl_op_definition
-class RR_AddOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RS_AddOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Adds the registers r1 and r2 and stores the result in r1.
     ```C
@@ -866,11 +896,11 @@ class RR_AddOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
-    name = "x86.rr.add"
+    name = "x86.rs.add"
 
 
 @irdl_op_definition
-class RR_SubOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RS_SubOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     subtracts r2 from r1 and stores the result in r1.
     ```C
@@ -880,11 +910,11 @@ class RR_SubOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
-    name = "x86.rr.sub"
+    name = "x86.rs.sub"
 
 
 @irdl_op_definition
-class RR_ImulOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RS_ImulOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the registers r1 and r2 and stores the result in r1.
     ```C
@@ -894,11 +924,11 @@ class RR_ImulOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
-    name = "x86.rr.imul"
+    name = "x86.rs.imul"
 
 
 @irdl_op_definition
-class RR_AndOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RS_AndOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise and of r1 and r2, stored in r1
     ```C
@@ -908,11 +938,11 @@ class RR_AndOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
-    name = "x86.rr.and"
+    name = "x86.rs.and"
 
 
 @irdl_op_definition
-class RR_OrOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RS_OrOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise or of r1 and r2, stored in r1
     ```C
@@ -922,11 +952,11 @@ class RR_OrOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
-    name = "x86.rr.or"
+    name = "x86.rs.or"
 
 
 @irdl_op_definition
-class RR_XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RS_XorOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise xor of r1 and r2, stored in r1
     ```C
@@ -936,11 +966,11 @@ class RR_XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
-    name = "x86.rr.xor"
+    name = "x86.rs.xor"
 
 
 @irdl_op_definition
-class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RS_MovOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value of r1 into r2.
     ```C
@@ -950,27 +980,27 @@ class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.rr.mov"
+    name = "x86.rs.mov"
 
 
 @irdl_op_definition
-class R_PushOp(X86Instruction, X86CustomFormatOperation):
+class S_PushOp(X86Instruction, X86CustomFormatOperation):
     """
     Decreases %rsp and places r1 at the new memory location pointed to by %rsp.
 
     See external [documentation](https://www.felixcloutier.com/x86/push).
     """
 
-    name = "x86.r.push"
+    name = "x86.s.push"
 
     rsp_input = operand_def(RSP)
-    source = operand_def(R1InvT)
+    r1 = operand_def(R1InvT)
     rsp_output = result_def(RSP)
 
     def __init__(
         self,
         rsp_input: Operation | SSAValue,
-        source: Operation | SSAValue,
+        r1: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
         rsp_output: GeneralRegisterType,
@@ -979,7 +1009,7 @@ class R_PushOp(X86Instruction, X86CustomFormatOperation):
             comment = StringAttr(comment)
 
         super().__init__(
-            operands=[rsp_input, source],
+            operands=[rsp_input, r1],
             attributes={
                 "comment": comment,
             },
@@ -987,21 +1017,21 @@ class R_PushOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
+        return (self.r1,)
 
 
 @irdl_op_definition
-class R_PopOp(X86Instruction, X86CustomFormatOperation):
+class D_PopOp(X86Instruction, X86CustomFormatOperation):
     """
     Copies the value at the top of the stack into r1 and increases %rsp.
 
     See external [documentation](https://www.felixcloutier.com/x86/pop).
     """
 
-    name = "x86.r.pop"
+    name = "x86.d.pop"
 
     rsp_input = operand_def(RSP)
-    destination = result_def(R1InvT)
+    r1 = result_def(R1InvT)
     rsp_output = result_def(RSP)
 
     def __init__(
@@ -1009,7 +1039,7 @@ class R_PopOp(X86Instruction, X86CustomFormatOperation):
         rsp_input: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        destination: X86RegisterType,
+        r1: X86RegisterType,
         rsp_output: GeneralRegisterType,
     ):
         if isinstance(comment, str):
@@ -1020,15 +1050,15 @@ class R_PopOp(X86Instruction, X86CustomFormatOperation):
             attributes={
                 "comment": comment,
             },
-            result_types=[destination, rsp_output],
+            result_types=[r1, rsp_output],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.destination,)
+        return (self.r1,)
 
 
 @irdl_op_definition
-class R_NegOp(R_R_Operation[GeneralRegisterType]):
+class R_NegOp(R_Operation[GeneralRegisterType]):
     """
     Negates r1 and stores the result in r1.
     ```C
@@ -1042,7 +1072,7 @@ class R_NegOp(R_R_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class R_NotOp(R_R_Operation[GeneralRegisterType]):
+class R_NotOp(R_Operation[GeneralRegisterType]):
     """
     bitwise not of r1, stored in r1
     ```C
@@ -1056,7 +1086,7 @@ class R_NotOp(R_R_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class R_IncOp(R_R_Operation[GeneralRegisterType]):
+class R_IncOp(R_Operation[GeneralRegisterType]):
     """
     Increments r1 by 1 and stores the result in r1.
     ```C
@@ -1070,7 +1100,7 @@ class R_IncOp(R_R_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class R_DecOp(R_R_Operation[GeneralRegisterType]):
+class R_DecOp(R_Operation[GeneralRegisterType]):
     """
     Decrements r1 by 1 and stores the result in r1.
     ```C
@@ -1169,7 +1199,7 @@ class R_ImulOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class RM_AddOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RM_AddOp(RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Adds the value from the memory location pointed to by r2 to r1 and stores the result in r1.
     ```C
@@ -1183,7 +1213,7 @@ class RM_AddOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_SubOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RM_SubOp(RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Subtracts the value from the memory location pointed to by r2 from r1 and stores the result in r1.
     ```C
@@ -1197,7 +1227,7 @@ class RM_SubOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_ImulOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RM_ImulOp(RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the value from the memory location pointed to by r2 with r1 and stores the result in r1.
     ```C
@@ -1211,7 +1241,7 @@ class RM_ImulOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_AndOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RM_AndOp(RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise and of r1 and [r2], stored in r1
     ```C
@@ -1225,7 +1255,7 @@ class RM_AndOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_OrOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RM_OrOp(RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise or of r1 and [r2], stored in r1
     ```C
@@ -1239,7 +1269,7 @@ class RM_OrOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_XorOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RM_XorOp(RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise xor of r1 and [r2], stored in r1
     ```C
@@ -1253,7 +1283,7 @@ class RM_XorOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_MovOp(R_M_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RM_MovOp(DM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value from the memory location pointed to by source register r1 into destination register r2.
     ```C
@@ -1267,7 +1297,7 @@ class RM_MovOp(R_M_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_leaOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RM_LeaOp(RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Loads the effective address of the memory location pointed to by r2 into r1.
     ```C
@@ -1281,7 +1311,7 @@ class RM_leaOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
+class RI_AddOp(RI_Operation[GeneralRegisterType]):
     """
     Adds the immediate value to r1 and stores the result in r1.
     ```C
@@ -1295,7 +1325,7 @@ class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_SubOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_SubOp(RI_Operation[GeneralRegisterType]):
     """
     Subtracts the immediate value from r1 and stores the result in r1.
     ```C
@@ -1309,7 +1339,7 @@ class RImm_SubOp(R_RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_AndOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_AndOp(RI_Operation[GeneralRegisterType]):
     """
     bitwise and of r1 and immediate, stored in r1
     ```C
@@ -1323,7 +1353,7 @@ class RImm_AndOp(R_RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_OrOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_OrOp(RI_Operation[GeneralRegisterType]):
     """
     bitwise or of r1 and immediate, stored in r1
     ```C
@@ -1337,7 +1367,7 @@ class RImm_OrOp(R_RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_XorOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_XorOp(RI_Operation[GeneralRegisterType]):
     """
     bitwise xor of r1 and immediate, stored in r1
     ```C
@@ -1351,7 +1381,7 @@ class RImm_XorOp(R_RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_MovOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_MovOp(RI_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into r1.
     ```C
@@ -1365,7 +1395,7 @@ class RImm_MovOp(R_RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class MR_AddOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class MS_AddOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Adds the value from r2 to the memory location pointed to by r1.
     ```C
@@ -1375,11 +1405,11 @@ class MR_AddOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
-    name = "x86.mr.add"
+    name = "x86.ms.add"
 
 
 @irdl_op_definition
-class MR_SubOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class MS_SubOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Subtracts the value from r2 from the memory location pointed to by r1.
     [x[r1]] = [x[r1]] - x[r2]
@@ -1387,11 +1417,11 @@ class MR_SubOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
-    name = "x86.mr.sub"
+    name = "x86.ms.sub"
 
 
 @irdl_op_definition
-class MR_AndOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class MS_AndOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise and of [r1] and r2
     [x[r1]] = [x[r1]] & x[r2]
@@ -1399,11 +1429,11 @@ class MR_AndOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
-    name = "x86.mr.and"
+    name = "x86.ms.and"
 
 
 @irdl_op_definition
-class MR_OrOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class MS_OrOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise or of [r1] and r2
     [x[r1]] = [x[r1]] | x[r2]
@@ -1411,11 +1441,11 @@ class MR_OrOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
-    name = "x86.mr.or"
+    name = "x86.ms.or"
 
 
 @irdl_op_definition
-class MR_XorOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class MS_XorOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise xor of [r1] and r2
     [x[r1]] = [x[r1]] ^ x[r2]
@@ -1423,11 +1453,11 @@ class MR_XorOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
-    name = "x86.mr.xor"
+    name = "x86.ms.xor"
 
 
 @irdl_op_definition
-class MR_MovOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class MS_MovOp(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value from r2 into the memory location pointed to by r1.
     [x[r1]] = x[r2]
@@ -1435,11 +1465,11 @@ class MR_MovOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.mr.mov"
+    name = "x86.ms.mov"
 
 
 @irdl_op_definition
-class MImm_AddOp(M_MI_Operation[GeneralRegisterType]):
+class MI_AddOp(MI_Operation[GeneralRegisterType]):
     """
     Adds the immediate value to the memory location pointed to by r1.
     [x[r1]] = [x[r1]] + immediate
@@ -1451,7 +1481,7 @@ class MImm_AddOp(M_MI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class MImm_SubOp(M_MI_Operation[GeneralRegisterType]):
+class MI_SubOp(MI_Operation[GeneralRegisterType]):
     """
     Subtracts the immediate value from the memory location pointed to by r1.
     [x[r1]] = [x[r1]] - immediate
@@ -1463,7 +1493,7 @@ class MImm_SubOp(M_MI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class MImm_AndOp(M_MI_Operation[GeneralRegisterType]):
+class MI_AndOp(MI_Operation[GeneralRegisterType]):
     """
     bitwise and of immediate and [r1], stored in [r1]
     ```C
@@ -1477,7 +1507,7 @@ class MImm_AndOp(M_MI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class MImm_OrOp(M_MI_Operation[GeneralRegisterType]):
+class MI_OrOp(MI_Operation[GeneralRegisterType]):
     """
     bitwise or of immediate and [r1], stored in [r1]
     ```C
@@ -1491,7 +1521,7 @@ class MImm_OrOp(M_MI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class MImm_XorOp(M_MI_Operation[GeneralRegisterType]):
+class MI_XorOp(MI_Operation[GeneralRegisterType]):
     """
     bitwise xor of immediate and [r1], stored in [r1]
     ```C
@@ -1505,7 +1535,7 @@ class MImm_XorOp(M_MI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class MImm_MovOp(M_MI_Operation[GeneralRegisterType]):
+class MI_MovOp(MI_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into the memory location pointed to by r1.
     [x[r1]] = immediate
@@ -1517,7 +1547,7 @@ class MImm_MovOp(M_MI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RRImm_ImulOp(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class DSI_ImulOp(DSI_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the source register and stores the result in the destination register.
     x[r1] = x[r2] * immediate
@@ -1525,11 +1555,11 @@ class RRImm_ImulOp(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
-    name = "x86.rri.imul"
+    name = "x86.dsi.imul"
 
 
 @irdl_op_definition
-class RMImm_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class DMI_ImulOp(DMI_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the memory location pointed to by r2 and stores the result in r1.
     x[r1] = [x[r2]] * immediate
@@ -1537,7 +1567,7 @@ class RMImm_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
-    name = "x86.rmimm.imul"
+    name = "x86.dmi.imul"
 
 
 @irdl_op_definition
@@ -2027,7 +2057,7 @@ class C_JmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class RR_CmpOp(X86Instruction, X86CustomFormatOperation):
+class SS_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2035,7 +2065,7 @@ class RR_CmpOp(X86Instruction, X86CustomFormatOperation):
     See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
-    name = "x86.rr.cmp"
+    name = "x86.ss.cmp"
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
@@ -2066,7 +2096,7 @@ class RR_CmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
+class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2074,7 +2104,7 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
     See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
-    name = "x86.rm.cmp"
+    name = "x86.sm.cmp"
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
@@ -2126,7 +2156,7 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class RImm_CmpOp(X86Instruction, X86CustomFormatOperation):
+class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2134,7 +2164,7 @@ class RImm_CmpOp(X86Instruction, X86CustomFormatOperation):
     See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
-    name = "x86.ri.cmp"
+    name = "x86.si.cmp"
 
     r1 = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
@@ -2180,7 +2210,7 @@ class RImm_CmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
+class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2188,7 +2218,7 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
     See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
-    name = "x86.mr.cmp"
+    name = "x86.ms.cmp"
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
@@ -2240,7 +2270,7 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class MImm_CmpOp(X86Instruction, X86CustomFormatOperation):
+class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2669,7 +2699,7 @@ class RRR_Vfmadd231psOp(
 
 
 @irdl_op_definition
-class RR_VmovapdOp(R_RR_Operation[X86VectorRegisterType, X86VectorRegisterType]):
+class RS_VmovapdOp(RS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to zmm2 using
     writemask k1
@@ -2677,62 +2707,62 @@ class RR_VmovapdOp(R_RR_Operation[X86VectorRegisterType, X86VectorRegisterType])
     See external [documentation](https://www.felixcloutier.com/x86/movapd).
     """
 
-    name = "x86.rr.vmovapd"
+    name = "x86.rs.vmovapd"
 
 
 @irdl_op_definition
-class MR_VmovapdOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
+class MS_VmovapdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to m512 using writemask k1
 
     See external [documentation](https://www.felixcloutier.com/x86/movapd).
     """
 
-    name = "x86.mr.vmovapd"
+    name = "x86.ms.vmovapd"
 
 
 @irdl_op_definition
-class MR_VmovupsOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
+class MS_VmovupsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed single precision floating-point values from vector register to memory
 
     See external [documentation](https://www.felixcloutier.com/x86/movups).
     """
 
-    name = "x86.mr.vmovups"
+    name = "x86.ms.vmovups"
 
 
 @irdl_op_definition
-class RM_VmovupsOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
+class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
     Move aligned packed single precision floating-point values from memory to vector register
 
     See external [documentation](https://www.felixcloutier.com/x86/movups).
     """
 
-    name = "x86.rm.vmovups"
+    name = "x86.dm.vmovups"
 
 
 @irdl_op_definition
-class RM_VbroadcastsdOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
+class DM_VbroadcastsdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
     Broadcast low double precision floating-point element in m64 to eight locations in zmm1 using writemask k1
 
     See external [documentation](https://www.felixcloutier.com/x86/vbroadcast).
     """
 
-    name = "x86.rm.vbroadcastsd"
+    name = "x86.dm.vbroadcastsd"
 
 
 @irdl_op_definition
-class RM_VbroadcastssOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
+class DM_VbroadcastssOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
     Broadcast single precision floating-point element to eight locations in memory
 
     See external [documentation](https://www.felixcloutier.com/x86/vbroadcast).
     """
 
-    name = "x86.rm.vbroadcastss"
+    name = "x86.dm.vbroadcastss"
 
 
 class GetAnyRegisterOperation(

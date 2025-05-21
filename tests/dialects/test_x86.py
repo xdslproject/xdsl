@@ -202,12 +202,12 @@ def test_rrr_vops(
     "OpClass, dest, src",
     [
         (
-            x86.ops.MR_VmovupsOp,
+            x86.ops.MS_VmovupsOp,
             x86.register.RCX,
             x86.register.YMM0,
         ),
         (
-            x86.ops.MR_VmovapdOp,
+            x86.ops.MS_VmovapdOp,
             x86.register.RCX,
             x86.register.YMM0,
         ),
@@ -215,7 +215,7 @@ def test_rrr_vops(
 )
 def test_mr_vops(
     OpClass: type[
-        x86.ops.M_MR_Operation[
+        x86.ops.MS_Operation[
             x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
         ]
     ],
@@ -233,17 +233,17 @@ def test_mr_vops(
     "OpClass, dest, src",
     [
         (
-            x86.ops.RM_VmovupsOp,
+            x86.ops.DM_VmovupsOp,
             x86.register.YMM0,
             x86.register.RCX,
         ),
         (
-            x86.ops.RM_VbroadcastsdOp,
+            x86.ops.DM_VbroadcastsdOp,
             x86.register.YMM0,
             x86.register.RCX,
         ),
         (
-            x86.ops.RM_VbroadcastssOp,
+            x86.ops.DM_VbroadcastssOp,
             x86.register.YMM0,
             x86.register.RCX,
         ),
@@ -251,14 +251,14 @@ def test_mr_vops(
 )
 def test_rm_vops(
     OpClass: type[
-        x86.ops.R_M_Operation[
-            x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
+        x86.ops.DM_Operation[
+            x86.register.X86VectorRegisterType, x86.register.GeneralRegisterType
         ]
     ],
     dest: x86.register.X86VectorRegisterType,
     src: x86.register.GeneralRegisterType,
 ):
     input = x86.ops.GetRegisterOp(src)
-    op = OpClass(r1=input, result=dest, offset=IntegerAttr(0, 64))
-    assert op.r1.type == src
-    assert op.result.type == dest
+    op = OpClass(r2=input, r1=dest, offset=IntegerAttr(0, 64))
+    assert op.r2.type == src
+    assert op.r1.type == dest

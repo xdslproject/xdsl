@@ -11,7 +11,7 @@ func.func @foo_const() -> i32 {
 // CHECK-NEXT:      %1 = "test.op"() : () -> i32
 // CHECK-NEXT:      %2 = builtin.unrealized_conversion_cast %1 : i32 to !x86.reg
 // CHECK-NEXT:      %3 = x86.get_register : () -> !x86.reg<rax>
-// CHECK-NEXT:      %4 = x86.rr.mov %2, %3 : (!x86.reg, !x86.reg<rax>) -> !x86.reg<rax>
+// CHECK-NEXT:      %4 = x86.rs.mov %2, %3 : (!x86.reg, !x86.reg<rax>) -> !x86.reg<rax>
 // CHECK-NEXT:      x86_func.ret
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
@@ -51,7 +51,7 @@ func.func public @foo_int(%0: i32, %1: i32, %2: i32, %3: i32, %4: i32, %5: i32, 
 // CHECK-NEXT:      %g = "test.op"(%f, %16) : (i32, i32) -> i32
 // CHECK-NEXT:      %17 = builtin.unrealized_conversion_cast %g : i32 to !x86.reg
 // CHECK-NEXT:      %18 = x86.get_register : () -> !x86.reg<rax>
-// CHECK-NEXT:      %19 = x86.rr.mov %17, %18 : (!x86.reg, !x86.reg<rax>) -> !x86.reg<rax>
+// CHECK-NEXT:      %19 = x86.rs.mov %17, %18 : (!x86.reg, !x86.reg<rax>) -> !x86.reg<rax>
 // CHECK-NEXT:      x86_func.ret
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
