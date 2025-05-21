@@ -337,7 +337,7 @@ class BytecodeProfiler:
             if self.num_repeats != 0:
                 self._uninstrumented_time /= self.num_repeats
 
-            # Trace the function collecting the event data to corrollate
+            # Trace the function collecting the event data to correlate
             try:
                 sys.settrace(self._trace__collect_all_events)
                 func(*args, **kwargs)
