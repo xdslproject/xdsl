@@ -2423,15 +2423,18 @@ class DenseIntOrFPElementsAttr(
                 TensorType(data_type, shape), new_data
             )
 
-    def iter_values(self) -> Iterator[int] | Iterator[float]:
+    def iter_values(
+        self,
+    ) -> (
+        Iterator[int]
+        | Iterator[float]
+        | Iterator[tuple[int, int]]
+        | Iterator[tuple[float, float]]
+    ):
         """
         Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        if isinstance(
-            eltype := self.get_element_type(), IntegerType | IndexType | AnyFloat
-        ):
-            return eltype.iter_unpack(self.data.data)
-        raise NotImplementedError()
+        return self.get_element_type().iter_unpack(self.data.data)
 
     def get_int_values(self) -> Sequence[int]:
         """
