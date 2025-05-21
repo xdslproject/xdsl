@@ -41,7 +41,7 @@ docs = [
     "lzstring2",
 ]
 gui = ["textual==3.2.0", "pyclip==0.7"]
-jax = ["jax==0.6.0", "numpy==2.2.6"]
+jax = ["jax==0.6.1", "numpy==2.2.6"]
 riscv = ["riscemu==2.2.7"]
 bench = [
     "asv>=0.6.4",
