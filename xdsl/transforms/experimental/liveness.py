@@ -362,9 +362,6 @@ class Liveness:
         # the given operation in the block.
         return end_operation == operation or end_operation.is_before_in_block(operation)
 
-    # Dumps the liveness information in a human readable format.
-    # TODO: dump()
-
     # Dumps the liveness information to the given stream.
     def print(self, output: IO[str], printer: Printer):
         print("// ---- Liveness ----", file=output)
