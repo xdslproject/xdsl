@@ -58,3 +58,21 @@ def test_dead_value():
 
     assert not _liveness.is_dead_after(val, op2)
     assert _liveness.is_dead_after(val, op3)
+
+
+def test_live_operations():
+    op1 = test.TestOp(result_types=[i32])
+    op2 = test.TestOp()
+    op3 = test.TestOp()
+    op4 = test.TestOp(operands=[op1.results[0]])
+    op5 = test.TestOp()
+    op6 = test.TestOp(regions=[Region([Block([op1, op2, op3]), Block([op4, op5])])])
+
+    _liveness = liveness.Liveness(op6)
+    live_ops = _liveness.resolve_liveness(op1.results[0])
+
+    assert op1 in live_ops
+    assert op2 in live_ops
+    assert op3 in live_ops
+    assert op4 in live_ops
+    assert op5 not in live_ops
