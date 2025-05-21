@@ -1325,7 +1325,7 @@ class RI_AddOp(RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_SubOp(RI_Operation[GeneralRegisterType]):
+class RI_SubOp(RI_Operation[GeneralRegisterType]):
     """
     Subtracts the immediate value from r1 and stores the result in r1.
     ```C
@@ -1339,7 +1339,7 @@ class RImm_SubOp(RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_AndOp(RI_Operation[GeneralRegisterType]):
+class RI_AndOp(RI_Operation[GeneralRegisterType]):
     """
     bitwise and of r1 and immediate, stored in r1
     ```C
@@ -1353,7 +1353,7 @@ class RImm_AndOp(RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_OrOp(RI_Operation[GeneralRegisterType]):
+class RI_OrOp(RI_Operation[GeneralRegisterType]):
     """
     bitwise or of r1 and immediate, stored in r1
     ```C
@@ -1367,7 +1367,7 @@ class RImm_OrOp(RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_XorOp(RI_Operation[GeneralRegisterType]):
+class RI_XorOp(RI_Operation[GeneralRegisterType]):
     """
     bitwise xor of r1 and immediate, stored in r1
     ```C
@@ -1381,7 +1381,7 @@ class RImm_XorOp(RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RImm_MovOp(RI_Operation[GeneralRegisterType]):
+class RI_MovOp(RI_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into r1.
     ```C
