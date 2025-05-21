@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-from xdsl.dialects.builtin import ModuleOp, i32
+from xdsl.dialects.arith import ConstantOp
+from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp, i32
 from xdsl.ir import Block
 from xdsl.irdl import (
     IRDLOperation,
@@ -290,6 +291,19 @@ class OpCreation:
         """
         EmptyOp.build()
 
+    def time_operation_constant_init(self) -> None:
+        """Time instantiating a constant integer."""
+        ConstantOp(IntegerAttr(100, i32))
+
+    def time_operation_constant_create(self) -> None:
+        """Time creating a constant integer."""
+        integer_attr = IntegerAttr.__new__(IntegerAttr)
+        object.__setattr__(integer_attr, "parameters", (IntAttr(100), i32))
+        ConstantOp.create(
+            result_types=[i32],
+            properties={"value": integer_attr},
+        )
+
     def time_operation_clone(self) -> None:
         """Time cloning an module of 100 empty operations.
 
@@ -357,6 +371,12 @@ if __name__ == "__main__":
             "OpCreation.operation_clone": Benchmark(OP_CREATION.time_operation_clone),
             "OpCreation.operation_clone_single": Benchmark(
                 OP_CREATION.time_operation_clone_single
+            ),
+            "OpCreation.operation_constant_init": Benchmark(
+                OP_CREATION.time_operation_constant_init
+            ),
+            "OpCreation.operation_constant_create": Benchmark(
+                OP_CREATION.time_operation_constant_create
             ),
         }
     )
