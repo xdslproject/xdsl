@@ -28,33 +28,33 @@ Which then emits a performance profile similar to:
 ```
 //// Trace of `example_function` :
 
-// == example_file:637 `example_function` ==
+// == example_file:636 `example_function` ==
 // >>> inner_function(foo)
-638         2   LOAD_GLOBAL          1   (inner_function + NULL)                                    // 10   ns
-638         12  LOAD_FAST            0   (foo)                                                      // 10   ns
-638         14  CALL                 1   ()                                                         // 20   ns
+637         2   LOAD_GLOBAL          1   (inner_function + NULL)                                    // 17   ns
+637         12  LOAD_FAST            0   (foo)                                                      // 15   ns
+637         14  CALL                 1   ()                                                         // 41   ns
 
-    // == example_file:631 `inner_function` ===
+    // == example_file:630 `inner_function` ===
     // >>> assert x
-    632         2   LOAD_FAST            0   (x)                                                    // 10   ns
-    632         4   TO_BOOL                  ()                                                     // 10   ns
-    632         12  POP_JUMP_IF_TRUE     2   (to L1)                                                // 10   ns
-    632     >>  20  RETURN_CONST         0   (None)                                                 // 20   ns
+    631         2   LOAD_FAST            0   (x)                                                    // 15   ns
+    631         4   TO_BOOL                  ()                                                     // 16   ns
+    631         12  POP_JUMP_IF_TRUE     2   (to L1)                                                // 16   ns
+    631     >>  20  RETURN_CONST         0   (None)                                                 // 37   ns
     // =============================================
 
-638         22  POP_TOP                  ()                                                         // 10   ns
+637         22  POP_TOP                  ()                                                         // 16   ns
 // >>> pass
-639         24  NOP                      ()                                                         // 10   ns
+638         24  NOP                      ()                                                         // 16   ns
 // >>> raise_exception()
-640         26  LOAD_GLOBAL          3   (raise_exception + NULL)                                   // 10   ns
-640         36  CALL                 0   ()                                                         // 30   ns
+639         26  LOAD_GLOBAL          3   (raise_exception + NULL)                                   // 16   ns
+639         36  CALL                 0   ()                                                         // 40   ns
 
-    // == example_file:634 `raise_exception` ==
+    // == example_file:633 `raise_exception` ==
     // >>> raise ValueError("Help")
-    635         2   LOAD_GLOBAL          1   (ValueError + NULL)                                    // 10   ns
-    635         12  LOAD_CONST           1   ('Help')                                               // 10   ns
-    635         14  CALL                 1   ()                                                     // 10   ns
-    635         22  RAISE_VARARGS        1   ()                                                     // 80   ns
+    634         2   LOAD_GLOBAL          1   (ValueError + NULL)                                    // 17   ns
+    634         12  LOAD_CONST           1   ('Help')                                               // 15   ns
+    634         14  CALL                 1   ()                                                     // 19   ns
+    634         22  RAISE_VARARGS        1   ()                                                     // 120  ns
 
     // !!!!!!!!!!!!!!! `ValueError` !!!!!!!!!!!!!!!!
     // =============================================
