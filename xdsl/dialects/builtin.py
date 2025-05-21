@@ -1023,8 +1023,8 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
 
-ComplexElementT = TypeVar(
-    "ComplexElementT",
+ComplexElementCovT = TypeVar(
+    "ComplexElementCovT",
     bound=IntegerType | AnyFloat,
     default=IntegerType | AnyFloat,
     covariant=True,
@@ -1033,20 +1033,20 @@ ComplexElementT = TypeVar(
 
 @irdl_attr_definition
 class ComplexType(
-    Generic[ComplexElementT],
+    Generic[ComplexElementCovT],
     PackableType[tuple[float, float] | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
-    ContainerType[ComplexElementT],
+    ContainerType[ComplexElementCovT],
     TypeAttribute,
 ):
     name = "complex"
-    element_type: ParameterDef[ComplexElementT]
+    element_type: ParameterDef[ComplexElementCovT]
 
-    def __init__(self, element_type: ComplexElementT):
+    def __init__(self, element_type: ComplexElementCovT):
         super().__init__([element_type])
 
-    def get_element_type(self) -> ComplexElementT:
+    def get_element_type(self) -> ComplexElementCovT:
         return self.element_type
 
     @property
@@ -2312,15 +2312,15 @@ class DenseIntOrFPElementsAttr(
     @overload
     @staticmethod
     def create_dense_complex(
-        type: RankedStructure[ComplexType[ComplexElementT]],
+        type: RankedStructure[ComplexType[ComplexElementCovT]],
         data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementT]]: ...
+    ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementCovT]]: ...
 
     @staticmethod
     def create_dense_complex(
-        type: RankedStructure[ComplexType[ComplexElementT]],
+        type: RankedStructure[ComplexType[ComplexElementCovT]],
         data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementT]]:
+    ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementCovT]]:
         return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
 
     @overload
