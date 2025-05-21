@@ -335,14 +335,14 @@ class Liveness:
         if (_liveness := self.get_liveness(block)) is None:
             return None
         else:
-            _liveness.in_values
+            return _liveness.in_values
 
     # Returns a reference to a set containing live-out values.
     def get_liveout(self, block: Block):
         if (_liveness := self.get_liveness(block)) is None:
             return None
         else:
-            _liveness.out_values
+            return _liveness.out_values
 
     # Returns true if `value` is not live after `operation`.
     def is_dead_after(self, value: SSAValue, operation: Operation):
