@@ -28,9 +28,9 @@ class PtrAddToX86(RewritePattern):
         x86_reg_type = x86.register.UNALLOCATED_GENERAL
         ptr_cast_op = UnrealizedConversionCastOp.get((op.addr,), (x86_reg_type,))
         offset_cast_op = UnrealizedConversionCastOp.get((op.offset,), (x86_reg_type,))
-        add_op = x86.RS_AddOp(ptr_cast_op, offset_cast_op, r1_destination=x86_reg_type)
+        add_op = x86.RS_AddOp(ptr_cast_op, offset_cast_op, register_out=x86_reg_type)
         res_cast_op = UnrealizedConversionCastOp.get(
-            (add_op.r1_destination,), (ptr.PtrType(),)
+            (add_op.register_out,), (ptr.PtrType(),)
         )
         rewriter.replace_matched_op([ptr_cast_op, offset_cast_op, add_op, res_cast_op])
 
@@ -69,7 +69,7 @@ class PtrStoreToX86(RewritePattern):
                     "Float precision must be half, single or double."
                 )
 
-        mov_op = mov(addr_cast_op, vect_cast_op, offset=0)
+        mov_op = mov(addr_cast_op, vect_cast_op, memory_offset=0)
         rewriter.replace_matched_op([addr_cast_op, vect_cast_op, mov_op])
 
 
@@ -109,8 +109,8 @@ class PtrLoadToX86(RewritePattern):
 
         mov_op = mov(
             cast_op,
-            offset=0,
-            r1=vector_type_to_register_type(value_type, self.arch),
+            memory_offset=0,
+            destination=vector_type_to_register_type(value_type, self.arch),
         )
         res_cast_op = UnrealizedConversionCastOp.get(mov_op.results, (value_type,))
         rewriter.replace_matched_op([cast_op, mov_op, res_cast_op])

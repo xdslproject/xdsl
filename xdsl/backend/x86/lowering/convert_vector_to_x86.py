@@ -48,12 +48,10 @@ class VectorFMAToX86(RewritePattern):
                 raise DiagnosticException(
                     "Float precision must be half, single or double."
                 )
-        fma_op = fma(
-            r1=acc_cast_op, r2=lhs_cast_op, r3=rhs_cast_op, r1_destination=x86_vect_type
-        )
+        fma_op = fma(acc_cast_op, lhs_cast_op, rhs_cast_op, register_out=x86_vect_type)
 
         res_cast_op = UnrealizedConversionCastOp.get(
-            (fma_op.r1_destination,), (vect_type,)
+            (fma_op.register_out,), (vect_type,)
         )
         rewriter.replace_matched_op(
             [lhs_cast_op, rhs_cast_op, acc_cast_op, fma_op, res_cast_op]

@@ -38,9 +38,9 @@ func.func public @foo_int(%0: i32, %1: i32, %2: i32, %3: i32, %4: i32, %5: i32, 
 // CHECK-NEXT:      %10 = builtin.unrealized_conversion_cast %3 : !x86.reg<rcx> to i32
 // CHECK-NEXT:      %11 = builtin.unrealized_conversion_cast %4 : !x86.reg<r8> to i32
 // CHECK-NEXT:      %12 = builtin.unrealized_conversion_cast %5 : !x86.reg<r9> to i32
-// CHECK-NEXT:      %13 = x86.rm.mov %6, 8 {comment = "Load the 7th argument of the function"} : (!x86.reg<rsp>) -> !x86.reg
+// CHECK-NEXT:      %13 = x86.dm.mov %6, 8 {comment = "Load the 7th argument of the function"} : (!x86.reg<rsp>) -> !x86.reg
 // CHECK-NEXT:      %14 = builtin.unrealized_conversion_cast %13 : !x86.reg to i32
-// CHECK-NEXT:      %15 = x86.rm.mov %6, 16 {comment = "Load the 8th argument of the function"} : (!x86.reg<rsp>) -> !x86.reg
+// CHECK-NEXT:      %15 = x86.dm.mov %6, 16 {comment = "Load the 8th argument of the function"} : (!x86.reg<rsp>) -> !x86.reg
 // CHECK-NEXT:      %16 = builtin.unrealized_conversion_cast %15 : !x86.reg to i32
 // CHECK-NEXT:      %a = "test.op"(%7, %8) : (i32, i32) -> i32
 // CHECK-NEXT:      %b = "test.op"(%a, %9) : (i32, i32) -> i32

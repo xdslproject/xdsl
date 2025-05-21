@@ -23,7 +23,7 @@
 // CHECK-NEXT: cmp rax, rdx
 %r_pushrsp = x86.s.push %rsp, %0 : (!x86.reg<rsp>, !x86.reg<rax>) -> !x86.reg<rsp>
 // CHECK-NEXT: push rax
-%r_pop, %r_poprsp = x86.d.pop %rsp : (!x86.reg<rsp>) -> (!x86.reg<rax>, !x86.reg<rsp>)
+%r_poprsp, %r_pop = x86.d.pop %rsp : (!x86.reg<rsp>) -> (!x86.reg<rsp>, !x86.reg<rax>)
 // CHECK-NEXT: pop rax
 %r_neg = x86.r.neg %0 : (!x86.reg<rax>) -> !x86.reg<rax>
 // CHECK-NEXT: neg rax
@@ -34,9 +34,9 @@
 %r_dec = x86.r.dec %0 : (!x86.reg<rax>) -> !x86.reg<rax>
 // CHECK-NEXT: dec rax
 
-%r_idiv_rdx, %r_idiv_rax = x86.r.idiv %2, %1, %0 : (!x86.reg<rcx>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+%r_idiv_rdx, %r_idiv_rax = x86.s.idiv %2, %1, %0 : (!x86.reg<rcx>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
 // CHECK-NEXT: idiv rcx
-%r_imul_rdx, %r_imul_rax = x86.r.imul %2, %0 : (!x86.reg<rcx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+%r_imul_rdx, %r_imul_rax = x86.s.imul %2, %0 : (!x86.reg<rcx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
 // CHECK-NEXT: imul rcx
 
 %rm_add_no_offset = x86.rm.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
@@ -55,11 +55,11 @@
 // CHECK-NEXT: or rax, [rdx+8]
 %rm_xor = x86.rm.xor %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: xor rax, [rdx+8]
-%rm_mov = x86.rm.mov %1, 8 : (!x86.reg<rdx>) -> !x86.reg<rax>
+%rm_mov = x86.dm.mov %1, 8 : (!x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: mov rax, [rdx+8]
 %rm_cmp = x86.sm.cmp %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.rflags<rflags>
 // CHECK-NEXT: cmp rax, [rdx+8]
-%rm_lea = x86.rm.lea %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
+%rm_lea = x86.dm.lea %1, 8 : (!x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: lea rax, [rdx+8]
 
 %ri_add = x86.ri.add %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>

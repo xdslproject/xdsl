@@ -193,11 +193,14 @@ def test_rrr_vops(
     param1 = x86.ops.GetAVXRegisterOp(operand1)
     param2 = x86.ops.GetAVXRegisterOp(operand2)
     op = OpClass(
-        r3=output.result, r1=param1.result, r2=param2.result, r1_destination=dest
+        source2=output.result,
+        register_in=param1.result,
+        source1=param2.result,
+        register_out=dest,
     )
-    assert op.r1_source.type == operand1
-    assert op.r2.type == operand2
-    assert op.r3.type == dest
+    assert op.register_in.type == operand1
+    assert op.source1.type == operand2
+    assert op.source2.type == dest
 
 
 @pytest.mark.parametrize(
@@ -226,9 +229,9 @@ def test_mr_vops(
 ):
     output = x86.ops.GetRegisterOp(dest)
     input = x86.ops.GetAVXRegisterOp(src)
-    op = OpClass(r1=output, r2=input, offset=IntegerAttr(0, 64))
-    assert op.r1.type == dest
-    assert op.r2.type == src
+    op = OpClass(memory=output, source=input, memory_offset=IntegerAttr(0, 64))
+    assert op.memory.type == dest
+    assert op.source.type == src
 
 
 @pytest.mark.parametrize(
@@ -261,6 +264,6 @@ def test_rm_vops(
     src: x86.register.GeneralRegisterType,
 ):
     input = x86.ops.GetRegisterOp(src)
-    op = OpClass(r2=input, r1=dest, offset=IntegerAttr(0, 64))
-    assert op.r2.type == src
-    assert op.r1.type == dest
+    op = OpClass(memory=input, destination=dest, memory_offset=IntegerAttr(0, 64))
+    assert op.memory.type == src
+    assert op.destination.type == dest
