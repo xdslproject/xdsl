@@ -269,7 +269,7 @@ class Liveness:
             block_mapping[block].out_values = builder.out_values.copy()
 
     # Gets liveness info (if any) for the given value.
-    def resolve_liveness(self, value: SSAValue, output: IO[str]) -> list[Operation]:
+    def resolve_liveness(self, value: SSAValue) -> list[Operation]:
         to_process: list[Block] = []
         visited: set[Block] = set()
         result: list[Operation] = []
@@ -426,7 +426,7 @@ class Liveness:
                     print("//", file=output, end="")
                     print_value_ref(result)
                     print(":", file=output, end="")
-                    live_operations = self.resolve_liveness(result, output)
+                    live_operations = self.resolve_liveness(result)
                     live_operations.sort(key=lambda x: operation_ids[x])
 
                     for operation in live_operations:
