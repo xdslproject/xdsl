@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     IntAttrConstraint,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
     StringAttr,
     UnitAttr,
@@ -3215,6 +3216,105 @@ def test_default_attr_in_attr_dict(program: str, generic: str):
 
 
 ################################################################################
+#                                Extractors                                    #
+################################################################################
+
+
+@irdl_op_definition
+class AllOfExtractorOp(IRDLOperation):
+    name = "test.all_of_extractor"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    lhs = operand_def(T & MemRefType.constr(element_type=T))
+    rhs = operand_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
+
+
+def test_all_of_extraction_fails():
+    ctx = Context()
+    ctx.load_op(AllOfExtractorOp)
+    ctx.load_dialect(Test)
+    parser = Parser(
+        ctx,
+        '%0 = "test.op"() : () -> memref<10xindex>\ntest.all_of_extractor %0, %0 : memref<10xindex>',
+    )
+    parser.parse_operation()
+    with pytest.raises(
+        ValueError,
+        match="Variable T was set to different attributes:\n"
+        "Possible values: memref<10xindex>, index",
+    ):
+        parser.parse_operation()
+
+
+@irdl_attr_definition
+class DoubleParamAttr(ParametrizedAttribute, TypeAttribute):
+    """An attribute with two unbounded attribute parameters."""
+
+    name = "test.param"
+
+    param1: ParameterDef[Attribute]
+    param2: ParameterDef[Attribute]
+
+
+@irdl_op_definition
+class ParamExtractorOp(IRDLOperation):
+    name = "test.param_extractor"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    lhs = operand_def(ParamAttrConstraint(DoubleParamAttr, (T, T)))
+    rhs = operand_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
+
+
+def test_param_extraction_fails():
+    ctx = Context()
+    ctx.load_attr_or_type(DoubleParamAttr)
+    ctx.load_op(ParamExtractorOp)
+    ctx.load_dialect(Test)
+    parser = Parser(
+        ctx,
+        '%0 = "test.op"() : () -> !test.param<i32,i64>\ntest.param_extractor %0, %0 : !test.param<i32,i64>',
+    )
+    parser.parse_operation()
+    with pytest.raises(
+        ValueError,
+        match="Variable T was set to different attributes:\nPossible values: i32, i64",
+    ):
+        parser.parse_operation()
+
+
+@irdl_op_definition
+class MultipleOperandExtractorOp(IRDLOperation):
+    name = "test.multiple_operand_extractor"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs)"
+
+
+def test_multiple_operand_extraction_fails():
+    ctx = Context()
+    ctx.load_op(MultipleOperandExtractorOp)
+    ctx.load_dialect(Test)
+    parser = Parser(
+        ctx,
+        '%0, %1 = "test.op"() : () -> (index, i32)\ntest.multiple_operand_extractor %0, %1 : index, i32',
+    )
+    parser.parse_operation()
+    with pytest.raises(
+        ValueError,
+        match="Variable T was set to different attributes:\n"
+        "Possible values: index, i32",
+    ):
+        parser.parse_operation()
+
+
+################################################################################
 #                                  IntAttr                                     #
 ################################################################################
 
@@ -3302,31 +3402,35 @@ def test_int_attr_verify(program: str):
 
 
 @pytest.mark.parametrize(
-    "program, error",
+    "program, error_type, error",
     [
         (
             "test.int_attr_verify 1, %0, %1",
-            "integer 2 expected from int variable 'I', but got 1",
+            ValueError,
+            "Variable I was set to different integers:\nPossible values: 2, 1",
         ),
         (
             "test.int_attr_verify 1 and 2, %0",
+            VerifyException,
             "integer 1 expected from int variable 'I', but got 2",
         ),
         (
             "test.int_attr_verify 2, %0",
-            "integer 1 expected from int variable 'I', but got 2",
+            ValueError,
+            "Variable I was set to different integers:\nPossible values: 1, 2",
         ),
         (
             "test.int_attr_verify 2 and 1, %0, %1",
+            VerifyException,
             "integer 2 expected from int variable 'I', but got 1",
         ),
     ],
 )
-def test_int_attr_verify_errors(program: str, error: str):
+def test_int_attr_verify_errors(program: str, error_type: type[Exception], error: str):
     ctx = Context()
     ctx.load_op(IntAttrVerifyOp)
 
     parser = Parser(ctx, program)
-    with pytest.raises(VerifyException, match=error):
+    with pytest.raises(error_type, match=error):
         op = parser.parse_operation()
         op.verify()

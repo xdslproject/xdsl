@@ -157,46 +157,42 @@ class FormatProgram:
 
     def resolve_constraint_variables(self, state: ParsingState, op_def: OpDef):
         ctx = state.context
+
         for operand, operand_type, (_, operand_def) in zip(
             state.operands, state.operand_types, op_def.operands, strict=True
         ):
-            constr = operand_def.constr
             length = len(operand) if isinstance(operand, Sequence) else 1
-            for v in constr.variables_from_length():
-                ctx.set_variable(v, constr.extract_var_from_length(length, v))
+            operand_def.constr.extract_variables_from_length(length, ctx)
             if operand_type is None:
                 continue
             if isinstance(operand_type, Attribute):
                 operand_type = (operand_type,)
-            for v in constr.variables():
-                ctx.set_variable(v, constr.extract_var(operand_type, v))
+            operand_def.constr.extract_variables(operand_type, ctx)
 
         for result_type, (_, result_def) in zip(
             state.result_types, op_def.results, strict=True
         ):
             if result_type is None:
                 continue
-            constr = result_def.constr
             if isinstance(result_type, Attribute):
                 result_type = (result_type,)
-            for v in constr.variables():
-                ctx.set_variable(v, constr.extract_var(result_type, v))
+            result_def.constr.extract_variables(result_type, ctx)
 
         for prop_name, prop_def in op_def.properties.items():
+            if isinstance(prop_def, OptionalDef) and prop_def.default_value is None:
+                continue
             attr = state.properties.get(prop_name, prop_def.default_value)
             if attr is None:
                 continue
-            constr = prop_def.constr
-            for v in constr.variables():
-                ctx.set_variable(v, constr.extract_var(attr, v))
+            prop_def.constr.extract_variables(attr, ctx)
 
         for attr_name, attr_def in op_def.attributes.items():
+            if isinstance(attr_def, OptionalDef) and attr_def.default_value is None:
+                continue
             attr = state.attributes.get(attr_name, attr_def.default_value)
             if attr is None:
                 continue
-            constr = attr_def.constr
-            for v in constr.variables():
-                ctx.set_variable(v, constr.extract_var(attr, v))
+            attr_def.constr.extract_variables(attr, ctx)
 
     def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """

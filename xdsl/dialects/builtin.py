@@ -49,8 +49,6 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
-    ConstraintVariableType,
-    ConstraintVarType,
     GenericAttrConstraint,
     GenericData,
     GenericRangeConstraint,
@@ -228,13 +226,13 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     def get_unique_base(self) -> type[Attribute] | None:
         return ArrayAttr
 
-    def variables(self) -> dict[str, ConstraintVarType]:
+    def variables(self) -> set[str]:
         return self.elem_range_constraint.variables()
 
-    def extract_var(self, attr: Attribute, var: str) -> ConstraintVariableType:
+    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
         if not isa(attr, ArrayAttr):
             raise PyRDLError(f"Inference expected {attr} to be a ArrayAttr")
-        return self.elem_range_constraint.extract_var(attr.data, var)
+        self.elem_range_constraint.extract_variables(attr.data, constraint_context)
 
 
 @irdl_attr_definition
@@ -359,13 +357,13 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
             raise VerifyException(f"attribute {attr} expected to be an IntAttr")
         self.int_constraint.verify(attr.data, constraint_context)
 
-    def variables(self) -> dict[str, ConstraintVarType]:
+    def variables(self) -> set[str]:
         return self.int_constraint.variables()
 
-    def extract_var(self, attr: Attribute, var: str) -> ConstraintVariableType:
+    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
         if not isinstance(attr, IntAttr):
             raise PyRDLError(f"Inference expected {attr} to be an IntAttr")
-        return self.int_constraint.extract_var(attr.data, var)
+        return self.int_constraint.extract_variables(attr.data, constraint_context)
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)

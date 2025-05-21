@@ -777,7 +777,7 @@ def test_array_constr():
     assert constr.can_infer({"T"})
 
     ctx = ConstraintContext()
-    ctx.set_variable("T", (i32, i32))
+    ctx.set_range_variable("T", (i32, i32))
     assert constr.infer(ctx) == ArrayAttr([i32, i32])
 
     assert constr.get_unique_base() == ArrayAttr

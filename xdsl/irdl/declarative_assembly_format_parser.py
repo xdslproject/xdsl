@@ -18,7 +18,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedSegments,
     ConstraintContext,
-    ConstraintVarType,
     OpDef,
     OptionalDef,
     OptOperandDef,
@@ -158,8 +157,8 @@ class FormatParser(BaseParser):
         variables = self.get_constraint_variables()
         self.verify_directives(elements)
         self.verify_properties(elements, attr_dict_idx)
-        self.verify_operands(variables.keys())
-        self.verify_results(variables.keys())
+        self.verify_operands(variables)
+        self.verify_results(variables)
         self.verify_regions()
         self.verify_successors()
         return FormatProgram(tuple(elements))
@@ -205,11 +204,11 @@ class FormatParser(BaseParser):
                 case _:
                     pass
 
-    def get_constraint_variables(self) -> dict[str, ConstraintVarType]:
+    def get_constraint_variables(self) -> set[str]:
         """
         Find out which constraint variables can be inferred from the parsed attributes.
         """
-        vars: dict[str, ConstraintVarType] = {}
+        vars = set[str]()
         for i, (_, operand_def) in enumerate(self.op_def.operands):
             vars |= operand_def.constr.variables_from_length()
             if self.seen_operand_types[i]:
