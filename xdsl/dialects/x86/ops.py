@@ -113,15 +113,12 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         pos = parser.pos
         operand_types, result_types = cls.parse_op_type(parser)
         operands = parser.resolve_operands(args, operand_types, pos)
-        try:
-            return cls.build(
-                operands=operands,
-                result_types=result_types,
-                attributes=attributes,
-                regions=regions,
-            )
-        except ValueError:
-            raise parser.raise_error(f"{cls}", pos)
+        return cls.build(
+            operands=operands,
+            result_types=result_types,
+            attributes=attributes,
+            regions=regions,
+        )
 
     @classmethod
     def parse_optional_memory_access_offset(cls, parser: Parser) -> Attribute | None:
