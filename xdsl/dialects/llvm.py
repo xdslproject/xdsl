@@ -1010,11 +1010,8 @@ class GEPOp(IRDLOperation):
             ssa_indices = []
 
         # convert a potential Operation into an SSAValue
-        ptr_val = SSAValue.get(ptr)
+        ptr_val = SSAValue.get(ptr, type=LLVMPointerType)
         ptr_type = ptr_val.type
-
-        if not isinstance(ptr_type, LLVMPointerType):
-            raise ValueError("Input must be a pointer")
 
         props: dict[str, Attribute] = {
             "rawConstantIndices": DenseArrayBase.create_dense_int(i32, indices),
@@ -1196,8 +1193,7 @@ class LoadOp(IRDLOperation):
 
     def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
-            ptr = SSAValue.get(ptr)
-            assert isinstance(ptr.type, LLVMPointerType)
+            ptr = SSAValue.get(ptr, type=LLVMPointerType)
 
             if isinstance(ptr.type.type, NoneAttr):
                 raise ValueError(

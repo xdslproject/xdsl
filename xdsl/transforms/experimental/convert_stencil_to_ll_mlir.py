@@ -497,7 +497,9 @@ class AccessOpToMemRef(RewritePattern):
             else:
                 memref_load_args.append(arg.idx)
 
-        load = memref.LoadOp.get(op.temp, memref_load_args)
+        load = memref.LoadOp(
+            operands=[op.temp, memref_load_args], result_types=[temp.element_type]
+        )
 
         rewriter.insert_op_before_matched_op(args)
         rewriter.replace_matched_op([*off_const_ops, load], [load.res])

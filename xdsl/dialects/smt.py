@@ -6,7 +6,7 @@ from typing import ClassVar, TypeAlias
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import BoolAttr
+from xdsl.dialects.builtin import ArrayAttr, BoolAttr, StringAttr
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -17,19 +17,26 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AtLeast,
+    GenericAttrConstraint,
+    GenericRangeConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
+    ParameterDef,
     RangeOf,
+    RangeVarConstraint,
     VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import ConstantLike, HasParent, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
@@ -44,6 +51,107 @@ class BoolType(ParametrizedAttribute, TypeAttribute):
 
 
 NonFuncSMTType: TypeAlias = BoolType
+
+
+@irdl_attr_definition
+class FuncType(ParametrizedAttribute, TypeAttribute):
+    """A function type."""
+
+    name = "smt.func"
+
+    domain_types: ParameterDef[ArrayAttr[NonFuncSMTType]]
+    """The types of the function arguments."""
+
+    range_type: ParameterDef[NonFuncSMTType]
+    """The type of the function result."""
+
+    def __init__(
+        self, domain_types: Sequence[NonFuncSMTType], range_type: NonFuncSMTType
+    ):
+        super().__init__([ArrayAttr[NonFuncSMTType](domain_types), range_type])
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            domain_types = parser.parse_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
+            range_type = parser.parse_type()
+
+        return (ArrayAttr(domain_types), range_type)
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<(")
+        printer.print_list(self.domain_types, printer.print_attribute)
+        printer.print_string(") ")
+        printer.print_attribute(self.range_type)
+        printer.print_string(">")
+
+    @staticmethod
+    def constr(
+        domain: GenericRangeConstraint[NonFuncSMTType],
+        range: GenericAttrConstraint[NonFuncSMTType],
+    ) -> GenericAttrConstraint[FuncType]:
+        return ParamAttrConstraint(FuncType, (ArrayAttr.constr(domain), range))
+
+
+SMTType: TypeAlias = NonFuncSMTType | FuncType
+
+
+@irdl_op_definition
+class DeclareFunOp(IRDLOperation):
+    """
+    This operation declares a symbolic value just as the declare-const and declare-fun
+    statements in SMT-LIB 2.7. The result type determines the SMT sort of the symbolic
+    value. The returned value can then be used to refer to the symbolic value instead
+    of using the identifier like in SMT-LIB.
+
+    The optionally provided string will be used as a prefix for the newly generated
+    identifier (useful for easier readability when exporting to SMT-LIB). Each declare
+    will always provide a unique new symbolic value even if the identifier strings are
+    the same.
+    """
+
+    name = "smt.declare_fun"
+
+    name_prefix = opt_prop_def(StringAttr, prop_name="namePrefix")
+    result = result_def(SMTType)
+
+    assembly_format = "($namePrefix^)? attr-dict `:` type($result)"
+
+    def __init__(
+        self, result_type: SMTType, name_prefix: StringAttr | str | None = None
+    ):
+        if isinstance(name_prefix, str):
+            name_prefix = StringAttr(name_prefix)
+        super().__init__(
+            result_types=[result_type], properties={"namePrefix": name_prefix}
+        )
+
+
+@irdl_op_definition
+class ApplyFuncOp(IRDLOperation):
+    """
+    This operation performs a function application as described in the SMT-LIB
+    2.7 standard. It is part of the SMT-LIB core theory.
+    """
+
+    name = "smt.apply_func"
+
+    DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(base(NonFuncSMTType)))
+    RANGE: ClassVar = VarConstraint("RANGE", base(NonFuncSMTType))
+
+    func = operand_def(FuncType.constr(DOMAIN, RANGE))
+    args = var_operand_def(DOMAIN)
+
+    result = result_def(RANGE)
+
+    assembly_format = "$func `(` $args `)` attr-dict `:` type($func)"
+
+    def __init__(self, func: SSAValue[FuncType], *args: SSAValue):
+        super().__init__(
+            operands=[func, tuple(args)], result_types=[func.type.range_type]
+        )
 
 
 @irdl_op_definition
@@ -123,6 +231,27 @@ class XOrOp(VariadicBoolOp):
     """
 
     name = "smt.xor"
+
+
+@irdl_op_definition
+class ImpliesOp(IRDLOperation):
+    """
+    This operation performs a boolean implication. The semantics are equivalent
+    to the `=>` operator in the Core theory of the SMT-LIB Standard 2.7.
+    """
+
+    name = "smt.implies"
+
+    lhs = operand_def(BoolType)
+    rhs = operand_def(BoolType)
+    result = result_def(BoolType)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$lhs `,` $rhs attr-dict"
+
+    def __init__(self, lhs: SSAValue, rhs: SSAValue):
+        super().__init__(operands=[lhs, rhs], result_types=[BoolType()])
 
 
 def _parse_same_operand_type_variadic_to_bool_op(
@@ -298,15 +427,21 @@ class YieldOp(IRDLOperation):
 SMT = Dialect(
     "smt",
     [
+        DeclareFunOp,
+        ApplyFuncOp,
         ConstantBoolOp,
         AndOp,
         OrOp,
         XOrOp,
+        ImpliesOp,
         DistinctOp,
         EqOp,
         ExistsOp,
         ForallOp,
         YieldOp,
     ],
-    [BoolType],
+    [
+        BoolType,
+        FuncType,
+    ],
 )

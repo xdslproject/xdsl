@@ -93,6 +93,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_emitc():
+        from xdsl.dialects.emitc import EmitC
+
+        return EmitC
+
     def get_eqsat():
         from xdsl.dialects.eqsat import EqSat
 
@@ -351,6 +356,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
         "dmp": get_dmp,
+        "emitc": get_emitc,
         "eqsat": get_eqsat,
         "fir": get_fir,
         "fsm": get_fsm,
