@@ -1200,6 +1200,12 @@ class Operation(IRNode):
         Check if the operation implements a trait with the given parameters.
         If the operation is not registered, return value_if_unregisteed instead.
         """
+
+        from xdsl.dialects.builtin import UnregisteredOp
+
+        if issubclass(cls, UnregisteredOp):
+            return value_if_unregistered
+
         return cls.get_trait(trait) is not None
 
     @classmethod
