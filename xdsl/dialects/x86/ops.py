@@ -845,18 +845,18 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
         return op
 
 
-class RRROperation(
+class RSS_Operation(
     Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
     A base class for x86 operations that have three registers.
     """
 
-    r1 = operand_def(R1InvT)
+    r1_source = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
     r3 = operand_def(R3InvT)
 
-    result = result_def(R1InvT)
+    r1_destination = result_def(R1InvT)
 
     def __init__(
         self,
@@ -865,7 +865,7 @@ class RRROperation(
         r3: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        result: R1InvT,
+        r1_destination: R1InvT,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -875,11 +875,11 @@ class RRROperation(
             attributes={
                 "comment": comment,
             },
-            result_types=[result],
+            result_types=[r1_destination],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.r1, self.r2, self.r3
+        return self.r1_source, self.r2, self.r3
 
 
 # endregion
@@ -2671,8 +2671,8 @@ class C_JzOp(ConditionalJumpOperation):
 
 
 @irdl_op_definition
-class RRR_Vfmadd231pdOp(
-    RRROperation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+class RSS_Vfmadd231pdOp(
+    RSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
 ):
     """
     Multiply packed double-precision floating-point elements in r2 and r3, add the
@@ -2681,12 +2681,12 @@ class RRR_Vfmadd231pdOp(
     See external [documentation](https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd).
     """
 
-    name = "x86.rrr.vfmadd231pd"
+    name = "x86.rss.vfmadd231pd"
 
 
 @irdl_op_definition
-class RRR_Vfmadd231psOp(
-    RRROperation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+class RSS_Vfmadd231psOp(
+    RSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
 ):
     """
     Multiply packed single-precision floating-point elements in r2 and r3, add the
@@ -2695,7 +2695,7 @@ class RRR_Vfmadd231psOp(
     See external [documentation](https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd).
     """
 
-    name = "x86.rrr.vfmadd231ps"
+    name = "x86.rss.vfmadd231ps"
 
 
 @irdl_op_definition

@@ -164,13 +164,13 @@ def test_sse_register(register: x86.register.SSERegisterType, name: str):
     "OpClass, dest, operand1, operand2",
     [
         (
-            x86.ops.RRR_Vfmadd231pdOp,
+            x86.ops.RSS_Vfmadd231pdOp,
             x86.register.YMM0,
             x86.register.YMM1,
             x86.register.YMM2,
         ),
         (
-            x86.ops.RRR_Vfmadd231psOp,
+            x86.ops.RSS_Vfmadd231psOp,
             x86.register.YMM0,
             x86.register.YMM1,
             x86.register.YMM2,
@@ -179,7 +179,7 @@ def test_sse_register(register: x86.register.SSERegisterType, name: str):
 )
 def test_rrr_vops(
     OpClass: type[
-        x86.ops.RRROperation[
+        x86.ops.RSS_Operation[
             x86.register.X86VectorRegisterType,
             x86.register.X86VectorRegisterType,
             x86.register.X86VectorRegisterType,
@@ -192,8 +192,10 @@ def test_rrr_vops(
     output = x86.ops.GetAVXRegisterOp(dest)
     param1 = x86.ops.GetAVXRegisterOp(operand1)
     param2 = x86.ops.GetAVXRegisterOp(operand2)
-    op = OpClass(r3=output.result, r1=param1.result, r2=param2.result, result=dest)
-    assert op.r1.type == operand1
+    op = OpClass(
+        r3=output.result, r1=param1.result, r2=param2.result, r1_destination=dest
+    )
+    assert op.r1_source.type == operand1
     assert op.r2.type == operand2
     assert op.r3.type == dest
 

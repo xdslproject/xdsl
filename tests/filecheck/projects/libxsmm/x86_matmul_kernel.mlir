@@ -15,31 +15,31 @@ x86_func.func @matmul(%rdi: !x86.reg<rdi>, %rsi: !x86.reg<rsi>, %rcx: !x86.reg<r
     // Load column 0 of B
     %b_col_0 = x86.dm.vbroadcastss %rsi, 0 : (!x86.reg<rsi>) -> !x86.avx2reg<ymm8>
     // Reduction
-    %c0_tmp1 = x86.rrr.vfmadd231ps %c0_tmp0, %b_col_0, %a_row_0 : (!x86.avx2reg<ymm4>, !x86.avx2reg<ymm8>, !x86.avx2reg<ymm0>) -> !x86.avx2reg<ymm4>
-    %c1_tmp1 = x86.rrr.vfmadd231ps %c1_tmp0, %b_col_0, %a_row_1 : (!x86.avx2reg<ymm5>, !x86.avx2reg<ymm8>, !x86.avx2reg<ymm1>) -> !x86.avx2reg<ymm5>
-    %c2_tmp1 = x86.rrr.vfmadd231ps %c2_tmp0, %b_col_0, %a_row_2 : (!x86.avx2reg<ymm6>, !x86.avx2reg<ymm8>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm6>
-    %c3_tmp1 = x86.rrr.vfmadd231ps %c3_tmp0, %b_col_0, %a_row_3 : (!x86.avx2reg<ymm7>, !x86.avx2reg<ymm8>, !x86.avx2reg<ymm3>) -> !x86.avx2reg<ymm7>
+    %c0_tmp1 = x86.rss.vfmadd231ps %c0_tmp0, %b_col_0, %a_row_0 : (!x86.avx2reg<ymm4>, !x86.avx2reg<ymm8>, !x86.avx2reg<ymm0>) -> !x86.avx2reg<ymm4>
+    %c1_tmp1 = x86.rss.vfmadd231ps %c1_tmp0, %b_col_0, %a_row_1 : (!x86.avx2reg<ymm5>, !x86.avx2reg<ymm8>, !x86.avx2reg<ymm1>) -> !x86.avx2reg<ymm5>
+    %c2_tmp1 = x86.rss.vfmadd231ps %c2_tmp0, %b_col_0, %a_row_2 : (!x86.avx2reg<ymm6>, !x86.avx2reg<ymm8>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm6>
+    %c3_tmp1 = x86.rss.vfmadd231ps %c3_tmp0, %b_col_0, %a_row_3 : (!x86.avx2reg<ymm7>, !x86.avx2reg<ymm8>, !x86.avx2reg<ymm3>) -> !x86.avx2reg<ymm7>
     // Load column 1 of B
     %b_col_1 = x86.dm.vbroadcastss %rsi, 4 : (!x86.reg<rsi>) -> !x86.avx2reg<ymm9>
     // Reduction
-    %c0_tmp2 = x86.rrr.vfmadd231ps %c0_tmp1, %b_col_1, %a_row_0 : (!x86.avx2reg<ymm4>, !x86.avx2reg<ymm9>, !x86.avx2reg<ymm0>) -> !x86.avx2reg<ymm4>
-    %c1_tmp2 = x86.rrr.vfmadd231ps %c1_tmp1, %b_col_1, %a_row_1 : (!x86.avx2reg<ymm5>, !x86.avx2reg<ymm9>, !x86.avx2reg<ymm1>) -> !x86.avx2reg<ymm5>
-    %c2_tmp2 = x86.rrr.vfmadd231ps %c2_tmp1, %b_col_1, %a_row_2 : (!x86.avx2reg<ymm6>, !x86.avx2reg<ymm9>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm6>
-    %c3_tmp2 = x86.rrr.vfmadd231ps %c3_tmp1, %b_col_1, %a_row_3 : (!x86.avx2reg<ymm7>, !x86.avx2reg<ymm9>, !x86.avx2reg<ymm3>) -> !x86.avx2reg<ymm7>
+    %c0_tmp2 = x86.rss.vfmadd231ps %c0_tmp1, %b_col_1, %a_row_0 : (!x86.avx2reg<ymm4>, !x86.avx2reg<ymm9>, !x86.avx2reg<ymm0>) -> !x86.avx2reg<ymm4>
+    %c1_tmp2 = x86.rss.vfmadd231ps %c1_tmp1, %b_col_1, %a_row_1 : (!x86.avx2reg<ymm5>, !x86.avx2reg<ymm9>, !x86.avx2reg<ymm1>) -> !x86.avx2reg<ymm5>
+    %c2_tmp2 = x86.rss.vfmadd231ps %c2_tmp1, %b_col_1, %a_row_2 : (!x86.avx2reg<ymm6>, !x86.avx2reg<ymm9>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm6>
+    %c3_tmp2 = x86.rss.vfmadd231ps %c3_tmp1, %b_col_1, %a_row_3 : (!x86.avx2reg<ymm7>, !x86.avx2reg<ymm9>, !x86.avx2reg<ymm3>) -> !x86.avx2reg<ymm7>
     // Load column 2 of B
     %b_col_2 = x86.dm.vbroadcastss %rsi, 8 : (!x86.reg<rsi>) -> !x86.avx2reg<ymm10>
     // Reduction
-    %c0_tmp3 = x86.rrr.vfmadd231ps %c0_tmp2, %b_col_2, %a_row_0 : (!x86.avx2reg<ymm4>, !x86.avx2reg<ymm10>, !x86.avx2reg<ymm0>) -> !x86.avx2reg<ymm4>
-    %c1_tmp3 = x86.rrr.vfmadd231ps %c1_tmp2, %b_col_2, %a_row_1 : (!x86.avx2reg<ymm5>, !x86.avx2reg<ymm10>, !x86.avx2reg<ymm1>) -> !x86.avx2reg<ymm5>
-    %c2_tmp3 = x86.rrr.vfmadd231ps %c2_tmp2, %b_col_2, %a_row_2 : (!x86.avx2reg<ymm6>, !x86.avx2reg<ymm10>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm6>
-    %c3_tmp3 = x86.rrr.vfmadd231ps %c3_tmp2, %b_col_2, %a_row_3 : (!x86.avx2reg<ymm7>, !x86.avx2reg<ymm10>, !x86.avx2reg<ymm3>) -> !x86.avx2reg<ymm7>
+    %c0_tmp3 = x86.rss.vfmadd231ps %c0_tmp2, %b_col_2, %a_row_0 : (!x86.avx2reg<ymm4>, !x86.avx2reg<ymm10>, !x86.avx2reg<ymm0>) -> !x86.avx2reg<ymm4>
+    %c1_tmp3 = x86.rss.vfmadd231ps %c1_tmp2, %b_col_2, %a_row_1 : (!x86.avx2reg<ymm5>, !x86.avx2reg<ymm10>, !x86.avx2reg<ymm1>) -> !x86.avx2reg<ymm5>
+    %c2_tmp3 = x86.rss.vfmadd231ps %c2_tmp2, %b_col_2, %a_row_2 : (!x86.avx2reg<ymm6>, !x86.avx2reg<ymm10>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm6>
+    %c3_tmp3 = x86.rss.vfmadd231ps %c3_tmp2, %b_col_2, %a_row_3 : (!x86.avx2reg<ymm7>, !x86.avx2reg<ymm10>, !x86.avx2reg<ymm3>) -> !x86.avx2reg<ymm7>
     // Load column 3 of B
     %b_col_3 = x86.dm.vbroadcastss %rsi, 12 : (!x86.reg<rsi>) -> !x86.avx2reg<ymm11>
     // Reduction
-    %c0 = x86.rrr.vfmadd231ps %c0_tmp3, %b_col_3, %a_row_0 : (!x86.avx2reg<ymm4>, !x86.avx2reg<ymm11>, !x86.avx2reg<ymm0>) -> !x86.avx2reg<ymm4>
-    %c1 = x86.rrr.vfmadd231ps %c1_tmp3, %b_col_3, %a_row_1 : (!x86.avx2reg<ymm5>, !x86.avx2reg<ymm11>, !x86.avx2reg<ymm1>) -> !x86.avx2reg<ymm5>
-    %c2 = x86.rrr.vfmadd231ps %c2_tmp3, %b_col_3, %a_row_2 : (!x86.avx2reg<ymm6>, !x86.avx2reg<ymm11>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm6>
-    %c3 = x86.rrr.vfmadd231ps %c3_tmp3, %b_col_3, %a_row_3 : (!x86.avx2reg<ymm7>, !x86.avx2reg<ymm11>, !x86.avx2reg<ymm3>) -> !x86.avx2reg<ymm7>
+    %c0 = x86.rss.vfmadd231ps %c0_tmp3, %b_col_3, %a_row_0 : (!x86.avx2reg<ymm4>, !x86.avx2reg<ymm11>, !x86.avx2reg<ymm0>) -> !x86.avx2reg<ymm4>
+    %c1 = x86.rss.vfmadd231ps %c1_tmp3, %b_col_3, %a_row_1 : (!x86.avx2reg<ymm5>, !x86.avx2reg<ymm11>, !x86.avx2reg<ymm1>) -> !x86.avx2reg<ymm5>
+    %c2 = x86.rss.vfmadd231ps %c2_tmp3, %b_col_3, %a_row_2 : (!x86.avx2reg<ymm6>, !x86.avx2reg<ymm11>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm6>
+    %c3 = x86.rss.vfmadd231ps %c3_tmp3, %b_col_3, %a_row_3 : (!x86.avx2reg<ymm7>, !x86.avx2reg<ymm11>, !x86.avx2reg<ymm3>) -> !x86.avx2reg<ymm7>
    // Store the results (rows of C)
     x86.ms.vmovups %rcx, %c0, 0 : (!x86.reg<rcx>,!x86.avx2reg<ymm4>) -> ()
     x86.ms.vmovups %rcx, %c1, 32 : (!x86.reg<rcx>,!x86.avx2reg<ymm5>) -> ()

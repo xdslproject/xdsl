@@ -41,18 +41,20 @@ class VectorFMAToX86(RewritePattern):
                     "Half-precision vector load is not implemented yet."
                 )
             case 32:
-                fma = x86.ops.RRR_Vfmadd231psOp
+                fma = x86.ops.RSS_Vfmadd231psOp
             case 64:
-                fma = x86.ops.RRR_Vfmadd231pdOp
+                fma = x86.ops.RSS_Vfmadd231pdOp
             case _:
                 raise DiagnosticException(
                     "Float precision must be half, single or double."
                 )
         fma_op = fma(
-            r1=acc_cast_op, r2=lhs_cast_op, r3=rhs_cast_op, result=x86_vect_type
+            r1=acc_cast_op, r2=lhs_cast_op, r3=rhs_cast_op, r1_destination=x86_vect_type
         )
 
-        res_cast_op = UnrealizedConversionCastOp.get((fma_op.result,), (vect_type,))
+        res_cast_op = UnrealizedConversionCastOp.get(
+            (fma_op.r1_destination,), (vect_type,)
+        )
         rewriter.replace_matched_op(
             [lhs_cast_op, rhs_cast_op, acc_cast_op, fma_op, res_cast_op]
         )
