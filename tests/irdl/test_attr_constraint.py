@@ -1,9 +1,12 @@
+import re
 from abc import ABC
 
 import pytest
 
 from xdsl.dialects.bufferization import TensorFromMemRefConstraint
 from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerType,
     MemRefType,
     StringAttr,
     TensorType,
@@ -22,9 +25,25 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     VarConstraint,
+    base,
     eq,
     irdl_attr_definition,
 )
+
+
+def test_failing_inference():
+    with pytest.raises(
+        ValueError, match="Cannot infer attribute from constraint AnyAttr()"
+    ):
+        AnyAttr().infer(ConstraintContext())
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            r"Cannot infer attribute from constraint AnyOf(attr_constrs=(BaseAttr(IntegerType), BaseAttr(IndexType)))"
+        ),
+    ):
+        (base(IntegerType) | base(IndexType)).infer(ConstraintContext())
 
 
 class Base(ParametrizedAttribute, ABC):

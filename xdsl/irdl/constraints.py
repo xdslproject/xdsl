@@ -203,7 +203,7 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         returns `True` with the given constraint variables, this method should
         not raise an exception.
         """
-        raise ValueError("Cannot infer attribute from constraint")
+        raise ValueError(f"Cannot infer attribute from constraint {self}")
 
     def get_unique_base(self) -> type[Attribute] | None:
         """Get the unique base type that can satisfy the constraint, if any."""
@@ -734,7 +734,7 @@ class IntConstraint(ABC):
         returns `True` with the given constraint variables, this method should
         not raise an exception.
         """
-        raise ValueError("Cannot infer attribute from constraint")
+        raise ValueError(f"Cannot infer integer from constraint {self}")
 
 
 class AnyInt(IntConstraint):
@@ -857,7 +857,7 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         returns `True` with the given constraint variables, this method should
         not raise an exception.
         """
-        raise ValueError("Cannot infer attribute from constraint")
+        raise ValueError(f"Cannot infer range from constraint {self}")
 
 
 RangeConstraint: TypeAlias = GenericRangeConstraint[Attribute]
