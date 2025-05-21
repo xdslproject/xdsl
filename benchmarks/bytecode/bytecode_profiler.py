@@ -1,5 +1,4 @@
 """A bytecode performance profiler."""
-# TODO: When in print mode disable warmup and don't measure timestamps
 # TODO: Investigate specialising adaptive interpreter
 # TODO: `OpcodeEvent` could just store the instruction and make existing variables properties?
 # TODO: Split out into separate project
@@ -335,7 +334,8 @@ class BytecodeProfiler:
                     finish_timestamp = perf_counter()
                 assert start_timestamp is not None
                 self._uninstrumented_time += finish_timestamp - start_timestamp
-            self._uninstrumented_time /= self.num_repeats
+            if self.num_repeats != 0:
+                self._uninstrumented_time /= self.num_repeats
 
             # Trace the function collecting the event data to corrollate
             try:
@@ -363,7 +363,8 @@ class BytecodeProfiler:
                 self._timestamps.append((self._prev_event_timestamp, finish_timestamp))
                 assert start_timestamp is not None
                 instrumented_time_repeats.append(finish_timestamp - start_timestamp)
-            self._instrumented_time = statistics.mean(instrumented_time_repeats)
+            if self.num_repeats != 0:
+                self._instrumented_time = statistics.mean(instrumented_time_repeats)
 
         finally:
             if gcold:
@@ -535,7 +536,7 @@ def print_bytecode(
     The function must be pure, as it is run many times to get various peices of
     data.
     """
-    profiler = BytecodeProfiler()
+    profiler = BytecodeProfiler(num_warmups=0, num_repeats=0)
     profiler.profile(func, *args, **kwargs)
     BytecodeProfiler.print_events(
         events=profiler.events,
@@ -589,3 +590,4 @@ if __name__ == "__main__":
         example_function()
 
     profile_bytecode(go)
+    # print_bytecode(go)
