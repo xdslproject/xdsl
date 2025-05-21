@@ -1,3 +1,10 @@
+"""A bytecode performance profiler."""
+# TODO: When in print mode disable warmup and don't measure timestamps
+# TODO: Investigate specialising adaptive interpreter
+# TODO: `OpcodeEvent` could just store the instruction and make existing variables properties?
+# TODO: Split out into separate project
+# TODO: Make fun textual UI
+
 import abc
 import dis
 import gc
@@ -199,7 +206,7 @@ class OpcodeEvent(TracedEvent):
         instruction = cls.get_opcode(frame)
         assert instruction is not None
 
-        # TODO: Could just store the instruction and make these properties?
+        # TODO: `OpcodeEvent` could just store the instruction and make these properties?
         return cls(
             lineno=cls.get_lineno(instruction),
             curr_instr=False,
