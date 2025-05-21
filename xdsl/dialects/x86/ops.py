@@ -228,8 +228,8 @@ class RS_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
-    A base class for x86 operations that have two registers, where the contents of the
-    first one are updated in-place, and the second only read.
+    A base class for x86 operations that have one register that is read and written to,
+    and one source register.
     """
 
     register_in = operand_def(R1InvT)
@@ -265,8 +265,7 @@ class RS_Operation(
 
 class R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
-    A base class for x86 operations that have one register acting as both source and
-    destination.
+    A base class for x86 operations that have one register that is read and written to.
     """
 
     register_in = operand_def(R1InvT)
@@ -297,8 +296,8 @@ class RM_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
-    A base class for x86 operations that have one inout register and one memory access
-    with an optional offset.
+    A base class for x86 operations that have one register read and written to and one
+    memory access with an optional offset.
     """
 
     register_in = operand_def(R1InvT)
@@ -352,8 +351,7 @@ class DM_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
-    A base class for x86 operations that load from memory m into a destination register
-    d.
+    A base class for x86 operations that load from memory into a destination register.
     """
 
     destination = result_def(R1InvT)
@@ -401,7 +399,8 @@ class DM_Operation(
 
 class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
-    A base class for x86 operations that have one inout register and an immediate value.
+    A base class for x86 operations that have one register that is read and written to
+    and an immediate value.
     """
 
     register_in = operand_def(R1InvT)
@@ -456,7 +455,8 @@ class MS_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
-    A base class for x86 operations that have one memory reference and one register.
+    A base class for x86 operations that have one memory reference and one source
+    register.
     """
 
     memory = operand_def(R1InvT)
@@ -504,7 +504,8 @@ class MS_Operation(
 
 class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
-    A base class for x86 operations that have one memory reference and an immediate value.
+    A base class for x86 operations that have one memory reference and an immediate
+    value.
     """
 
     memory = operand_def(R1InvT)
@@ -618,7 +619,8 @@ class DMI_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
-    A base class for x86 operations that have one destination register, one memory reference and an immediate value.
+    A base class for x86 operations that have one destination register, one memory
+    reference and an immediate value.
     """
 
     destination = result_def(R1InvT)
@@ -681,8 +683,7 @@ class DMI_Operation(
 
 class M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
-    A base class for x86 operations with a memory reference that's both a source and a
-    destination
+    A base class for x86 operations with a memory reference.
     """
 
     memory = operand_def(R1InvT)
@@ -849,7 +850,8 @@ class RSS_Operation(
     Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
-    A base class for x86 operations that have three registers.
+    A base class for x86 operations that have one register that is read and written to,
+    and two source registers.
     """
 
     register_in = operand_def(R1InvT)
