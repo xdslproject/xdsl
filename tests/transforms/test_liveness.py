@@ -1,0 +1,50 @@
+from xdsl.dialects import test
+from xdsl.dialects.builtin import i32
+from xdsl.ir import Block, Region
+from xdsl.transforms.experimental import liveness
+
+
+def test_blockinfo_livein():
+    op1 = test.TestOp(result_types=[i32])
+    op2 = test.TestOp(result_types=[i32])
+    op3 = test.TestOp(operands=[op1.results[0], op2.results[0]], result_types=[i32])
+    op4 = test.TestOp(regions=[Region(Block([op3]))])
+
+    # Block mapping
+    block_mapping = liveness.build_block_mapping(op4)
+    print(block_mapping.keys())
+    bm = block_mapping[op4.regions[0].blocks[0]]
+
+    print(bm.in_values)
+    print(bm.out_values)
+
+    assert set([op1.results[0], op2.results[0]]) == bm.in_values
+    assert set() == bm.out_values
+
+    # Liveness
+    _liveness = liveness.Liveness(op4)
+
+    assert set([op1.results[0], op2.results[0]]) == _liveness.get_livein(
+        op4.regions[0].blocks[0]
+    )
+
+
+def test_blockinfo_liveout():
+    op1 = test.TestOp(result_types=[i32])
+    op2 = test.TestOp(operands=[op1.results[0]])
+    op3 = test.TestOp(regions=[Region([Block([op1]), Block([op2])])])
+
+    # Block mapping
+    block_mapping = liveness.build_block_mapping(op3)
+    print(block_mapping.keys())
+    bm = block_mapping[op3.regions[0].blocks[0]]
+
+    print("IN: ", bm.in_values)
+    print("OUT: ", bm.out_values)
+
+    assert set([op1.results[0]]) == bm.out_values
+
+    # Liveness
+    _liveness = liveness.Liveness(op3)
+
+    assert set([op1.results[0]]) == _liveness.get_liveout(op3.regions[0].blocks[0])
