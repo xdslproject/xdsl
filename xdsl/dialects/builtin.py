@@ -2309,13 +2309,6 @@ class DenseIntOrFPElementsAttr(
         data: Sequence[tuple[float, float]],
     ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
 
-    @overload
-    @staticmethod
-    def create_dense_complex(
-        type: RankedStructure[ComplexType[ComplexElementCovT]],
-        data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementCovT]]: ...
-
     @staticmethod
     def create_dense_complex(
         type: RankedStructure[ComplexType[ComplexElementCovT]],
