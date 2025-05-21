@@ -65,8 +65,8 @@ class HasManyTraitOp(IRDLOperation):
 class IRTraversal:
     """Benchmark the time to traverse xDSL IR."""
 
-    EXAMPLE_BLOCK_NUM_OPS = 1_000
-    EXAMPLE_OPS = (EmptyOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS))
+    EXAMPLE_BLOCK_NUM_OPS = 32_768
+    EXAMPLE_OPS = [EmptyOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS)]
     EXAMPLE_BLOCK = Block(ops=EXAMPLE_OPS)
 
     def time_iterate_ops(self) -> None:
