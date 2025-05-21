@@ -1,13 +1,76 @@
-"""A bytecode performance profiler."""
-# TODO: Investigate specialising adaptive interpreter
-# TODO: `OpcodeEvent` could just store the instruction and make existing variables properties?
-# TODO: Split out into separate project
-# TODO: Make fun textual UI
+"""A bytecode performance profiler.
+
+It can be used to print the exact bytecode operations emitted during the
+execution of a provided function with `print_bytecode`, and performance
+information at the bytecode level can additionally be captured with
+`profile_bytecode`.
+
+For example, a simple python function could be traced as follows:
+
+```python
+def inner_function(x: int | str | float):
+    assert x
+
+def raise_exception():
+    raise ValueError("Help")
+
+def example_function(foo: int):
+    inner_function(foo)
+    pass
+    raise_exception()
+
+# Just pass the function and its args/kwargs!
+profile_bytecode(example_function, 1)
+```
+
+Which then emits a performance profile similar to:
+
+```
+//// Trace of `example_function` :
+
+// == example_file:637 `example_function` ==
+// >>> inner_function(foo)
+638         2   LOAD_GLOBAL          1   (inner_function + NULL)                                    // 10   ns
+638         12  LOAD_FAST            0   (foo)                                                      // 10   ns
+638         14  CALL                 1   ()                                                         // 20   ns
+
+    // == example_file:631 `inner_function` ===
+    // >>> assert x
+    632         2   LOAD_FAST            0   (x)                                                    // 10   ns
+    632         4   TO_BOOL                  ()                                                     // 10   ns
+    632         12  POP_JUMP_IF_TRUE     2   (to L1)                                                // 10   ns
+    632     >>  20  RETURN_CONST         0   (None)                                                 // 20   ns
+    // =============================================
+
+638         22  POP_TOP                  ()                                                         // 10   ns
+// >>> pass
+639         24  NOP                      ()                                                         // 10   ns
+// >>> raise_exception()
+640         26  LOAD_GLOBAL          3   (raise_exception + NULL)                                   // 10   ns
+640         36  CALL                 0   ()                                                         // 30   ns
+
+    // == example_file:634 `raise_exception` ==
+    // >>> raise ValueError("Help")
+    635         2   LOAD_GLOBAL          1   (ValueError + NULL)                                    // 10   ns
+    635         12  LOAD_CONST           1   ('Help')                                               // 10   ns
+    635         14  CALL                 1   ()                                                     // 10   ns
+    635         22  RAISE_VARARGS        1   ()                                                     // 80   ns
+
+    // !!!!!!!!!!!!!!! `ValueError` !!!!!!!!!!!!!!!!
+    // =============================================
+
+
+// !!!!!!!!!!!!!!! `ValueError` !!!!!!!!!!!!!!!!
+// =============================================
+```
+
+"""
 
 import abc
 import dis
 import gc
 import inspect
+import itertools
 import math
 import statistics
 import sys
@@ -235,7 +298,7 @@ class BytecodeProfiler:
 
     num_warmups: int = FUNC_WARMUPS
     num_repeats: int = FUNC_REPEATS
-    debug: bool = True
+    debug: bool = False
 
     _events: list[TracedEvent | StopEvent] = field(default_factory=list)
     _timestamps: list[EventTimestamp] = field(default_factory=list)
@@ -300,9 +363,7 @@ class BytecodeProfiler:
 
         return self._trace__collect_all_events
 
-    def profile(
-        self, func: Callable[..., Any], *args: list[Any], **kwargs: dict[str, Any]
-    ) -> None:
+    def profile(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
         """Collect all events emitted when invoking a function."""
         if PYTHON_VERSION.minor < 10:
             raise RuntimeError("Tracing only supported for Python versions >=3.10!")
@@ -405,14 +466,14 @@ class BytecodeProfiler:
 
     def calculate_elapsed_times(self) -> list[float]:
         """Calculate the elapsed time for each event."""
-        timestamp_repeats: list[list[EventTimestamp]] = []
         opcode_events = [
             e
             for e in self._events
             if isinstance(e, OpcodeEvent) or isinstance(e, StopEvent)
         ]
-        for i in range(0, len(self._timestamps), len(opcode_events)):
-            timestamp_repeats.append(self._timestamps[i : i + len(opcode_events)])
+        timestamp_repeats = tuple(
+            itertools.batched(self._timestamps, len(opcode_events))
+        )
 
         elapsed_time_repeats: list[list[float]] = []
         for timestamps in timestamp_repeats:
@@ -527,9 +588,9 @@ class BytecodeProfiler:
 
 
 def print_bytecode(
-    func: Callable[[], Any],
-    *args: list[Any],
-    **kwargs: dict[str, Any],
+    func: Callable[..., Any],
+    *args: Any,
+    **kwargs: Any,
 ) -> None:
     """Print the bytecode executed when running a function.
 
@@ -546,9 +607,9 @@ def print_bytecode(
 
 
 def profile_bytecode(
-    func: Callable[[], Any],
-    *args: list[Any],
-    **kwargs: dict[str, Any],
+    func: Callable[..., Any],
+    *args: Any,
+    **kwargs: Any,
 ) -> None:
     """Profile the bytecode executed when running a function.
 
@@ -564,30 +625,3 @@ def profile_bytecode(
         trace_name=func.__qualname__,
         elapsed_times=elapsed_times,
     )
-
-
-if __name__ == "__main__":
-
-    def inner_function(x: int | str | float):
-        assert x
-
-    def raise_exception():
-        raise ValueError("Help")
-
-    def example_function():
-        pass
-        pass
-        inner_function(1)
-        inner_function("Hello")
-        _x = perf_counter()
-        pass
-        raise_exception()
-        inner_function(5.0)
-
-    nop_sled = BytecodeProfiler.get_nop_sled(50)
-
-    def go():
-        example_function()
-
-    profile_bytecode(go)
-    # print_bytecode(go)
