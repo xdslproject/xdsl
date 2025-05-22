@@ -226,22 +226,25 @@ See external # [documentation](https://wiki.osdev.org/X86-64_Instruction_Encodin
 """
 
 UNALLOCATED_AVX2 = AVX2RegisterType.unallocated()
-YMM0 = AVX2RegisterType.from_name("ymm0")
-YMM1 = AVX2RegisterType.from_name("ymm1")
-YMM2 = AVX2RegisterType.from_name("ymm2")
-YMM3 = AVX2RegisterType.from_name("ymm3")
-YMM4 = AVX2RegisterType.from_name("ymm4")
-YMM5 = AVX2RegisterType.from_name("ymm5")
-YMM6 = AVX2RegisterType.from_name("ymm6")
-YMM7 = AVX2RegisterType.from_name("ymm7")
-YMM8 = AVX2RegisterType.from_name("ymm8")
-YMM9 = AVX2RegisterType.from_name("ymm9")
-YMM10 = AVX2RegisterType.from_name("ymm10")
-YMM11 = AVX2RegisterType.from_name("ymm11")
-YMM12 = AVX2RegisterType.from_name("ymm12")
-YMM13 = AVX2RegisterType.from_name("ymm13")
-YMM14 = AVX2RegisterType.from_name("ymm14")
-YMM15 = AVX2RegisterType.from_name("ymm15")
+YMM = tuple(AVX2RegisterType.from_name(f"ymm{i}") for i in range(16))
+(
+    YMM0,
+    YMM1,
+    YMM2,
+    YMM3,
+    YMM4,
+    YMM5,
+    YMM6,
+    YMM7,
+    YMM8,
+    YMM9,
+    YMM10,
+    YMM11,
+    YMM12,
+    YMM13,
+    YMM14,
+    YMM15,
+) = YMM
 
 
 @irdl_attr_definition
