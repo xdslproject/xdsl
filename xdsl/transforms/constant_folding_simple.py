@@ -225,7 +225,7 @@ class ConstantFoldingSimplePass(ModulePass):
 
             lhs: int = lhs_op.value.value.data  # pyright: ignore
             rhs: int = rhs_op.value.value.data  # pyright: ignore
-            folded_op = construct_int_constant_op(lhs + rhs, rewrite_op.result.type)  # pyright: ignore
+            folded_op = construct_int_constant_op(lhs + rhs, rewrite_op.results[0].type)  # pyright: ignore
 
             replace_op(rewrite_op, folded_op, folded_op.results[0])
             return True
@@ -255,12 +255,15 @@ class ConstantFoldingSimplePass(ModulePass):
         def populate_worklist(worklist: list[Operation], region: Region) -> None:
             """Populate the worklist with all nested operations."""
             # Elide `for sub_op in region.walk(reverse=True, region_first=True):`
-            for sub_block in reversed(region.blocks):
-                for sub_op in reversed(sub_block.ops):
-                    # Change `self._worklist.push(sub_op)` to native list
+            sub_block = region.last_block
+            while sub_block is not None:
+                sub_op = sub_block.last_op
+                while sub_op is not None:
                     worklist.append(sub_op)
+                    sub_op = sub_op.prev_op
+                sub_block = sub_block.prev_block
 
-        region = op.body
+        region = op.regions[0]
         op_was_modified = True
         worklist: list[Operation] = []  # Changed from `Worklist()`
         while op_was_modified:
@@ -303,7 +306,7 @@ class ConstantFoldingSimplePass(ModulePass):
             lhs: int = lhs_op.value.value.data  # pyright: ignore
             rhs: int = rhs_op.value.value.data  # pyright: ignore
 
-            result_type = rewrite_op.result.type
+            result_type = rewrite_op.results[0].type
             ## Inline `IntegerAttr(lhs + rhs, result_type)`
             int_attr = IntAttr.__new__(IntAttr)
             object.__setattr__(int_attr, "data", lhs + rhs)
@@ -427,11 +430,16 @@ class ConstantFoldingSimplePass(ModulePass):
                 if rewrite_op is None:
                     return rewriter_has_done_action
 
-        region = op.body
+        region = op.regions[0]
         op_was_modified = True
         worklist: list[Operation] = []  # Changed from `Worklist()`
         while op_was_modified:
-            for sub_block in reversed(region.blocks):
-                for sub_op in reversed(sub_block.ops):
+            # Avoid constructing iterators like `for sub_block in reversed(region.blocks)`
+            sub_block = region.last_block
+            while sub_block is not None:
+                sub_op = sub_block.last_op
+                while sub_op is not None:
                     worklist.append(sub_op)
+                    sub_op = sub_op.prev_op
+                sub_block = sub_block.prev_block
             op_was_modified = process_worklist(worklist)
