@@ -424,6 +424,20 @@ class YieldOp(IRDLOperation):
         super().__init__(operands=[values], result_types=[])
 
 
+@irdl_op_definition
+class AssertOp(IRDLOperation):
+    """Assert that a boolean expression holds."""
+
+    name = "smt.assert"
+
+    input = operand_def(BoolType)
+
+    assembly_format = "$input attr-dict"
+
+    def __init__(self, input: SSAValue):
+        super().__init__(operands=[input], result_types=[])
+
+
 SMT = Dialect(
     "smt",
     [
@@ -439,6 +453,7 @@ SMT = Dialect(
         ExistsOp,
         ForallOp,
         YieldOp,
+        AssertOp,
     ],
     [
         BoolType,
