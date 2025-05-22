@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp, i32
-from xdsl.ir import Block
+from xdsl.ir import Block, OpResult
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -205,9 +205,12 @@ class Extensibility:
 
     def time_trait_check_optimised(self) -> None:
         """Time checking the trait of an operation using optimised code."""
+        OP = Extensibility.OP_WITH_REGION
+        TRAIT = Extensibility.TRAIT_4
+
         has_trait = False
-        for t in Extensibility.OP_WITH_REGION.traits._traits:  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues, reportPrivateUsage]
-            if isinstance(t, Extensibility.TRAIT_4):
+        for t in OP.traits._traits:  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues, reportPrivateUsage]
+            if isinstance(t, TRAIT):
                 has_trait = True
                 break
         assert has_trait
@@ -297,12 +300,17 @@ class OpCreation:
 
     def time_operation_constant_create(self) -> None:
         """Time creating a constant integer."""
+        int_attr = IntAttr.__new__(IntAttr)
+        object.__setattr__(int_attr, "data", 100)
         integer_attr = IntegerAttr.__new__(IntegerAttr)
-        object.__setattr__(integer_attr, "parameters", (IntAttr(100), i32))
-        ConstantOp.create(
-            result_types=[i32],
-            properties={"value": integer_attr},
-        )
+        object.__setattr__(integer_attr, "parameters", (int_attr, i32))
+        constant_op = ConstantOp.__new__(ConstantOp)
+        constant_op._operands = tuple()
+        constant_op.results = (OpResult(i32, constant_op, 0),)
+        constant_op.properties = {"value": integer_attr}
+        constant_op.attributes = {}
+        constant_op._successors = []
+        constant_op.regions = tuple()
 
     def time_operation_clone(self) -> None:
         """Time cloning an module of 100 empty operations.

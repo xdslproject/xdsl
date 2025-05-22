@@ -349,3 +349,88 @@ def _override_operation_post_init() -> None:
 
 # set up the operation callback for implicit construction
 _override_operation_post_init()
+
+
+# class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...]]):
+#     """
+#     Stores the current implicit builder context, consisting of the stack of builders in
+#     the current thread, and the current builder.
+
+#     Operations created within a `with` block of an implicit builder will be added to it.
+#     If there are nested implicit builder blocks, the operation will be added to the
+#     innermost one. Operations cannot be added to multiple blocks, and any attempt to do so
+#     will result in an exception.
+
+#     Example:
+
+#     ``` python
+#     from xdsl.dialects import arith
+
+#     with ImplicitBuilder(block):
+#         arith.Constant.from_int_and_width(5, 32)
+
+#     assert len(block.ops) == 1
+#     assert isinstance(block.ops.first, arith.Constant)
+#     ```
+#     """
+
+#     _stack: ClassVar[_ImplicitBuilderStack] = _ImplicitBuilderStack()
+#     _old_post_init: Callable[[Operation], None] | None = None
+#     _builder: Builder
+
+#     def __init__(self, arg: Builder | Block | Region | None):
+#         if arg is None:
+#             # None option added as convenience to allow for extending optional regions in
+#             # ops easily
+#             raise ValueError("Cannot pass None to ImplicitBuidler init")
+#         if isinstance(arg, Region):
+#             arg = arg.block
+#         if isinstance(arg, Block):
+#             arg = Builder(InsertPoint.at_end(arg))
+#         self._builder = arg
+
+#     def __enter__(self) -> tuple[BlockArgument, ...]:
+#         if not type(self)._stack.stack:
+#             type(self)._old_post_init = _override_operation_post_init()
+#         type(self)._stack.push(self._builder)
+#         return self._builder.insertion_point.block.args
+
+#     def __exit__(
+#         self,
+#         __exc_type: type[BaseException] | None,
+#         __exc_value: BaseException | None,
+#         __traceback: TracebackType | None,
+#     ) -> bool | None:
+#         type(self)._stack.pop(self._builder)
+#         if not type(self)._stack.stack:
+#             assert (old_post_init := type(self)._old_post_init)
+#             Operation.__post_init__ = old_post_init  # pyright: ignore[reportAttributeAccessIssue]
+
+#     @classmethod
+#     def get(cls) -> Builder | None:
+#         """
+#         Gets the topmost ImplicitBuilder on the stack.
+#         """
+#         return cls._stack.get()
+
+
+# _CallableRegionFuncType: TypeAlias = Callable[
+#     [Builder, tuple[BlockArgument, ...]], None
+# ]
+# _CallableImplicitRegionFuncType: TypeAlias = Callable[[tuple[BlockArgument, ...]], None]
+
+
+# def _op_init_callback(op: Operation):
+#     if (b := ImplicitBuilder.get()) is not None:
+#         b.insert(op)
+
+
+# def _override_operation_post_init() -> Callable[[Operation], None]:
+#     old_post_init = Operation.__post_init__
+
+#     def new_post_init(self: Operation) -> None:
+#         old_post_init(self)
+#         _op_init_callback(self)
+
+#     Operation.__post_init__ = new_post_init
+#     return old_post_init
