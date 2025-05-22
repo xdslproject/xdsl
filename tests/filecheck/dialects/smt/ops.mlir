@@ -62,3 +62,7 @@ smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
 %forall = smt.forall {
     smt.yield %arg1 : !smt.bool
 }
+
+// CHECK-NEXT:    smt.assert %arg1
+
+smt.assert %arg1
