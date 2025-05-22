@@ -45,6 +45,10 @@ smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
 %eq = smt.eq %arg1, %arg2, %arg3 : !smt.bool
 %distinct = smt.distinct %arg1, %arg2, %arg3 : !smt.bool
 
+// CHECK-NEXT:    %ite = smt.ite %arg1, %arg2, %arg3 : !smt.bool
+
+%ite = smt.ite %arg1, %arg2, %arg3 : !smt.bool
+
 // CHECK-NEXT:    %exists = smt.exists {
 // CHECK-NEXT:      smt.yield %arg1 : !smt.bool
 // CHECK-NEXT:    }

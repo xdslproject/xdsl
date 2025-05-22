@@ -14,6 +14,7 @@ from xdsl.dialects.smt import (
     FuncType,
     ImpliesOp,
     NotOp,
+    IteOp,
     OrOp,
     QuantifierOp,
     VariadicBoolOp,
@@ -92,3 +93,14 @@ def test_apply_func():
     op = ApplyFuncOp(func, arg1, arg2)
 
     assert op.result.type == BoolType()
+
+
+def test_ite():
+    arg1 = create_ssa_value(BoolType())
+    arg2 = create_ssa_value(BoolType())
+    arg3 = create_ssa_value(BoolType())
+    op = IteOp(arg1, arg2, arg3)
+    assert op.result.type == BoolType()
+    assert op.cond == arg1
+    assert op.then_value == arg2
+    assert op.else_value == arg3
