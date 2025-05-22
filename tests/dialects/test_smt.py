@@ -4,6 +4,7 @@ from xdsl.dialects.builtin import IntegerAttr, StringAttr
 from xdsl.dialects.smt import (
     AndOp,
     ApplyFuncOp,
+    AssertOp,
     BoolType,
     ConstantBoolOp,
     DeclareFunOp,
@@ -104,3 +105,9 @@ def test_ite():
     assert op.cond == arg1
     assert op.then_value == arg2
     assert op.else_value == arg3
+
+
+def test_assert_op():
+    arg1 = create_ssa_value(BoolType())
+    assert_op = AssertOp(arg1)
+    assert assert_op.input == arg1
