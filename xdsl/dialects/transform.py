@@ -8,12 +8,19 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
+    FunctionType,
     IntAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+)
+from xdsl.dialects.func import FuncOpCallableInterface
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+    parse_func_op_like,
+    print_func_op_like,
 )
 from xdsl.ir import (
     Attribute,
@@ -29,6 +36,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParameterDef,
+    ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -42,7 +50,9 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import IsolatedFromAbove, IsTerminator
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.traits import IsolatedFromAbove, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -145,6 +155,45 @@ class FailurePropagationModeAttr(
 AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
     Attribute, AnyOf([IntegerType, FailurePropagationModeAttr])
 ]
+
+
+@irdl_op_definition
+class ApplyRegisteredPassOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformapply_registered_pass-transformapplyregisteredpassop).
+    """
+
+    name = "transform.apply_registered_pass"
+
+    options = prop_def(StringAttr, default_value=StringAttr(""))
+    pass_name = prop_def(StringAttr)
+    target = operand_def(TransformHandleType)
+    result = result_def(TransformHandleType)
+    assembly_format = (
+        "$pass_name `to` $target attr-dict `:` functional-type(operands, results)"
+    )
+    irdl_options = [ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        pass_name: str | StringAttr,
+        target: SSAValue,
+        options: str | StringAttr | None = None,
+    ):
+        if isinstance(pass_name, str):
+            pass_name = StringAttr(pass_name)
+
+        if isinstance(options, str):
+            options = StringAttr(options)
+
+        super().__init__(
+            properties={
+                "pass_name": pass_name,
+                "options": options,
+            },
+            operands=[target],
+            result_types=[TransformHandleType()],
+        )
 
 
 @irdl_op_definition
@@ -498,7 +547,7 @@ class SplitHandleOp(IRDLOperation):
 
 
 @irdl_op_definition
-class YieldOp(IRDLOperation):
+class YieldOp(AbstractYieldOperation[Attribute]):
     """
     See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformyield-transformyieldop).
     """
@@ -706,16 +755,20 @@ class NamedSequenceOp(IRDLOperation):
     name = "transform.named_sequence"
 
     sym_name = prop_def(StringAttr)
-    function_type = prop_def(TypeAttribute)
+    function_type = prop_def(FunctionType)
     sym_visibility = opt_prop_def(StringAttr)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     body = region_def("single_block")
 
+    traits = traits_def(
+        IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
+    )
+
     def __init__(
         self,
         sym_name: str | StringAttr,
-        function_type: TypeAttribute,
+        function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
         body: Region,
         sym_visibility: str | StringAttr | None = None,
         arg_attrs: Sequence[DictionaryAttr] | ArrayAttr[DictionaryAttr] | None = None,
@@ -725,6 +778,9 @@ class NamedSequenceOp(IRDLOperation):
             sym_name = StringAttr(sym_name)
         if isinstance(sym_visibility, str):
             sym_visibility = StringAttr(sym_visibility)
+        if isinstance(function_type, tuple):
+            inputs, outputs = function_type
+            function_type = FunctionType.from_lists(inputs, outputs)
         if isinstance(arg_attrs, Sequence):
             arg_attrs = ArrayAttr(arg_attrs)
         if isinstance(res_attrs, Sequence):
@@ -738,6 +794,54 @@ class NamedSequenceOp(IRDLOperation):
                 "res_attrs": res_attrs,
             },
             regions=[body],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> NamedSequenceOp:
+        visibility = parser.parse_optional_visibility_keyword()
+
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+        ) = parse_func_op_like(
+            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
+        )
+        named_sequence = NamedSequenceOp(
+            sym_name=name,
+            function_type=(input_types, return_types),
+            body=region,
+            sym_visibility=visibility,
+            arg_attrs=arg_attrs,
+            res_attrs=res_attrs,
+        )
+        if extra_attrs is not None:
+            named_sequence.attributes |= extra_attrs.data
+        return named_sequence
+
+    def print(self, printer: Printer):
+        if self.sym_visibility:
+            visibility = self.sym_visibility.data
+            printer.print(f" {visibility}")
+
+        print_func_op_like(
+            printer,
+            self.sym_name,
+            self.function_type,
+            self.body,
+            self.attributes,
+            arg_attrs=self.arg_attrs,
+            res_attrs=self.res_attrs,
+            reserved_attr_names=(
+                "sym_name",
+                "function_type",
+                "sym_visibility",
+                "arg_attrs",
+            ),
         )
 
 
@@ -815,6 +919,7 @@ class MatchOp(IRDLOperation):
 Transform = Dialect(
     "transform",
     [
+        ApplyRegisteredPassOp,
         GetConsumersOfResultOp,
         GetDefiningOp,
         GetParentOp,

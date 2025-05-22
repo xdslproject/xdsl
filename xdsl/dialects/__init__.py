@@ -248,6 +248,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Seq
 
+    def get_smt():
+        from xdsl.dialects.smt import SMT
+
+        return SMT
+
     def get_snitch():
         from xdsl.dialects.snitch import Snitch
 
@@ -377,6 +382,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "riscv_snitch": get_riscv_snitch,
         "scf": get_scf,
         "seq": get_seq,
+        "smt": get_smt,
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,
         "snitch_stream": get_snitch_stream,

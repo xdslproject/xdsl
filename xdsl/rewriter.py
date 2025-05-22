@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 
-from typing_extensions import deprecated
-
 from xdsl.ir import (
     Attribute,
     Block,
@@ -282,26 +280,6 @@ class Rewriter:
         else:
             region.add_block(block)
 
-    @deprecated("Use `insert_block(block, BlockInsertPoint.after(target))` instead")
-    @staticmethod
-    def insert_block_after(block: Block | list[Block], target: Block):
-        """
-        Insert one or multiple blocks after another block.
-        The blocks to insert should be detached from any region.
-        The target block should not be contained in the block to insert.
-        """
-        Rewriter.insert_block(block, BlockInsertPoint.after(target))
-
-    @deprecated("Use `insert_block(block, BlockInsertPoint.before(target))` instead")
-    @staticmethod
-    def insert_block_before(block: Block | list[Block], target: Block):
-        """
-        Insert one or multiple block before another block.
-        The blocks to insert should be detached from any region.
-        The target block should not be contained in the block to insert.
-        """
-        Rewriter.insert_block(block, BlockInsertPoint.before(target))
-
     @staticmethod
     def insert_op(
         op_or_ops: Operation | Sequence[Operation], insertion_point: InsertPoint
@@ -327,29 +305,3 @@ class Rewriter:
             region.move_blocks_before(insertion_point.insert_before)
         else:
             region.move_blocks(insertion_point.region)
-
-    @deprecated("Use `inline_region(region, BlockInsertPoint.before(target))` instead")
-    @staticmethod
-    def inline_region_before(region: Region, target: Block) -> None:
-        """Move the region blocks to an existing region, before `target`."""
-        Rewriter.inline_region(region, BlockInsertPoint.before(target))
-
-    @deprecated("Use `inline_region(region, BlockInsertPoint.after(target))` instead")
-    @staticmethod
-    def inline_region_after(region: Region, target: Block) -> None:
-        """Move the region blocks to an existing region, after `target`."""
-        Rewriter.inline_region(region, BlockInsertPoint.after(target))
-
-    @deprecated(
-        "Use `inline_region(region, BlockInsertPoint.at_start(target))` instead"
-    )
-    @staticmethod
-    def inline_region_at_start(region: Region, target: Region) -> None:
-        """Move the region blocks to the start of an existing region."""
-        Rewriter.inline_region(region, BlockInsertPoint.at_start(target))
-
-    @deprecated("Use `inline_region(region, BlockInsertPoint.at_end(target))` instead")
-    @staticmethod
-    def inline_region_at_end(region: Region, target: Region) -> None:
-        """Move the region blocks to the end of an existing region."""
-        Rewriter.inline_region(region, BlockInsertPoint.at_end(target))

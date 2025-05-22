@@ -4,7 +4,11 @@ from typing import cast
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.arith import AddiOp, CmpiOp, IndexCastOp
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, i32
+from xdsl.dialects.builtin import (
+    DenseIntElementsAttr,
+    VectorType,
+    i32,
+)
 from xdsl.dialects.cf import BranchOp, ConditionalBranchOp, SwitchOp
 from xdsl.dialects.scf import ForOp, IfOp, IndexSwitchOp, YieldOp
 from xdsl.ir import Block, Region
@@ -209,7 +213,9 @@ class SwitchLowering(RewritePattern):
                 case_value,
                 default_block,
                 (),
-                DenseIntOrFPElementsAttr.vector_from_list(case_values, i32),
+                DenseIntElementsAttr.create_dense_int(
+                    VectorType(i32, (len(case_values),)), case_values
+                ),
                 case_successors,
                 case_operands,
             ),

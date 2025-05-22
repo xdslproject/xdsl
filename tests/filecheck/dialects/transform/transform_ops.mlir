@@ -17,11 +17,11 @@
 
 // CHECK: "transform.sequence"() <{failure_propagation_mode = 1 : i32, operandSegmentSizes = array<i32: 0, 0>}> ({
 // CHECK: ^0(%arg0 : !transform.any_value, %arg1 : !transform.op<"linalg.matmul">):
-// CHECK:   "transform.yield"() : () -> ()
+// CHECK:   transform.yield
 // CHECK: }) : () -> ()
 "transform.sequence"() <{failure_propagation_mode = 1 : i32, operandSegmentSizes = array<i32: 0, 0>}> ({
 ^0(%arg0 : !transform.any_value, %arg1 : !transform.op<"linalg.matmul">):
-"transform.yield"() : () -> ()
+  transform.yield
 }) : () -> ()
 
 %input = "test.op"() : () -> !transform.any_value
@@ -89,3 +89,10 @@
 %to_match = "test.op"() : () -> !transform.any_op
 // CHECK: %matched = "transform.structured.match"(%to_match) <{ops = [], op_attrs = {}}> : (!transform.any_op) -> !transform.any_op
 %matched = "transform.structured.match"(%to_match) <{ops = [], op_attrs = {}}> : (!transform.any_op) -> !transform.any_op
+
+%to_apply_registered_pass = "test.op"() : () -> !transform.op<"builtin.module">
+// CHECK: %applied_registered_pass = transform.apply_registered_pass "foo" to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+%applied_registered_pass = transform.apply_registered_pass "foo" to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+
+// CHECK: %applied_registered_pass_opts = transform.apply_registered_pass "foo" to %to_apply_registered_pass {options = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+%applied_registered_pass_opts = transform.apply_registered_pass "foo" to %to_apply_registered_pass {options = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">

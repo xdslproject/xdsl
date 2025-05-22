@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import IntAttr
 
 def test_default_reserved_registers():
     register_queue = RiscvRegisterQueue.default()
+    int_register_set = riscv.IntRegisterType.name
 
     for reg in (
         riscv.Registers.ZERO,
@@ -18,9 +19,9 @@ def test_default_reserved_registers():
         riscv.Registers.FP,
         riscv.Registers.S0,
     ):
-        available_before = register_queue.available_int_registers.copy()
+        available_before = register_queue.available_registers[int_register_set].copy()
         register_queue.push(reg)
-        assert available_before == register_queue.available_int_registers
+        assert available_before == register_queue.available_registers[int_register_set]
 
 
 def test_push_j_register():
@@ -51,18 +52,22 @@ def test_reserve_register():
     j0 = riscv.IntRegisterType.infinite_register(0)
     assert isinstance(j0.index, IntAttr)
 
-    register_queue.reserve_register(j0)
-    assert register_queue.reserved_int_registers[j0.index.data] == 1
+    reserved_int_registers = register_queue.reserved_registers[
+        riscv.IntRegisterType.name
+    ]
 
     register_queue.reserve_register(j0)
-    assert register_queue.reserved_int_registers[j0.index.data] == 2
+    assert reserved_int_registers[j0.index.data] == 1
+
+    register_queue.reserve_register(j0)
+    assert reserved_int_registers[j0.index.data] == 2
 
     register_queue.unreserve_register(j0)
-    assert register_queue.reserved_int_registers[j0.index.data] == 1
+    assert reserved_int_registers[j0.index.data] == 1
 
     register_queue.unreserve_register(j0)
-    assert j0 not in register_queue.reserved_int_registers
-    assert j0 not in register_queue.available_int_registers
+    assert j0 not in reserved_int_registers
+    assert j0 not in register_queue.available_registers[j0.name]
 
     # Check assertion error when reserving an available register
     reg = register_queue.pop(riscv.IntRegisterType)

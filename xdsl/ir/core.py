@@ -27,7 +27,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self, TypeVar, deprecated
+from typing_extensions import Self, TypeVar
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
@@ -114,6 +114,17 @@ class Attribute(ABC):
         printer = Printer(stream=res)
         printer.print_attribute(self)
         return res.getvalue()
+
+
+class BuiltinAttribute(Attribute, ABC):
+    """
+    This class is used to mark builtin attributes.
+    Unlike other attributes in MLIR, printing and parsing of *Builtin*
+    attributes is handled directly by the parser.
+    Attributes outside of the `builtin` dialect should not inherit from `BuiltinAttribute`.
+    """
+
+    pass
 
 
 class TypeAttribute(Attribute):
@@ -1029,6 +1040,23 @@ class Operation(IRNode):
             return self.attributes[name]
         return None
 
+    def is_before_in_block(self, other_op: Operation) -> bool:
+        """
+        Return true if the current operation is located strictly before other_op.
+        False otherwise.
+        """
+        if (
+            parent_block := self.parent_block()
+        ) is None or other_op.parent_block() is not parent_block:
+            return False
+
+        op = self.next_op
+        while op is not None:
+            if op is other_op:
+                return True
+            op = op.next_op
+        return False
+
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
@@ -1769,6 +1797,20 @@ class Block(IRNode, IRWithUses):
         for op in self.ops:
             op.drop_all_references()
 
+    def find_ancestor_op_in_block(self, op: Operation) -> Operation | None:
+        """
+        Traverse up the operation hierarchy starting from op to find the ancestor
+        operation that resides in the block.
+
+        Returns None if no ancestor is found.
+        """
+        curr_op = op
+        while curr_op.parent_block() != self:
+            if (curr_op := curr_op.parent_op()) is None:
+                return None
+
+        return curr_op
+
     def erase(self, safe_erase: bool = True) -> None:
         """
         Erase the block, and remove all its references to other operations.
@@ -2006,6 +2048,21 @@ class Region(IRNode):
             else None
         )
 
+    def find_ancestor_block_in_region(self, block: Block) -> Block | None:
+        """
+        Returns 'block' if 'block' lies in this region, or otherwise finds
+        the ancestor of 'block' that lies in this region.
+
+        Returns None if no ancestor block that lies in this region is found.
+        """
+        curr_block = block
+        while curr_block.parent_region() != self:
+            curr_block = curr_block.parent_block()
+            if curr_block is None:
+                return None
+
+        return curr_block
+
     @property
     def blocks(self) -> RegionBlocks:
         """
@@ -2179,11 +2236,6 @@ class Region(IRNode):
             self.add_block(block)
         else:
             self.insert_block_before(block, next_block)
-
-    @deprecated("Please use `region.blocks[index]`")
-    def block_at_index(self, index: int) -> Block:
-        """Returns the block at the index, or raises IndexError"""
-        return self.blocks[index]
 
     def insert_block(self, blocks: Block | Iterable[Block], index: int) -> None:
         """

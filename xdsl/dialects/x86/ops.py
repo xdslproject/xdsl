@@ -194,6 +194,9 @@ class X86Instruction(X86AsmOperation):
         return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
+# region: Operation Base Classes
+
+
 class R_RR_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
@@ -227,6 +230,629 @@ class R_RR_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.r1, self.r2
+
+
+class R_R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations that have one register acting as both source and destination.
+    """
+
+    source = operand_def(R1InvT)
+    destination = result_def(R1InvT)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue | None = None,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.source,)
+
+
+class R_RM_Operation(
+    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that have one register and one memory access with an optional offset.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        offset: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.r2, self.offset)
+        destination = assembly_arg_str(self.r1)
+        return (destination, memory_access)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+class R_M_Operation(
+    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that have one register and one memory access with an optional offset.
+    """
+
+    r1 = operand_def(R1InvT)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    result = result_def(R2InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        offset: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R2InvT,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.r1, self.offset)
+        destination = assembly_arg_str(self.result)
+        return (destination, memory_access)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+class R_RImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations that have one register and an immediate value.
+    """
+
+    r1 = operand_def(R1InvT)
+    immediate = attr_def(IntegerAttr)
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        immediate: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = parse_optional_immediate_value(
+            parser, IntegerType(32, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["immediate"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+
+class M_MR_Operation(
+    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that have one memory reference and one register.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        offset: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.r1, self.offset)
+        return memory_access, self.r2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+class M_MImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations that have one memory reference and an immediate value.
+    """
+
+    r1 = operand_def(R1InvT)
+    immediate = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        offset: int | IntegerAttr,
+        immediate: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1],
+            attributes={
+                "immediate": immediate,
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        immediate = assembly_arg_str(self.immediate)
+        memory_access = memory_access_str(self.r1, self.offset)
+        return memory_access, immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
+        attributes["immediate"] = temp
+        if parser.parse_optional_punctuation(",") is not None:
+            if offset := cls.parse_optional_memory_access_offset(parser):
+                attributes["offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.immediate)
+        if self.offset.value.data != 0:
+            printer.print(", ")
+            print_immediate_value(printer, self.offset)
+        return {"immediate", "offset"}
+
+
+class R_RRImm_Operation(
+    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that have one destination register, one source register and an immediate value.
+    """
+
+    r2 = operand_def(R2InvT)
+    immediate = attr_def(IntegerAttr)
+
+    r1 = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r2: Operation | SSAValue,
+        immediate: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        r1: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r2],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[r1],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
+        attributes["immediate"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+
+class R_RMImm_Operation(
+    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that have one source register, one memory reference and an immediate value.
+    """
+
+    r2 = operand_def(R2InvT)
+    immediate = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    r1 = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r2: Operation | SSAValue,
+        immediate: int | IntegerAttr,
+        offset: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        r1: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r2],
+            attributes={
+                "immediate": immediate,
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[r1],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        destination = assembly_arg_str(self.r1)
+        immediate = assembly_arg_str(self.immediate)
+        memory_access = memory_access_str(self.r2, self.offset)
+        return destination, memory_access, immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
+        attributes["immediate"] = temp
+        if parser.parse_optional_punctuation(",") is not None:
+            if offset := cls.parse_optional_memory_access_offset(parser):
+                attributes["offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.immediate)
+        if self.offset.value.data != 0:
+            printer.print(", ")
+            print_immediate_value(printer, self.offset)
+        return {"immediate", "offset"}
+
+
+class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations with a memory reference that's both a source and a
+    destination
+    """
+
+    source = operand_def(R1InvT)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        offset: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.source, self.offset)
+        return (memory_access,)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for Jcc operations.
+
+    See external [documentation](https://www.felixcloutier.com/x86/jcc).
+    """
+
+    rflags = operand_def(RFLAGSRegisterType)
+
+    then_values = var_operand_def(X86RegisterType)
+    else_values = var_operand_def(X86RegisterType)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    then_block = successor_def()
+    else_block = successor_def()
+
+    traits = traits_def(IsTerminator())
+
+    def __init__(
+        self,
+        rflags: Operation | SSAValue,
+        then_values: Sequence[SSAValue],
+        else_values: Sequence[SSAValue],
+        then_block: Successor,
+        else_block: Successor,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rflags, then_values, else_values],
+            attributes={
+                "comment": comment,
+            },
+            successors=(then_block, else_block),
+        )
+
+    def verify_(self) -> None:
+        # The then block must start with a label op
+
+        then_block_first_op = self.then_block.first_op
+
+        if not isinstance(then_block_first_op, LabelOp):
+            raise VerifyException("then block first op must be a label")
+
+        # Types of arguments must match arg types of blocks
+
+        for op_arg, block_arg in zip(self.then_values, self.then_block.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        for op_arg, block_arg in zip(self.else_values, self.else_block.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        # The else block must be the one immediately following this one
+
+        parent_block = self.parent
+        if parent_block is None:
+            return
+
+        parent_region = parent_block.parent
+        if parent_region is None:
+            return
+
+        if parent_block.next_block is not self.else_block:
+            raise VerifyException("else block must be immediately after op")
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        then_label = self.then_block.first_op
+        assert isinstance(then_label, LabelOp)
+        return (then_label.label,)
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        print_type_pair(printer, self.rflags)
+        printer.print_string(", ")
+        printer.print_block_name(self.then_block)
+        printer.print_string("(")
+        printer.print_list(self.then_values, lambda val: print_type_pair(printer, val))
+        printer.print_string("), ")
+        printer.print_block_name(self.else_block)
+        printer.print_string("(")
+        printer.print_list(self.else_values, lambda val: print_type_pair(printer, val))
+        printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(
+                self.attributes,
+                reserved_attr_names="operandSegmentSizes",
+                print_keyword=True,
+            )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        rflags = parse_type_pair(parser)
+        parser.parse_punctuation(",")
+        then_block = parser.parse_successor()
+        then_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: parse_type_pair(parser)
+        )
+        parser.parse_punctuation(",")
+        else_block = parser.parse_successor()
+        else_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: parse_type_pair(parser)
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(rflags, then_args, else_args, then_block, else_block)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
+
+
+class RRROperation(
+    Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that have three registers.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+    r3 = operand_def(R3InvT)
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        r3: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2, r3],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2, self.r3
+
+
+# endregion
 
 
 @irdl_op_definition
@@ -401,36 +1027,6 @@ class R_PopOp(X86Instruction, X86CustomFormatOperation):
         return (self.destination,)
 
 
-class R_R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
-    """
-    A base class for x86 operations that have one register acting as both source and destination.
-    """
-
-    source = operand_def(R1InvT)
-    destination = result_def(R1InvT)
-
-    def __init__(
-        self,
-        source: Operation | SSAValue | None = None,
-        *,
-        comment: str | StringAttr | None = None,
-        destination: R1InvT | None = None,
-    ):
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[source],
-            attributes={
-                "comment": comment,
-            },
-            result_types=[destination],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
-
-
 @irdl_op_definition
 class R_NegOp(R_R_Operation[GeneralRegisterType]):
     """
@@ -572,112 +1168,6 @@ class R_ImulOp(X86Instruction, X86CustomFormatOperation):
         return (self.r1,)
 
 
-class R_RM_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
-    """
-    A base class for x86 operations that have one register and one memory access with an optional offset.
-    """
-
-    r1 = operand_def(R1InvT)
-    r2 = operand_def(R2InvT)
-    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-
-    result = result_def(R1InvT)
-
-    def __init__(
-        self,
-        r1: Operation | SSAValue,
-        r2: Operation | SSAValue,
-        offset: int | IntegerAttr,
-        *,
-        comment: str | StringAttr | None = None,
-        result: R1InvT,
-    ):
-        if isinstance(offset, int):
-            offset = IntegerAttr(offset, 64)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[r1, r2],
-            attributes={
-                "offset": offset,
-                "comment": comment,
-            },
-            result_types=[result],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        memory_access = memory_access_str(self.r2, self.offset)
-        destination = assembly_arg_str(self.r1)
-        return (destination, memory_access)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        print_immediate_value(printer, self.offset)
-        return {"offset"}
-
-
-class R_M_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
-    """
-    A base class for x86 operations that have one register and one memory access with an optional offset.
-    """
-
-    r1 = operand_def(R1InvT)
-    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-
-    result = result_def(R2InvT)
-
-    def __init__(
-        self,
-        r1: Operation | SSAValue,
-        offset: int | IntegerAttr,
-        *,
-        comment: str | StringAttr | None = None,
-        result: R2InvT,
-    ):
-        if isinstance(offset, int):
-            offset = IntegerAttr(offset, 64)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[r1],
-            attributes={
-                "offset": offset,
-                "comment": comment,
-            },
-            result_types=[result],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        memory_access = memory_access_str(self.r1, self.offset)
-        destination = assembly_arg_str(self.result)
-        return (destination, memory_access)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        print_immediate_value(printer, self.offset)
-        return {"offset"}
-
-
 @irdl_op_definition
 class RM_AddOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
@@ -790,61 +1280,8 @@ class RM_leaOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     name = "x86.rm.lea"
 
 
-class R_RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
-    """
-    A base class for x86 operations that have one register and an immediate value.
-    """
-
-    r1 = operand_def(R1InvT)
-    immediate = attr_def(IntegerAttr)
-
-    result = result_def(R1InvT)
-
-    def __init__(
-        self,
-        r1: Operation | SSAValue,
-        immediate: int | IntegerAttr,
-        *,
-        comment: str | StringAttr | None = None,
-        result: R1InvT,
-    ):
-        if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[r1],
-            attributes={
-                "immediate": immediate,
-                "comment": comment,
-            },
-            result_types=[result],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.r1, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(32, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["immediate"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
-
-
 @irdl_op_definition
-class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
+class RI_AddOp(R_RImm_Operation[GeneralRegisterType]):
     """
     Adds the immediate value to r1 and stores the result in r1.
     ```C
@@ -854,11 +1291,11 @@ class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
-    name = "x86.ri.add"
+    name = "x86.rimm.add"
 
 
 @irdl_op_definition
-class RI_SubOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_SubOp(R_RImm_Operation[GeneralRegisterType]):
     """
     Subtracts the immediate value from r1 and stores the result in r1.
     ```C
@@ -868,11 +1305,11 @@ class RI_SubOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
-    name = "x86.ri.sub"
+    name = "x86.rimm.sub"
 
 
 @irdl_op_definition
-class RI_AndOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_AndOp(R_RImm_Operation[GeneralRegisterType]):
     """
     bitwise and of r1 and immediate, stored in r1
     ```C
@@ -882,11 +1319,11 @@ class RI_AndOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
-    name = "x86.ri.and"
+    name = "x86.rimm.and"
 
 
 @irdl_op_definition
-class RI_OrOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_OrOp(R_RImm_Operation[GeneralRegisterType]):
     """
     bitwise or of r1 and immediate, stored in r1
     ```C
@@ -896,11 +1333,11 @@ class RI_OrOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
-    name = "x86.ri.or"
+    name = "x86.rimm.or"
 
 
 @irdl_op_definition
-class RI_XorOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_XorOp(R_RImm_Operation[GeneralRegisterType]):
     """
     bitwise xor of r1 and immediate, stored in r1
     ```C
@@ -910,11 +1347,11 @@ class RI_XorOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
-    name = "x86.ri.xor"
+    name = "x86.rimm.xor"
 
 
 @irdl_op_definition
-class RI_MovOp(R_RI_Operation[GeneralRegisterType]):
+class RImm_MovOp(R_RImm_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into r1.
     ```C
@@ -924,57 +1361,7 @@ class RI_MovOp(R_RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.ri.mov"
-
-
-class M_MR_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
-    """
-    A base class for x86 operations that have one memory reference and one register.
-    """
-
-    r1 = operand_def(R1InvT)
-    r2 = operand_def(R2InvT)
-    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-
-    def __init__(
-        self,
-        r1: Operation | SSAValue,
-        r2: Operation | SSAValue,
-        offset: int | IntegerAttr,
-        *,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(offset, int):
-            offset = IntegerAttr(offset, 64)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[r1, r2],
-            attributes={
-                "offset": offset,
-                "comment": comment,
-            },
-            result_types=[],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        memory_access = memory_access_str(self.r1, self.offset)
-        return memory_access, self.r2
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        print_immediate_value(printer, self.offset)
-        return {"offset"}
+    name = "x86.rimm.mov"
 
 
 @irdl_op_definition
@@ -1051,68 +1438,8 @@ class MR_MovOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     name = "x86.mr.mov"
 
 
-class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
-    """
-    A base class for x86 operations that have one memory reference and an immediate value.
-    """
-
-    r1 = operand_def(R1InvT)
-    immediate = attr_def(IntegerAttr)
-    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-
-    def __init__(
-        self,
-        r1: Operation | SSAValue,
-        offset: int | IntegerAttr,
-        immediate: int | IntegerAttr,
-        *,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
-        if isinstance(offset, int):
-            offset = IntegerAttr(offset, 64)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[r1],
-            attributes={
-                "immediate": immediate,
-                "offset": offset,
-                "comment": comment,
-            },
-            result_types=[],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        immediate = assembly_arg_str(self.immediate)
-        memory_access = memory_access_str(self.r1, self.offset)
-        return memory_access, immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
-        attributes["immediate"] = temp
-        if parser.parse_optional_punctuation(",") is not None:
-            if offset := cls.parse_optional_memory_access_offset(parser):
-                attributes["offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        print_immediate_value(printer, self.immediate)
-        if self.offset.value.data != 0:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
-        return {"immediate", "offset"}
-
-
 @irdl_op_definition
-class MI_AddOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_AddOp(M_MImm_Operation[GeneralRegisterType]):
     """
     Adds the immediate value to the memory location pointed to by r1.
     [x[r1]] = [x[r1]] + immediate
@@ -1120,11 +1447,11 @@ class MI_AddOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/add).
     """
 
-    name = "x86.mi.add"
+    name = "x86.mimm.add"
 
 
 @irdl_op_definition
-class MI_SubOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_SubOp(M_MImm_Operation[GeneralRegisterType]):
     """
     Subtracts the immediate value from the memory location pointed to by r1.
     [x[r1]] = [x[r1]] - immediate
@@ -1132,11 +1459,11 @@ class MI_SubOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/sub).
     """
 
-    name = "x86.mi.sub"
+    name = "x86.mimm.sub"
 
 
 @irdl_op_definition
-class MI_AndOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_AndOp(M_MImm_Operation[GeneralRegisterType]):
     """
     bitwise and of immediate and [r1], stored in [r1]
     ```C
@@ -1146,11 +1473,11 @@ class MI_AndOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/and).
     """
 
-    name = "x86.mi.and"
+    name = "x86.mimm.and"
 
 
 @irdl_op_definition
-class MI_OrOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_OrOp(M_MImm_Operation[GeneralRegisterType]):
     """
     bitwise or of immediate and [r1], stored in [r1]
     ```C
@@ -1160,11 +1487,11 @@ class MI_OrOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/or).
     """
 
-    name = "x86.mi.or"
+    name = "x86.mimm.or"
 
 
 @irdl_op_definition
-class MI_XorOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_XorOp(M_MImm_Operation[GeneralRegisterType]):
     """
     bitwise xor of immediate and [r1], stored in [r1]
     ```C
@@ -1174,11 +1501,11 @@ class MI_XorOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/xor).
     """
 
-    name = "x86.mi.xor"
+    name = "x86.mimm.xor"
 
 
 @irdl_op_definition
-class MI_MovOp(M_MI_Operation[GeneralRegisterType]):
+class MImm_MovOp(M_MImm_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into the memory location pointed to by r1.
     [x[r1]] = immediate
@@ -1186,63 +1513,11 @@ class MI_MovOp(M_MI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.mi.mov"
-
-
-class R_RRI_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
-    """
-    A base class for x86 operations that have one destination register, one source register and an immediate value.
-    """
-
-    r2 = operand_def(R2InvT)
-    immediate = attr_def(IntegerAttr)
-
-    r1 = result_def(R1InvT)
-
-    def __init__(
-        self,
-        r2: Operation | SSAValue,
-        immediate: int | IntegerAttr,
-        *,
-        comment: str | StringAttr | None = None,
-        r1: R1InvT,
-    ):
-        if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[r2],
-            attributes={
-                "immediate": immediate,
-                "comment": comment,
-            },
-            result_types=[r1],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.r1, self.r2, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
-        attributes["immediate"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
+    name = "x86.mimm.mov"
 
 
 @irdl_op_definition
-class RRI_ImulOp(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RRImm_ImulOp(R_RRImm_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the source register and stores the result in the destination register.
     x[r1] = x[r2] * immediate
@@ -1253,74 +1528,8 @@ class RRI_ImulOp(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
     name = "x86.rri.imul"
 
 
-class R_RMI_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
-    """
-    A base class for x86 operations that have one source register, one memory reference and an immediate value.
-    """
-
-    r2 = operand_def(R2InvT)
-    immediate = attr_def(IntegerAttr)
-    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-
-    r1 = result_def(R1InvT)
-
-    def __init__(
-        self,
-        r2: Operation | SSAValue,
-        immediate: int | IntegerAttr,
-        offset: int | IntegerAttr,
-        *,
-        comment: str | StringAttr | None = None,
-        r1: R1InvT,
-    ):
-        if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
-        if isinstance(offset, int):
-            offset = IntegerAttr(offset, 64)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[r2],
-            attributes={
-                "immediate": immediate,
-                "offset": offset,
-                "comment": comment,
-            },
-            result_types=[r1],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        destination = assembly_arg_str(self.r1)
-        immediate = assembly_arg_str(self.immediate)
-        memory_access = memory_access_str(self.r2, self.offset)
-        return destination, memory_access, immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
-        attributes["immediate"] = temp
-        if parser.parse_optional_punctuation(",") is not None:
-            if offset := cls.parse_optional_memory_access_offset(parser):
-                attributes["offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        print_immediate_value(printer, self.immediate)
-        if self.offset.value.data != 0:
-            printer.print(", ")
-            print_immediate_value(printer, self.offset)
-        return {"immediate", "offset"}
-
-
 @irdl_op_definition
-class RMI_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RMImm_ImulOp(R_RMImm_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the memory location pointed to by r2 and stores the result in r1.
     x[r1] = [x[r2]] * immediate
@@ -1328,7 +1537,7 @@ class RMI_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/imul).
     """
 
-    name = "x86.rmi.imul"
+    name = "x86.rmimm.imul"
 
 
 @irdl_op_definition
@@ -1440,53 +1649,6 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
         )
         if temp is not None:
             attributes["offset"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        print_immediate_value(printer, self.offset)
-        return {"offset"}
-
-
-class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
-    """
-    A base class for x86 operations with a memory reference that's both a source and a
-    destination
-    """
-
-    source = operand_def(R1InvT)
-    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-
-    def __init__(
-        self,
-        source: Operation | SSAValue,
-        offset: int | IntegerAttr,
-        *,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-        if isinstance(offset, int):
-            offset = IntegerAttr(offset, 64)
-
-        super().__init__(
-            operands=[source],
-            attributes={
-                "offset": offset,
-                "comment": comment,
-            },
-            result_types=[],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        memory_access = memory_access_str(self.source, self.offset)
-        return (memory_access,)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["offset"] = offset
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1789,14 +1951,14 @@ class DirectiveOp(X86AsmOperation, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class S_JmpOp(X86Instruction, X86CustomFormatOperation):
+class C_JmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Unconditional jump to the label specified in destination.
 
     See external [documentation](https://www.felixcloutier.com/x86/jmp).
     """
 
-    name = "x86.s.jmp"
+    name = "x86.c.jmp"
 
     block_values = var_operand_def(X86RegisterType)
 
@@ -1964,7 +2126,7 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class RI_CmpOp(X86Instruction, X86CustomFormatOperation):
+class RImm_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -1972,7 +2134,7 @@ class RI_CmpOp(X86Instruction, X86CustomFormatOperation):
     See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
-    name = "x86.ri.cmp"
+    name = "x86.rimm.cmp"
 
     r1 = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
@@ -2078,7 +2240,7 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
+class MImm_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2086,7 +2248,7 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     See external [documentation](https://www.felixcloutier.com/x86/cmp).
     """
 
-    name = "x86.mi.cmp"
+    name = "x86.mimm.cmp"
 
     r1 = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
@@ -2148,490 +2310,334 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
         return {"immediate", "offset"}
 
 
-class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
-    """
-    A base class for Jcc operations.
-
-    See external [documentation](https://www.felixcloutier.com/x86/jcc).
-    """
-
-    rflags = operand_def(RFLAGSRegisterType)
-
-    then_values = var_operand_def(X86RegisterType)
-    else_values = var_operand_def(X86RegisterType)
-
-    irdl_options = [AttrSizedOperandSegments()]
-
-    then_block = successor_def()
-    else_block = successor_def()
-
-    traits = traits_def(IsTerminator())
-
-    def __init__(
-        self,
-        rflags: Operation | SSAValue,
-        then_values: Sequence[SSAValue],
-        else_values: Sequence[SSAValue],
-        then_block: Successor,
-        else_block: Successor,
-        *,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[rflags, then_values, else_values],
-            attributes={
-                "comment": comment,
-            },
-            successors=(then_block, else_block),
-        )
-
-    def verify_(self) -> None:
-        # The then block must start with a label op
-
-        then_block_first_op = self.then_block.first_op
-
-        if not isinstance(then_block_first_op, LabelOp):
-            raise VerifyException("then block first op must be a label")
-
-        # Types of arguments must match arg types of blocks
-
-        for op_arg, block_arg in zip(self.then_values, self.then_block.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
-
-        for op_arg, block_arg in zip(self.else_values, self.else_block.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
-
-        # The else block must be the one immediately following this one
-
-        parent_block = self.parent
-        if parent_block is None:
-            return
-
-        parent_region = parent_block.parent
-        if parent_region is None:
-            return
-
-        if parent_block.next_block is not self.else_block:
-            raise VerifyException("else block must be immediately after op")
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        then_label = self.then_block.first_op
-        assert isinstance(then_label, LabelOp)
-        return (then_label.label,)
-
-    def print(self, printer: Printer) -> None:
-        printer.print_string(" ")
-        print_type_pair(printer, self.rflags)
-        printer.print_string(", ")
-        printer.print_block_name(self.then_block)
-        printer.print_string("(")
-        printer.print_list(self.then_values, lambda val: print_type_pair(printer, val))
-        printer.print_string("), ")
-        printer.print_block_name(self.else_block)
-        printer.print_string("(")
-        printer.print_list(self.else_values, lambda val: print_type_pair(printer, val))
-        printer.print_string(")")
-        if self.attributes:
-            printer.print_op_attributes(
-                self.attributes,
-                reserved_attr_names="operandSegmentSizes",
-                print_keyword=True,
-            )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        rflags = parse_type_pair(parser)
-        parser.parse_punctuation(",")
-        then_block = parser.parse_successor()
-        then_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parse_type_pair(parser)
-        )
-        parser.parse_punctuation(",")
-        else_block = parser.parse_successor()
-        else_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parse_type_pair(parser)
-        )
-        attrs = parser.parse_optional_attr_dict_with_keyword()
-        op = cls(rflags, then_args, else_args, then_block, else_block)
-        if attrs is not None:
-            op.attributes |= attrs.data
-        return op
-
-
 @irdl_op_definition
-class S_JaOp(ConditionalJumpOperation):
+class C_JaOp(ConditionalJumpOperation):
     """
     Jump if above (CF=0 and ZF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.ja"
+    name = "x86.c.ja"
 
 
 @irdl_op_definition
-class S_JaeOp(ConditionalJumpOperation):
+class C_JaeOp(ConditionalJumpOperation):
     """
     Jump if above or equal (CF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jae"
+    name = "x86.c.jae"
 
 
 @irdl_op_definition
-class S_JbOp(ConditionalJumpOperation):
+class C_JbOp(ConditionalJumpOperation):
     """
     Jump if below (CF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jb"
+    name = "x86.c.jb"
 
 
 @irdl_op_definition
-class S_JbeOp(ConditionalJumpOperation):
+class C_JbeOp(ConditionalJumpOperation):
     """
     Jump if below or equal (CF=1 or ZF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jbe"
+    name = "x86.c.jbe"
 
 
 @irdl_op_definition
-class S_JcOp(ConditionalJumpOperation):
+class C_JcOp(ConditionalJumpOperation):
     """
     Jump if carry (CF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jc"
+    name = "x86.c.jc"
 
 
 @irdl_op_definition
-class S_JeOp(ConditionalJumpOperation):
+class C_JeOp(ConditionalJumpOperation):
     """
     Jump if equal (ZF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.je"
+    name = "x86.c.je"
 
 
 @irdl_op_definition
-class S_JgOp(ConditionalJumpOperation):
+class C_JgOp(ConditionalJumpOperation):
     """
     Jump if greater (ZF=0 and SF=OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jg"
+    name = "x86.c.jg"
 
 
 @irdl_op_definition
-class S_JgeOp(ConditionalJumpOperation):
+class C_JgeOp(ConditionalJumpOperation):
     """
     Jump if greater or equal (SF=OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jge"
+    name = "x86.c.jge"
 
 
 @irdl_op_definition
-class S_JlOp(ConditionalJumpOperation):
+class C_JlOp(ConditionalJumpOperation):
     """
     Jump if less (SF≠OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jl"
+    name = "x86.c.jl"
 
 
 @irdl_op_definition
-class S_JleOp(ConditionalJumpOperation):
+class C_JleOp(ConditionalJumpOperation):
     """
     Jump if less or equal (ZF=1 or SF≠OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jle"
+    name = "x86.c.jle"
 
 
 @irdl_op_definition
-class S_JnaOp(ConditionalJumpOperation):
+class C_JnaOp(ConditionalJumpOperation):
     """
     Jump if not above (CF=1 or ZF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jna"
+    name = "x86.c.jna"
 
 
 @irdl_op_definition
-class S_JnaeOp(ConditionalJumpOperation):
+class C_JnaeOp(ConditionalJumpOperation):
     """
     Jump if not above or equal (CF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnae"
+    name = "x86.c.jnae"
 
 
 @irdl_op_definition
-class S_JnbOp(ConditionalJumpOperation):
+class C_JnbOp(ConditionalJumpOperation):
     """
     Jump if not below (CF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnb"
+    name = "x86.c.jnb"
 
 
 @irdl_op_definition
-class S_JnbeOp(ConditionalJumpOperation):
+class C_JnbeOp(ConditionalJumpOperation):
     """
     Jump if not below or equal (CF=0 and ZF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnbe"
+    name = "x86.c.jnbe"
 
 
 @irdl_op_definition
-class S_JncOp(ConditionalJumpOperation):
+class C_JncOp(ConditionalJumpOperation):
     """
     Jump if not carry (CF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnc"
+    name = "x86.c.jnc"
 
 
 @irdl_op_definition
-class S_JneOp(ConditionalJumpOperation):
+class C_JneOp(ConditionalJumpOperation):
     """
     Jump if not equal (ZF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jne"
+    name = "x86.c.jne"
 
 
 @irdl_op_definition
-class S_JngOp(ConditionalJumpOperation):
+class C_JngOp(ConditionalJumpOperation):
     """
     Jump if not greater (ZF=1 or SF≠OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jng"
+    name = "x86.c.jng"
 
 
 @irdl_op_definition
-class S_JngeOp(ConditionalJumpOperation):
+class C_JngeOp(ConditionalJumpOperation):
     """
     Jump if not greater or equal (SF≠OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnge"
+    name = "x86.c.jnge"
 
 
 @irdl_op_definition
-class S_JnlOp(ConditionalJumpOperation):
+class C_JnlOp(ConditionalJumpOperation):
     """
     Jump if not less (SF=OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnl"
+    name = "x86.c.jnl"
 
 
 @irdl_op_definition
-class S_JnleOp(ConditionalJumpOperation):
+class C_JnleOp(ConditionalJumpOperation):
     """
     Jump if not less or equal (ZF=0 and SF=OF).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnle"
+    name = "x86.c.jnle"
 
 
 @irdl_op_definition
-class S_JnoOp(ConditionalJumpOperation):
+class C_JnoOp(ConditionalJumpOperation):
     """
     Jump if not overflow (OF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jno"
+    name = "x86.c.jno"
 
 
 @irdl_op_definition
-class S_JnpOp(ConditionalJumpOperation):
+class C_JnpOp(ConditionalJumpOperation):
     """
     Jump if not parity (PF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnp"
+    name = "x86.c.jnp"
 
 
 @irdl_op_definition
-class S_JnsOp(ConditionalJumpOperation):
+class C_JnsOp(ConditionalJumpOperation):
     """
     Jump if not sign (SF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jns"
+    name = "x86.c.jns"
 
 
 @irdl_op_definition
-class S_JnzOp(ConditionalJumpOperation):
+class C_JnzOp(ConditionalJumpOperation):
     """
     Jump if not zero (ZF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jnz"
+    name = "x86.c.jnz"
 
 
 @irdl_op_definition
-class S_JoOp(ConditionalJumpOperation):
+class C_JoOp(ConditionalJumpOperation):
     """
     Jump if overflow (OF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jo"
+    name = "x86.c.jo"
 
 
 @irdl_op_definition
-class S_JpOp(ConditionalJumpOperation):
+class C_JpOp(ConditionalJumpOperation):
     """
     Jump if parity (PF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jp"
+    name = "x86.c.jp"
 
 
 @irdl_op_definition
-class S_JpeOp(ConditionalJumpOperation):
+class C_JpeOp(ConditionalJumpOperation):
     """
     Jump if parity even (PF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jpe"
+    name = "x86.c.jpe"
 
 
 @irdl_op_definition
-class S_JpoOp(ConditionalJumpOperation):
+class C_JpoOp(ConditionalJumpOperation):
     """
     Jump if parity odd (PF=0).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jpo"
+    name = "x86.c.jpo"
 
 
 @irdl_op_definition
-class S_JsOp(ConditionalJumpOperation):
+class C_JsOp(ConditionalJumpOperation):
     """
     Jump if sign (SF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.js"
+    name = "x86.c.js"
 
 
 @irdl_op_definition
-class S_JzOp(ConditionalJumpOperation):
+class C_JzOp(ConditionalJumpOperation):
     """
     Jump if zero (ZF=1).
 
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    name = "x86.s.jz"
-
-
-class RRROperation(
-    Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
-    """
-    A base class for x86 operations that have three registers.
-    """
-
-    r1 = operand_def(R1InvT)
-    r2 = operand_def(R2InvT)
-    r3 = operand_def(R3InvT)
-
-    result = result_def(R1InvT)
-
-    def __init__(
-        self,
-        r1: Operation | SSAValue,
-        r2: Operation | SSAValue,
-        r3: Operation | SSAValue,
-        *,
-        comment: str | StringAttr | None = None,
-        result: R1InvT,
-    ):
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[r1, r2, r3],
-            attributes={
-                "comment": comment,
-            },
-            result_types=[result],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.r1, self.r2, self.r3
+    name = "x86.c.jz"
 
 
 @irdl_op_definition

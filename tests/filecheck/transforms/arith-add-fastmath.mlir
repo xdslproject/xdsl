@@ -11,6 +11,7 @@ func.func public @foo1() {
   %7 = arith.divf %lhs, %rhs : f64
   %8 = arith.minimumf %lhs, %rhs : f64
   %9 = arith.maximumf %lhs, %rhs : f64
+  %10 = arith.cmpf ole, %lhs, %rhs : f64
   return
 }
 
@@ -23,6 +24,7 @@ func.func public @foo1() {
 // CHECK-NEXT:    %{{.*}} = arith.divf %{{.*}}, %{{.*}} fastmath<fast> : f64
 // CHECK-NEXT:    %{{.*}} = arith.minimumf %{{.*}}, %{{.*}} fastmath<fast> : f64
 // CHECK-NEXT:    %{{.*}} = arith.maximumf %{{.*}}, %{{.*}} fastmath<fast> : f64
+// CHECK-NEXT:    %{{.*}} = arith.cmpf ole, %{{.*}}, %{{.*}} fastmath<fast> : f64
 // CHECK-NEXT:    func.return
 // CHECK-NEXT:  }
 
@@ -35,6 +37,7 @@ func.func public @foo1() {
 // NONE-NEXT:    %{{.*}} = arith.divf %{{.*}}, %{{.*}} : f64
 // NONE-NEXT:    %{{.*}} = arith.minimumf %{{.*}}, %{{.*}} : f64
 // NONE-NEXT:    %{{.*}} = arith.maximumf %{{.*}}, %{{.*}} : f64
+// NONE-NEXT:    %{{.*}} = arith.cmpf ole, %{{.*}}, %{{.*}} : f64
 // NONE-NEXT:    func.return
 // NONE-NEXT:  }
 
@@ -47,6 +50,7 @@ func.func public @foo1() {
 // SINGLE-NEXT:    %{{.*}} = arith.divf %{{.*}}, %{{.*}} fastmath<nnan> : f64
 // SINGLE-NEXT:    %{{.*}} = arith.minimumf %{{.*}}, %{{.*}} fastmath<nnan> : f64
 // SINGLE-NEXT:    %{{.*}} = arith.maximumf %{{.*}}, %{{.*}} fastmath<nnan> : f64
+// SINGLE-NEXT:    %{{.*}} = arith.cmpf ole, %{{.*}}, %{{.*}} fastmath<nnan> : f64
 // SINGLE-NEXT:    func.return
 // SINGLE-NEXT:  }
 
@@ -59,6 +63,7 @@ func.func public @foo1() {
 // DOUBLE-NEXT:    %{{.*}} = arith.divf %{{.*}}, %{{.*}} fastmath<nnan,nsz> : f64
 // DOUBLE-NEXT:    %{{.*}} = arith.minimumf %{{.*}}, %{{.*}} fastmath<nnan,nsz> : f64
 // DOUBLE-NEXT:    %{{.*}} = arith.maximumf %{{.*}}, %{{.*}} fastmath<nnan,nsz> : f64
+// DOUBLE-NEXT:    %{{.*}} = arith.cmpf ole, %{{.*}}, %{{.*}} fastmath<nnan,nsz> : f64
 // DOUBLE-NEXT:    func.return
 // DOUBLE-NEXT:  }
 
@@ -70,6 +75,7 @@ func.func public @foo2() {
   %7 = arith.divf %lhs, %rhs fastmath<fast> : f64
   %8 = arith.minimumf %lhs, %rhs fastmath<fast> : f64
   %9 = arith.maximumf %lhs, %rhs fastmath<fast> : f64
+  %10 = arith.cmpf ole, %lhs, %rhs fastmath<fast> : f64
   return
 }
 
@@ -82,6 +88,7 @@ func.func public @foo2() {
 // CHECK-NEXT:    %{{.*}} = arith.divf %{{.*}}, %{{.*}} fastmath<fast> : f64
 // CHECK-NEXT:    %{{.*}} = arith.minimumf %{{.*}}, %{{.*}} fastmath<fast> : f64
 // CHECK-NEXT:    %{{.*}} = arith.maximumf %{{.*}}, %{{.*}} fastmath<fast> : f64
+// CHECK-NEXT:    %{{.*}} = arith.cmpf ole, %{{.*}}, %{{.*}} fastmath<fast> : f64
 // CHECK-NEXT:    func.return
 // CHECK-NEXT:  }
 
@@ -94,6 +101,7 @@ func.func public @foo2() {
 // NONE-NEXT:    %{{.*}} = arith.divf %{{.*}}, %{{.*}} : f64
 // NONE-NEXT:    %{{.*}} = arith.minimumf %{{.*}}, %{{.*}} : f64
 // NONE-NEXT:    %{{.*}} = arith.maximumf %{{.*}}, %{{.*}} : f64
+// NONE-NEXT:    %{{.*}} = arith.cmpf ole, %{{.*}}, %{{.*}} : f64
 // NONE-NEXT:    func.return
 // NONE-NEXT:  }
 
@@ -106,6 +114,7 @@ func.func public @foo2() {
 // SINGLE-NEXT:    %{{.*}} = arith.divf %{{.*}}, %{{.*}} fastmath<nnan> : f64
 // SINGLE-NEXT:    %{{.*}} = arith.minimumf %{{.*}}, %{{.*}} fastmath<nnan> : f64
 // SINGLE-NEXT:    %{{.*}} = arith.maximumf %{{.*}}, %{{.*}} fastmath<nnan> : f64
+// SINGLE-NEXT:    %{{.*}} = arith.cmpf ole, %{{.*}}, %{{.*}} fastmath<nnan> : f64
 // SINGLE-NEXT:    func.return
 // SINGLE-NEXT:  }
 
@@ -118,5 +127,6 @@ func.func public @foo2() {
 // DOUBLE-NEXT:    %{{.*}} = arith.divf %{{.*}}, %{{.*}} fastmath<nnan,nsz> : f64
 // DOUBLE-NEXT:    %{{.*}} = arith.minimumf %{{.*}}, %{{.*}} fastmath<nnan,nsz> : f64
 // DOUBLE-NEXT:    %{{.*}} = arith.maximumf %{{.*}}, %{{.*}} fastmath<nnan,nsz> : f64
+// DOUBLE-NEXT:    %{{.*}} = arith.cmpf ole, %{{.*}}, %{{.*}} fastmath<nnan,nsz> : f64
 // DOUBLE-NEXT:    func.return
 // DOUBLE-NEXT:  }

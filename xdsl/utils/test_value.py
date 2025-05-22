@@ -9,6 +9,6 @@ def create_ssa_value(t: AttributeCovT) -> OpResult[AttributeCovT]:
     return op.results[0]  # pyright: ignore[reportReturnType]
 
 
-@deprecated("Please use `test_ssa_value` instead")
+@deprecated("Please use `create_ssa_value` instead")
 def TestSSAValue(t: AttributeCovT) -> OpResult[AttributeCovT]:
     return create_ssa_value(t)

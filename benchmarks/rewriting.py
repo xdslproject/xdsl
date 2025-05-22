@@ -172,7 +172,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
         """
         InsertPoint.before(self.add_op)
 
-    def time_pattern_rewriter_insert_op(self) -> None:
+    def ignore_time_pattern_rewriter_insert_op(self) -> None:
         """Time `PatternRewriter.insert_op`.
 
         Exercise inserting an operation and running any required callbacks. This
@@ -193,7 +193,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
 class Canonicalization(RewritingMicrobenchmarks):
     """Microbenchmarks for canonicalization rewriting of constant folding."""
 
-    def time_operation_drop_all_references(self) -> None:
+    def ignore_time_operation_drop_all_references(self) -> None:
         """Time `Operation.drop_all_references`.
 
         Exercise dropping references to an operation, including removing
@@ -209,7 +209,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         self.add_op_result.replace_by(self.sub_op_result)
 
-    def time_irwithuses_remove_use(self) -> None:
+    def ignore_time_irwithuses_remove_use(self) -> None:
         """Time `IRWithUses.remove_use`.
 
         Exercise removing references to IR uses. This is used when removing
@@ -240,7 +240,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         self.pattern_rewriter.handle_operation_removal(self.add_op)
 
-    def time_block_detach_op(self) -> None:
+    def ignore_time_block_detach_op(self) -> None:
         """Time `Block.detach_op`.
 
         Exercise detaching an operation from a block, including fixing the
@@ -410,14 +410,14 @@ if __name__ == "__main__":
                 GENERAL.setup,
             ),
             "General.pattern_rewriter_insert_op": Benchmark(
-                GENERAL.time_pattern_rewriter_insert_op,
+                GENERAL.ignore_time_pattern_rewriter_insert_op,
                 GENERAL.setup,
             ),
             "General.get_variadic_sizes": Benchmark(
                 GENERAL.time_get_variadic_sizes, GENERAL.setup
             ),
             "Canonicalization.operation_drop_all_references": Benchmark(
-                CANONICALIZATION.time_operation_drop_all_references,
+                CANONICALIZATION.ignore_time_operation_drop_all_references,
                 CANONICALIZATION.setup,
             ),
             "Canonicalization.ssavalue_replace_by": Benchmark(
@@ -425,7 +425,7 @@ if __name__ == "__main__":
                 CANONICALIZATION.setup,
             ),
             "Canonicalization.irwithuses_remove_use": Benchmark(
-                CANONICALIZATION.time_irwithuses_remove_use,
+                CANONICALIZATION.ignore_time_irwithuses_remove_use,
                 CANONICALIZATION.setup,
             ),
             "Canonicalization.irwithuses_add_use": Benchmark(
@@ -441,7 +441,7 @@ if __name__ == "__main__":
                 CANONICALIZATION.setup,
             ),
             "Canonicalization.block_detach_op": Benchmark(
-                CANONICALIZATION.time_block_detach_op,
+                CANONICALIZATION.ignore_time_block_detach_op,
                 CANONICALIZATION.setup,
             ),
             "Canonicalization.ssavalue_erase": Benchmark(
