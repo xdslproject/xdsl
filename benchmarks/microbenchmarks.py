@@ -305,11 +305,11 @@ class OpCreation:
         integer_attr = IntegerAttr.__new__(IntegerAttr)
         object.__setattr__(integer_attr, "parameters", (int_attr, i32))
         constant_op = ConstantOp.__new__(ConstantOp)
-        constant_op._operands = tuple()
+        constant_op._operands = tuple()  # pyright: ignore[reportPrivateUsage]
         constant_op.results = (OpResult(i32, constant_op, 0),)
         constant_op.properties = {"value": integer_attr}
         constant_op.attributes = {}
-        constant_op._successors = []
+        constant_op._successors = tuple()  # pyright: ignore[reportPrivateUsage]
         constant_op.regions = tuple()
 
     def time_operation_clone(self) -> None:

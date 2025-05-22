@@ -188,14 +188,21 @@ class ConstantFoldingSimplePass(ModulePass):
         def construct_int_constant_op(value: int, result_type: type) -> ConstantOp:
             """Efficiently construct and integer constant operation"""
             ## Inline `IntegerAttr(lhs + rhs, result_type)`
-            int_attr = IntAttr(value)
+            int_attr = IntAttr.__new__(IntAttr)
+            object.__setattr__(int_attr, "data", value)
             integer_attr = IntegerAttr.__new__(IntegerAttr)
             ## Inline `ParametrizedAttribute.__init__(integer_attr,[int_attr, result_type])`
             object.__setattr__(integer_attr, "parameters", (int_attr, result_type))
-            return ConstantOp.create(
-                result_types=[result_type],  # pyright: ignore[reportArgumentType]
-                properties={"value": integer_attr},
+            constant_op = ConstantOp.__new__(ConstantOp)
+            constant_op._operands = tuple()  # pyright: ignore[reportPrivateUsage]
+            constant_op.results = (
+                OpResult(result_type, constant_op, 0),  # pyright: ignore[reportArgumentType]
             )
+            constant_op.properties = {"value": integer_attr}
+            constant_op.attributes = {}
+            constant_op._successors = tuple()  # pyright: ignore[reportPrivateUsage]
+            constant_op.regions = tuple()
+            return constant_op
 
         def has_trait(op: Operation, trait: type[OpTrait]) -> bool:
             """Check if the operation implements a trait with the given parameters."""
@@ -298,14 +305,18 @@ class ConstantFoldingSimplePass(ModulePass):
 
             result_type = rewrite_op.result.type
             ## Inline `IntegerAttr(lhs + rhs, result_type)`
-            int_attr = IntAttr(lhs + rhs)  # pyright: ignore[reportUnknownArgumentType]
+            int_attr = IntAttr.__new__(IntAttr)
+            object.__setattr__(int_attr, "data", lhs + rhs)
             integer_attr = IntegerAttr.__new__(IntegerAttr)
             ## Inline `ParametrizedAttribute.__init__(integer_attr,[int_attr, result_type])`
             object.__setattr__(integer_attr, "parameters", (int_attr, result_type))
-            folded_op = ConstantOp.create(
-                result_types=[result_type],
-                properties={"value": integer_attr},
-            )
+            folded_op = ConstantOp.__new__(ConstantOp)
+            folded_op._operands = tuple()  # pyright: ignore[reportPrivateUsage]
+            folded_op.results = (OpResult(result_type, folded_op, 0),)
+            folded_op.properties = {"value": integer_attr}
+            folded_op.attributes = {}
+            folded_op._successors = tuple()  # pyright: ignore[reportPrivateUsage]
+            folded_op.regions = tuple()
 
             old_op, new_op, new_result = rewrite_op, folded_op, folded_op.results[0]
 
