@@ -122,6 +122,15 @@ class NeonArrangement(StrEnum):
             raise ValueError(f"Invalid vector type for ARM NEON: {vec_type}")
         return arrangement
 
+    @staticmethod
+    def get_arrangement_from_vec_type(vec_type: VectorType):
+        map_vec_to_arr = {
+            "vector<8xf16>": NeonArrangement.H,
+            "vector<4xf32>": NeonArrangement.S,
+            "vector<2xf64>": NeonArrangement.D,
+        }
+        return map_vec_to_arr[str(vec_type)]
+
 
 @irdl_attr_definition
 class NeonArrangementAttr(EnumAttribute[NeonArrangement], SpacedOpaqueSyntaxAttribute):
