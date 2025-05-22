@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp
-from xdsl.ir import ErasedSSAValue, Operation, OpResult, Region, SSAValue, Use
+from xdsl.ir import Block, ErasedSSAValue, Operation, OpResult, Region, SSAValue, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -76,7 +76,7 @@ class ConstantFoldingSimplePass(ModulePass):
         def drop_all_references(detached_op: Operation) -> None:
             """Drop all references to other operations."""
             detached_op.parent = None
-            for idx, operand in enumerate(detached_op._operands):
+            for idx, operand in enumerate(detached_op._operands):  # pyright: ignore[reportPrivateUsage]
                 ## Inline `operand.remove_use(Use(detached_op, idx))`
                 operand.uses.remove(Use(detached_op, idx))
             ## This application has no regions, so no recursive drops
@@ -93,7 +93,7 @@ class ConstantFoldingSimplePass(ModulePass):
                 if replace_value.name_hint is None:
                     replace_value.name_hint = result.name_hint
 
-        def detach_op(old_op: Operation) -> None:
+        def detach_op(block: Block, old_op: Operation) -> Operation:
             """Detach an operation from the block."""
             old_op.parent = None
             prev_op = old_op.prev_op
@@ -105,7 +105,7 @@ class ConstantFoldingSimplePass(ModulePass):
                 old_op._prev_op = None  # pyright: ignore[reportPrivateUsage]
             else:
                 # reattach linked list if op is first op this block
-                old_op.parent._first_op = next_op  # pyright: ignore[reportAttributeAccessIssue]
+                block._first_op = next_op  # pyright: ignore[reportPrivateUsage]
 
             if next_op is not None:
                 # detach op from linked list
@@ -114,14 +114,16 @@ class ConstantFoldingSimplePass(ModulePass):
                 old_op._next_op = None  # pyright: ignore[reportPrivateUsage]
             else:
                 # reattach linked list if op is last op in this block
-                old_op.parent._last_op = prev_op  # pyright: ignore[reportAttributeAccessIssue]
+                block._last_op = prev_op  # pyright: ignore[reportPrivateUsage]
             return old_op
 
         def erase_op(old_op: Operation) -> None:
             """Erase an operation from the block."""
             ## There are no callbacks, so can elide `rewriter.handle_operation_removal(old_op)`
-            detached_op = detach_op(old_op)
-            op_erase(detached_op)
+            block = old_op.parent
+            if block is not None:
+                detach_op(block, old_op)
+            op_erase(old_op)
 
         def replace_all_uses_with(old_result: OpResult, new_result: SSAValue) -> None:
             """Replace all uses of an SSA value with another SSA value."""
@@ -211,8 +213,8 @@ class ConstantFoldingSimplePass(ModulePass):
             rhs_op: OpResult = rewrite_op.operands[1].op  # pyright: ignore
 
             constant_like = ConstantLike
-            assert has_trait(lhs_op, constant_like)
-            assert has_trait(rhs_op, constant_like)
+            assert has_trait(lhs_op, constant_like)  # pyright: ignore[reportArgumentType]
+            assert has_trait(rhs_op, constant_like)  # pyright: ignore[reportArgumentType]
 
             lhs: int = lhs_op.value.value.data  # pyright: ignore
             rhs: int = rhs_op.value.value.data  # pyright: ignore
@@ -296,12 +298,12 @@ class ConstantFoldingSimplePass(ModulePass):
 
             result_type = rewrite_op.result.type
             ## Inline `IntegerAttr(lhs + rhs, result_type)`
-            int_attr = IntAttr(lhs + rhs)
+            int_attr = IntAttr(lhs + rhs)  # pyright: ignore[reportUnknownArgumentType]
             integer_attr = IntegerAttr.__new__(IntegerAttr)
             ## Inline `ParametrizedAttribute.__init__(integer_attr,[int_attr, result_type])`
             object.__setattr__(integer_attr, "parameters", (int_attr, result_type))
             folded_op = ConstantOp.create(
-                result_types=[result_type],  # pyright: ignore[reportArgumentType]
+                result_types=[result_type],
                 properties={"value": integer_attr},
             )
 
@@ -352,35 +354,36 @@ class ConstantFoldingSimplePass(ModulePass):
             # single new result", since done already in `SSAValue.replace_by`
 
             ## There are no callbacks, so can elide `rewriter.handle_operation_removal(old_op)`
+            block = old_op.parent
+            if block is not None:
+                old_op.parent = None
+                prev_op = old_op.prev_op
+                next_op = old_op.next_op
+                if prev_op is not None:
+                    # detach op from linked list
+                    prev_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
+                    # detach linked list from op
+                    old_op._prev_op = None  # pyright: ignore[reportPrivateUsage]
+                else:
+                    # reattach linked list if op is first op this block
+                    block._first_op = next_op  # pyright: ignore[reportPrivateUsage]
+
+                if next_op is not None:
+                    # detach op from linked list
+                    next_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
+                    # detach linked list from op
+                    old_op._next_op = None  # pyright: ignore[reportPrivateUsage]
+                else:
+                    # reattach linked list if op is last op in this block
+                    block._last_op = prev_op  # pyright: ignore[reportPrivateUsage]
+
             old_op.parent = None
-            prev_op = old_op.prev_op
-            next_op = old_op.next_op
-            if prev_op is not None:
-                # detach op from linked list
-                prev_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
-                # detach linked list from op
-                old_op._prev_op = None  # pyright: ignore[reportPrivateUsage]
-            else:
-                # reattach linked list if op is first op this block
-                old_op.parent._first_op = next_op  # pyright: ignore[reportAttributeAccessIssue]
-
-            if next_op is not None:
-                # detach op from linked list
-                next_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
-                # detach linked list from op
-                old_op._next_op = None  # pyright: ignore[reportPrivateUsage]
-            else:
-                # reattach linked list if op is last op in this block
-                old_op.parent._last_op = prev_op  # pyright: ignore[reportAttributeAccessIssue]
-            detached_op = old_op
-
-            detached_op.parent = None
-            for idx, operand in enumerate(detached_op._operands):
-                ## Inline `operand.remove_use(Use(detached_op, idx))`
-                operand.uses.remove(Use(detached_op, idx))
+            for idx, operand in enumerate(old_op._operands):  # pyright: ignore[reportPrivateUsage]
+                ## Inline `operand.remove_use(Use(old_op, idx))`
+                operand.uses.remove(Use(old_op, idx))
             ## This application has no regions, so no recursive drops
 
-            for result in detached_op.results:
+            for result in old_op.results:
                 ## Inline `result.replace_by(ErasedSSAValue(result.type, result))`
                 replace_value = ErasedSSAValue(result.type, result)
                 ## Newly constructed `ErasedSSAValue`s have no uses, so can
