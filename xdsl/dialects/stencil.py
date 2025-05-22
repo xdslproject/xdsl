@@ -748,8 +748,7 @@ class CastOp(IRDLOperation):
         res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
     ) -> CastOp:
         """ """
-        field_ssa = SSAValue.get(field)
-        assert isa(field_ssa.type, FieldType[Attribute])
+        field_ssa = SSAValue.get(field, type=FieldType)
         if res_type is None:
             res_type = FieldType(
                 bounds,
@@ -898,8 +897,7 @@ class DynAccessOp(IRDLOperation):
         lb: IndexAttr,
         ub: IndexAttr,
     ):
-        temp_type = SSAValue.get(temp).type
-        assert isa(temp_type, TempType[Attribute])
+        temp_type = SSAValue.get(temp, type=TempType).type
         super().__init__(
             operands=[temp, list(offset)],
             attributes={"lb": lb, "ub": ub},
@@ -1108,9 +1106,7 @@ class AccessOp(IRDLOperation):
         offset: Sequence[int],
         offset_mapping: Sequence[int] | IndexAttr | None = None,
     ):
-        temp_type = SSAValue.get(temp).type
-        assert isinstance(temp_type, StencilType)
-        temp_type = cast(StencilType[Attribute], temp_type)
+        temp_type = SSAValue.get(temp, type=StencilType).type
 
         attributes: dict[str, Attribute] = {
             "offset": IndexAttr(
@@ -1274,8 +1270,7 @@ class LoadOp(IRDLOperation):
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
     ):
-        field_type = SSAValue.get(field).type
-        assert isa(field_type, FieldType[Attribute])
+        field_type = SSAValue.get(field, type=FieldType).type
 
         if lb is None or ub is None:
             res_type = TempType(field_type.get_num_dims(), field_type.element_type)

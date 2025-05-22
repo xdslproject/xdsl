@@ -12,7 +12,7 @@
 // CHECK-NEXT:   %fma = builtin.unrealized_conversion_cast %lhs : vector<8xf32> to !x86.avx2reg
 // CHECK-NEXT:   %fma_1 = builtin.unrealized_conversion_cast %rhs : vector<8xf32> to !x86.avx2reg
 // CHECK-NEXT:   %fma_2 = builtin.unrealized_conversion_cast %acc : vector<8xf32> to !x86.avx2reg
-// CHECK-NEXT:   %fma_3 = x86.rrr.vfmadd231ps %fma_2, %fma, %fma_1 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
+// CHECK-NEXT:   %fma_3 = x86.rss.vfmadd231ps %fma_2, %fma, %fma_1 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
 // CHECK-NEXT:   %fma_4 = builtin.unrealized_conversion_cast %fma_3 : !x86.avx2reg to vector<8xf32>
 // CHECK-NEXT: }
 
@@ -30,7 +30,7 @@
 // CHECK-NEXT:   %fma = builtin.unrealized_conversion_cast %lhs : vector<4xf64> to !x86.avx2reg
 // CHECK-NEXT:   %fma_1 = builtin.unrealized_conversion_cast %rhs : vector<4xf64> to !x86.avx2reg
 // CHECK-NEXT:   %fma_2 = builtin.unrealized_conversion_cast %acc : vector<4xf64> to !x86.avx2reg
-// CHECK-NEXT:   %fma_3 = x86.rrr.vfmadd231pd %fma_2, %fma, %fma_1 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
+// CHECK-NEXT:   %fma_3 = x86.rss.vfmadd231pd %fma_2, %fma, %fma_1 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
 // CHECK-NEXT:   %fma_4 = builtin.unrealized_conversion_cast %fma_3 : !x86.avx2reg to vector<4xf64>
 // CHECK-NEXT: }
 

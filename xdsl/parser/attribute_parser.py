@@ -978,7 +978,14 @@ class AttrParser(BaseParser):
             """
             return float(self.value)
 
-        def to_type(self, parser: AttrParser, type: AnyFloat | IntegerType | IndexType):
+        def to_type(
+            self,
+            parser: AttrParser,
+            type: AnyFloat | IntegerType | IndexType | ComplexType,
+        ):
+            if isinstance(type, ComplexType):
+                raise NotImplementedError("Implemented in follow up PR")
+
             if isinstance(type, AnyFloat):
                 return self.to_float(parser)
 

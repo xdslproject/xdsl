@@ -10,6 +10,11 @@
 %func1 = smt.declare_fun : !smt.func<() !smt.bool>
 %func2 = smt.declare_fun : !smt.func<(!smt.bool) !smt.bool>
 
+// CHECK-NEXT:    smt.apply_func %func1() : !smt.func<() !smt.bool>
+// CHECK-NEXT:    smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
+smt.apply_func %func1() : !smt.func<() !smt.bool>
+smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
+
 // CHECK-NEXT:    %arg1 = smt.constant true
 // CHECK-NEXT:    %arg2 = smt.constant false
 // CHECK-NEXT:    %arg3 = smt.constant false
@@ -25,6 +30,10 @@
 %and = smt.or %arg1, %arg2, %arg3
 %or = smt.and %arg1, %arg2, %arg3
 %xor = smt.xor %arg1, %arg2, %arg3
+
+// CHECK-NEXT:    %implies = smt.implies %arg1, %arg2
+
+%implies = smt.implies %arg1, %arg2
 
 // CHECK-NEXT:    %eq = smt.eq %arg1, %arg2, %arg3 : !smt.bool
 // CHECK-NEXT:    %distinct = smt.distinct %arg1, %arg2, %arg3 : !smt.bool
