@@ -180,6 +180,26 @@ class ConstantBoolOp(IRDLOperation):
         return bool(self.value_attr)
 
 
+@irdl_op_definition
+class NotOp(IRDLOperation):
+    """
+    This operation performs a boolean negation. The semantics are equivalent
+    to the ’not’ operator in the Core theory of the SMT-LIB Standard 2.7.
+    """
+
+    name = "smt.not"
+
+    input = operand_def(BoolType)
+    result = result_def(BoolType)
+
+    assembly_format = "$input attr-dict"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, input: SSAValue):
+        super().__init__(operands=[input], result_types=[BoolType()])
+
+
 class VariadicBoolOp(IRDLOperation):
     """
     A variadic operation on boolean. It has a variadic number of operands, but
@@ -357,6 +377,37 @@ class EqOp(VariadicPredicateOp):
     name = "smt.eq"
 
 
+@irdl_op_definition
+class IteOp(IRDLOperation):
+    """
+    This operation returns its second operand or its third operand depending on
+    whether its first operand is true or not. The semantics are equivalent to the
+    ite operator defined in the Core theory of the SMT-LIB 2.7 standard.
+    """
+
+    name = "smt.ite"
+
+    T: ClassVar = VarConstraint("T", base(NonFuncSMTType))
+
+    cond = operand_def(BoolType)
+    then_value = operand_def(T)
+    else_value = operand_def(T)
+
+    result = result_def(T)
+
+    assembly_format = (
+        "$cond `,` $then_value `,` $else_value attr-dict `:` type($result)"
+    )
+
+    traits = traits_def(Pure())
+
+    def __init__(self, cond: SSAValue, then_value: SSAValue, else_value: SSAValue):
+        super().__init__(
+            operands=[cond, then_value, else_value],
+            result_types=[then_value.type],
+        )
+
+
 class QuantifierOp(IRDLOperation, ABC):
     result = result_def(BoolType)
     body = region_def("single_block")
@@ -444,12 +495,14 @@ SMT = Dialect(
         DeclareFunOp,
         ApplyFuncOp,
         ConstantBoolOp,
+        NotOp,
         AndOp,
         OrOp,
         XOrOp,
         ImpliesOp,
         DistinctOp,
         EqOp,
+        IteOp,
         ExistsOp,
         ForallOp,
         YieldOp,

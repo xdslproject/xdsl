@@ -299,8 +299,7 @@ class xDSLOptMain(CommandLineTool):
 
         self.pipeline = PipelinePass(
             tuple(
-                pass_type.from_pass_spec(spec)
-                for pass_type, spec in PipelinePass.build_pipeline_tuples(
+                PipelinePass.iter_passes(
                     self.available_passes, parse_pipeline(self.args.passes)
                 )
             ),
