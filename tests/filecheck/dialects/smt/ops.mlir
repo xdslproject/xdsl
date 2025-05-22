@@ -23,6 +23,10 @@ smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
 %arg2 = smt.constant false
 %arg3 = smt.constant false
 
+// CHECK-NEXT:    %not = smt.not %arg1
+
+%not = smt.not %arg1
+
 // CHECK-NEXT:    %and = smt.or %arg1, %arg2, %arg3
 // CHECK-NEXT:    %or = smt.and %arg1, %arg2, %arg3
 // CHECK-NEXT:    %xor = smt.xor %arg1, %arg2, %arg3

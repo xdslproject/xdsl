@@ -13,6 +13,7 @@ from xdsl.dialects.smt import (
     ForallOp,
     FuncType,
     ImpliesOp,
+    NotOp,
     OrOp,
     QuantifierOp,
     VariadicBoolOp,
@@ -37,6 +38,13 @@ def test_function_type():
     func_type = FuncType([BoolType(), BoolType()], BoolType())
     assert list(func_type.domain_types) == [BoolType(), BoolType()]
     assert func_type.range_type == BoolType()
+
+
+def test_not_op():
+    arg = create_ssa_value(BoolType())
+    op = NotOp(arg)
+    assert op.result.type == BoolType()
+    assert op.input == arg
 
 
 @pytest.mark.parametrize("op_type", [AndOp, OrOp, XOrOp, EqOp, DistinctOp])

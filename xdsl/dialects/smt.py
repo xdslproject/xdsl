@@ -180,6 +180,26 @@ class ConstantBoolOp(IRDLOperation):
         return bool(self.value_attr)
 
 
+@irdl_op_definition
+class NotOp(IRDLOperation):
+    """
+    This operation performs a boolean negation. The semantics are equivalent
+    to the ’not’ operator in the Core theory of the SMT-LIB Standard 2.7.
+    """
+
+    name = "smt.not"
+
+    input = operand_def(BoolType)
+    result = result_def(BoolType)
+
+    assembly_format = "$input attr-dict"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, input: SSAValue):
+        super().__init__(operands=[input], result_types=[BoolType()])
+
+
 class VariadicBoolOp(IRDLOperation):
     """
     A variadic operation on boolean. It has a variadic number of operands, but
@@ -430,6 +450,7 @@ SMT = Dialect(
         DeclareFunOp,
         ApplyFuncOp,
         ConstantBoolOp,
+        NotOp,
         AndOp,
         OrOp,
         XOrOp,
