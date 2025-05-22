@@ -265,7 +265,7 @@ class RS_Operation(
 
 class DS_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
-    A base class for x86 operations that have one source register and one destination
+    A base class for x86 operations that have one destination register and one source
     register.
     """
 
