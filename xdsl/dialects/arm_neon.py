@@ -5,7 +5,12 @@ from collections.abc import Sequence
 from xdsl.dialects.arm.assembly import AssemblyInstructionArg, square_brackets_reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
-from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    StringAttr,
+    VectorType,
+    i8,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -97,6 +102,15 @@ class NeonArrangement(StrEnum):
     def map_to_num_els(self):
         map = {"D": 2, "S": 4, "H": 8}
         return map[self.name]
+
+    @staticmethod
+    def get_arrangement_from_vec_type(vec_type: VectorType):
+        map_vec_to_arr = {
+            "vector<8xf16>": NeonArrangement.H,
+            "vector<4xf32>": NeonArrangement.S,
+            "vector<2xf64>": NeonArrangement.D,
+        }
+        return map_vec_to_arr[str(vec_type)]
 
 
 @irdl_attr_definition
