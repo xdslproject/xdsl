@@ -669,13 +669,14 @@ def test_unrealized_conversion_cast():
     f32_constant = ConstantOp(FloatAttr(10.1, f32))
 
     conv_op1 = UnrealizedConversionCastOp.get([i64_constant.results[0]], [f32])
-    conv_op2 = UnrealizedConversionCastOp.get([f32_constant.results[0]], [i32])
+    conv_op2, res = UnrealizedConversionCastOp.cast_one(f32_constant.results[0], i32)
 
     assert conv_op1.inputs[0].type == i64
     assert conv_op1.outputs[0].type == f32
 
     assert conv_op2.inputs[0].type == f32
-    assert conv_op2.outputs[0].type == i32
+    assert conv_op2.outputs[0] is res
+    assert res.type == i32
 
 
 @pytest.mark.parametrize(
