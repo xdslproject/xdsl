@@ -2,6 +2,7 @@ import pytest
 
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_unallocated_register():
@@ -189,13 +190,13 @@ def test_rrr_vops(
     operand1: x86.register.X86VectorRegisterType,
     operand2: x86.register.X86VectorRegisterType,
 ):
-    output = x86.ops.GetAVXRegisterOp(dest)
-    param1 = x86.ops.GetAVXRegisterOp(operand1)
-    param2 = x86.ops.GetAVXRegisterOp(operand2)
+    output = create_ssa_value(dest)
+    param1 = create_ssa_value(operand1)
+    param2 = create_ssa_value(operand2)
     op = OpClass(
-        source2=output.result,
-        register_in=param1.result,
-        source1=param2.result,
+        source2=output,
+        register_in=param1,
+        source1=param2,
         register_out=dest,
     )
     assert op.register_in.type == operand1
