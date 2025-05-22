@@ -435,7 +435,7 @@ class AssertOp(IRDLOperation):
     assembly_format = "$input attr-dict"
 
     def __init__(self, input: SSAValue):
-        super().__init__(operands=[input], result_types=[])
+        super().__init__(operands=[input])
 
 
 SMT = Dialect(
