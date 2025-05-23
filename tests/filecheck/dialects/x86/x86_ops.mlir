@@ -19,8 +19,8 @@
 // CHECK-NEXT: %{{.*}} = x86.rs.or %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
 %rr_xor = x86.rs.xor %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.xor %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_mov = x86.rs.mov %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
-// CHECK-NEXT: %{{.*}} = x86.rs.mov %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
+%ds_mov = x86.ds.mov %0 : (!x86.reg) -> !x86.reg
+// CHECK-NEXT: %ds_mov = x86.ds.mov %{{.*}} : (!x86.reg) -> !x86.reg
 %rr_cmp = x86.ss.cmp %0, %1 : (!x86.reg, !x86.reg) -> !x86.rflags<rflags>
 // CHECK: %{{.*}} = x86.ss.cmp %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.rflags
 
@@ -73,8 +73,8 @@
 // CHECK-NEXT: %{{.*}} = x86.ri.or %{{.*}}, 2 : (!x86.reg) -> !x86.reg
 %ri_xor = x86.ri.xor %0, 2 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.ri.xor %{{.*}}, 2 : (!x86.reg) -> !x86.reg
-%ri_mov = x86.ri.mov %0, 2 : (!x86.reg) -> !x86.reg
-// CHECK-NEXT: %{{.*}} = x86.ri.mov %{{.*}}, 2 : (!x86.reg) -> !x86.reg
+%di_mov = x86.di.mov 2 : () -> !x86.reg
+// CHECK-NEXT: %di_mov = x86.di.mov 2 : () -> !x86.reg
 %ri_cmp = x86.si.cmp %0, 2 : (!x86.reg) -> !x86.rflags<rflags>
 // CHECK-NEXT: %{{.*}} = x86.si.cmp %{{.*}}, 2 : (!x86.reg) -> !x86.rflags
 

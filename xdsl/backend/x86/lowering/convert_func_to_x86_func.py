@@ -145,13 +145,10 @@ class LowerReturnOp(RewritePattern):
         cast_op = builtin.UnrealizedConversionCastOp.get(
             (return_value,), (x86.register.UNALLOCATED_GENERAL,)
         )
-        get_reg_op = x86.ops.GetRegisterOp(return_passing_register)
-        mov_op = x86.ops.RS_MovOp(
-            cast_op, get_reg_op, register_out=return_passing_register
-        )
+        mov_op = x86.ops.DS_MovOp(cast_op, destination=return_passing_register)
         ret_op = x86_func.RetOp()
 
-        rewriter.replace_matched_op([cast_op, get_reg_op, mov_op, ret_op])
+        rewriter.replace_matched_op([cast_op, mov_op, ret_op])
 
 
 class ConvertFuncToX86FuncPass(ModulePass):

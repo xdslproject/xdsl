@@ -263,6 +263,37 @@ class RS_Operation(
         return self.register_in, self.source
 
 
+class DS_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations that have one destination register and one source
+    register.
+    """
+
+    destination = result_def(R1InvT)
+    source = operand_def(R1InvT)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.destination, self.source)
+
+
 class R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one register that is read and written to.
@@ -397,6 +428,54 @@ class DM_Operation(
         printer.print(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
+
+
+class DI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations that have one destination register and an immediate
+    value.
+    """
+
+    immediate = attr_def(IntegerAttr)
+    destination = result_def(R1InvT)
+
+    def __init__(
+        self,
+        immediate: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.destination, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        return {
+            "immediate": parse_immediate_value(
+                parser, IntegerType(32, Signedness.SIGNED)
+            )
+        }
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print_string(" ", indent=0)
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
@@ -976,7 +1055,7 @@ class RS_XorOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RS_MovOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
+class DS_MovOp(DS_Operation[GeneralRegisterType]):
     """
     Copies the value of s into r.
     ```C
@@ -986,7 +1065,7 @@ class RS_MovOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.rs.mov"
+    name = "x86.ds.mov"
 
 
 @irdl_op_definition
@@ -1392,7 +1471,7 @@ class RI_XorOp(RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RI_MovOp(RI_Operation[GeneralRegisterType]):
+class DI_MovOp(DI_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into r.
     ```C
@@ -1402,7 +1481,7 @@ class RI_MovOp(RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.ri.mov"
+    name = "x86.di.mov"
 
 
 @irdl_op_definition

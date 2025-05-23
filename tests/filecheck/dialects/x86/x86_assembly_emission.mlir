@@ -17,7 +17,7 @@
 // CHECK-NEXT: or rax, rdx
 %rr_xor = x86.rs.xor %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: xor rax, rdx
-%rr_mov = x86.rs.mov %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
+%ds_mov = x86.ds.mov %1 : (!x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: mov rax, rdx
 %rr_cmp = x86.ss.cmp %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.rflags<rflags>
 // CHECK-NEXT: cmp rax, rdx
@@ -72,7 +72,7 @@
 // CHECK-NEXT: or rax, 2
 %ri_xor = x86.ri.xor %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
 // CHECK-NEXT: xor rax, 2
-%ri_mov = x86.ri.mov %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
+%di_mov = x86.di.mov 2 : () -> !x86.reg<rax>
 // CHECK-NEXT: mov rax, 2
 %ri_cmp = x86.si.cmp %0, 2 : (!x86.reg<rax>) -> !x86.rflags<rflags>
 // CHECK-NEXT: cmp rax, 2
