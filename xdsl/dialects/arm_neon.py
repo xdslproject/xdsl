@@ -6,7 +6,12 @@ from typing import ClassVar
 from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg, square_brackets_reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
-from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    StringAttr,
+    VectorType,
+    i8,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -98,9 +103,24 @@ class NeonArrangement(StrEnum):
     S = "S"
     H = "H"
 
-    def map_to_num_els(self):
-        map = {"D": 2, "S": 4, "H": 8}
-        return map[self.name]
+    _SIZE_BY_ARRANGEMENT = {"D": 2, "S": 4, "H": 8}
+
+    @property
+    def size(self):
+        return self._SIZE_BY_ARRANGEMENT[self.name]
+
+    _ARRANGEMENT_BY_TYPE: dict[VectorType, NeonArrangement] = {
+        VectorType(f16, (8,)): NeonArrangement.H,
+        VectorType(f32, (4,)): NeonArrangement.S,
+        VectorType(f64, (2,)): NeonArrangement.D,
+    }
+
+    @staticmethod
+    def from_arrangement(vec_type: VectorType):
+        arrangement = NeonArrangement._ARRANGEMENT_BY_TYPE.get(vec_type)
+        if arrangement is None:
+            raise ValueError(f"Invalid vector type for ARM NEON: {vec_type}")
+        return arrangement
 
 
 @irdl_attr_definition
@@ -134,7 +154,11 @@ class VectorWithArrangement(AssemblyInstructionArg):
 
     def assembly_str(self):
         if self.index is None:
-            return f"{self.reg.register_name.data}.{self.arrangement.data.map_to_num_els()}{self.arrangement.data.name}"
+            return (
+                f"{self.reg.register_name.data}."
+                f"{self.arrangement.data.get_num_els_from_arranagement()}"
+                f"{self.arrangement.data.name}"
+            )
         else:
             return f"{self.reg.register_name.data}.{self.arrangement.data.name}[{self.index}]"
 
