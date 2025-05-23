@@ -99,24 +99,24 @@ class NeonArrangement(StrEnum):
     S = "S"
     H = "H"
 
-    def get_num_els_from_arranagement(self):
-        return map_arrangement_to_num_els[self.name]
+    _SIZE_BY_ARRANGEMENT = {"D": 2, "S": 4, "H": 8}
+
+    @property
+    def arrangement(self):
+        return self._SIZE_BY_ARRANGEMENT[self.name]
+
+    _ARRANGEMENT_BY_TYPE: dict[str, NeonArrangement] = {
+        VectorType(f16, (8,)): NeonArrangement.H,
+        VectorType(f32, (4,)): NeonArrangement.S,
+        VectorType(f64, (2,)): NeonArrangement.D,
+    }
 
     @staticmethod
-    def get_arrangement_from_vec_type(vec_type: VectorType):
-        key = str(vec_type)
-        if key not in map_vec_to_arr:
-            raise ValueError(f"Invalid vector type for ARM NEON: {key}")
-        return map_vec_to_arr[str(vec_type)]
-
-
-map_arrangement_to_num_els = {"D": 2, "S": 4, "H": 8}
-
-map_vec_to_arr: dict[str, NeonArrangement] = {
-    "vector<8xf16>": NeonArrangement.H,
-    "vector<4xf32>": NeonArrangement.S,
-    "vector<2xf64>": NeonArrangement.D,
-}
+    def from_arrangement(vec_type: VectorType):
+        arrangement = NeonArrangement._ARRANGEMENT_BY_TYPE.get(vec_type)
+        if arrangement is None:
+            raise ValueError(f"Invalid vector type for ARM NEON: {vec_type}")
+        return arrangement
 
 
 @irdl_attr_definition
