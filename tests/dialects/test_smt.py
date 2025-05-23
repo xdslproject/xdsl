@@ -4,6 +4,7 @@ from xdsl.dialects.builtin import IntegerAttr, StringAttr
 from xdsl.dialects.smt import (
     AndOp,
     ApplyFuncOp,
+    AssertOp,
     BoolType,
     ConstantBoolOp,
     DeclareFunOp,
@@ -13,6 +14,8 @@ from xdsl.dialects.smt import (
     ForallOp,
     FuncType,
     ImpliesOp,
+    IteOp,
+    NotOp,
     OrOp,
     QuantifierOp,
     VariadicBoolOp,
@@ -37,6 +40,13 @@ def test_function_type():
     func_type = FuncType([BoolType(), BoolType()], BoolType())
     assert list(func_type.domain_types) == [BoolType(), BoolType()]
     assert func_type.range_type == BoolType()
+
+
+def test_not_op():
+    arg = create_ssa_value(BoolType())
+    op = NotOp(arg)
+    assert op.result.type == BoolType()
+    assert op.input == arg
 
 
 @pytest.mark.parametrize("op_type", [AndOp, OrOp, XOrOp, EqOp, DistinctOp])
@@ -84,3 +94,20 @@ def test_apply_func():
     op = ApplyFuncOp(func, arg1, arg2)
 
     assert op.result.type == BoolType()
+
+
+def test_ite():
+    arg1 = create_ssa_value(BoolType())
+    arg2 = create_ssa_value(BoolType())
+    arg3 = create_ssa_value(BoolType())
+    op = IteOp(arg1, arg2, arg3)
+    assert op.result.type == BoolType()
+    assert op.cond == arg1
+    assert op.then_value == arg2
+    assert op.else_value == arg3
+
+
+def test_assert_op():
+    arg1 = create_ssa_value(BoolType())
+    assert_op = AssertOp(arg1)
+    assert assert_op.input == arg1

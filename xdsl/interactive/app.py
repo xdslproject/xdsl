@@ -724,12 +724,7 @@ def main():
 
     pass_spec_pipeline = list(parse_pipeline(args.passes))
     pass_list = get_all_passes()
-    pipeline = tuple(
-        pass_type.from_pass_spec(spec)
-        for pass_type, spec in PipelinePass.build_pipeline_tuples(
-            pass_list, pass_spec_pipeline
-        )
-    )
+    pipeline = tuple(PipelinePass.iter_passes(pass_list, pass_spec_pipeline))
 
     return InputApp(
         tuple(get_all_dialects().items()),

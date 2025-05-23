@@ -1773,6 +1773,14 @@ class UnrealizedConversionCastOp(IRDLOperation):
             result_types=[result_type],
         )
 
+    @staticmethod
+    def cast_one(
+        input: SSAValue, result_type: AttributeInvT
+    ) -> tuple[UnrealizedConversionCastOp, SSAValue[AttributeInvT]]:
+        op = UnrealizedConversionCastOp(operands=(input,), result_types=(result_type,))
+        res: SSAValue[AttributeInvT] = op.results[0]  # pyright: ignore[reportAssignmentType]
+        return op, res
+
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         if parser.parse_optional_characters("to") is None:
