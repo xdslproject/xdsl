@@ -105,7 +105,7 @@ class NeonArrangement(StrEnum):
     def arrangement(self):
         return self._SIZE_BY_ARRANGEMENT[self.name]
 
-    _ARRANGEMENT_BY_TYPE: dict[str, NeonArrangement] = {
+    _ARRANGEMENT_BY_TYPE: dict[VectorType, NeonArrangement] = {
         VectorType(f16, (8,)): NeonArrangement.H,
         VectorType(f32, (4,)): NeonArrangement.S,
         VectorType(f64, (2,)): NeonArrangement.D,
