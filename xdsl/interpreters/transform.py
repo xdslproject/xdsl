@@ -45,12 +45,11 @@ class TransformFunctions(InterpreterFunctions):
         args: PythonValues,
     ) -> PythonValues:
         pass_name = op.pass_name.data
-        requested_by_user = PipelinePass.build_pipeline_tuples(
-            self.passes, parse_pipeline.parse_pipeline(pass_name)
-        )
 
         schedule = tuple(
-            pass_type.from_pass_spec(spec) for pass_type, spec in requested_by_user
+            PipelinePass.iter_passes(
+                self.passes, parse_pipeline.parse_pipeline(pass_name)
+            )
         )
         pipeline = PipelinePass(schedule)
         pipeline.apply(self.ctx, args[0])
