@@ -294,6 +294,16 @@ class OpCreation:
         """
         EmptyOp.build()
 
+    def time_operation_create_optimised(self) -> None:
+        """Time creating an empty operation directly."""
+        empty_op = EmptyOp.__new__(EmptyOp)
+        empty_op._operands = tuple()  # pyright: ignore[reportPrivateUsage]
+        empty_op.results = tuple()
+        empty_op.properties = {}
+        empty_op.attributes = {}
+        empty_op._successors = tuple()  # pyright: ignore[reportPrivateUsage]
+        empty_op.regions = tuple()
+
     def time_operation_constant_init(self) -> None:
         """Time instantiating a constant integer."""
         ConstantOp(IntegerAttr(100, i32))
@@ -353,11 +363,11 @@ if __name__ == "__main__":
     OP_CREATION = OpCreation()
     profile(
         {
-            "IRTraversal.iterate_ops": Benchmark(IR_TRAVERSAL.time_iterate_ops),
-            "IRTraversal.iterate_block_ops": Benchmark(
-                IR_TRAVERSAL.time_iterate_block_ops
-            ),
-            "IRTraversal.walk_block_ops": Benchmark(IR_TRAVERSAL.time_walk_block_ops),
+            # "IRTraversal.iterate_ops": Benchmark(IR_TRAVERSAL.time_iterate_ops),
+            # "IRTraversal.iterate_block_ops": Benchmark(
+            #     IR_TRAVERSAL.time_iterate_block_ops
+            # ),
+            # "IRTraversal.walk_block_ops": Benchmark(IR_TRAVERSAL.time_walk_block_ops),
             "Extensibility.interface_check_trait": Benchmark(
                 EXTENSIBILITY.time_interface_check_trait
             ),
@@ -376,6 +386,9 @@ if __name__ == "__main__":
             ),
             "OpCreation.operation_create": Benchmark(OP_CREATION.time_operation_create),
             "OpCreation.operation_build": Benchmark(OP_CREATION.time_operation_build),
+            "OpCreation.operation_create_optimised": Benchmark(
+                OP_CREATION.time_operation_create_optimised
+            ),
             "OpCreation.operation_clone": Benchmark(OP_CREATION.time_operation_clone),
             "OpCreation.operation_clone_single": Benchmark(
                 OP_CREATION.time_operation_clone_single
