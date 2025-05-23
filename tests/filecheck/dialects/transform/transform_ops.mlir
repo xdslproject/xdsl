@@ -91,5 +91,8 @@
 %matched = "transform.structured.match"(%to_match) <{ops = [], op_attrs = {}}> : (!transform.any_op) -> !transform.any_op
 
 %to_apply_registered_pass = "test.op"() : () -> !transform.op<"builtin.module">
-// CHECK: %applied_registered_pass = "transform.apply_registered_pass"(%to_apply_registered_pass) <{options = "", pass_name = "foo"}> : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
-%applied_registered_pass = "transform.apply_registered_pass"(%to_apply_registered_pass) <{options = "", pass_name = "foo"}> : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+// CHECK: %applied_registered_pass = transform.apply_registered_pass "foo" to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+%applied_registered_pass = transform.apply_registered_pass "foo" to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+
+// CHECK: %applied_registered_pass_opts = transform.apply_registered_pass "foo" to %to_apply_registered_pass {options = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+%applied_registered_pass_opts = transform.apply_registered_pass "foo" to %to_apply_registered_pass {options = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">

@@ -69,7 +69,6 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
 
 GEP_USE_SSA_VAL = -2147483648
@@ -1011,11 +1010,8 @@ class GEPOp(IRDLOperation):
             ssa_indices = []
 
         # convert a potential Operation into an SSAValue
-        ptr_val = SSAValue.get(ptr)
+        ptr_val = SSAValue.get(ptr, type=LLVMPointerType)
         ptr_type = ptr_val.type
-
-        if not isinstance(ptr_type, LLVMPointerType):
-            raise ValueError("Input must be a pointer")
 
         props: dict[str, Attribute] = {
             "rawConstantIndices": DenseArrayBase.create_dense_int(i32, indices),
@@ -1197,8 +1193,7 @@ class LoadOp(IRDLOperation):
 
     def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
-            ptr = SSAValue.get(ptr)
-            assert isinstance(ptr.type, LLVMPointerType)
+            ptr = SSAValue.get(ptr, type=LLVMPointerType)
 
             if isinstance(ptr.type.type, NoneAttr):
                 raise ValueError(
@@ -1586,7 +1581,7 @@ class ConstantOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
-        if isattr(self.value, IntegerAttr) and self.result.type == IntegerType(64):
+        if isa(self.value, IntegerAttr) and self.result.type == IntegerType(64):
             self.value.print_without_type(printer)
         else:
             printer.print(self.value)

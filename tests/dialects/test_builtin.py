@@ -6,8 +6,7 @@ import pytest
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
-    AnyTensorType,
-    AnyVectorType,
+    AnyFloat,
     ArrayAttr,
     BFloat16Type,
     BoolAttr,
@@ -31,7 +30,6 @@ from xdsl.dialects.builtin import (
     Signedness,
     StridedLayoutAttr,
     SymbolRefAttr,
-    TensorOrMemRefOf,
     TensorType,
     UnrealizedConversionCastOp,
     VectorBaseTypeAndRankConstraint,
@@ -48,7 +46,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
-from xdsl.irdl import ConstraintContext
+from xdsl.irdl import ConstraintContext, RangeOf, RangeVarConstraint, eq
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -133,6 +131,13 @@ def test_IntegerType_size():
     assert IntegerType(64).size == 8
 
 
+@pytest.mark.parametrize(
+    "elem_ty", [IntegerType(1), IntegerType(32), Float16Type(), Float32Type()]
+)
+def test_ComplexType_size(elem_ty: AnyFloat | IntegerType):
+    assert ComplexType(elem_ty).size == elem_ty.size * 2
+
+
 def test_IntegerType_normalized():
     si8 = IntegerType(8, Signedness.SIGNED)
     ui8 = IntegerType(8, Signedness.UNSIGNED)
@@ -148,6 +153,26 @@ def test_IntegerType_normalized():
     assert ui8.normalized_value(-1) is None
     assert ui8.normalized_value(1) == 1
     assert ui8.normalized_value(255) == 255
+
+
+def test_IntegerType_get_normalized():
+    si8 = IntegerType(8, Signedness.SIGNED)
+    ui8 = IntegerType(8, Signedness.UNSIGNED)
+
+    assert i8.get_normalized_value(-1) == -1
+    assert i8.get_normalized_value(1) == 1
+    assert i8.get_normalized_value(255) == -1
+
+    assert si8.get_normalized_value(-1) == -1
+    assert si8.get_normalized_value(1) == 1
+
+    with pytest.raises(ValueError, match=r".*\[-128, 128\).*"):
+        assert si8.get_normalized_value(255)
+
+    with pytest.raises(ValueError, match=r".*\[0, 256\).*"):
+        assert ui8.get_normalized_value(-1) is None
+    assert ui8.get_normalized_value(1) == 1
+    assert ui8.get_normalized_value(255) == 255
 
 
 def test_IntegerType_truncated():
@@ -310,9 +335,29 @@ def test_IntegerType_packing():
     ):
         i64.pack((9223372036854775808,))
 
+    nums_complex_i32 = ((-128, -1), (0, 1), (127, 128))
+    complex_i32 = ComplexType(i32)
+    buffer_complex_i32 = complex_i32.pack(nums_complex_i32)
+    unpacked_complex_i32 = complex_i32.unpack(buffer_complex_i32, len(nums_complex_i32))
+    assert nums_complex_i32 == unpacked_complex_i32
+    assert (
+        tuple(val for val in complex_i32.iter_unpack(buffer_complex_i32))
+        == nums_complex_i32
+    )
+
+    nums_complex_f32 = ((-128.0, -1.0), (0.0, 1.0), (127.0, 128.0))
+    complex_f32 = ComplexType(f32)
+    buffer_complex_f32 = complex_f32.pack(nums_complex_f32)
+    unpacked_complex_f32 = complex_f32.unpack(buffer_complex_f32, len(nums_complex_f32))
+    assert nums_complex_f32 == unpacked_complex_f32
+    assert (
+        tuple(val for val in complex_f32.iter_unpack(buffer_complex_f32))
+        == nums_complex_f32
+    )
+
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
-    check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [2])
+    check1 = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f64, [2]), [4, 5])
 
     value1 = check1.get_attrs()[0].value.data
     value2 = check1.get_attrs()[1].value.data
@@ -326,7 +371,7 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     t1 = FloatAttr(4.0, f32)
     t2 = FloatAttr(5.0, f32)
 
-    check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32, [2])
+    check2 = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, [2]), [t1, t2])
 
     value3 = check2.get_attrs()[0].value.data
     value4 = check2.get_attrs()[1].value.data
@@ -338,42 +383,48 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     assert value4 == 5.0
 
 
-def test_DenseIntOrFPElementsAttr_from_list():
+def test_DenseIntOrFPElementsAttr_splat():
+    attr_int = DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [3]), 4)
+    assert len(attr_int) == 3
+    assert tuple(attr_int.get_int_values()) == (4, 4, 4)
+    assert attr_int.is_splat()
+
+    attr_float = DenseIntOrFPElementsAttr.create_dense_float(
+        TensorType(f32, [2, 2]), 4.5
+    )
+    assert len(attr_float) == 4
+    assert tuple(attr_float.get_float_values()) == (4.5, 4.5, 4.5, 4.5)
+    assert attr_float.is_splat()
+
+
+def test_DenseIntOrFPElementsAttr_initialization():
     # legal zero-rank tensor
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
-    assert attr.type == AnyTensorType(f32, [])
+    attr = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, []), [5.5])
+    assert attr.type == TensorType(f32, [])
     assert len(attr) == 1
 
     # illegal zero-rank tensor
     with pytest.raises(
-        ValueError, match="A zero-rank tensor can only hold 1 value but 2 were given."
+        VerifyException,
+        match="A zero-rank tensor can only hold 1 value but 2 were given.",
     ):
-        DenseIntOrFPElementsAttr.tensor_from_list([5.5, 5.6], f32, [])
+        DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, []), [5.5, 5.6])
 
     # legal 1 element tensor
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [1])
-    assert attr.type == AnyTensorType(f32, [1])
+    attr = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, [1]), [5.5])
+    assert attr.type == TensorType(f32, [1])
     assert len(attr) == 1
 
     # legal normal tensor
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5, 5.6], f32, [2])
-    assert attr.type == AnyTensorType(f32, [2])
+    attr = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, [2]), [5.5, 5.6])
+    assert attr.type == TensorType(f32, [2])
     assert len(attr) == 2
-
-    # splat initialization
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([4], f32, [4])
-    assert attr.type == AnyTensorType(f32, [4])
-    assert tuple(attr.get_values()) == (4, 4, 4, 4)
-    assert len(attr) == 4
-
-    # vector with inferred shape
-    attr = DenseIntOrFPElementsAttr.vector_from_list([1, 2, 3, 4], f32)
-    assert attr.type == AnyVectorType(f32, [4])
-    assert len(attr) == 4
 
 
 def test_DenseIntOrFPElementsAttr_values():
-    int_attr = DenseIntOrFPElementsAttr.tensor_from_list([1, 2, 3, 4], i32, [4])
+    int_attr = DenseIntOrFPElementsAttr.create_dense_int(
+        TensorType(i32, [4]), [1, 2, 3, 4]
+    )
     assert tuple(int_attr.get_values()) == (1, 2, 3, 4)
     assert tuple(int_attr.iter_values()) == (1, 2, 3, 4)
     assert tuple(int_attr.get_attrs()) == (
@@ -389,8 +440,8 @@ def test_DenseIntOrFPElementsAttr_values():
         IntegerAttr(4, i32),
     )
 
-    index_attr = DenseIntOrFPElementsAttr.tensor_from_list(
-        [1, 2, 3, 4], IndexType(), [4]
+    index_attr = DenseIntOrFPElementsAttr.create_dense_int(
+        TensorType(IndexType(), [4]), [1, 2, 3, 4]
     )
     assert tuple(index_attr.get_values()) == (1, 2, 3, 4)
     assert tuple(index_attr.iter_values()) == (1, 2, 3, 4)
@@ -407,8 +458,9 @@ def test_DenseIntOrFPElementsAttr_values():
         IntegerAttr(4, IndexType()),
     )
 
-    float_attr = DenseIntOrFPElementsAttr.tensor_from_list(
-        [1.0, 2.0, 3.0, 4.0], f32, [4]
+    float_attr = DenseIntOrFPElementsAttr.create_dense_float(
+        TensorType(f32, [4]),
+        [1.0, 2.0, 3.0, 4.0],
     )
     assert tuple(float_attr.get_values()) == (1.0, 2.0, 3.0, 4.0)
     assert tuple(float_attr.iter_values()) == (1.0, 2.0, 3.0, 4.0)
@@ -424,6 +476,32 @@ def test_DenseIntOrFPElementsAttr_values():
         FloatAttr(3.0, f32),
         FloatAttr(4.0, f32),
     )
+
+    complex_f32 = ComplexType(f32)
+    complex_f32_attr = DenseIntOrFPElementsAttr.create_dense_complex(
+        TensorType(complex_f32, [2]),
+        [(1.0, 2.0), (3.0, 4.0)],
+    )
+    assert tuple(complex_f32_attr.get_complex_values()) == ((1.0, 2.0), (3.0, 4.0))
+    assert tuple(complex_f32_attr.get_values()) == ((1.0, 2.0), (3.0, 4.0))
+    assert tuple(complex_f32_attr.iter_values()) == ((1.0, 2.0), (3.0, 4.0))
+    with pytest.raises(NotImplementedError):
+        complex_f32_attr.get_attrs()
+    with pytest.raises(NotImplementedError):
+        complex_f32_attr.iter_attrs()
+
+    complex_i32 = ComplexType(i32)
+    complex_i32_attr = DenseIntOrFPElementsAttr.create_dense_complex(
+        TensorType(complex_i32, [2]),
+        [(1, 2), (3, 4)],
+    )
+    assert tuple(complex_i32_attr.get_complex_values()) == ((1, 2), (3, 4))
+    assert tuple(complex_i32_attr.get_values()) == ((1, 2), (3, 4))
+    assert tuple(complex_i32_attr.iter_values()) == ((1, 2), (3, 4))
+    with pytest.raises(NotImplementedError):
+        complex_i32_attr.get_attrs()
+    with pytest.raises(NotImplementedError):
+        complex_i32_attr.iter_attrs()
 
 
 @pytest.mark.parametrize(
@@ -591,13 +669,14 @@ def test_unrealized_conversion_cast():
     f32_constant = ConstantOp(FloatAttr(10.1, f32))
 
     conv_op1 = UnrealizedConversionCastOp.get([i64_constant.results[0]], [f32])
-    conv_op2 = UnrealizedConversionCastOp.get([f32_constant.results[0]], [i32])
+    conv_op2, res = UnrealizedConversionCastOp.cast_one(f32_constant.results[0], i32)
 
     assert conv_op1.inputs[0].type == i64
     assert conv_op1.outputs[0].type == f32
 
     assert conv_op2.inputs[0].type == f32
-    assert conv_op2.outputs[0].type == i32
+    assert conv_op2.outputs[0] is res
+    assert res.type == i32
 
 
 @pytest.mark.parametrize(
@@ -686,27 +765,6 @@ def test_strides():
     assert ShapedType.strides_for_shape((4, 5, 6), factor=2) == (60, 12, 2)
 
 
-def test_tensor_or_memref_of_constraint_verify():
-    constraint = TensorOrMemRefOf(i64)
-
-    constraint.verify(MemRefType(i64, [1]), ConstraintContext())
-    constraint.verify(TensorType(i64, [1]), ConstraintContext())
-
-
-def test_tensor_or_memref_of_constraint_attribute_mismatch():
-    constraint = TensorOrMemRefOf(i64)
-
-    with pytest.raises(
-        VerifyException, match=f"Expected tensor or memref type, got {i64}"
-    ):
-        constraint.verify(i64, ConstraintContext())
-
-    with pytest.raises(
-        VerifyException, match=f"Expected attribute {i64} but got {i32}"
-    ):
-        constraint.verify(MemRefType(i32, [1]), ConstraintContext())
-
-
 def test_integer_type_repr():
     assert repr(IntegerType(16)) == "IntegerType(16)"
     assert (
@@ -733,3 +791,20 @@ def test_vector_constr():
         constr.verify(VectorType(i32, [1, 2], scalable_dims), ConstraintContext())
     with pytest.raises(VerifyException):
         constr.verify(VectorType(i64, [1]), ConstraintContext())
+
+
+def test_array_constr():
+    constr = ArrayAttr.constr(i32)
+    assert constr.verifies(ArrayAttr([]))
+    assert constr.verifies(ArrayAttr([i32]))
+    assert not constr.verifies(ArrayAttr([i64]))
+
+    T = RangeVarConstraint("T", RangeOf(eq(i32)))
+    constr = ArrayAttr.constr(T)
+    assert constr.can_infer({"T"})
+
+    ctx = ConstraintContext()
+    ctx.set_range_variable("T", (i32, i32))
+    assert constr.infer(ctx) == ArrayAttr([i32, i32])
+
+    assert constr.get_unique_base() == ArrayAttr

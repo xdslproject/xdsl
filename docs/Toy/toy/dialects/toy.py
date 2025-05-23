@@ -53,7 +53,6 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
@@ -85,7 +84,7 @@ class ConstantOp(IRDLOperation):
     """
 
     name = "toy.constant"
-    value = attr_def(DenseIntOrFPElementsAttr)
+    value = attr_def(DenseIntOrFPElementsAttr[Float64Type])
     res = result_def(TensorTypeF64)
 
     traits = traits_def(Pure())
@@ -95,12 +94,16 @@ class ConstantOp(IRDLOperation):
 
     @staticmethod
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
-        value = DenseIntOrFPElementsAttr.tensor_from_list(data, f64, shape)
+        value = DenseIntOrFPElementsAttr.create_dense_float(
+            TensorType(f64, shape), data
+        )
         return ConstantOp(value)
 
     @staticmethod
     def from_value(value: float) -> ConstantOp:
-        return ConstantOp(DenseIntOrFPElementsAttr.tensor_from_list([value], f64, []))
+        return ConstantOp(
+            DenseIntOrFPElementsAttr.create_dense_float(TensorType(f64, []), (value,))
+        )
 
     def verify_(self) -> None:
         if not self.res.type == self.value.type:
@@ -117,7 +120,7 @@ class ConstantOp(IRDLOperation):
         return list(self.get_type().get_shape())
 
     def get_data(self) -> list[float]:
-        return list(self.value.get_values())
+        return list(self.value.get_float_values())
 
 
 class InferAddOpShapeTrait(ToyShapeInferenceTrait):
@@ -422,7 +425,7 @@ class ReshapeOp(IRDLOperation):
     traits = traits_def(Pure(), ReshapeOpHasCanonicalizationPatternsTrait())
 
     def __init__(self, arg: SSAValue, shape: list[int]):
-        if not isattr(arg.type, AnyTensorTypeF64Constr):
+        if not AnyTensorTypeF64Constr.verifies(arg.type):
             raise ValueError(
                 f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
                 " {AnyTensorTypeF64}"
@@ -433,7 +436,7 @@ class ReshapeOp(IRDLOperation):
 
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
-        if not isattr(arg.type, AnyTensorTypeF64Constr):
+        if not AnyTensorTypeF64Constr.verifies(arg.type):
             raise ValueError(
                 f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
                 " {AnyTensorTypeF64}"

@@ -188,7 +188,7 @@ class LinalgFunctions(InterpreterFunctions):
         strides_type = op.strides.type
         assert isinstance(strides_type, TensorType)
         (strides_shape,) = strides_type.get_shape()
-        strides = op.strides.get_values()
+        strides = op.strides.get_int_values()
         if strides_shape != 2:
             raise NotImplementedError("Only 2d max pooling supported")
 
@@ -202,8 +202,8 @@ class LinalgFunctions(InterpreterFunctions):
         ]
 
         output: list[float] = []
-        for k in range(0, m_height - ky + 1, int(strides[0])):
-            for l in range(0, m_width - kx + 1, int(strides[0])):
+        for k in range(0, m_height - ky + 1, strides[0]):
+            for l in range(0, m_width - kx + 1, strides[0]):
                 block_max_value = float("-inf")
                 for i in range(k, k + ky):
                     for j in range(l, l + kx):
@@ -233,7 +233,7 @@ class LinalgFunctions(InterpreterFunctions):
             raise NotImplementedError()
         m_height, m_width = input.shape[2:]
         ky, kx = kernel_filter.shape[2], kernel_filter.shape[3]
-        strides = op.strides.get_values()
+        strides = op.strides.get_int_values()
         # convert input into a numpy like array
         input_data = [
             [input.data[r * m_width + c] for c in range(m_width)]
@@ -248,8 +248,8 @@ class LinalgFunctions(InterpreterFunctions):
             for r in range(kernel_filter.shape[2])
         ]
         output: list[float] = []
-        for k in range(0, m_height - ky + 1, int(strides[0])):
-            for l in range(0, m_width - kx + 1, int(strides[0])):
+        for k in range(0, m_height - ky + 1, strides[0]):
+            for l in range(0, m_width - kx + 1, strides[0]):
                 conv_value: float = 0.0
                 for i in range(k, k + ky):
                     for j in range(l, l + kx):

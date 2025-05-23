@@ -76,7 +76,7 @@ class LoadOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    nontemporal = opt_prop_def(BoolAttr)
+    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
     memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType())
@@ -103,10 +103,8 @@ class LoadOp(IRDLOperation):
     def get(
         cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
     ) -> Self:
-        ssa_value = SSAValue.get(ref)
-        ssa_value_type = ssa_value.type
-        ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
-        return cls(operands=[ref, indices], result_types=[ssa_value_type.element_type])
+        ssa_value = SSAValue.get(ref, type=MemRefType)
+        return cls(operands=[ref, indices], result_types=[ssa_value.type.element_type])
 
 
 @irdl_op_definition
@@ -115,7 +113,7 @@ class StoreOp(IRDLOperation):
 
     name = "memref.store"
 
-    nontemporal = opt_prop_def(BoolAttr)
+    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
     value = operand_def(T)
     memref = operand_def(MemRefType.constr(element_type=T))
@@ -406,24 +404,15 @@ class GlobalOp(IRDLOperation):
 
     sym_name = prop_def(StringAttr)
     sym_visibility = prop_def(StringAttr)
-    type = prop_def(Attribute)
-    initial_value = prop_def(Attribute)
+    type = prop_def(MemRefType)
+    initial_value = prop_def(UnitAttr | DenseIntOrFPElementsAttr)
     constant = opt_prop_def(UnitAttr)
     alignment = opt_prop_def(IntegerAttr[I64])
 
     traits = traits_def(SymbolOpInterface())
 
     def verify_(self) -> None:
-        if not isinstance(self.type, MemRefType):
-            raise Exception("Global expects a MemRefType")
-
-        if not isinstance(self.initial_value, UnitAttr | DenseIntOrFPElementsAttr):
-            raise Exception(
-                "Global initial value is expected to be a "
-                "dense type or an unit attribute"
-            )
         if self.alignment is not None:
-            assert isinstance(self.alignment, IntegerAttr)
             alignment_value = self.alignment.value.data
             # Alignment has to be a power of two
             if not (is_power_of_two(alignment_value)):
@@ -610,8 +599,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
         Create an ExtractStridedMetaDataOp that extracts the metadata from the
         operation (source) that produces a memref.
         """
-        source_type = SSAValue.get(source).type
-        assert isa(source_type, MemRefType[Attribute])
+        source_type = SSAValue.get(source, type=MemRefType).type
         source_shape = source_type.get_shape()
         # Return a rank zero memref with the memref type
         base_buffer_type = MemRefType(

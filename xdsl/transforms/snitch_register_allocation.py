@@ -14,19 +14,6 @@ from xdsl.pattern_rewriter import (
 )
 
 
-def get_snitch_reserved() -> set[riscv.FloatRegisterType]:
-    """
-    Utility method to make explicit the Snitch ISA assumptions wrt the
-    floating-point registers that are considered reserved.
-    Currently, the first 3 floating-point registers are reserved.
-    """
-
-    num_reserved = 3
-    assert len(riscv.Registers.FT) >= num_reserved
-
-    return {riscv.Registers.FT[i] for i in range(0, num_reserved)}
-
-
 class AllocateSnitchStreamingRegionRegisters(RewritePattern):
     """
     Allocates the registers in the body of a `snitch_stream.streaming_region` operation by

@@ -42,6 +42,7 @@ from xdsl.utils.exceptions import (
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_mapping,
+    isa,
 )
 
 from .attributes import (  # noqa: TID251
@@ -309,8 +310,8 @@ class SameVariadicSuccessorSize(SameVariadicSize):
 @dataclass
 class ParsePropInAttrDict(IRDLOption):
     """
-    Parse properties in the attribute dictionary instead of requiring them to
-    be in the assembly format.
+    Allows properties to be omitted from the assembly format, causing them
+    to be parsed as part of the attribute dictionary.
     This should only be used to ensure MLIR compatibility, it is otherwise
     bad design to use it.
     """
@@ -1138,9 +1139,6 @@ class OpDef:
                         op_def.operands.append((field_name, operand_def))
                         continue
                     case _AttributeFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert not isinstance(value.param, GenericRangeConstraint)
-                        assert issubclass(value.cls, AttributeDef)
                         constraint = get_constraint(value.param)
                         attribute_def = value.cls(constraint, value.default_value)
                         ir_name = field_name if value.ir_name is None else value.ir_name
@@ -1148,9 +1146,6 @@ class OpDef:
                         op_def.accessor_names[field_name] = (ir_name, "attribute")
                         continue
                     case _PropertyFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert not isinstance(value.param, GenericRangeConstraint)
-                        assert issubclass(value.cls, PropertyDef)
                         constraint = get_constraint(value.param)
                         property_def = value.cls(constraint, value.default_value)
                         ir_name = field_name if value.ir_name is None else value.ir_name
@@ -1158,15 +1153,11 @@ class OpDef:
                         op_def.accessor_names[field_name] = (ir_name, "property")
                         continue
                     case _RegionFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert issubclass(value.cls, RegionDef)
                         constraint = get_range_constraint(value.entry_args)
                         region_def = value.cls(constraint)
                         op_def.regions.append((field_name, region_def))
                         continue
                     case _SuccessorFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert issubclass(value.cls, SuccessorDef)
                         successor_def = value.cls()
                         op_def.successors.append((field_name, successor_def))
                         continue
@@ -1234,17 +1225,6 @@ class OpDef:
         # Verify traits.
         for trait in self.traits:
             trait.verify(op)
-
-    def split_properties(self, attr_dict: dict[str, Attribute]) -> dict[str, Attribute]:
-        """
-        Remove all entries of an attribute dictionary that are defined as properties
-        by the operation definition, and return them in a new dictionary.
-        """
-        properties: dict[str, Attribute] = {}
-        for property_name in self.properties.keys():
-            if property_name in attr_dict:
-                properties[property_name] = attr_dict.pop(property_name)
-        return properties
 
 
 class VarIRConstruct(Enum):
@@ -1384,7 +1364,7 @@ def get_variadic_sizes_from_attr(
             f"Expected {size_attribute_name} {container_name} in {op.name} operation."
         )
     attribute = container[size_attribute_name]
-    if not isinstance(attribute, DenseArrayBase):
+    if not isa(attribute, DenseArrayBase):
         raise VerifyException(
             f"{size_attribute_name} {container_name} is expected "
             "to be a DenseArrayBase."

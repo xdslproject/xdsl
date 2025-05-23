@@ -58,6 +58,22 @@ class MultiplyImmediateZero(RewritePattern):
             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
 
 
+class DivideByOneIdentity(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.DivOp, rewriter: PatternRewriter) -> None:
+        # Check if rs2 is a constant 1
+        if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 1:
+            rd_type = cast(riscv.IntRegisterType, op.rd.type)
+
+            # Replace the DivOp with a copy/move of rs1 to rd
+            move_op = riscv.MVOp(
+                op.rs1,
+                rd=rd_type,
+            )
+
+            rewriter.replace_matched_op([move_op])
+
+
 class AddImmediates(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AddOp, rewriter: PatternRewriter) -> None:

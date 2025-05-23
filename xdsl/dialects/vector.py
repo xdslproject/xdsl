@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
     IndexTypeConstr,
     MemRefType,
     SignlessIntegerConstraint,
-    TensorOrMemRefOf,
     TensorType,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
@@ -41,6 +40,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_operand_def,
+    opt_prop_def,
     opt_result_def,
     prop_def,
     result_def,
@@ -51,7 +51,7 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import assert_isa, isa
+from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position
 
 DYNAMIC_INDEX: int = -(2**63)
@@ -63,7 +63,9 @@ class LoadOp(IRDLOperation):
     base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
     result = result_def(VectorType)
+    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
+    irdl_options = [ParsePropInAttrDict()]
     assembly_format = (
         "$base `[` $indices `]` attr-dict `:` type($base) `,` type($result)"
     )
@@ -84,8 +86,7 @@ class LoadOp(IRDLOperation):
     def get(
         ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
     ) -> LoadOp:
-        ref = SSAValue.get(ref)
-        assert assert_isa(ref.type, MemRefType[Attribute])
+        ref = SSAValue.get(ref, type=MemRefType)
 
         return LoadOp.build(
             operands=[ref, indices],
@@ -99,7 +100,9 @@ class StoreOp(IRDLOperation):
     vector = operand_def(VectorType)
     base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
+    nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
+    irdl_options = [ParsePropInAttrDict()]
     assembly_format = (
         "$vector `,` $base `[` $indices `]` attr-dict `:` type($base) `,` type($vector)"
     )
@@ -168,8 +171,7 @@ class FMAOp(IRDLOperation):
     def get(
         lhs: Operation | SSAValue, rhs: Operation | SSAValue, acc: Operation | SSAValue
     ) -> FMAOp:
-        lhs = SSAValue.get(lhs)
-        assert assert_isa(lhs.type, VectorType[Attribute])
+        lhs = SSAValue.get(lhs, type=VectorType)
 
         return FMAOp.build(
             operands=[lhs, rhs, acc],
@@ -222,8 +224,7 @@ class MaskedLoadOp(IRDLOperation):
         mask: SSAValue | Operation,
         passthrough: SSAValue | Operation,
     ) -> MaskedLoadOp:
-        memref = SSAValue.get(memref)
-        assert assert_isa(memref.type, MemRefType[Attribute])
+        memref = SSAValue.get(memref, type=MemRefType)
 
         return MaskedLoadOp.build(
             operands=[memref, indices, mask, passthrough],
@@ -457,8 +458,7 @@ class ExtractElementOp(IRDLOperation):
         vector: SSAValue | Operation,
         position: SSAValue | Operation | None = None,
     ):
-        vector = SSAValue.get(vector)
-        assert isa(vector.type, VectorType[Attribute])
+        vector = SSAValue.get(vector, type=VectorType)
 
         result_type = vector.type.element_type
 
@@ -631,8 +631,7 @@ class InsertElementOp(IRDLOperation):
         dest: SSAValue | Operation,
         position: SSAValue | Operation | None = None,
     ):
-        dest = SSAValue.get(dest)
-        assert isa(dest.type, VectorType[Attribute])
+        dest = SSAValue.get(dest, type=VectorType)
 
         result_type = SSAValue.get(dest).type
 
@@ -828,7 +827,7 @@ class TransferReadOp(VectorTransferOperation):
 
     name = "vector.transfer_read"
 
-    source = operand_def(TensorOrMemRefOf(Attribute))
+    source = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
     padding = operand_def()
     mask = opt_operand_def(VectorType[I1])
@@ -933,7 +932,7 @@ class TransferWriteOp(VectorTransferOperation):
     name = "vector.transfer_write"
 
     vector = operand_def(VectorType[Attribute])
-    source = operand_def(TensorOrMemRefOf(Attribute))
+    source = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
     mask = opt_operand_def(VectorType[I1])
 

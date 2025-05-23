@@ -93,6 +93,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_emitc():
+        from xdsl.dialects.emitc import EmitC
+
+        return EmitC
+
     def get_eqsat():
         from xdsl.dialects.eqsat import EqSat
 
@@ -248,6 +253,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Seq
 
+    def get_smt():
+        from xdsl.dialects.smt import SMT
+
+        return SMT
+
     def get_snitch():
         from xdsl.dialects.snitch import Snitch
 
@@ -346,6 +356,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
         "dmp": get_dmp,
+        "emitc": get_emitc,
         "eqsat": get_eqsat,
         "fir": get_fir,
         "fsm": get_fsm,
@@ -377,6 +388,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "riscv_snitch": get_riscv_snitch,
         "scf": get_scf,
         "seq": get_seq,
+        "smt": get_smt,
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,
         "snitch_stream": get_snitch_stream,
