@@ -11,8 +11,6 @@ from pathlib import Path
 from statistics import mean, median, stdev
 from typing import Any, NamedTuple, cast
 
-from benchmarks.bytecode.bytecode_profiler import profile_bytecode
-
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = (
     "run",
@@ -252,6 +250,8 @@ def dis_benchmark(
     benchmarks: dict[str, Benchmark],
 ):
     """Use dis to disassemble a benchmark."""
+    from bytesight import profile_bytecode
+
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     if len(benchmark_runs) != 1:
         raise ValueError("Cannot disassemble multiple benchmarks together")

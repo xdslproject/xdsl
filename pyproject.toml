@@ -50,6 +50,7 @@ bench = [
     "flameprof>=0.4",
     "orjson>=3.10.15",
     "pyinstrument>=5.0.1",
+    "bytesight>=0.1.0",
 ]
 
 [project.urls]
