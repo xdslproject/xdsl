@@ -273,13 +273,15 @@ class R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC
 
     def __init__(
         self,
-        register_in: Operation | SSAValue | None = None,
+        register_in: SSAValue[R1InvT],
         *,
         comment: str | StringAttr | None = None,
         register_out: R1InvT | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
+        if register_out is None:
+            register_out = register_in.type
         super().__init__(
             operands=[register_in],
             attributes={
@@ -861,15 +863,18 @@ class RSS_Operation(
 
     def __init__(
         self,
-        register_in: Operation | SSAValue,
+        register_in: SSAValue[R1InvT],
         source1: Operation | SSAValue,
         source2: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        register_out: R1InvT,
+        register_out: R1InvT | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
+
+        if register_out is None:
+            register_out = register_in.type
 
         super().__init__(
             operands=[register_in, source1, source2],
