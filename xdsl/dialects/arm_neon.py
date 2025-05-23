@@ -99,18 +99,24 @@ class NeonArrangement(StrEnum):
     S = "S"
     H = "H"
 
-    def map_to_num_els(self):
-        map = {"D": 2, "S": 4, "H": 8}
-        return map[self.name]
+    def get_num_els_from_arranagement(self):
+        return map_arrangement_to_num_els[self.name]
 
     @staticmethod
     def get_arrangement_from_vec_type(vec_type: VectorType):
-        map_vec_to_arr = {
-            "vector<8xf16>": NeonArrangement.H,
-            "vector<4xf32>": NeonArrangement.S,
-            "vector<2xf64>": NeonArrangement.D,
-        }
+        key = str(vec_type)
+        if key not in map_vec_to_arr:
+            raise ValueError(f"Invalid vector type for ARM NEON: {key}")
         return map_vec_to_arr[str(vec_type)]
+
+
+map_arrangement_to_num_els = {"D": 2, "S": 4, "H": 8}
+
+map_vec_to_arr: dict[str, NeonArrangement] = {
+    "vector<8xf16>": NeonArrangement.H,
+    "vector<4xf32>": NeonArrangement.S,
+    "vector<2xf64>": NeonArrangement.D,
+}
 
 
 @irdl_attr_definition
@@ -144,7 +150,11 @@ class VectorWithArrangement(AssemblyInstructionArg):
 
     def assembly_str(self):
         if self.index is None:
-            return f"{self.reg.register_name.data}.{self.arrangement.data.map_to_num_els()}{self.arrangement.data.name}"
+            return (
+                f"{self.reg.register_name.data}."
+                f"{self.arrangement.data.get_num_els_from_arranagement()}"
+                f"{self.arrangement.data.name}"
+            )
         else:
             return f"{self.reg.register_name.data}.{self.arrangement.data.name}[{self.index}]"
 
