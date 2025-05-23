@@ -102,7 +102,7 @@ class NeonArrangement(StrEnum):
     _SIZE_BY_ARRANGEMENT = {"D": 2, "S": 4, "H": 8}
 
     @property
-    def arrangement(self):
+    def size(self):
         return self._SIZE_BY_ARRANGEMENT[self.name]
 
     _ARRANGEMENT_BY_TYPE: dict[VectorType, NeonArrangement] = {
