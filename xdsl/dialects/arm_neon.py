@@ -10,6 +10,9 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     StringAttr,
     VectorType,
+    f16,
+    f32,
+    f64,
     i8,
 )
 from xdsl.ir import (
@@ -103,33 +106,24 @@ class NeonArrangement(StrEnum):
     S = "S"
     H = "H"
 
-    _SIZE_BY_ARRANGEMENT = {"D": 2, "S": 4, "H": 8}
-
     @property
     def size(self):
-        return self._SIZE_BY_ARRANGEMENT[self.name]
-
-    _ARRANGEMENT_BY_TYPE: dict[VectorType, NeonArrangement] = {
-        VectorType(f16, (8,)): NeonArrangement.H,
-        VectorType(f32, (4,)): NeonArrangement.S,
-        VectorType(f64, (2,)): NeonArrangement.D,
-    }
+        return _SIZE_BY_ARRANGEMENT[self.name]
 
     @staticmethod
-    def from_arrangement(vec_type: VectorType):
-        arrangement = NeonArrangement._ARRANGEMENT_BY_TYPE.get(vec_type)
+    def from_vec_type(vec_type: VectorType):
+        arrangement = _ARRANGEMENT_BY_TYPE.get(vec_type)
         if arrangement is None:
             raise ValueError(f"Invalid vector type for ARM NEON: {vec_type}")
         return arrangement
 
-    @staticmethod
-    def get_arrangement_from_vec_type(vec_type: VectorType):
-        map_vec_to_arr = {
-            "vector<8xf16>": NeonArrangement.H,
-            "vector<4xf32>": NeonArrangement.S,
-            "vector<2xf64>": NeonArrangement.D,
-        }
-        return map_vec_to_arr[str(vec_type)]
+
+_SIZE_BY_ARRANGEMENT = {"D": 2, "S": 4, "H": 8}
+_ARRANGEMENT_BY_TYPE: dict[VectorType, NeonArrangement] = {
+    VectorType(f16, (8,)): NeonArrangement.H,
+    VectorType(f32, (4,)): NeonArrangement.S,
+    VectorType(f64, (2,)): NeonArrangement.D,
+}
 
 
 @irdl_attr_definition
@@ -165,7 +159,7 @@ class VectorWithArrangement(AssemblyInstructionArg):
         if self.index is None:
             return (
                 f"{self.reg.register_name.data}."
-                f"{self.arrangement.data.get_num_els_from_arranagement()}"
+                f"{self.arrangement.data.size}"
                 f"{self.arrangement.data.name}"
             )
         else:
