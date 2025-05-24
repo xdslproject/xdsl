@@ -78,7 +78,6 @@ from xdsl.traits import (
     NoMemoryEffect,
     NoTerminator,
     OptionalSymbolOpInterface,
-    OpTrait,
     SymbolTable,
 )
 from xdsl.utils.comparisons import (
@@ -1874,15 +1873,6 @@ class UnregisteredOp(Operation, ABC):
                 return op
 
         return UnregisteredOpWithNameOp
-
-    @classmethod
-    def has_trait(
-        cls,
-        trait: type[OpTrait] | OpTrait,
-        *,
-        value_if_unregistered: bool = True,
-    ) -> bool:
-        return value_if_unregistered
 
 
 class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
