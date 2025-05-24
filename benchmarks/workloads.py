@@ -25,7 +25,8 @@ class WorkloadBuilder:
     @classmethod
     def wrap_module(cls, ops: list[str]) -> str:
         """Wrap a list of operations as a module."""
-        workload = f'"builtin.module"() ({{\n  {"\n  ".join(ops)}\n}}) : () -> ()'
+        joined_ops = "\n  ".join(ops)
+        workload = f'"builtin.module"() ({{\n  {joined_ops}\n}}) : () -> ()'
         return workload
 
     @classmethod
