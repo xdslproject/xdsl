@@ -91,7 +91,7 @@ class DialectStubGenerator:
                     self._import(type(attr).__module__, type(attr).__name__)
                 return type(attr).__name__
 
-            case AnyOf(constraints):
+            case AnyOf(attr_constrs=constraints):
                 return " | ".join(
                     self._generate_constraint_type(c) for c in constraints
                 )

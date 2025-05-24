@@ -454,11 +454,7 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
             constrs,
         )
 
-    def verify(
-        self,
-        attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         constraint_context = constraint_context or ConstraintContext()
         for attr_constr in self.attr_constrs:
             # Copy the constraint to ensure that if the constraint fails, the
