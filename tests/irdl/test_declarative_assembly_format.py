@@ -1337,7 +1337,6 @@ def test_operands_directive_with_non_variadic_type_directive():
             PunctuationDirective(":"),
             TypeDirective(OperandsDirective(None)),
         ),
-        {},
     )
 
     @irdl_op_definition
@@ -1373,7 +1372,6 @@ def test_operands_directive_with_variadic_type_directive():
             PunctuationDirective(":"),
             TypeDirective(OperandsDirective((False, 1))),
         ),
-        {},
     )
 
     @irdl_op_definition
@@ -1782,7 +1780,6 @@ def test_results_directive_with_non_variadic_type_directive():
             PunctuationDirective(":"),
             TypeDirective(ResultsDirective(None)),
         ),
-        {},
     )
 
     @irdl_op_definition
@@ -1817,7 +1814,6 @@ def test_results_directive_with_variadic_type_directive():
             PunctuationDirective(":"),
             TypeDirective(ResultsDirective((False, 1))),
         ),
-        {},
     )
 
     @irdl_op_definition
@@ -3246,8 +3242,8 @@ def test_all_of_extraction_fails():
     parser.parse_operation()
     with pytest.raises(
         ValueError,
-        match="Value of variable T could not be uniquely extracted.\n"
-        "Possible values are: {index, memref<10xindex>}",
+        match="Variable T was set to different attributes:\n"
+        "Possible values: memref<10xindex>, index",
     ):
         parser.parse_operation()
 
@@ -3285,8 +3281,7 @@ def test_param_extraction_fails():
     parser.parse_operation()
     with pytest.raises(
         ValueError,
-        match="Value of variable T could not be uniquely extracted.\n"
-        "Possible values are: {i32, i64}",
+        match="Variable T was set to different attributes:\nPossible values: i32, i64",
     ):
         parser.parse_operation()
 
@@ -3313,8 +3308,8 @@ def test_multiple_operand_extraction_fails():
     parser.parse_operation()
     with pytest.raises(
         ValueError,
-        match="Value of variable T could not be uniquely extracted.\n"
-        "Possible values are: {i32, index}",
+        match="Variable T was set to different attributes:\n"
+        "Possible values: index, i32",
     ):
         parser.parse_operation()
 
@@ -3412,7 +3407,7 @@ def test_int_attr_verify(program: str):
         (
             "test.int_attr_verify 1, %0, %1",
             ValueError,
-            "Value of variable I could not be uniquely extracted",
+            "Variable I was set to different integers:\nPossible values: 2, 1",
         ),
         (
             "test.int_attr_verify 1 and 2, %0",
@@ -3422,7 +3417,7 @@ def test_int_attr_verify(program: str):
         (
             "test.int_attr_verify 2, %0",
             ValueError,
-            "Value of variable I could not be uniquely extracted",
+            "Variable I was set to different integers:\nPossible values: 1, 2",
         ),
         (
             "test.int_attr_verify 2 and 1, %0, %1",
