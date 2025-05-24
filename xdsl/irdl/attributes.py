@@ -36,7 +36,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypedAttribute,
 )
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
+from xdsl.utils.exceptions import PyRDLAttrDefinitionError
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
@@ -202,15 +202,9 @@ class ParamAttrDef:
     def verify(self, attr: ParametrizedAttribute):
         """Verify that `attr` satisfies the invariants."""
 
-        if len(attr.parameters) != len(self.parameters):
-            raise VerifyException(
-                f"In {self.name} attribute verifier: "
-                f"{len(self.parameters)} parameters expected, got "
-                f"{len(attr.parameters)}"
-            )
         constraint_context = ConstraintContext()
-        for param, (_, param_def) in zip(attr.parameters, self.parameters):
-            param_def.verify(param, constraint_context)
+        for field, param_def in self.parameters:
+            param_def.verify(getattr(attr, field), constraint_context)
 
 
 _PAttrTT = TypeVar("_PAttrTT", bound=type[ParametrizedAttribute])
