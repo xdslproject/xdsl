@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from typing_extensions import Self
 
@@ -21,6 +22,7 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
+@dataclass(frozen=True, init=False)
 class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
     An abstract register type for target ISA-specific dialects.

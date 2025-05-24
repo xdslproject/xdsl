@@ -256,9 +256,9 @@ dump_dialect_pyfile(
 # CHECK-NEXT:      a = operand_def(EqAttrConstraint(attr=IntegerType(32)))
 # CHECK-NEXT:      b = operand_def(EqAttrConstraint(attr=IntegerType(64, Signedness.SIGNED)))
 # CHECK-NEXT:      c = operand_def(EqAttrConstraint(attr=IntegerType(8, Signedness.UNSIGNED)))
-# CHECK-NEXT:      d = operand_def(EqAttrConstraint(attr=IndexType(parameters=())))
-# CHECK-NEXT:      e = operand_def(EqAttrConstraint(attr=Float32Type(parameters=())))
-# CHECK-NEXT:      f = operand_def(EqAttrConstraint(attr=NoneType(parameters=())))
+# CHECK-NEXT:      d = operand_def(EqAttrConstraint(attr=IndexType()))
+# CHECK-NEXT:      e = operand_def(EqAttrConstraint(attr=Float32Type()))
+# CHECK-NEXT:      f = operand_def(EqAttrConstraint(attr=NoneType()))
 # CHECK-NEXT:      v1 = operand_def(ParamAttrConstraint(ComplexType, (AnyAttr(),)))
 
 # CHECK:       @irdl_op_definition

@@ -254,6 +254,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
         return self + o
 
 
+@dataclass(frozen=True, init=False)
 class StencilType(
     Generic[_FieldTypeElement],
     ParametrizedAttribute,
