@@ -182,7 +182,8 @@ class PatternRewriter(Builder, PatternRewriterListener):
             new_ops = (new_ops,)
 
         # First, insert the new operations before the matched operation
-        self.insert_op(new_ops, InsertPoint.before(op))
+        if new_ops:
+            self.insert_op(new_ops, InsertPoint.before(op))
 
         if new_results is None:
             new_results = new_ops[-1].results if new_ops else []

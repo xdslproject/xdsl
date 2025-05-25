@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Block, Operation, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.irdl import BaseAttr
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
@@ -1888,3 +1888,20 @@ def test_pattern_rewriter_notify_op_modified():
         PatternRewriteWalker(Rewrite(), apply_recursively=True),
         op_modified=3,
     )
+
+
+def test_pattern_rewriter_replace_external_op():
+    external_op = test.TestOp(result_types=(i32,))
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        new_op = test.TestOp(result_types=(i32,))
+        user = test.TestOp(
+            operands=external_op.results,
+        )
+
+    pr = PatternRewriter(user)
+    pr.current_operation = external_op
+    pr.replace_op(external_op, (), new_op.results)
+    assert tuple(user.operands) == new_op.results
