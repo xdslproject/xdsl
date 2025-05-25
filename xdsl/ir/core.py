@@ -27,7 +27,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self, TypeForm, TypeVar
+from typing_extensions import Self, TypeVar
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
@@ -36,6 +36,8 @@ from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
+    from typing_extensions import TypeForm
+
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
