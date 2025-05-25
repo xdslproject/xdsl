@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 from xdsl.dialects import eqsat, pdl_interp
-from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.pdl import ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -18,6 +18,7 @@ from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Attribute, Block, Operation, OpResult, SSAValue, Use
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
+from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
 
@@ -33,9 +34,9 @@ class BacktrackPoint:
 
 
 @dataclass
-class Match:
-    rewriter: SymbolRefAttr
-    args: tuple[Any, ...]
+class MergeTodo:
+    to_keep: eqsat.EClassOp
+    to_replace: eqsat.EClassOp
 
 
 @register_impls
@@ -44,6 +45,16 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     backtrack_stack: list[BacktrackPoint] = field(default_factory=list[BacktrackPoint])
     visited: bool = True
     known_ops: KnownOps = field(default_factory=KnownOps)
+    known_ops_restore_list: list[Operation] = field(default_factory=list[Operation])
+    eclass_union_find: DisjointSet[eqsat.EClassOp] = field(
+        default_factory=lambda: DisjointSet[eqsat.EClassOp]()
+    )
+    merge_list: list[MergeTodo] = field(default_factory=list[MergeTodo])
+
+    def modification_handler(self, op: Operation):
+        if op in self.known_ops:
+            removed = self.known_ops.pop(op)
+            self.known_ops_restore_list.append(removed)
 
     def populate_known_ops(self, module: ModuleOp) -> None:
         """
@@ -57,6 +68,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             # Skip EClassOp instances
             if not isinstance(op, eqsat.EClassOp):
                 self.known_ops[op] = op
+            else:
+                self.eclass_union_find.add(op)
 
     @impl(pdl_interp.GetResultOp)
     def run_getresult(
@@ -99,15 +112,16 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         results: list[OpResult] = []
         for result in src_op.results:
-            if (
-                result
-                and len(result.uses) == 1
-                and isinstance(
-                    eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
-                )
+            if len(result.uses) == 1 and isinstance(
+                eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
             ):
                 assert len(eclass_op.results) == 1
                 results.append(eclass_op.results[0])
+            else:
+                raise InterpretationError(
+                    "pdl_interp.get_results currently only supports operations with results"
+                    " that are used by a single EClassOp each."
+                )
         return (results,)
 
     @impl(pdl_interp.GetDefiningOpOp)
@@ -193,26 +207,24 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 "Replacement value must be the result of an EClassOp"
             )
 
+        repl_eclass = self.eclass_union_find.find(repl_eclass)
+        original_eclass = self.eclass_union_find.find(original_eclass)
+
         if repl_eclass == original_eclass:
             return ()
 
-        # TODO: is the below of any use?
-        # Check if the repl_eclass operation is already in the original_eclass's operands
-        for i, val in enumerate(original_eclass.operands):
-            if val.owner and val.owner == repl_eclass:
-                # Already present, no need to add it again
-                return ()
-
-        operands = original_eclass._operands  # pyright: ignore[reportPrivateUsage]
-        startlen = len(operands)
-        for i, val in enumerate(repl_eclass.operands):
-            val.add_use(Use(original_eclass, startlen + i))
-        original_eclass._operands = operands + repl_eclass._operands  # pyright: ignore[reportPrivateUsage]
-
-        # Replace the operation with the replacement values
-        self.rewriter.replace_op(
-            repl_eclass, new_ops=[], new_results=original_eclass.results
+        self.eclass_union_find.union(
+            original_eclass,
+            repl_eclass,
         )
+        if self.eclass_union_find.find(original_eclass) == repl_eclass:
+            # In the union-find the canonical representative of the original_eclass
+            # is now the repl_eclass, so we have to keep the repl_eclass:
+            self.merge_list.append(MergeTodo(repl_eclass, original_eclass))
+        else:
+            # otherwise we keep the original_eclass:
+            self.merge_list.append(MergeTodo(original_eclass, repl_eclass))
+
         return ()
 
     @impl(pdl_interp.CreateOperationOp)
@@ -250,8 +262,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             InsertPoint.after(new_op),
         )
 
-        # Record the newly created operation in our known_ops map
         self.known_ops[new_op] = new_op
+        self.eclass_union_find.add(eclass_op)
 
         return (new_op,)
 
@@ -268,3 +280,25 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 self.visited = False
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
+
+    def apply_matches(self):
+        todo = set(
+            (self.eclass_union_find.find(todo.to_keep), todo.to_replace)
+            for todo in self.merge_list
+        )
+        self.merge_list.clear()
+        for to_keep, to_replace in todo:
+            operands = to_keep._operands  # pyright: ignore[reportPrivateUsage]
+            startlen = len(operands)
+            for i, val in enumerate(to_replace.operands):
+                val.add_use(Use(to_keep, startlen + i))
+                to_keep._operands = operands + to_replace._operands  # pyright: ignore[reportPrivateUsage]
+
+            self.rewriter.replace_op(
+                to_replace, new_ops=[], new_results=to_keep.results
+            )
+
+        while self.known_ops_restore_list:
+            op = self.known_ops_restore_list.pop()
+            assert op not in self.known_ops
+            self.known_ops[op] = op
