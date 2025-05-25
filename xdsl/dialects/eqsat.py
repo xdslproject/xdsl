@@ -29,7 +29,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import HasParent, IsTerminator, Pure, SingleBlockImplicitTerminator
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 EQSAT_COST_LABEL = "eqsat_cost"
@@ -46,6 +46,7 @@ class EClassOp(IRDLOperation):
     arguments = var_operand_def(T)
     result = result_def(T)
     min_cost_index = opt_attr_def(IntAttr)
+    traits = traits_def(Pure())
 
     assembly_format = "$arguments attr-dict `:` type($result)"
 
