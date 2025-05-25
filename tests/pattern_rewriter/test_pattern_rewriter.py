@@ -1901,7 +1901,6 @@ def test_pattern_rewriter_replace_external_op():
             operands=external_op.results,
         )
 
-    pr = PatternRewriter(user)
-    pr.current_operation = external_op
+    pr = PatternRewriter(external_op)
     pr.replace_op(external_op, (), new_op.results)
     assert tuple(user.operands) == new_op.results

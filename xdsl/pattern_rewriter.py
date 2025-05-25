@@ -95,7 +95,8 @@ class PatternRewriter(Builder, PatternRewriterListener):
     def __init__(self, current_operation: Operation):
         PatternRewriterListener.__init__(self)
         self.current_operation = current_operation
-        Builder.__init__(self, InsertPoint.before(current_operation))
+        if current_operation.parent is not None:
+            Builder.__init__(self, InsertPoint.before(current_operation))
 
     def insert_op(
         self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
