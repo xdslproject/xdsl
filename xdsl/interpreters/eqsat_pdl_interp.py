@@ -50,6 +50,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         default_factory=lambda: DisjointSet[eqsat.EClassOp]()
     )
     merge_list: list[MergeTodo] = field(default_factory=list[MergeTodo])
+    deterministic_operand_ordering: bool = True
 
     def modification_handler(self, op: Operation):
         if op in self.known_ops:
@@ -292,7 +293,12 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             startlen = len(operands)
             for i, val in enumerate(to_replace.operands):
                 val.add_use(Use(to_keep, startlen + i))
-                to_keep._operands = operands + to_replace._operands  # pyright: ignore[reportPrivateUsage]
+                new_operands = operands + to_replace._operands  # pyright: ignore[reportPrivateUsage]
+                if self.deterministic_operand_ordering:
+                    new_operands = tuple(
+                        sorted(new_operands, key=lambda v: v.__hash__())
+                    )
+                to_keep._operands = new_operands  # pyright: ignore[reportPrivateUsage]
 
             self.rewriter.replace_op(
                 to_replace, new_ops=[], new_results=to_keep.results
