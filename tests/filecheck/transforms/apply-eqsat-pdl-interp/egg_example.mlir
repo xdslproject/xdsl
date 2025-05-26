@@ -22,15 +22,15 @@ func.func @impl() -> i32 {
 // CHECK-NEXT:  %two = arith.constant 2 : i32
 // CHECK-NEXT:  %twoc = eqsat.eclass %two : i32
 // CHECK-NEXT:  %a = arith.constant 5 : i32
-// CHECK-NEXT:  %ac = eqsat.eclass %div, %a, %0 : i32
-// CHECK-NEXT:  %mul = arith.muli %ac, %twoc : i32
+// CHECK-NEXT:  %mul = arith.muli %divc, %twoc : i32
 // CHECK-NEXT:  %mulc = eqsat.eclass %mul : i32
-// CHECK-NEXT:  %1 = arith.constant 1 : i32
-// CHECK-NEXT:  %2 = arith.divui %twoc, %twoc : i32
-// CHECK-NEXT:  %3 = eqsat.eclass %1, %2 : i32
-// CHECK-NEXT:  %0 = arith.muli %ac, %3 : i32
+// CHECK-NEXT:  %0 = arith.constant 1 : i32
+// CHECK-NEXT:  %1 = arith.divui %twoc, %twoc : i32
+// CHECK-NEXT:  %2 = eqsat.eclass %0, %1 : i32
+// CHECK-NEXT:  %3 = arith.muli %divc, %2 : i32
 // CHECK-NEXT:  %div = arith.divui %mulc, %twoc : i32
-// CHECK-NEXT:  func.return %ac : i32
+// CHECK-NEXT:  %divc = eqsat.eclass %div, %a, %3 : i32
+// CHECK-NEXT:  func.return %divc : i32
 // CHECK-NEXT: }
 
 pdl_interp.func @matcher(%arg0: !pdl.operation) {

@@ -2,10 +2,10 @@
 
 // CHECK:      %x_c = eqsat.eclass %x : i32
 // CHECK-NEXT: %zero = arith.constant 0 : i32
-// CHECK-NEXT: %a = arith.muli %x_c, %b_c : i32
+// CHECK-NEXT: %a = arith.muli %x_c, %a_c : i32
+// CHECK-NEXT: %a_c = eqsat.eclass %zero, %a, %b : i32
 // CHECK-NEXT: %b = arith.subi %x_c, %x_c : i32
-// CHECK-NEXT: %b_c = eqsat.eclass %zero, %a, %b : i32
-// CHECK-NEXT: func.return %b_c, %b_c : i32, i32
+// CHECK-NEXT: func.return %a_c, %a_c : i32, i32
 
 func.func @impl(%x: i32) -> (i32, i32) {
   %x_c = eqsat.eclass %x : i32
