@@ -23,6 +23,7 @@ from typing_extensions import Self, TypeVar, deprecated
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
+    AttributeInvT,
     Block,
     BlockOps,
     BuiltinAttribute,
@@ -51,6 +52,7 @@ from xdsl.irdl import (
     ConstraintVariableType,
     GenericAttrConstraint,
     GenericData,
+    GenericRangeConstraint,
     IntConstraint,
     IRDLAttrConstraint,
     IRDLGenericAttrConstraint,
@@ -58,6 +60,7 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
+    RangeOf,
     VarExtractor,
     attr_constr_coercion,
     base,
@@ -137,25 +140,6 @@ class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "none"
 
 
-@dataclass(frozen=True)
-class ArrayOfConstraint(AttrConstraint):
-    """
-    A constraint that enforces an ArrayData whose elements all satisfy
-    the elem_constr.
-    """
-
-    elem_constr: AttrConstraint
-
-    def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
-        object.__setattr__(self, "elem_constr", attr_constr_coercion(constr))
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, ArrayAttr):
-            raise VerifyException(f"expected ArrayData attribute, but got {attr}")
-        for e in cast(ArrayAttr[Attribute], attr).data:
-            self.elem_constr.verify(e, constraint_context)
-
-
 @irdl_attr_definition
 class ArrayAttr(
     GenericData[tuple[AttributeCovT, ...]], BuiltinAttribute, Iterable[AttributeCovT]
@@ -183,13 +167,81 @@ class ArrayAttr(
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
         assert len(args) == 1
-        return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
+        return ArrayOfConstraint(RangeOf(irdl_to_attr_constraint(args[0])))
 
     def __len__(self):
         return len(self.data)
 
     def __iter__(self) -> Iterator[AttributeCovT]:
         return iter(self.data)
+
+    @staticmethod
+    def constr(
+        constr: (
+            IRDLGenericAttrConstraint[AttributeInvT]
+            | GenericRangeConstraint[AttributeInvT]
+        ),
+    ) -> GenericAttrConstraint[ArrayAttr[AttributeInvT]]:
+        return ArrayOfConstraint(constr)
+
+
+@dataclass(frozen=True)
+class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
+    elem_range_constraint: GenericRangeConstraint[AttributeCovT]
+    """
+    A constraint that enforces an ArrayData whose elements satisfy
+    the underlying range constraint.
+    """
+
+    def __init__(
+        self,
+        constr: (
+            IRDLGenericAttrConstraint[Attribute] | GenericRangeConstraint[AttributeCovT]
+        ),
+    ):
+        if isinstance(constr, GenericRangeConstraint):
+            object.__setattr__(self, "elem_range_constraint", constr)
+        else:
+            object.__setattr__(
+                self, "elem_range_constraint", RangeOf(irdl_to_attr_constraint(constr))
+            )
+
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        if not isa(attr, ArrayAttr):
+            raise VerifyException(
+                f"expected ArrayAttr attribute, but got '{type(attr)}'"
+            )
+        self.elem_range_constraint.verify(attr.data, constraint_context)
+
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.elem_range_constraint.can_infer(
+            var_constraint_names, length_known=False
+        )
+
+    def infer(self, context: ConstraintContext) -> ArrayAttr[AttributeCovT]:
+        return ArrayAttr(self.elem_range_constraint.infer(context, length=None))
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        return ArrayAttr
+
+    @dataclass(frozen=True)
+    class _Extractor(VarExtractor[Attribute]):
+        inner: VarExtractor[Sequence[Attribute]]
+
+        def extract_var(self, a: Attribute) -> ConstraintVariableType:
+            assert isinstance(a, ArrayAttr)
+            a = cast(ArrayAttr[Attribute], a)
+            return self.inner.extract_var(a.data)
+
+    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
+        return {
+            k: self._Extractor(v)
+            for k, v in self.elem_range_constraint.get_variable_extractors().items()
+        }
 
 
 @irdl_attr_definition
@@ -637,6 +689,7 @@ I16 = Annotated[IntegerType, i16]
 I8 = Annotated[IntegerType, i8]
 I1 = Annotated[IntegerType, i1]
 
+_IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
 
 SignlessIntegerConstraint = ParamAttrConstraint(
     IntegerType, [IntAttr, SignednessAttr(Signedness.SIGNLESS)]
@@ -1017,27 +1070,30 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
 
-ComplexElementT = TypeVar(
-    "ComplexElementT", bound=IntegerType | AnyFloat, default=IntegerType | AnyFloat
+ComplexElementCovT = TypeVar(
+    "ComplexElementCovT",
+    bound=IntegerType | AnyFloat,
+    default=IntegerType | AnyFloat,
+    covariant=True,
 )
 
 
 @irdl_attr_definition
 class ComplexType(
-    Generic[ComplexElementT],
+    Generic[ComplexElementCovT],
     PackableType[tuple[float, float] | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
-    ContainerType[ComplexElementT],
+    ContainerType[ComplexElementCovT],
     TypeAttribute,
 ):
     name = "complex"
-    element_type: ParameterDef[ComplexElementT]
+    element_type: ParameterDef[ComplexElementCovT]
 
-    def __init__(self, element_type: ComplexElementT):
+    def __init__(self, element_type: ComplexElementCovT):
         super().__init__([element_type])
 
-    def get_element_type(self) -> ComplexElementT:
+    def get_element_type(self) -> ComplexElementCovT:
         return self.element_type
 
     @property
@@ -1388,11 +1444,24 @@ class DenseResourceAttr(ParametrizedAttribute, BuiltinAttribute):
         return DenseResourceAttr([handle, type])
 
 
+DenseArrayT = TypeVar(
+    "DenseArrayT",
+    bound=IntegerType | AnyFloat,
+    default=IntegerType | AnyFloat,
+    covariant=True,
+)
+
+
 @irdl_attr_definition
-class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
+class DenseArrayBase(
+    Generic[DenseArrayT],
+    ContainerType[DenseArrayT],
+    ParametrizedAttribute,
+    BuiltinAttribute,
+):
     name = "array"
 
-    elt_type: ParameterDef[IntegerType | AnyFloat]
+    elt_type: ParameterDef[DenseArrayT]
     data: ParameterDef[BytesAttr]
 
     def verify(self):
@@ -1404,10 +1473,13 @@ class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
                 f"size {elt_size}"
             )
 
+    def get_element_type(self) -> DenseArrayT:
+        return self.elt_type
+
     @staticmethod
     def create_dense_int(
-        data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
-    ) -> DenseArrayBase:
+        data_type: _IntegerTypeInvT, data: Sequence[int] | Sequence[IntAttr]
+    ) -> DenseArrayBase[_IntegerTypeInvT]:
         if len(data) and isinstance(data[0], IntAttr):
             value_list = tuple(d.data for d in cast(Sequence[IntAttr], data))
         else:
@@ -1423,8 +1495,8 @@ class DenseArrayBase(ParametrizedAttribute, BuiltinAttribute):
 
     @staticmethod
     def create_dense_float(
-        data_type: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
-    ) -> DenseArrayBase:
+        data_type: _FloatAttrTypeInvT, data: Sequence[float] | Sequence[FloatData]
+    ) -> DenseArrayBase[_FloatAttrTypeInvT]:
         if len(data) and isinstance(data[0], int | float):
             vals = data
         else:
@@ -1700,6 +1772,14 @@ class UnrealizedConversionCastOp(IRDLOperation):
             operands=[inputs],
             result_types=[result_type],
         )
+
+    @staticmethod
+    def cast_one(
+        input: SSAValue, result_type: AttributeInvT
+    ) -> tuple[UnrealizedConversionCastOp, SSAValue[AttributeInvT]]:
+        op = UnrealizedConversionCastOp(operands=(input,), result_types=(result_type,))
+        res: SSAValue[AttributeInvT] = op.results[0]  # pyright: ignore[reportAssignmentType]
+        return op, res
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -2139,7 +2219,7 @@ RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]
 )
 
-AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
+AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
 DenseElementCovT = TypeVar(
     "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
 )
@@ -2272,6 +2352,27 @@ class DenseIntOrFPElementsAttr(
 
     @overload
     @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType[_IntegerTypeInvT]],
+        data: Sequence[tuple[int, int]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[_IntegerTypeInvT]]: ...
+
+    @overload
+    @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType[_FloatAttrTypeInvT]],
+        data: Sequence[tuple[float, float]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
+
+    @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType[ComplexElementCovT]],
+        data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementCovT]]:
+        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
+
+    @overload
+    @staticmethod
     def from_list(
         type: (
             RankedStructure[AnyFloat | IntegerType | IndexType]
@@ -2377,7 +2478,14 @@ class DenseIntOrFPElementsAttr(
                 TensorType(data_type, shape), new_data
             )
 
-    def iter_values(self) -> Iterator[int] | Iterator[float]:
+    def iter_values(
+        self,
+    ) -> (
+        Iterator[int]
+        | Iterator[float]
+        | Iterator[tuple[int, int]]
+        | Iterator[tuple[float, float]]
+    ):
         """
         Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
         """
@@ -2401,7 +2509,25 @@ class DenseIntOrFPElementsAttr(
         assert isinstance(el_type, AnyFloat), el_type
         return el_type.unpack(self.data.data, len(self))
 
-    def get_values(self) -> Sequence[int] | Sequence[float]:
+    def get_complex_values(
+        self,
+    ) -> Sequence[tuple[int, int]] | Sequence[tuple[float, float]]:
+        """
+        Return all the values of the elements in this DenseIntOrFPElementsAttr,
+        checking that the elements are complex.
+        """
+        el_type = self.get_element_type()
+        assert isinstance(el_type, ComplexType), el_type
+        return el_type.unpack(self.data.data, len(self))
+
+    def get_values(
+        self,
+    ) -> (
+        Sequence[int]
+        | Sequence[float]
+        | Sequence[tuple[int, int]]
+        | Sequence[tuple[float, float]]
+    ):
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
@@ -2414,8 +2540,9 @@ class DenseIntOrFPElementsAttr(
         """
         if isinstance(eltype := self.get_element_type(), IntegerType | IndexType):
             return IntegerAttr.iter_unpack(eltype, self.data.data)
-        else:
+        elif isinstance(eltype, AnyFloat):
             return FloatAttr.iter_unpack(eltype, self.data.data)
+        raise NotImplementedError()
 
     def get_attrs(self) -> Sequence[IntegerAttr] | Sequence[FloatAttr]:
         """
@@ -2424,8 +2551,9 @@ class DenseIntOrFPElementsAttr(
         """
         if isinstance(eltype := self.get_element_type(), IntegerType | IndexType):
             return IntegerAttr.unpack(eltype, self.data.data, len(self))
-        else:
+        elif isinstance(eltype, AnyFloat):
             return FloatAttr.unpack(eltype, self.data.data, len(self))
+        raise NotImplementedError()
 
     def is_splat(self) -> bool:
         """
@@ -2440,16 +2568,23 @@ class DenseIntOrFPElementsAttr(
         assert isa(type, RankedStructure[AnyDenseElement])
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
-    def _print_one_elem(self, val: int | float, printer: Printer):
+    def _print_one_elem(
+        self, val: int | float | tuple[int, int] | tuple[float, float], printer: Printer
+    ):
         if isinstance(val, int):
             element_type = cast(IntegerType | IndexType, self.get_element_type())
             element_type.print_value_without_type(val, printer)
-        else:  # float
+        elif isinstance(val, float):
             printer.print_float(val, cast(AnyFloat, self.get_element_type()))
+        else:
+            raise NotImplementedError("Next PR")
 
     def _print_dense_list(
         self,
-        array: Sequence[int] | Sequence[float],
+        array: Sequence[int]
+        | Sequence[float]
+        | Sequence[tuple[int, int]]
+        | Sequence[tuple[float, float]],
         shape: Sequence[int],
         printer: Printer,
     ):

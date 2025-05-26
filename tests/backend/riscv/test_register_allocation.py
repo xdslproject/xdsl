@@ -27,26 +27,26 @@ def test_default_reserved_registers():
 
     register_allocator = RegisterAllocatorLivenessBlockNaive(register_queue)
 
-    assert not register_allocator.allocate_same(())
+    assert not register_allocator.allocate_values_same_reg(())
 
     op_a = TestOp(result_types=[unallocated])
-    register_allocator.allocate_same(op_a.results)
+    register_allocator.allocate_values_same_reg(op_a.results)
 
     assert op_a.results[0].type == j(1)
 
-    register_allocator.allocate_same(op_a.results)
+    register_allocator.allocate_values_same_reg(op_a.results)
 
     assert op_a.results[0].type == j(1)
 
     op_b = TestOp(result_types=[unallocated, unallocated])
 
-    register_allocator.allocate_same(op_b.results)
+    register_allocator.allocate_values_same_reg(op_b.results)
 
     assert tuple(op_b.result_types) == (j(2), j(2))
 
     op_c = TestOp(result_types=[j(2), unallocated])
 
-    register_allocator.allocate_same(op_c.results)
+    register_allocator.allocate_values_same_reg(op_c.results)
 
     assert tuple(op_c.result_types) == (j(2), j(2))
 
@@ -58,7 +58,7 @@ def test_default_reserved_registers():
             "Cannot allocate registers to the same register ['!riscv.reg<j_2>', '!riscv.reg<j_3>']"
         ),
     ):
-        register_allocator.allocate_same(op_d.results)
+        register_allocator.allocate_values_same_reg(op_d.results)
 
     op_e = TestOp(result_types=[j(2), j(3), unallocated])
 
@@ -68,7 +68,7 @@ def test_default_reserved_registers():
             "Cannot allocate registers to the same register ['!riscv.reg', '!riscv.reg<j_2>', '!riscv.reg<j_3>']"
         ),
     ):
-        register_allocator.allocate_same(op_e.results)
+        register_allocator.allocate_values_same_reg(op_e.results)
 
 
 def test_allocate_with_inout_constraints():
@@ -107,7 +107,7 @@ def test_allocate_with_inout_constraints():
         ]
     ).results
     op0 = MyInstructionOp.get(rs0, rs1, "", "")
-    register_allocator.process_riscv_op(op0)
+    op0.allocate_registers(register_allocator)
     assert op0.rs0.type == riscv.IntRegisterType.infinite_register(1)
     assert op0.rs1.type == riscv.IntRegisterType.infinite_register(0)
     assert op0.rd0.type == riscv.IntRegisterType.infinite_register(1)
@@ -122,7 +122,7 @@ def test_allocate_with_inout_constraints():
         ]
     ).results
     op1 = MyInstructionOp.get(rs0, rs1, "", "a0")
-    register_allocator.process_riscv_op(op1)
+    op1.allocate_registers(register_allocator)
     assert op1.rs0.type == riscv.IntRegisterType.infinite_register(2)
     assert op1.rs1.type == riscv.IntRegisterType.from_name("a0")
     assert op1.rd0.type == riscv.IntRegisterType.infinite_register(2)

@@ -1,7 +1,17 @@
+import re
+
 import pytest
 
 from xdsl.irdl import AtLeast, ConstraintContext
 from xdsl.utils.exceptions import VerifyException
+
+
+def test_failing_inference():
+    with pytest.raises(
+        ValueError,
+        match=re.escape(r"Cannot infer integer from constraint AtLeast(bound=3)"),
+    ):
+        AtLeast(3).infer(ConstraintContext())
 
 
 def test_at_least():

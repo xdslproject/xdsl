@@ -193,6 +193,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_vector_to_ptr.ConvertVectorToPtrPass
 
+    def get_convert_vector_to_x86():
+        from xdsl.backend.x86.lowering import convert_vector_to_x86
+
+        return convert_vector_to_x86.ConvertVectorToX86Pass
+
     def get_jax_use_donated_arguments():
         from xdsl.transforms import jax_use_donated_arguments
 
@@ -302,6 +307,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import inline_snrt
 
         return inline_snrt.InlineSnrtPass
+
+    def get_licm():
+        from xdsl.transforms import loop_invariant_code_motion
+
+        return loop_invariant_code_motion.LoopInvariantCodeMotionPass
 
     def get_lift_arith_to_linalg():
         from xdsl.transforms.lift_arith_to_linalg import LiftArithToLinalg
@@ -568,6 +578,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "convert-varith-to-arith": get_convert_varith_to_arith,
         "convert-vector-to-ptr": get_convert_vector_to_ptr,
+        "convert-vector-to-x86": get_convert_vector_to_x86,
         "jax-use-donated-arguments": get_jax_use_donated_arguments,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
@@ -590,6 +601,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "inline-snrt": get_inline_snrt,
+        "licm": get_licm,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-fuse-multiply-add": get_linalg_fuse_multiply_add,
         "linalg-to-csl": get_linalg_to_csl,

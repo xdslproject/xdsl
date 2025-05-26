@@ -1,6 +1,6 @@
 import dataclasses
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable
 from dataclasses import Field, dataclass, field
 from types import NoneType, UnionType
 from typing import (
@@ -210,15 +210,15 @@ class PipelinePass(ModulePass):
         self.passes[-1].apply(ctx, op)
 
     @classmethod
-    def build_pipeline_tuples(
+    def iter_passes(
         cls,
         available_passes: dict[str, Callable[[], type[ModulePass]]],
         pass_spec_pipeline: Iterable[PipelinePassSpec],
-    ) -> Iterator[tuple[type[ModulePass], PipelinePassSpec]]:
+    ) -> Iterable[ModulePass]:
         for p in pass_spec_pipeline:
             if p.name not in available_passes:
                 raise Exception(f"Unrecognized pass: {p.name}")
-            yield (available_passes[p.name](), p)
+            yield available_passes[p.name]().from_pass_spec(p)
 
 
 def _convert_pass_arg_to_type(

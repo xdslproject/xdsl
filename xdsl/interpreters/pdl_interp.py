@@ -15,7 +15,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
@@ -328,14 +328,6 @@ class PDLInterpFunctions(InterpreterFunctions):
             else:
                 attributes[name] = prop_or_attr
         result_types = list(args[len(op.input_operands) + len(op.input_attributes) :])
-
-        # Verify all arguments have correct types
-        for operand in operands:
-            assert isinstance(operand, SSAValue)
-        for attr in attributes.values():
-            assert isinstance(attr, Attribute)
-        for res_type in result_types:
-            assert isinstance(res_type, TypeAttribute)
 
         # Create the new operation
         result_op = op_type.create(

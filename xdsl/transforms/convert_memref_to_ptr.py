@@ -19,15 +19,20 @@ from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
 
-def offset_calculations(
-    memref_type: memref.MemRefType[Any], indices: Iterable[SSAValue]
+def get_target_ptr(
+    target_memref: SSAValue,
+    memref_type: memref.MemRefType[Any],
+    indices: Iterable[SSAValue],
 ) -> tuple[list[Operation], SSAValue]:
     """
-    Get operations calculating an offset which needs to be added to memref's base
-    pointer to access an element referenced by indices.
+    Get operations returning a pointer to an element of a memref referenced by indices.
     """
 
-    assert isinstance(memref_type.element_type, builtin.FixedBitwidthType)
+    ops: list[Operation] = [memref_ptr := ptr.ToPtrOp(target_memref)]
+    memref_ptr.res.name_hint = target_memref.name_hint
+
+    if not indices:
+        return ops, memref_ptr.res
 
     match memref_type.layout:
         case builtin.NoneAttr():
@@ -36,8 +41,6 @@ def offset_calculations(
             strides = memref_type.layout.get_strides()
         case _:
             raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
-
-    ops: list[Operation] = []
 
     head: SSAValue | None = None
 
@@ -95,24 +98,7 @@ def offset_calculations(
     bytes_per_element_op.offset.name_hint = "bytes_per_element"
     final_offset.result.name_hint = "scaled_pointer_offset"
 
-    return ops, final_offset.result
-
-
-def get_target_ptr(
-    target_memref: SSAValue,
-    memref_type: memref.MemRefType[Any],
-    indices: Iterable[SSAValue],
-) -> tuple[list[Operation], SSAValue]:
-    """Get operations returning a pointer to an element of a memref referenced by indices."""
-
-    ops: list[Operation] = [memref_ptr := ptr.ToPtrOp(target_memref)]
-
-    if not indices:
-        return ops, memref_ptr.res
-
-    offset_ops, offset = offset_calculations(memref_type, indices)
-    ops = offset_ops + ops
-    ops.append(target_ptr := ptr.PtrAddOp(memref_ptr.res, offset))
+    ops.append(target_ptr := ptr.PtrAddOp(memref_ptr.res, final_offset.result))
 
     target_ptr.result.name_hint = "offset_pointer"
     return ops, target_ptr.result

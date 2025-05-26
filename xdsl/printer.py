@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
     BFloat16Type,
     BoolAttr,
     BytesAttr,
-    ComplexElementT,
+    ComplexElementCovT,
     ComplexType,
     DenseArrayBase,
     DenseResourceAttr,
@@ -343,7 +343,7 @@ class Printer(BasePrinter):
         self.print_float(attribute.value.data, attribute.type)
 
     def print_complex_float(
-        self, value: tuple[float, float], type: ComplexType[ComplexElementT]
+        self, value: tuple[float, float], type: ComplexType[ComplexElementCovT]
     ):
         assert isinstance(type.element_type, AnyFloat)
         self.print_string("(")
@@ -354,7 +354,7 @@ class Printer(BasePrinter):
         self.print_string(")")
 
     def print_complex_int(
-        self, value: tuple[int, int], type: ComplexType[ComplexElementT]
+        self, value: tuple[int, int], type: ComplexType[ComplexElementCovT]
     ):
         assert isinstance(type.element_type, IntegerType)
         self.print_string("(")
@@ -367,7 +367,7 @@ class Printer(BasePrinter):
     def print_complex(
         self,
         value: tuple[float, float] | tuple[int, int],
-        type: ComplexType[ComplexElementT],
+        type: ComplexType[ComplexElementCovT],
     ):
         if isinstance(type.element_type, IntegerType):
             assert isa(value, tuple[int, int])
@@ -504,7 +504,7 @@ class Printer(BasePrinter):
             self.print_string("]")
             return
 
-        if isinstance(attribute, DenseArrayBase):
+        if isa(attribute, DenseArrayBase):
             self.print_string("array<")
             self.print_attribute(attribute.elt_type)
             if len(attribute) == 0:
