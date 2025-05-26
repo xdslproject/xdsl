@@ -199,20 +199,20 @@ def _(mo):
 
 
 @app.cell
-def _(AnyOf, StringAttr, i32, i64):
+def _(AnyOf, ConstraintContext, StringAttr, i32, i64):
     # Construct the constraint. Note that we are using the coercion defined previously.
     or_constraint = AnyOf([i32, StringAttr])
 
     # This will pass without triggering an exception, since the first constraint is satisfied
-    or_constraint.verify(i32)
+    or_constraint.verify(i32, ConstraintContext())
 
     # This will pass without triggering an exception, since the second constraint is satisfied
-    or_constraint.verify(StringAttr("ga"))
-    or_constraint.verify(StringAttr("bu"))
+    or_constraint.verify(StringAttr("ga"), ConstraintContext())
+    or_constraint.verify(StringAttr("bu"), ConstraintContext())
 
     # This will trigger an exception, since none of the constraints are satisfied
     try:
-        or_constraint.verify(i64)
+        or_constraint.verify(i64, ConstraintContext())
     except Exception as e:
         print(e)
     return
