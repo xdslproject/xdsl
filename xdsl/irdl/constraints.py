@@ -593,13 +593,14 @@ class ParamAttrConstraint(
             raise VerifyException(
                 f"{attr} should be of base attribute {self.base_attr.name}"
             )
-        if len(self.param_constrs) != len(attr.parameters):
+        parameters = attr.parameters
+        if len(self.param_constrs) != len(parameters):
             raise VerifyException(
                 f"{len(self.param_constrs)} parameters expected, "
-                f"but got {len(attr.parameters)}"
+                f"but got {len(parameters)}"
             )
         for idx, param_constr in enumerate(self.param_constrs):
-            param_constr.verify(attr.parameters[idx], constraint_context)
+            param_constr.verify(parameters[idx], constraint_context)
 
     @dataclass(frozen=True)
     class _Extractor(VarExtractor[Attribute]):
