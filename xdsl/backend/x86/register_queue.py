@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.backend.register_queue import LIFORegisterQueue
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.x86 import register
 
 
@@ -17,6 +18,14 @@ class X86RegisterQueue(LIFORegisterQueue):
     }
 
     DEFAULT_AVAILABLE_REGISTERS = (*reversed(register.YMM),)
+
+    def push(self, reg: RegisterType) -> None:
+        if (
+            isinstance(reg, register.GeneralRegisterType)
+            and reg not in self.DEFAULT_RESERVED_REGISTERS
+        ):
+            raise NotImplementedError("x86 general register type not implemented yet.")
+        super().push(reg)
 
     @classmethod
     def default_reserved_registers(cls):

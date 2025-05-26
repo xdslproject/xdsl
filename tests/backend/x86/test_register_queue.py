@@ -1,3 +1,5 @@
+import pytest
+
 from xdsl.backend.x86.register_queue import X86RegisterQueue
 from xdsl.dialects import x86
 
@@ -18,16 +20,18 @@ def test_default_reserved_registers():
 def test_push_infinite_register():
     register_queue = X86RegisterQueue()
 
-    infinite0 = x86.GeneralRegisterType.infinite_register(0)
+    infinite0 = x86.AVX2RegisterType.infinite_register(0)
     register_queue.push(infinite0)
-    assert register_queue.pop(x86.GeneralRegisterType) == infinite0
+    assert register_queue.pop(x86.AVX2RegisterType) == infinite0
 
 
 def test_push_register():
     register_queue = X86RegisterQueue()
 
-    register_queue.push(x86.register.RBX)
-    assert register_queue.pop(x86.GeneralRegisterType) == x86.register.RBX
+    with pytest.raises(
+        NotImplementedError, match="x86 general register type not implemented yet."
+    ):
+        register_queue.push(x86.register.RBX)
 
     register_queue.push(x86.register.YMM0)
     assert register_queue.pop(x86.AVX2RegisterType) == x86.register.YMM0
