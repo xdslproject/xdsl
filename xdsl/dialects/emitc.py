@@ -8,25 +8,30 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
 from collections.abc import Iterable
+from typing import cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    BFloat16Type,
     ContainerType,
+    Float16Type,
+    Float32Type,
+    Float64Type,
+    IndexType,
     IntAttr,
     IntegerType,
     ShapedType,
+    TensorType,
+    TupleType,
 )
 from xdsl.ir import (
+    Attribute,
     AttributeCovT,
     Dialect,
     ParametrizedAttribute,
     TypeAttribute,
 )
-from xdsl.irdl import (
-    Attribute,
-    ParameterDef,
-    irdl_attr_definition,
-)
+from xdsl.irdl import ParameterDef, irdl_attr_definition, isa
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -64,6 +69,11 @@ class EmitC_ArrayType(
                 )
 
         element_type = self.get_element_type()
+
+        if isinstance(element_type, EmitC_ArrayType):
+            raise VerifyException(
+                "EmitC array element type cannot be another EmitC_ArrayType."
+            )
 
         # Check that the element type is a supported EmitC type.
         if not is_supported_emitc_type(element_type):
@@ -117,8 +127,27 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
     match type_attr:
         case IntegerType():
             return _is_supported_integer_type(type_attr)
-        case _:
+        case IndexType():
             return True
+        case EmitC_ArrayType():
+            elem_type = cast(Attribute, type_attr.get_element_type())
+            return not isa(elem_type, EmitC_ArrayType) and is_supported_emitc_type(
+                elem_type
+            )
+        case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
+            return True
+        case TensorType():
+            elem_type = cast(Attribute, type_attr.get_element_type())
+            if isinstance(elem_type, EmitC_ArrayType):
+                return False
+            return is_supported_emitc_type(elem_type)
+        case TupleType():
+            return all(
+                not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
+                for t in type_attr.types
+            )
+        case _:
+            return False
 
 
 EmitC = Dialect(
