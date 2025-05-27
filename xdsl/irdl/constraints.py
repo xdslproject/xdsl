@@ -55,30 +55,12 @@ class ConstraintContext:
         return self._int_variables.get(key)
 
     def set_attr_variable(self, key: str, attr: Attribute):
-        if key in self._variables and self._variables[key] != attr:
-            raise ValueError(
-                f"Variable {key} was set to different attributes:\n"
-                f"Possible values: {self._variables[key]}, {attr}"
-            )
-
         self._variables[key] = attr
 
     def set_range_variable(self, key: str, attrs: tuple[Attribute, ...]):
-        if key in self._range_variables and self._range_variables[key] != attrs:
-            raise ValueError(
-                f"Variable {key} was set to different ranges:\n"
-                f"Possible values: {self._range_variables[key]}, {attrs}"
-            )
-
         self._range_variables[key] = attrs
 
     def set_int_variable(self, key: str, i: int):
-        if key in self._int_variables and self._int_variables[key] != i:
-            raise ValueError(
-                f"Variable {key} was set to different integers:\n"
-                f"Possible values: {self._int_variables[key]}, {i}"
-            )
-
         self._int_variables[key] = i
 
     @property
@@ -727,11 +709,12 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         """
         ...
 
+    @abstractmethod
     def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
         """
         Check if the length of the range satisfies the constraint, or raise an exception otherwise.
         """
-        pass
+        ...
 
     def variables(self) -> set[str]:
         """
@@ -801,6 +784,10 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         else:
             self.constraint.verify(attrs, constraint_context)
             constraint_context.set_range_variable(self.name, tuple(attrs))
+
+    def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
+        # It is not possible to fully verify the constraint from just the length, so we don't try.
+        pass
 
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
@@ -878,6 +865,10 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
         if len(attrs) != 1:
             raise VerifyException(f"Expected a single attribute, got {len(attrs)}")
         self.constr.verify(attrs[0], constraint_context)
+
+    def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
+        if length != 1:
+            raise VerifyException(f"Expected a single attribute, got {length}")
 
     def variables(self) -> set[str]:
         return self.constr.variables()
