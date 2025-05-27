@@ -21,7 +21,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypedAttribute,
 )
-from xdsl.utils.exceptions import PyRDLError, VerifyException
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
 if TYPE_CHECKING:
@@ -143,15 +143,9 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     def variables(self) -> set[str]:
         """
         Returns a set of the variables that can be extracted by this constraint.
+        These variables are always expected to be set after running `verify`.
         """
         return set()
-
-    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
-        """
-        Extracts the values of a constraint variables from the input attribute `attr`,
-        inserting them into the given constraint context.
-        """
-        pass
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         """
@@ -206,19 +200,13 @@ class TypedAttributeConstraint(GenericAttrConstraint[TypedAttributeCovT]):
     type_constraint: GenericAttrConstraint[Attribute]
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        self.attr_constraint.verify(attr, constraint_context)
         if not isinstance(attr, TypedAttribute):
             raise VerifyException(f"attribute {attr} expected to be a TypedAttribute")
+        self.attr_constraint.verify(attr, constraint_context)
         self.type_constraint.verify(attr.get_type(), constraint_context)
 
     def variables(self) -> set[str]:
         return self.type_constraint.variables() | self.attr_constraint.variables()
-
-    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
-        if not isinstance(attr, TypedAttribute):
-            raise PyRDLError(f"Inference expected {attr} to be a TypedAttribute")
-        self.attr_constraint.extract_variables(attr, constraint_context)
-        self.type_constraint.extract_variables(attr.get_type(), constraint_context)
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.attr_constraint.can_infer(var_constraint_names)
@@ -258,10 +246,6 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
 
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
-
-    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
-        constraint_context.set_attr_variable(self.name, attr)
-        self.constraint.extract_variables(attr, constraint_context)
 
     def infer(self, context: ConstraintContext) -> AttributeCovT:
         v = context.get_variable(self.name)
@@ -432,10 +416,6 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         else:
             return set()
 
-    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
-        if len(self.attr_constrs) == 1:
-            self.attr_constrs[0].extract_variables(attr, constraint_context)
-
     def get_unique_base(self) -> type[Attribute] | None:
         bases = [constr.get_unique_base() for constr in self.attr_constrs]
         if None in bases:
@@ -477,10 +457,6 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
         for constr in self.attr_constrs:
             vars |= constr.variables()
         return vars
-
-    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
-        for constr in self.attr_constrs:
-            constr.extract_variables(attr, constraint_context)
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return any(
@@ -569,14 +545,6 @@ class ParamAttrConstraint(
             vars |= constr.variables()
         return vars
 
-    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
-        if not isinstance(attr, ParametrizedAttribute):
-            raise PyRDLError(
-                f"Inference expected {attr} to be a ParameterizedAttribute"
-            )
-        for i, constr in enumerate(self.param_constrs):
-            constr.extract_variables(attr.parameters[i], constraint_context)
-
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return is_runtime_final(self.base_attr) and all(
             constr.can_infer(var_constraint_names) for constr in self.param_constrs
@@ -629,9 +597,6 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
     def variables(self) -> set[str]:
         return self.constr.variables()
 
-    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
-        return self.constr.extract_variables(attr, constraint_context)
-
     def get_unique_base(self) -> type[Attribute] | None:
         return self.constr.get_unique_base()
 
@@ -660,15 +625,9 @@ class IntConstraint(ABC):
     def variables(self) -> set[str]:
         """
         Returns a set of the variables that can be extracted by this constraint.
+        These variables are always expected to be set after running `verify`.
         """
         return set()
-
-    def extract_variables(self, i: int, constraint_context: ConstraintContext):
-        """
-        Extracts the values of an constraint variables from the input int `i`,
-        inserting them into the given constraint context.
-        """
-        pass
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         """
@@ -741,10 +700,6 @@ class IntVarConstraint(IntConstraint):
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
 
-    def extract_variables(self, i: int, constraint_context: ConstraintContext):
-        constraint_context.set_int_variable(self.name, i)
-        self.constraint.extract_variables(i, constraint_context)
-
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.name in var_constraint_names
 
@@ -769,39 +724,28 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
     ) -> None:
         """
         Check if the range satisfies the constraint, or raise an exception otherwise.
-        The range can contain Nones, which represent an attribute not to be checked.
         """
         ...
+
+    def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
+        """
+        Check if the length of the range satisfies the constraint, or raise an exception otherwise.
+        """
+        pass
 
     def variables(self) -> set[str]:
         """
         Returns a set of the variables that can be extracted by this constraint.
+        These variables are always expected to be set after running `verify`.
         """
         return set()
 
     def variables_from_length(self) -> set[str]:
         """
         Returns a set of the variables that can be extracted from the range length by this constraint.
+        These variables are always expected to be set after running `verify_length`.
         """
         return set()
-
-    def extract_variables(
-        self, attrs: Sequence[Attribute], constraint_context: ConstraintContext
-    ):
-        """
-        Extracts the values of a constraint variables from the input attribute range `attrs`,
-        inserting them into the given constraint context.
-        """
-        pass
-
-    def extract_variables_from_length(
-        self, length: int, constraint_context: ConstraintContext
-    ):
-        """
-        Extracts the values of a constraint variables from int `length`,
-        inserting them into the given constraint context.
-        """
-        pass
 
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
         """
@@ -861,12 +805,6 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
 
-    def extract_variables(
-        self, attrs: Sequence[Attribute], constraint_context: ConstraintContext
-    ):
-        constraint_context.set_range_variable(self.name, tuple(attrs))
-        self.constraint.extract_variables(attrs, constraint_context)
-
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
         return self.name in var_constraint_names
 
@@ -901,13 +839,11 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
                 "incorrect length for range variable:\n" + str(e)
             ) from e
 
+    def verify_length(self, length: int, constraint_context: ConstraintContext):
+        self.length.verify(length, constraint_context)
+
     def variables_from_length(self) -> set[str]:
         return self.length.variables()
-
-    def extract_variables_from_length(
-        self, length: int, constraint_context: ConstraintContext
-    ):
-        self.length.extract_variables(length, constraint_context)
 
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
         return (
@@ -945,11 +881,6 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
 
     def variables(self) -> set[str]:
         return self.constr.variables()
-
-    def extract_variables(
-        self, attrs: Sequence[Attribute], constraint_context: ConstraintContext
-    ):
-        self.constr.extract_variables(attrs[0], constraint_context)
 
     def can_infer(
         self, var_constraint_names: Set[str], *, length_known: int | None

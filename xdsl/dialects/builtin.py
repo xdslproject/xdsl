@@ -86,7 +86,7 @@ from xdsl.utils.comparisons import (
     unsigned_upper_bound,
     unsigned_value_range,
 )
-from xdsl.utils.exceptions import DiagnosticException, PyRDLError, VerifyException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
@@ -229,11 +229,6 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     def variables(self) -> set[str]:
         return self.elem_range_constraint.variables()
 
-    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
-        if not isa(attr, ArrayAttr):
-            raise PyRDLError(f"Inference expected {attr} to be a ArrayAttr")
-        self.elem_range_constraint.extract_variables(attr.data, constraint_context)
-
 
 @irdl_attr_definition
 class StringAttr(Data[str], BuiltinAttribute):
@@ -359,11 +354,6 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
 
     def variables(self) -> set[str]:
         return self.int_constraint.variables()
-
-    def extract_variables(self, attr: Attribute, constraint_context: ConstraintContext):
-        if not isinstance(attr, IntAttr):
-            raise PyRDLError(f"Inference expected {attr} to be an IntAttr")
-        return self.int_constraint.extract_variables(attr.data, constraint_context)
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)
