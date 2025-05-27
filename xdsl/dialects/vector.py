@@ -33,7 +33,6 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
@@ -476,7 +475,9 @@ class ExtractElementOp(IRDLOperation):
 class InsertOp(IRDLOperation):
     name = "vector.insert"
 
-    _T: ClassVar = VarConstraint("T", AnyAttr())
+    _T: ClassVar = VarConstraint(
+        "T", base(IntegerType) | base(IndexType) | AnyFloatConstr
+    )
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
     static_position = prop_def(DenseI64ArrayConstr)
