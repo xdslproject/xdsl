@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     DenseI64ArrayConstr,
     IndexType,
     IndexTypeConstr,
+    IntegerType,
     MemRefType,
     SignlessIntegerConstraint,
     TensorType,
@@ -37,6 +38,7 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
+    base,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
@@ -313,7 +315,9 @@ class CreateMaskOp(IRDLOperation):
 class ExtractOp(IRDLOperation):
     name = "vector.extract"
 
-    _T: ClassVar = VarConstraint("T", AnyAttr())
+    _T: ClassVar = VarConstraint(
+        "T", base(IntegerType) | base(IndexType) | AnyFloatConstr
+    )
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
     static_position = prop_def(DenseI64ArrayConstr)
