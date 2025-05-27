@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 
-from xdsl.backend.register_queue import RegisterStack
+from xdsl.backend.register_stack import RegisterStack
 from xdsl.dialects.riscv import Registers
 
 
 @dataclass
-class RiscvRegisterQueue(RegisterStack):
+class RiscvRegisterStack(RegisterStack):
     """
-    LIFO queue of RISCV-specific registers.
+    Available RISCV-specific registers.
     """
 
     DEFAULT_RESERVED_REGISTERS = {
@@ -28,8 +28,8 @@ class RiscvRegisterQueue(RegisterStack):
 
     @classmethod
     def default_reserved_registers(cls):
-        return RiscvRegisterQueue.DEFAULT_RESERVED_REGISTERS
+        return RiscvRegisterStack.DEFAULT_RESERVED_REGISTERS
 
     @classmethod
     def default_available_registers(cls):
-        return RiscvRegisterQueue.DEFAULT_AVAILABLE_REGISTERS
+        return RiscvRegisterStack.DEFAULT_AVAILABLE_REGISTERS

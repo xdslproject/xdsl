@@ -8,7 +8,7 @@ from xdsl.backend.riscv.register_allocation import (
     RegisterAllocatorLivenessBlockNaive,
     reg_types_by_name,
 )
-from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
+from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.dialects import riscv
 from xdsl.dialects.test import TestOp
 from xdsl.ir import SSAValue
@@ -17,15 +17,15 @@ from xdsl.utils.exceptions import DiagnosticException
 
 
 def test_default_reserved_registers():
-    register_queue = RiscvRegisterQueue()
+    available_registers = RiscvRegisterStack()
 
     unallocated = riscv.Registers.UNALLOCATED_INT
 
     j = riscv.IntRegisterType.infinite_register
 
-    assert register_queue.pop(riscv.IntRegisterType) == j(0)
+    assert available_registers.pop(riscv.IntRegisterType) == j(0)
 
-    register_allocator = RegisterAllocatorLivenessBlockNaive(register_queue)
+    register_allocator = RegisterAllocatorLivenessBlockNaive(available_registers)
 
     assert not register_allocator.allocate_values_same_reg(())
 
@@ -96,8 +96,8 @@ def test_allocate_with_inout_constraints():
                 (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
             )
 
-    register_queue = RiscvRegisterQueue()
-    register_allocator = RegisterAllocatorLivenessBlockNaive(register_queue)
+    available_registers = RiscvRegisterStack()
+    register_allocator = RegisterAllocatorLivenessBlockNaive(available_registers)
 
     # All new registers. The result register is reused by the allocator for the operand.
     rs0, rs1 = TestOp(

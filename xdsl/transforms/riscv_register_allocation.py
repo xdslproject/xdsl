@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
-from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
+from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.context import Context
 from xdsl.dialects import riscv_func
 from xdsl.dialects.builtin import ModuleOp
@@ -44,11 +44,11 @@ class RISCVRegisterAllocation(ModulePass):
 
         for inner_op in op.walk():
             if isinstance(inner_op, riscv_func.FuncOp):
-                riscv_register_queue = RiscvRegisterQueue.default()
+                register_stack = RiscvRegisterStack.default()
                 if self.limit_registers is not None:
-                    riscv_register_queue.limit_registers(self.limit_registers)
+                    register_stack.limit_registers(self.limit_registers)
                 allocator = allocator_strategies[self.allocation_strategy](
-                    riscv_register_queue
+                    register_stack
                 )
                 allocator.allocate_func(
                     inner_op, add_regalloc_stats=self.add_regalloc_stats

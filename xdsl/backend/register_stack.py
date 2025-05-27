@@ -39,14 +39,14 @@ class RegisterStack:
     @classmethod
     def default_reserved_registers(cls) -> Iterable[RegisterType]:
         """
-        The default registers to be made unavailable when instantiating the queue.
+        The default registers to be made unavailable when instantiating the stack.
         """
         return ()
 
     @classmethod
     def default_available_registers(cls) -> Iterable[RegisterType]:
         """
-        The default registers to be made available when instantiating the queue.
+        The default registers to be made available when instantiating the stack.
         """
         return ()
 
@@ -104,8 +104,8 @@ class RegisterStack:
     def reserve_register(self, reg: RegisterType) -> None:
         """
         Increase the reservation count for a register.
-        If the reservation count is greater than 0, a register cannot be pushed back onto
-        the queue.
+        If the reservation count is greater than 0, a register cannot be pushed back
+        onto the stack.
         It is invalid to reserve a register that is available, and popping it before
         unreserving a register will result in an AssertionError.
         """

@@ -4,7 +4,7 @@ from typing import cast
 
 from ordered_set import OrderedSet
 
-from xdsl.backend.register_queue import RegisterStack
+from xdsl.backend.register_stack import RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.rewriter import Rewriter

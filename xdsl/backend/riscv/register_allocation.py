@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from xdsl.backend.block_naive_allocator import BlockNaiveAllocator
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import live_ins_per_block
-from xdsl.backend.register_queue import RegisterStack
+from xdsl.backend.register_stack import RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.riscv import Registers, RISCVRegisterType
