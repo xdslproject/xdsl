@@ -18,6 +18,7 @@ def _():
     import difflib
     from xdsl.backend.register_type import RegisterType
     from collections.abc import Iterator
+    from collections import defaultdict
     return (
         Block,
         Context,
@@ -26,6 +27,7 @@ def _():
         RiscvRegisterQueue,
         SSAValue,
         builtin,
+        defaultdict,
         mo,
         riscv,
         riscv_cf,
@@ -248,10 +250,14 @@ def _(mo):
     return
 
 
-@app.cell
-def _(mo, simple_func, simple_module, unallocated_value_names, xmo):
+@app.cell(hide_code=True)
+def _(conflicting_value_map, mo, simple_block, simple_func, xmo):
     try:
-        _sorted = "{" + ", ".join(sorted(unallocated_value_names(simple_module))) + "}"
+        _map = conflicting_value_map(simple_block)
+        _sorted = {
+            k: sorted(_map[k])
+            for k in sorted(_map)
+        }
         _res = str(_sorted)
     except Exception as e:
         _res = f"{type(e).__name__}: {e}"
@@ -260,14 +266,14 @@ def _(mo, simple_func, simple_module, unallocated_value_names, xmo):
 
     mo.md(
         fr"""
-        ### Exercise 3. Conflicting Registers
+        ### ~Exercise 3. Conflicting Registers~
 
         {_accordion}
 
         Modify the function below to return a map from values to values that it conflicts with. This includes other results of the same operation, and all results created before the value's last use.
 
         ```
-        Expected: {{c, d, e}}
+        Expected: {{'c': ['a', 'b'], 'd': ['c'], 'e': [], 'res_e': []}}
         Result:   {_res}
         ```
         """
@@ -276,18 +282,28 @@ def _(mo, simple_func, simple_module, unallocated_value_names, xmo):
 
 
 @app.cell
-def _(Block, defaultdict):
+def _(Block, SSAValue, defaultdict):
     def conflicting_value_map(block: Block) -> dict[str, set[str]]:
-        res = defaultdict(set)
+        res: defaultdict[SSAValue, set[SSAValue]] = defaultdict(set)
         live_values = set()
     
         for op in reversed(block.ops):
             # When we walk in reverse, the last use of a value is the first use we see!
-            for result in op.results:
-                ...
+            live_values.update(op.results)
+            for r in op.results:
+                res[r].update(live_values)
+            live_values.difference_update(op.results)
+            live_values.update(op.operands)
 
-        return res
-    return
+        # A value doesn't conflict with itself
+        for k in res:
+            res[k].remove(k)
+
+        return {
+            k.name_hint: {v.name_hint for v in res[k]}
+            for k in res
+        }
+    return (conflicting_value_map,)
 
 
 @app.cell(hide_code=True)
