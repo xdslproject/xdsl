@@ -223,8 +223,8 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     def infer(self, context: ConstraintContext) -> ArrayAttr[AttributeCovT]:
         return ArrayAttr(self.elem_range_constraint.infer(context, length=None))
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return ArrayAttr
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {ArrayAttr}
 
     def variables(self) -> set[str]:
         return self.elem_range_constraint.variables()
@@ -359,8 +359,8 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
     def infer(self, context: ConstraintContext) -> IntAttr:
         return IntAttr(self.int_constraint.infer(context))
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return IntAttr
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {IntAttr}
 
 
 class Signedness(Enum):

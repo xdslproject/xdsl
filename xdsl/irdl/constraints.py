@@ -147,8 +147,11 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         """
         raise ValueError(f"Cannot infer attribute from constraint {self}")
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        """Get the unique base type that can satisfy the constraint, if any."""
+    def get_bases(self) -> set[type[Attribute]] | None:
+        """
+        Get a set of base types that can satisfy this constraint, if there exists
+        a finite collection, or None otherwise.
+        """
         return None
 
     def __or__(
@@ -196,6 +199,9 @@ class TypedAttributeConstraint(GenericAttrConstraint[TypedAttributeCovT]):
     def infer(self, context: ConstraintContext) -> TypedAttributeCovT:
         return self.attr_constraint.infer(context)
 
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.attr_constraint.get_bases()
+
 
 @dataclass(frozen=True)
 class VarConstraint(GenericAttrConstraint[AttributeCovT]):
@@ -236,8 +242,8 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.name in var_constraint_names
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return self.constraint.get_unique_base()
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.constraint.get_bases()
 
 
 @dataclass(frozen=True, init=True)
@@ -276,8 +282,8 @@ class EqAttrConstraint(Generic[AttributeCovT], GenericAttrConstraint[AttributeCo
     def infer(self, context: ConstraintContext) -> AttributeCovT:
         return self.attr
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return type(self.attr)
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {type(self.attr)}
 
 
 @dataclass(frozen=True)
@@ -312,9 +318,9 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         attr = self.attr.new(())
         return attr
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_bases(self) -> set[type[Attribute]] | None:
         if is_runtime_final(self.attr):
-            return self.attr
+            return {self.attr}
         return None
 
 
@@ -394,13 +400,14 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         else:
             return set()
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        bases = [constr.get_unique_base() for constr in self.attr_constrs]
-        if None in bases:
-            return None
-        if len(set(bases)) == 1:
-            return bases[0]
-        return None
+    def get_bases(self) -> set[type[Attribute]] | None:
+        bases = set[type[Attribute]]()
+        for constr in self.attr_constrs:
+            b = constr.get_bases()
+            if b is None:
+                return
+            bases |= b
+        return bases
 
 
 @dataclass(frozen=True)
@@ -447,14 +454,17 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
                 return constr.infer(context)
         raise ValueError("Cannot infer attribute from constraint")
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        # This could be improved if we keep track of all the possible base types for
-        # each constraint.
+    def get_bases(self) -> set[type[Attribute]] | None:
+        bases: set[type[Attribute]] | None = None
         for constr in self.attr_constrs:
-            base = constr.get_unique_base()
-            if base is not None:
-                return base
-        return None
+            b = constr.get_bases()
+            if b is None:
+                continue
+            if bases is None:
+                bases = b
+            else:
+                bases &= b
+        return bases
 
     def __and__(
         self, value: GenericAttrConstraint[AttributeCovT], /
@@ -534,9 +544,9 @@ class ParamAttrConstraint(
         attr = self.base_attr.new(params)
         return attr
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_bases(self) -> set[type[Attribute]] | None:
         if is_runtime_final(self.base_attr):
-            return self.base_attr
+            return {self.base_attr}
         return None
 
 
@@ -576,8 +586,8 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
     def variables(self) -> set[str]:
         return self.constr.variables()
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return self.constr.get_unique_base()
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.constr.get_bases()
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.constr.can_infer(var_constraint_names)
