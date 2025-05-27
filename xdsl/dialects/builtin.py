@@ -298,9 +298,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
     Constrain attribute to be empty ArrayData
     """
 
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         attr = cast(ArrayAttr[Attribute], attr)
@@ -1044,27 +1042,30 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
 
-ComplexElementT = TypeVar(
-    "ComplexElementT", bound=IntegerType | AnyFloat, default=IntegerType | AnyFloat
+ComplexElementCovT = TypeVar(
+    "ComplexElementCovT",
+    bound=IntegerType | AnyFloat,
+    default=IntegerType | AnyFloat,
+    covariant=True,
 )
 
 
 @irdl_attr_definition
 class ComplexType(
-    Generic[ComplexElementT],
+    Generic[ComplexElementCovT],
     PackableType[tuple[float, float] | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
-    ContainerType[ComplexElementT],
+    ContainerType[ComplexElementCovT],
     TypeAttribute,
 ):
     name = "complex"
-    element_type: ParameterDef[ComplexElementT]
+    element_type: ParameterDef[ComplexElementCovT]
 
-    def __init__(self, element_type: ComplexElementT):
+    def __init__(self, element_type: ComplexElementCovT):
         super().__init__([element_type])
 
-    def get_element_type(self) -> ComplexElementT:
+    def get_element_type(self) -> ComplexElementCovT:
         return self.element_type
 
     @property
@@ -1348,9 +1349,7 @@ class VectorRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.get_num_dims() != self.expected_rank:
@@ -1368,9 +1367,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
     expected_type: Attribute
     """The expected vector base type."""
 
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         attr = cast(VectorType[Attribute], attr)
@@ -1743,6 +1740,14 @@ class UnrealizedConversionCastOp(IRDLOperation):
             operands=[inputs],
             result_types=[result_type],
         )
+
+    @staticmethod
+    def cast_one(
+        input: SSAValue, result_type: AttributeInvT
+    ) -> tuple[UnrealizedConversionCastOp, SSAValue[AttributeInvT]]:
+        op = UnrealizedConversionCastOp(operands=(input,), result_types=(result_type,))
+        res: SSAValue[AttributeInvT] = op.results[0]  # pyright: ignore[reportAssignmentType]
+        return op, res
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -2182,7 +2187,7 @@ RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]
 )
 
-AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
+AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat | ComplexType
 DenseElementCovT = TypeVar(
     "DenseElementCovT", bound=AnyDenseElement, default=AnyDenseElement, covariant=True
 )
@@ -2315,6 +2320,27 @@ class DenseIntOrFPElementsAttr(
 
     @overload
     @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType[_IntegerTypeInvT]],
+        data: Sequence[tuple[int, int]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[_IntegerTypeInvT]]: ...
+
+    @overload
+    @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType[_FloatAttrTypeInvT]],
+        data: Sequence[tuple[float, float]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
+
+    @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType[ComplexElementCovT]],
+        data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementCovT]]:
+        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
+
+    @overload
+    @staticmethod
     def from_list(
         type: (
             RankedStructure[AnyFloat | IntegerType | IndexType]
@@ -2420,7 +2446,14 @@ class DenseIntOrFPElementsAttr(
                 TensorType(data_type, shape), new_data
             )
 
-    def iter_values(self) -> Iterator[int] | Iterator[float]:
+    def iter_values(
+        self,
+    ) -> (
+        Iterator[int]
+        | Iterator[float]
+        | Iterator[tuple[int, int]]
+        | Iterator[tuple[float, float]]
+    ):
         """
         Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
         """
@@ -2444,7 +2477,25 @@ class DenseIntOrFPElementsAttr(
         assert isinstance(el_type, AnyFloat), el_type
         return el_type.unpack(self.data.data, len(self))
 
-    def get_values(self) -> Sequence[int] | Sequence[float]:
+    def get_complex_values(
+        self,
+    ) -> Sequence[tuple[int, int]] | Sequence[tuple[float, float]]:
+        """
+        Return all the values of the elements in this DenseIntOrFPElementsAttr,
+        checking that the elements are complex.
+        """
+        el_type = self.get_element_type()
+        assert isinstance(el_type, ComplexType), el_type
+        return el_type.unpack(self.data.data, len(self))
+
+    def get_values(
+        self,
+    ) -> (
+        Sequence[int]
+        | Sequence[float]
+        | Sequence[tuple[int, int]]
+        | Sequence[tuple[float, float]]
+    ):
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
@@ -2457,8 +2508,9 @@ class DenseIntOrFPElementsAttr(
         """
         if isinstance(eltype := self.get_element_type(), IntegerType | IndexType):
             return IntegerAttr.iter_unpack(eltype, self.data.data)
-        else:
+        elif isinstance(eltype, AnyFloat):
             return FloatAttr.iter_unpack(eltype, self.data.data)
+        raise NotImplementedError()
 
     def get_attrs(self) -> Sequence[IntegerAttr] | Sequence[FloatAttr]:
         """
@@ -2467,8 +2519,9 @@ class DenseIntOrFPElementsAttr(
         """
         if isinstance(eltype := self.get_element_type(), IntegerType | IndexType):
             return IntegerAttr.unpack(eltype, self.data.data, len(self))
-        else:
+        elif isinstance(eltype, AnyFloat):
             return FloatAttr.unpack(eltype, self.data.data, len(self))
+        raise NotImplementedError()
 
     def is_splat(self) -> bool:
         """
@@ -2483,16 +2536,23 @@ class DenseIntOrFPElementsAttr(
         assert isa(type, RankedStructure[AnyDenseElement])
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
-    def _print_one_elem(self, val: int | float, printer: Printer):
+    def _print_one_elem(
+        self, val: int | float | tuple[int, int] | tuple[float, float], printer: Printer
+    ):
         if isinstance(val, int):
             element_type = cast(IntegerType | IndexType, self.get_element_type())
             element_type.print_value_without_type(val, printer)
-        else:  # float
+        elif isinstance(val, float):
             printer.print_float(val, cast(AnyFloat, self.get_element_type()))
+        else:
+            raise NotImplementedError("Next PR")
 
     def _print_dense_list(
         self,
-        array: Sequence[int] | Sequence[float],
+        array: Sequence[int]
+        | Sequence[float]
+        | Sequence[tuple[int, int]]
+        | Sequence[tuple[float, float]],
         shape: Sequence[int],
         printer: Printer,
     ):

@@ -23,6 +23,10 @@ smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
 %arg2 = smt.constant false
 %arg3 = smt.constant false
 
+// CHECK-NEXT:    %not = smt.not %arg1
+
+%not = smt.not %arg1
+
 // CHECK-NEXT:    %and = smt.or %arg1, %arg2, %arg3
 // CHECK-NEXT:    %or = smt.and %arg1, %arg2, %arg3
 // CHECK-NEXT:    %xor = smt.xor %arg1, %arg2, %arg3
@@ -31,11 +35,19 @@ smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
 %or = smt.and %arg1, %arg2, %arg3
 %xor = smt.xor %arg1, %arg2, %arg3
 
+// CHECK-NEXT:    %implies = smt.implies %arg1, %arg2
+
+%implies = smt.implies %arg1, %arg2
+
 // CHECK-NEXT:    %eq = smt.eq %arg1, %arg2, %arg3 : !smt.bool
 // CHECK-NEXT:    %distinct = smt.distinct %arg1, %arg2, %arg3 : !smt.bool
 
 %eq = smt.eq %arg1, %arg2, %arg3 : !smt.bool
 %distinct = smt.distinct %arg1, %arg2, %arg3 : !smt.bool
+
+// CHECK-NEXT:    %ite = smt.ite %arg1, %arg2, %arg3 : !smt.bool
+
+%ite = smt.ite %arg1, %arg2, %arg3 : !smt.bool
 
 // CHECK-NEXT:    %exists = smt.exists {
 // CHECK-NEXT:      smt.yield %arg1 : !smt.bool
@@ -50,3 +62,7 @@ smt.apply_func %func2(%const1) : !smt.func<(!smt.bool) !smt.bool>
 %forall = smt.forall {
     smt.yield %arg1 : !smt.bool
 }
+
+// CHECK-NEXT:    smt.assert %arg1
+
+smt.assert %arg1

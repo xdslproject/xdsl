@@ -145,7 +145,7 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         returns `True` with the given constraint variables, this method should
         not raise an exception.
         """
-        raise ValueError("Cannot infer attribute from constraint")
+        raise ValueError(f"Cannot infer attribute from constraint {self}")
 
     def get_unique_base(self) -> type[Attribute] | None:
         """Get the unique base type that can satisfy the constraint, if any."""
@@ -368,11 +368,7 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
             constrs,
         )
 
-    def verify(
-        self,
-        attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         constraint_context = constraint_context or ConstraintContext()
         for attr_constr in self.attr_constrs:
             # Copy the constraint to ensure that if the constraint fails, the
@@ -513,13 +509,14 @@ class ParamAttrConstraint(
             raise VerifyException(
                 f"{attr} should be of base attribute {self.base_attr.name}"
             )
-        if len(self.param_constrs) != len(attr.parameters):
+        parameters = attr.parameters
+        if len(self.param_constrs) != len(parameters):
             raise VerifyException(
                 f"{len(self.param_constrs)} parameters expected, "
-                f"but got {len(attr.parameters)}"
+                f"but got {len(parameters)}"
             )
         for idx, param_constr in enumerate(self.param_constrs):
-            param_constr.verify(attr.parameters[idx], constraint_context)
+            param_constr.verify(parameters[idx], constraint_context)
 
     def variables(self) -> set[str]:
         vars = set[str]()
@@ -627,7 +624,7 @@ class IntConstraint(ABC):
         returns `True` with the given constraint variables, this method should
         not raise an exception.
         """
-        raise ValueError("Cannot infer attribute from constraint")
+        raise ValueError(f"Cannot infer integer from constraint {self}")
 
 
 class AnyInt(IntConstraint):
@@ -750,7 +747,7 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         returns `True` with the given constraint variables, this method should
         not raise an exception.
         """
-        raise ValueError("Cannot infer attribute from constraint")
+        raise ValueError(f"Cannot infer range from constraint {self}")
 
 
 RangeConstraint: TypeAlias = GenericRangeConstraint[Attribute]

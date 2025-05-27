@@ -477,6 +477,32 @@ def test_DenseIntOrFPElementsAttr_values():
         FloatAttr(4.0, f32),
     )
 
+    complex_f32 = ComplexType(f32)
+    complex_f32_attr = DenseIntOrFPElementsAttr.create_dense_complex(
+        TensorType(complex_f32, [2]),
+        [(1.0, 2.0), (3.0, 4.0)],
+    )
+    assert tuple(complex_f32_attr.get_complex_values()) == ((1.0, 2.0), (3.0, 4.0))
+    assert tuple(complex_f32_attr.get_values()) == ((1.0, 2.0), (3.0, 4.0))
+    assert tuple(complex_f32_attr.iter_values()) == ((1.0, 2.0), (3.0, 4.0))
+    with pytest.raises(NotImplementedError):
+        complex_f32_attr.get_attrs()
+    with pytest.raises(NotImplementedError):
+        complex_f32_attr.iter_attrs()
+
+    complex_i32 = ComplexType(i32)
+    complex_i32_attr = DenseIntOrFPElementsAttr.create_dense_complex(
+        TensorType(complex_i32, [2]),
+        [(1, 2), (3, 4)],
+    )
+    assert tuple(complex_i32_attr.get_complex_values()) == ((1, 2), (3, 4))
+    assert tuple(complex_i32_attr.get_values()) == ((1, 2), (3, 4))
+    assert tuple(complex_i32_attr.iter_values()) == ((1, 2), (3, 4))
+    with pytest.raises(NotImplementedError):
+        complex_i32_attr.get_attrs()
+    with pytest.raises(NotImplementedError):
+        complex_i32_attr.iter_attrs()
+
 
 @pytest.mark.parametrize(
     "ref,expected",
@@ -643,13 +669,14 @@ def test_unrealized_conversion_cast():
     f32_constant = ConstantOp(FloatAttr(10.1, f32))
 
     conv_op1 = UnrealizedConversionCastOp.get([i64_constant.results[0]], [f32])
-    conv_op2 = UnrealizedConversionCastOp.get([f32_constant.results[0]], [i32])
+    conv_op2, res = UnrealizedConversionCastOp.cast_one(f32_constant.results[0], i32)
 
     assert conv_op1.inputs[0].type == i64
     assert conv_op1.outputs[0].type == f32
 
     assert conv_op2.inputs[0].type == f32
-    assert conv_op2.outputs[0].type == i32
+    assert conv_op2.outputs[0] is res
+    assert res.type == i32
 
 
 @pytest.mark.parametrize(

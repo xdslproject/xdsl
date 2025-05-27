@@ -27,7 +27,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self, TypeForm, TypeVar
+from typing_extensions import Self, TypeVar
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
@@ -36,6 +36,8 @@ from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
+    from typing_extensions import TypeForm
+
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
@@ -391,11 +393,21 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
-    parameters: tuple[Attribute, ...] = field()
-
     def __init__(self, parameters: Sequence[Attribute] = ()):
-        object.__setattr__(self, "parameters", tuple(parameters))
+        for (f, _), param in zip(
+            self.get_irdl_definition().parameters, parameters, strict=True
+        ):
+            object.__setattr__(self, f, param)
         super().__init__()
+
+    @property
+    def parameters(self) -> tuple[Attribute, ...]:
+        return (
+            *(
+                self.__getattribute__(field)
+                for field, _ in self.get_irdl_definition().parameters
+            ),
+        )
 
     @classmethod
     def new(cls: type[Self], params: Sequence[Attribute]) -> Self:

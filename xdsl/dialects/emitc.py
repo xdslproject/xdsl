@@ -55,6 +55,12 @@ class EmitC_ArrayType(
         if not self.shape.data:
             raise VerifyException("EmitC array shape must not be empty")
 
+        for dim_attr in self.shape.data:
+            if dim_attr.data < 0:
+                raise VerifyException(
+                    "EmitC array dimensions must have non-negative size"
+                )
+
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
