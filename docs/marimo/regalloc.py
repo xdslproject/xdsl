@@ -19,8 +19,8 @@ def _():
     from xdsl.backend.register_type import RegisterType
     from collections.abc import Iterator
     return (
+        Block,
         Context,
-        Operation,
         Parser,
         RegisterType,
         RiscvRegisterQueue,
@@ -122,23 +122,27 @@ def _(Parser, ctx, xmo):
     simple_func = next(iter(simple_module.regions[0].blocks[0].ops))
     simple_block = simple_func.body.block
 
-    xmo.module_html(simple_module)
-    return (simple_module,)
+    xmo.module_html(simple_func)
+    return simple_block, simple_func, simple_module
 
 
 @app.cell(hide_code=True)
-def _(allocated_register_names, mo, simple_module):
+def _(allocated_register_names, mo, simple_block, simple_func, xmo):
     try:
-        _sorted = "{" + ", ".join(sorted(allocated_register_names(simple_module))) + "}"
+        _sorted = "{" + ", ".join(sorted(allocated_register_names(simple_block))) + "}"
         _res = str(_sorted)
     except Exception as e:
         _res = f"{type(e).__name__}: {e}"
+
+    _accordion = mo.accordion({"Show input function": xmo.module_html(simple_func)})
 
     mo.md(
         fr"""
         ### Exercise 1. Allocated Registers
 
-        Modify the function below to return the set of register names that are allocated in the module.
+        {_accordion}
+
+        Modify the function below to return the set of register names that are allocated in the block.
 
         ```
         Expected: {{a0, a1}}
@@ -150,16 +154,16 @@ def _(allocated_register_names, mo, simple_module):
 
 
 @app.cell
-def _(Operation, SSAValue, builtin):
-    def iter_operands_and_results(op: Operation) -> set[SSAValue]:
-        for child in op.walk():
+def _(Block, SSAValue):
+    def iter_operands_and_results(block: Block) -> set[SSAValue]:
+        for child in block.ops:
             yield from child.operands
             yield from child.results
 
-    def allocated_register_names(module: builtin.ModuleOp) -> set[str]:
+    def allocated_register_names(block: Block) -> set[str]:
         return {
             value.type.register_name.data
-            for value in iter_operands_and_results(module)
+            for value in iter_operands_and_results(block)
         }
 
     # Click on 👁️ below to show solution
@@ -167,11 +171,11 @@ def _(Operation, SSAValue, builtin):
 
 
 @app.cell(hide_code=True)
-def _(builtin, iter_operands_and_results, riscv):
-    def _allocated_register_names(module: builtin.ModuleOp) -> set[str]:
+def _(Block, iter_operands_and_results, riscv):
+    def _allocated_register_names(block: Block) -> set[str]:
         return {
             value.type.register_name.data
-            for value in iter_operands_and_results(module)
+            for value in iter_operands_and_results(block)
             if isinstance(value.type, riscv.IntRegisterType) and value.type.is_allocated
         }
 
@@ -179,18 +183,22 @@ def _(builtin, iter_operands_and_results, riscv):
 
 
 @app.cell(hide_code=True)
-def _(mo, simple_module, unallocated_value_names):
+def _(mo, simple_func, simple_module, unallocated_value_names, xmo):
     try:
         _sorted = "{" + ", ".join(sorted(unallocated_value_names(simple_module))) + "}"
         _res = str(_sorted)
     except Exception as e:
         _res = f"{type(e).__name__}: {e}"
 
+    _accordion = mo.accordion({"Show input function": xmo.module_html(simple_func)})
+
     mo.md(
         fr"""
         ### Exercise 2. Unallocated Values
 
-        Modify the function below to return the set of values that have unallocated register types in the module.
+        {_accordion}
+
+        Modify the function below to return the set of values that have unallocated register types in the block.
 
         ```
         Expected: {{c, d, e}}
@@ -202,11 +210,11 @@ def _(mo, simple_module, unallocated_value_names):
 
 
 @app.cell
-def _(builtin, iter_operands_and_results):
-    def unallocated_value_names(module: builtin.ModuleOp) -> set[str]:
+def _(Block, iter_operands_and_results):
+    def unallocated_value_names(block: Block) -> set[str]:
         return {
             value.name_hint
-            for value in iter_operands_and_results(module)
+            for value in iter_operands_and_results(block)
         }
 
     # Click on 👁️ below to show solution
@@ -214,19 +222,71 @@ def _(builtin, iter_operands_and_results):
 
 
 @app.cell(hide_code=True)
-def _(builtin, iter_operands_and_results, riscv):
-    def _unallocated_value_names(module: builtin.ModuleOp) -> set[str]:
+def _(Block, iter_operands_and_results, riscv):
+    def _unallocated_value_names(block: Block) -> set[str]:
         return {
             value.name_hint
-            for value in iter_operands_and_results(module)
+            for value in iter_operands_and_results(block)
             if isinstance(value.type, riscv.IntRegisterType) and not value.type.is_allocated
         }
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## """)
+    mo.md(
+        r"""
+    ## Liveness and Conflicts
+
+    One of the key constraints of register allocation is that a register can't hold two values at the same time.
+    Another constraint is that we have a limited number of registers, which may be fewer than the number of values.
+    This means that we may have to assign multiple values to the same register, but in a way that avoids conflicts where an operation that reads from a register gets a value that wasn't expected.
+    Such a conflict would happen if a value was initialised with a certain type before the last use of a value of the same register type.
+    In other words, in order to allocate registers correctly, no operation executed between the initialisation of a value and its last use must have a result of the same type.
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo, simple_func, simple_module, unallocated_value_names, xmo):
+    try:
+        _sorted = "{" + ", ".join(sorted(unallocated_value_names(simple_module))) + "}"
+        _res = str(_sorted)
+    except Exception as e:
+        _res = f"{type(e).__name__}: {e}"
+
+    _accordion = mo.accordion({"Show input function": xmo.module_html(simple_func)})
+
+    mo.md(
+        fr"""
+        ### Exercise 3. Conflicting Registers
+
+        {_accordion}
+
+        Modify the function below to return a map from values to values that it conflicts with. This includes other results of the same operation, and all results created before the value's last use.
+
+        ```
+        Expected: {{c, d, e}}
+        Result:   {_res}
+        ```
+        """
+    )
+    return
+
+
+@app.cell
+def _(Block, defaultdict):
+    def conflicting_value_map(block: Block) -> dict[str, set[str]]:
+        res = defaultdict(set)
+        live_values = set()
+    
+        for op in reversed(block.ops):
+            # When we walk in reverse, the last use of a value is the first use we see!
+            for result in op.results:
+                ...
+
+        return res
     return
 
 
