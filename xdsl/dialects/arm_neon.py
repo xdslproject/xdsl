@@ -107,8 +107,8 @@ class NeonArrangement(StrEnum):
     H = "H"
 
     @property
-    def size(self):
-        return _SIZE_BY_ARRANGEMENT[self.name]
+    def num_elements(self):
+        return _NUM_ELEMENTS_BY_ARRANGEMENT[self.name]
 
     @staticmethod
     def from_vec_type(vec_type: VectorType):
@@ -118,7 +118,7 @@ class NeonArrangement(StrEnum):
         return arrangement
 
 
-_SIZE_BY_ARRANGEMENT = {"D": 2, "S": 4, "H": 8}
+_NUM_ELEMENTS_BY_ARRANGEMENT = {"D": 2, "S": 4, "H": 8}
 _ARRANGEMENT_BY_TYPE: dict[VectorType, NeonArrangement] = {
     VectorType(f16, (8,)): NeonArrangement.H,
     VectorType(f32, (4,)): NeonArrangement.S,
@@ -159,7 +159,7 @@ class VectorWithArrangement(AssemblyInstructionArg):
         if self.index is None:
             return (
                 f"{self.reg.register_name.data}."
-                f"{self.arrangement.data.size}"
+                f"{self.arrangement.data.num_elements}"
                 f"{self.arrangement.data.name}"
             )
         else:

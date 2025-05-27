@@ -23,28 +23,21 @@ def test_assembly_str_with_index():
     assert vecreg.assembly_str() == "v0.D[5]"
 
 
-def test_arr_from_vec_f16():
-    arrangement = NeonArrangement.H
-    vectype = VectorType(Float16Type(), [8])
-    assert NeonArrangement.from_vec_type(vectype) == arrangement
-
-
-def test_arr_from_vec_f32():
-    arrangement = NeonArrangement.S
-    vectype = VectorType(Float32Type(), [4])
-    assert NeonArrangement.from_vec_type(vectype) == arrangement
-
-
-def test_arr_from_vec_f64():
-    arrangement = NeonArrangement.D
-    vectype = VectorType(Float64Type(), [2])
-    assert NeonArrangement.from_vec_type(vectype) == arrangement
-
-
-def test_arr_from_vec_invalid():
-    unsupported_vec = VectorType(Float16Type(), [3])
+def test_arr_from_vec():
+    assert (
+        NeonArrangement.from_vec_type(VectorType(Float16Type(), [8]))
+        == NeonArrangement.H
+    )
+    assert (
+        NeonArrangement.from_vec_type(VectorType(Float32Type(), [4]))
+        == NeonArrangement.S
+    )
+    assert (
+        NeonArrangement.from_vec_type(VectorType(Float64Type(), [2]))
+        == NeonArrangement.D
+    )
 
     with pytest.raises(
-        ValueError, match=f"Invalid vector type for ARM NEON: {str(unsupported_vec)}"
+        ValueError, match="Invalid vector type for ARM NEON: vector<3xf16>"
     ):
-        NeonArrangement.from_vec_type(unsupported_vec)
+        NeonArrangement.from_vec_type(VectorType(Float16Type(), [3]))
