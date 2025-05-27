@@ -491,7 +491,10 @@ class FormatParser(BaseParser):
                 else self.op_def.attributes.get(attr_name)
             )
             if isinstance(attr_def, AttrOrPropDef):
-                unique_base = attr_def.constr.get_unique_base()
+                bases = attr_def.constr.get_bases()
+                unique_base = (
+                    bases.pop() if bases is not None and len(bases) == 1 else None
+                )
                 if unique_base == UnitAttr:
                     return OptionalUnitAttrVariable(
                         variable_name, is_property, None, None
