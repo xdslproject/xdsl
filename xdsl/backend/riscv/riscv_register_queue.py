@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 
-from xdsl.backend.register_queue import LIFORegisterQueue
+from xdsl.backend.register_queue import RegisterStack
 from xdsl.dialects.riscv import Registers
 
 
 @dataclass
-class RiscvRegisterQueue(LIFORegisterQueue):
+class RiscvRegisterQueue(RegisterStack):
     """
     LIFO queue of RISCV-specific registers.
     """

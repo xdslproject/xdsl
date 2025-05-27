@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
@@ -12,66 +11,9 @@ _T = TypeVar("_T", bound=RegisterType)
 
 
 @dataclass
-class RegisterQueue(ABC):
+class RegisterStack:
     """
-    LIFO queue of registers available for allocation.
-    """
-
-    @abstractmethod
-    def push(self, reg: RegisterType) -> None:
-        """
-        Return a register to be made available for allocation.
-        """
-        ...
-
-    @abstractmethod
-    def pop(self, reg_type: type[_T]) -> _T:
-        """
-        Get the next available register for allocation.
-        """
-        ...
-
-    @contextmanager
-    def reserve_registers(self, regs: Sequence[RegisterType]):
-        for reg in regs:
-            self.reserve_register(reg)
-
-        yield
-
-        for reg in regs:
-            self.unreserve_register(reg)
-
-    @abstractmethod
-    def reserve_register(self, reg: RegisterType) -> None:
-        """
-        Increase the reservation count for a register.
-        If the reservation count is greater than 0, a register cannot be pushed back onto
-        the queue.
-        It is invalid to reserve a register that is available, and popping it before
-        unreserving a register will result in an AssertionError.
-        """
-        ...
-
-    @abstractmethod
-    def unreserve_register(self, reg: RegisterType) -> None:
-        """
-        Decrease the reservation count for a register. If the reservation count is 0, make
-        the register available for allocation.
-        """
-        ...
-
-    @abstractmethod
-    def exclude_register(self, reg: RegisterType) -> None:
-        """
-        Removes regiesters from available set, if present.
-        """
-        ...
-
-
-@dataclass
-class LIFORegisterQueue(RegisterQueue):
-    """
-    LIFO queue of registers available for allocation.
+    LIFO stack of registers available for allocation.
     """
 
     next_infinite_indices: defaultdict[str, int] = field(
@@ -169,6 +111,16 @@ class LIFORegisterQueue(RegisterQueue):
         """
         assert isinstance(reg.index, IntAttr)
         self.reserved_registers[reg.name][reg.index.data] += 1
+
+    @contextmanager
+    def reserve_registers(self, regs: Sequence[RegisterType]):
+        for reg in regs:
+            self.reserve_register(reg)
+
+        yield
+
+        for reg in regs:
+            self.unreserve_register(reg)
 
     def unreserve_register(self, reg: RegisterType) -> None:
         """

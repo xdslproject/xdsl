@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 
-from xdsl.backend.register_queue import LIFORegisterQueue
+from xdsl.backend.register_queue import RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.x86 import register
 
 
 @dataclass
-class X86RegisterQueue(LIFORegisterQueue):
+class X86RegisterQueue(RegisterStack):
     """
     LIFO queue of x86-specific registers.
     """

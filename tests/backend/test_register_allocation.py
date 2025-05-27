@@ -9,7 +9,7 @@ from xdsl.backend.register_allocatable import (
     RegisterConstraints,
 )
 from xdsl.backend.register_allocator import ValueAllocator
-from xdsl.backend.register_queue import LIFORegisterQueue
+from xdsl.backend.register_queue import RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.builder import Builder
 from xdsl.ir import Attribute, SSAValue
@@ -152,7 +152,7 @@ def test_new_type_for_value():
     a0 = TestRegister.from_name("a0")
     a1 = TestRegister.from_name("a1")
 
-    queue = LIFORegisterQueue()
+    queue = RegisterStack()
     queue.push(a0)
     queue.push(a1)
     allocator = ValueAllocator(queue, TestRegister)
@@ -173,7 +173,7 @@ def test_allocate_value():
     a1 = TestRegister.from_name("a1")
     y0 = TestRegister.from_name("y0")
 
-    queue = LIFORegisterQueue()
+    queue = RegisterStack()
     queue.push(a0)
     queue.push(a1)
     allocator = ValueAllocator(queue, TestRegister)
@@ -284,7 +284,7 @@ def test_allocate_values_same_reg():
     a1 = TestRegister.from_name("a1")
     y0 = TestRegister.from_name("y0")
 
-    queue = LIFORegisterQueue()
+    queue = RegisterStack()
     queue.push(a0)
     queue.push(a1)
     allocator = ValueAllocator(queue, TestRegister)
