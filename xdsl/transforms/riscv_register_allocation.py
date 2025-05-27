@@ -18,8 +18,6 @@ class RISCVRegisterAllocation(ModulePass):
 
     allocation_strategy: str = "LivenessBlockNaive"
 
-    limit_registers: int | None = None
-
     add_regalloc_stats: bool = False
     """
     Inserts a comment with register allocation info in the IR.
@@ -36,17 +34,9 @@ class RISCVRegisterAllocation(ModulePass):
                 f"Available allocation types: {allocator_strategies.keys()}"
             )
 
-        if self.limit_registers is not None and self.limit_registers < 0:
-            raise ValueError(
-                "The limit of available registers cannot be less than 0."
-                "When set to 0 it signifies all available registers are used."
-            )
-
         for inner_op in op.walk():
             if isinstance(inner_op, riscv_func.FuncOp):
                 riscv_register_queue = RiscvRegisterQueue.default()
-                if self.limit_registers is not None:
-                    riscv_register_queue.limit_registers(self.limit_registers)
                 allocator = allocator_strategies[self.allocation_strategy](
                     riscv_register_queue
                 )

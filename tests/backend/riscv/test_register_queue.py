@@ -80,20 +80,3 @@ def test_reserve_register():
         ),
     ):
         register_queue.pop(riscv.IntRegisterType)
-
-
-def test_limit():
-    register_queue = RiscvRegisterQueue.default()
-    register_queue.limit_registers(1)
-
-    assert not register_queue.pop(riscv.IntRegisterType).register_name.data.startswith(
-        "j"
-    )
-    assert register_queue.pop(riscv.IntRegisterType).register_name.data.startswith("j")
-
-    assert not register_queue.pop(
-        riscv.FloatRegisterType
-    ).register_name.data.startswith("fj")
-    assert register_queue.pop(riscv.FloatRegisterType).register_name.data.startswith(
-        "fj"
-    )
