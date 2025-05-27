@@ -131,3 +131,17 @@ def test_generic_disjoint_set_find_invalid():
     ds = DisjointSet(["a", "b", "c"])
     with pytest.raises(KeyError):
         ds.find("d")
+
+
+def test_generic_disjoint_set_union_by_size():
+    ds: DisjointSet[str] = DisjointSet(["a", "b", "c", "d"])
+    ds.union("a", "b")
+    ds.union("a", "c")
+    # The set containing "a" is larger than the one containing "c"
+    # so the canonical representative should be "a".
+    assert ds.find("a") == "a"
+    assert ds.find("c") == "a"
+
+    ds.union("d", "c")
+    assert ds.find("d") == "a"
+    assert ds.find("c") == "a"

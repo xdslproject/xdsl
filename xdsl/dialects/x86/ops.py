@@ -35,6 +35,11 @@ from typing import IO, Generic, TypeVar, cast
 from typing_extensions import Self
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
+from xdsl.backend.register_allocatable import (
+    HasRegisterConstraints,
+    RegisterConstraints,
+)
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
@@ -91,7 +96,9 @@ R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
 R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 
 
-class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
+class X86AsmOperation(
+    IRDLOperation, HasRegisterConstraints, OneLineAssemblyPrintable, ABC
+):
     """
     Base class for operations that can be a part of x86 assembly printing.
     """
@@ -99,6 +106,17 @@ class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     @abstractmethod
     def assembly_line(self) -> str | None:
         raise NotImplementedError()
+
+    def iter_used_registers(self):
+        return (
+            val.type
+            for vals in (self.operands, self.results)
+            for val in vals
+            if isinstance(val.type, RegisterType) and val.type.is_allocated
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(self.operands, self.results, ())
 
 
 class X86CustomFormatOperation(IRDLOperation, ABC):
@@ -262,6 +280,42 @@ class RS_Operation(
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.register_in, self.source
 
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            (self.source,), (), ((self.register_in, self.register_out),)
+        )
+
+
+class DS_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations that have one destination register and one source
+    register.
+    """
+
+    destination = result_def(R1InvT)
+    source = operand_def(R1InvT)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.destination, self.source)
+
 
 class R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
@@ -292,6 +346,9 @@ class R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return (self.register_in,)
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((), (), ((self.register_in, self.register_out),))
 
 
 class RM_Operation(
@@ -348,6 +405,11 @@ class RM_Operation(
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            (self.memory,), (), ((self.register_in, self.register_out),)
+        )
+
 
 class DM_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
@@ -397,6 +459,54 @@ class DM_Operation(
         printer.print(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
+
+
+class DI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations that have one destination register and an immediate
+    value.
+    """
+
+    immediate = attr_def(IntegerAttr)
+    destination = result_def(R1InvT)
+
+    def __init__(
+        self,
+        immediate: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.destination, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        return {
+            "immediate": parse_immediate_value(
+                parser, IntegerType(32, Signedness.SIGNED)
+            )
+        }
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print_string(" ", indent=0)
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
@@ -451,6 +561,9 @@ class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((), (), ((self.register_in, self.register_out),))
 
 
 class MS_Operation(
@@ -887,6 +1000,11 @@ class RSS_Operation(
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.register_in, self.source1, self.source2
 
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            (self.source1, self.source2), (), ((self.register_in, self.register_out),)
+        )
+
 
 # endregion
 
@@ -976,7 +1094,7 @@ class RS_XorOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RS_MovOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
+class DS_MovOp(DS_Operation[GeneralRegisterType]):
     """
     Copies the value of s into r.
     ```C
@@ -986,7 +1104,7 @@ class RS_MovOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.rs.mov"
+    name = "x86.ds.mov"
 
 
 @irdl_op_definition
@@ -1392,7 +1510,7 @@ class RI_XorOp(RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RI_MovOp(RI_Operation[GeneralRegisterType]):
+class DI_MovOp(DI_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into r.
     ```C
@@ -1402,7 +1520,7 @@ class RI_MovOp(RI_Operation[GeneralRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/mov).
     """
 
-    name = "x86.ri.mov"
+    name = "x86.di.mov"
 
 
 @irdl_op_definition

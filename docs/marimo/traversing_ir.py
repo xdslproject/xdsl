@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.13.6"
 app = marimo.App(width="medium")
 
 
@@ -16,10 +16,9 @@ def _():
     from collections import Counter
     from xdsl.ir import OpResult, BlockArgument
     return (
-        BlockArgument,
+        Context,
         Counter,
         Dialect,
-        Context,
         OpResult,
         Parser,
         arith,
@@ -63,7 +62,8 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo, sum_of_squares_text):
-    mo.md(fr"""
+    mo.md(
+        fr"""
     In this notebook, we'll be looking at the structure of the following module:
 
     {mo.ui.code_editor(sum_of_squares_text, language="javascript", disabled=True)}
@@ -102,10 +102,10 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        The Operation class exposes a `walk` function, which lets us iterate over the IR from top to bottom.
+    The Operation class exposes a `walk` function, which lets us iterate over the IR from top to bottom.
 
-        For example, to get the names of all the operations in our module, we can write a snippet like this:
-        """
+    For example, to get the names of all the operations in our module, we can write a snippet like this:
+    """
     )
     return
 
@@ -120,29 +120,29 @@ def _(sum_of_squares_module):
 def _(mo):
     mo.md(
         r"""
-        These helpers will be useful for the exercises below:
+    These helpers will be useful for the exercises below:
 
-        `Operation`:
+    `Operation`:
 
-        * `results: Sequence[OpResult]`
-        * `operands: Sequence[SSAValue]`
+    * `results: Sequence[OpResult]`
+    * `operands: Sequence[SSAValue]`
 
-        `Block`:
+    `Block`:
 
-        * `parent_op: Operation | None`
-        * `args: Sequence[BlockArgument]`
+    * `parent_op: Operation | None`
+    * `args: Sequence[BlockArgument]`
 
-        `SSAValue`:
+    `SSAValue`:
 
-        * `uses: set[Use]`
-        * `owner: Operation | Block`
+    * `uses: set[Use]`
+    * `owner: Operation | Block`
 
-        `OpResult` and `BlockArgument` are subclasses of `SSAValue`.
+    `OpResult` and `BlockArgument` are subclasses of `SSAValue`.
 
-        `Use`:
+    `Use`:
 
-        * `operation: Operation`
-        """
+    * `operation: Operation`
+    """
     )
     return
 
@@ -298,9 +298,9 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        SSA values in IR are either defined as results or block arguments.
-        In xDSL, the values have optional name hints, and are numbered in ascending order when printing if the name hint is missing.
-        """
+    SSA values in IR are either defined as results or block arguments.
+    In xDSL, the values have optional name hints, and are numbered in ascending order when printing if the name hint is missing.
+    """
     )
     return
 
@@ -317,12 +317,13 @@ def _(sum_of_squares_module):
         for val in block.args
     )
     all_ssa_values = all_operands | all_results | all_block_args
-    return all_block_args, all_operands, all_results, all_ssa_values
+    return (all_ssa_values,)
 
 
 @app.cell(hide_code=True)
 def _(all_ssa_values, mo):
-    mo.md(fr"""
+    mo.md(
+        fr"""
     Here are all the name hints of SSA values in our module:
 
     ```

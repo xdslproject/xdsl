@@ -28,7 +28,7 @@ dev = [
     "ruff==0.11.11",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
-    "pytest-asyncio==0.26.0",
+    "pytest-asyncio==1.0.0",
     "pyright==1.1.401",
     "sympy==1.14.0",
 ]
@@ -117,6 +117,7 @@ extraPaths = ["tests"]
 [tool.ruff]
 target-version = "py310"
 extend-include = ["*.ipynb", "*.pyi"]
+exclude = [".venv", "docs/marimo"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP"]
@@ -162,10 +163,8 @@ max-line-length = 130
 "docs/mlir_interoperation.ipynb" = ["E402"]
 "docs/irdl.ipynb" = ["ALL"]
 "docs/database_example.ipynb" = ["ALL"]
-"**/{docs/marimo}/*" = ["E501", "I001"]
 "__init__.py" = ["F403"]
 "tests/*" = ["E501", "INP"]
-"docs/marimo/**" = ["INP"]
 "scripts/**" = ["INP"]
 
 [tool.ruff.lint.mccabe]
