@@ -14,6 +14,9 @@ class AnyRangeConstraint(RangeConstraint):
     ) -> None:
         return
 
+    def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
+        return
+
 
 def test_failing_inference():
     with pytest.raises(
