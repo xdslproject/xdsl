@@ -1337,7 +1337,6 @@ def test_operands_directive_with_non_variadic_type_directive():
             PunctuationDirective(":"),
             TypeDirective(OperandsDirective(None)),
         ),
-        {},
     )
 
     @irdl_op_definition
@@ -1373,7 +1372,6 @@ def test_operands_directive_with_variadic_type_directive():
             PunctuationDirective(":"),
             TypeDirective(OperandsDirective((False, 1))),
         ),
-        {},
     )
 
     @irdl_op_definition
@@ -1782,7 +1780,6 @@ def test_results_directive_with_non_variadic_type_directive():
             PunctuationDirective(":"),
             TypeDirective(ResultsDirective(None)),
         ),
-        {},
     )
 
     @irdl_op_definition
@@ -1817,7 +1814,6 @@ def test_results_directive_with_variadic_type_directive():
             PunctuationDirective(":"),
             TypeDirective(ResultsDirective((False, 1))),
         ),
-        {},
     )
 
     @irdl_op_definition
@@ -3220,7 +3216,7 @@ def test_default_attr_in_attr_dict(program: str, generic: str):
 
 
 ################################################################################
-#                                Extractors                                    #
+#                            Variable extraction                               #
 ################################################################################
 
 
@@ -3245,9 +3241,8 @@ def test_all_of_extraction_fails():
     )
     parser.parse_operation()
     with pytest.raises(
-        ValueError,
-        match="Value of variable T could not be uniquely extracted.\n"
-        "Possible values are: {index, memref<10xindex>}",
+        VerifyException,
+        match="attribute memref<10xindex> expected from variable 'T', but got index",
     ):
         parser.parse_operation()
 
@@ -3284,9 +3279,8 @@ def test_param_extraction_fails():
     )
     parser.parse_operation()
     with pytest.raises(
-        ValueError,
-        match="Value of variable T could not be uniquely extracted.\n"
-        "Possible values are: {i32, i64}",
+        VerifyException,
+        match="attribute i32 expected from variable 'T', but got i64",
     ):
         parser.parse_operation()
 
@@ -3312,9 +3306,8 @@ def test_multiple_operand_extraction_fails():
     )
     parser.parse_operation()
     with pytest.raises(
-        ValueError,
-        match="Value of variable T could not be uniquely extracted.\n"
-        "Possible values are: {i32, index}",
+        VerifyException,
+        match="attribute index expected from variable 'T', but got i32",
     ):
         parser.parse_operation()
 
@@ -3407,35 +3400,31 @@ def test_int_attr_verify(program: str):
 
 
 @pytest.mark.parametrize(
-    "program, error_type, error",
+    "program, error",
     [
         (
             "test.int_attr_verify 1, %0, %1",
-            ValueError,
-            "Value of variable I could not be uniquely extracted",
+            "integer 2 expected from int variable 'I', but got 1",
         ),
         (
             "test.int_attr_verify 1 and 2, %0",
-            VerifyException,
             "integer 1 expected from int variable 'I', but got 2",
         ),
         (
             "test.int_attr_verify 2, %0",
-            ValueError,
-            "Value of variable I could not be uniquely extracted",
+            "integer 1 expected from int variable 'I'",
         ),
         (
             "test.int_attr_verify 2 and 1, %0, %1",
-            VerifyException,
             "integer 2 expected from int variable 'I', but got 1",
         ),
     ],
 )
-def test_int_attr_verify_errors(program: str, error_type: type[Exception], error: str):
+def test_int_attr_verify_errors(program: str, error: str):
     ctx = Context()
     ctx.load_op(IntAttrVerifyOp)
 
     parser = Parser(ctx, program)
-    with pytest.raises(error_type, match=error):
+    with pytest.raises(VerifyException, match=error):
         op = parser.parse_operation()
         op.verify()

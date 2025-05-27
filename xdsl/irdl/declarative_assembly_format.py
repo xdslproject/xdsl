@@ -27,7 +27,6 @@ from xdsl.irdl import (
     OpDef,
     OptionalDef,
     Successor,
-    VarExtractor,
     VariadicDef,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -91,9 +90,6 @@ class FormatProgram:
     stmts: tuple[FormatDirective, ...]
     """The statements composing the program. They are executed in order."""
 
-    extractors: dict[str, VarExtractor[ParsingState]]
-    """Extractors for all type variables from the parsing state."""
-
     @staticmethod
     def from_str(input: str, op_def: OpDef) -> FormatProgram:
         """
@@ -120,7 +116,7 @@ class FormatProgram:
             stmt.parse(parser, state)
 
         # Get constraint variables from the parsed operand and result types
-        self.resolve_constraint_variables(state)
+        self.resolve_constraint_variables(state, op_def)
 
         # Infer operand types that should be inferred
         unresolved_operands = state.operands
@@ -159,19 +155,48 @@ class FormatProgram:
             successors=state.successors,
         )
 
-    def resolve_constraint_variables(self, state: ParsingState):
-        ctx = ConstraintContext()
-        for k, e in self.extractors.items():
-            v = e.extract_var(state)
-            match v:
-                case Attribute():
-                    ctx.set_variable(k, v)
-                case int():
-                    ctx.set_int_variable(k, v)
-                case _:
-                    ctx.set_range_variable(k, tuple(v))
+    def resolve_constraint_variables(self, state: ParsingState, op_def: OpDef):
+        """
+        Runs verification on the parsed parts of the operation, adding the resolved value
+        of each constraint variable to the `ConstraintContext` `state.context`.
+        """
+        ctx = state.context
 
-        state.context = ctx
+        for operand, operand_type, (_, operand_def) in zip(
+            state.operands, state.operand_types, op_def.operands, strict=True
+        ):
+            length = len(operand) if isinstance(operand, Sequence) else 1
+            operand_def.constr.verify_length(length, ctx)
+            if operand_type is None:
+                continue
+            if isinstance(operand_type, Attribute):
+                operand_type = (operand_type,)
+            operand_def.constr.verify(operand_type, ctx)
+
+        for result_type, (_, result_def) in zip(
+            state.result_types, op_def.results, strict=True
+        ):
+            if result_type is None:
+                continue
+            if isinstance(result_type, Attribute):
+                result_type = (result_type,)
+            result_def.constr.verify(result_type, ctx)
+
+        for prop_name, prop_def in op_def.properties.items():
+            if isinstance(prop_def, OptionalDef) and prop_def.default_value is None:
+                continue
+            attr = state.properties.get(prop_name, prop_def.default_value)
+            if attr is None:
+                continue
+            prop_def.constr.verify(attr, ctx)
+
+        for attr_name, attr_def in op_def.attributes.items():
+            if isinstance(attr_def, OptionalDef) and attr_def.default_value is None:
+                continue
+            attr = state.attributes.get(attr_name, attr_def.default_value)
+            if attr is None:
+                continue
+            attr_def.constr.verify(attr, ctx)
 
     def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
