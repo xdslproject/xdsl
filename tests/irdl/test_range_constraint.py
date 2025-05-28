@@ -1,7 +1,7 @@
 from collections.abc import Sequence
-from typing import TypeVar
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.ir import Attribute
 from xdsl.irdl import AttrConstraint, ConstraintContext, RangeConstraint
