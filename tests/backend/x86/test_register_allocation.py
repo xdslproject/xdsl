@@ -264,7 +264,7 @@ def test_rss_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestDSOperation(DS_Operation[GeneralRegisterType]):
+class TestDSOperation(DS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """Test operation that inherits from DS_Operation for testing register constraints."""
 
     name = "test.ds_operation"

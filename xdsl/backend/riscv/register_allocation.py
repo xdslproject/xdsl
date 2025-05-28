@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from xdsl.backend.block_naive_allocator import BlockNaiveAllocator
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import live_ins_per_block
-from xdsl.backend.register_queue import RegisterQueue
+from xdsl.backend.register_stack import RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.riscv import Registers, RISCVRegisterType
@@ -25,7 +25,7 @@ def reg_types_by_name(regs: Iterable[RISCVRegisterType]) -> dict[str, set[str]]:
 
 
 class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
-    def __init__(self, available_registers: RegisterQueue) -> None:
+    def __init__(self, available_registers: RegisterStack) -> None:
         super().__init__(available_registers, RISCVRegisterType)
 
     def new_type_for_value(self, reg: SSAValue) -> RegisterType | None:

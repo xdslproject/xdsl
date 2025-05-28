@@ -586,7 +586,7 @@ def test_informative_constraint():
     ):
         constr.verify(IntAttr(1), ConstraintContext())
     assert constr.can_infer(set())
-    assert constr.get_unique_base() == NoneAttr
+    assert constr.get_bases() == {NoneAttr}
 
 
 ################################################################################

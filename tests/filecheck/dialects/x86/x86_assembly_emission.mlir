@@ -4,6 +4,7 @@
 %1 = x86.get_register : () -> !x86.reg<rdx>
 %2 = x86.get_register : () -> !x86.reg<rcx>
 %rsp = x86.get_register : () -> !x86.reg<rsp>
+%eax = x86.get_register : () -> !x86.reg<eax>
 
 %rr_add = x86.rs.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: add rax, rdx
@@ -357,6 +358,10 @@ x86.ms.vmovapd %0, %ymm1, 8 : (!x86.reg<rax>, !x86.avx2reg<ymm1>) -> ()
 // CHECK-NEXT: vbroadcastsd ymm0, [rdx]
 %rm_vbroadcastsd_avx2 = x86.dm.vbroadcastsd %1, 8 : (!x86.reg<rdx>) -> !x86.avx2reg<ymm0>
 // CHECK-NEXT: vbroadcastsd ymm0, [rdx+8]
+%ds_vpbroadcastd_avx2 = x86.ds.vpbroadcastd %0 : (!x86.reg<rax>) -> !x86.avx2reg<ymm0>
+// CHECK-NEXT: vpbroadcastd ymm0, rax
+%ds_vpbroadcastq_avx2 = x86.ds.vpbroadcastq %eax : (!x86.reg<eax>) -> !x86.avx2reg<ymm0>
+// CHECK-NEXT: vpbroadcastq ymm0, eax
 
 %zmm0 = x86.get_avx_register : () -> !x86.avx512reg<zmm0>
 %zmm1 = x86.get_avx_register : () -> !x86.avx512reg<zmm1>

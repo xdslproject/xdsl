@@ -286,14 +286,16 @@ class RS_Operation(
         )
 
 
-class DS_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class DS_Operation(
+    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
     """
     A base class for x86 operations that have one destination register and one source
     register.
     """
 
     destination = result_def(R1InvT)
-    source = operand_def(R1InvT)
+    source = operand_def(R2InvT)
 
     def __init__(
         self,
@@ -1094,7 +1096,7 @@ class RS_XorOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class DS_MovOp(DS_Operation[GeneralRegisterType]):
+class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
     """
     Copies the value of s into r.
     ```C
@@ -1105,6 +1107,34 @@ class DS_MovOp(DS_Operation[GeneralRegisterType]):
     """
 
     name = "x86.ds.mov"
+
+
+@irdl_op_definition
+class DS_VpbroadcastdOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Broadcast single precision floating-point scalar in s to d.
+    ```C
+    x[r] = x[s]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/vpbroadcast)
+    """
+
+    name = "x86.ds.vpbroadcastd"
+
+
+@irdl_op_definition
+class DS_VpbroadcastqOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Broadcast double precision floating-point scalar in s to d.
+    ```C
+    x[r] = x[s]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/vpbroadcast)
+    """
+
+    name = "x86.ds.vpbroadcastq"
 
 
 @irdl_op_definition

@@ -49,7 +49,6 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
-    ConstraintVariableType,
     GenericAttrConstraint,
     GenericData,
     GenericRangeConstraint,
@@ -61,7 +60,6 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     RangeOf,
-    VarExtractor,
     attr_constr_coercion,
     base,
     irdl_attr_definition,
@@ -88,7 +86,7 @@ from xdsl.utils.comparisons import (
     unsigned_upper_bound,
     unsigned_value_range,
 )
-from xdsl.utils.exceptions import DiagnosticException, PyRDLError, VerifyException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
@@ -225,23 +223,11 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     def infer(self, context: ConstraintContext) -> ArrayAttr[AttributeCovT]:
         return ArrayAttr(self.elem_range_constraint.infer(context, length=None))
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return ArrayAttr
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {ArrayAttr}
 
-    @dataclass(frozen=True)
-    class _Extractor(VarExtractor[Attribute]):
-        inner: VarExtractor[Sequence[Attribute]]
-
-        def extract_var(self, a: Attribute) -> ConstraintVariableType:
-            assert isinstance(a, ArrayAttr)
-            a = cast(ArrayAttr[Attribute], a)
-            return self.inner.extract_var(a.data)
-
-    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
-        return {
-            k: self._Extractor(v)
-            for k, v in self.elem_range_constraint.get_variable_extractors().items()
-        }
+    def variables(self) -> set[str]:
+        return self.elem_range_constraint.variables()
 
 
 @irdl_attr_definition
@@ -364,20 +350,8 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
             raise VerifyException(f"attribute {attr} expected to be an IntAttr")
         self.int_constraint.verify(attr.data, constraint_context)
 
-    @dataclass(frozen=True)
-    class _Extractor(VarExtractor[Attribute]):
-        inner: VarExtractor[int]
-
-        def extract_var(self, a: Attribute) -> ConstraintVariableType:
-            if not isinstance(a, IntAttr):
-                raise PyRDLError(f"Inference expected {a} to be an IntAttr")
-            return self.inner.extract_var(a.data)
-
-    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
-        return {
-            k: self._Extractor(v)
-            for k, v in self.int_constraint.get_length_extractors().items()
-        }
+    def variables(self) -> set[str]:
+        return self.int_constraint.variables()
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)
@@ -385,8 +359,8 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
     def infer(self, context: ConstraintContext) -> IntAttr:
         return IntAttr(self.int_constraint.infer(context))
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return IntAttr
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {IntAttr}
 
 
 class Signedness(Enum):
