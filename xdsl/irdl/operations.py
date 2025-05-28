@@ -14,14 +14,13 @@ from typing import (
     Generic,
     Literal,
     TypeAlias,
-    TypeVar,
     cast,
     get_args,
     get_origin,
     overload,
 )
 
-from typing_extensions import assert_never
+from typing_extensions import TypeVar, assert_never
 
 from xdsl.ir import (
     Attribute,
