@@ -1001,7 +1001,7 @@ class AttrParser(BaseParser):
                         parser, allow_negative=True, allow_booleans=False
                     )
 
-    def _parse_optional_int_or_float(
+    def _parse_optional_bool_int_or_float(
         self,
     ) -> tuple[int, Span] | tuple[float, Span] | None:
         """
@@ -1014,7 +1014,18 @@ class AttrParser(BaseParser):
         minus_token = self._parse_optional_token(MLIRTokenKind.MINUS)
         is_negative = minus_token is not None
 
-        if self._current_token.kind == MLIRTokenKind.INTEGER_LIT:
+        if self._current_token.kind == MLIRTokenKind.BARE_IDENT and not is_negative:
+            if self._current_token.text == "true":
+                token = self._consume_token(MLIRTokenKind.BARE_IDENT)
+                value = 1
+            elif self._current_token.text == "false":
+                token = self._consume_token(MLIRTokenKind.BARE_IDENT)
+                value = 0
+            else:
+                self._resume_from(pos)
+                return None
+
+        elif self._current_token.kind == MLIRTokenKind.INTEGER_LIT:
             token = self._consume_token(MLIRTokenKind.INTEGER_LIT)
             value = token.kind.get_int_value(token.span)
         elif self._current_token.kind == MLIRTokenKind.FLOAT_LIT:
@@ -1041,9 +1052,9 @@ class AttrParser(BaseParser):
         token = self._consume_token(MLIRTokenKind.L_PAREN)
         start = token.span.start
         input = token.span.input
-        real, _ = self._parse_int_or_float()
+        real, _ = self._parse_bool_int_or_float()
         self.parse_punctuation(",")
-        imag, _ = self._parse_int_or_float()
+        imag, _ = self._parse_bool_int_or_float()
         real_ty = type(real)
         imag_ty = type(imag)
         if real_ty != imag_ty:
@@ -1056,8 +1067,8 @@ class AttrParser(BaseParser):
         span = Span(start, end, input)
         return value, span
 
-    def _parse_int_or_float(self) -> tuple[int, Span] | tuple[float, Span]:
-        retval = self._parse_optional_int_or_float()
+    def _parse_bool_int_or_float(self) -> tuple[int, Span] | tuple[float, Span]:
+        retval = self._parse_optional_bool_int_or_float()
         if retval is None:
             self.raise_error("either an int or float must be present")
         return retval
@@ -1067,15 +1078,7 @@ class AttrParser(BaseParser):
         Parse a tensor literal element, which can be a boolean, an integer
         literal, or a float literal.
         """
-        # boolean case
-        if self._current_token.text == "true":
-            token = self._consume_token(MLIRTokenKind.BARE_IDENT)
-            return self._TensorLiteralElement(False, True, token.span)
-        if self._current_token.text == "false":
-            token = self._consume_token(MLIRTokenKind.BARE_IDENT)
-            return self._TensorLiteralElement(False, False, token.span)
-
-        if scalar_span := self._parse_optional_int_or_float():
+        if scalar_span := self._parse_optional_bool_int_or_float():
             value, span = scalar_span
             return self._TensorLiteralElement(value < 0, value, span)
 
