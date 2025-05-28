@@ -17,6 +17,7 @@ from typing_extensions import TypeVar, assert_never
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
+    AttributeInvT,
     ParametrizedAttribute,
     TypedAttribute,
 )
@@ -303,8 +304,11 @@ class TypeVarConstraint(AttrConstraint):
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> GenericAttrConstraint[Attribute]:
-        return type_var_mapping.get(self.type_var, self.constraint)
+    ) -> GenericAttrConstraint[AttributeInvT]:
+        return cast(
+            GenericAttrConstraint[AttributeInvT],
+            type_var_mapping.get(self.type_var, self.constraint),
+        )
 
 
 @dataclass(frozen=True, init=True)
