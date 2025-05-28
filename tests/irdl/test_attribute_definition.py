@@ -785,8 +785,8 @@ def test_generic_data_no_generics_wrapper_verifier():
 class ParamAttrDefAttr(ParametrizedAttribute):
     name = "test.param_attr_def_attr"
 
-    arg1: Attribute = param_def()
-    arg2: BoolData = param_def()
+    arg1: ParameterDef[Attribute]
+    arg2: ParameterDef[BoolData]
 
     # Check that we can define methods in attribute definition
     def test(self):
