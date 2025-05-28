@@ -778,7 +778,6 @@ def test_generic_data_no_generics_wrapper_verifier():
 ################################################################################
 
 
-@irdl_attr_definition
 class ParamAttrDefAttr(ParametrizedAttribute):
     name = "test.param_attr_def_attr"
 
@@ -792,8 +791,13 @@ class ParamAttrDefAttr(ParametrizedAttribute):
 
 def test_irdl_definition():
     """Test that we can get the IRDL definition of a parametrized attribute."""
+    import warnings
 
-    assert ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef(
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        _ParamAttrDefAttr = irdl_attr_definition(ParamAttrDefAttr)
+
+    assert _ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef(
         "test.param_attr_def_attr", [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))]
     )
 

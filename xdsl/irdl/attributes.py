@@ -248,6 +248,15 @@ class ParamAttrDef:
                 "ParamDef declarations."
             )
 
+        if param_hints:
+            import warnings
+
+            warnings.warn(
+                "ParameterDef[TYPE] syntax is deprecated, please use param_def instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         for param_name, param_type in param_hints.items():
             constraint = irdl_to_attr_constraint(param_type, allow_type_var=True)
             parameters.append((param_name, constraint))
