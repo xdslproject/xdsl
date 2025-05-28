@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.13.13"
 app = marimo.App(width="medium")
 
 
@@ -443,7 +443,7 @@ def _(mo):
         r"""
     #### Parametrized Attributes
 
-    `ParametrizedAttribute` attribute types are defined using the `irdl_attr_definition` decorator on a class. Such class should contain a `name` field specifying the attribute name. Parameters are added to attribute definitions by defining fields containing a `ParameterDef`. The field names correspond to the parameter names, and `ParameterDef` contains a constraint that should be respected by this parameter. The order of the fields correspond to the order of the parameters when using the attribute. Upon construction of an attribute, all constraints will be checked, and an exception will be raised if the invariants are not satisfied.
+    `ParametrizedAttribute` attribute types are defined using the `irdl_attr_definition` decorator on a class. Such class should contain a `name` field specifying the attribute name. Parameters are added to attribute definitions by defining fields with a type, and a `param_def`. The field names correspond to the parameter names, and `param_def` contains an optional constraint that should be respected by this parameter. The order of the fields correspond to the order of the parameters when using the attribute. Upon construction of an attribute, all constraints will be checked, and an exception will be raised if the invariants are not satisfied.
 
     Here is an example of an integer type definition:
     """
@@ -454,7 +454,7 @@ def _(mo):
 @app.cell
 def _(IntAttr, StringAttr, irdl_attr_definition):
     from xdsl.ir import ParametrizedAttribute
-    from xdsl.irdl import ParameterDef
+    from xdsl.irdl import param_def
 
 
     # Represent an integer type with a given bitwidth
@@ -465,7 +465,7 @@ def _(IntAttr, StringAttr, irdl_attr_definition):
 
         # Only parameter of the type, with an `EqAttrConstraint` constraint.
         # Note the use of the attribute constraint coercion.
-        width: ParameterDef[IntAttr]
+        width: IntAttr = param_def()
 
 
     my_i32 = MyIntegerType([IntAttr(32)])
@@ -498,7 +498,7 @@ def _(my_i32):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Our attribute definition also defines accessors for each parameter based on the name given in the `ParameterDef` field:""")
+    mo.md(r"""Our attribute definition also defines accessors for each parameter based on the name given in the `param_def` field:""")
     return
 
 

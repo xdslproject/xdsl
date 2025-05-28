@@ -567,15 +567,12 @@ def test_nested_param_attr_constraint_fail():
 class InformativeAttr(ParametrizedAttribute):
     name = "test.informative"
 
-    param: ParameterDef[
-        Annotated[
-            Attribute,
-            MessageConstraint(
-                NoneAttr,
-                "Dear user, here's what this constraint means in your abstraction.",
-            ),
-        ]
-    ]
+    param: Attribute = param_def(
+        MessageConstraint(
+            NoneAttr,
+            "Dear user, here's what this constraint means in your abstraction.",
+        )
+    )
 
 
 def test_informative_attribute():
