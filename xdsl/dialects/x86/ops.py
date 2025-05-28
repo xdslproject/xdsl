@@ -1110,6 +1110,34 @@ class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
+class DS_VpbroadcastdOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Broadcast single precision floating-point scalar in s to d.
+    ```C
+    x[r] = x[s]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/vpbroadcast)
+    """
+
+    name = "x86.ds.vpbroadcastd"
+
+
+@irdl_op_definition
+class DS_VpbroadcastqOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Broadcast double precision floating-point scalar in s to d.
+    ```C
+    x[r] = x[s]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/vpbroadcast)
+    """
+
+    name = "x86.ds.vpbroadcastq"
+
+
+@irdl_op_definition
 class S_PushOp(X86Instruction, X86CustomFormatOperation):
     """
     Decreases %rsp and places s at the new memory location pointed to by %rsp.
