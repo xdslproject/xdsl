@@ -12,8 +12,8 @@ from xdsl.interpreter import (
 from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
-from xdsl.ir import Attribute
 from xdsl.traits import SymbolTable
+from xdsl.utils.hints import isa
 
 
 @register_impls
@@ -22,7 +22,7 @@ class MemRefFunctions(InterpreterFunctions):
     def run_alloc(
         self, interpreter: Interpreter, op: memref.AllocOp, args: PythonValues
     ) -> PythonValues:
-        memref_type = cast(memref.MemRefType[Attribute], op.memref.type)
+        memref_type = op.memref.type
 
         shape = memref_type.get_shape()
         size = prod(shape)
@@ -72,7 +72,7 @@ class MemRefFunctions(InterpreterFunctions):
         mem = SymbolTable.lookup_symbol(op, op.name_)
         assert isinstance(mem, memref.GlobalOp)
         initial_value = mem.initial_value
-        if not isinstance(initial_value, builtin.DenseIntOrFPElementsAttr):
+        if not isa(initial_value, builtin.DenseIntOrFPElementsAttr):
             raise NotImplementedError(
                 "MemRefs that are not dense int or float arrays are not implemented"
             )

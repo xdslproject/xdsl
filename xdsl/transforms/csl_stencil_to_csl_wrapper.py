@@ -5,7 +5,6 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, stencil
 from xdsl.dialects.builtin import (
-    AnyTensorTypeConstr,
     ArrayAttr,
     DictionaryAttr,
     IndexType,
@@ -34,7 +33,6 @@ from xdsl.transforms.function_transformations import (
     TIMER_START,
 )
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
@@ -58,6 +56,11 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
     The layout module wrapper can be used to initialise general program module params. This pass generates code
     to initialise stencil-specific program params and yields them from the layout module.
+    """
+
+    target: csl.Target
+    """
+    Specifies the target architecture.
     """
 
     @op_type_rewrite_pattern
@@ -107,13 +110,9 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 )
 
             # retrieve z_dim from done_exchange arg[0]
-            if isattr(
-                field_t := apply_op.done_exchange.block.args[0].type,
-                stencil.StencilTypeConstr,
-            ) and isattr(
-                el_type := field_t.element_type,
-                AnyTensorTypeConstr | MemRefType.constr(),
-            ):
+            if stencil.StencilTypeConstr.verifies(
+                field_t := apply_op.done_exchange.block.args[0].type
+            ) and isa(el_type := field_t.element_type, TensorType | MemRefType):
                 # unbufferized csl_stencil
                 z_dim = max(z_dim, el_type.get_shape()[-1])
             elif isa(field_t, memref.MemRefType[Attribute]):
@@ -121,9 +120,9 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 z_dim = max(z_dim, field_t.get_shape()[-1])
 
             num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
-            if isattr(
+            if isa(
                 buf_t := apply_op.receive_chunk.block.args[0].type,
-                AnyTensorTypeConstr | MemRefType.constr(),
+                TensorType | MemRefType,
             ):
                 chunk_size = max(chunk_size, buf_t.get_shape()[-1])
 
@@ -133,6 +132,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         module_op = csl_wrapper.ModuleOp(
             width=IntegerAttr(width + (max_distance * 2), 16),
             height=IntegerAttr(height + (max_distance * 2), 16),
+            target=self.target,
             params={
                 "z_dim": IntegerAttr(z_dim, 16),
                 "pattern": IntegerAttr(max_distance + 1, 16),
@@ -291,17 +291,12 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         # fill layout module wrapper block with ops
         with ImplicitBuilder(module_op.layout_module.block):
-            # set up LAUNCH
-            zero = arith.ConstantOp(IntegerAttr(0, 16))
-            launch = csl.GetColorOp(zero)
-
             # import memcpy/get_params and routes
             memcpy = csl_wrapper.ImportOp(
                 "<memcpy/get_params>",
                 {
                     "width": param_width,
                     "height": param_height,
-                    "LAUNCH": launch.res,
                 },
             )
             routes = csl_wrapper.ImportOp(
@@ -454,11 +449,16 @@ class CslStencilToCslWrapperPass(ModulePass):
 
     name = "csl-stencil-to-csl-wrapper"
 
+    target: csl.Target
+    """
+    Specifies the target architecture.
+    """
+
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertStencilFuncToModuleWrappedPattern(),
+                    ConvertStencilFuncToModuleWrappedPattern(self.target),
                     LowerTimerFuncCall(),
                 ]
             ),

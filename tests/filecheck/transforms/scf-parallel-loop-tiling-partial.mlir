@@ -6,7 +6,7 @@ func.func @tile_partial() {
   %zero = arith.constant 0 : index
   %one = arith.constant 1 : index
   %size = arith.constant 64 : index
-    "scf.parallel"(%zero, %zero, %zero, %size, %size, %size, %one, %one, %one) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
+    "scf.parallel"(%zero, %zero, %zero, %size, %size, %size, %one, %one, %one) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
     ^5(%arg2_2 : index, %arg3_2 : index, %arg4_2 : index):
     scf.reduce
     }) : (index, index, index, index, index, index, index, index, index) -> ()
@@ -89,7 +89,7 @@ func.func @tile_partial_1d() {
   %zero = arith.constant 0 : index
   %one = arith.constant 1 : index
   %size = arith.constant 64 : index
-    "scf.parallel"(%zero, %size, %one) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
+    "scf.parallel"(%zero, %size, %one) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
     ^5(%arg1: index):
     scf.reduce
     }) : (index, index, index) -> ()

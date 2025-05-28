@@ -24,6 +24,9 @@ builtin.module {
     %12 = arith.addf %11, %in_1 : f32
     linalg.yield %12 : f32
   }
+
+  linalg.max ins(%1, %0 : memref<16xf32>, memref<16xf32>) outs(%0 : memref<16xf32>)
+  linalg.min ins(%0, %0 : memref<16xf32>, memref<16xf32>) outs(%1 : memref<16xf32>)
 }
 
 //CHECK-NEXT: builtin.module {
@@ -43,4 +46,10 @@ builtin.module {
 //CHECK-NEXT:   %c = arith.constant dense<0x4D8EF3C2> : memref<16xf32>
 //CHECK-NEXT:   %13 = arith.constant 0x4D8EF3C2 : f32
 //CHECK-NEXT:   "csl.fmacs"(%0, %2, %0, %13) : (memref<16xf32>, memref<16xf32>, memref<16xf32>, f32) -> ()
+//CHECK-NEXT:   "csl.fmaxs"(%0, %1, %0) : (memref<16xf32>, memref<16xf32>, memref<16xf32>) -> ()
+
+//CHECK-NEXT:   "csl.fnegs"(%0, %0) : (memref<16xf32>, memref<16xf32>) -> ()
+//CHECK-NEXT:   "csl.fmaxs"(%1, %0, %0) : (memref<16xf32>, memref<16xf32>, memref<16xf32>) -> ()
+//CHECK-NEXT:   "csl.fnegs"(%0, %0) : (memref<16xf32>, memref<16xf32>) -> ()
+//CHECK-NEXT:   "csl.fnegs"(%1, %1) : (memref<16xf32>, memref<16xf32>) -> ()
 //CHECK-NEXT: }

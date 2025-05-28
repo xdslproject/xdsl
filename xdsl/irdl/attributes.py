@@ -33,11 +33,12 @@ if TYPE_CHECKING:
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
+    BuiltinAttribute,
     Data,
     ParametrizedAttribute,
     TypedAttribute,
 )
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
+from xdsl.utils.exceptions import PyRDLAttrDefinitionError
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
@@ -132,6 +133,32 @@ def param_def(
 ) -> AttributeInvT:
     """Defines a property of an operation."""
     return cast(AttributeInvT, _ParameterDef(constraint))
+
+
+def check_attr_name(cls: type):
+    """Check that the attribute class has a correct name."""
+    name = None
+    for base in cls.mro():
+        if "name" in base.__dict__:
+            name = base.__dict__["name"]
+            break
+
+    if not isinstance(name, str):
+        raise PyRDLAttrDefinitionError(
+            f"pyrdl attribute definition '{cls.__name__}' does not "
+            "define the attribute name. The attribute name is defined by "
+            "adding a 'name' field with a string value."
+        )
+
+    dialect_attr_name = name.split(".")
+    if len(dialect_attr_name) >= 2:
+        return
+
+    if not issubclass(cls, BuiltinAttribute):
+        raise PyRDLAttrDefinitionError(
+            f"Name '{name}' is not a valid attribute name. It should be of the form "
+            "'<dialect>.<name>'."
+        )
 
 
 def irdl_param_attr_get_param_type_hints(cls: type[_A]) -> dict[str, Any]:
@@ -237,40 +264,20 @@ class ParamAttrDef:
     def verify(self, attr: ParametrizedAttribute):
         """Verify that `attr` satisfies the invariants."""
 
-        if len(attr.parameters) != len(self.parameters):
-            raise VerifyException(
-                f"In {self.name} attribute verifier: "
-                f"{len(self.parameters)} parameters expected, got "
-                f"{len(attr.parameters)}"
-            )
         constraint_context = ConstraintContext()
-        for param, (_, param_def) in zip(attr.parameters, self.parameters):
-            param_def.verify(param, constraint_context)
+        for field, param_def in self.parameters:
+            param_def.verify(getattr(attr, field), constraint_context)
 
 
 _PAttrTT = TypeVar("_PAttrTT", bound=type[ParametrizedAttribute])
 
 
-def get_accessors_from_param_attr_def(attr_def: ParamAttrDef):
-    # New fields and methods added to the attribute
-    new_fields = dict[str, Any]()
-
-    def param_name_field(idx: int):
-        @property
-        def field(self: ParametrizedAttribute):
-            return self.parameters[idx]
-
-        return field
-
-    for idx, (param_name, _) in enumerate(attr_def.parameters):
-        new_fields[param_name] = param_name_field(idx)
-
+def get_accessors_from_param_attr_def(attr_def: ParamAttrDef) -> dict[str, Any]:
     @classmethod
     def get_irdl_definition(cls: type[ParametrizedAttribute]):
         return attr_def
 
-    new_fields["get_irdl_definition"] = get_irdl_definition
-    return new_fields
+    return {"get_irdl_definition": get_irdl_definition}
 
 
 def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
@@ -311,6 +318,7 @@ TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
 
 
 def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
+    check_attr_name(cls)
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
@@ -389,8 +397,7 @@ def irdl_to_attr_constraint(
     allow_type_var: bool = False,
 ) -> AttrConstraint:
     if isinstance(irdl, GenericAttrConstraint):
-        constr: GenericAttrConstraint[Attribute] = irdl
-        return constr
+        return cast(AttrConstraint, irdl)
 
     if isinstance(irdl, Attribute):
         return EqAttrConstraint(irdl)
@@ -437,7 +444,7 @@ def irdl_to_attr_constraint(
         args = get_args(irdl)
         if len(args) != 1:
             raise Exception(f"GenericData args must have length 1, got {args}")
-        cls: type[GenericData[Attribute]] = origin
+        cls = cast(type[GenericData[Attribute]], origin)
         return AllOf((BaseAttr(cls), origin.generic_constraint_coercion(args)))
 
     # Generic ParametrizedAttributes case

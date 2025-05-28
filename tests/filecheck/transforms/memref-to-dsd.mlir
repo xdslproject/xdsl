@@ -121,7 +121,7 @@ builtin.module {
 // CHECK-NEXT: "test.op"(%31) : (f32) -> ()
 
 %39 = memref.alloc() {"alignment" = 64 : i64} : memref<3x64xf32>
-%40 = "memref.subview"(%39, %0) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0>, "static_offsets" = array<i64: 2, -9223372036854775808>, "static_sizes" = array<i64: 1, 32>, "static_strides" = array<i64: 1, 1>}> : (memref<3x64xf32>, index) -> memref<32xf32, strided<[1], offset: ?>>
+%40 = "memref.subview"(%39, %0) <{operandSegmentSizes = array<i32: 1, 1, 0, 0>, "static_offsets" = array<i64: 2, -9223372036854775808>, "static_sizes" = array<i64: 1, 32>, "static_strides" = array<i64: 1, 1>}> : (memref<3x64xf32>, index) -> memref<32xf32, strided<[1], offset: ?>>
 
 // CHECK-NEXT: %32 = "csl.zeros"() : () -> memref<3x64xf32>
 // CHECK-NEXT: %33 = arith.constant 3 : i16

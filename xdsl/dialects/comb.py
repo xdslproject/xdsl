@@ -6,7 +6,7 @@ higher level dialects mixed into it.
 
 Up to date as of CIRCT commit `2e23cda6c2cbedb118b92fab755f1e36d80b13f5`.
 
-[1] https://circt.llvm.org/docs/Dialects/Comb/
+See external [documentation](https://circt.llvm.org/docs/Dialects/Comb/).
 """
 
 from abc import ABC

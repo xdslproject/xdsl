@@ -26,6 +26,7 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     PropertyDef,
+    RangeOf,
     RegionDef,
     ResultDef,
     SuccessorDef,
@@ -41,7 +42,9 @@ class DialectStubGenerator:
     """Generate a typing stub file (.pyi) for a dialect."""
 
     dialect: Dialect
-    dependencies: dict[str, set[str]] = field(init=False, default_factory=dict)
+    dependencies: dict[str, set[str]] = field(
+        init=False, default_factory=dict[str, set[str]]
+    )
 
     def _import(self, module: ModuleType | str, name: str | type[Any]):
         """
@@ -88,14 +91,14 @@ class DialectStubGenerator:
                     self._import(type(attr).__module__, type(attr).__name__)
                 return type(attr).__name__
 
-            case AnyOf(constraints):
+            case AnyOf(attr_constrs=constraints):
                 return " | ".join(
                     self._generate_constraint_type(c) for c in constraints
                 )
             case AllOf(constraints):
                 self._import(typing, "Annotated")
                 return f"Annotated[{', '.join(self._generate_constraint_type(c) for c in reversed(constraints))}]"  # noqa: E501
-            case ArrayOfConstraint(constraint):
+            case ArrayOfConstraint(RangeOf(constraint)):
                 self._import(xdsl.dialects.builtin, ArrayAttr)
                 return f"ArrayAttr[{self._generate_constraint_type(constraint)}]"
             case AnyAttr():

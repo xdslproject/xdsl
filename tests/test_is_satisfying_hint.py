@@ -9,11 +9,13 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     StringAttr,
+    i32,
 )
-from xdsl.ir import Attribute, ParametrizedAttribute
+from xdsl.ir import Attribute, ParametrizedAttribute, SSAValue
 from xdsl.irdl import BaseAttr, EqAttrConstraint, ParameterDef, irdl_attr_definition
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
+from xdsl.utils.isattr import isattr  # pyright: ignore[reportDeprecated]
+from xdsl.utils.test_value import create_ssa_value
 
 
 class Class1:
@@ -372,18 +374,18 @@ def test_parametrized_attribute():
 
 
 def test_literal():
-    assert isa("string", Literal["string"])  # pyright: ignore[reportArgumentType]
-    assert isa("string", Literal["string", "another string"])  # pyright: ignore[reportArgumentType]
-    assert isa("another string", Literal["string", "another string"])  # pyright: ignore[reportArgumentType]
-    assert not isa("not this string", Literal["string", "another string"])  # pyright: ignore[reportArgumentType]
+    assert isa("string", Literal["string"])
+    assert isa("string", Literal["string", "another string"])
+    assert isa("another string", Literal["string", "another string"])
+    assert not isa("not this string", Literal["string", "another string"])
 
-    assert isa(1, Literal[1])  # pyright: ignore[reportArgumentType]
-    assert isa(1, Literal[1, 2])  # pyright: ignore[reportArgumentType]
-    assert isa(2, Literal[1, 2])  # pyright: ignore[reportArgumentType]
-    assert not isa(3, Literal[1, 2])  # pyright: ignore[reportArgumentType]
+    assert isa(1, Literal[1])
+    assert isa(1, Literal[1, 2])
+    assert isa(2, Literal[1, 2])
+    assert not isa(3, Literal[1, 2])
 
-    assert not isa(1, Literal["1"])  # pyright: ignore[reportArgumentType]
-    assert not isa("1", Literal[1])  # pyright: ignore[reportArgumentType]
+    assert not isa(1, Literal["1"])
+    assert not isa("1", Literal[1])
 
 
 ################################################################################
@@ -392,9 +394,32 @@ def test_literal():
 
 
 def test_isattr():
-    assert isattr(IntAttr(1), IntAttr)
-    assert not isattr(IntAttr(1), StringAttr)
-    assert isattr(IntAttr(1), BaseAttr(IntAttr))
-    assert not isattr(IntAttr(1), BaseAttr(StringAttr))
-    assert isattr(IntAttr(1), EqAttrConstraint(IntAttr(1)))
-    assert not isattr(IntAttr(1), EqAttrConstraint(IntAttr(2)))
+    # We're testing the deprecated function, so we need to suppress the warnings
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        assert isattr(IntAttr(1), BaseAttr(IntAttr))  # pyright: ignore[reportDeprecated]
+        assert not isattr(IntAttr(1), BaseAttr(StringAttr))  # pyright: ignore[reportDeprecated]
+        assert isattr(IntAttr(1), EqAttrConstraint(IntAttr(1)))  # pyright: ignore[reportDeprecated]
+        assert not isattr(IntAttr(1), EqAttrConstraint(IntAttr(2)))  # pyright: ignore[reportDeprecated]
+
+
+################################################################################
+# SSAValue
+################################################################################
+
+
+def test_ssavalue():
+    a = create_ssa_value(i32)
+
+    assert isa(a, SSAValue)
+    assert isa(a, SSAValue[IntegerType])
+    assert not isa(a, SSAValue[StringAttr])
+    assert not isa(a, SSAValue[IntegerAttr[IntegerType]])
+
+    b = create_ssa_value(IntegerAttr(2, i32))
+
+    assert isa(b, SSAValue[IntegerAttr[IntegerType]])
+    assert not isa(b, SSAValue[IntegerAttr[IndexType]])
+    assert not isa(b, SSAValue[IntegerType])

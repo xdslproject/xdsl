@@ -8,12 +8,19 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
+    FunctionType,
     IntAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+)
+from xdsl.dialects.func import FuncOpCallableInterface
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+    parse_func_op_like,
+    print_func_op_like,
 )
 from xdsl.ir import (
     Attribute,
@@ -29,6 +36,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParameterDef,
+    ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -42,7 +50,9 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import IsolatedFromAbove, IsTerminator
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.traits import IsolatedFromAbove, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -66,7 +76,7 @@ class TransformParamHandleType(TransformHandleType, ABC):
 @irdl_attr_definition
 class AffineMapType(TransformHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#affinemapparamtype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#affinemapparamtype).
     """
 
     name = "transform.affine_map"
@@ -75,7 +85,7 @@ class AffineMapType(TransformHandleType):
 @irdl_attr_definition
 class AnyOpType(TransformOpHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#anyoptype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#anyoptype).
     """
 
     name = "transform.any_op"
@@ -84,7 +94,7 @@ class AnyOpType(TransformOpHandleType):
 @irdl_attr_definition
 class AnyValueType(TransformValueHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#anyvaluetype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#anyvaluetype).
     """
 
     name = "transform.any_value"
@@ -98,7 +108,7 @@ class AnyParamType(TransformParamHandleType):
 @irdl_attr_definition
 class OperationType(TransformOpHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#operationtype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#operationtype).
     """
 
     name = "transform.op"
@@ -111,7 +121,7 @@ class OperationType(TransformOpHandleType):
 @irdl_attr_definition
 class ParamType(TransformParamHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#paramtype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#paramtype).
     """
 
     name = "transform.param"
@@ -124,7 +134,7 @@ class ParamType(TransformParamHandleType):
 @irdl_attr_definition
 class TypeParamType(TransformParamHandleType):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#typeparamtype
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#typeparamtype).
     """
 
     name = "transform.type"
@@ -148,9 +158,48 @@ AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
 
 
 @irdl_op_definition
+class ApplyRegisteredPassOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformapply_registered_pass-transformapplyregisteredpassop).
+    """
+
+    name = "transform.apply_registered_pass"
+
+    options = prop_def(StringAttr, default_value=StringAttr(""))
+    pass_name = prop_def(StringAttr)
+    target = operand_def(TransformHandleType)
+    result = result_def(TransformHandleType)
+    assembly_format = (
+        "$pass_name `to` $target attr-dict `:` functional-type(operands, results)"
+    )
+    irdl_options = [ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        pass_name: str | StringAttr,
+        target: SSAValue,
+        options: str | StringAttr | None = None,
+    ):
+        if isinstance(pass_name, str):
+            pass_name = StringAttr(pass_name)
+
+        if isinstance(options, str):
+            options = StringAttr(options)
+
+        super().__init__(
+            properties={
+                "pass_name": pass_name,
+                "options": options,
+            },
+            operands=[target],
+            result_types=[target.type],
+        )
+
+
+@irdl_op_definition
 class GetConsumersOfResultOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_consumers_of_result-transformgetconsumersofresult
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_consumers_of_result-transformgetconsumersofresult).
     """
 
     name = "transform.get_consumers_of_result"
@@ -174,7 +223,7 @@ class GetConsumersOfResultOp(IRDLOperation):
 @irdl_op_definition
 class GetDefiningOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_defining_op-transformgetdefiningop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_defining_op-transformgetdefiningop).
     """
 
     name = "transform.get_defining_op"
@@ -189,7 +238,7 @@ class GetDefiningOp(IRDLOperation):
 @irdl_op_definition
 class GetParentOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_parent_op-transformgetparentop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_parent_op-transformgetparentop).
     """
 
     name = "transform.get_parent_op"
@@ -229,7 +278,7 @@ class GetParentOp(IRDLOperation):
 @irdl_op_definition
 class GetProducerOfOperandOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_producer_of_operand-transformgetproducerofoperand
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_producer_of_operand-transformgetproducerofoperand).
     """
 
     name = "transform.get_producer_of_operand"
@@ -255,7 +304,7 @@ class GetProducerOfOperandOp(IRDLOperation):
 @irdl_op_definition
 class GetResultOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_result-transformgetresultop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_result-transformgetresultop).
     """
 
     name = "transform.get_result"
@@ -291,7 +340,7 @@ class GetResultOp(IRDLOperation):
 @irdl_op_definition
 class GetTypeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_type-transformgettypeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformget_type-transformgettypeop).
     """
 
     name = "transform.get_type"
@@ -311,7 +360,7 @@ class GetTypeOp(IRDLOperation):
 @irdl_op_definition
 class IncludeOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transforminclude-transformincludeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transforminclude-transformincludeop).
     """
 
     name = "transform.include"
@@ -344,7 +393,7 @@ class IncludeOp(IRDLOperation):
 @irdl_op_definition
 class MatchOperationEmptyOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchoperation_empty-transformmatchoperationemptyop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchoperation_empty-transformmatchoperationemptyop).
     """
 
     name = "transform.match.operation_empty"
@@ -358,7 +407,7 @@ class MatchOperationEmptyOp(IRDLOperation):
 @irdl_op_definition
 class MatchOperationNameOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchoperation_name-transformmatchoperationnameop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchoperation_name-transformmatchoperationnameop).
     """
 
     name = "transform.match.operation_name"
@@ -387,7 +436,7 @@ class MatchOperationNameOp(IRDLOperation):
 @irdl_op_definition
 class MatchParamCmpIOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchparamcmpi-transformmatchparamcmpiop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchparamcmpi-transformmatchparamcmpiop).
     """
 
     name = "transform.match.param.cmpi"
@@ -412,7 +461,7 @@ class MatchParamCmpIOp(IRDLOperation):
 @irdl_op_definition
 class MergeHandlesOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformmerge_handles-transformmergehandlesop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformmerge_handles-transformmergehandlesop).
     """
 
     name = "transform.merge_handles"
@@ -432,7 +481,7 @@ class MergeHandlesOp(IRDLOperation):
 @irdl_op_definition
 class ParamConstantOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformparamconstant-transformparamconstantop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformparamconstant-transformparamconstantop).
     """
 
     name = "transform.param.constant"
@@ -449,7 +498,7 @@ class ParamConstantOp(IRDLOperation):
 @irdl_op_definition
 class SplitHandleOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformsplit_handle-transformsplithandleop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformsplit_handle-transformsplithandleop).
     """
 
     name = "transform.split_handle"
@@ -498,9 +547,9 @@ class SplitHandleOp(IRDLOperation):
 
 
 @irdl_op_definition
-class YieldOp(IRDLOperation):
+class YieldOp(AbstractYieldOperation[Attribute]):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformyield-transformyieldop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformyield-transformyieldop).
     """
 
     name = "transform.yield"
@@ -511,7 +560,7 @@ class YieldOp(IRDLOperation):
 @irdl_op_definition
 class SequenceOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformsequence-transformsequenceop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformsequence-transformsequenceop).
     """
 
     name = "transform.sequence"
@@ -556,7 +605,7 @@ class SequenceOp(IRDLOperation):
 @irdl_op_definition
 class TileOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop).
     """
 
     name = "transform.structured.tile_using_for"
@@ -617,7 +666,7 @@ class TileOp(IRDLOperation):
 @irdl_op_definition
 class TileToForallOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop).
     """
 
     name = "transform.structured.tile_using_forall"
@@ -678,7 +727,7 @@ class TileToForallOp(IRDLOperation):
 @irdl_op_definition
 class SelectOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformselect-transformselectop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformselect-transformselectop).
     """
 
     name = "transform.select"
@@ -700,22 +749,26 @@ class SelectOp(IRDLOperation):
 @irdl_op_definition
 class NamedSequenceOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformnamed_sequence-transformnamedsequenceop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformnamed_sequence-transformnamedsequenceop).
     """
 
     name = "transform.named_sequence"
 
     sym_name = prop_def(StringAttr)
-    function_type = prop_def(TypeAttribute)
+    function_type = prop_def(FunctionType)
     sym_visibility = opt_prop_def(StringAttr)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     body = region_def("single_block")
 
+    traits = traits_def(
+        IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
+    )
+
     def __init__(
         self,
         sym_name: str | StringAttr,
-        function_type: TypeAttribute,
+        function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
         body: Region,
         sym_visibility: str | StringAttr | None = None,
         arg_attrs: Sequence[DictionaryAttr] | ArrayAttr[DictionaryAttr] | None = None,
@@ -725,6 +778,9 @@ class NamedSequenceOp(IRDLOperation):
             sym_name = StringAttr(sym_name)
         if isinstance(sym_visibility, str):
             sym_visibility = StringAttr(sym_visibility)
+        if isinstance(function_type, tuple):
+            inputs, outputs = function_type
+            function_type = FunctionType.from_lists(inputs, outputs)
         if isinstance(arg_attrs, Sequence):
             arg_attrs = ArrayAttr(arg_attrs)
         if isinstance(res_attrs, Sequence):
@@ -740,11 +796,59 @@ class NamedSequenceOp(IRDLOperation):
             regions=[body],
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> NamedSequenceOp:
+        visibility = parser.parse_optional_visibility_keyword()
+
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+        ) = parse_func_op_like(
+            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
+        )
+        named_sequence = NamedSequenceOp(
+            sym_name=name,
+            function_type=(input_types, return_types),
+            body=region,
+            sym_visibility=visibility,
+            arg_attrs=arg_attrs,
+            res_attrs=res_attrs,
+        )
+        if extra_attrs is not None:
+            named_sequence.attributes |= extra_attrs.data
+        return named_sequence
+
+    def print(self, printer: Printer):
+        if self.sym_visibility:
+            visibility = self.sym_visibility.data
+            printer.print(f" {visibility}")
+
+        print_func_op_like(
+            printer,
+            self.sym_name,
+            self.function_type,
+            self.body,
+            self.attributes,
+            arg_attrs=self.arg_attrs,
+            res_attrs=self.res_attrs,
+            reserved_attr_names=(
+                "sym_name",
+                "function_type",
+                "sym_visibility",
+                "arg_attrs",
+            ),
+        )
+
 
 @irdl_op_definition
 class CastOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformcast-transformcastop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformcast-transformcastop).
     """
 
     name = "transform.cast"
@@ -759,7 +863,7 @@ class CastOp(IRDLOperation):
 @irdl_op_definition
 class MatchOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredmatch-transformmatchop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredmatch-transformmatchop).
     """
 
     name = "transform.structured.match"
@@ -815,6 +919,7 @@ class MatchOp(IRDLOperation):
 Transform = Dialect(
     "transform",
     [
+        ApplyRegisteredPassOp,
         GetConsumersOfResultOp,
         GetDefiningOp,
         GetParentOp,

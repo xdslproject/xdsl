@@ -274,16 +274,13 @@ class ConvertMemRefGlobalOp(RewritePattern):
                     raise DiagnosticException(
                         f"Unsupported memref element type for riscv lowering: {element_type}"
                     )
-                ints = initial_value.get_values()
-                for i in ints:
-                    assert isinstance(i, int)
-                ints = cast(list[int], ints)
+                ints = initial_value.get_int_values()
                 ptr = TypedPtr.new_int32(ints).raw
             case Float32Type():
-                floats = initial_value.get_values()
+                floats = initial_value.get_float_values()
                 ptr = TypedPtr.new_float32(floats).raw
             case Float64Type():
-                floats = initial_value.get_values()
+                floats = initial_value.get_float_values()
                 ptr = TypedPtr.new_float64(floats).raw
             case _:
                 raise DiagnosticException(
@@ -341,7 +338,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
         source_type = source.type
         assert isinstance(source_type, MemRefType)
         source_type = cast(MemRefType[Attribute], source_type)
-        result_type = cast(MemRefType[Attribute], result.type)
+        result_type = result.type
 
         result_layout_attr = result_type.layout
         if isinstance(result_layout_attr, NoneAttr):

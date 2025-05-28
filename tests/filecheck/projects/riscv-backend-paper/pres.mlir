@@ -3,8 +3,6 @@
 // A test that verifies that we can emit the target assembly for Snitch, below are the
 // versions of ssum (C=A+B where all have fixed size 128xf32) .
 
-riscv.label ".text"
-
 riscv_func.func @pres_1(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
     %zero = riscv.get_register : !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
@@ -80,7 +78,7 @@ riscv_func.func @pres_4(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
     riscv_func.return
 }
 
-// CHECK:        .text:
+// CHECK:        .text
 // CHECK-NEXT:   pres_1:
 // CHECK-NEXT:       mv a3, zero
 // CHECK-NEXT:       addi a4, zero, 512

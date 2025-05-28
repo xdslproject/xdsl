@@ -32,7 +32,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 class LowerAllocOpPass(RewritePattern):
@@ -40,9 +39,10 @@ class LowerAllocOpPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
-        assert isattr(
-            memref_type := op.memref.type,
-            MemRefType[ZerosOpAttr].constr(element_type=csl.ZerosOpAttrConstr),
+        assert (
+            MemRefType[ZerosOpAttr]
+            .constr(element_type=csl.ZerosOpAttrConstr)
+            .verifies(memref_type := op.memref.type)
         )
         zeros_op = csl.ZerosOp(memref_type)
 
@@ -371,8 +371,7 @@ class CslVarUpdate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.VariableOp, rewriter: PatternRewriter, /):
         if (
-            not isinstance(op.res.type, csl.VarType)
-            or not isa(elem_t := op.res.type.get_element_type(), MemRefType[Attribute])
+            not isa(elem_t := op.res.type.get_element_type(), MemRefType[Attribute])
             or op.default
         ):
             return
