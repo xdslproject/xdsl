@@ -315,7 +315,7 @@ def test_signless_integer_attr():
 class BoolWrapperAttr(ParametrizedAttribute):
     name = "test.bool_wrapper"
 
-    param: ParameterDef[BoolData]
+    param: BoolData = param_def()
 
 
 def test_bose_constraint():
@@ -343,7 +343,7 @@ def test_base_constraint_fail():
 class BoolOrIntParamAttr(ParametrizedAttribute):
     name = "test.bool_or_int"
 
-    param: ParameterDef[BoolData | IntData]
+    param: BoolData | IntData = param_def()
 
 
 def test_union_constraint_left():
@@ -395,7 +395,7 @@ class PositiveIntConstr(AttrConstraint):
 class PositiveIntAttr(ParametrizedAttribute):
     name = "test.positive_int"
 
-    param: ParameterDef[Annotated[IntData, PositiveIntConstr()]]
+    param: Attribute = param_def(PositiveIntConstr())
 
 
 def test_annotated_constraint():
@@ -425,7 +425,7 @@ _T = TypeVar("_T", bound=BoolData | IntData)
 class ParamWrapperAttr(Generic[_T], ParametrizedAttribute):
     name = "test.int_or_bool_generic"
 
-    param: ParameterDef[_T]
+    param: _T = param_def()
 
     def __init__(self, param: _T):
         super().__init__((param,))
@@ -460,9 +460,9 @@ def test_typevar_attribute_fail():
 class ParamConstrAttr(ParametrizedAttribute):
     name = "test.param_constr"
 
-    param: ParameterDef[ParamWrapperAttr[IntData]]
+    param: ParamWrapperAttr[IntData] = param_def()
 
-    def __init__(self, param: ParameterDef[ParamWrapperAttr[IntData]]):
+    def __init__(self, param: ParamWrapperAttr[IntData]):
         super().__init__((param,))
 
 
@@ -495,9 +495,9 @@ _U = TypeVar("_U", bound=IntData)
 class NestedParamWrapperAttr(Generic[_U], ParametrizedAttribute):
     name = "test.nested_param_wrapper"
 
-    param: ParameterDef[ParamWrapperAttr[_U]]
+    param: ParamWrapperAttr[_U] = param_def()
 
-    def __init__(self, param: ParameterDef[ParamWrapperAttr[_U]]):
+    def __init__(self, param: ParamWrapperAttr[_U]):
         super().__init__((param,))
 
 
@@ -530,7 +530,7 @@ def test_nested_generic_constraint_fail():
 class NestedParamConstrAttr(ParametrizedAttribute):
     name = "test.nested_param_constr"
 
-    param: ParameterDef[NestedParamWrapperAttr[Annotated[IntData, PositiveIntConstr()]]]
+    param: NestedParamWrapperAttr[Annotated[IntData, PositiveIntConstr()]] = param_def()
 
 
 def test_nested_param_attr_constraint():
@@ -567,15 +567,12 @@ def test_nested_param_attr_constraint_fail():
 class InformativeAttr(ParametrizedAttribute):
     name = "test.informative"
 
-    param: ParameterDef[
-        Annotated[
-            Attribute,
-            MessageConstraint(
-                NoneAttr,
-                "Dear user, here's what this constraint means in your abstraction.",
-            ),
-        ]
-    ]
+    param: Attribute = param_def(
+        MessageConstraint(
+            NoneAttr,
+            "Dear user, here's what this constraint means in your abstraction.",
+        )
+    )
 
 
 def test_informative_attribute():
@@ -628,7 +625,7 @@ class MissingGenericDataData(Data[_MissingGenericDataData]):
 class MissingGenericDataDataWrapper(ParametrizedAttribute):
     name = "test.missing_genericdata_wrapper"
 
-    param: ParameterDef[MissingGenericDataData[int]]
+    param: MissingGenericDataData[int] = param_def()
 
 
 def test_data_with_generic_missing_generic_data_failure():
@@ -719,7 +716,7 @@ class Test_generic_data_verifier:
 class ListDataWrapper(ParametrizedAttribute):
     name = "test.list_wrapper"
 
-    val: ParameterDef[ListData[BoolData]]
+    val: ListData[BoolData] = param_def()
 
 
 def test_generic_data_wrapper_verifier():
@@ -757,7 +754,7 @@ def test_generic_data_wrapper_verifier_failure():
 class ListDataNoGenericsWrapper(ParametrizedAttribute):
     name = "test.list_no_generics_wrapper"
 
-    val: ParameterDef[AnyListData]
+    val: AnyListData = param_def()
 
 
 def test_generic_data_no_generics_wrapper_verifier():
@@ -781,7 +778,6 @@ def test_generic_data_no_generics_wrapper_verifier():
 ################################################################################
 
 
-@irdl_attr_definition
 class ParamAttrDefAttr(ParametrizedAttribute):
     name = "test.param_attr_def_attr"
 
@@ -795,8 +791,13 @@ class ParamAttrDefAttr(ParametrizedAttribute):
 
 def test_irdl_definition():
     """Test that we can get the IRDL definition of a parametrized attribute."""
+    import warnings
 
-    assert ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef(
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        _ParamAttrDefAttr = irdl_attr_definition(ParamAttrDefAttr)
+
+    assert _ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef(
         "test.param_attr_def_attr", [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))]
     )
 
@@ -850,7 +851,7 @@ def test_invalid_field():
 class OveriddenInitAttr(ParametrizedAttribute):
     name = "test.overidden_init"
 
-    param: ParameterDef[Attribute]
+    param: Attribute = param_def()
 
     def __init__(self, param: int | str):
         match param:
@@ -881,7 +882,7 @@ def test_custom_constructor():
 class GenericAttr(Generic[AttributeInvT], ParametrizedAttribute):
     name = "test.generic_attr"
 
-    param: ParameterDef[AttributeInvT]
+    param: AttributeInvT = param_def()
 
 
 def test_generic_attr():
@@ -960,8 +961,8 @@ class ConstraintVarAttr(ParametrizedAttribute):
 
     T = Annotated[IntegerType, ConstraintVar("T")]
 
-    param1: ParameterDef[IntegerAttr[T]]
-    param2: ParameterDef[IntegerAttr[T]]
+    param1: IntegerAttr[T] = param_def()
+    param2: IntegerAttr[T] = param_def()
 
 
 def test_constraint_var():
