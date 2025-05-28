@@ -23,7 +23,6 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
-    overload,
 )
 
 if TYPE_CHECKING:
@@ -95,37 +94,17 @@ ParameterDef = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
 
 # Field definition classes for `@irdl_param_attr_definition`
 class _ParameterDef:
-    param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
+    param: GenericAttrConstraint[Attribute] | None
 
     def __init__(
         self,
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar,
+        param: GenericAttrConstraint[Attribute] | None,
     ):
         self.param = param
 
 
-@overload
 def param_def(
-    constraint: TypeVar,
-    *,
-    default: None = None,
-    resolver: None = None,
-    init: Literal[False] = False,
-) -> Attribute: ...
-
-
-@overload
-def param_def(
-    constraint: type[AttributeInvT] | GenericAttrConstraint[AttributeInvT],
-    *,
-    default: None = None,
-    resolver: None = None,
-    init: Literal[False] = False,
-) -> AttributeInvT: ...
-
-
-def param_def(
-    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    constraint: GenericAttrConstraint[AttributeInvT] | None = None,
     *,
     default: None = None,
     resolver: None = None,
@@ -161,26 +140,6 @@ def check_attr_name(cls: type):
         )
 
 
-def irdl_param_attr_get_param_type_hints(cls: type[_A]) -> dict[str, Any]:
-    """Get the type hints of an IRDL parameter definitions."""
-    res: dict[str, Any] = {}
-    for field_name, field_type in get_type_hints(cls, include_extras=True).items():
-        if field_name == "name" or field_name == "parameters":
-            continue
-
-        origin: Any | None = cast(Any | None, get_origin(field_type))
-        args = get_args(field_type)
-        if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
-            raise PyRDLAttrDefinitionError(
-                f"In attribute {cls.__name__} definition: Parameter "
-                + f"definition {field_name} should be defined with "
-                + f"type `ParameterDef[<Constraint>]`, got type {field_type}."
-            )
-
-        res[field_name] = field_type
-    return res
-
-
 _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
     key
     for dict_seq in (
@@ -210,8 +169,29 @@ class ParamAttrDef:
             for key, value in parent_cls.__dict__.items()
             if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS
         }
+
         # Fields of the class with type annotations
-        param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
+        # param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
+        param_hints: dict[str, Any] = {}
+
+        for field_name, field_type in get_type_hints(
+            pyrdl_def, include_extras=True
+        ).items():
+            if field_name == "name" or field_name == "parameters":
+                continue
+
+            origin: Any | None = cast(Any | None, get_origin(field_type))
+            args = get_args(field_type)
+            if (
+                origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args
+            ) and field_name not in clsdict:
+                raise PyRDLAttrDefinitionError(
+                    f"In attribute {pyrdl_def.__name__} definition: Parameter "
+                    + f"definition {field_name} should be defined with "
+                    + f"type `ParameterDef[<Constraint>]`, got type {field_type}."
+                )
+
+            param_hints[field_name] = field_type
 
         # The resulting parameters
         parameters = list[tuple[str, AttrConstraint]]()
@@ -228,7 +208,19 @@ class ParamAttrDef:
 
             # Parameter def must be a field def
             if isinstance(value, _ParameterDef):
-                constraint = irdl_to_attr_constraint(value.param, allow_type_var=True)
+                type_hint = param_hints.get(field_name)
+                if type_hint is None:
+                    raise PyRDLAttrDefinitionError(
+                        f"Missing type hint for parameter name {field_name}"
+                    )
+                # Erase type hint to avoid mixing definitions error below
+                del param_hints[field_name]
+
+                constraint = irdl_to_attr_constraint(type_hint, allow_type_var=True)
+
+                if value.param is not None:
+                    constraint &= value.param
+
                 parameters.append((field_name, constraint))
                 continue
 
