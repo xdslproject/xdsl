@@ -14,10 +14,10 @@ from xdsl.irdl import (
     ConstraintContext,
     EqAttrConstraint,
     ParamAttrConstraint,
-    ParameterDef,
     VarConstraint,
     eq,
     irdl_attr_definition,
+    param_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -60,8 +60,8 @@ class DoubleParamAttr(ParametrizedAttribute):
 
     name = "test.param"
 
-    param1: ParameterDef[Attribute]
-    param2: ParameterDef[Attribute]
+    param1 = param_def(Attribute)
+    param2 = param_def(Attribute)
 
 
 def test_eq_attr_verify():

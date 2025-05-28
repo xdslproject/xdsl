@@ -23,11 +23,11 @@ from xdsl.irdl import (
     ConstraintContext,
     EqAttrConstraint,
     ParamAttrConstraint,
-    ParameterDef,
     VarConstraint,
     base,
     eq,
     irdl_attr_definition,
+    param_def,
 )
 
 
@@ -59,7 +59,7 @@ class AttrA(Base):
 class AttrB(Base):
     name = "test.attr_b"
 
-    param: ParameterDef[AttrA]
+    param = param_def(AttrA)
 
 
 @irdl_attr_definition
@@ -101,7 +101,7 @@ def test_param_attr_constraint_inference():
     class BaseWrapAttr(ParametrizedAttribute):
         name = "test.wrap"
 
-        inner: ParameterDef[Attribute]
+        inner = param_def(Attribute)
 
     @irdl_attr_definition
     class WrapAttr(BaseWrapAttr): ...
@@ -154,7 +154,7 @@ def test_base_attr_constraint_inference():
     class WithParamAttr(ParametrizedAttribute):
         name = "test.with_param"
 
-        inner: ParameterDef[Attribute]
+        inner = param_def(Attribute)
 
     @irdl_attr_definition
     class DataAttr(Data[int]):
