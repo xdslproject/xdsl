@@ -770,7 +770,7 @@ def test_parse_optional_bool_int_or_float_numeric(numeric: str, typ: type):
             assert value == typ(numeric)
             assert span.text == numeric
         case builtins.bool:
-            expected = True if numeric == "true" else False
+            expected = numeric == "true"
             assert value == expected
             assert span.text == numeric
         case _:
@@ -808,7 +808,7 @@ def test_parse_bool_int_or_float_numeric(numeric: str, typ: type):
             assert value == typ(numeric)
             assert span.text == numeric
         case builtins.bool:
-            expected = True if numeric == "true" else False
+            expected = numeric == "true"
             assert value == expected
             assert span.text == numeric
         case _:
