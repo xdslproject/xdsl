@@ -805,8 +805,8 @@ def test_irdl_definition():
 class ParamAttrDefAttr2(ParametrizedAttribute):
     name = "test.param_attr_def_attr"
 
-    arg1 = param_def(Attribute)
-    arg2 = param_def(BoolData)
+    arg1: Attribute = param_def(base(IntAttr))
+    arg2: BoolData = param_def()
 
     # Check that we can define methods in attribute definition
     def test(self):
@@ -818,7 +818,7 @@ def test_irdl_definition2():
 
     assert ParamAttrDefAttr2.get_irdl_definition() == ParamAttrDef(
         "test.param_attr_def_attr",
-        [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))],
+        [("arg1", AnyAttr() & BaseAttr(IntAttr)), ("arg2", BaseAttr(BoolData))],
     )
 
 
@@ -909,7 +909,7 @@ def test_generic_attr():
 class GenericAttr2(Generic[AttributeInvT], ParametrizedAttribute):
     name = "test.generic_attr"
 
-    param = param_def(AttributeInvT)
+    param: AttributeInvT = param_def()
 
 
 def test_generic_attr2():
@@ -946,7 +946,7 @@ def test_mixed_param_def_apis():
             name = "test.invalid"
             # Using both styles is invalid
             param1: ParameterDef[IntegerType]  # Using annotation style
-            param2 = param_def(IntegerType)  # Using param_def style
+            param2: IntegerType = param_def()  # Using param_def style
 
 
 ################################################################################
