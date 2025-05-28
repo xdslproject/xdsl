@@ -137,7 +137,7 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "fir.ref"
-    type = param_def(Attribute)
+    type: Attribute = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         # We need this to pretty print a tuple and its members if
@@ -202,7 +202,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.llvm_ptr"
 
-    type = param_def(IntegerAttr | AnyFloat)
+    type: IntegerAttr | AnyFloat = param_def()
 
 
 @irdl_attr_definition
@@ -226,9 +226,9 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "fir.array"
-    shape = param_def(ArrayAttr[IntegerAttr | DeferredAttr | NoneType])
-    type = param_def(IntegerType | AnyFloat | ReferenceType)
-    type2 = param_def(IntegerType | AnyFloat | ReferenceType | NoneType)
+    shape: ArrayAttr[IntegerAttr | DeferredAttr | NoneType] = param_def()
+    type: IntegerType | AnyFloat | ReferenceType = param_def()
+    type2: IntegerType | AnyFloat | ReferenceType | NoneType = param_def()
 
     def __init__(
         self,
@@ -331,8 +331,8 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.char"
 
-    from_index = param_def(IntAttr | DeferredAttr)
-    to_index = param_def(IntAttr | DeferredAttr)
+    from_index: IntAttr | DeferredAttr = param_def()
+    to_index: IntAttr | DeferredAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
@@ -375,7 +375,7 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.shape"
 
-    indexes = param_def(IntAttr)
+    indexes: IntAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
@@ -401,7 +401,7 @@ class HeapType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.heap"
 
-    type = param_def(SequenceType)
+    type: SequenceType = param_def()
 
 
 @irdl_attr_definition
@@ -414,7 +414,7 @@ class BoxType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.box"
 
-    type = param_def(HeapType | SequenceType)
+    type: HeapType | SequenceType = param_def()
 
 
 @irdl_attr_definition
@@ -427,7 +427,7 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.boxchar"
 
-    kind = param_def(IntAttr)
+    kind: IntAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")

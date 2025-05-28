@@ -143,7 +143,7 @@ _RangeT = TypeVar(
 @irdl_attr_definition
 class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     name = "pdl.range"
-    element_type = param_def(_RangeT)
+    element_type: _RangeT = param_def()
 
     def __init__(self, element_type: _RangeT):
         super().__init__([element_type])

@@ -312,9 +312,9 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
     name = "csl.ptr"
 
-    type = param_def(TypeAttribute)
-    kind = param_def(PtrKindAttr)
-    constness = param_def(PtrConstAttr)
+    type: TypeAttribute = param_def()
+    kind: PtrKindAttr = param_def()
+    constness: PtrConstAttr = param_def()
 
     @staticmethod
     def get(typ: Attribute, is_single: bool, is_const: bool):
@@ -404,7 +404,7 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
 class VarType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     name = "csl.var"
 
-    child_type = param_def(TypeAttribute)
+    child_type: TypeAttribute = param_def()
 
     def get_element_type(self) -> TypeAttribute:
         return self.child_type

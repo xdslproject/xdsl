@@ -91,7 +91,7 @@ class PragmaArrayPartitionOp(IRDLOperation):
 class HLSStreamType(ParametrizedAttribute, TypeAttribute):
     name = "hls.streamtype"
 
-    element_type = param_def(Attribute)
+    element_type: Attribute = param_def()
 
     @staticmethod
     def get(element_type: Attribute):

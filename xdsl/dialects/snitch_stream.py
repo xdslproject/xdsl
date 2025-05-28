@@ -73,9 +73,9 @@ class StridePattern(ParametrizedAttribute):
 
     name = "snitch_stream.stride_pattern"
 
-    ub = param_def(ArrayAttr[IntAttr])
-    strides = param_def(ArrayAttr[IntAttr])
-    repeat = param_def(IntAttr)
+    ub: ArrayAttr[IntAttr] = param_def()
+    strides: ArrayAttr[IntAttr] = param_def()
+    repeat: IntAttr = param_def()
     """
     Number of times an element will be repeated when loaded, default is 1.
     """

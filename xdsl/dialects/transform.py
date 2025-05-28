@@ -112,7 +112,7 @@ class OperationType(TransformOpHandleType):
     """
 
     name = "transform.op"
-    operation = param_def(StringAttr)
+    operation: StringAttr = param_def()
 
     def __init__(self, operation: str):
         super().__init__(parameters=[StringAttr(operation)])
@@ -125,7 +125,7 @@ class ParamType(TransformParamHandleType):
     """
 
     name = "transform.param"
-    type = param_def(TypeAttribute)
+    type: TypeAttribute = param_def()
 
     def __init__(self, type: TypeAttribute):
         super().__init__(parameters=[type])

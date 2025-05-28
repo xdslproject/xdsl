@@ -111,9 +111,9 @@ class ProcessorAttr(EnumAttribute[ProcessorEnum], SpacedOpaqueSyntaxAttribute):
 class LoopDimMapAttr(ParametrizedAttribute):
     name = "gpu.loop_dim_map"
 
-    processor = param_def(ProcessorAttr)
-    map = param_def(AffineMapAttr)
-    bound = param_def(AffineMapAttr)
+    processor: ProcessorAttr = param_def()
+    map: AffineMapAttr = param_def()
+    bound: AffineMapAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():

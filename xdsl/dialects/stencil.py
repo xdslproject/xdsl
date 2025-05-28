@@ -83,7 +83,7 @@ _FieldTypeElement = TypeVar(
 class IndexAttr(ParametrizedAttribute, Iterable[int]):
     name = "stencil.index"
 
-    array = param_def(ArrayAttr[IntAttr])
+    array: ArrayAttr[IntAttr] = param_def()
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -166,8 +166,8 @@ class StencilBoundsAttr(ParametrizedAttribute):
     """
 
     name = "stencil.bounds"
-    lb = param_def(IndexAttr)
-    ub = param_def(IndexAttr)
+    lb: IndexAttr = param_def()
+    ub: IndexAttr = param_def()
 
     def _verify(self):
         if len(self.lb) != len(self.ub):
@@ -263,14 +263,14 @@ class StencilType(
     builtin.ContainerType[_FieldTypeElement],
 ):
     name = "stencil.type"
-    bounds = param_def(StencilBoundsAttr | IntAttr)
+    bounds: StencilBoundsAttr | IntAttr = param_def()
     """
     Represents the bounds information of a stencil.field or stencil.temp.
 
     A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
     rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
     """
-    element_type: _FieldTypeElement = param_def(_FieldTypeElement)
+    element_type: _FieldTypeElement = param_def()
 
     def get_num_dims(self) -> int:
         if isinstance(self.bounds, IntAttr):
@@ -416,7 +416,7 @@ AnyTempType: TypeAlias = TempType[Attribute]
 @irdl_attr_definition
 class ResultType(ParametrizedAttribute, TypeAttribute):
     name = "stencil.result"
-    elem = param_def(Attribute)
+    elem: Attribute = param_def()
 
     def __init__(self, type: Attribute) -> None:
         super().__init__([type])

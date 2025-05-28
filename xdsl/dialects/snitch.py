@@ -55,7 +55,7 @@ class ReadableStreamType(
 ):
     name = "snitch.readable"
 
-    element_type = param_def(_StreamTypeElement)
+    element_type: _StreamTypeElement = param_def()
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
@@ -82,7 +82,7 @@ class WritableStreamType(
 ):
     name = "snitch.writable"
 
-    element_type = param_def(_StreamTypeElement)
+    element_type: _StreamTypeElement = param_def()
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type

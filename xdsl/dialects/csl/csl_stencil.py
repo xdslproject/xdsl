@@ -74,7 +74,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "csl_stencil.exchange"
 
-    neighbor_param = param_def(builtin.DenseArrayBase)
+    neighbor_param: builtin.DenseArrayBase = param_def()
 
     def __init__(
         self,
@@ -165,8 +165,8 @@ CslFloat: TypeAlias = Float16Type | Float32Type
 @irdl_attr_definition
 class CoeffAttr(ParametrizedAttribute):
     name = "csl_stencil.coeff"
-    offset = param_def(stencil.IndexAttr)
-    coeff = param_def(FloatAttr[AnyFloat])
+    offset: stencil.IndexAttr = param_def()
+    coeff: FloatAttr[AnyFloat] = param_def()
 
     def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
         super().__init__([offset, coeff])

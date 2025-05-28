@@ -52,9 +52,9 @@ class ParamAttribute(ParametrizedAttribute):
 
     name = "csl_wrapper.param"
 
-    key = param_def(StringAttr)
-    value = param_def(IntegerAttr[IntegerType] | NoneAttr)
-    type = param_def(IntegerType)
+    key: StringAttr = param_def()
+    value: IntegerAttr[IntegerType] | NoneAttr = param_def()
+    type: IntegerType = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():

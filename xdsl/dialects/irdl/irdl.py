@@ -78,7 +78,7 @@ setattr(VariadicityAttr, "VARIADIC", VariadicityAttr(VariadicityEnum.VARIADIC))
 class VariadicityArrayAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
     name = "irdl.variadicity_array"
 
-    value = param_def(ArrayAttr[VariadicityAttr])
+    value: ArrayAttr[VariadicityAttr] = param_def()
 
     def __init__(self, variadicities: ArrayAttr[VariadicityAttr]) -> None:
         super().__init__((variadicities,))

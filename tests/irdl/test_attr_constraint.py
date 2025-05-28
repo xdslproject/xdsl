@@ -59,7 +59,7 @@ class AttrA(Base):
 class AttrB(Base):
     name = "test.attr_b"
 
-    param = param_def(AttrA)
+    param: AttrA = param_def()
 
 
 @irdl_attr_definition
@@ -101,7 +101,7 @@ def test_param_attr_constraint_inference():
     class BaseWrapAttr(ParametrizedAttribute):
         name = "test.wrap"
 
-        inner = param_def(Attribute)
+        inner: Attribute = param_def()
 
     @irdl_attr_definition
     class WrapAttr(BaseWrapAttr): ...
@@ -154,7 +154,7 @@ def test_base_attr_constraint_inference():
     class WithParamAttr(ParametrizedAttribute):
         name = "test.with_param"
 
-        inner = param_def(Attribute)
+        inner: Attribute = param_def()
 
     @irdl_attr_definition
     class DataAttr(Data[int]):

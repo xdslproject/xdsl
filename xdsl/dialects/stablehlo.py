@@ -287,10 +287,10 @@ class DotAttr(ParametrizedAttribute):
 
     name = "stablehlo.dot"
 
-    lhs_batching_dimensions = param_def(ArrayAttr[IntegerAttr[I64]])
-    rhs_batching_dimensions = param_def(ArrayAttr[IntegerAttr[I64]])
-    lhs_contracting_dimensions = param_def(ArrayAttr[IntegerAttr[I64]])
-    rhs_contracting_dimensions = param_def(ArrayAttr[IntegerAttr[I64]])
+    lhs_batching_dimensions: ArrayAttr[IntegerAttr[I64]] = param_def()
+    rhs_batching_dimensions: ArrayAttr[IntegerAttr[I64]] = param_def()
+    lhs_contracting_dimensions: ArrayAttr[IntegerAttr[I64]] = param_def()
+    rhs_contracting_dimensions: ArrayAttr[IntegerAttr[I64]] = param_def()
 
     @staticmethod
     def _print_parameter(

@@ -59,10 +59,10 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
     name = "smt.func"
 
-    domain_types = param_def(ArrayAttr[NonFuncSMTType])
+    domain_types: ArrayAttr[NonFuncSMTType] = param_def()
     """The types of the function arguments."""
 
-    range_type = param_def(NonFuncSMTType)
+    range_type: NonFuncSMTType = param_def()
     """The type of the function result."""
 
     def __init__(

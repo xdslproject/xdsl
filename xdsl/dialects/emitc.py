@@ -38,8 +38,8 @@ class EmitC_ArrayType(
 
     name = "emitc.array"
 
-    shape = param_def(ArrayAttr[IntAttr])
-    element_type = param_def(AttributeCovT)
+    shape: ArrayAttr[IntAttr] = param_def()
+    element_type: AttributeCovT = param_def()
 
     def __init__(
         self,

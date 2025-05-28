@@ -85,10 +85,10 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "dmp.exchange"
 
-    offset_ = param_def(builtin.DenseArrayBase)
-    size_ = param_def(builtin.DenseArrayBase)
-    source_offset_ = param_def(builtin.DenseArrayBase)
-    neighbor_ = param_def(builtin.DenseArrayBase)
+    offset_: builtin.DenseArrayBase = param_def()
+    size_: builtin.DenseArrayBase = param_def()
+    source_offset_: builtin.DenseArrayBase = param_def()
+    neighbor_: builtin.DenseArrayBase = param_def()
 
     def __init__(
         self,
@@ -263,10 +263,10 @@ class ShapeAttr(ParametrizedAttribute):
 
     name = "dmp.shape_with_halo"
 
-    buff_lb_ = param_def(builtin.DenseArrayBase)
-    buff_ub_ = param_def(builtin.DenseArrayBase)
-    core_lb_ = param_def(builtin.DenseArrayBase)
-    core_ub_ = param_def(builtin.DenseArrayBase)
+    buff_lb_: builtin.DenseArrayBase = param_def()
+    buff_ub_: builtin.DenseArrayBase = param_def()
+    core_lb_: builtin.DenseArrayBase = param_def()
+    core_ub_: builtin.DenseArrayBase = param_def()
 
     @property
     def buff_lb(self) -> tuple[int, ...]:
@@ -405,7 +405,7 @@ class RankTopoAttr(ParametrizedAttribute):
 
     name = "dmp.topo"
 
-    shape = param_def(builtin.DenseArrayBase)
+    shape: builtin.DenseArrayBase = param_def()
 
     def __init__(self, shape: Sequence[int] | Sequence[builtin.IntAttr]):
         if len(shape) < 1:
@@ -461,9 +461,9 @@ class GridSlice2dAttr(DomainDecompositionStrategy):
 
     name = "dmp.grid_slice_2d"
 
-    topology = param_def(RankTopoAttr)
+    topology: RankTopoAttr = param_def()
 
-    diagonals = param_def(builtin.BoolAttr)
+    diagonals: builtin.BoolAttr = param_def()
 
     def __init__(self, topo: tuple[int, ...]):
         super().__init__(
@@ -509,9 +509,9 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
 
     name = "dmp.grid_slice_3d"
 
-    topology = param_def(RankTopoAttr)
+    topology: RankTopoAttr = param_def()
 
-    diagonals = param_def(builtin.BoolAttr)
+    diagonals: builtin.BoolAttr = param_def()
 
     def __init__(self, topo: tuple[int, ...]):
         super().__init__(

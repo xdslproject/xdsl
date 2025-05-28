@@ -55,7 +55,7 @@ class OperationType(ParametrizedAttribute, TypeAttribute):
 
     name = "mpi.operation"
 
-    op_str = param_def(StringAttr)
+    op_str: StringAttr = param_def()
 
 
 class MpiOp:
@@ -122,7 +122,7 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     """
 
     name = "mpi.vector"
-    wrapped_type = param_def(_VectorT)
+    wrapped_type: _VectorT = param_def()
 
     @staticmethod
     def of(dtype: type[_VectorT]) -> VectorType[_VectorT]:

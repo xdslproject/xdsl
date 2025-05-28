@@ -112,8 +112,8 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.struct"
 
     # An empty string refers to a struct without a name.
-    struct_name = param_def(StringAttr)
-    types = param_def(ArrayAttr[Attribute])
+    struct_name: StringAttr = param_def()
+    types: ArrayAttr[Attribute] = param_def()
 
     # TODO: Add this parameter once xDSL supports the necessary capabilities.
     #  bitmask = ParameterDef(StringAttr)
@@ -153,8 +153,8 @@ class LLVMPointerType(
 ):
     name = "llvm.ptr"
 
-    type = param_def(Attribute | NoneAttr)
-    addr_space = param_def(IntAttr | NoneAttr)
+    type: Attribute | NoneAttr = param_def()
+    addr_space: IntAttr | NoneAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         if isinstance(self.type, NoneAttr):
@@ -202,8 +202,8 @@ class LLVMPointerType(
 class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.array"
 
-    size = param_def(IntAttr)
-    type = param_def(Attribute)
+    size: IntAttr = param_def()
+    type: Attribute = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -248,9 +248,9 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 
     name = "llvm.func"
 
-    inputs = param_def(ArrayAttr[Attribute])
-    output = param_def(Attribute)
-    variadic = param_def(UnitAttr | NoneAttr)
+    inputs: ArrayAttr[Attribute] = param_def()
+    output: Attribute = param_def()
+    variadic: UnitAttr | NoneAttr = param_def()
 
     def __init__(
         self,
@@ -326,7 +326,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 class LinkageAttr(ParametrizedAttribute):
     name = "llvm.linkage"
 
-    linkage = param_def(StringAttr)
+    linkage: StringAttr = param_def()
 
     def __init__(self, linkage: str | StringAttr) -> None:
         if isinstance(linkage, str):
@@ -1463,7 +1463,7 @@ class CallingConventionAttr(ParametrizedAttribute):
 
     name = "llvm.cconv"
 
-    convention = param_def(StringAttr)
+    convention: StringAttr = param_def()
 
     @property
     def cconv_name(self) -> str:

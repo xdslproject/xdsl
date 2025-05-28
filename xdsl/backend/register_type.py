@@ -28,8 +28,8 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     An abstract register type for target ISA-specific dialects.
     """
 
-    index = param_def(IntAttr | NoneAttr)
-    register_name = param_def(StringAttr)
+    index: IntAttr | NoneAttr = param_def()
+    register_name: StringAttr = param_def()
 
     def __init__(self, index: IntAttr | NoneAttr, register_name: StringAttr):
         super().__init__((index, register_name))

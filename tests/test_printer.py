@@ -682,7 +682,7 @@ def test_missing_custom_format():
 class CustomFormatAttr(ParametrizedAttribute):
     name = "test.custom"
 
-    attr = param_def(IntAttr)
+    attr: IntAttr = param_def()
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:

@@ -81,7 +81,7 @@ class TokenType(ParametrizedAttribute, TypeAttribute):
 
     name = "accfg.token"
 
-    accelerator = param_def(StringAttr)
+    accelerator: StringAttr = param_def()
 
     def __init__(self, accelerator: str | StringAttr):
         if not isinstance(accelerator, StringAttr):
@@ -97,7 +97,7 @@ class StateType(ParametrizedAttribute, TypeAttribute):
 
     name = "accfg.state"
 
-    accelerator = param_def(StringAttr)
+    accelerator: StringAttr = param_def()
 
     def __init__(self, accelerator: str | StringAttr):
         if not isinstance(accelerator, StringAttr):

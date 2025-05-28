@@ -60,8 +60,8 @@ class DoubleParamAttr(ParametrizedAttribute):
 
     name = "test.param"
 
-    param1 = param_def(Attribute)
-    param2 = param_def(Attribute)
+    param1: Attribute = param_def()
+    param2: Attribute = param_def()
 
 
 def test_eq_attr_verify():

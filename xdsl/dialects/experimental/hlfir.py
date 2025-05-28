@@ -61,8 +61,8 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "hlfir.expr"
-    shape = param_def(ArrayAttr[IntegerAttr | DeferredAttr | NoneType])
-    elementType = param_def(IntegerType | AnyFloat | ReferenceType)
+    shape: ArrayAttr[IntegerAttr | DeferredAttr | NoneType] = param_def()
+    elementType: IntegerType | AnyFloat | ReferenceType = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")

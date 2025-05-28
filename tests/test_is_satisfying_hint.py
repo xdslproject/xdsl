@@ -356,7 +356,7 @@ _T = TypeVar("_T", bound=Attribute)
 class MyParamAttr(Generic[_T], ParametrizedAttribute):
     name = "test.param"
 
-    v = param_def(_T)
+    v: _T = param_def()
 
 
 def test_parametrized_attribute():

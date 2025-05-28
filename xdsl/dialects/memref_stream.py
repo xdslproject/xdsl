@@ -79,7 +79,7 @@ class ReadableStreamType(
 ):
     name = "memref_stream.readable"
 
-    element_type = param_def(_StreamTypeElement)
+    element_type: _StreamTypeElement = param_def()
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
@@ -106,7 +106,7 @@ class WritableStreamType(
 ):
     name = "memref_stream.writable"
 
-    element_type = param_def(_StreamTypeElement)
+    element_type: _StreamTypeElement = param_def()
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
@@ -193,8 +193,8 @@ class StridePattern(ParametrizedAttribute):
 
     name = "memref_stream.stride_pattern"
 
-    ub = param_def(ArrayAttr[IntegerAttr[IndexType]])
-    index_map = param_def(AffineMapAttr)
+    ub: ArrayAttr[IntegerAttr[IndexType]] = param_def()
+    index_map: AffineMapAttr = param_def()
 
     def __init__(
         self,

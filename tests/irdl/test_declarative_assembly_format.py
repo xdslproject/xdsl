@@ -410,7 +410,7 @@ def test_unqualified_attr(program: str, generic_program: str):
     @irdl_attr_definition
     class ParamOne(ParametrizedAttribute):
         name = "test.param"
-        p = param_def(Attribute)
+        p: Attribute = param_def()
 
     @irdl_op_definition
     class UnqualifiedAttrOp(IRDLOperation):
@@ -2420,9 +2420,9 @@ def test_nested_inference():
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
 
-        n = param_def(Attribute)
-        p = param_def(_T)
-        q = param_def(Attribute)
+        n: Attribute = param_def()
+        p: _T = param_def()
+        q: Attribute = param_def()
 
         @classmethod
         def constr(
@@ -2466,7 +2466,7 @@ def test_nested_inference_variable():
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
 
-        p = param_def(_T)
+        p: _T = param_def()
 
         @classmethod
         def constr(
@@ -2506,7 +2506,7 @@ def test_non_verifying_inference():
     @irdl_attr_definition
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
-        p = param_def(_T)
+        p: _T = param_def()
 
         @classmethod
         def constr(
@@ -3253,8 +3253,8 @@ class DoubleParamAttr(ParametrizedAttribute, TypeAttribute):
 
     name = "test.param"
 
-    param1 = param_def(Attribute)
-    param2 = param_def(Attribute)
+    param1: Attribute = param_def()
+    param2: Attribute = param_def()
 
 
 @irdl_op_definition
