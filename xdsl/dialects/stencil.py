@@ -73,7 +73,6 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 _FieldTypeElement = TypeVar(
     "_FieldTypeElement", bound=Attribute, covariant=True, default=Attribute
@@ -255,6 +254,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
         return self + o
 
 
+@dataclass(frozen=True, init=False)
 class StencilType(
     Generic[_FieldTypeElement],
     ParametrizedAttribute,
@@ -615,9 +615,9 @@ class ApplyOp(IRDLOperation):
                 "buffer-semantic destination operands."
             )
         if len(self.res) > 0:
-            res_type = cast(TempType[Attribute], self.res[0].type)
+            res_type = self.res[0].type
             for other in self.res[1:]:
-                other = cast(TempType[Attribute], other.type)
+                other = other.type
                 if res_type.bounds != other.bounds:
                     raise VerifyException(
                         "Expected all output types bounds to be equals."
@@ -664,7 +664,10 @@ class ApplyOp(IRDLOperation):
                 # grab the offsets as a tuple[int, ...]
                 offsets = tuple(access.offset)
                 # account for offset_mappings:
-                if access.offset_mapping is not None:
+                if (
+                    access.offset_mapping is not None
+                    and len(offsets) == self.get_rank()
+                ):
                     offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield AccessPattern(tuple(accesses))
@@ -674,7 +677,7 @@ class ApplyOp(IRDLOperation):
             return self.bounds
         else:
             assert self.res
-            res_type = cast(TempType[Attribute], self.res[0].type)
+            res_type = self.res[0].type
             return res_type.bounds
 
 
@@ -746,8 +749,7 @@ class CastOp(IRDLOperation):
         res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
     ) -> CastOp:
         """ """
-        field_ssa = SSAValue.get(field)
-        assert isa(field_ssa.type, FieldType[Attribute])
+        field_ssa = SSAValue.get(field, type=FieldType)
         if res_type is None:
             res_type = FieldType(
                 bounds,
@@ -896,8 +898,7 @@ class DynAccessOp(IRDLOperation):
         lb: IndexAttr,
         ub: IndexAttr,
     ):
-        temp_type = SSAValue.get(temp).type
-        assert isa(temp_type, TempType[Attribute])
+        temp_type = SSAValue.get(temp, type=TempType).type
         super().__init__(
             operands=[temp, list(offset)],
             attributes={"lb": lb, "ub": ub},
@@ -1092,7 +1093,7 @@ class AccessOp(IRDLOperation):
             attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isattr(res_type, StencilTypeConstr):
+        if not isa(res_type, StencilType):
             parser.raise_error(
                 "Expected return type to be a stencil.temp or stencil.field"
             )
@@ -1106,9 +1107,7 @@ class AccessOp(IRDLOperation):
         offset: Sequence[int],
         offset_mapping: Sequence[int] | IndexAttr | None = None,
     ):
-        temp_type = SSAValue.get(temp).type
-        assert isinstance(temp_type, StencilType)
-        temp_type = cast(StencilType[Attribute], temp_type)
+        temp_type = SSAValue.get(temp, type=StencilType).type
 
         attributes: dict[str, Attribute] = {
             "offset": IndexAttr(
@@ -1140,7 +1139,7 @@ class AccessOp(IRDLOperation):
         apply.verify_()
 
         temp_type = self.temp.type
-        assert isattr(temp_type, StencilTypeConstr)
+        assert isa(temp_type, StencilType)
         if temp_type.get_num_dims() != apply.get_rank():
             if self.offset_mapping is None:
                 raise VerifyException(
@@ -1212,9 +1211,9 @@ class LoadOpMemoryEffect(MemoryEffect):
 
 class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     @staticmethod
-    def matches(attr: TensorType[Attribute], other: Attribute) -> bool:
+    def ranks_and_element_types_match(attr: TensorType, other: Attribute) -> bool:
         return (
-            isa(other, TensorType[Attribute])
+            isa(other, TensorType)
             and len(attr.get_shape()) == len(other.get_shape())
             and attr.get_element_type() == other.get_element_type()
         )
@@ -1222,7 +1221,9 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         ctx_attr = constraint_context.get_variable(self.name)
         if ctx_attr is not None:
-            if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
+            if isa(
+                attr, TensorType[Attribute]
+            ) and TensorIgnoreSizeConstraint.ranks_and_element_types_match(
                 attr, ctx_attr
             ):
                 return
@@ -1270,8 +1271,7 @@ class LoadOp(IRDLOperation):
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
     ):
-        field_type = SSAValue.get(field).type
-        assert isa(field_type, FieldType[Attribute])
+        field_type = SSAValue.get(field, type=FieldType).type
 
         if lb is None or ub is None:
             res_type = TempType(field_type.get_num_dims(), field_type.element_type)
@@ -1506,9 +1506,7 @@ class ReturnOp(IRDLOperation):
         types = [ot.elem if isinstance(ot, ResultType) else ot for ot in self.arg.types]
         apply = cast(ApplyOp, self.parent_op())
         if len(apply.res) > 0:
-            res_types = [
-                cast(TempType[Attribute], r.type).element_type for r in apply.res
-            ]
+            res_types = [r.type.element_type for r in apply.res]
         else:
             res_types = [
                 cast(FieldType[Attribute], o.type).element_type for o in apply.dest
@@ -1524,8 +1522,10 @@ class ReturnOp(IRDLOperation):
             for j in range(unroll_factor * i, unroll_factor * (i + 1)):
                 op_type = types[j]
                 if op_type != res_type and not (
-                    isa(op_type, TensorType[Attribute])
-                    and TensorIgnoreSizeConstraint.matches(op_type, res_type)
+                    isa(op_type, TensorType)
+                    and TensorIgnoreSizeConstraint.ranks_and_element_types_match(
+                        op_type, res_type
+                    )
                 ):
                     raise VerifyException(
                         "stencil.return expected operand types to match the parent "

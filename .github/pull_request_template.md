@@ -1,7 +1,4 @@
----
-title: ""
-
----
+# PR Template
 
 Please add a short description of your changes, and the motivation behind them.
 

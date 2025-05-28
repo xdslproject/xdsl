@@ -6,7 +6,6 @@ from xdsl.backend.register_type import RegisterType
 from xdsl.irdl import (
     irdl_attr_definition,
 )
-from xdsl.utils.exceptions import VerifyException
 
 
 class X86RegisterType(RegisterType, ABC):
@@ -14,15 +13,7 @@ class X86RegisterType(RegisterType, ABC):
     The abstract class for all x86 register types.
     """
 
-    def verify(self) -> None:
-        name = self.spelling.data
-        if not self.is_allocated:
-            return
-        if name not in type(self).abi_index_by_name():
-            raise VerifyException(f"{name} not in {self.instruction_set_name()}")
 
-
-# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 X86_INDEX_BY_NAME = {
     "rax": 0,
     "rcx": 1,
@@ -49,6 +40,11 @@ X86_INDEX_BY_NAME = {
     "r14": 14,
     "r15": 15,
 }
+"""
+Mapping of x86 register names to their indices.
+
+See external [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
 
 
 @irdl_attr_definition
@@ -60,11 +56,7 @@ class GeneralRegisterType(X86RegisterType):
     name = "x86.reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "x86"
-
-    @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return X86_INDEX_BY_NAME
 
     @classmethod
@@ -73,32 +65,32 @@ class GeneralRegisterType(X86RegisterType):
 
 
 UNALLOCATED_GENERAL = GeneralRegisterType.unallocated()
-RAX = GeneralRegisterType.from_spelling("rax")
-RCX = GeneralRegisterType.from_spelling("rcx")
-RDX = GeneralRegisterType.from_spelling("rdx")
-RBX = GeneralRegisterType.from_spelling("rbx")
-RSP = GeneralRegisterType.from_spelling("rsp")
-RBP = GeneralRegisterType.from_spelling("rbp")
-RSI = GeneralRegisterType.from_spelling("rsi")
-RDI = GeneralRegisterType.from_spelling("rdi")
+RAX = GeneralRegisterType.from_name("rax")
+RCX = GeneralRegisterType.from_name("rcx")
+RDX = GeneralRegisterType.from_name("rdx")
+RBX = GeneralRegisterType.from_name("rbx")
+RSP = GeneralRegisterType.from_name("rsp")
+RBP = GeneralRegisterType.from_name("rbp")
+RSI = GeneralRegisterType.from_name("rsi")
+RDI = GeneralRegisterType.from_name("rdi")
 
-EAX = GeneralRegisterType.from_spelling("eax")
-ECX = GeneralRegisterType.from_spelling("ecx")
-EDX = GeneralRegisterType.from_spelling("edx")
-EBX = GeneralRegisterType.from_spelling("ebx")
-ESP = GeneralRegisterType.from_spelling("esp")
-EBP = GeneralRegisterType.from_spelling("ebp")
-ESI = GeneralRegisterType.from_spelling("esi")
-EDI = GeneralRegisterType.from_spelling("edi")
+EAX = GeneralRegisterType.from_name("eax")
+ECX = GeneralRegisterType.from_name("ecx")
+EDX = GeneralRegisterType.from_name("edx")
+EBX = GeneralRegisterType.from_name("ebx")
+ESP = GeneralRegisterType.from_name("esp")
+EBP = GeneralRegisterType.from_name("ebp")
+ESI = GeneralRegisterType.from_name("esi")
+EDI = GeneralRegisterType.from_name("edi")
 
-R8 = GeneralRegisterType.from_spelling("r8")
-R9 = GeneralRegisterType.from_spelling("r9")
-R10 = GeneralRegisterType.from_spelling("r10")
-R11 = GeneralRegisterType.from_spelling("r11")
-R12 = GeneralRegisterType.from_spelling("r12")
-R13 = GeneralRegisterType.from_spelling("r13")
-R14 = GeneralRegisterType.from_spelling("r14")
-R15 = GeneralRegisterType.from_spelling("r15")
+R8 = GeneralRegisterType.from_name("r8")
+R9 = GeneralRegisterType.from_name("r9")
+R10 = GeneralRegisterType.from_name("r10")
+R11 = GeneralRegisterType.from_name("r11")
+R12 = GeneralRegisterType.from_name("r12")
+R13 = GeneralRegisterType.from_name("r13")
+R14 = GeneralRegisterType.from_name("r14")
+R15 = GeneralRegisterType.from_name("r15")
 
 RFLAGS_INDEX_BY_NAME = {
     "rflags": 0,
@@ -114,11 +106,7 @@ class RFLAGSRegisterType(X86RegisterType):
     name = "x86.rflags"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "x86"
-
-    @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return RFLAGS_INDEX_BY_NAME
 
     @classmethod
@@ -127,15 +115,13 @@ class RFLAGSRegisterType(X86RegisterType):
 
 
 UNALLOCATED_RFLAGS = RFLAGSRegisterType.unallocated()
-RFLAGS = RFLAGSRegisterType.from_spelling("rflags")
+RFLAGS = RFLAGSRegisterType.from_name("rflags")
 
 
 class X86VectorRegisterType(X86RegisterType):
     """
     The abstract class for all x86 vector register types.
     """
-
-    pass
 
 
 @irdl_attr_definition
@@ -147,11 +133,7 @@ class SSERegisterType(X86VectorRegisterType):
     name = "x86.ssereg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "SSE"
-
-    @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return SSE_INDEX_BY_NAME
 
     @classmethod
@@ -159,7 +141,6 @@ class SSERegisterType(X86VectorRegisterType):
         return "inf_sse_"
 
 
-# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 SSE_INDEX_BY_NAME = {
     "xmm0": 0,
     "xmm1": 1,
@@ -178,24 +159,29 @@ SSE_INDEX_BY_NAME = {
     "xmm14": 14,
     "xmm15": 15,
 }
+"""
+Mapping of SSE register names to their indices.
+
+See external # [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
 
 UNALLOCATED_SSE = SSERegisterType.unallocated()
-XMM0 = SSERegisterType.from_spelling("xmm0")
-XMM1 = SSERegisterType.from_spelling("xmm1")
-XMM2 = SSERegisterType.from_spelling("xmm2")
-XMM3 = SSERegisterType.from_spelling("xmm3")
-XMM4 = SSERegisterType.from_spelling("xmm4")
-XMM5 = SSERegisterType.from_spelling("xmm5")
-XMM6 = SSERegisterType.from_spelling("xmm6")
-XMM7 = SSERegisterType.from_spelling("xmm7")
-XMM8 = SSERegisterType.from_spelling("xmm8")
-XMM9 = SSERegisterType.from_spelling("xmm9")
-XMM10 = SSERegisterType.from_spelling("xmm10")
-XMM11 = SSERegisterType.from_spelling("xmm11")
-XMM12 = SSERegisterType.from_spelling("xmm12")
-XMM13 = SSERegisterType.from_spelling("xmm13")
-XMM14 = SSERegisterType.from_spelling("xmm14")
-XMM15 = SSERegisterType.from_spelling("xmm15")
+XMM0 = SSERegisterType.from_name("xmm0")
+XMM1 = SSERegisterType.from_name("xmm1")
+XMM2 = SSERegisterType.from_name("xmm2")
+XMM3 = SSERegisterType.from_name("xmm3")
+XMM4 = SSERegisterType.from_name("xmm4")
+XMM5 = SSERegisterType.from_name("xmm5")
+XMM6 = SSERegisterType.from_name("xmm6")
+XMM7 = SSERegisterType.from_name("xmm7")
+XMM8 = SSERegisterType.from_name("xmm8")
+XMM9 = SSERegisterType.from_name("xmm9")
+XMM10 = SSERegisterType.from_name("xmm10")
+XMM11 = SSERegisterType.from_name("xmm11")
+XMM12 = SSERegisterType.from_name("xmm12")
+XMM13 = SSERegisterType.from_name("xmm13")
+XMM14 = SSERegisterType.from_name("xmm14")
+XMM15 = SSERegisterType.from_name("xmm15")
 
 
 @irdl_attr_definition
@@ -207,11 +193,7 @@ class AVX2RegisterType(X86VectorRegisterType):
     name = "x86.avx2reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "AVX2"
-
-    @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return AVX2_INDEX_BY_NAME
 
     @classmethod
@@ -219,7 +201,6 @@ class AVX2RegisterType(X86VectorRegisterType):
         return "inf_avx2_"
 
 
-# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 AVX2_INDEX_BY_NAME = {
     "ymm0": 0,
     "ymm1": 1,
@@ -238,24 +219,32 @@ AVX2_INDEX_BY_NAME = {
     "ymm14": 14,
     "ymm15": 15,
 }
+"""
+Mapping of AVX2 register names to their indices.
+
+See external # [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
 
 UNALLOCATED_AVX2 = AVX2RegisterType.unallocated()
-YMM0 = AVX2RegisterType.from_spelling("ymm0")
-YMM1 = AVX2RegisterType.from_spelling("ymm1")
-YMM2 = AVX2RegisterType.from_spelling("ymm2")
-YMM3 = AVX2RegisterType.from_spelling("ymm3")
-YMM4 = AVX2RegisterType.from_spelling("ymm4")
-YMM5 = AVX2RegisterType.from_spelling("ymm5")
-YMM6 = AVX2RegisterType.from_spelling("ymm6")
-YMM7 = AVX2RegisterType.from_spelling("ymm7")
-YMM8 = AVX2RegisterType.from_spelling("ymm8")
-YMM9 = AVX2RegisterType.from_spelling("ymm9")
-YMM10 = AVX2RegisterType.from_spelling("ymm10")
-YMM11 = AVX2RegisterType.from_spelling("ymm11")
-YMM12 = AVX2RegisterType.from_spelling("ymm12")
-YMM13 = AVX2RegisterType.from_spelling("ymm13")
-YMM14 = AVX2RegisterType.from_spelling("ymm14")
-YMM15 = AVX2RegisterType.from_spelling("ymm15")
+YMM = tuple(AVX2RegisterType.from_name(f"ymm{i}") for i in range(16))
+(
+    YMM0,
+    YMM1,
+    YMM2,
+    YMM3,
+    YMM4,
+    YMM5,
+    YMM6,
+    YMM7,
+    YMM8,
+    YMM9,
+    YMM10,
+    YMM11,
+    YMM12,
+    YMM13,
+    YMM14,
+    YMM15,
+) = YMM
 
 
 @irdl_attr_definition
@@ -267,11 +256,7 @@ class AVX512RegisterType(X86VectorRegisterType):
     name = "x86.avx512reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "AVX512"
-
-    @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return X86AVX512_INDEX_BY_NAME
 
     @classmethod
@@ -279,7 +264,6 @@ class AVX512RegisterType(X86VectorRegisterType):
         return "inf_avx512_"
 
 
-# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 X86AVX512_INDEX_BY_NAME = {
     "zmm0": 0,
     "zmm1": 1,
@@ -314,37 +298,42 @@ X86AVX512_INDEX_BY_NAME = {
     "zmm30": 30,
     "zmm31": 31,
 }
+"""
+Mapping of AVX512 register names to their indices.
+
+See external # [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
 
 UNALLOCATED_AVX512 = AVX512RegisterType.unallocated()
-ZMM0 = AVX512RegisterType.from_spelling("zmm0")
-ZMM1 = AVX512RegisterType.from_spelling("zmm1")
-ZMM2 = AVX512RegisterType.from_spelling("zmm2")
-ZMM3 = AVX512RegisterType.from_spelling("zmm3")
-ZMM4 = AVX512RegisterType.from_spelling("zmm4")
-ZMM5 = AVX512RegisterType.from_spelling("zmm5")
-ZMM6 = AVX512RegisterType.from_spelling("zmm6")
-ZMM7 = AVX512RegisterType.from_spelling("zmm7")
-ZMM8 = AVX512RegisterType.from_spelling("zmm8")
-ZMM9 = AVX512RegisterType.from_spelling("zmm9")
-ZMM10 = AVX512RegisterType.from_spelling("zmm10")
-ZMM11 = AVX512RegisterType.from_spelling("zmm11")
-ZMM12 = AVX512RegisterType.from_spelling("zmm12")
-ZMM13 = AVX512RegisterType.from_spelling("zmm13")
-ZMM14 = AVX512RegisterType.from_spelling("zmm14")
-ZMM15 = AVX512RegisterType.from_spelling("zmm15")
-ZMM16 = AVX512RegisterType.from_spelling("zmm16")
-ZMM17 = AVX512RegisterType.from_spelling("zmm17")
-ZMM18 = AVX512RegisterType.from_spelling("zmm18")
-ZMM19 = AVX512RegisterType.from_spelling("zmm19")
-ZMM20 = AVX512RegisterType.from_spelling("zmm20")
-ZMM21 = AVX512RegisterType.from_spelling("zmm21")
-ZMM22 = AVX512RegisterType.from_spelling("zmm22")
-ZMM23 = AVX512RegisterType.from_spelling("zmm23")
-ZMM24 = AVX512RegisterType.from_spelling("zmm24")
-ZMM25 = AVX512RegisterType.from_spelling("zmm25")
-ZMM26 = AVX512RegisterType.from_spelling("zmm26")
-ZMM27 = AVX512RegisterType.from_spelling("zmm27")
-ZMM28 = AVX512RegisterType.from_spelling("zmm28")
-ZMM29 = AVX512RegisterType.from_spelling("zmm29")
-ZMM30 = AVX512RegisterType.from_spelling("zmm30")
-ZMM31 = AVX512RegisterType.from_spelling("zmm31")
+ZMM0 = AVX512RegisterType.from_name("zmm0")
+ZMM1 = AVX512RegisterType.from_name("zmm1")
+ZMM2 = AVX512RegisterType.from_name("zmm2")
+ZMM3 = AVX512RegisterType.from_name("zmm3")
+ZMM4 = AVX512RegisterType.from_name("zmm4")
+ZMM5 = AVX512RegisterType.from_name("zmm5")
+ZMM6 = AVX512RegisterType.from_name("zmm6")
+ZMM7 = AVX512RegisterType.from_name("zmm7")
+ZMM8 = AVX512RegisterType.from_name("zmm8")
+ZMM9 = AVX512RegisterType.from_name("zmm9")
+ZMM10 = AVX512RegisterType.from_name("zmm10")
+ZMM11 = AVX512RegisterType.from_name("zmm11")
+ZMM12 = AVX512RegisterType.from_name("zmm12")
+ZMM13 = AVX512RegisterType.from_name("zmm13")
+ZMM14 = AVX512RegisterType.from_name("zmm14")
+ZMM15 = AVX512RegisterType.from_name("zmm15")
+ZMM16 = AVX512RegisterType.from_name("zmm16")
+ZMM17 = AVX512RegisterType.from_name("zmm17")
+ZMM18 = AVX512RegisterType.from_name("zmm18")
+ZMM19 = AVX512RegisterType.from_name("zmm19")
+ZMM20 = AVX512RegisterType.from_name("zmm20")
+ZMM21 = AVX512RegisterType.from_name("zmm21")
+ZMM22 = AVX512RegisterType.from_name("zmm22")
+ZMM23 = AVX512RegisterType.from_name("zmm23")
+ZMM24 = AVX512RegisterType.from_name("zmm24")
+ZMM25 = AVX512RegisterType.from_name("zmm25")
+ZMM26 = AVX512RegisterType.from_name("zmm26")
+ZMM27 = AVX512RegisterType.from_name("zmm27")
+ZMM28 = AVX512RegisterType.from_name("zmm28")
+ZMM29 = AVX512RegisterType.from_name("zmm29")
+ZMM30 = AVX512RegisterType.from_name("zmm30")
+ZMM31 = AVX512RegisterType.from_name("zmm31")

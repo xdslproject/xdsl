@@ -36,7 +36,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 def tensor_to_memref_type(t: TensorType[Attribute]) -> memref.MemRefType[Attribute]:
@@ -184,7 +183,7 @@ class ApplyOpBufferize(RewritePattern):
                 arg_types=[
                     (
                         tensor_to_memref_type(arg.type)
-                        if isattr(arg.type, AnyTensorTypeConstr)
+                        if AnyTensorTypeConstr.verifies(arg.type)
                         else arg.type
                     )
                     for arg in args

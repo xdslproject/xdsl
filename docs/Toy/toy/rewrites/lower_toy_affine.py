@@ -356,7 +356,7 @@ class ConstantOpLowering(RewritePattern):
         # When lowering the constant operation, we allocate and assign the constant
         # values to a corresponding memref allocation.
 
-        tensor_type = cast(toy.TensorTypeF64, op.res.type)
+        tensor_type = op.res.type
         memref_type = convert_tensor_to_memref(tensor_type)
         alloc = insert_alloc_and_dealloc(memref_type, op, rewriter)
 
@@ -364,7 +364,8 @@ class ConstantOpLowering(RewritePattern):
 
         # Scalar constant values for elements of the tensor
         constants: list[arith.ConstantOp] = [
-            arith.ConstantOp(FloatAttr(i, f64)) for i in constant_value.get_values()
+            arith.ConstantOp(FloatAttr(i, f64))
+            for i in constant_value.get_float_values()
         ]
 
         # n-d indices of elements

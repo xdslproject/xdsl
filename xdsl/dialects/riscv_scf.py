@@ -5,10 +5,14 @@ RISC-V SCF dialect
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
+from typing import cast
 
 from typing_extensions import Self
 
+from xdsl.backend.register_allocatable import RegisterAllocatableOperation
+from xdsl.backend.register_allocator import BlockAllocator
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -50,7 +54,7 @@ class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     )
 
 
-class ForRofOperation(IRDLOperation, ABC):
+class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
     lb = operand_def(IntRegisterType)
     ub = operand_def(IntRegisterType)
     step = operand_def(IntRegisterType)
@@ -117,6 +121,52 @@ class ForRofOperation(IRDLOperation, ABC):
                         f"riscv_scf.for's riscv_scf.yield must match carried"
                         f"variables types."
                     )
+
+    def iter_used_registers(self) -> Generator[RegisterType, None, None]:
+        # We know that all the registers for the inputs and outputs are the same, and
+        # that these registers will have been iterated earlier in the IR.
+        yield from ()
+
+    def allocate_registers(self, allocator: BlockAllocator) -> None:
+        # Allocate values used inside the body but defined outside.
+        # Their scope lasts for the whole body execution scope
+        live_ins = allocator.live_ins_per_block[self.body.block]
+        for live_in in live_ins:
+            allocator.allocate_value(live_in)
+
+        yield_op = self.body.block.last_op
+        assert yield_op is not None, (
+            "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
+        )
+        block_args = self.body.block.args
+
+        # The loop-carried variables are trickier
+        # The for op operand, block arg, and yield operand must have the same type
+        for block_arg, operand, yield_operand, op_result in zip(
+            block_args[1:], self.iter_args, yield_op.operands, self.results
+        ):
+            allocator.allocate_values_same_reg(
+                (block_arg, operand, yield_operand, op_result)
+            )
+
+        # Induction variable
+        allocator.allocate_value(block_args[0])
+
+        # Step and ub are used throughout loop
+        allocator.allocate_value(self.ub)
+        allocator.allocate_value(self.step)
+
+        # Reserve the loop carried variables for allocation within the body
+        regs = self.iter_args.types
+        assert all(isinstance(reg, RISCVRegisterType) for reg in regs)
+        regs = cast(tuple[RISCVRegisterType, ...], regs)
+        with allocator.available_registers.reserve_registers(regs):
+            allocator.allocate_block(self.body.block)
+
+        # lb is only used as an input to the loop, so free induction variable before
+        # allocating lb to it in case it's not yet allocated
+        allocator.free_value(self.body.block.args[0])
+        allocator.allocate_value(self.lb)
 
 
 @irdl_op_definition

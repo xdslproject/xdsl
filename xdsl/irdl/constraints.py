@@ -1,18 +1,23 @@
 from __future__ import annotations
 
-import abc
 from abc import ABC, abstractmethod
-from collections.abc import Generator, Iterator, Sequence, Set
+from collections.abc import Sequence, Set
 from dataclasses import KW_ONLY, dataclass, field
 from inspect import isclass
-from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Generic,
+    TypeAlias,
+    TypeGuard,
+    TypeVar,
+    cast,
+)
 
 from typing_extensions import assert_never
 
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
-    AttributeInvT,
     ParametrizedAttribute,
     TypedAttribute,
 )
@@ -29,13 +34,15 @@ class ConstraintContext:
     Contains the assignment of constraint variables.
     """
 
-    _variables: dict[str, Attribute] = field(default_factory=dict)
+    _variables: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
     """The assignment of constraint variables."""
 
-    _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
+    _range_variables: dict[str, tuple[Attribute, ...]] = field(
+        default_factory=dict[str, tuple[Attribute, ...]]
+    )
     """The assignment of constraint range variables."""
 
-    _int_variables: dict[str, int] = field(default_factory=dict)
+    _int_variables: dict[str, int] = field(default_factory=dict[str, int])
     """The assignment of constraint int variables."""
 
     def get_variable(self, key: str) -> Attribute | None:
@@ -47,17 +54,17 @@ class ConstraintContext:
     def get_int_variable(self, key: str) -> int | None:
         return self._int_variables.get(key)
 
-    def set_variable(self, key: str, attr: Attribute):
+    def set_attr_variable(self, key: str, attr: Attribute):
         self._variables[key] = attr
 
-    def set_range_variable(self, key: str, attr: tuple[Attribute, ...]):
-        self._range_variables[key] = attr
+    def set_range_variable(self, key: str, attrs: tuple[Attribute, ...]):
+        self._range_variables[key] = attrs
 
     def set_int_variable(self, key: str, i: int):
         self._int_variables[key] = i
 
     @property
-    def variables(self) -> Set[str]:
+    def attr_variables(self) -> Set[str]:
         return self._variables.keys()
 
     @property
@@ -89,69 +96,6 @@ Possible types that a constraint variable can have.
 """
 
 
-_T = TypeVar("_T")
-
-
-@dataclass(frozen=True)
-class VarExtractor(Generic[_T], abc.ABC):
-    """
-    A VarExtractor describes how to extract the value of a constraint variable
-    from a value of type _T. The result of the extraction must be a subtype of
-    ConstraintVariableType.
-    """
-
-    @abstractmethod
-    def extract_var(self, a: _T) -> ConstraintVariableType: ...
-
-    def flatten(self) -> Iterator[VarExtractor[_T]]:
-        """Helper function to merge extractors, should only be overloaded by MergeExtractor"""
-        yield self
-
-
-@dataclass(frozen=True)
-class MergeExtractor(VarExtractor[_T]):
-    variable: str
-    extractors: tuple[VarExtractor[_T], ...]
-    """Extractors to merge, should not be empty."""
-
-    def extract_var(self, a: _T) -> ConstraintVariableType:
-        res = set(x.extract_var(a) for x in self.extractors)
-        if len(res) == 1:
-            return res.pop()
-        else:
-            raise ValueError(
-                f"Value of variable {self.variable} could not be uniquely extracted.\n"
-                f"Possible values are: {{{', '.join(sorted(str(x) for x in res))}}}"
-            )
-
-    def flatten(self) -> Iterator[VarExtractor[_T]]:
-        return iter(self.extractors)
-
-
-def merge_extractors(variable: str, *extractors: VarExtractor[_T]) -> VarExtractor[_T]:
-    """
-    Helper method used for merging dictionaries of extractors.
-    Must not be called with no extractors.
-    """
-    if len(extractors) == 1:
-        return extractors[0]
-    extractor_tuple = tuple(x for ex in extractors for x in ex.flatten())
-    return MergeExtractor(variable, extractor_tuple)
-
-
-def merge_extractor_dicts(
-    *dicts: dict[str, VarExtractor[_T]],
-) -> dict[str, VarExtractor[_T]]:
-    """
-    Merge dictionaries of extractors.
-    The keys of the resulting dictionary is equal to the union of the keys
-    of the input dictionaries, with duplicated values being merged to a
-    single MergeExtractor
-    """
-    keys = set(key for d in dicts for key in d)
-    return {v: merge_extractors(v, *(d[v] for d in dicts if v in d)) for v in keys}
-
-
 @dataclass(frozen=True)
 class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     """Constrain an attribute to a certain value."""
@@ -168,13 +112,22 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         """
         ...
 
-    def get_variable_extractors(self) -> dict[str, VarExtractor[AttributeCovT]]:
+    def verifies(self, attr: Attribute) -> TypeGuard[AttributeCovT]:
         """
-        Get a dictionary of constraint variables to extractors for these variables,
-        which provide a method to obtain the value of each constraint variable from
-        the value of the attribute which is verified by this constraint.
+        A helper method to check whether a given attribute matches `self`.
         """
-        return {}
+        try:
+            self.verify(attr, ConstraintContext())
+            return True
+        except VerifyException:
+            return False
+
+    def variables(self) -> set[str]:
+        """
+        Returns a set of the variables that can be extracted by this constraint.
+        These variables are always expected to be set after running `verify`.
+        """
+        return set()
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         """
@@ -192,10 +145,13 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         returns `True` with the given constraint variables, this method should
         not raise an exception.
         """
-        raise ValueError("Cannot infer attribute from constraint")
+        raise ValueError(f"Cannot infer attribute from constraint {self}")
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        """Get the unique base type that can satisfy the constraint, if any."""
+    def get_bases(self) -> set[type[Attribute]] | None:
+        """
+        Get a set of base types that can satisfy this constraint, if there exists
+        a finite collection, or None otherwise.
+        """
         return None
 
     def __or__(
@@ -227,16 +183,6 @@ ConstraintVariableTypeT = TypeVar(
 )
 
 
-@dataclass(frozen=True)
-class IdExtractor(VarExtractor[ConstraintVariableTypeT]):
-    """
-    An extractor that simply returns its input.
-    """
-
-    def extract_var(self, a: ConstraintVariableTypeT) -> ConstraintVariableType:
-        return a
-
-
 TypedAttributeCovT = TypeVar("TypedAttributeCovT", bound=TypedAttribute, covariant=True)
 TypedAttributeT = TypeVar("TypedAttributeT", bound=TypedAttribute)
 
@@ -248,36 +194,25 @@ class TypedAttributeConstraint(GenericAttrConstraint[TypedAttributeCovT]):
     """
 
     attr_constraint: GenericAttrConstraint[TypedAttributeCovT]
-
     type_constraint: GenericAttrConstraint[Attribute]
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        self.attr_constraint.verify(attr, constraint_context)
         if not isinstance(attr, TypedAttribute):
             raise VerifyException(f"attribute {attr} expected to be a TypedAttribute")
+        self.attr_constraint.verify(attr, constraint_context)
         self.type_constraint.verify(attr.get_type(), constraint_context)
 
-    @dataclass(frozen=True)
-    class _Extractor(VarExtractor[TypedAttributeT]):
-        inner: VarExtractor[Attribute]
-
-        def extract_var(self, a: TypedAttributeT) -> ConstraintVariableType:
-            return self.inner.extract_var(a.get_type())
-
-    def get_variable_extractors(self) -> dict[str, VarExtractor[TypedAttributeCovT]]:
-        return merge_extractor_dicts(
-            self.attr_constraint.get_variable_extractors(),
-            {
-                v: self._Extractor(r)
-                for v, r in self.type_constraint.get_variable_extractors().items()
-            },
-        )
+    def variables(self) -> set[str]:
+        return self.type_constraint.variables() | self.attr_constraint.variables()
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.attr_constraint.can_infer(var_constraint_names)
 
     def infer(self, context: ConstraintContext) -> TypedAttributeCovT:
         return self.attr_constraint.infer(context)
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.attr_constraint.get_bases()
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -320,12 +255,10 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
                 )
         else:
             self.constraint.verify(attr, constraint_context)
-            constraint_context.set_variable(self.name, attr)
+            constraint_context.set_attr_variable(self.name, attr)
 
-    def get_variable_extractors(self) -> dict[str, VarExtractor[AttributeCovT]]:
-        return merge_extractor_dicts(
-            {self.name: IdExtractor()}, self.constraint.get_variable_extractors()
-        )
+    def variables(self) -> set[str]:
+        return self.constraint.variables() | {self.name}
 
     def infer(self, context: ConstraintContext) -> AttributeCovT:
         v = context.get_variable(self.name)
@@ -334,8 +267,8 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.name in var_constraint_names
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return self.constraint.get_unique_base()
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.constraint.get_bases()
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -366,8 +299,8 @@ class TypeVarConstraint(AttrConstraint):
     ) -> None:
         self.constraint.verify(attr, constraint_context)
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return self.constraint.get_unique_base()
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.constraint.get_bases()
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -411,8 +344,8 @@ class EqAttrConstraint(Generic[AttributeCovT], GenericAttrConstraint[AttributeCo
     def infer(self, context: ConstraintContext) -> AttributeCovT:
         return self.attr
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return type(self.attr)
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {type(self.attr)}
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -426,6 +359,9 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
 
     attr: type[AttributeCovT]
     """The expected attribute base type."""
+
+    def __repr__(self):
+        return f"BaseAttr({self.attr.__name__})"
 
     def verify(
         self,
@@ -449,9 +385,9 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         attr = self.attr.new(())
         return attr
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_bases(self) -> set[type[Attribute]] | None:
         if is_runtime_final(self.attr):
-            return self.attr
+            return {self.attr}
         return None
 
     def mapping_type_vars(
@@ -515,11 +451,7 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
             constrs,
         )
 
-    def verify(
-        self,
-        attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         constraint_context = constraint_context or ConstraintContext()
         for attr_constr in self.attr_constrs:
             # Copy the constraint to ensure that if the constraint fails, the
@@ -539,18 +471,20 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     ) -> AnyOf[AttributeCovT | _AttributeCovT]:
         return AnyOf((*self.attr_constrs, value))
 
-    def get_variable_extractors(self) -> dict[str, VarExtractor[AttributeCovT]]:
+    def variables(self) -> set[str]:
         if len(self.attr_constrs) == 1:
-            return self.attr_constrs[0].get_variable_extractors()
-        return dict()
+            return self.attr_constrs[0].variables()
+        else:
+            return set()
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        bases = [constr.get_unique_base() for constr in self.attr_constrs]
-        if None in bases:
-            return None
-        if len(set(bases)) == 1:
-            return bases[0]
-        return None
+    def get_bases(self) -> set[type[Attribute]] | None:
+        bases = set[type[Attribute]]()
+        for constr in self.attr_constrs:
+            b = constr.get_bases()
+            if b is None:
+                return
+            bases |= b
+        return bases
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -588,10 +522,11 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
             exc_msg += "\n".join([str(e) for e in exc_bucket])
             raise VerifyException(exc_msg)
 
-    def get_variable_extractors(self) -> dict[str, VarExtractor[AttributeCovT]]:
-        return merge_extractor_dicts(
-            *(constr.get_variable_extractors() for constr in self.attr_constrs)
-        )
+    def variables(self) -> set[str]:
+        vars = set[str]()
+        for constr in self.attr_constrs:
+            vars |= constr.variables()
+        return vars
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return any(
@@ -600,18 +535,21 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
 
     def infer(self, context: ConstraintContext) -> AttributeCovT:
         for constr in self.attr_constrs:
-            if constr.can_infer(context.variables):
+            if constr.can_infer(context.attr_variables):
                 return constr.infer(context)
         raise ValueError("Cannot infer attribute from constraint")
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        # This could be improved if we keep track of all the possible base types for
-        # each constraint.
+    def get_bases(self) -> set[type[Attribute]] | None:
+        bases: set[type[Attribute]] | None = None
         for constr in self.attr_constrs:
-            base = constr.get_unique_base()
-            if base is not None:
-                return base
-        return None
+            b = constr.get_bases()
+            if b is None:
+                continue
+            if bases is None:
+                bases = b
+            else:
+                bases &= b
+        return bases
 
     def __and__(
         self, value: GenericAttrConstraint[AttributeCovT], /
@@ -662,6 +600,9 @@ class ParamAttrConstraint(
         object.__setattr__(self, "base_attr", base_attr)
         object.__setattr__(self, "param_constrs", constrs)
 
+    def __repr__(self):
+        return f"ParamAttrConstraint({self.base_attr.__name__}, {repr(self.param_constrs)})"
+
     def verify(
         self,
         attr: Attribute,
@@ -671,33 +612,20 @@ class ParamAttrConstraint(
             raise VerifyException(
                 f"{attr} should be of base attribute {self.base_attr.name}"
             )
-        if len(self.param_constrs) != len(attr.parameters):
+        parameters = attr.parameters
+        if len(self.param_constrs) != len(parameters):
             raise VerifyException(
                 f"{len(self.param_constrs)} parameters expected, "
-                f"but got {len(attr.parameters)}"
+                f"but got {len(parameters)}"
             )
         for idx, param_constr in enumerate(self.param_constrs):
-            param_constr.verify(attr.parameters[idx], constraint_context)
+            param_constr.verify(parameters[idx], constraint_context)
 
-    @dataclass(frozen=True)
-    class _Extractor(VarExtractor[ParametrizedAttributeT]):
-        idx: int
-        inner: VarExtractor[Attribute]
-
-        def extract_var(self, a: ParametrizedAttributeT) -> ConstraintVariableType:
-            return self.inner.extract_var(a.parameters[self.idx])
-
-    def get_variable_extractors(
-        self,
-    ) -> dict[str, VarExtractor[ParametrizedAttributeCovT]]:
-        dicts: Generator[dict[str, VarExtractor[ParametrizedAttributeCovT]]] = (
-            {
-                v: self._Extractor(i, r)
-                for v, r in param_constr.get_variable_extractors().items()
-            }
-            for i, param_constr in enumerate(self.param_constrs)
-        )
-        return merge_extractor_dicts(*dicts)
+    def variables(self) -> set[str]:
+        vars = set[str]()
+        for constr in self.param_constrs:
+            vars |= constr.variables()
+        return vars
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return is_runtime_final(self.base_attr) and all(
@@ -709,9 +637,9 @@ class ParamAttrConstraint(
         attr = self.base_attr.new(params)
         return attr
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_bases(self) -> set[type[Attribute]] | None:
         if is_runtime_final(self.base_attr):
-            return self.base_attr
+            return {self.base_attr}
         return None
 
     def mapping_type_vars(
@@ -756,11 +684,11 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
                 *e.args[1:],
             )
 
-    def get_variable_extractors(self) -> dict[str, VarExtractor[AttributeCovT]]:
-        return self.constr.get_variable_extractors()
+    def variables(self) -> set[str]:
+        return self.constr.variables()
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return self.constr.get_unique_base()
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.constr.get_bases()
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.constr.can_infer(var_constraint_names)
@@ -793,13 +721,12 @@ class IntConstraint(ABC):
         """
         ...
 
-    def get_length_extractors(
-        self,
-    ) -> dict[str, VarExtractor[int]]:
+    def variables(self) -> set[str]:
         """
-        Get a dictionary of variables that can be solved from this attribute.
+        Returns a set of the variables that can be extracted by this constraint.
+        These variables are always expected to be set after running `verify`.
         """
-        return dict()
+        return set()
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         """
@@ -817,7 +744,7 @@ class IntConstraint(ABC):
         returns `True` with the given constraint variables, this method should
         not raise an exception.
         """
-        raise ValueError("Cannot infer attribute from constraint")
+        raise ValueError(f"Cannot infer integer from constraint {self}")
 
 
 class AnyInt(IntConstraint):
@@ -827,6 +754,18 @@ class AnyInt(IntConstraint):
 
     def verify(self, i: int, constraint_context: ConstraintContext) -> None:
         pass
+
+
+@dataclass(frozen=True)
+class AtLeast(IntConstraint):
+    """Constrain an integer to be at least a given value."""
+
+    bound: int
+    """The minimum value the integer can take."""
+
+    def verify(self, i: int, constraint_context: ConstraintContext) -> None:
+        if i < self.bound:
+            raise VerifyException(f"expected integer >= {self.bound}, got {i}")
 
 
 @dataclass(frozen=True)
@@ -857,10 +796,8 @@ class IntVarConstraint(IntConstraint):
             self.constraint.verify(i, constraint_context)
             constraint_context.set_int_variable(self.name, i)
 
-    def get_length_extractors(
-        self,
-    ) -> dict[str, VarExtractor[int]]:
-        return {self.name: IdExtractor()}
+    def variables(self) -> set[str]:
+        return self.constraint.variables() | {self.name}
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.name in var_constraint_names
@@ -886,27 +823,29 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
     ) -> None:
         """
         Check if the range satisfies the constraint, or raise an exception otherwise.
-        The range can contain Nones, which represent an attribute not to be checked.
         """
         ...
 
-    def get_variable_extractors(
-        self,
-    ) -> dict[str, VarExtractor[Sequence[AttributeCovT]]]:
+    @abstractmethod
+    def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
         """
-        Get a dictionary of constraint variables to extractors for these variables,
-        which provide a method to obtain the value of each constraint variable from
-        the value of the attribute range which is verified by this constraint.
+        Check if the length of the range satisfies the constraint, or raise an exception otherwise.
         """
-        return {}
+        ...
 
-    def get_length_extractors(
-        self,
-    ) -> dict[str, VarExtractor[int]]:
+    def variables(self) -> set[str]:
         """
-        Get a dictionary of variables that can be solved using the length of the range.
+        Returns a set of the variables that can be extracted by this constraint.
+        These variables are always expected to be set after running `verify`.
         """
-        return dict()
+        return set()
+
+    def variables_from_length(self) -> set[str]:
+        """
+        Returns a set of the variables that can be extracted from the range length by this constraint.
+        These variables are always expected to be set after running `verify_length`.
+        """
+        return set()
 
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
         """
@@ -928,7 +867,19 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         returns `True` with the given constraint variables, this method should
         not raise an exception.
         """
-        raise ValueError("Cannot infer attribute from constraint")
+        raise ValueError(f"Cannot infer range from constraint {self}")
+
+    @abstractmethod
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericRangeConstraint[AttributeCovT]:
+        """
+        A helper function to make type vars used in attribute definitions concrete when
+        creating constraints for new attributes or operations.
+        """
+        raise NotImplementedError(
+            "Custom constraints must map type vars in nested constraints, if any."
+        )
 
 
 RangeConstraint: TypeAlias = GenericRangeConstraint[Attribute]
@@ -963,10 +914,12 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
             self.constraint.verify(attrs, constraint_context)
             constraint_context.set_range_variable(self.name, tuple(attrs))
 
-    def get_variable_extractors(
-        self,
-    ) -> dict[str, VarExtractor[Sequence[AttributeCovT]]]:
-        return {self.name: IdExtractor[Sequence[AttributeCovT]]()}
+    def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
+        # It is not possible to fully verify the constraint from just the length, so we don't try.
+        pass
+
+    def variables(self) -> set[str]:
+        return self.constraint.variables() | {self.name}
 
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
         return self.name in var_constraint_names
@@ -976,6 +929,14 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     ) -> Sequence[AttributeCovT]:
         v = context.get_range_variable(self.name)
         return cast(Sequence[AttributeCovT], v)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericRangeConstraint[AttributeCovT]:
+        constraint = self.constraint.mapping_type_vars(type_var_mapping)
+        if constraint is self.constraint:
+            return self
+        return RangeVarConstraint(self.name, constraint)
 
 
 @dataclass(frozen=True)
@@ -995,10 +956,18 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
     ) -> None:
         for a in attrs:
             self.constr.verify(a, constraint_context)
-        self.length.verify(len(attrs), constraint_context)
+        try:
+            self.length.verify(len(attrs), constraint_context)
+        except VerifyException as e:
+            raise VerifyException(
+                "incorrect length for range variable:\n" + str(e)
+            ) from e
 
-    def get_length_extractors(self) -> dict[str, VarExtractor[int]]:
-        return self.length.get_length_extractors()
+    def verify_length(self, length: int, constraint_context: ConstraintContext):
+        self.length.verify(length, constraint_context)
+
+    def variables_from_length(self) -> set[str]:
+        return self.length.variables()
 
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
         return (
@@ -1015,6 +984,14 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
             length = self.length.infer(context)
         attr = self.constr.infer(context)
         return (attr,) * length
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericRangeConstraint[AttributeCovT]:
+        constr = self.constr.mapping_type_vars(type_var_mapping)
+        if constr is self.constr:
+            return self
+        return RangeOf(constr, length=self.length)
 
 
 @dataclass(frozen=True)
@@ -1034,20 +1011,12 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
             raise VerifyException(f"Expected a single attribute, got {len(attrs)}")
         self.constr.verify(attrs[0], constraint_context)
 
-    @dataclass(frozen=True)
-    class _Extractor(VarExtractor[Sequence[AttributeInvT]]):
-        inner: VarExtractor[AttributeInvT]
+    def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
+        if length != 1:
+            raise VerifyException(f"Expected a single attribute, got {length}")
 
-        def extract_var(self, a: Sequence[AttributeInvT]) -> ConstraintVariableType:
-            return self.inner.extract_var(a[0])
-
-    def get_variable_extractors(
-        self,
-    ) -> dict[str, VarExtractor[Sequence[AttributeCovT]]]:
-        return {
-            v: self._Extractor(r)
-            for v, r in self.constr.get_variable_extractors().items()
-        }
+    def variables(self) -> set[str]:
+        return self.constr.variables()
 
     def can_infer(
         self, var_constraint_names: Set[str], *, length_known: int | None
@@ -1058,6 +1027,14 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
         self, context: ConstraintContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
         return (self.constr.infer(context),)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericRangeConstraint[AttributeCovT]:
+        constr = self.constr.mapping_type_vars(type_var_mapping)
+        if constr is self.constr:
+            return self
+        return SingleOf(constr)
 
 
 def range_constr_coercion(

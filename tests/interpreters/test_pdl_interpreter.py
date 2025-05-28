@@ -14,20 +14,20 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.pdl import PDLMatcher, PDLRewriteFunctions, PDLRewritePattern
 from xdsl.ir import Attribute, Block
 from xdsl.pattern_rewriter import PatternRewriteWalker
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_interpreter_functions():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(PDLRewriteFunctions(Context()))
 
-    c0 = TestSSAValue(i32)
-    c1 = TestSSAValue(i32)
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
     add = arith.AddiOp(c0, c1)
     add_res = add.result
 
     assert interpreter.run_op(
-        pdl.ResultOp(0, TestSSAValue(pdl.OperationType())), (add,)
+        pdl.ResultOp(0, create_ssa_value(pdl.OperationType())), (add,)
     ) == (add_res,)
 
 
@@ -187,7 +187,7 @@ def test_match_operand():
 
     pdl_op = pdl.OperandOp()
     ssa_value = pdl_op.value
-    xdsl_value = TestSSAValue(i32)
+    xdsl_value = create_ssa_value(i32)
 
     # New value
     assert matcher.match_operand(ssa_value, pdl_op, xdsl_value)
@@ -198,14 +198,14 @@ def test_match_operand():
     assert matcher.matching_context == {ssa_value: xdsl_value}
 
     # Other value
-    other_value = TestSSAValue(i32)
+    other_value = create_ssa_value(i32)
     assert not matcher.match_operand(ssa_value, pdl_op, other_value)
     assert matcher.matching_context == {ssa_value: xdsl_value}
 
     # Wrong type
     type_op = pdl.TypeOp(i64)
     new_pdl_op = pdl.OperandOp(type_op.result)
-    new_value = TestSSAValue(i32)
+    new_value = create_ssa_value(i32)
     assert not matcher.match_operand(new_pdl_op.value, new_pdl_op, new_value)
     assert matcher.matching_context == {ssa_value: xdsl_value}
 
@@ -361,8 +361,8 @@ def test_match_operation_with_multiple_constraints():
     matcher = PDLMatcher()
 
     # Create test operation with 2 operands, 2 results, and 2 attributes
-    operand1 = TestSSAValue(i32)
-    operand2 = TestSSAValue(i64)
+    operand1 = create_ssa_value(i32)
+    operand2 = create_ssa_value(i64)
     test_op = test.TestOp(
         operands=[operand1, operand2],
         result_types=[i32, i64],

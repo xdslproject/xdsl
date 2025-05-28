@@ -5,10 +5,12 @@ from typing import Any, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import (
+    DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
+    StringAttr,
 )
 from xdsl.interpreter import (
     Interpreter,
@@ -25,6 +27,7 @@ from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 _T = TypeVar("_T")
 
@@ -76,7 +79,7 @@ class RiscvFunctions(InterpreterFunctions):
         registers = RiscvFunctions.registers(interpreter)
 
         if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name}")
+            raise InterpretationError(f"Value not found for register name {name.data}")
 
         stored_value = registers[name]
 
@@ -148,7 +151,7 @@ class RiscvFunctions(InterpreterFunctions):
         )
 
     @staticmethod
-    def registers(interpreter: Interpreter) -> dict[str, Any]:
+    def registers(interpreter: Interpreter) -> dict[StringAttr, Any]:
         return interpreter.get_data(
             RiscvFunctions,
             REGISTERS_KEY,
@@ -584,9 +587,6 @@ class RiscvFunctions(InterpreterFunctions):
     ) -> PythonValues:
         attr = op.res.type
 
-        if not isinstance(attr, riscv.RISCVRegisterType):
-            raise InterpretationError(f"Unexpected type {attr}, expected register type")
-
         if not attr.is_allocated:
             raise InterpretationError(
                 f"Cannot get value for unallocated register {attr}"
@@ -597,7 +597,7 @@ class RiscvFunctions(InterpreterFunctions):
         registers = RiscvFunctions.registers(interpreter)
 
         if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name}")
+            raise InterpretationError(f"Value not found for register name {name.data}")
 
         stored_value = registers[name]
 
@@ -641,6 +641,7 @@ class RiscvFunctions(InterpreterFunctions):
             case IntegerAttr():
                 return attr.value.data
             case builtin.DenseIntOrFPElementsAttr():
+                assert isa(attr, DenseIntOrFPElementsAttr)
                 data = attr.get_values()
                 data_ptr = ptr.TypedPtr[Any].new(
                     data,

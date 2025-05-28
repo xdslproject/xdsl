@@ -2,8 +2,8 @@
 This is a stub of CIRCT’s hw dialect.
 Follows definitions as of CIRCT commit `f8c7faec1e8447521a1ea9a0836b6923a132c79e`.
 
-[1] https://circt.llvm.org/docs/Dialects/HW/
-[2] https://circt.llvm.org/docs/RationaleSymbols/
+See [rationale](https://circt.llvm.org/docs/RationaleSymbols/) for symbols.
+See external [documentation](https://circt.llvm.org/docs/Dialects/HW/).
 """
 
 import abc
@@ -172,7 +172,9 @@ class InnerSymbolTable:
     """A class for lookups in inner symbol tables. Called InnerSymbolTable in upstream (name clash with trait)."""
 
     op: InitVar[Operation | None] = None
-    symbol_table: dict[StringAttr, InnerSymTarget] = field(default_factory=dict)
+    symbol_table: dict[StringAttr, InnerSymTarget] = field(
+        default_factory=dict[StringAttr, InnerSymTarget]
+    )
 
     def __post_init__(self, op: Operation | None = None) -> None:
         pass
@@ -184,7 +186,7 @@ class InnerSymbolTableCollection:
     """This class represents a collection of InnerSymbolTable."""
 
     symbol_tables: dict[Operation, InnerSymbolTable] = field(
-        default_factory=dict, init=False
+        default_factory=dict[Operation, InnerSymbolTable], init=False
     )
     op: InitVar[Operation | None] = None
 

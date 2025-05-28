@@ -1,16 +1,12 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TypeGuard, cast
+from typing import TypeGuard
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, varith
 from xdsl.dialects.arith import (
-    AddfOp,
     ConstantOp,
-    DivfOp,
     FloatingPointLikeBinaryOperation,
-    MulfOp,
-    SubfOp,
 )
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -103,7 +99,7 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
 def needs_update_shape(
     op_type: Attribute, succ_req_type: TensorType[Attribute]
 ) -> bool:
-    assert isa(op_type, TensorType[Attribute])
+    assert isa(op_type, TensorType)
     return op_type.get_shape() != succ_req_type.get_shape()
 
 
@@ -169,7 +165,7 @@ class ArithOpTensorize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: AddfOp | SubfOp | MulfOp | DivfOp, rewriter: PatternRewriter, /
+        self, op: FloatingPointLikeBinaryOperation, rewriter: PatternRewriter, /
     ):
         type_constructor = type(op)
         if is_tensor(op.result.type):
@@ -178,14 +174,14 @@ class ArithOpTensorize(RewritePattern):
             rewriter.replace_matched_op(
                 type_constructor(op.lhs, op.rhs, flags=None, result_type=op.lhs.type)
             )
-        elif is_tensor(op.lhs.type) and is_scalar(op.rhs.type):
+        elif isa(op.lhs.type, TensorType[AnyFloat]) and is_scalar(op.rhs.type):
             new_rhs = ArithOpTensorize._rewrite_scalar_operand(
                 op.rhs, op.lhs.type, op, rewriter
             )
             rewriter.replace_matched_op(
                 type_constructor(op.lhs, new_rhs, flags=None, result_type=op.lhs.type)
             )
-        elif is_scalar(op.lhs.type) and is_tensor(op.rhs.type):
+        elif is_scalar(op.lhs.type) and isa(op.rhs.type, TensorType[AnyFloat]):
             new_lhs = ArithOpTensorize._rewrite_scalar_operand(
                 op.lhs, op.rhs.type, op, rewriter
             )
@@ -196,7 +192,7 @@ class ArithOpTensorize(RewritePattern):
     @staticmethod
     def _rewrite_scalar_operand(
         scalar_op: SSAValue,
-        dest_typ: TensorType[IndexType | IntegerType | AnyFloat],
+        dest_typ: TensorType[AnyFloat],
         op: FloatingPointLikeBinaryOperation,
         rewriter: PatternRewriter,
     ) -> SSAValue:
@@ -209,7 +205,7 @@ class ArithOpTensorize(RewritePattern):
             assert isinstance(float_attr := scalar_op.op.value, FloatAttr)
             scalar_value = float_attr.value.data
             tens_const = ConstantOp(
-                DenseIntOrFPElementsAttr.from_list(dest_typ, [scalar_value])
+                DenseIntOrFPElementsAttr.create_dense_float(dest_typ, scalar_value)
             )
             rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
             return tens_const.result
@@ -245,10 +241,7 @@ class ApplyOpTensorize(RewritePattern):
                 ApplyOp.get(
                     op.args,
                     body,
-                    [
-                        stencil_temp_to_tensor(cast(TempType[Attribute], r.type))
-                        for r in op.res
-                    ],
+                    [stencil_temp_to_tensor(r.type) for r in op.res],
                 )
             )
 
@@ -259,7 +252,9 @@ class FuncOpTensorize(RewritePattern):
         if not op.is_declaration:
             for arg in op.args:
                 if isa(arg.type, FieldType[Attribute]):
-                    op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
+                    op.replace_argument_type(
+                        arg, stencil_field_to_tensor(arg.type), rewriter
+                    )
 
 
 def is_tensorized(
@@ -397,7 +392,7 @@ def arithBinaryOpUpdateShape(
 class ArithOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: AddfOp | SubfOp | MulfOp | DivfOp, rewriter: PatternRewriter, /
+        self, op: FloatingPointLikeBinaryOperation, rewriter: PatternRewriter, /
     ):
         arithBinaryOpUpdateShape(op, rewriter)
 

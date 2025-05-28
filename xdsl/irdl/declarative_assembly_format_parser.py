@@ -6,8 +6,8 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence, Set
-from dataclasses import dataclass, field
+from collections.abc import Set
+from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
 
@@ -18,7 +18,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedSegments,
     ConstraintContext,
-    ConstraintVariableType,
     OpDef,
     OptionalDef,
     OptOperandDef,
@@ -28,14 +27,12 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
-    VarExtractor,
     VariadicDef,
     VarOperandDef,
     VarRegionDef,
     VarResultDef,
     VarSingleBlockRegionDef,
     VarSuccessorDef,
-    merge_extractor_dicts,
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
@@ -56,7 +53,6 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalResultVariable,
     OptionalSuccessorVariable,
     OptionalUnitAttrVariable,
-    ParsingState,
     PunctuationDirective,
     RegionDirective,
     RegionVariable,
@@ -134,8 +130,6 @@ class FormatParser(BaseParser):
     """The region variables that are already parsed."""
     seen_successors: list[bool]
     """The successor variables that are already parsed."""
-    has_attr_dict: bool = field(default=False)
-    """True if the attribute dictionary has already been parsed."""
 
     def __init__(self, input: str, op_def: OpDef):
         super().__init__(ParserState(FormatLexer(Input(input, "<input>"))))
@@ -159,16 +153,15 @@ class FormatParser(BaseParser):
         while self._current_token.kind != MLIRTokenKind.EOF:
             elements.append(self.parse_format_directive())
 
-        self.add_reserved_attrs_to_directive(elements)
-        extractors = self.extractors_by_name()
+        attr_dict_idx = self.verify_attr_dict(elements)
+        variables = self.get_constraint_variables()
         self.verify_directives(elements)
-        self.verify_attr_dict()
-        self.verify_properties()
-        self.verify_operands(extractors.keys())
-        self.verify_results(extractors.keys())
+        self.verify_properties(elements, attr_dict_idx)
+        self.verify_operands(variables)
+        self.verify_results(variables)
         self.verify_regions()
         self.verify_successors()
-        return FormatProgram(tuple(elements), extractors)
+        return FormatProgram(tuple(elements))
 
     def verify_directives(self, elements: list[FormatDirective]):
         """
@@ -211,114 +204,28 @@ class FormatParser(BaseParser):
                 case _:
                     pass
 
-    def add_reserved_attrs_to_directive(self, elements: list[FormatDirective]):
-        """
-        Add reserved attributes to the attr-dict directive.
-        These are the attributes that are printed/parsed in other places in the format,
-        and thus should not be printed in the attr-dict directive.
-        """
-        for idx, element in enumerate(elements):
-            if isinstance(element, AttrDictDirective):
-                elements[idx] = AttrDictDirective(
-                    with_keyword=element.with_keyword,
-                    reserved_attr_names=self.seen_attributes,
-                    print_properties=element.print_properties,
-                )
-                return
-
-    @dataclass(frozen=True)
-    class _OperandLengthResolver(VarExtractor[ParsingState]):
-        idx: int
-        inner: VarExtractor[int]
-
-        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
-            assert isinstance(ops := a.operands[self.idx], Sequence)
-            return self.inner.extract_var(len(ops))
-
-    @dataclass(frozen=True)
-    class _OperandResultExtractor(VarExtractor[ParsingState]):
-        idx: int
-        is_operand: bool
-        inner: VarExtractor[Sequence[Attribute]]
-
-        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
-            if self.is_operand:
-                types = a.operand_types[self.idx]
-            else:
-                types = a.result_types[self.idx]
-            assert types is not None
-            if isinstance(types, Attribute):
-                types = (types,)
-            return self.inner.extract_var(types)
-
-    @dataclass(frozen=True)
-    class _AttrExtractor(VarExtractor[ParsingState]):
-        """
-        Extracts constraint variables from the attributes/properties of an operation.
-        If the default_value field is None, then the attribute/property must always be
-        present (which is only the case for non-optional attributes/properties with no
-        default value).
-        """
-
-        name: str
-        is_prop: bool
-        inner: VarExtractor[Attribute]
-        default_value: Attribute | None
-
-        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
-            if self.is_prop:
-                attr = a.properties.get(self.name, self.default_value)
-            else:
-                attr = a.attributes.get(self.name, self.default_value)
-            assert attr is not None
-            return self.inner.extract_var(attr)
-
-    def extractors_by_name(self) -> dict[str, VarExtractor[ParsingState]]:
+    def get_constraint_variables(self) -> set[str]:
         """
         Find out which constraint variables can be inferred from the parsed attributes.
         """
-        extractor_dicts: list[dict[str, VarExtractor[ParsingState]]] = []
+        vars = set[str]()
         for i, (_, operand_def) in enumerate(self.op_def.operands):
-            extractor_dicts.append(
-                {
-                    v: self._OperandLengthResolver(i, r)
-                    for v, r in operand_def.constr.get_length_extractors().items()
-                }
-            )
+            vars |= operand_def.constr.variables_from_length()
             if self.seen_operand_types[i]:
-                extractor_dicts.append(
-                    {
-                        v: self._OperandResultExtractor(i, True, r)
-                        for v, r in operand_def.constr.get_variable_extractors().items()
-                    }
-                )
+                vars |= operand_def.constr.variables()
         for i, (_, result_def) in enumerate(self.op_def.results):
             if self.seen_result_types[i]:
-                extractor_dicts.append(
-                    {
-                        v: self._OperandResultExtractor(i, False, r)
-                        for v, r in result_def.constr.get_variable_extractors().items()
-                    }
-                )
-        for prop_name, prop_def in self.op_def.properties.items():
+                vars |= result_def.constr.variables()
+        for prop_def in self.op_def.properties.values():
             if isinstance(prop_def, OptionalDef) and prop_def.default_value is None:
                 continue
-            extractor_dicts.append(
-                {
-                    v: self._AttrExtractor(prop_name, True, r, prop_def.default_value)
-                    for v, r in prop_def.constr.get_variable_extractors().items()
-                }
-            )
-        for attr_name, attr_def in self.op_def.attributes.items():
+            vars |= prop_def.constr.variables()
+        for attr_def in self.op_def.attributes.values():
             if isinstance(attr_def, OptionalDef) and attr_def.default_value is None:
                 continue
-            extractor_dicts.append(
-                {
-                    v: self._AttrExtractor(attr_name, False, r, attr_def.default_value)
-                    for v, r in attr_def.constr.get_variable_extractors().items()
-                }
-            )
-        return merge_extractor_dicts(*extractor_dicts)
+            vars |= attr_def.constr.variables()
+
+        return vars
 
     def verify_operands(self, var_constraint_names: Set[str]):
         """
@@ -368,29 +275,25 @@ class FormatParser(BaseParser):
                         "custom assembly format"
                     )
 
-    def verify_attr_dict(self):
+    def verify_attr_dict(self, elements: list[FormatDirective]) -> int:
         """
-        Check that the attribute dictionary is present.
+        Check that the attribute dictionary is present, returning its index
         """
-        if not self.has_attr_dict:
-            self.raise_error("'attr-dict' directive not found")
+        for i, element in enumerate(elements):
+            if isinstance(element, AttrDictDirective):
+                if any(isinstance(e, AttrDictDirective) for e in elements[i + 1 :]):
+                    self.raise_error(
+                        "'attr-dict' directive can only occur once "
+                        "in the assembly format description"
+                    )
+                return i
+        self.raise_error("'attr-dict' directive not found")
 
-    def verify_properties(self):
+    def verify_properties(self, elements: list[FormatDirective], attr_dict_idx: int):
         """
         Check that all properties are present, unless `ParsePropInAttrDict` option is
         used.
         """
-        # This is used for compatibility with MLIR
-        if any(
-            isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
-        ):
-            if self.seen_properties:
-                self.raise_error(
-                    "properties cannot be specified in the declarative format "
-                    "when 'ParsePropInAttrDict' IRDL option is used. They are instead "
-                    "parsed from the attribute dictionary."
-                )
-            return
 
         missing_properties = set(self.op_def.properties.keys()) - self.seen_properties
 
@@ -398,12 +301,25 @@ class FormatParser(BaseParser):
             if isinstance(option, AttrSizedSegments) and option.as_property:
                 missing_properties.remove(option.attribute_name)
 
-        if missing_properties:
+        parse_prop_in_attr_dict = any(
+            isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
+        )
+
+        if missing_properties and not parse_prop_in_attr_dict:
             self.raise_error(
                 f"{', '.join(missing_properties)} properties are missing from "
                 "the declarative format. If this is intentional, consider using "
                 "'ParsePropInAttrDict' IRDL option."
             )
+
+        attr_dict = elements[attr_dict_idx]
+        assert isinstance(attr_dict, AttrDictDirective)
+
+        elements[attr_dict_idx] = AttrDictDirective(
+            with_keyword=attr_dict.with_keyword,
+            reserved_attr_names=self.seen_attributes,
+            expected_properties=missing_properties,
+        )
 
     def verify_regions(self):
         """
@@ -473,9 +389,11 @@ class FormatParser(BaseParser):
           variable ::= `$` bare-ident
         The variable should refer to an operand or result.
         """
+        start_pos = self.pos
         if self._current_token.text[0] != "$":
             return None
         self._consume_token()
+        end_pos = self._current_token.span.end
         variable_name = self.parse_identifier(" after '$'")
 
         # Check if the variable is an operand
@@ -497,7 +415,11 @@ class FormatParser(BaseParser):
                 case _:
                     return ResultVariable(variable_name, idx)
 
-        self.raise_error("expected typeable variable to refer to an operand or result")
+        self.raise_error(
+            "expected typeable variable to refer to an operand or result",
+            at_position=start_pos,
+            end_position=end_pos,
+        )
 
     def parse_optional_variable(
         self,
@@ -509,7 +431,9 @@ class FormatParser(BaseParser):
         """
         if self._current_token.text[0] != "$":
             return None
+        start_pos = self.pos
         self._consume_token()
+        end_pos = self._current_token.span.end
         variable_name = self.parse_identifier(" after '$'")
 
         # Check if the variable is an operand
@@ -567,7 +491,10 @@ class FormatParser(BaseParser):
                 else self.op_def.attributes.get(attr_name)
             )
             if isinstance(attr_def, AttrOrPropDef):
-                unique_base = attr_def.constr.get_unique_base()
+                bases = attr_def.constr.get_bases()
+                unique_base = (
+                    bases.pop() if bases is not None and len(bases) == 1 else None
+                )
                 if unique_base == UnitAttr:
                     return OptionalUnitAttrVariable(
                         variable_name, is_property, None, None
@@ -616,7 +543,9 @@ class FormatParser(BaseParser):
                 )
 
         self.raise_error(
-            "expected variable to refer to an operand, attribute, region, or successor"
+            "expected variable to refer to an operand, attribute, region, or successor",
+            at_position=start_pos,
+            end_position=end_pos,
         )
 
     def parse_type_directive(self) -> FormatDirective:
@@ -772,21 +701,12 @@ class FormatParser(BaseParser):
 
     def create_attr_dict_directive(self, with_keyword: bool) -> AttrDictDirective:
         """Create an attribute dictionary directive, and update the parsing state."""
-        if self.has_attr_dict:
-            self.raise_error(
-                "'attr-dict' directive can only occur once "
-                "in the assembly format description"
-            )
-        self.has_attr_dict = True
-        print_properties = any(
-            isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
-        )
-        # reserved_attr_names is populated once the format is parsed, as some attributes
-        # might appear after the attr-dict directive
+        # reserved_attr_names and expected_properties are populated once the format is parsed,
+        # as some attributes might appear after the attr-dict directive.
         return AttrDictDirective(
             with_keyword=with_keyword,
             reserved_attr_names=set(),
-            print_properties=print_properties,
+            expected_properties=set(),
         )
 
     def create_operands_directive(self, top_level: bool) -> OperandsDirective:

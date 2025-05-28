@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     BFloat16Type,
     BoolAttr,
     BytesAttr,
+    ComplexElementCovT,
     ComplexType,
     DenseArrayBase,
     DenseResourceAttr,
@@ -74,6 +75,7 @@ from xdsl.utils.bitwise_casts import (
     convert_f64_to_u64,
 )
 from xdsl.utils.diagnostic import Diagnostic
+from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import MLIRLexer
 
 
@@ -84,7 +86,9 @@ class Printer(BasePrinter):
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
-    _ssa_values: dict[SSAValue, str] = field(default_factory=dict, init=False)
+    _ssa_values: dict[SSAValue, str] = field(
+        default_factory=dict[SSAValue, str], init=False
+    )
     """
     maps SSA Values to their "allocated" names
     """
@@ -119,6 +123,7 @@ class Printer(BasePrinter):
                 self.print_string(arg)
                 continue
             if isinstance(arg, SSAValue):
+                arg = cast(SSAValue[Attribute], arg)
                 self.print_ssa_value(arg)
                 continue
             if isinstance(arg, Attribute):
@@ -337,6 +342,40 @@ class Printer(BasePrinter):
     def print_float_attr(self, attribute: FloatAttr):
         self.print_float(attribute.value.data, attribute.type)
 
+    def print_complex_float(
+        self, value: tuple[float, float], type: ComplexType[ComplexElementCovT]
+    ):
+        assert isinstance(type.element_type, AnyFloat)
+        self.print_string("(")
+        real, imag = value[0], value[1]
+        self.print_float(real, type.element_type)
+        self.print_string(",")
+        self.print_float(imag, type.element_type)
+        self.print_string(")")
+
+    def print_complex_int(
+        self, value: tuple[int, int], type: ComplexType[ComplexElementCovT]
+    ):
+        assert isinstance(type.element_type, IntegerType)
+        self.print_string("(")
+        real, imag = value[0], value[1]
+        self.print_string(str(real))
+        self.print_string(",")
+        self.print_string(str(imag))
+        self.print_string(")")
+
+    def print_complex(
+        self,
+        value: tuple[float, float] | tuple[int, int],
+        type: ComplexType[ComplexElementCovT],
+    ):
+        if isinstance(type.element_type, IntegerType):
+            assert isa(value, tuple[int, int])
+            self.print_complex_int(value, type)
+        else:
+            assert isa(value, tuple[float, float])
+            self.print_complex_float(value, type)
+
     def print_float(self, value: float, type: AnyFloat):
         if math.isnan(value) or math.isinf(value):
             if isinstance(type, Float16Type):
@@ -452,7 +491,7 @@ class Printer(BasePrinter):
             return
 
         # Complex types have MLIR shorthands but XDSL does not.
-        if isinstance(attribute, ComplexType):
+        if isa(attribute, ComplexType):
             self.print_string("complex<")
             self.print_attribute(attribute.element_type)
             self.print_string(">")
@@ -465,7 +504,7 @@ class Printer(BasePrinter):
             self.print_string("]")
             return
 
-        if isinstance(attribute, DenseArrayBase):
+        if isa(attribute, DenseArrayBase):
             self.print_string("array<")
             self.print_attribute(attribute.elt_type)
             if len(attribute) == 0:
@@ -715,9 +754,16 @@ class Printer(BasePrinter):
         *,
         reserved_attr_names: Iterable[str] = (),
         print_keyword: bool = False,
-    ) -> None:
+    ) -> bool:
+        """
+        Prints the attribute dictionary of an operation, with an optional `attributes`
+        keyword.
+        Values for `reserved_attr_names` are not printed even if present.
+        If the printed dictionary would be empty, then nothing is printed, and this
+        function returns False.
+        """
         if not attributes:
-            return
+            return False
 
         if reserved_attr_names:
             attributes = {
@@ -727,13 +773,14 @@ class Printer(BasePrinter):
             }
 
         if not attributes:
-            return
+            return False
 
         if print_keyword:
             self.print_string(" attributes")
 
         self.print_string(" ")
         self.print_attr_dict(attributes)
+        return True
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)

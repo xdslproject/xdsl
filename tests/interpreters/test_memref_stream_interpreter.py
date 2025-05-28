@@ -20,7 +20,7 @@ from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
 from xdsl.ir.affine import AffineExpr, AffineMap
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 indextype = IndexType()
 
@@ -36,10 +36,10 @@ def test_memref_stream_generic():
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(i32, [2, 3])),
-            TestSSAValue(MemRefType(i32, [3, 2])),
+            create_ssa_value(MemRefType(i32, [2, 3])),
+            create_ssa_value(MemRefType(i32, [3, 2])),
         ),
-        (TestSSAValue(MemRefType(i32, [1, 6])),),
+        (create_ssa_value(MemRefType(i32, [1, 6])),),
         (),
         Region(Block(arg_types=(i32, i32, i32))),
         ArrayAttr(
@@ -90,10 +90,10 @@ def test_memref_stream_generic_scalar():
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(i32, [2, 3])),
-            TestSSAValue(i32),
+            create_ssa_value(MemRefType(i32, [2, 3])),
+            create_ssa_value(i32),
         ),
-        (TestSSAValue(MemRefType(i32, [1, 6])),),
+        (create_ssa_value(MemRefType(i32, [1, 6])),),
         (),
         Region(Block(arg_types=(i32, i32, i32))),
         ArrayAttr(
@@ -144,10 +144,10 @@ def test_memref_stream_generic_reduction():
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(i32, [3])),
-            TestSSAValue(MemRefType(i32, [3])),
+            create_ssa_value(MemRefType(i32, [3])),
+            create_ssa_value(MemRefType(i32, [3])),
         ),
-        (TestSSAValue(MemRefType(i32, [])),),
+        (create_ssa_value(MemRefType(i32, [])),),
         (),
         Region(Block(arg_types=(i32, i32, i32))),
         ArrayAttr(
@@ -187,10 +187,10 @@ def test_memref_stream_generic_imperfect_nesting():
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(f32, [3, 2])),
-            TestSSAValue(MemRefType(f32, [2, 3])),
+            create_ssa_value(MemRefType(f32, [3, 2])),
+            create_ssa_value(MemRefType(f32, [2, 3])),
         ),
-        (TestSSAValue(MemRefType(f32, [3, 3])),),
+        (create_ssa_value(MemRefType(f32, [3, 3])),),
         (),
         Region(Block(arg_types=(f32, f32, f32))),
         ArrayAttr(
@@ -238,11 +238,11 @@ def test_memref_stream_generic_reduction_with_initial_value():
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(f32, [3, 2])),
-            TestSSAValue(MemRefType(f32, [2, 3])),
+            create_ssa_value(MemRefType(f32, [3, 2])),
+            create_ssa_value(MemRefType(f32, [2, 3])),
         ),
-        (TestSSAValue(MemRefType(f32, [3, 3])),),
-        (TestSSAValue(f32),),
+        (create_ssa_value(MemRefType(f32, [3, 3])),),
+        (create_ssa_value(f32),),
         Region(Block(arg_types=(f32, f32, f32))),
         ArrayAttr(
             (
@@ -289,11 +289,11 @@ def test_memref_stream_interleaved_reduction_with_initial_value():
 
     op = memref_stream.GenericOp(
         (
-            TestSSAValue(MemRefType(f32, [3, 5])),
-            TestSSAValue(MemRefType(f32, [5, 8])),
+            create_ssa_value(MemRefType(f32, [3, 5])),
+            create_ssa_value(MemRefType(f32, [5, 8])),
         ),
-        (TestSSAValue(MemRefType(f32, [3, 8])),),
-        (TestSSAValue(f32),),
+        (create_ssa_value(MemRefType(f32, [3, 8])),),
+        (create_ssa_value(f32),),
         Region(
             Block(
                 arg_types=(f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32)

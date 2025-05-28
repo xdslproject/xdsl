@@ -16,7 +16,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 __DEFAULT_PROG_NAME = "pe_program"
 """
@@ -55,7 +54,7 @@ class ExtractCslModules(RewritePattern):
 
         params = list[SSAValue]()
         for param in op.params:
-            if isattr(param.value, builtin.IntegerAttr):
+            if isinstance(param.value, builtin.IntegerAttr):
                 value = arith.ConstantOp(param.value)
             else:
                 value = None
@@ -188,7 +187,7 @@ class ExtractCslModules(RewritePattern):
     def _collect_yield_args(yield_op: csl_wrapper.YieldOp) -> list[csl.ParamOp]:
         params = list[csl.ParamOp]()
         for s, v in yield_op.items():
-            assert isattr(ty := v.type, csl.ParamOpAttrConstr)
+            assert csl.ParamOpAttrConstr.verifies(ty := v.type)
             params.append(csl.ParamOp(s, ty))
         return params
 
@@ -208,7 +207,6 @@ class ExtractCslModules(RewritePattern):
                   `csl.param` for each of them.
         """
 
-        memcpy = op.get_program_import("<memcpy/memcpy>")
         prog_name = op.program_name.data if op.program_name else __DEFAULT_PROG_NAME
         module_block = Block()
         with ImplicitBuilder(module_block):
@@ -230,14 +228,6 @@ class ExtractCslModules(RewritePattern):
                 *(y.res for y in yield_args),
             ],
         )
-
-        with ImplicitBuilder(module_block):
-            launch = csl.MemberAccessOp(
-                operands=[memcpy],
-                properties={"field": builtin.StringAttr("LAUNCH")},
-                result_types=[csl.ColorType()],
-            )
-            csl.RpcOp(operands=[launch])
 
         program_module = csl.CslModuleOp(
             regions=[Region(module_block)],

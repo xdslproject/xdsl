@@ -3,9 +3,15 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 
-from typing_extensions import deprecated
-
-from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 
 
 @dataclass(frozen=True)
@@ -14,7 +20,7 @@ class InsertPoint:
     An insert point.
     It is either a point before an operation, or at the end of a block.
 
-    https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder_1_1InsertPoint.html
+    See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder_1_1InsertPoint.html).
     """
 
     block: Block
@@ -170,6 +176,38 @@ class Rewriter:
         block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
+    def replace_value_with_new_type(val: SSAValue, new_type: Attribute) -> SSAValue:
+        """
+        Replace a value with a value of a new type, and return the new value.
+        This will insert the new value in the operation or block, and remove the existing
+        value.
+        """
+        if isinstance(val, OpResult):
+            operation = val.op
+            index = val.index
+            new_value = OpResult(new_type, operation, val.index)
+            results = operation.results
+            operation.results = (*results[:index], new_value, *results[index + 1 :])
+        elif isinstance(val, BlockArgument):
+            block = val.block
+            index = val.index
+            new_value = BlockArgument(new_type, block, index)
+            args = block.args
+            block._args = (  # pyright: ignore[reportPrivateUsage]
+                *args[:index],
+                new_value,
+                *args[index + 1 :],
+            )
+        else:
+            raise ValueError(
+                f"Expected OpResult or BlockArgument, got {type(val).__name__}"
+            )
+
+        new_value.name_hint = val.name_hint
+        val.replace_by(new_value)
+        return new_value
+
+    @staticmethod
     def inline_block(
         source: Block, insertion_point: InsertPoint, arg_values: Sequence[SSAValue] = ()
     ):
@@ -242,26 +280,6 @@ class Rewriter:
         else:
             region.add_block(block)
 
-    @deprecated("Use `insert_block(block, BlockInsertPoint.after(target))` instead")
-    @staticmethod
-    def insert_block_after(block: Block | list[Block], target: Block):
-        """
-        Insert one or multiple blocks after another block.
-        The blocks to insert should be detached from any region.
-        The target block should not be contained in the block to insert.
-        """
-        Rewriter.insert_block(block, BlockInsertPoint.after(target))
-
-    @deprecated("Use `insert_block(block, BlockInsertPoint.before(target))` instead")
-    @staticmethod
-    def insert_block_before(block: Block | list[Block], target: Block):
-        """
-        Insert one or multiple block before another block.
-        The blocks to insert should be detached from any region.
-        The target block should not be contained in the block to insert.
-        """
-        Rewriter.insert_block(block, BlockInsertPoint.before(target))
-
     @staticmethod
     def insert_op(
         op_or_ops: Operation | Sequence[Operation], insertion_point: InsertPoint
@@ -287,29 +305,3 @@ class Rewriter:
             region.move_blocks_before(insertion_point.insert_before)
         else:
             region.move_blocks(insertion_point.region)
-
-    @deprecated("Use `inline_region(region, BlockInsertPoint.before(target))` instead")
-    @staticmethod
-    def inline_region_before(region: Region, target: Block) -> None:
-        """Move the region blocks to an existing region, before `target`."""
-        Rewriter.inline_region(region, BlockInsertPoint.before(target))
-
-    @deprecated("Use `inline_region(region, BlockInsertPoint.after(target))` instead")
-    @staticmethod
-    def inline_region_after(region: Region, target: Block) -> None:
-        """Move the region blocks to an existing region, after `target`."""
-        Rewriter.inline_region(region, BlockInsertPoint.after(target))
-
-    @deprecated(
-        "Use `inline_region(region, BlockInsertPoint.at_start(target))` instead"
-    )
-    @staticmethod
-    def inline_region_at_start(region: Region, target: Region) -> None:
-        """Move the region blocks to the start of an existing region."""
-        Rewriter.inline_region(region, BlockInsertPoint.at_start(target))
-
-    @deprecated("Use `inline_region(region, BlockInsertPoint.at_end(target))` instead")
-    @staticmethod
-    def inline_region_at_end(region: Region, target: Region) -> None:
-        """Move the region blocks to the end of an existing region."""
-        Rewriter.inline_region(region, BlockInsertPoint.at_end(target))

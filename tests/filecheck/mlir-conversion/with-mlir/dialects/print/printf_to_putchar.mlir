@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p printf-to-putchar %s | mlir-opt --convert-math-to-funcs  --test-lower-to-llvm | mlir-cpu-runner --entry-point-result=void | filecheck %s
+// RUN: xdsl-opt -p printf-to-putchar %s | mlir-opt --convert-math-to-funcs --convert-scf-to-cf --convert-to-llvm | mlir-runner --entry-point-result=void | filecheck %s
 
 builtin.module{
     "func.func"() ({
@@ -16,7 +16,7 @@ builtin.module{
 	"printf.print_char"(%e) : (i8) -> ()
 	"printf.print_char"(%exclamation) : (i8) -> ()
 	"printf.print_char"(%newline) : (i8) -> ()
-        "printf.print_int"(%integer) : (i32) -> ()
+    "printf.print_int"(%integer) : (i32) -> ()
 	"printf.print_char"(%newline) : (i8) -> ()
 	"func.return"() : () -> ()
     }) {"sym_name" = "main", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()

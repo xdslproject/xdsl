@@ -3,8 +3,14 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, scf
-from xdsl.dialects.builtin import ArrayAttr, StringAttr
-from xdsl.ir import Attribute, Block, Operation, Region
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    StringAttr,
+)
+from xdsl.ir import Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -113,7 +119,7 @@ class FunctionConstantPinning(RewritePattern):
 
 def generate_func_with_pinned_val(
     func_op: func.FuncOp,
-    pin: Attribute,
+    pin: IntegerAttr[IntegerType | IndexType],
     rewriter: PatternRewriter,
 ):
     """
@@ -171,7 +177,9 @@ def func_contains_pinning_annotation(funcop: func.FuncOp) -> Operation | None:
             return op
 
 
-def get_pinned_vals_for_op(op: Operation) -> list[Attribute] | None:
+def get_pinned_vals_for_op(
+    op: Operation,
+) -> list[IntegerAttr[IntegerType | IndexType]] | None:
     """
     Reads the "pin_to_constants" attribute of an operation, checks for valid
     formatting, and return the list of attribute values that should be pinned.
@@ -182,7 +190,7 @@ def get_pinned_vals_for_op(op: Operation) -> list[Attribute] | None:
     if not isinstance(pin_attr, ArrayAttr):
         return None
 
-    return list(cast(ArrayAttr[Attribute], pin_attr))
+    return list(cast(ArrayAttr[IntegerAttr[IntegerType | IndexType]], pin_attr))
 
 
 def ops_between_op_and_func_start(

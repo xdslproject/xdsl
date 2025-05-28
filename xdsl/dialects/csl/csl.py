@@ -1,10 +1,10 @@
 """
-The CSL dialect models the Cerebras Systems Language. It's meant to be used as a target to do automatic codegen for
-the CS2.
+The CSL dialect models the Cerebras Systems Language.
 
-See https://docs.cerebras.net/en/latest/ for some mediocre documentation on the operations and their semantics.
+It aims to be used as a target (using the `-t cls` commandline option) to do automatic
+codegen for the CS2.
 
-This is meant to be used in conjunction with the `-t csl` printing option to generate CSL code.
+See external [documentation](https://docs.cerebras.net/en/latest/).
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Annotated, ClassVar, TypeAlias
+from typing import Annotated, ClassVar, Literal, TypeAlias
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
@@ -89,8 +89,9 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
+
+Target = Literal["wse2", "wse3"]
 
 
 class PtrKind(StrEnum):
@@ -778,11 +779,17 @@ class FuncOp(_FuncBase):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
-            parse_func_op_like(
-                parser,
-                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
-            )
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+        ) = parse_func_op_like(
+            parser,
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
 
         if res_attrs:
@@ -887,11 +894,17 @@ class TaskOp(_FuncBase):
     @classmethod
     def parse(cls, parser: Parser) -> TaskOp:
         pos = parser.pos
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
-            parse_func_op_like(
-                parser,
-                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
-            )
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+        ) = parse_func_op_like(
+            parser,
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
         if res_attrs:
             raise NotImplementedError("res_attrs not implemented in csl TaskOp")
@@ -1147,8 +1160,6 @@ class GetMemDsdOp(_GetDsdOp):
     )
 
     def verify_(self) -> None:
-        if not isinstance(self.result.type, DsdType):
-            raise VerifyException("DSD type is not DsdType")
         if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
             raise VerifyException("DSD type must be memory DSD")
         if self.result.type.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
@@ -1190,8 +1201,6 @@ class GetFabDsdOp(_GetDsdOp):
     wavelet_index_offset = opt_prop_def(BoolAttr)
 
     def verify_(self) -> None:
-        if not isinstance(self.result.type, DsdType):
-            raise VerifyException("DSD type is not DsdType")
         if self.result.type.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
             raise VerifyException("DSD type must be fabric DSD")
         if len(self.sizes) != 1:
@@ -1226,8 +1235,7 @@ class SetDsdBaseAddrOp(IRDLOperation):
 
     def verify_(self) -> None:
         if (
-            not isinstance(self.result.type, DsdType)
-            or not isinstance(self.op.type, DsdType)
+            not isinstance(self.op.type, DsdType)
             or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
             or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
         ):
@@ -1266,8 +1274,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
 
     def verify_(self) -> None:
         if (
-            not isinstance(self.result.type, DsdType)
-            or not isinstance(self.op.type, DsdType)
+            not isinstance(self.op.type, DsdType)
             or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
             or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
         ):
@@ -1293,8 +1300,7 @@ class SetDsdLengthOp(IRDLOperation):
 
     def verify_(self) -> None:
         if (
-            not isinstance(self.result.type, DsdType)
-            or not isinstance(self.op.type, DsdType)
+            not isinstance(self.op.type, DsdType)
             or self.result.type.data == DsdKind.mem4d_dsd
         ):
             raise VerifyException(
@@ -1321,8 +1327,7 @@ class SetDsdStrideOp(IRDLOperation):
 
     def verify_(self) -> None:
         if (
-            not isinstance(self.result.type, DsdType)
-            or not isinstance(self.op.type, DsdType)
+            not isinstance(self.op.type, DsdType)
             or self.result.type.data != DsdKind.mem1d_dsd
         ):
             raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
@@ -1788,7 +1793,7 @@ class SymbolExportOp(IRDLOperation):
         )
 
         if isinstance(type_or_op, SSAValue):
-            assert isattr(type_or_op.type, PtrType)
+            assert isinstance(type_or_op.type, PtrType)
             sym_type, ops = type_or_op.type, [type_or_op]
         else:
             var_name = SymbolRefAttr(var_name)
@@ -1926,9 +1931,6 @@ class AddressOfOp(IRDLOperation):
             )
 
     def verify_(self) -> None:
-        if not isinstance(self.res.type, PtrType):
-            raise VerifyException("Result type must be a pointer")
-
         val_ty = self.value.type
         res_ty = self.res.type
         if isa(val_ty, MemRefType[Attribute]):

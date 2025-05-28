@@ -3,7 +3,18 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, SubiOp
-from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
+from xdsl.dialects.builtin import (
+    Builtin,
+    Float64Type,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    StringAttr,
+    TensorType,
+    i32,
+    i64,
+)
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
 from xdsl.ir import (
@@ -23,7 +34,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 @irdl_op_definition
@@ -134,7 +145,7 @@ def test_ops_accessor_III():
 
 def test_op_operands_assign():
     """Test that we can directly assign `op.operands`."""
-    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op = test.TestOp.create(operands=[val1, val2])
     op.operands = [val2, val1]
     op.verify()
@@ -146,7 +157,7 @@ def test_op_operands_assign():
 
 def test_op_operands_indexing():
     """Test `__getitem__`, `__setitem__`, and `__len__` on `op.operands`."""
-    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op = test.TestOp.create(operands=[val1, val2])
     op.verify()
 
@@ -165,7 +176,7 @@ def test_op_operands_indexing():
 
 def test_op_operands_comparison():
     """Test `__eq__`, and `__hash__` on `op.operands`."""
-    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
     op1 = test.TestOp.create(operands=[val1, val2])
     op2 = test.TestOp.create(operands=[val1, val2])
     op1.verify()
@@ -740,16 +751,16 @@ def test_is_structurally_equivalent_properties():
 
 
 def test_is_structurally_equivalent_free_operands():
-    val1 = TestSSAValue(i32)
-    val2 = TestSSAValue(i64)
+    val1 = create_ssa_value(i32)
+    val2 = create_ssa_value(i64)
     op1 = test.TestOp.create(operands=[val1, val2])
     op2 = test.TestOp.create(operands=[val1, val2])
     assert op1.is_structurally_equivalent(op2)
 
 
 def test_is_structurally_equivalent_free_operands_fail():
-    val1 = TestSSAValue(i32)
-    val2 = TestSSAValue(i32)
+    val1 = create_ssa_value(i32)
+    val2 = create_ssa_value(i32)
     op1 = test.TestOp.create(operands=[val1])
     op2 = test.TestOp.create(operands=[val2])
     assert not op1.is_structurally_equivalent(op2)
@@ -986,14 +997,152 @@ def test_dialect_name():
 
 
 def test_replace_by_if():
-    a = TestSSAValue(i32)
+    a = create_ssa_value(i32)
     b = test.TestOp((a,))
     c = test.TestOp((a,))
 
     assert set(u.operation for u in a.uses) == {b, c}
 
-    d = TestSSAValue(i32)
+    d = create_ssa_value(i32)
     a.replace_by_if(d, lambda u: u.operation is not c)
 
     assert set(u.operation for u in a.uses) == {c}
     assert set(u.operation for u in d.uses) == {b}
+
+
+def test_same_block():
+    op1 = test.TestOp()
+    op2 = test.TestOp()
+    test.TestOp(regions=[Region(Block([op1, op2]))])
+
+    assert op1.is_before_in_block(op2)
+    assert not op2.is_before_in_block(op1)
+    assert not op1.is_before_in_block(op1)
+
+
+def test_different_blocks():
+    op1 = test.TestOp()
+    op2 = test.TestOp()
+    test.TestOp(regions=[Region(Block([op1])), Region(Block([op2]))])
+
+    assert not op1.is_before_in_block(op2)
+    assert not op2.is_before_in_block(op1)
+
+
+def test_ancestor_block_in_region_nested():
+    # lvl 3
+    op_3 = test.TestOp()
+
+    # lvl 2
+    blk_2 = Block([op_3])
+    op_2 = test.TestOp(regions=[Region(blk_2)])
+
+    # lvl 1
+    blk_1 = Block([op_2])
+    reg_1 = Region(blk_1)
+    test.TestOp(regions=[reg_1])
+
+    assert reg_1.find_ancestor_block_in_region(blk_2) is blk_1
+    assert reg_1.find_ancestor_block_in_region(blk_1) is blk_1
+
+
+def test_ancestor_block_in_region_different_region():
+    # lvl 3
+    op_3 = test.TestOp()
+
+    # lvl 2
+    blk_2 = Block([op_3])
+    op_2 = test.TestOp(regions=[Region(blk_2)])
+
+    # lvl 1
+    blk_1 = Block([op_2])
+    reg_1_1 = Region(blk_1)
+    reg_1_2 = Region()
+    test.TestOp(regions=[reg_1_1, reg_1_2])
+
+    assert reg_1_2.find_ancestor_block_in_region(blk_2) is None
+
+
+def test_find_ancestor_op_in_block():
+    op1 = test.TestOp()
+    op2 = test.TestOp(regions=[Region(Block([op1]))])
+    op3 = test.TestOp(regions=[Region(Block([op2]))])
+
+    blk_top = Block([op3])
+    op4 = test.TestOp(regions=[Region(blk_top)])
+
+    assert blk_top.find_ancestor_op_in_block(op1) is op3
+    assert blk_top.find_ancestor_op_in_block(op4) is None
+
+
+def test_ssa_get_on_ssa():
+    ssa_value = create_ssa_value(i32)
+
+    assert SSAValue.get(ssa_value) == ssa_value
+    assert SSAValue.get(ssa_value, type=IntegerType) == ssa_value
+    assert SSAValue.get(ssa_value, type=IntegerType).type == i32
+
+    with pytest.raises(
+        ValueError,
+        match="SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> but got SSAValue with type i32",
+    ):
+        SSAValue.get(ssa_value, type=IndexType)
+
+
+def test_ssa_get_with_typeform():
+    ssa_value = create_ssa_value(i32)
+
+    assert SSAValue.get(ssa_value, type=IntegerType | IndexType) == ssa_value
+    assert SSAValue.get(ssa_value, type=IntegerType | IndexType).type == i32
+
+    with pytest.raises(
+        ValueError,
+        match="SSAValue.get: Expected xdsl.dialects.builtin.Float64Type | xdsl.dialects.builtin.IndexType but got SSAValue with type i32",
+    ):
+        SSAValue.get(ssa_value, type=Float64Type | IndexType)
+
+    tensor_type = TensorType(i32, [2, 2])
+    ssa_value_tensor = create_ssa_value(tensor_type)
+
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType]) == ssa_value_tensor
+    )
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType]).type == tensor_type
+    )
+
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType | IndexType])
+        == ssa_value_tensor
+    )
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType | IndexType]).type
+        == tensor_type
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"SSAValue.get: Expected xdsl.dialects.builtin.TensorType\[xdsl.dialects.builtin.Float64Type \| xdsl.dialects.builtin.IndexType\] but got SSAValue with type tensor<2x2xi32>.",
+    ):
+        SSAValue.get(ssa_value_tensor, type=TensorType[Float64Type | IndexType])
+
+
+def test_ssa_get_on_op():
+    op1 = test.TestOp(result_types=[i32])
+
+    assert SSAValue.get(op1).owner == op1
+    assert SSAValue.get(op1).type == i32
+    assert SSAValue.get(op1, type=IntegerType).owner == op1
+    assert SSAValue.get(op1, type=IntegerType).type == i32
+
+    with pytest.raises(
+        ValueError,
+        match="SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> but got SSAValue with type i32",
+    ):
+        SSAValue.get(op1, type=IndexType)
+
+    op2 = test.TestOp(result_types=[i32, i32])
+    with pytest.raises(
+        ValueError, match="SSAValue.get: expected operation with a single result."
+    ):
+        SSAValue.get(op2)

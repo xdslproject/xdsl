@@ -24,6 +24,7 @@ from xdsl.ir import (
     Attribute,
     AttributeInvT,
     BitEnumAttribute,
+    BuiltinAttribute,
     Data,
     EnumAttribute,
     ParametrizedAttribute,
@@ -597,7 +598,7 @@ def test_informative_constraint():
     ):
         constr.verify(IntAttr(1), ConstraintContext())
     assert constr.can_infer(set())
-    assert constr.get_unique_base() == NoneAttr
+    assert constr.get_bases() == {NoneAttr}
 
 
 ################################################################################
@@ -919,18 +920,62 @@ def test_constraint_var_fail_not_satisfy_constraint():
 
 
 ################################################################################
+# Names
+################################################################################
+
+
+def test_non_builtin_name_fail():
+    """
+    Test that the name of an attribute is properly checked
+    when it is not a builtin attribute.
+    """
+    with pytest.raises(PyRDLAttrDefinitionError, match="is not a valid attribute name"):
+
+        @irdl_attr_definition
+        class NonBuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
+            ParametrizedAttribute
+        ):
+            name = "vector"
+
+
+def test_non_builtin_name():
+    """
+    Test that the name of an attribute is properly checked
+    when it is not a builtin attribute.
+    """
+
+    @irdl_attr_definition
+    class NonBuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
+        ParametrizedAttribute
+    ):
+        name = "test.vector"
+
+
+def test_builtin_name():
+    """
+    Test that builtin attribute names are not checked.
+    """
+
+    @irdl_attr_definition
+    class BuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
+        ParametrizedAttribute, BuiltinAttribute
+    ):
+        name = "builtin.vector"
+
+
+################################################################################
 # Mapping Type Var
 ################################################################################
 
 
 @irdl_attr_definition
 class A(Data[int]):
-    name = "a"
+    name = "test.a"
 
 
 @irdl_attr_definition
 class B(Data[int]):
-    name = "b"
+    name = "test.b"
 
 
 _A = TypeVar("_A", bound=Attribute)

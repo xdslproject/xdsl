@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import Any, cast
+from typing import cast
 
 from typing_extensions import Self
 
@@ -11,7 +11,6 @@ from xdsl.dialects.builtin import (
     Annotated,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
-    ContainerType,
     DenseArrayBase,
     IndexType,
     IntegerAttr,
@@ -257,18 +256,16 @@ class ReshapeOp(IRDLOperation):
         return reshape
 
     def verify_(self) -> None:
-        if (
-            not isinstance(source_type := self.source.type, TensorType)
-            or not isinstance(shape_type := self.shape.type, TensorType)
-            or not isinstance(res_type := self.result.type, TensorType)
-        ):
+        if not isinstance(
+            source_type := self.source.type, TensorType
+        ) or not isinstance(shape_type := self.shape.type, TensorType):
             raise ValueError(
                 "tensor elementwise operation operands and result must be of type TensorType"
             )
 
         source_type = cast(TensorType[Attribute], source_type)
         shape_type = cast(TensorType[Attribute], shape_type)
-        res_type = cast(TensorType[Attribute], res_type)
+        res_type = self.result.type
 
         if source_type.element_type != res_type.element_type:
             raise VerifyException(
@@ -322,17 +319,15 @@ class ExtractSliceOp(IRDLOperation):
     ) -> ExtractSliceOp:
         if strides is None:
             strides = [1] * len(offsets)
-        source_v = SSAValue.get(source)
+        source_v = SSAValue.get(source, type=TensorType)
         source_t = source_v.type
-        if not isinstance(source_t, ContainerType):
-            raise ValueError(f"Expected ContainerType, got {source_t}")
 
         if reduce_rank:
             result_sizes = list(s for s in sizes if s != 1)
         else:
             result_sizes = list(sizes)
 
-        return_type = TensorType[Any](source_t.get_element_type(), result_sizes)
+        return_type = TensorType(source_t.get_element_type(), result_sizes)
 
         return ExtractSliceOp.build(
             operands=[source, [], [], []],

@@ -170,11 +170,11 @@ class MLIRTokenKind(Enum):
         return spelling in punctuation_dict.keys()
 
     @staticmethod
-    def get_punctuation_kind_from_spelling(
+    def get_punctuation_kind_from_name(
         spelling: PunctuationSpelling,
     ) -> MLIRTokenKind:
         assert MLIRTokenKind.is_spelling_of_punctuation(spelling), (
-            "Kind.get_punctuation_kind_from_spelling: spelling is not a "
+            "Kind.get_punctuation_kind_from_name: spelling is not a "
             "valid punctuation spelling!"
         )
         return MLIRTokenKind.get_punctuation_spelling_to_kind_dict()[spelling]

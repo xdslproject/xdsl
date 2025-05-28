@@ -1,19 +1,19 @@
 // RUN: xdsl-opt %s --split-input-file --verify-diagnostics | filecheck %s
 
-// CHECK: foo not in x86 
+// CHECK: Invalid register name foo for register type x86.reg.
 "test.op"() { reg = !x86.reg<foo> } : () -> ()
 
 // -----
 
-// CHECK: foo not in AVX2
+// CHECK: Invalid register name foo for register type x86.avx2reg.
 "test.op"() { reg = !x86.avx2reg<foo> } : () -> ()
 
 // -----
 
-// CHECK: foo not in AVX512
+// CHECK: Invalid register name foo for register type x86.avx512reg.
 "test.op"() { reg = !x86.avx512reg<foo> } : () -> ()
 
 // -----
 
-// CHECK: foo not in SSE
+// CHECK: Invalid register name foo for register type x86.ssereg.
 "test.op"() { reg = !x86.ssereg<foo> } : () -> ()

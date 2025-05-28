@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.13.6"
 app = marimo.App(width="medium")
 
 
@@ -18,11 +18,10 @@ def _():
     return (
         Block,
         Builder,
-        InsertPoint,
         Context,
+        InsertPoint,
         Parser,
         Printer,
-        Region,
         builtin,
         difflib,
         mo,
@@ -43,10 +42,10 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ## RISC-V
+    ## RISC-V
 
-        The [RISC-V](https://riscv.org/) instruction set is a small, extensible set of instructions that is gaining in popularity in research and industry.
-        """
+    The [RISC-V](https://riscv.org/) instruction set is a small, extensible set of instructions that is gaining in popularity in research and industry.
+    """
     )
     return
 
@@ -79,29 +78,29 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        Here is a simple C function and its corresponding assembly:
+    Here is a simple C function and its corresponding assembly:
 
-        ```C
-        int fused_multiply_add(int a, int b, int c) {
-            return a + b * c;
-        }
-        ```
+    ```C
+    int fused_multiply_add(int a, int b, int c) {
+        return a + b * c;
+    }
+    ```
 
-        ```asm
-        # Label corresponding to the function name
-        # Arguments passed in a0, a1, a2 registers
-        # Result expected to be stored in a0 register at the end of execution
-        fused_multiply_add:
-            # a1 <- a2 * a1
-            mul     a1, a2, a1
-            # a0 <- a0 + a1
-            add     a0, a0, a1
-            # Assembly pseudo-operation that jumps to the caller-passed return address
-            ret
-        ```
+    ```asm
+    # Label corresponding to the function name
+    # Arguments passed in a0, a1, a2 registers
+    # Result expected to be stored in a0 register at the end of execution
+    fused_multiply_add:
+        # a1 <- a2 * a1
+        mul     a1, a2, a1
+        # a0 <- a0 + a1
+        add     a0, a0, a1
+        # Assembly pseudo-operation that jumps to the caller-passed return address
+        ret
+    ```
 
-        ([Compiler Explorer](https://godbolt.org/z/E67a877vG))
-        """
+    ([Compiler Explorer](https://godbolt.org/z/E67a877vG))
+    """
     )
     return
 
@@ -110,11 +109,11 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        A few aspects of assembly make it difficult to reason about directly.
-        It doesn't track dependencies explicitly, making it difficult to know what the values in the inputs of an operation are, and whether its results will be used.
-        Control flow is done via jumps to labels, such as the `fused_multiply_add` above.
-        In order to represent and reason about assembly-level code, we introduce a set of backend dialects: `riscv`, `riscv_func`, and `riscv_cf`.
-        """
+    A few aspects of assembly make it difficult to reason about directly.
+    It doesn't track dependencies explicitly, making it difficult to know what the values in the inputs of an operation are, and whether its results will be used.
+    Control flow is done via jumps to labels, such as the `fused_multiply_add` above.
+    In order to represent and reason about assembly-level code, we introduce a set of backend dialects: `riscv`, `riscv_func`, and `riscv_cf`.
+    """
     )
     return
 
@@ -129,14 +128,14 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        The `risv` dialect contains definitions for static information and operations.
+    The `risv` dialect contains definitions for static information and operations.
 
-        The four kinds of static information in RISC-V assembly are strings, integers, labels, and registers.
-        The `riscv` dialect includes integer and float registers (`IntRegisterType` & `FloatRegisterType`).
-        Both of these register classes encode both the information about the binary encoding of the register (e.g. `x0`, `x11`) and its pretty assembly name (e.g. `zero`, `a1`).
+    The four kinds of static information in RISC-V assembly are strings, integers, labels, and registers.
+    The `riscv` dialect includes integer and float registers (`IntRegisterType` & `FloatRegisterType`).
+    Both of these register classes encode both the information about the binary encoding of the register (e.g. `x0`, `x11`) and its pretty assembly name (e.g. `zero`, `a1`).
 
-        The pretty assembly names reflect the RISC-V ABI. The registers `x0` to `x4` are specified to store some system information: `zero` for a register that always has the 0 value, `ra` to store the return address to jump to, `sp` for stack pointer, `gp` for global pointer, `tp` for thread pointer. The `a0-a7` registers are used to pass function arguments and results. The `s0-s11` registers are expected to have the same values before and after function calls. The `t0-t6` registers are temporary registers that are not expected to have the same values before and after function calls.
-        """
+    The pretty assembly names reflect the RISC-V ABI. The registers `x0` to `x4` are specified to store some system information: `zero` for a register that always has the 0 value, `ra` to store the return address to jump to, `sp` for stack pointer, `gp` for global pointer, `tp` for thread pointer. The `a0-a7` registers are used to pass function arguments and results. The `s0-s11` registers are expected to have the same values before and after function calls. The `t0-t6` registers are temporary registers that are not expected to have the same values before and after function calls.
+    """
     )
     return
 
@@ -145,7 +144,7 @@ def _(mo):
 def _(riscv):
     # Explictly constructing registers
 
-    riscv.IntRegisterType.from_spelling("zero"), riscv.IntRegisterType.from_spelling("a1"), riscv.IntRegisterType.from_spelling("s2"), riscv.IntRegisterType.from_spelling("t3")
+    riscv.IntRegisterType.from_name("zero"), riscv.IntRegisterType.from_name("a1"), riscv.IntRegisterType.from_name("s2"), riscv.IntRegisterType.from_name("t3")
     return
 
 
@@ -161,9 +160,9 @@ def _(riscv):
 def _(mo):
     mo.md(
         r"""
-        We use these registers as the types of the operands and results of operations in the riscv dialect.
-        Let's construct a dummy block with some operations in it:
-        """
+    We use these registers as the types of the operands and results of operations in the riscv dialect.
+    Let's construct a dummy block with some operations in it:
+    """
     )
     return
 
@@ -180,21 +179,21 @@ def _(Block, Builder, InsertPoint, Printer, riscv):
     mul_op = builder.insert(riscv.MulOp(addi_op.rd, sub_op.rd, rd=riscv.Registers.A4))
 
     Printer().print_block(block)
-    return a0, a1, addi_op, block, builder, mul_op, sub_op
+    return (block,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-        Note that the _i_ in the `addi` operation above stands for _immediate_, or a constant value in the assembly.
-        These can be integers or labels, in which case the assembler will resolve the immediate to the value referred to by the label.
+    Note that the _i_ in the `addi` operation above stands for _immediate_, or a constant value in the assembly.
+    These can be integers or labels, in which case the assembler will resolve the immediate to the value referred to by the label.
 
-        Almost all the operations in the riscv dialect correspond to the instructions in the RISC-V ISA.
-        RISC-V assembly has operations that correspond 1:1 with instructions, as well as pseudo-operations that are syntactic sugar for other operations, such as the `nop` instruction that desugars to `addi x0, x0, 0`.
+    Almost all the operations in the riscv dialect correspond to the instructions in the RISC-V ISA.
+    RISC-V assembly has operations that correspond 1:1 with instructions, as well as pseudo-operations that are syntactic sugar for other operations, such as the `nop` instruction that desugars to `addi x0, x0, 0`.
 
-        [The RISC-V Assembly Manual](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc#a-listing-of-standard-risc-v-pseudoinstructions) has the list of pseudo-instructions in RISC-V.
-        """
+    [The RISC-V Assembly Manual](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc#a-listing-of-standard-risc-v-pseudoinstructions) has the list of pseudo-instructions in RISC-V.
+    """
     )
     return
 
@@ -215,7 +214,7 @@ def _(mo):
 def _(block):
     for op in block.ops:
         print(op.assembly_line())
-    return (op,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -228,12 +227,12 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        When compiling a function for certain hardware, an Application Binary Interface (ABI) specifies things like which registers will hold the function arguments when the function begins, which registers will hold the results when the function ends, which registers are overridden, etc.
+    When compiling a function for certain hardware, an Application Binary Interface (ABI) specifies things like which registers will hold the function arguments when the function begins, which registers will hold the results when the function ends, which registers are overridden, etc.
 
-        We use the `riscv_func` dialect to represent RISC-V-specific functions that encode these calling convention considerations in the IR.
+    We use the `riscv_func` dialect to represent RISC-V-specific functions that encode these calling convention considerations in the IR.
 
-        Here is our `mul` function from above:
-        """
+    Here is our `mul` function from above:
+    """
     )
     return
 
@@ -254,7 +253,7 @@ def _(Parser, ctx, mul_ir, riscv, xmo):
     mul_module = Parser(ctx, mul_ir).parse_module()
 
     xmo.asm_html(riscv.riscv_code(mul_module))
-    return (mul_module,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -273,27 +272,27 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ```C
-        int switch1(int a, int b, int c) {
-            if (a) {
-                return b;
-            } else {
-                return c;
-            }
-        }
-
-        int switch2(int a, int b, int c) {
-            if (!a) {
-                goto c_label;
-            }
+    ```C
+    int switch1(int a, int b, int c) {
+        if (a) {
             return b;
-        c_label:
+        } else {
             return c;
         }
-        ```
+    }
 
-        ([Compiler Explorer](https://godbolt.org/z/Mzh4ojG3r))
-        """
+    int switch2(int a, int b, int c) {
+        if (!a) {
+            goto c_label;
+        }
+        return b;
+    c_label:
+        return c;
+    }
+    ```
+
+    ([Compiler Explorer](https://godbolt.org/z/Mzh4ojG3r))
+    """
     )
     return
 
@@ -302,11 +301,11 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        At the assembly level, the code structure looks much more like the code in `switch2`.
+    At the assembly level, the code structure looks much more like the code in `switch2`.
 
-        To represent jumps in the assembly, we use blocks and successors.
-        For example, the [beq](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq) instruction, which jumps by (or _breaks to_) the specified offset (or to the specified label) if the values in the source registers are equal, is represented with the `riscv.BeqOp` operation:
-        """
+    To represent jumps in the assembly, we use blocks and successors.
+    For example, the [beq](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq) instruction, which jumps by (or _breaks to_) the specified offset (or to the specified label) if the values in the source registers are equal, is represented with the `riscv.BeqOp` operation:
+    """
     )
     return
 
@@ -329,7 +328,7 @@ def _(Parser, ctx, xmo):
     switch_module = Parser(ctx, switch_ir).parse_module()
     switch_module.verify()
     xmo.module_html(switch_module)
-    return switch_ir, switch_module
+    return (switch_module,)
 
 
 @app.cell
@@ -337,19 +336,19 @@ def _(riscv, switch_module):
     # We can print this IR as assembly
     switch_asm = riscv.riscv_code(switch_module)
     print(switch_asm)
-    return (switch_asm,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-        Note that there are a few discrepancies between the assembly and the IR.
-        While in the IR we specified both the "then" and the "else" successors, in assembly the block implicitly falls through.
-        We represent this by adding a verification method to the jump operations that checks that the "else" block is the one immediately following the conditional jump.
-        The second discrepancy is that the conditional jump in assembly specifies the label to jump to.
-        During assembly printing, the `BeqOp` looks at the first operation in the block and, if it finds a `LabelOperation`, prints the corresponding value.
-        """
+    Note that there are a few discrepancies between the assembly and the IR.
+    While in the IR we specified both the "then" and the "else" successors, in assembly the block implicitly falls through.
+    We represent this by adding a verification method to the jump operations that checks that the "else" block is the one immediately following the conditional jump.
+    The second discrepancy is that the conditional jump in assembly specifies the label to jump to.
+    During assembly printing, the `BeqOp` looks at the first operation in the block and, if it finds a `LabelOperation`, prints the corresponding value.
+    """
     )
     return
 
@@ -392,36 +391,37 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        In this exercise, we will rewrite the following function to assembly-level IR:
+    In this exercise, we will rewrite the following function to assembly-level IR:
 
-        ```C
-        // Assume n non-negative
-        int fib(int n) {
-            int a = 1;
-            int b = 1;
-            for (int i = 0; i < n; ++i) {
-                int c = a + b;
-                a = b;
-                b = c;
-            }
-            return a;
+    ```C
+    // Assume n non-negative
+    int fib(int n) {
+        int a = 1;
+        int b = 1;
+        for (int i = 0; i < n; ++i) {
+            int c = a + b;
+            a = b;
+            b = c;
         }
-        ```
-        """
+        return a;
+    }
+    ```
+    """
     )
     return
 
 
 @app.cell(hide_code=True)
 def _(fib_text, mo):
-    mo.md(fr"""
-
+    mo.md(
+        fr"""
     This is the expected assembly:
 
     ```asm
     {fib_text}
     ```
-    """)
+    """
+    )
     return
 
 
@@ -462,12 +462,13 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(fib_editor, mo):
-    mo.md(f"""
+    mo.md(
+        f"""
     Modify the following IR to reduce the diff below:
 
     {fib_editor}
-
-    """)
+    """
+    )
     return
 
 
@@ -541,7 +542,7 @@ def _():
     import re
 
     comment_only_line = re.compile(r"^\s*#.*$")
-    return comment_only_line, re
+    return (comment_only_line,)
 
 
 if __name__ == "__main__":

@@ -28,7 +28,6 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     ParameterDef,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -57,7 +56,6 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 @irdl_attr_definition
@@ -228,7 +226,7 @@ class ApplyOp(IRDLOperation):
 
     field = operand_def(stencil.StencilTypeConstr | MemRefType.constr())
 
-    accumulator = operand_def(AnyTensorTypeConstr | MemRefType.constr())
+    accumulator = operand_def(TensorType | MemRefType)
 
     args_rchunk = var_operand_def(Attribute)
     args_dexchng = var_operand_def(Attribute)
@@ -362,10 +360,7 @@ class ApplyOp(IRDLOperation):
                 )
 
         # typecheck required (only) block arguments
-        assert isattr(
-            self.accumulator.type,
-            AnyTensorTypeConstr | MemRefType.constr(),
-        )
+        assert isa(self.accumulator.type, TensorType | MemRefType)
         chunk_region_req_types = [
             type(self.accumulator.type)(
                 self.accumulator.type.get_element_type(),
@@ -408,7 +403,7 @@ class ApplyOp(IRDLOperation):
             res_type = self.res[0].type
         else:
             return 2
-        if isattr(res_type, stencil.StencilTypeConstr):
+        if isinstance(res_type, stencil.StencilType):
             return res_type.get_num_dims()
         elif self.bounds:
             return len(self.bounds.ub)
@@ -464,7 +459,7 @@ class AccessOp(IRDLOperation):
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(AnyTensorTypeConstr | MemRefType.constr())
+    result = result_def(TensorType | MemRefType)
 
     traits = traits_def(HasAncestor(stencil.ApplyOp, ApplyOp), Pure())
 
@@ -539,13 +534,13 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if isattr(res_type, stencil.StencilTypeConstr):
+        if stencil.StencilTypeConstr.verifies(res_type):
             return cls.build(
                 operands=[temp],
                 result_types=[res_type.get_element_type()],
                 properties=props,
             )
-        elif isattr(res_type, base(TensorType[Attribute])):
+        elif isa(res_type, TensorType):
             return cls.build(
                 operands=[temp],
                 result_types=[
@@ -553,7 +548,7 @@ class AccessOp(IRDLOperation):
                 ],
                 properties=props,
             )
-        elif isattr(res_type, base(MemRefType)):
+        elif MemRefType.constr().verifies(res_type):
             return cls.build(
                 operands=[temp],
                 result_types=[
@@ -573,7 +568,7 @@ class AccessOp(IRDLOperation):
                         f"{type(self)} access to own data requires{self.op.type} but "
                         f"found {self.result.type}"
                     )
-            elif isattr(self.op.type, stencil.StencilTypeConstr):
+            elif stencil.StencilTypeConstr.verifies(self.op.type):
                 if not self.result.type == self.op.type.get_element_type():
                     raise VerifyException(
                         f"{type(self)} access to own data requires "
@@ -586,7 +581,7 @@ class AccessOp(IRDLOperation):
                     f"stencil.StencilType or memref.MemRefType but found {self.op.type}"
                 )
         else:
-            if not isattr(self.op.type, AnyTensorTypeConstr | MemRefType.constr()):
+            if not isa(self.op.type, TensorType | MemRefType):
                 raise VerifyException(
                     f"{type(self)} access to neighbor data requires type "
                     f"memref.MemRefType or TensorType but found {self.op.type}"

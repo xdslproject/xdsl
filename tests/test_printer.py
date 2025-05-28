@@ -11,6 +11,7 @@ from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
     AnyFloat,
     Builtin,
+    ComplexType,
     FloatAttr,
     FunctionType,
     IntAttr,
@@ -44,7 +45,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_simple_forgotten_op():
@@ -722,7 +723,7 @@ def test_custom_format_attr():
     ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_op(AnyOp)
-    ctx.load_attr(CustomFormatAttr)
+    ctx.load_attr_or_type(CustomFormatAttr)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -734,7 +735,7 @@ def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}} : () -> ()
+"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr, arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}}> : () -> ()
     """
 
     ctx = Context()
@@ -782,6 +783,62 @@ def test_float():
     _test_float_print("0x4D95DCF5", 22e8 / 7, f32)
     _test_float_print("3.14285714e+16", 22e16 / 7, f32)
     _test_float_print("-3.14285707", -22 / 7, f32)
+
+
+@pytest.mark.parametrize(
+    "expected, value",
+    [
+        ("(-3.000000e+00,-3.000000e+00)", (-3.0, -3.0)),
+        ("(3.000000e+00,3.000000e+00)", (3.0, 3.0)),
+    ],
+)
+def test_complex_float(expected: str, value: tuple[float, float]):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    type = ComplexType(f32)
+    printer.print_complex_float(value, type)
+    assert io.getvalue() == expected
+
+
+@pytest.mark.parametrize(
+    "expected, value",
+    [
+        ("(-3,-3)", (-3, -3)),
+        ("(3,3)", (3, 3)),
+    ],
+)
+def test_complex_int(expected: str, value: tuple[int, int]):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    type = ComplexType(i32)
+    printer.print_complex_int(value, type)
+    assert io.getvalue() == expected
+
+
+@pytest.mark.parametrize(
+    "expected, value, is_int",
+    [
+        ("(-3,-3)", (-3, -3), True),
+        ("(3,3)", (3, 3), True),
+        ("(-3.000000e+00,-3.000000e+00)", (-3.0, -3.0), False),
+        ("(3.000000e+00,3.000000e+00)", (3.0, 3.0), False),
+    ],
+)
+def test_complex(
+    expected: str, value: tuple[int, int] | tuple[float, float], is_int: bool
+):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    if is_int:
+        type = ComplexType(i32)
+        printer.print_complex(value, type)
+    else:
+        type = ComplexType(f32)
+        printer.print_complex(value, type)
+    assert io.getvalue() == expected
 
 
 def test_float_attr():
@@ -934,7 +991,7 @@ def test_get_printed_name():
     ctx.load_dialect(Builtin)
 
     printer = Printer()
-    val = TestSSAValue(i32)
+    val = create_ssa_value(i32)
 
     # Test printing without constraints
     stream = StringIO()
@@ -949,7 +1006,7 @@ def test_get_printed_name():
     assert f"%{picked_name}" == printer.stream.getvalue()
 
     # Test printing with name hint
-    val = TestSSAValue(i32)
+    val = create_ssa_value(i32)
     val.name_hint = "foo"
     printed = StringIO()
     picked_name = Printer(printed).print_ssa_value(val)

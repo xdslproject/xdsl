@@ -37,7 +37,6 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    lazy_traits_def,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -55,7 +54,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
-    SingleBlockImplicitTerminator,
+    NoTerminator,
     SymbolOpInterface,
     SymbolTable,
 )
@@ -345,16 +344,6 @@ class MemcpyOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ModuleEndOp(IRDLOperation):
-    name = "gpu.module_end"
-
-    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(ModuleOp)))
-
-    def __init__(self):
-        super().__init__()
-
-
-@irdl_op_definition
 class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
@@ -363,13 +352,13 @@ class ModuleOp(IRDLOperation):
 
     traits = traits_def(
         IsolatedFromAbove(),
-        SingleBlockImplicitTerminator(ModuleEndOp),
+        NoTerminator(),
         SymbolOpInterface(),
         SymbolTable(),
     )
 
-    def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
-        super().__init__(properties={"sym_name": name}, regions=[ops])
+    def __init__(self, name: SymbolRefAttr, body: Region):
+        super().__init__(properties={"sym_name": name}, regions=[body])
 
 
 @irdl_op_definition
@@ -785,7 +774,6 @@ GPU = Dialect(
         LaunchFuncOp,
         MemcpyOp,
         ModuleOp,
-        ModuleEndOp,
         NumSubgroupsOp,
         ReturnOp,
         SetDefaultDeviceOp,
