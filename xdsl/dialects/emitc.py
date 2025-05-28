@@ -22,8 +22,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    ParameterDef,
     irdl_attr_definition,
+    param_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -38,8 +38,8 @@ class EmitC_ArrayType(
 
     name = "emitc.array"
 
-    shape: ParameterDef[ArrayAttr[IntAttr]]
-    element_type: ParameterDef[AttributeCovT]
+    shape = param_def(ArrayAttr[IntAttr])
+    element_type = param_def(AttributeCovT)
 
     def __init__(
         self,

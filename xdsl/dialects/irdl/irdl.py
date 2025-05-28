@@ -27,11 +27,11 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     opt_attr_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -78,7 +78,7 @@ setattr(VariadicityAttr, "VARIADIC", VariadicityAttr(VariadicityEnum.VARIADIC))
 class VariadicityArrayAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
     name = "irdl.variadicity_array"
 
-    value: ParameterDef[ArrayAttr[VariadicityAttr]]
+    value = param_def(ArrayAttr[VariadicityAttr])
 
     def __init__(self, variadicities: ArrayAttr[VariadicityAttr]) -> None:
         super().__init__((variadicities,))

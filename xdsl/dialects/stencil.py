@@ -38,7 +38,6 @@ from xdsl.irdl import (
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
-    ParameterDef,
     VarConstraint,
     attr_def,
     base,
@@ -48,6 +47,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_operand_def,
     opt_prop_def,
+    param_def,
     region_def,
     result_def,
     traits_def,
@@ -83,7 +83,7 @@ _FieldTypeElement = TypeVar(
 class IndexAttr(ParametrizedAttribute, Iterable[int]):
     name = "stencil.index"
 
-    array: ParameterDef[ArrayAttr[IntAttr]]
+    array = param_def(ArrayAttr[IntAttr])
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -166,8 +166,8 @@ class StencilBoundsAttr(ParametrizedAttribute):
     """
 
     name = "stencil.bounds"
-    lb: ParameterDef[IndexAttr]
-    ub: ParameterDef[IndexAttr]
+    lb = param_def(IndexAttr)
+    ub = param_def(IndexAttr)
 
     def _verify(self):
         if len(self.lb) != len(self.ub):
@@ -263,14 +263,14 @@ class StencilType(
     builtin.ContainerType[_FieldTypeElement],
 ):
     name = "stencil.type"
-    bounds: ParameterDef[StencilBoundsAttr | IntAttr]
+    bounds = param_def(StencilBoundsAttr | IntAttr)
     """
     Represents the bounds information of a stencil.field or stencil.temp.
 
     A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
     rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
     """
-    element_type: ParameterDef[_FieldTypeElement]
+    element_type: _FieldTypeElement = param_def(_FieldTypeElement)
 
     def get_num_dims(self) -> int:
         if isinstance(self.bounds, IntAttr):
@@ -416,7 +416,7 @@ AnyTempType: TypeAlias = TempType[Attribute]
 @irdl_attr_definition
 class ResultType(ParametrizedAttribute, TypeAttribute):
     name = "stencil.result"
-    elem: ParameterDef[Attribute]
+    elem = param_def(Attribute)
 
     def __init__(self, type: Attribute) -> None:
         super().__init__([type])

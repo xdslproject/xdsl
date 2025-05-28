@@ -25,12 +25,12 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_result_def,
+    param_def,
     traits_def,
 )
 from xdsl.parser import AttrParser
@@ -85,10 +85,10 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "dmp.exchange"
 
-    offset_: ParameterDef[builtin.DenseArrayBase]
-    size_: ParameterDef[builtin.DenseArrayBase]
-    source_offset_: ParameterDef[builtin.DenseArrayBase]
-    neighbor_: ParameterDef[builtin.DenseArrayBase]
+    offset_ = param_def(builtin.DenseArrayBase)
+    size_ = param_def(builtin.DenseArrayBase)
+    source_offset_ = param_def(builtin.DenseArrayBase)
+    neighbor_ = param_def(builtin.DenseArrayBase)
 
     def __init__(
         self,
@@ -263,10 +263,10 @@ class ShapeAttr(ParametrizedAttribute):
 
     name = "dmp.shape_with_halo"
 
-    buff_lb_: ParameterDef[builtin.DenseArrayBase]
-    buff_ub_: ParameterDef[builtin.DenseArrayBase]
-    core_lb_: ParameterDef[builtin.DenseArrayBase]
-    core_ub_: ParameterDef[builtin.DenseArrayBase]
+    buff_lb_ = param_def(builtin.DenseArrayBase)
+    buff_ub_ = param_def(builtin.DenseArrayBase)
+    core_lb_ = param_def(builtin.DenseArrayBase)
+    core_ub_ = param_def(builtin.DenseArrayBase)
 
     @property
     def buff_lb(self) -> tuple[int, ...]:
@@ -405,7 +405,7 @@ class RankTopoAttr(ParametrizedAttribute):
 
     name = "dmp.topo"
 
-    shape: ParameterDef[builtin.DenseArrayBase]
+    shape = param_def(builtin.DenseArrayBase)
 
     def __init__(self, shape: Sequence[int] | Sequence[builtin.IntAttr]):
         if len(shape) < 1:
@@ -461,9 +461,9 @@ class GridSlice2dAttr(DomainDecompositionStrategy):
 
     name = "dmp.grid_slice_2d"
 
-    topology: ParameterDef[RankTopoAttr]
+    topology = param_def(RankTopoAttr)
 
-    diagonals: ParameterDef[builtin.BoolAttr]
+    diagonals = param_def(builtin.BoolAttr)
 
     def __init__(self, topo: tuple[int, ...]):
         super().__init__(
@@ -509,9 +509,9 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
 
     name = "dmp.grid_slice_3d"
 
-    topology: ParameterDef[RankTopoAttr]
+    topology = param_def(RankTopoAttr)
 
-    diagonals: ParameterDef[builtin.BoolAttr]
+    diagonals = param_def(builtin.BoolAttr)
 
     def __init__(self, topo: tuple[int, ...]):
         super().__init__(

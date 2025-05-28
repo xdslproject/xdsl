@@ -38,7 +38,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -46,6 +45,7 @@ from xdsl.irdl import (
     opt_operand_def,
     opt_prop_def,
     opt_result_def,
+    param_def,
     prop_def,
     result_def,
     traits_def,
@@ -137,7 +137,7 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "fir.ref"
-    type: ParameterDef[Attribute]
+    type = param_def(Attribute)
 
     def print_parameters(self, printer: Printer) -> None:
         # We need this to pretty print a tuple and its members if
@@ -202,7 +202,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.llvm_ptr"
 
-    type: ParameterDef[IntegerAttr | AnyFloat]
+    type = param_def(IntegerAttr | AnyFloat)
 
 
 @irdl_attr_definition
@@ -226,15 +226,15 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "fir.array"
-    shape: ParameterDef[ArrayAttr[IntegerAttr | DeferredAttr | NoneType]]
-    type: ParameterDef[IntegerType | AnyFloat | ReferenceType]
-    type2: ParameterDef[IntegerType | AnyFloat | ReferenceType | NoneType]
+    shape = param_def(ArrayAttr[IntegerAttr | DeferredAttr | NoneType])
+    type = param_def(IntegerType | AnyFloat | ReferenceType)
+    type2 = param_def(IntegerType | AnyFloat | ReferenceType | NoneType)
 
     def __init__(
         self,
-        type1: ParameterDef[IntegerType | AnyFloat | ReferenceType],
+        type1: IntegerType | AnyFloat | ReferenceType,
         shape: list[int | IntegerAttr[IndexType] | DeferredAttr] | None = None,
-        type2: ParameterDef[IntegerType | AnyFloat | ReferenceType] | None = None,
+        type2: IntegerType | AnyFloat | ReferenceType | None = None,
     ):
         if type2 is not None:
             super().__init__([ArrayAttr([NoneType()]), type1, type2])
@@ -331,8 +331,8 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.char"
 
-    from_index: ParameterDef[IntAttr | DeferredAttr]
-    to_index: ParameterDef[IntAttr | DeferredAttr]
+    from_index = param_def(IntAttr | DeferredAttr)
+    to_index = param_def(IntAttr | DeferredAttr)
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
@@ -375,7 +375,7 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.shape"
 
-    indexes: ParameterDef[IntAttr]
+    indexes = param_def(IntAttr)
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
@@ -401,7 +401,7 @@ class HeapType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.heap"
 
-    type: ParameterDef[SequenceType]
+    type = param_def(SequenceType)
 
 
 @irdl_attr_definition
@@ -414,7 +414,7 @@ class BoxType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.box"
 
-    type: ParameterDef[HeapType | SequenceType]
+    type = param_def(HeapType | SequenceType)
 
 
 @irdl_attr_definition
@@ -427,7 +427,7 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.boxchar"
 
-    kind: ParameterDef[IntAttr]
+    kind = param_def(IntAttr)
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")

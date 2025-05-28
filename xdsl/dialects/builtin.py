@@ -58,7 +58,6 @@ from xdsl.irdl import (
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
-    ParameterDef,
     RangeOf,
     attr_constr_coercion,
     base,
@@ -66,6 +65,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_prop_def,
+    param_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -269,7 +269,7 @@ class BytesAttr(Data[bytes], BuiltinAttribute):
 @irdl_attr_definition
 class SymbolNameAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "symbol_name"
-    data: ParameterDef[StringAttr]
+    data = param_def(StringAttr)
 
     def __init__(self, data: str | StringAttr) -> None:
         if isinstance(data, str):
@@ -280,8 +280,8 @@ class SymbolNameAttr(ParametrizedAttribute, BuiltinAttribute):
 @irdl_attr_definition
 class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "symbol_ref"
-    root_reference: ParameterDef[StringAttr]
-    nested_references: ParameterDef[ArrayAttr[StringAttr]]
+    root_reference = param_def(StringAttr)
+    nested_references = param_def(ArrayAttr[StringAttr])
 
     def __init__(
         self,
@@ -565,8 +565,8 @@ class IntegerType(
     ParametrizedAttribute, StructPackableType[int], FixedBitwidthType, BuiltinAttribute
 ):
     name = "integer_type"
-    width: ParameterDef[IntAttr]
-    signedness: ParameterDef[SignednessAttr]
+    width = param_def(IntAttr)
+    signedness = param_def(SignednessAttr)
 
     def __init__(
         self,
@@ -749,8 +749,8 @@ class IntegerAttr(
     TypedAttribute,
 ):
     name = "integer"
-    value: ParameterDef[IntAttr]
-    type: ParameterDef[_IntegerAttrType]
+    value = param_def(IntAttr)
+    type: _IntegerAttrType = param_def(_IntegerAttrType)
 
     @overload
     def __init__(
@@ -995,8 +995,8 @@ _FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
     name = "float"
 
-    value: ParameterDef[FloatData]
-    type: ParameterDef[_FloatAttrType]
+    value = param_def(FloatData)
+    type = param_def(_FloatAttrType)
 
     @overload
     def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None: ...
@@ -1080,7 +1080,7 @@ class ComplexType(
     TypeAttribute,
 ):
     name = "complex"
-    element_type: ParameterDef[ComplexElementCovT]
+    element_type = param_def(ComplexElementCovT)
 
     def __init__(self, element_type: ComplexElementCovT):
         super().__init__([element_type])
@@ -1177,7 +1177,7 @@ class DictionaryAttr(GenericData[immutabledict[str, Attribute]], BuiltinAttribut
 class TupleType(ParametrizedAttribute, BuiltinAttribute):
     name = "tuple"
 
-    types: ParameterDef[ArrayAttr[Attribute]]
+    types = param_def(ArrayAttr[Attribute])
 
     def __init__(self, types: list[Attribute] | ArrayAttr[Attribute]) -> None:
         if isinstance(types, list):
@@ -1196,9 +1196,9 @@ class VectorType(
 ):
     name = "vector"
 
-    shape: ParameterDef[ArrayAttr[IntAttr]]
-    element_type: ParameterDef[AttributeCovT]
-    scalable_dims: ParameterDef[ArrayAttr[BoolAttr]]
+    shape = param_def(ArrayAttr[IntAttr])
+    element_type: AttributeCovT = param_def(AttributeCovT)
+    scalable_dims = param_def(ArrayAttr[BoolAttr])
 
     def __init__(
         self,
@@ -1274,9 +1274,9 @@ class TensorType(
 ):
     name = "tensor"
 
-    shape: ParameterDef[ArrayAttr[IntAttr]]
-    element_type: ParameterDef[AttributeCovT]
-    encoding: ParameterDef[Attribute]
+    shape = param_def(ArrayAttr[IntAttr])
+    element_type: AttributeCovT = param_def(AttributeCovT)
+    encoding = param_def(Attribute)
 
     def __init__(
         self,
@@ -1313,7 +1313,7 @@ class UnrankedTensorType(
 ):
     name = "unranked_tensor"
 
-    element_type: ParameterDef[AttributeCovT]
+    element_type: AttributeCovT = param_def(AttributeCovT)
 
     def __init__(self, element_type: AttributeCovT) -> None:
         super().__init__([element_type])
@@ -1444,10 +1444,10 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 class DenseResourceAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "dense_resource"
 
-    resource_handle: ParameterDef[StringAttr]
+    resource_handle = param_def(StringAttr)
 
     # Should be a ShapedType, but this is not defined yet in xDSL
-    type: ParameterDef[Attribute]
+    type = param_def(Attribute)
 
     @staticmethod
     def from_params(handle: str | StringAttr, type: Attribute) -> DenseResourceAttr:
@@ -1473,8 +1473,8 @@ class DenseArrayBase(
 ):
     name = "array"
 
-    elt_type: ParameterDef[DenseArrayT]
-    data: ParameterDef[BytesAttr]
+    elt_type = param_def(DenseArrayT)
+    data = param_def(BytesAttr)
 
     def verify(self):
         data_len = len(self.data.data)
@@ -1584,8 +1584,8 @@ DenseI32ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i32, BytesAttr])
 class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "fun"
 
-    inputs: ParameterDef[ArrayAttr[Attribute]]
-    outputs: ParameterDef[ArrayAttr[Attribute]]
+    inputs = param_def(ArrayAttr[Attribute])
+    outputs = param_def(ArrayAttr[Attribute])
 
     @staticmethod
     def from_lists(
@@ -1604,9 +1604,9 @@ class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
 class OpaqueAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "opaque"
 
-    ident: ParameterDef[StringAttr]
-    value: ParameterDef[StringAttr]
-    type: ParameterDef[Attribute]
+    ident = param_def(StringAttr)
+    value = param_def(StringAttr)
+    type = param_def(Attribute)
 
     @staticmethod
     def from_strings(name: str, value: str, type: Attribute = NoneAttr()) -> OpaqueAttr:
@@ -1657,8 +1657,8 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
 
     name = "strided"
 
-    strides: ParameterDef[ArrayAttr[IntAttr | NoneAttr]]
-    offset: ParameterDef[IntAttr | NoneAttr]
+    strides = param_def(ArrayAttr[IntAttr | NoneAttr])
+    offset = param_def(IntAttr | NoneAttr)
 
     def __init__(
         self,
@@ -1913,10 +1913,10 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
 
     name = "builtin.unregistered"
 
-    attr_name: ParameterDef[StringAttr]
-    is_type: ParameterDef[IntAttr]
-    is_opaque: ParameterDef[IntAttr]
-    value: ParameterDef[StringAttr]
+    attr_name = param_def(StringAttr)
+    is_type = param_def(IntAttr)
+    is_opaque = param_def(IntAttr)
+    value = param_def(StringAttr)
     """
     This parameter is non-null is the attribute is a type, and null otherwise.
     """
@@ -2067,10 +2067,10 @@ class MemRefType(
 ):
     name = "memref"
 
-    shape: ParameterDef[ArrayAttr[IntAttr]]
-    element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[MemRefLayoutAttr | NoneAttr]
-    memory_space: ParameterDef[Attribute]
+    shape = param_def(ArrayAttr[IntAttr])
+    element_type: _MemRefTypeElement = param_def(_MemRefTypeElement)
+    layout = param_def(MemRefLayoutAttr | NoneAttr)
+    memory_space = param_def(Attribute)
 
     def __init__(
         self,
@@ -2210,8 +2210,8 @@ class UnrankedMemRefType(
 ):
     name = "unranked_memref"
 
-    element_type: ParameterDef[_UnrankedMemRefTypeElems]
-    memory_space: ParameterDef[Attribute]
+    element_type = param_def(_UnrankedMemRefTypeElems)
+    memory_space = param_def(Attribute)
 
     @staticmethod
     def from_type(
@@ -2247,8 +2247,10 @@ class DenseIntOrFPElementsAttr(
     ContainerType[DenseElementCovT],
 ):
     name = "dense"
-    type: ParameterDef[RankedStructure[DenseElementCovT]]
-    data: ParameterDef[BytesAttr]
+    type: RankedStructure[DenseElementCovT] = param_def(
+        RankedStructure[DenseElementCovT]
+    )
+    data = param_def(BytesAttr)
 
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...]:

@@ -27,7 +27,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    ParameterDef,
     attr_def,
     base,
     irdl_attr_definition,
@@ -36,6 +35,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_operand_def,
     opt_result_def,
+    param_def,
     result_def,
 )
 from xdsl.utils.hints import isa
@@ -55,7 +55,7 @@ class OperationType(ParametrizedAttribute, TypeAttribute):
 
     name = "mpi.operation"
 
-    op_str: ParameterDef[StringAttr]
+    op_str = param_def(StringAttr)
 
 
 class MpiOp:
@@ -122,7 +122,7 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     """
 
     name = "mpi.vector"
-    wrapped_type: ParameterDef[_VectorT]
+    wrapped_type = param_def(_VectorT)
 
     @staticmethod
     def of(dtype: type[_VectorT]) -> VectorType[_VectorT]:

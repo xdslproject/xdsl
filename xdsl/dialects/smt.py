@@ -21,7 +21,6 @@ from xdsl.irdl import (
     GenericRangeConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    ParameterDef,
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
@@ -30,6 +29,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_prop_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -59,10 +59,10 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
     name = "smt.func"
 
-    domain_types: ParameterDef[ArrayAttr[NonFuncSMTType]]
+    domain_types = param_def(ArrayAttr[NonFuncSMTType])
     """The types of the function arguments."""
 
-    range_type: ParameterDef[NonFuncSMTType]
+    range_type = param_def(NonFuncSMTType)
     """The type of the function result."""
 
     def __init__(

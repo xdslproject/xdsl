@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttrConstr,
     IntAttr,
     LocationAttr,
-    ParameterDef,
     StringAttr,
     SymbolRefAttr,
 )
@@ -41,6 +40,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     lazy_traits_def,
     opt_attr_def,
+    param_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -100,9 +100,9 @@ class InnerRefAttr(ParametrizedAttribute):
     """This works like a symbol reference, but to a name inside a module."""
 
     name = "hw.innerNameRef"
-    module_ref: ParameterDef[FlatSymbolRefAttr]
+    module_ref = param_def(FlatSymbolRefAttr)
     # NB. upstream defines as “name” which clashes with Attribute.name
-    sym_name: ParameterDef[StringAttr]
+    sym_name = param_def(StringAttr)
 
     def __init__(self, module: str | StringAttr, name: str | StringAttr) -> None:
         if isinstance(module, str):
@@ -289,9 +289,9 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
     name = "hw.innerSymProps"
 
     # NB. upstream defines as “name” which clashes with Attribute.name
-    sym_name: ParameterDef[StringAttr]
-    field_id: ParameterDef[IntAttr]
-    sym_visibility: ParameterDef[StringAttr]
+    sym_name = param_def(StringAttr)
+    field_id = param_def(IntAttr)
+    sym_visibility = param_def(StringAttr)
 
     def __init__(
         self,
@@ -352,7 +352,7 @@ class InnerSymAttr(
 
     name = "hw.innerSym"
 
-    props: ParameterDef[ArrayAttr[InnerSymPropertiesAttr]]
+    props = param_def(ArrayAttr[InnerSymPropertiesAttr])
 
     @overload
     def __init__(self) -> None:
@@ -506,16 +506,16 @@ class ModulePort(ParametrizedAttribute):
 
     name = "hw.modport"
 
-    port_name: ParameterDef[StringAttr]
-    type: ParameterDef[TypeAttribute]
-    dir: ParameterDef[DirectionAttr]
+    port_name = param_def(StringAttr)
+    type = param_def(TypeAttribute)
+    dir = param_def(DirectionAttr)
 
 
 @irdl_attr_definition
 class ModuleType(ParametrizedAttribute, TypeAttribute):
     name = "hw.modty"
 
-    ports: ParameterDef[ArrayAttr[ModulePort]]
+    ports = param_def(ArrayAttr[ModulePort])
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -555,8 +555,8 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
 class ParamDeclAttr(ParametrizedAttribute):
     name = "hw.param.decl"
 
-    port_name: ParameterDef[StringAttr]
-    type: ParameterDef[TypeAttribute]
+    port_name = param_def(StringAttr)
+    type = param_def(TypeAttribute)
 
     @classmethod
     def parse_free_standing_parameters(

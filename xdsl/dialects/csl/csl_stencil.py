@@ -27,12 +27,12 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
-    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
     opt_prop_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -74,7 +74,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "csl_stencil.exchange"
 
-    neighbor_param: ParameterDef[builtin.DenseArrayBase]
+    neighbor_param = param_def(builtin.DenseArrayBase)
 
     def __init__(
         self,
@@ -165,8 +165,8 @@ CslFloat: TypeAlias = Float16Type | Float32Type
 @irdl_attr_definition
 class CoeffAttr(ParametrizedAttribute):
     name = "csl_stencil.coeff"
-    offset: ParameterDef[stencil.IndexAttr]
-    coeff: ParameterDef[FloatAttr[AnyFloat]]
+    offset = param_def(stencil.IndexAttr)
+    coeff = param_def(FloatAttr[AnyFloat])
 
     def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
         super().__init__([offset, coeff])

@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     StringAttr,
 )
-from xdsl.dialects.csl import ParameterDef, csl
+from xdsl.dialects.csl import csl
 from xdsl.ir import (
     Attribute,
     Block,
@@ -29,6 +29,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     lazy_traits_def,
     opt_prop_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -51,9 +52,9 @@ class ParamAttribute(ParametrizedAttribute):
 
     name = "csl_wrapper.param"
 
-    key: ParameterDef[StringAttr]
-    value: ParameterDef[IntegerAttr[IntegerType] | NoneAttr]
-    type: ParameterDef[IntegerType]
+    key = param_def(StringAttr)
+    value = param_def(IntegerAttr[IntegerType] | NoneAttr)
+    type = param_def(IntegerType)
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
