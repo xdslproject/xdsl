@@ -74,8 +74,6 @@ class EmitC_ArrayType(
     def parse_parameters(cls, parser: AttrParser):
         with parser.in_angle_brackets():
             shape, type = parser.parse_ranked_shape()
-            if not shape:
-                raise parser.raise_error("EmitC array shape must not be empty")
             return ArrayAttr(IntAttr(dim) for dim in shape), type
 
     def print_parameters(self, printer: Printer) -> None:
