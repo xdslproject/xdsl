@@ -4,7 +4,7 @@ from typing import cast
 
 from ordered_set import OrderedSet
 
-from xdsl.backend.register_queue import RegisterQueue
+from xdsl.backend.register_stack import RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.rewriter import Rewriter
@@ -16,13 +16,13 @@ class ValueAllocator:
     Base class for register allocators.
     """
 
-    available_registers: RegisterQueue
+    available_registers: RegisterStack
     register_base_class: type[RegisterType]
     new_value_by_old_value: dict[SSAValue, SSAValue]
 
     def __init__(
         self,
-        available_registers: RegisterQueue,
+        available_registers: RegisterStack,
         register_base_class: type[RegisterType],
     ) -> None:
         self.available_registers = available_registers
@@ -157,7 +157,7 @@ class BlockAllocator(ValueAllocator, abc.ABC):
 
     def __init__(
         self,
-        available_registers: RegisterQueue,
+        available_registers: RegisterStack,
         register_base_class: type[RegisterType],
     ) -> None:
         self.live_ins_per_block = {}
