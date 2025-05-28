@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence, Set
 from dataclasses import dataclass
-from typing import ClassVar, TypeVar, cast
+from typing import ClassVar, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I16,

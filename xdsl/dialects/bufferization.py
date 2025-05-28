@@ -1,8 +1,8 @@
 from collections.abc import Sequence, Set
 from dataclasses import dataclass
-from typing import ClassVar, TypeVar
+from typing import ClassVar
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,

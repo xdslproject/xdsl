@@ -17,13 +17,14 @@ from typing import (
     Generic,
     Literal,
     TypeAlias,
-    TypeVar,
     Union,
     cast,
     get_args,
     get_origin,
     get_type_hints,
 )
+
+from typing_extensions import TypeVar
 
 if TYPE_CHECKING:
     from typing_extensions import TypeForm

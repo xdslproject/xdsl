@@ -1,10 +1,9 @@
 """Unit tests for IRDL."""
 
 from dataclasses import dataclass
-from typing import TypeVar
 
 import pytest
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (

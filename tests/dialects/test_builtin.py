@@ -1,9 +1,9 @@
 import math
 import re
 from collections.abc import Sequence
-from typing import TypeVar
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (

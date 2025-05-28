@@ -8,9 +8,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
+from typing import Annotated, Any, Generic, TypeAlias, cast
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     IndexType,
