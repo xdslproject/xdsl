@@ -1003,7 +1003,7 @@ class AttrParser(BaseParser):
 
     def _parse_optional_bool_int_or_float(
         self,
-    ) -> tuple[int, Span] | tuple[float, Span] | None:
+    ) -> tuple[bool, Span] | tuple[int, Span] | tuple[float, Span] | None:
         """
         May rollback if the token after `-` is not either an integer
         or float literal.
@@ -1017,10 +1017,10 @@ class AttrParser(BaseParser):
         if self._current_token.kind == MLIRTokenKind.BARE_IDENT and not is_negative:
             if self._current_token.text == "true":
                 token = self._consume_token(MLIRTokenKind.BARE_IDENT)
-                value = 1
+                value = True
             elif self._current_token.text == "false":
                 token = self._consume_token(MLIRTokenKind.BARE_IDENT)
-                value = 0
+                value = False
             else:
                 self._resume_from(pos)
                 return None
@@ -1045,7 +1045,7 @@ class AttrParser(BaseParser):
 
     def _parse_optional_complex(
         self,
-    ) -> tuple[tuple[float, float] | tuple[int, int], Span] | None:
+    ) -> tuple[tuple[float, float] | tuple[int, int] | tuple[bool, bool], Span] | None:
         if self._current_token.kind != MLIRTokenKind.L_PAREN:
             return None
 
@@ -1067,7 +1067,9 @@ class AttrParser(BaseParser):
         span = Span(start, end, input)
         return value, span
 
-    def _parse_bool_int_or_float(self) -> tuple[int, Span] | tuple[float, Span]:
+    def _parse_bool_int_or_float(
+        self,
+    ) -> tuple[bool, Span] | tuple[int, Span] | tuple[float, Span]:
         retval = self._parse_optional_bool_int_or_float()
         if retval is None:
             self.raise_error("either an int or float must be present")
