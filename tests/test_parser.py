@@ -774,7 +774,7 @@ def test_parse_optional_bool_int_or_float_numeric(numeric: str, typ: type):
             assert value == expected
             assert span.text == numeric
         case _:
-            pytest.fail()
+            pytest.fail("unreachable")
 
 
 @pytest.mark.parametrize("nonnumeric", ["--", "+", "a", "{", "(1.0, 1.0)"])
@@ -812,7 +812,7 @@ def test_parse_bool_int_or_float_numeric(numeric: str, typ: type):
             assert value == expected
             assert span.text == numeric
         case _:
-            pytest.fail()
+            pytest.fail("unreachable")
 
 
 @pytest.mark.parametrize(
