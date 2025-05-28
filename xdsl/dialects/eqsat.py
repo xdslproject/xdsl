@@ -11,19 +11,25 @@ https://github.com/xdslproject/xdsl/issues/3174
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import IntAttr
-from xdsl.ir import Attribute, Dialect, SSAValue
+from xdsl.ir import Attribute, Dialect, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
+    lazy_traits_def,
     opt_attr_def,
+    region_def,
     result_def,
+    traits_def,
     var_operand_def,
+    var_result_def,
 )
+from xdsl.traits import HasParent, IsTerminator, Pure, SingleBlockImplicitTerminator
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 EQSAT_COST_LABEL = "eqsat_cost"
@@ -40,6 +46,7 @@ class EClassOp(IRDLOperation):
     arguments = var_operand_def(T)
     result = result_def(T)
     min_cost_index = opt_attr_def(IntAttr)
+    traits = traits_def(Pure())
 
     assembly_format = "$arguments attr-dict `:` type($result)"
 
@@ -70,10 +77,73 @@ class EClassOp(IRDLOperation):
                     "another eclass."
                 )
 
+    def delete_operand(self, index: int) -> None:
+        """
+        Deletes the operand at the given index.
+
+        Handles updating the uses of the operand being removed and adjusts
+        the uses of subsequent operands due to the index shift. Also updates
+        the `min_cost_index` attribute if necessary.
+
+        Raises:
+            IndexError: If the index is out of bounds.
+            ValueError: If attempting to delete the last remaining operand.
+        """
+        num_operands = len(self.operands)
+        if not (0 <= index < num_operands):
+            raise IndexError(
+                f"Operand index {index} out of range for EClassOp with {num_operands} operands"
+            )
+        if num_operands == 1:
+            raise ValueError("Cannot delete the last operand of an EClassOp")
+        current_operands = list(self.operands)
+        del current_operands[index]
+        self.operands = current_operands
+
+
+@irdl_op_definition
+class EGraphOp(IRDLOperation):
+    name = "eqsat.egraph"
+
+    outputs = var_result_def()
+    body = region_def()
+
+    traits = lazy_traits_def(lambda: (SingleBlockImplicitTerminator(YieldOp),))
+
+    assembly_format = "`->` type($outputs) $body attr-dict"
+
+    def __init__(
+        self,
+        result_types: Sequence[Attribute] | None,
+        body: Region,
+    ):
+        super().__init__(
+            result_types=(result_types,),
+            regions=[body],
+        )
+
+
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    name = "eqsat.yield"
+    values = var_operand_def()
+
+    traits = traits_def(HasParent(EGraphOp), IsTerminator())
+
+    assembly_format = "$values `:` type($values) attr-dict"
+
+    def __init__(
+        self,
+        *values: SSAValue,
+    ):
+        super().__init__(operands=[values])
+
 
 EqSat = Dialect(
     "eqsat",
     [
         EClassOp,
+        YieldOp,
+        EGraphOp,
     ],
 )

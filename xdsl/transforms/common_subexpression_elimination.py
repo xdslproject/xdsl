@@ -70,7 +70,7 @@ _D = TypeVar("_D")
 class KnownOps:
     """
     Cache dictionary for known operations used in CSE.
-    It quacks like a dict[Operation, Operation], but uses OperationInfo of an Opetration
+    It quacks like a dict[Operation, Operation], but uses OperationInfo of an Operation
     as the actual key.
     """
 
