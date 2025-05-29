@@ -19,6 +19,6 @@ class X86AllocateRegisters(ModulePass):
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         for inner_op in op.walk():
             if isinstance(inner_op, x86_func.FuncOp):
-                register_queue = X86RegisterStack.default()
-                allocator = X86RegisterAllocator(register_queue)
+                available_registers = X86RegisterStack.default()
+                allocator = X86RegisterAllocator(available_registers)
                 allocator.allocate_func(inner_op)
