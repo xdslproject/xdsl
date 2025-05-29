@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.backend.x86.register_allocation import X86RegisterAllocator
-from xdsl.backend.x86.register_queue import X86RegisterStack
+from xdsl.backend.x86.register_stack import X86RegisterStack
 from xdsl.context import Context
 from xdsl.dialects import x86_func
 from xdsl.dialects.builtin import ModuleOp
