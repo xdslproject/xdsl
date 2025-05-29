@@ -346,8 +346,8 @@ class Printer(BasePrinter):
         self, value: tuple[float, float], type: ComplexType[ComplexElementCovT]
     ):
         assert isinstance(type.element_type, AnyFloat)
-        self.print_string("(")
         real, imag = value[0], value[1]
+        self.print_string("(")
         self.print_float(real, type.element_type)
         self.print_string(",")
         self.print_float(imag, type.element_type)
@@ -356,13 +356,12 @@ class Printer(BasePrinter):
     def print_complex_int(
         self, value: tuple[int, int], type: ComplexType[ComplexElementCovT]
     ):
-        assert isinstance(type.element_type, IntegerType)
-        self.print_string("(")
+        assert isinstance(elem_ty := type.element_type, IntegerType)
         real, imag = value[0], value[1]
-        self.print_string(str(real))
-        self.print_string(",")
-        self.print_string(str(imag))
-        self.print_string(")")
+        if elem_ty.width.data == 1:
+            real = "true" if real else "false"
+            imag = "true" if imag else "false"
+        self.print_string(f"({real},{imag})")
 
     def print_complex(
         self,
