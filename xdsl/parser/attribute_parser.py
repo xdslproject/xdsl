@@ -1023,9 +1023,6 @@ class AttrParser(BaseParser):
             if isinstance(type, AnyFloat):
                 return self.to_float(parser)
 
-            if isinstance(type, ComplexType):
-                return self.to_complex(parser, type)
-
             match type:
                 case IntegerType():
                     return self.to_int(
@@ -1037,6 +1034,9 @@ class AttrParser(BaseParser):
                     return self.to_int(
                         parser, allow_negative=True, allow_booleans=False
                     )
+
+                case ComplexType():
+                    return self.to_complex(parser, type)
 
     def _parse_optional_bool_int_or_float(
         self,
