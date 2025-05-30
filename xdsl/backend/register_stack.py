@@ -135,21 +135,6 @@ class RegisterStack:
         if not reserved_registers[reg.index.data]:
             del reserved_registers[reg.index.data]
 
-    def limit_registers(self, limit: int) -> None:
-        """
-        Limits the number of currently available registers to the provided limit.
-        """
-        if limit < 0:
-            raise ValueError(f"Invalid negative limit value {limit}")
-
-        keys = tuple(self.available_registers)
-        if limit:
-            for key in keys:
-                self.available_registers[key] = self.available_registers[key][-limit:]
-        else:
-            for key in keys:
-                del self.available_registers[key]
-
     def exclude_register(self, reg: RegisterType) -> None:
         """
         Removes register from available set, if present.
