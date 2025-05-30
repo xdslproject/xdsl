@@ -2332,6 +2332,13 @@ class DenseIntOrFPElementsAttr(
         data: Sequence[tuple[float, float]],
     ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
 
+    @overload
+    @staticmethod
+    def create_dense_complex(
+        type: RankedStructure[ComplexType[ComplexElementCovT]],
+        data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementCovT]]: ...
+
     @staticmethod
     def create_dense_complex(
         type: RankedStructure[ComplexType[ComplexElementCovT]],
@@ -2544,8 +2551,9 @@ class DenseIntOrFPElementsAttr(
             element_type.print_value_without_type(val, printer)
         elif isinstance(val, float):
             printer.print_float(val, cast(AnyFloat, self.get_element_type()))
-        else:
-            raise NotImplementedError("Next PR")
+        else:  # complex
+            assert isinstance(element_type := self.get_element_type(), ComplexType)
+            printer.print_complex(val, element_type)
 
     def _print_dense_list(
         self,
