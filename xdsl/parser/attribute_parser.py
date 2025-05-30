@@ -828,10 +828,7 @@ class AttrParser(BaseParser):
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
         elif isinstance(type.element_type, ComplexType):
             new_type = cast(RankedStructure[ComplexType], type)
-            new_data = cast(
-                Sequence[tuple[int, int] | tuple[float, float]], data_values
-            )
-            return DenseIntOrFPElementsAttr.create_dense_complex(new_type, new_data)
+            return DenseIntOrFPElementsAttr.create_dense_complex(new_type, data_values)  # pyright: ignore[reportCallIssue,reportUnknownVariableType,reportArgumentType]
         else:
             new_type = cast(RankedStructure[IntegerType | IndexType], type)
             new_data = cast(Sequence[int], data_values)
