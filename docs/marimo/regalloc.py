@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.13.13"
 app = marimo.App(width="medium")
 
 
@@ -14,7 +14,7 @@ def _():
     from xdsl.printer import Printer
     from xdsl.parser import Parser
     from xdsl.context import Context
-    from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
+    from xdsl.backend.riscv.register_stack import RiscvRegisterStack
     import difflib
     from xdsl.backend.register_type import RegisterType
     from collections.abc import Iterator
@@ -24,7 +24,7 @@ def _():
         Context,
         Parser,
         RegisterType,
-        RiscvRegisterQueue,
+        RiscvRegisterStack,
         SSAValue,
         builtin,
         defaultdict,
@@ -45,7 +45,6 @@ def _(mo):
     [Register allocation](https://en.wikipedia.org/wiki/Register_allocation) is the process of assigning values to registers.
     This notebook describes the implementation of register allocation in xDSL, with our RISC-V dialect as an example.
     Our implementation is a work in progress, and is currently limited in ways that we'll describe below.
-
     """
     )
     return
@@ -236,6 +235,52 @@ def _(Block, iter_operands_and_results, riscv):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""## Putting It Together""")
+    return
+
+
+@app.cell
+def _(
+    RegisterType,
+    RiscvRegisterStack,
+    iter_operands_and_results,
+    simple_module,
+    xmo,
+):
+    from xdsl.backend.register_allocatable import RegisterAllocatableOperation, HasRegisterConstraints
+    from xdsl.rewriter import Rewriter
+
+    _my_module = simple_module.clone()
+    _my_func = next(iter(_my_module.body.block.ops))
+
+    available_registers = RiscvRegisterStack.default()
+
+    used_registers = {
+        value.type 
+        for value in iter_operands_and_results(_my_func.body.block)
+        if isinstance(value.type, RegisterType) and value.type.is_allocated
+    }
+
+    for reg in used_registers:
+        available_registers.reserve_register(reg)
+        available_registers.exclude_register(reg)
+
+    for op in reversed(_my_func.body.block.ops):
+        for result in op.results:
+            if not result.type.is_allocated:
+                Rewriter.replace_value_with_new_type(result, available_registers.pop(type(result.type)))
+        for result in op.results:
+            available_registers.push(result.type)
+        for operand in op.operands:
+            if not operand.type.is_allocated:
+                Rewriter.replace_value_with_new_type(operand, available_registers.pop(type(operand.type)))
+
+    xmo.module_html(_my_func)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(
         r"""
     ## Liveness and Conflicts
@@ -286,7 +331,7 @@ def _(Block, SSAValue, defaultdict):
     def conflicting_value_map(block: Block) -> dict[str, set[str]]:
         res: defaultdict[SSAValue, set[SSAValue]] = defaultdict(set)
         live_values = set()
-    
+
         for op in reversed(block.ops):
             # When we walk in reverse, the last use of a value is the first use we see!
             live_values.update(op.results)
@@ -332,11 +377,6 @@ def _(riscv):
     return
 
 
-@app.cell
-def _():
-    return
-
-
 @app.cell(hide_code=True)
 def _(RegisterType, mo):
     mo.md(
@@ -362,7 +402,7 @@ def _(RegisterType, mo):
 
 
 @app.cell(hide_code=True)
-def _(RiscvRegisterQueue, mo, riscv):
+def _(RiscvRegisterStack, mo, riscv):
     mo.md(
         rf"""
     ## RISC-V Calling Convention
@@ -372,18 +412,18 @@ def _(RiscvRegisterQueue, mo, riscv):
     Some registers are specified to hold either function arguments or result values: `a0`, ..., `a7` for integers, `fa0`, ..., `fa7` for floating-point (the contents of the `a` registers not used for return values is not defined at the end of the function call).
     Some registers must hold the same value across function calls (`s0`, ..., `s11`), while others may be overwritten (`t0`, ..., `t6`).
 
-    For convenience, the lists of registers that should and shouldn't be used during register allocation are stored on the `{RiscvRegisterQueue.__name__}` class:
+    For convenience, the lists of registers that should and shouldn't be used during register allocation are stored on the `{RiscvRegisterStack.__name__}` class:
     """
     )
     return
 
 
 @app.cell
-def _(RiscvRegisterQueue):
+def _(RiscvRegisterStack):
     print("Available:")
-    print(sorted(reg.register_name.data for reg in RiscvRegisterQueue.default_available_registers()))
+    print(sorted(reg.register_name.data for reg in RiscvRegisterStack.default_available_registers()))
     print("Reserved:")
-    print(sorted(reg.register_name.data for reg in RiscvRegisterQueue.default_reserved_registers()))
+    print(sorted(reg.register_name.data for reg in RiscvRegisterStack.default_reserved_registers()))
     return
 
 
