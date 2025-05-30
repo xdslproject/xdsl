@@ -22,6 +22,45 @@ from .helpers import vector_type_to_register_type
 
 
 @dataclass
+class VectorBroadcastToX86(RewritePattern):
+    arch: str
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: vector.BroadcastOp, rewriter: PatternRewriter):
+        # Get the register to be broadcasted
+        source_cast_op, source_x86 = UnrealizedConversionCastOp.cast_one(
+            op.source, x86.register.UNALLOCATED_GENERAL
+        )
+        # Actually broadcast the register
+        element_type = op.source.type
+        assert isinstance(element_type, FixedBitwidthType)
+        element_size = element_type.bitwidth
+        match element_size:
+            case 16:
+                raise DiagnosticException(
+                    "Half-precision vector broadcast is not implemented yet."
+                )
+            case 32:
+                broadcast = x86.ops.DS_VpbroadcastdOp
+            case 64:
+                broadcast = x86.ops.DS_VpbroadcastqOp
+            case _:
+                raise DiagnosticException(
+                    "Float precision must be half, single or double."
+                )
+        broadcast_op = broadcast(
+            source=source_x86,
+            destination=vector_type_to_register_type(op.vector.type, self.arch),
+        )
+        # Get back the abstract vector
+        dest_cast_op, _ = UnrealizedConversionCastOp.cast_one(
+            broadcast_op.destination, op.vector.type
+        )
+
+        rewriter.replace_matched_op([source_cast_op, broadcast_op, dest_cast_op])
+
+
+@dataclass
 class VectorFMAToX86(RewritePattern):
     arch: str
 
@@ -75,6 +114,7 @@ class ConvertVectorToX86Pass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     VectorFMAToX86(self.arch),
+                    VectorBroadcastToX86(self.arch),
                 ]
             ),
             apply_recursively=False,

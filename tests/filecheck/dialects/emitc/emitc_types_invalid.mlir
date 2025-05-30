@@ -6,3 +6,10 @@
 "test.op"() {
   empty = !emitc.array<f32>
 }: ()->()
+
+// -----
+
+// CHECK: EmitC array element type 'i0' is not a supported EmitC type.
+"test.op"() {
+  bad_type = !emitc.array<1xi0>>
+}: ()->()
