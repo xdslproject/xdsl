@@ -983,36 +983,21 @@ class AttrParser(BaseParser):
             is compatible.
             """
             if isinstance(self.value, tuple):
-                raise NotImplementedError()
+                parser.raise_error("No conversion from complex to float")
             return float(self.value)
 
         def to_complex(
             self, parser: AttrParser, type: ComplexType
         ) -> tuple[float, float] | tuple[int, int]:
-            if isinstance(self.value, int) and isinstance(
-                type.element_type, IntegerType
-            ):
-                return (self.value, 0)
-            elif isinstance(self.value, int) and isinstance(
-                type.element_type, AnyFloat
-            ):
-                return (float(self.value), 0.0)
-            elif isinstance(self.value, float) and isinstance(
-                type.element_type, AnyFloat
-            ):
-                return (self.value, 0.0)
-            elif isinstance(self.value, float) and isinstance(
-                type.element_type, IntegerType
-            ):
-                return (int(self.value), 0)
-            elif isinstance(self.value, tuple) and isinstance(
-                type.element_type, IntegerType
-            ):
-                return (int(self.value[0]), int(self.value[1]))
-            elif isinstance(self.value, tuple) and isinstance(
-                type.element_type, AnyFloat
-            ):
+            assert isinstance(self.value, tuple)
+
+            if isinstance(type.element_type, AnyFloat):
                 return (float(self.value[0]), float(self.value[1]))
+
+            match type.element_type:
+                case IntegerType():
+                    return (int(self.value[0]), int(self.value[1]))
+
             raise NotImplementedError()
 
         def to_type(
