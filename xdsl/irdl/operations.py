@@ -14,14 +14,13 @@ from typing import (
     Generic,
     Literal,
     TypeAlias,
-    TypeVar,
     cast,
     get_args,
     get_origin,
     overload,
 )
 
-from typing_extensions import assert_never
+from typing_extensions import TypeVar, assert_never
 
 from xdsl.ir import (
     Attribute,
@@ -1088,11 +1087,13 @@ class OpDef:
                 def get_constraint(
                     pyrdl_constr: IRDLAttrConstraint,
                 ) -> AttrConstraint:
-                    return irdl_list_to_attr_constraint(
+                    constraint = irdl_list_to_attr_constraint(
                         (pyrdl_constr,),
                         allow_type_var=True,
-                        type_var_mapping=type_var_mapping,
                     )
+                    if type_var_mapping is not None:
+                        constraint = constraint.mapping_type_vars(type_var_mapping)
+                    return constraint
 
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_range_constraint(

@@ -30,9 +30,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, Generic, TypeVar, cast
+from typing import IO, Generic, cast
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.backend.register_allocatable import (

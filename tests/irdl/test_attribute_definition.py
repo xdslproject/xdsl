@@ -8,9 +8,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
+from typing import Annotated, Any, Generic, TypeAlias, cast
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     IndexType,
@@ -22,6 +23,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     BitEnumAttribute,
     BuiltinAttribute,
     Data,
@@ -32,15 +34,21 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.irdl import (
+    AllOf,
     AnyAttr,
+    AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
     ConstraintVar,
     GenericData,
     MessageConstraint,
+    ParamAttrConstraint,
     ParamAttrDef,
     ParameterDef,
+    TypeVarConstraint,
+    VarConstraint,
+    base,
     irdl_attr_definition,
     irdl_to_attr_constraint,
 )
@@ -376,6 +384,11 @@ class PositiveIntConstr(AttrConstraint):
         if attr.data <= 0:
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> PositiveIntConstr:
+        return self
+
 
 @irdl_attr_definition
 class PositiveIntAttr(ParametrizedAttribute):
@@ -631,9 +644,6 @@ def test_data_with_generic_missing_generic_data_failure():
     )
 
 
-A = TypeVar("A", bound=Attribute)
-
-
 @dataclass(frozen=True)
 class DataListAttr(AttrConstraint):
     """
@@ -652,13 +662,22 @@ class DataListAttr(AttrConstraint):
         for e in attr.data:
             self.elem_constr.verify(e, constraint_context)
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> DataListAttr:
+        mapped_constraint = self.elem_constr.mapping_type_vars(type_var_mapping)
+        if mapped_constraint is self.elem_constr:
+            return self
+        else:
+            return DataListAttr(mapped_constraint)
+
 
 @irdl_attr_definition
-class ListData(GenericData[list[A]]):
+class ListData(GenericData[list[AttributeInvT]]):
     name = "test.list"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> list[A]:
+    def parse_parameter(cls, parser: AttrParser) -> list[AttributeInvT]:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -673,7 +692,7 @@ class ListData(GenericData[list[A]]):
         return DataListAttr(irdl_to_attr_constraint(args[0]))
 
     @staticmethod
-    def from_list(data: list[A]) -> ListData[A]:
+    def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
         return ListData(data)
 
 
@@ -836,6 +855,34 @@ def test_custom_constructor():
     assert OveriddenInitAttr.new([StringData("17")]) == OveriddenInitAttr("17")
 
 
+@irdl_attr_definition
+class GenericAttr(Generic[AttributeInvT], ParametrizedAttribute):
+    name = "test.generic_attr"
+
+    param: ParameterDef[AttributeInvT]
+
+
+def test_generic_attr():
+    """Test the generic parameter of a ParametrizedAttribute."""
+
+    assert GenericAttr.get_irdl_definition() == ParamAttrDef(
+        "test.generic_attr",
+        [
+            (
+                "param",
+                TypeVarConstraint(
+                    type_var=AttributeInvT,
+                    constraint=AnyAttr(),
+                ),
+            )
+        ],
+    )
+
+    assert base(GenericAttr[IntAttr]) == ParamAttrConstraint(
+        GenericAttr, (BaseAttr(IntAttr),)
+    )
+
+
 ################################################################################
 # ConstraintVar
 ################################################################################
@@ -915,3 +962,82 @@ def test_builtin_name():
         ParametrizedAttribute, BuiltinAttribute
     ):
         name = "builtin.vector"
+
+
+################################################################################
+# Mapping Type Var
+################################################################################
+
+
+@irdl_attr_definition
+class A(Data[int]):
+    name = "test.a"
+
+
+@irdl_attr_definition
+class B(Data[int]):
+    name = "test.b"
+
+
+_A = TypeVar("_A", bound=Attribute)
+_B = TypeVar("_B", bound=Attribute)
+
+
+def test_var_constraint():
+    var_constraint = VarConstraint("var", TypeVarConstraint(_A, BaseAttr(A)))
+
+    assert var_constraint.mapping_type_vars({}) == VarConstraint("var", BaseAttr(A))
+    assert var_constraint.mapping_type_vars({_B: BaseAttr(B)}) == VarConstraint(
+        "var", BaseAttr(A)
+    )
+    assert var_constraint.mapping_type_vars({_A: BaseAttr(B)}) == VarConstraint(
+        "var", BaseAttr(B)
+    )
+
+
+def test_typevar_constraint():
+    typevar_constraint = TypeVarConstraint(_A, BaseAttr(A))
+
+    assert typevar_constraint.mapping_type_vars({}) == BaseAttr(A)
+    assert typevar_constraint.mapping_type_vars({_B: BaseAttr(B)}) == BaseAttr(A)
+    assert typevar_constraint.mapping_type_vars({_A: BaseAttr(B)}) == BaseAttr(B)
+
+
+def test_message_constraint():
+    message_constraint = MessageConstraint(
+        TypeVarConstraint(_A, BaseAttr(A)), "test message"
+    )
+
+    assert message_constraint.mapping_type_vars({}) == MessageConstraint(
+        BaseAttr(A), "test message"
+    )
+    assert message_constraint.mapping_type_vars({_B: BaseAttr(B)}) == MessageConstraint(
+        BaseAttr(A), "test message"
+    )
+    assert message_constraint.mapping_type_vars({_A: BaseAttr(B)}) == MessageConstraint(
+        BaseAttr(B), "test message"
+    )
+
+
+def test_anyof_constraint():
+    anyof_constraint = AnyOf((TypeVarConstraint(_A, BaseAttr(A)), BaseAttr(B)))
+
+    assert anyof_constraint.mapping_type_vars({}) == AnyOf((BaseAttr(A), BaseAttr(B)))
+    assert anyof_constraint.mapping_type_vars({_B: BaseAttr(B)}) == AnyOf(
+        (BaseAttr(A), BaseAttr(B))
+    )
+    assert anyof_constraint.mapping_type_vars({_A: BaseAttr(B)}) == AnyOf(
+        (BaseAttr(B), BaseAttr(B))
+    )
+
+
+def test_allof_constraint():
+    allof_constraint = AllOf((TypeVarConstraint(_A, BaseAttr(A)), BaseAttr(B)))
+
+    assert allof_constraint.mapping_type_vars({}) == AllOf((BaseAttr(A), BaseAttr(B)))
+    assert allof_constraint.mapping_type_vars({_B: BaseAttr(B)}) == AllOf(
+        (BaseAttr(A), BaseAttr(B))
+    )
+    assert allof_constraint.mapping_type_vars({_A: BaseAttr(B)}) == AllOf(
+        (BaseAttr(B), BaseAttr(B))
+    )

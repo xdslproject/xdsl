@@ -229,6 +229,16 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     def variables(self) -> set[str]:
         return self.elem_range_constraint.variables()
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericAttrConstraint[ArrayAttr[AttributeCovT]]:
+        elem_range_constraint = self.elem_range_constraint.mapping_type_vars(
+            type_var_mapping
+        )
+        if elem_range_constraint is self.elem_range_constraint:
+            return self
+        return ArrayOfConstraint(elem_range_constraint)
+
 
 @irdl_attr_definition
 class StringAttr(Data[str], BuiltinAttribute):
@@ -305,6 +315,11 @@ class EmptyArrayAttrConstraint(AttrConstraint):
         if attr.data:
             raise VerifyException(f"expected empty array, but got {attr}")
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> EmptyArrayAttrConstraint:
+        return self
+
 
 FlatSymbolRefAttrConstraint = MessageConstraint(
     ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
@@ -361,6 +376,11 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
 
     def get_bases(self) -> set[type[Attribute]] | None:
         return {IntAttr}
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> Self:
+        return self
 
 
 class Signedness(Enum):
@@ -1332,6 +1352,15 @@ class ContainerOf(
         else:
             self.elem_constr.verify(attr, constraint_context)
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> Self:
+        mapped_constraint = self.elem_constr.mapping_type_vars(type_var_mapping)
+        if mapped_constraint is self.elem_constr:
+            return self
+        else:
+            return type(self)(mapped_constraint)
+
 
 VectorOrTensorOf: TypeAlias = (
     VectorType[AttributeCovT]
@@ -1357,6 +1386,11 @@ class VectorRankConstraint(AttrConstraint):
                 f"Expected vector rank to be {self.expected_rank}, got {attr.get_num_dims()}."
             )
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> VectorRankConstraint:
+        return self
+
 
 @dataclass(frozen=True)
 class VectorBaseTypeConstraint(AttrConstraint):
@@ -1376,6 +1410,11 @@ class VectorBaseTypeConstraint(AttrConstraint):
                 f"Expected vector type to be {self.expected_type}, got {attr.element_type}."
             )
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> VectorBaseTypeConstraint:
+        return self
+
 
 @dataclass(frozen=True)
 class VectorBaseTypeAndRankConstraint(AttrConstraint):
@@ -1394,6 +1433,11 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
             self.expected_type
         ) & VectorRankConstraint(self.expected_rank)
         constraint.verify(attr, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> VectorBaseTypeAndRankConstraint:
+        return self
 
 
 @irdl_attr_definition
