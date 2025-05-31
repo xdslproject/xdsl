@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BFloat16Type,
     BoolAttr,
+    BuiltinAttribute,
     BytesAttr,
     ComplexElementCovT,
     ComplexType,
@@ -467,7 +468,9 @@ class Printer(BasePrinter):
                 return
             # Otherwise we fall through to TypedAttribute case
 
-        if isinstance(attribute, TypedAttribute):
+        if isinstance(attribute, TypedAttribute) and isinstance(
+            attribute, BuiltinAttribute
+        ):
             attribute.print_without_type(self)
             self.print_string(" : ")
             self.print_attribute(attribute.get_type())
