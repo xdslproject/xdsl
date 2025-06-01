@@ -27,3 +27,10 @@
 "test.op"() {
   nested = !emitc.array<2x!emitc.array<3xf32>>
 }: ()->()
+
+// -----
+
+// CHECK: EmitC array element type 'tensor<1x!emitc.array<1xf32>>' is not a supported EmitC type.
+"test.op"() {
+  tensor_with_emitc_array = !emitc.array<1xtensor<1x!emitc.array<1xf32>>>
+}: ()->()

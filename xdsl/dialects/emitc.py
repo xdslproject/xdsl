@@ -22,7 +22,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ShapedType,
     TensorType,
-    TupleType,
 )
 from xdsl.ir import (
     Attribute,
@@ -141,11 +140,6 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
             if isinstance(elem_type, EmitC_ArrayType):
                 return False
             return is_supported_emitc_type(elem_type)
-        case TupleType():
-            return all(
-                not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
-                for t in type_attr.types
-            )
         case _:
             return False
 
