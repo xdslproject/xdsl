@@ -355,7 +355,7 @@ def _(ConstraintContext, IntAttr, VerifyException, attr_constr_coercion):
             for e in attr.data:
                 self.elem_constr.verify(e, constraint_context)
 
-        def mapping_type_vars(self, type_var_mapping: dict[TypeVar, AttrConstraint]):
+        def mapping_type_vars(self, type_var_mapping: dict[TypeVar, AttrConstraint]) -> Self:
             # If self.elem_constr has any type variable constraints, map them according to the input dictionary
             elem_constr = self.elem_constr.mapping_type_vars(type_var_mapping)
             if elem_constr is self.elem_constr:
