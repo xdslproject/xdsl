@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Annotated, ClassVar, Generic, TypeVar
+from typing import Annotated, ClassVar, Generic
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import (

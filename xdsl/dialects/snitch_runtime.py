@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated, Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I32,

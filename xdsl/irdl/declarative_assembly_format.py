@@ -9,7 +9,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal, TypeVar
+from typing import Literal
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import UnitAttr
 from xdsl.ir import (

@@ -2,7 +2,9 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from math import prod
-from typing import TypeVar, cast
+from typing import cast
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, mpi

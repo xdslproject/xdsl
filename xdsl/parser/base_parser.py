@@ -4,7 +4,8 @@ that is inherited from the different parsers used in xDSL.
 """
 
 from dataclasses import dataclass
-from typing import TypeVar
+
+from typing_extensions import TypeVar
 
 from xdsl.utils.mlir_lexer import MLIRTokenKind, PunctuationSpelling, StringLiteral
 from xdsl.utils.str_enum import StrEnum

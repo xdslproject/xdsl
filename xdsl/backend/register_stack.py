@@ -2,7 +2,8 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TypeVar
+
+from typing_extensions import TypeVar
 
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import IntAttr
