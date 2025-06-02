@@ -139,8 +139,6 @@ def build_affine_for_const(
     )
 
 
-_Bounds: TypeAlias = tuple[int, ...]
-
 LoopIterationFn: TypeAlias = Callable[[Builder, _ValueRange, _ValueRange], SSAValue]
 """
 This defines the function type used to process an iteration of a lowered loop. It takes as

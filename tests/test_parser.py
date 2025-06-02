@@ -862,9 +862,7 @@ def test_parse_optional_int_error(text: str, allow_boolean: bool, allow_negative
         ("0.2", True, 0.2),
     ],
 )
-def test_parse_number(
-    text: str, allow_boolean: bool, expected_value: int | float | None
-):
+def test_parse_number(text: str, allow_boolean: bool, expected_value: float | None):
     parser = Parser(Context(), text)
     assert parser.parse_optional_number(allow_boolean=allow_boolean) == expected_value
 

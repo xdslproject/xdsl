@@ -1141,19 +1141,19 @@ class Operation(IRNode):
     _OperationType = TypeVar("_OperationType", bound="Operation")
 
     @classmethod
-    def parse(cls: type[_OperationType], parser: Parser) -> _OperationType:
+    def parse(cls, parser: Parser) -> Self:
         parser.raise_error(f"Operation {cls.name} does not have a custom format.")
 
     def print(self, printer: Printer):
         return printer.print_op_with_default_format(self)
 
     def clone_without_regions(
-        self: OpT,
+        self,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
-    ) -> OpT:
+    ) -> Self:
         """Clone an operation, with empty regions instead."""
         if value_mapper is None:
             value_mapper = {}
@@ -1188,12 +1188,12 @@ class Operation(IRNode):
         return cloned_op
 
     def clone(
-        self: OpT,
+        self,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
-    ) -> OpT:
+    ) -> Self:
         """Clone an operation with all its regions and operations in them."""
         if value_mapper is None:
             value_mapper = {}
@@ -1350,7 +1350,7 @@ class Operation(IRNode):
         printer.print_op(self)
         return res.getvalue()
 
-    def __format__(self, __format_spec: str) -> str:
+    def __format__(self, format_spec: str, /) -> str:
         desc = str(self)
         if "\n" in desc:
             # Description is multi-line, indent each line
