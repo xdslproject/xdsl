@@ -167,7 +167,6 @@ max-line-length = 130
 "__init__.py" = ["F403"]
 "tests/*" = ["E501", "INP"]
 "scripts/**" = ["INP"]
-"xdsl/utils/immutable_list.py" = ["PYI"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
