@@ -732,9 +732,6 @@ _IntegerAttrType = TypeVar(
     default=IntegerType | IndexType,
 )
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
-_IntegerAttrTypeConstrT = TypeVar(
-    "_IntegerAttrTypeConstrT", bound=IntegerType | IndexType, covariant=True
-)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
