@@ -359,6 +359,7 @@ def irdl_to_attr_constraint(
     irdl: IRDLAttrConstraint,
     *,
     allow_type_var: bool = False,
+    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint:
     if isinstance(irdl, GenericAttrConstraint):
         return cast(AttrConstraint, irdl)
