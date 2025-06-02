@@ -334,7 +334,7 @@ def _(ConstraintContext, IntAttr, VerifyException, attr_constr_coercion):
     from xdsl.ir import Attribute
     from xdsl.irdl import AttrConstraint
     from xdsl.utils.hints import isa
-    from typing import TypeVar
+    from typing_extensions import TypeVar
 
     @dataclass(frozen=True)
     class ArrayOfConstraint(AttrConstraint):
