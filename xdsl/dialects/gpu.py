@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from enum import auto
 
-from typing_extensions import TypeVar
-
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -143,9 +141,6 @@ class LoopDimMapAttr(ParametrizedAttribute):
         return [processor, map, bound]
 
 
-_Element = TypeVar("_Element", bound=Attribute, covariant=True)
-
-
 @irdl_op_definition
 class AllocOp(IRDLOperation):
     name = "gpu.alloc"
@@ -171,7 +166,7 @@ class AllocOp(IRDLOperation):
 
     def __init__(
         self,
-        return_type: memref.MemRefType[_Element],
+        return_type: memref.MemRefType,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         host_shared: bool = False,
         async_dependencies: Sequence[SSAValue | Operation] | None = None,

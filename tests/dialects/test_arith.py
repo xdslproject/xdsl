@@ -1,5 +1,4 @@
 import pytest
-from typing_extensions import TypeVar
 
 from xdsl.dialects.arith import (
     AddfOp,
@@ -69,8 +68,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
-
-_BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
 
 
 class Test_integer_arith_construction:

@@ -13,7 +13,6 @@ from typing_extensions import TypeVar
 
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, Token, TokenKindT
-from xdsl.utils.str_enum import StrEnum
 
 
 @dataclass(init=False)
@@ -39,7 +38,6 @@ class ParserState(Generic[TokenKindT]):
 
 
 _AnyInvT = TypeVar("_AnyInvT")
-_EnumType = TypeVar("_EnumType", bound=StrEnum)
 
 
 @dataclass

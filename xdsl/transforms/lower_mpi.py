@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from math import prod
 from typing import cast
 
-from typing_extensions import TypeVar
-
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, mpi
 from xdsl.dialects.builtin import (
@@ -108,9 +106,6 @@ class MpiLibraryInfo:
 
     # In place MPI All reduce
     MPI_IN_PLACE: int = -1
-
-
-_RewriteT = TypeVar("_RewriteT", bound=mpi.MPIBaseOp)
 
 
 @dataclass

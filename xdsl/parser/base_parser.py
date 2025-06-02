@@ -12,7 +12,6 @@ from xdsl.utils.str_enum import StrEnum
 
 from .generic_parser import GenericParser  # noqa: TID251
 
-_AnyInvT = TypeVar("_AnyInvT")
 _EnumType = TypeVar("_EnumType", bound=StrEnum)
 
 

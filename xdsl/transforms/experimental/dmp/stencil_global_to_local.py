@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from math import prod
 from typing import ClassVar, cast
 
-from typing_extensions import TypeVar
-
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
 from xdsl.dialects.builtin import ContainerType
@@ -21,8 +19,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import StencilToMemRefType
-
-_T = TypeVar("_T", bound=Attribute)
 
 _rank_dtype = builtin.i32
 

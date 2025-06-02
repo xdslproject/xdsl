@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
 )
 
 _T = TypeVar("_T")
-_TCov = TypeVar("_TCov", covariant=True)
 
 
 @dataclass
