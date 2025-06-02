@@ -2780,7 +2780,7 @@ wheels = [
 
 [[package]]
 name = "textual"
-version = "3.2.0"
+version = "3.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py", extra = ["linkify", "plugins"] },
@@ -2788,9 +2788,9 @@ dependencies = [
     { name = "rich" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/34/99/8408761a1a1076b2bb69d4859ec110d74be7515552407ac1cb6b68630eb6/textual-3.2.0.tar.gz", hash = "sha256:d2f3b0c39e02535bb5f2aec1c45e10bd3ee7508ed1e240b7505c3cf02a6f00ed", size = 1607281, upload-time = "2025-05-02T10:45:29.861Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6d/96/02751746cf6950e9e8968186cb42eed1e52d91e2c80cc52bb19589e25900/textual-3.3.0.tar.gz", hash = "sha256:aa162b92dde93c5231e3689cdf26b141e86a77ac0a5ba96069bc9547e44119ae", size = 1618996, upload-time = "2025-06-01T14:01:40.336Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/10/d0/5869999e03ec4ad3a80f36298eb018556faaae0d3309dc305ecd93450b06/textual-3.2.0-py3-none-any.whl", hash = "sha256:c857c6d8dfc9aa915e09df99d227cbe1da3a7ea500b45af9f6b3ecb810c00d77", size = 685595, upload-time = "2025-05-02T10:45:28.12Z" },
+    { url = "https://files.pythonhosted.org/packages/78/c2/c8be0b51bfce3278e057e1563a477bf128097bf5ce82ab21b0bbbcb30986/textual-3.3.0-py3-none-any.whl", hash = "sha256:463809791fd2c979c91ff0b54e25f2e57874828815e51a6503f32cb2e21e4eb0", size = 687997, upload-time = "2025-06-01T14:01:37.654Z" },
 ]
 
 [[package]]
@@ -3218,7 +3218,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.11.12" },
     { name = "snakeviz", marker = "extra == 'bench'", specifier = ">=2.2.2" },
     { name = "sympy", marker = "extra == 'dev'", specifier = "==1.14.0" },
-    { name = "textual", marker = "extra == 'gui'", specifier = "==3.2.0" },
+    { name = "textual", marker = "extra == 'gui'", specifier = "==3.3.0" },
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.7.0" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<5" },
