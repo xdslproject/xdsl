@@ -232,12 +232,9 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> GenericAttrConstraint[ArrayAttr[AttributeCovT]]:
-        elem_range_constraint = self.elem_range_constraint.mapping_type_vars(
-            type_var_mapping
+        return ArrayOfConstraint(
+            self.elem_range_constraint.mapping_type_vars(type_var_mapping)
         )
-        if elem_range_constraint is self.elem_range_constraint:
-            return self
-        return ArrayOfConstraint(elem_range_constraint)
 
 
 @irdl_attr_definition
@@ -1352,11 +1349,7 @@ class ContainerOf(
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> Self:
-        mapped_constraint = self.elem_constr.mapping_type_vars(type_var_mapping)
-        if mapped_constraint is self.elem_constr:
-            return self
-        else:
-            return type(self)(mapped_constraint)
+        return type(self)(self.elem_constr.mapping_type_vars(type_var_mapping))
 
 
 VectorOrTensorOf: TypeAlias = (

@@ -216,15 +216,10 @@ class TypedAttributeConstraint(GenericAttrConstraint[TypedAttributeCovT]):
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> TypedAttributeConstraint[TypedAttributeCovT]:
-        attr_constraint = self.attr_constraint.mapping_type_vars(type_var_mapping)
-        type_constraint = self.type_constraint.mapping_type_vars(type_var_mapping)
-        if (
-            attr_constraint is self.attr_constraint
-            and type_constraint is self.type_constraint
-        ):
-            return self
-
-        return TypedAttributeConstraint(attr_constraint, type_constraint)
+        return TypedAttributeConstraint(
+            self.attr_constraint.mapping_type_vars(type_var_mapping),
+            self.type_constraint.mapping_type_vars(type_var_mapping),
+        )
 
 
 @dataclass(frozen=True)
@@ -272,11 +267,9 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> VarConstraint[AttributeCovT]:
-        mapped_constraint = self.constraint.mapping_type_vars(type_var_mapping)
-        if mapped_constraint is self.constraint:
-            return self
-        else:
-            return VarConstraint(self.name, mapped_constraint)
+        return VarConstraint(
+            self.name, self.constraint.mapping_type_vars(type_var_mapping)
+        )
 
 
 @dataclass(frozen=True)
@@ -488,10 +481,9 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> AnyOf[AttributeCovT]:
-        mapped_constraints = tuple(
-            c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs
+        return AnyOf(
+            tuple(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
         )
-        return AnyOf(mapped_constraints)
 
 
 @dataclass(frozen=True)
@@ -558,10 +550,9 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> AllOf[AttributeCovT]:
-        mapped_constraints = tuple(
-            c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs
+        return AllOf(
+            tuple(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
         )
-        return AllOf(mapped_constraints)
 
 
 ParametrizedAttributeT = TypeVar("ParametrizedAttributeT", bound=ParametrizedAttribute)
@@ -644,10 +635,10 @@ class ParamAttrConstraint(
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> ParamAttrConstraint[ParametrizedAttributeCovT]:
-        mapped_constraints = tuple(
-            c.mapping_type_vars(type_var_mapping) for c in self.param_constrs
+        return ParamAttrConstraint(
+            self.base_attr,
+            tuple(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
         )
-        return ParamAttrConstraint(self.base_attr, mapped_constraints)
 
 
 @dataclass(frozen=True, init=False)
@@ -698,11 +689,9 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> MessageConstraint[AttributeCovT]:
-        mapped_constraint = self.constr.mapping_type_vars(type_var_mapping)
-        if mapped_constraint is self.constr:
-            return self
-        else:
-            return MessageConstraint(mapped_constraint, self.message)
+        return MessageConstraint(
+            self.constr.mapping_type_vars(type_var_mapping), self.message
+        )
 
 
 @dataclass(frozen=True)
@@ -931,11 +920,10 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> GenericRangeConstraint[AttributeCovT]:
-        constraint = self.constraint.mapping_type_vars(type_var_mapping)
-        if constraint is self.constraint:
-            return self
-        return RangeVarConstraint(self.name, constraint)
+    ) -> RangeVarConstraint[AttributeCovT]:
+        return RangeVarConstraint(
+            self.name, self.constraint.mapping_type_vars(type_var_mapping)
+        )
 
 
 @dataclass(frozen=True)
@@ -986,11 +974,10 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> GenericRangeConstraint[AttributeCovT]:
-        constr = self.constr.mapping_type_vars(type_var_mapping)
-        if constr is self.constr:
-            return self
-        return RangeOf(constr, length=self.length)
+    ) -> RangeOf[AttributeCovT]:
+        return RangeOf(
+            self.constr.mapping_type_vars(type_var_mapping), length=self.length
+        )
 
 
 @dataclass(frozen=True)
@@ -1029,11 +1016,8 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> GenericRangeConstraint[AttributeCovT]:
-        constr = self.constr.mapping_type_vars(type_var_mapping)
-        if constr is self.constr:
-            return self
-        return SingleOf(constr)
+    ) -> SingleOf[AttributeCovT]:
+        return SingleOf(self.constr.mapping_type_vars(type_var_mapping))
 
 
 def range_constr_coercion(

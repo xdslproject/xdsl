@@ -88,11 +88,7 @@ class TensorFromMemRefConstraint(
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> Self:
-        memref_constraint = self.memref_constraint.mapping_type_vars(type_var_mapping)
-        if memref_constraint is self.memref_constraint:
-            return self
-        else:
-            return type(self)(memref_constraint)
+        return type(self)(self.memref_constraint.mapping_type_vars(type_var_mapping))
 
 
 @irdl_op_definition

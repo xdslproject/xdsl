@@ -470,10 +470,9 @@ class ValueConstrFromResultConstr(
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> GenericAttrConstraint[ValueType | RangeType[ValueType]]:
-        result_constr = self.result_constr.mapping_type_vars(type_var_mapping)
-        if result_constr is self.result_constr:
-            return self
-        return ValueConstrFromResultConstr(result_constr)
+        return ValueConstrFromResultConstr(
+            self.result_constr.mapping_type_vars(type_var_mapping)
+        )
 
 
 @irdl_op_definition

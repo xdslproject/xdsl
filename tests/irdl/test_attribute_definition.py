@@ -665,11 +665,7 @@ class DataListAttr(AttrConstraint):
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> DataListAttr:
-        mapped_constraint = self.elem_constr.mapping_type_vars(type_var_mapping)
-        if mapped_constraint is self.elem_constr:
-            return self
-        else:
-            return DataListAttr(mapped_constraint)
+        return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
 
 
 @irdl_attr_definition
