@@ -44,11 +44,15 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    var_region_def,
     result_def,
+    var_result_def,
     var_operand_def,
+    traits_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator
 
 
 @irdl_attr_definition
@@ -62,7 +66,7 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
 
     name = "hlfir.expr"
     shape: ParameterDef[ArrayAttr[IntegerAttr | DeferredAttr | NoneType]]
-    elementType: ParameterDef[IntegerType | AnyFloat | ReferenceType]
+    elementType: ParameterDef[Attribute]
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
@@ -494,7 +498,7 @@ class AssociateOp(IRDLOperation):
     typeparams = var_operand_def()
     uniq_name = opt_prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
-    result = result_def()
+    result = var_result_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -588,6 +592,7 @@ class ElementalOp(IRDLOperation):
     mold = opt_operand_def()
     typeparams = var_operand_def()
     unordered = opt_prop_def(UnitAttr)
+    regs = var_region_def()
     result = result_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -603,6 +608,8 @@ class YieldElementOp(IRDLOperation):
 
     name = "hlfir.yield_element"
     element_value = operand_def()
+
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -696,7 +703,7 @@ class CopyInOp(IRDLOperation):
     name = "hlfir.copy_in"
     var = operand_def()
     var_is_present = opt_operand_def()
-    result = result_def()
+    result = var_result_def()
 
 
 @irdl_op_definition
@@ -806,6 +813,8 @@ class RegionYieldOp(IRDLOperation):
     name = "hlfir.yield"
     entity = operand_def()
     cleanup = region_def()
+
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
