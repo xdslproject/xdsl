@@ -42,11 +42,11 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
-    var_region_def,
     result_def,
-    var_result_def,
-    var_operand_def,
     traits_def,
+    var_operand_def,
+    var_region_def,
+    var_result_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
