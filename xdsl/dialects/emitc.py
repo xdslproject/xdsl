@@ -8,7 +8,6 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
 from collections.abc import Iterable
-from typing import cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -21,7 +20,6 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     ShapedType,
-    TensorType,
 )
 from xdsl.ir import (
     Attribute,
@@ -75,7 +73,7 @@ class EmitC_ArrayType(
             )
 
         # Check that the element type is a supported EmitC type.
-        if not is_supported_emitc_type(element_type):
+        if not self._is_valid_element_type(element_type):
             raise VerifyException(
                 f"EmitC array element type '{element_type}' is not a supported EmitC type."
             )
@@ -103,6 +101,15 @@ class EmitC_ArrayType(
             printer.print_string("x")
             printer.print_attribute(self.element_type)
 
+    def _is_valid_element_type(self, element_type: Attribute) -> bool:
+        """
+        Check if the element type is valid for EmitC_ArrayType.
+        See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/Dialect/EmitC/IR/EmitCTypes.td#L77).
+        """
+        return is_integer_index_or_opaque_type(element_type) or is_supported_float_type(
+            element_type
+        )
+
 
 _SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
 
@@ -112,36 +119,35 @@ def _is_supported_integer_type(type_attr: Attribute) -> bool:
     Check if an IntegerType is supported by EmitC.
     See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
     """
-    assert isinstance(type_attr, IntegerType), (
-        f"Expected IntegerType but got {type_attr.name}"
+    return (
+        isinstance(type_attr, IntegerType)
+        and type_attr.width.data in _SUPPORTED_BITWIDTHS
     )
-    return type_attr.width.data in _SUPPORTED_BITWIDTHS
 
 
-def is_supported_emitc_type(type_attr: Attribute) -> bool:
+def is_supported_float_type(type_attr: Attribute) -> bool:
     """
-    Check if a type is supported by EmitC.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
+    Check if a type is a supported floating-point type in EmitC.
+    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
     """
     match type_attr:
-        case IntegerType():
-            return _is_supported_integer_type(type_attr)
-        case IndexType():
-            return True
-        case EmitC_ArrayType():
-            elem_type = cast(Attribute, type_attr.get_element_type())
-            return not isa(elem_type, EmitC_ArrayType) and is_supported_emitc_type(
-                elem_type
-            )
         case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
             return True
-        case TensorType():
-            elem_type = cast(Attribute, type_attr.get_element_type())
-            if isinstance(elem_type, EmitC_ArrayType):
-                return False
-            return is_supported_emitc_type(elem_type)
         case _:
             return False
+
+
+def is_integer_index_or_opaque_type(
+    type_attr: Attribute,
+) -> bool:
+    """
+    Check if a type is an integer, index, or opaque type.
+
+    The emitC opaque type is not implemented yet so this function currently checks
+    only for integer and index types.
+    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
+    """
+    return _is_supported_integer_type(type_attr) or isa(type_attr, IndexType)
 
 
 EmitC = Dialect(
