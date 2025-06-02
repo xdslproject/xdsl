@@ -167,8 +167,8 @@ max-line-length = 130
 "scripts/**" = ["INP"]
 "tests/*" = ["E501", "INP"]
 "tests/test_declarative_assembly_format.py" = ["F811"]
-"tests/test_frontend_type_conversion.py" = ["PYI042"]
-"xdsl/frontend/pyast/dialects/builtin.py" = ["PYI042"]
+"tests/test_frontend_type_conversion.py" = ["PYI042"]  # typealias i32 error
+"xdsl/frontend/pyast/dialects/builtin.py" = ["PYI042"] # typealias i32 error
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
