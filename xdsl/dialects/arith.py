@@ -4,8 +4,6 @@ import abc
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, Literal, cast
 
-from typing_extensions import TypeVar
-
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
@@ -63,7 +61,6 @@ boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
-_FloatTypeT = TypeVar("_FloatTypeT", bound=AnyFloat)
 
 CMPI_COMPARISON_OPERATIONS = [
     "eq",
@@ -174,9 +171,6 @@ class ConstantOp(IRDLOperation):
                 "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
             },
         )
-
-
-_T = TypeVar("_T", bound=Attribute)
 
 
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
