@@ -9,11 +9,10 @@ from typing import (
     Generic,
     TypeAlias,
     TypeGuard,
-    TypeVar,
     cast,
 )
 
-from typing_extensions import assert_never
+from typing_extensions import TypeVar, assert_never
 
 from xdsl.ir import (
     Attribute,

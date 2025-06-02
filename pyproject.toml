@@ -150,6 +150,7 @@ max-line-length = 130
 "xdsl.parser.base_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.core".msg = "Use xdsl.parser instead."
 "xdsl.parser.generic_parser".msg = "Use xdsl.parser instead."
+"typing.TypeVar".msg = "Use typing_extensions.TypeVar instead."
 
 
 [tool.ruff.lint.per-file-ignores]

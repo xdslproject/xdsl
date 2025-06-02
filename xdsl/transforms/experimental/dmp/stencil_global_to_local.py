@@ -2,7 +2,9 @@ from abc import ABC
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from math import prod
-from typing import ClassVar, TypeVar, cast
+from typing import ClassVar, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil

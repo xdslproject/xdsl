@@ -1,6 +1,5 @@
-from typing import TypeVar
-
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.dialects.arith import (
     AddfOp,

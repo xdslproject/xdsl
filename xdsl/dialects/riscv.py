@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
 from itertools import chain
-from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
+from typing import IO, Annotated, Generic, Literal, TypeAlias
 
-from typing_extensions import Self, assert_never
+from typing_extensions import Self, TypeVar, assert_never
 
 from xdsl.backend.assembly_printer import (
     AssemblyPrintable,

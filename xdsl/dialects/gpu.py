@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from enum import auto
-from typing import TypeVar
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (

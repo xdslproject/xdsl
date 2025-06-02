@@ -16,7 +16,6 @@ from typing import (
     Any,
     Generic,
     TypeAlias,
-    TypeVar,
     Union,
     cast,
     get_args,
@@ -24,6 +23,8 @@ from typing import (
     get_type_hints,
     overload,
 )
+
+from typing_extensions import TypeVar
 
 if TYPE_CHECKING:
     from typing_extensions import TypeForm

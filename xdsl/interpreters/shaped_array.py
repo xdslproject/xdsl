@@ -5,9 +5,9 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from itertools import accumulate, product
 from math import prod
-from typing import Generic, TypeVar
+from typing import Generic
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.dialects.builtin import PackableType, ShapedType
 from xdsl.interpreters.utils.ptr import TypedPtr

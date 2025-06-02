@@ -6,7 +6,9 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Any, TypeVar, cast
+from typing import Any, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,

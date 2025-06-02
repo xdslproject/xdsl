@@ -7,11 +7,12 @@ from typing import (
     Any,
     ClassVar,
     NamedTuple,
-    TypeVar,
     Union,
     get_args,
     get_origin,
 )
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin
