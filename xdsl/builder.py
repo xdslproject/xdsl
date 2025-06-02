@@ -314,9 +314,10 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
 
     def __exit__(
         self,
-        __exc_type: type[BaseException] | None,
-        __exc_value: BaseException | None,
-        __traceback: TracebackType | None,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+        /,
     ) -> bool | None:
         type(self)._stack.pop(self._builder)
         if not type(self)._stack.stack:

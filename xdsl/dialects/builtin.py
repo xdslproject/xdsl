@@ -3,7 +3,8 @@ from __future__ import annotations
 import math
 import struct
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, Sequence, Set
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -215,7 +216,7 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
             )
         self.elem_range_constraint.verify(attr.data, constraint_context)
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.elem_range_constraint.can_infer(
             var_constraint_names, length_known=False
         )
@@ -353,7 +354,7 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
     def variables(self) -> set[str]:
         return self.int_constraint.variables()
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)
 
     def infer(self, context: ConstraintContext) -> IntAttr:
@@ -952,7 +953,7 @@ class FloatData(Data[float]):
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
 
-    def __eq__(self, other: Any):
+    def __eq__(self, other: object):
         # avoid triggering `float('nan') != float('nan')` inequality
         return isinstance(other, FloatData) and (
             math.isnan(self.data) and math.isnan(other.data) or self.data == other.data
@@ -2534,7 +2535,7 @@ class DenseIntOrFPElementsAttr(
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
     def _print_one_elem(
-        self, val: int | float | tuple[int, int] | tuple[float, float], printer: Printer
+        self, val: float | tuple[int, int] | tuple[float, float], printer: Printer
     ):
         if isinstance(val, int):
             element_type = cast(IntegerType | IndexType, self.get_element_type())

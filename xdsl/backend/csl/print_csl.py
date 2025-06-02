@@ -271,9 +271,7 @@ class CslPrintContext:
         name_rhs = self._get_variable_name_for(rhs)
         self.print(f"{self._var_use(res)} = {name_lhs} {op} {name_rhs};")
 
-    def _var_use(
-        self, val: SSAValue, intro: Literal["const"] | Literal["var"] = "const"
-    ):
+    def _var_use(self, val: SSAValue, intro: Literal["const", "var"] = "const"):
         """
         Automates delcaration and use of variables.
 

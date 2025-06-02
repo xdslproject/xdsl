@@ -6,7 +6,7 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 import re
-from collections.abc import Set
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
@@ -227,7 +227,7 @@ class FormatParser(BaseParser):
 
         return vars
 
-    def verify_operands(self, var_constraint_names: Set[str]):
+    def verify_operands(self, var_constraint_names: AbstractSet[str]):
         """
         Check that all operands and operand types are refered at least once, or inferred
         from another construct.
@@ -258,7 +258,7 @@ class FormatParser(BaseParser):
                         "custom assembly format"
                     )
 
-    def verify_results(self, var_constraint_names: Set[str]):
+    def verify_results(self, var_constraint_names: AbstractSet[str]):
         """Check that all result types are refered at least once, or inferred
         from another construct."""
 
