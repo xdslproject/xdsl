@@ -776,12 +776,11 @@ class Interpreter:
         if not region.blocks:
             return results
 
-        scope_count = 0
+        initial_scope = self._ctx
         block = region.blocks.first
 
         while block is not None:
             self.push_scope(name)
-            scope_count += 1
             self.set_values(zip(block.args, args))
 
             op: Operation | None = block.first_op
@@ -810,9 +809,7 @@ class Interpreter:
                 # Set up next iteration
                 op = op.next_op
 
-        # Pop as many scopes as we entered blocks
-        for _ in range(scope_count):
-            self.pop_scope()
+        self._ctx = initial_scope
         return results
 
     def cast_value(self, o: Attribute, r: Attribute, value: Any) -> Any:

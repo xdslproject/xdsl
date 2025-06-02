@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     IntAttr,
+    IntegerType,
     ShapedType,
 )
 from xdsl.ir import (
@@ -22,6 +23,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    Attribute,
     ParameterDef,
     irdl_attr_definition,
 )
@@ -61,6 +63,14 @@ class EmitC_ArrayType(
                     "EmitC array dimensions must have non-negative size"
                 )
 
+        element_type = self.get_element_type()
+
+        # Check that the element type is a supported EmitC type.
+        if not is_supported_emitc_type(element_type):
+            raise VerifyException(
+                f"EmitC array element type '{element_type}' is not a supported EmitC type."
+            )
+
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
@@ -83,6 +93,32 @@ class EmitC_ArrayType(
             )
             printer.print_string("x")
             printer.print_attribute(self.element_type)
+
+
+_SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
+
+
+def _is_supported_integer_type(type_attr: Attribute) -> bool:
+    """
+    Check if an IntegerType is supported by EmitC.
+    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
+    """
+    assert isinstance(type_attr, IntegerType), (
+        f"Expected IntegerType but got {type_attr.name}"
+    )
+    return type_attr.width.data in _SUPPORTED_BITWIDTHS
+
+
+def is_supported_emitc_type(type_attr: Attribute) -> bool:
+    """
+    Check if a type is supported by EmitC.
+    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
+    """
+    match type_attr:
+        case IntegerType():
+            return _is_supported_integer_type(type_attr)
+        case _:
+            return True
 
 
 EmitC = Dialect(

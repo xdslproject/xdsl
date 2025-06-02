@@ -6,7 +6,7 @@ from typing import ClassVar, TypeAlias
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import ArrayAttr, BoolAttr, StringAttr
+from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, StringAttr
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -28,6 +28,7 @@ from xdsl.irdl import (
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     operand_def,
     opt_prop_def,
     prop_def,
@@ -50,7 +51,43 @@ class BoolType(ParametrizedAttribute, TypeAttribute):
     name = "smt.bool"
 
 
-NonFuncSMTType: TypeAlias = BoolType
+@irdl_attr_definition
+class BitVectorType(ParametrizedAttribute, TypeAttribute):
+    """
+    This type represents the (_ BitVec width) sort as described in the SMT bit-vector theory.
+    The bit-width must be strictly greater than zero.
+    """
+
+    name = "smt.bv"
+
+    width: ParameterDef[IntAttr]
+
+    def __init__(self, width: int | IntAttr):
+        if isinstance(width, int):
+            width = IntAttr(width)
+        super().__init__([width])
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            width = parser.parse_integer(allow_boolean=False, allow_negative=False)
+
+        return (IntAttr(width),)
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string(f"<{self.width.data}>")
+
+    def verify(self) -> None:
+        super().verify()
+        if self.width.data <= 0:
+            raise VerifyException(
+                "BitVectorType width must be strictly greater "
+                f"than zero, got {self.width.data}"
+            )
+
+
+NonFuncSMTType: TypeAlias = BoolType | BitVectorType
+NonFuncSMTTypeConstr = irdl_to_attr_constraint(NonFuncSMTType)
 
 
 @irdl_attr_definition
@@ -96,6 +133,7 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
 
 SMTType: TypeAlias = NonFuncSMTType | FuncType
+SMTTypeConstr = irdl_to_attr_constraint(SMTType)
 
 
 @irdl_op_definition
@@ -138,8 +176,8 @@ class ApplyFuncOp(IRDLOperation):
 
     name = "smt.apply_func"
 
-    DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(base(NonFuncSMTType)))
-    RANGE: ClassVar = VarConstraint("RANGE", base(NonFuncSMTType))
+    DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(NonFuncSMTTypeConstr))
+    RANGE: ClassVar = VarConstraint("RANGE", NonFuncSMTTypeConstr)
 
     func = operand_def(FuncType.constr(DOMAIN, RANGE))
     args = var_operand_def(DOMAIN)
@@ -316,7 +354,7 @@ class VariadicPredicateOp(IRDLOperation, ABC):
     A predicate with a variadic number (but at least 2) operands.
     """
 
-    T: ClassVar = VarConstraint("T", base(NonFuncSMTType))
+    T: ClassVar = VarConstraint("T", NonFuncSMTTypeConstr)
 
     inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
     result = result_def(BoolType())
@@ -387,7 +425,7 @@ class IteOp(IRDLOperation):
 
     name = "smt.ite"
 
-    T: ClassVar = VarConstraint("T", base(NonFuncSMTType))
+    T: ClassVar = VarConstraint("T", NonFuncSMTTypeConstr)
 
     cond = operand_def(BoolType)
     then_value = operand_def(T)
@@ -510,6 +548,7 @@ SMT = Dialect(
     ],
     [
         BoolType,
+        BitVectorType,
         FuncType,
     ],
 )
