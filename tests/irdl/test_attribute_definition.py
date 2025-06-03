@@ -8,9 +8,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
+from typing import Annotated, Any, Generic, TypeAlias, cast
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     IndexType,
@@ -586,7 +587,7 @@ def test_informative_constraint():
     ):
         constr.verify(IntAttr(1), ConstraintContext())
     assert constr.can_infer(set())
-    assert constr.get_unique_base() == NoneAttr
+    assert constr.get_bases() == {NoneAttr}
 
 
 ################################################################################

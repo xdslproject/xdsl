@@ -8,12 +8,13 @@ from typing import (
     Generic,
     Literal,
     TypeGuard,
-    TypeVar,
     Union,
     cast,
     get_args,
     get_origin,
 )
+
+from typing_extensions import TypeVar
 
 from xdsl.ir import ParametrizedAttribute, SSAValue
 from xdsl.utils.exceptions import VerifyException
@@ -93,9 +94,7 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
 
     if (origin is not None) and issubclass(origin, GenericData | ParametrizedAttribute):
-        constraint = irdl_to_attr_constraint(
-            hint  # pyright: ignore[reportArgumentType]
-        )
+        constraint = irdl_to_attr_constraint(hint)
         try:
             constraint.verify(arg, ConstraintContext())
             return True

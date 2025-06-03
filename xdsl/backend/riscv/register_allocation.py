@@ -2,13 +2,14 @@ import json
 from collections import defaultdict
 from collections.abc import Iterable
 
+from xdsl.backend.block_naive_allocator import BlockNaiveAllocator
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
-from xdsl.backend.register_allocator import BlockAllocator, live_ins_per_block
-from xdsl.backend.register_queue import RegisterQueue
+from xdsl.backend.register_allocator import live_ins_per_block
+from xdsl.backend.register_stack import RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.riscv import Registers, RISCVRegisterType
-from xdsl.ir import Block, SSAValue
+from xdsl.ir import SSAValue
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 
@@ -23,35 +24,8 @@ def reg_types_by_name(regs: Iterable[RISCVRegisterType]) -> dict[str, set[str]]:
     return res
 
 
-class RegisterAllocatorLivenessBlockNaive(BlockAllocator):
-    """
-    It traverses the use-def SSA chain backwards (i.e., from uses to defs) and:
-      1. allocates registers for operands
-      2. frees registers for results (since that will be the last time they appear when
-      going backwards)
-    It currently operates on blocks.
-
-    This is a simplified version of the standard bottom-up local register allocation
-    algorithm.
-
-    A relevant reference in "Engineering a Compiler, Edition 3" ISBN: 9780128154120.
-
-    ```
-    for op in block.walk_reverse():
-    for operand in op.operands:
-        if operand is not allocated:
-            allocate(operand)
-
-    for result in op.results:
-    if result is not allocated:
-        allocate(result)
-        free_before_next_instruction.append(result)
-    else:
-        free(result)
-    ```
-    """
-
-    def __init__(self, available_registers: RegisterQueue) -> None:
+class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
+    def __init__(self, available_registers: RegisterStack) -> None:
         super().__init__(available_registers, RISCVRegisterType)
 
     def new_type_for_value(self, reg: SSAValue) -> RegisterType | None:
@@ -63,11 +37,6 @@ class RegisterAllocatorLivenessBlockNaive(BlockAllocator):
         ):
             return Registers.ZERO
         return super().new_type_for_value(reg)
-
-    def allocate_block(self, block: Block):
-        for op in reversed(block.ops):
-            if isinstance(op, RegisterAllocatableOperation):
-                op.allocate_registers(self)
 
     def allocate_func(
         self, func: riscv_func.FuncOp, *, add_regalloc_stats: bool = False

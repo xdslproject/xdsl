@@ -807,4 +807,4 @@ def test_array_constr():
     ctx.set_range_variable("T", (i32, i32))
     assert constr.infer(ctx) == ArrayAttr([i32, i32])
 
-    assert constr.get_unique_base() == ArrayAttr
+    assert constr.get_bases() == {ArrayAttr}

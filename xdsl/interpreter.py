@@ -12,8 +12,9 @@ from typing import (
     NamedTuple,
     ParamSpec,
     TypeAlias,
-    TypeVar,
 )
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
 from xdsl.ir import (
@@ -782,7 +783,7 @@ class Interpreter:
         if not region.blocks:
             return results
 
-        initial_scope_id = id(self._ctx)
+        initial_scope = self._ctx
         block = region.blocks.first
 
         while block is not None:
@@ -815,9 +816,7 @@ class Interpreter:
                 # Set up next iteration
                 op = op.next_op
 
-        # Pop as many scopes as we entered blocks
-        while id(self._ctx) != initial_scope_id:
-            self.pop_scope()
+        self._ctx = initial_scope
         return results
 
     def cast_value(self, o: Attribute, r: Attribute, value: Any) -> Any:

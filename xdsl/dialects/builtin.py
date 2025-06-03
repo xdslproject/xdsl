@@ -3,7 +3,8 @@ from __future__ import annotations
 import math
 import struct
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, Sequence, Set
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -49,7 +50,6 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
-    ConstraintVariableType,
     GenericAttrConstraint,
     GenericData,
     GenericRangeConstraint,
@@ -61,7 +61,6 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     RangeOf,
-    VarExtractor,
     attr_constr_coercion,
     base,
     irdl_attr_definition,
@@ -88,7 +87,7 @@ from xdsl.utils.comparisons import (
     unsigned_upper_bound,
     unsigned_value_range,
 )
-from xdsl.utils.exceptions import DiagnosticException, PyRDLError, VerifyException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
@@ -217,7 +216,7 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
             )
         self.elem_range_constraint.verify(attr.data, constraint_context)
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.elem_range_constraint.can_infer(
             var_constraint_names, length_known=False
         )
@@ -225,23 +224,11 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     def infer(self, context: ConstraintContext) -> ArrayAttr[AttributeCovT]:
         return ArrayAttr(self.elem_range_constraint.infer(context, length=None))
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return ArrayAttr
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {ArrayAttr}
 
-    @dataclass(frozen=True)
-    class _Extractor(VarExtractor[Attribute]):
-        inner: VarExtractor[Sequence[Attribute]]
-
-        def extract_var(self, a: Attribute) -> ConstraintVariableType:
-            assert isinstance(a, ArrayAttr)
-            a = cast(ArrayAttr[Attribute], a)
-            return self.inner.extract_var(a.data)
-
-    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
-        return {
-            k: self._Extractor(v)
-            for k, v in self.elem_range_constraint.get_variable_extractors().items()
-        }
+    def variables(self) -> set[str]:
+        return self.elem_range_constraint.variables()
 
 
 @irdl_attr_definition
@@ -312,9 +299,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
     Constrain attribute to be empty ArrayData
     """
 
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         attr = cast(ArrayAttr[Attribute], attr)
@@ -366,29 +351,17 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
             raise VerifyException(f"attribute {attr} expected to be an IntAttr")
         self.int_constraint.verify(attr.data, constraint_context)
 
-    @dataclass(frozen=True)
-    class _Extractor(VarExtractor[Attribute]):
-        inner: VarExtractor[int]
+    def variables(self) -> set[str]:
+        return self.int_constraint.variables()
 
-        def extract_var(self, a: Attribute) -> ConstraintVariableType:
-            if not isinstance(a, IntAttr):
-                raise PyRDLError(f"Inference expected {a} to be an IntAttr")
-            return self.inner.extract_var(a.data)
-
-    def get_variable_extractors(self) -> dict[str, VarExtractor[Attribute]]:
-        return {
-            k: self._Extractor(v)
-            for k, v in self.int_constraint.get_length_extractors().items()
-        }
-
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)
 
     def infer(self, context: ConstraintContext) -> IntAttr:
         return IntAttr(self.int_constraint.infer(context))
 
-    def get_unique_base(self) -> type[Attribute] | None:
-        return IntAttr
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {IntAttr}
 
 
 class Signedness(Enum):
@@ -740,9 +713,6 @@ _IntegerAttrType = TypeVar(
     default=IntegerType | IndexType,
 )
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
-_IntegerAttrTypeConstrT = TypeVar(
-    "_IntegerAttrTypeConstrT", bound=IntegerType | IndexType, covariant=True
-)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
@@ -983,7 +953,7 @@ class FloatData(Data[float]):
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
 
-    def __eq__(self, other: Any):
+    def __eq__(self, other: object):
         # avoid triggering `float('nan') != float('nan')` inequality
         return isinstance(other, FloatData) and (
             math.isnan(self.data) and math.isnan(other.data) or self.data == other.data
@@ -1377,9 +1347,7 @@ class VectorRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.get_num_dims() != self.expected_rank:
@@ -1397,9 +1365,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
     expected_type: Attribute
     """The expected vector base type."""
 
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         attr = cast(VectorType[Attribute], attr)
@@ -2569,7 +2535,7 @@ class DenseIntOrFPElementsAttr(
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
     def _print_one_elem(
-        self, val: int | float | tuple[int, int] | tuple[float, float], printer: Printer
+        self, val: float | tuple[int, int] | tuple[float, float], printer: Printer
     ):
         if isinstance(val, int):
             element_type = cast(IntegerType | IndexType, self.get_element_type())

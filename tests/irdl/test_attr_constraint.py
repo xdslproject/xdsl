@@ -62,28 +62,39 @@ class AttrB(Base):
     param: ParameterDef[AttrA]
 
 
+@irdl_attr_definition
+class AttrC(Base):
+    name = "test.attr_c"
+
+
 @pytest.mark.parametrize(
     "constraint, expected",
     [
         (AnyAttr(), None),
-        (EqAttrConstraint(AttrB([AttrA()])), AttrB),
+        (EqAttrConstraint(AttrB([AttrA()])), {AttrB}),
         (BaseAttr(Base), None),
-        (BaseAttr(AttrA), AttrA),
+        (BaseAttr(AttrA), {AttrA}),
         (EqAttrConstraint(AttrB([AttrA()])) | AnyAttr(), None),
-        (EqAttrConstraint(AttrB([AttrA()])) | BaseAttr(AttrA), None),
-        (EqAttrConstraint(AttrB([AttrA()])) | BaseAttr(AttrB), AttrB),
+        (EqAttrConstraint(AttrB([AttrA()])) | BaseAttr(AttrA), {AttrA, AttrB}),
+        (EqAttrConstraint(AttrB([AttrA()])) | BaseAttr(AttrB), {AttrB}),
         (AllOf((AnyAttr(), BaseAttr(Base))), None),
-        (AllOf((AnyAttr(), BaseAttr(AttrA))), AttrA),
-        (ParamAttrConstraint(AttrA, [BaseAttr(AttrB)]), AttrA),
+        (AllOf((AnyAttr(), BaseAttr(AttrA))), {AttrA}),
+        (ParamAttrConstraint(AttrA, [BaseAttr(AttrB)]), {AttrA}),
         (ParamAttrConstraint(Base, [BaseAttr(AttrA)]), None),
         (VarConstraint("T", BaseAttr(Base)), None),
-        (VarConstraint("T", BaseAttr(AttrA)), AttrA),
+        (VarConstraint("T", BaseAttr(AttrA)), {AttrA}),
+        (
+            AllOf(
+                (BaseAttr(AttrA) | BaseAttr(AttrB), BaseAttr(AttrB) | BaseAttr(AttrC))
+            ),
+            {AttrB},
+        ),
     ],
 )
-def test_attr_constraint_get_unique_base(
-    constraint: AttrConstraint, expected: type[Attribute] | None
+def test_attr_constraint_get_bases(
+    constraint: AttrConstraint, expected: set[type[Attribute]] | None
 ):
-    assert constraint.get_unique_base() == expected
+    assert constraint.get_bases() == expected
 
 
 def test_param_attr_constraint_inference():

@@ -174,8 +174,6 @@ class AnnotationOp(StimPrintable, IRDLOperation, ABC):
     so this will be used during transforms to ignore these operations.
     """
 
-    ...
-
 
 @irdl_op_definition
 class QubitCoordsOp(AnnotationOp):

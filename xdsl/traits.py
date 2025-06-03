@@ -4,7 +4,9 @@ import abc
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, TypeVar, final
+from typing import TYPE_CHECKING, final
+
+from typing_extensions import TypeVar
 
 from xdsl.utils.exceptions import VerifyException
 

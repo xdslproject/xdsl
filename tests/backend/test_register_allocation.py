@@ -9,7 +9,7 @@ from xdsl.backend.register_allocatable import (
     RegisterConstraints,
 )
 from xdsl.backend.register_allocator import ValueAllocator
-from xdsl.backend.register_queue import LIFORegisterQueue
+from xdsl.backend.register_stack import RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.builder import Builder
 from xdsl.ir import Attribute, SSAValue
@@ -152,10 +152,10 @@ def test_new_type_for_value():
     a0 = TestRegister.from_name("a0")
     a1 = TestRegister.from_name("a1")
 
-    queue = LIFORegisterQueue()
-    queue.push(a0)
-    queue.push(a1)
-    allocator = ValueAllocator(queue, TestRegister)
+    available_registers = RegisterStack()
+    available_registers.push(a0)
+    available_registers.push(a1)
+    allocator = ValueAllocator(available_registers, TestRegister)
 
     r0, r1, r2, r3 = op(
         (), u, a0, OtherRegister.unallocated(), OtherRegister.from_index(1)
@@ -173,10 +173,10 @@ def test_allocate_value():
     a1 = TestRegister.from_name("a1")
     y0 = TestRegister.from_name("y0")
 
-    queue = LIFORegisterQueue()
-    queue.push(a0)
-    queue.push(a1)
-    allocator = ValueAllocator(queue, TestRegister)
+    register_stack = RegisterStack()
+    register_stack.push(a0)
+    register_stack.push(a1)
+    allocator = ValueAllocator(register_stack, TestRegister)
 
     op0 = op((), u, u, u, u)
     r00, r01, r02, _r03 = op0.results
@@ -185,7 +185,7 @@ def test_allocate_value():
     results10 = tuple(op1.results)
 
     # Initial state
-    assert queue.available_registers == {"test.reg": [0, 1]}
+    assert register_stack.available_registers == {"test.reg": [0, 1]}
     assert allocator.new_value_by_old_value == {}
     assert op0.result_types == (u, u, u, u)
     assert op1.result_types == (u, u, u)
@@ -196,7 +196,7 @@ def test_allocate_value():
 
     results11 = tuple(op1.results)
 
-    assert queue.available_registers == {"test.reg": [0]}
+    assert register_stack.available_registers == {"test.reg": [0]}
     assert allocator.new_value_by_old_value == {results10[0]: results11[0]}
     assert op0.result_types == (u, u, u, u)
     assert op1.result_types == (a1, u, u)
@@ -204,7 +204,7 @@ def test_allocate_value():
     # Allocate first result again (old value) -> no change of state
     new_value = allocator.allocate_value(results10[0])
     assert new_value is None
-    assert queue.available_registers == {"test.reg": [0]}
+    assert register_stack.available_registers == {"test.reg": [0]}
     assert allocator.new_value_by_old_value == {results10[0]: results11[0]}
     assert op0.result_types == (u, u, u, u)
     assert op1.result_types == (a1, u, u)
@@ -212,7 +212,7 @@ def test_allocate_value():
     # Allocate first result again (new value) -> no change of state
     new_value = allocator.allocate_value(op1.out_results[0])
     assert new_value is None
-    assert queue.available_registers == {"test.reg": [0]}
+    assert register_stack.available_registers == {"test.reg": [0]}
     assert allocator.new_value_by_old_value == {results10[0]: results11[0]}
     assert op0.result_types == (u, u, u, u)
     assert op1.result_types == (a1, u, u)
@@ -223,7 +223,7 @@ def test_allocate_value():
 
     results12 = tuple(op1.results)
 
-    assert queue.available_registers == {"test.reg": []}
+    assert register_stack.available_registers == {"test.reg": []}
     assert allocator.new_value_by_old_value == {
         results10[0]: results11[0],
         results11[1]: results12[1],
@@ -238,7 +238,7 @@ def test_allocate_value():
     results03 = tuple(op0.results)
     results13 = tuple(op1.results)
 
-    assert queue.available_registers == {"test.reg": []}
+    assert register_stack.available_registers == {"test.reg": []}
     assert allocator.new_value_by_old_value == {
         results10[0]: results11[0],
         results11[1]: results12[1],
@@ -252,7 +252,7 @@ def test_allocate_value():
     allocator.free_value(results13[0])
     allocator.free_value(results13[1])
 
-    assert queue.available_registers == {"test.reg": [1, 0]}
+    assert register_stack.available_registers == {"test.reg": [1, 0]}
     assert allocator.new_value_by_old_value == {
         results10[0]: results11[0],
         results11[1]: results12[1],
@@ -266,7 +266,7 @@ def test_allocate_value():
     allocator.allocate_value(op1.operands[0])
     results04 = tuple(op0.results)
 
-    assert queue.available_registers == {"test.reg": [1]}
+    assert register_stack.available_registers == {"test.reg": [1]}
     assert allocator.new_value_by_old_value == {
         results10[0]: results11[0],
         results11[1]: results12[1],
@@ -284,10 +284,10 @@ def test_allocate_values_same_reg():
     a1 = TestRegister.from_name("a1")
     y0 = TestRegister.from_name("y0")
 
-    queue = LIFORegisterQueue()
-    queue.push(a0)
-    queue.push(a1)
-    allocator = ValueAllocator(queue, TestRegister)
+    register_stack = RegisterStack()
+    register_stack.push(a0)
+    register_stack.push(a1)
+    allocator = ValueAllocator(register_stack, TestRegister)
 
     # Empty
     assert not allocator.allocate_values_same_reg(())
