@@ -13,8 +13,8 @@ from xdsl.transforms.common_subexpression_elimination import cse
 
 
 @dataclass(frozen=True)
-class ApplyEqsatPDLInterpPass(ModulePass):
-    name = "apply-eqsat-pdl-interp"
+class ApplyEqsat(ModulePass):
+    name = "apply-eqsat"
 
     pdl_interp_file: str | None = None
     max_iterations: int = 20  # Maximum number of iterations to run
