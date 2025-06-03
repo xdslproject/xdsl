@@ -11,7 +11,6 @@ from math import prod
 from typing import (
     TYPE_CHECKING,
     Annotated,
-    Any,
     Generic,
     TypeAlias,
     cast,
@@ -61,6 +60,7 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     RangeOf,
+    TypeVarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -140,7 +140,10 @@ class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
 
 @irdl_attr_definition
 class ArrayAttr(
-    GenericData[tuple[AttributeCovT, ...]], BuiltinAttribute, Iterable[AttributeCovT]
+    Generic[AttributeCovT],
+    GenericData[tuple[AttributeCovT, ...]],
+    BuiltinAttribute,
+    Iterable[AttributeCovT],
 ):
     name = "array"
 
@@ -162,10 +165,9 @@ class ArrayAttr(
         printer.print_list(self.data, printer.print_attribute)
         printer.print_string("]")
 
-    @staticmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        assert len(args) == 1
-        return ArrayOfConstraint(RangeOf(irdl_to_attr_constraint(args[0])))
+    @classmethod
+    def generic_constraint(cls) -> AttrConstraint:
+        return ArrayOfConstraint(RangeOf(TypeVarConstraint(AttributeCovT, AnyAttr())))
 
     def __len__(self):
         return len(self.data)
@@ -1144,7 +1146,7 @@ class ComplexType(
 
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[immutabledict[str, Attribute]], BuiltinAttribute):
+class DictionaryAttr(Data[immutabledict[str, Attribute]], BuiltinAttribute):
     name = "dictionary"
 
     def __init__(self, value: Mapping[str, Attribute]):
@@ -1158,10 +1160,6 @@ class DictionaryAttr(GenericData[immutabledict[str, Attribute]], BuiltinAttribut
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_attr_dict(self.data)
-
-    @staticmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        raise Exception(f"Unsupported operation on {DictionaryAttr.name}")
 
     def verify(self) -> None:
         return super().verify()

@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, Any, Generic, TypeAlias, cast
+from typing import Annotated, Generic, TypeAlias, cast
 
 import pytest
 from typing_extensions import TypeVar
@@ -53,7 +53,6 @@ from xdsl.irdl import (
     VarConstraint,
     base,
     irdl_attr_definition,
-    irdl_to_attr_constraint,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
@@ -729,10 +728,9 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
             printer.print_list(self.data, printer.print_attribute)
             printer.print_string("]")
 
-    @staticmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        assert len(args) == 1
-        return DataListAttr(irdl_to_attr_constraint(args[0]))
+    @classmethod
+    def generic_constraint(cls) -> AttrConstraint:
+        return DataListAttr(TypeVarConstraint(AttributeInvT, AnyAttr()))
 
     @staticmethod
     def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
