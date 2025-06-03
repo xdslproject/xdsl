@@ -6,7 +6,7 @@
 #
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from dataclasses import dataclass
 from inspect import isclass
 from types import FunctionType, GenericAlias, UnionType
@@ -61,7 +61,7 @@ from .constraints import (  # noqa: TID251
 )
 from .error import IRDLAnnotations  # noqa: TID251
 
-_DataElement = TypeVar("_DataElement", covariant=True)
+_DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
 
 
 @dataclass(frozen=True)
