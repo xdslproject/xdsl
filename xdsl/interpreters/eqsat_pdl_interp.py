@@ -185,16 +185,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             raise InterpretationError(
                 "Replaced operation result must be used by an EClassOp"
             )
-        operands_to_delete: list[int] = []
-        if len(input_op.results[0].uses) != 1:
-            for use in it:
-                if use.operation is not original_eclass:
-                    raise InterpretationError(
-                        "Replaced operation result must be used by a single EClassOp"
-                    )
-                operands_to_delete.append(use.index)
-        for index in operands_to_delete:
-            original_eclass.delete_operand(index)
 
         repl_values = (
             (args[1],) if isinstance(op.repl_values.types[0], ValueType) else args[1]

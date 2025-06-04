@@ -77,29 +77,6 @@ class EClassOp(IRDLOperation):
                     "another eclass."
                 )
 
-    def delete_operand(self, index: int) -> None:
-        """
-        Deletes the operand at the given index.
-
-        Handles updating the uses of the operand being removed and adjusts
-        the uses of subsequent operands due to the index shift. Also updates
-        the `min_cost_index` attribute if necessary.
-
-        Raises:
-            IndexError: If the index is out of bounds.
-            ValueError: If attempting to delete the last remaining operand.
-        """
-        num_operands = len(self.operands)
-        if not (0 <= index < num_operands):
-            raise IndexError(
-                f"Operand index {index} out of range for EClassOp with {num_operands} operands"
-            )
-        if num_operands == 1:
-            raise ValueError("Cannot delete the last operand of an EClassOp")
-        current_operands = list(self.operands)
-        del current_operands[index]
-        self.operands = current_operands
-
 
 @irdl_op_definition
 class EGraphOp(IRDLOperation):
