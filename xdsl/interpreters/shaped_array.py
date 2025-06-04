@@ -94,7 +94,7 @@ class ShapedArray(Generic[_T]):
 
         return result
 
-    def __format__(self, __format_spec: str) -> str:
+    def __format__(self, format_spec: str) -> str:
         prod_dims: list[int] = list(accumulate(reversed(self.shape), operator.mul))
         size = prod_dims[-1]
         result = "[" * len(self.shape)

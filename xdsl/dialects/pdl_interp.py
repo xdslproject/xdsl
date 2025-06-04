@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence, Set
+from collections.abc import Iterable, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar, cast
 
@@ -447,7 +448,7 @@ class ValueConstrFromResultConstr(
 ):
     result_constr: GenericAttrConstraint[TypeType | RangeType[TypeType]]
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.result_constr.can_infer(var_constraint_names)
 
     def infer(self, context: ConstraintContext) -> ValueType | RangeType[ValueType]:

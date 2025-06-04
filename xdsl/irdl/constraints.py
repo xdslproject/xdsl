@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence, Set
+from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import KW_ONLY, dataclass, field
 from inspect import isclass
 from typing import (
@@ -63,15 +64,15 @@ class ConstraintContext:
         self._int_variables[key] = i
 
     @property
-    def attr_variables(self) -> Set[str]:
+    def attr_variables(self) -> AbstractSet[str]:
         return self._variables.keys()
 
     @property
-    def range_variables(self) -> Set[str]:
+    def range_variables(self) -> AbstractSet[str]:
         return self._range_variables.keys()
 
     @property
-    def int_variables(self) -> Set[str]:
+    def int_variables(self) -> AbstractSet[str]:
         return self._int_variables.keys()
 
     def copy(self):
@@ -128,7 +129,7 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         """
         return set()
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         """
         Check if there is enough information to infer the attribute given the
         constraint variables that are already set.
@@ -204,7 +205,7 @@ class TypedAttributeConstraint(GenericAttrConstraint[TypedAttributeCovT]):
     def variables(self) -> set[str]:
         return self.type_constraint.variables() | self.attr_constraint.variables()
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.attr_constraint.can_infer(var_constraint_names)
 
     def infer(self, context: ConstraintContext) -> TypedAttributeCovT:
@@ -258,7 +259,7 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
         v = context.get_variable(self.name)
         return cast(AttributeCovT, v)
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.name in var_constraint_names
 
     def get_bases(self) -> set[type[Attribute]] | None:
@@ -333,7 +334,7 @@ class EqAttrConstraint(Generic[AttributeCovT], GenericAttrConstraint[AttributeCo
         if attr != self.attr:
             raise VerifyException(f"Expected attribute {self.attr} but got {attr}")
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return True
 
     def infer(self, context: ConstraintContext) -> AttributeCovT:
@@ -368,7 +369,7 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
                 f"{attr} should be of base attribute {self.attr.name}"
             )
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return (
             is_runtime_final(self.attr)
             and issubclass(self.attr, ParametrizedAttribute)
@@ -522,7 +523,7 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
             vars |= constr.variables()
         return vars
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return any(
             constr.can_infer(var_constraint_names) for constr in self.attr_constrs
         )
@@ -620,7 +621,7 @@ class ParamAttrConstraint(
             vars |= constr.variables()
         return vars
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return is_runtime_final(self.base_attr) and all(
             constr.can_infer(var_constraint_names) for constr in self.param_constrs
         )
@@ -683,7 +684,7 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
     def get_bases(self) -> set[type[Attribute]] | None:
         return self.constr.get_bases()
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.constr.can_infer(var_constraint_names)
 
     def infer(self, context: ConstraintContext) -> AttributeCovT:
@@ -719,7 +720,7 @@ class IntConstraint(ABC):
         """
         return set()
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         """
         Check if there is enough information to infer the integer given the
         constraint variables that are already set.
@@ -790,7 +791,7 @@ class IntVarConstraint(IntConstraint):
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.name in var_constraint_names
 
     def infer(
@@ -838,7 +839,9 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         """
         return set()
 
-    def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
+    def can_infer(
+        self, var_constraint_names: AbstractSet[str], *, length_known: bool
+    ) -> bool:
         """
         Check if there is enough information to infer the attribute given the
         constraint variables that are already set, and whether the length of the
@@ -912,7 +915,9 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
 
-    def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
+    def can_infer(
+        self, var_constraint_names: AbstractSet[str], *, length_known: bool
+    ) -> bool:
         return self.name in var_constraint_names
 
     def infer(
@@ -959,7 +964,9 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
     def variables_from_length(self) -> set[str]:
         return self.length.variables()
 
-    def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
+    def can_infer(
+        self, var_constraint_names: AbstractSet[str], *, length_known: bool
+    ) -> bool:
         return (
             length_known or self.length.can_infer(var_constraint_names)
         ) and self.constr.can_infer(var_constraint_names)
@@ -1008,7 +1015,7 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
         return self.constr.variables()
 
     def can_infer(
-        self, var_constraint_names: Set[str], *, length_known: int | None
+        self, var_constraint_names: AbstractSet[str], *, length_known: int | None
     ) -> bool:
         return self.constr.can_infer(var_constraint_names)
 

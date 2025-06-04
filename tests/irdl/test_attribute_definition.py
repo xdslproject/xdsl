@@ -13,6 +13,7 @@ from typing import Annotated, Any, Generic, TypeAlias, cast
 import pytest
 from typing_extensions import TypeVar
 
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
@@ -20,6 +21,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
+    i32,
 )
 from xdsl.ir import (
     Attribute,
@@ -52,7 +54,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_to_attr_constraint,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 
@@ -263,6 +265,50 @@ def test_typed_attribute():
             TypedAttribute
         ):
             name = "test.typed"
+
+
+def test_typed_attribute_parsing_printing():
+    """
+    Test that non builtin TypedAttributes are parsed and printed correctly.
+    """
+
+    @irdl_attr_definition
+    class TypedAttr(TypedAttribute):
+        name = "test.typed"
+        value: ParameterDef[IntAttr]
+        type: ParameterDef[IntegerType]
+
+        @classmethod
+        def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+            with parser.in_angle_brackets():
+                value = parser.parse_integer()
+            parser.parse_punctuation(":")
+            type = parser.parse_type()
+            return (IntAttr(value), type)
+
+        def print_parameters(self, printer: Printer) -> None:
+            printer.print(f"<{self.value.data}> : {self.type}")
+
+        @classmethod
+        def get_type_index(cls) -> int:
+            return 1
+
+        @staticmethod
+        def parse_with_type(
+            parser: AttrParser,
+            type: Attribute,
+        ) -> TypedAttribute:
+            raise NotImplementedError()
+
+        def print_without_type(self, printer: Printer) -> None:
+            raise NotImplementedError()
+
+    ctx = Context()
+    ctx.load_attr_or_type(TypedAttr)
+    attr = Parser(ctx, "#test.typed<42> : i32").parse_attribute()
+    assert attr == TypedAttr([IntAttr(42), i32])
+
+    assert str(attr) == "#test.typed<42> : i32"
 
 
 ################################################################################

@@ -20,7 +20,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar, assert_never
+from typing_extensions import Self, TypeVar, assert_never
 
 from xdsl.ir import (
     Attribute,
@@ -158,7 +158,7 @@ class IRDLOperation(Operation):
 
     @classmethod
     def build(
-        cls: type[IRDLOperationInvT],
+        cls,
         *,
         operands: (
             Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
@@ -178,7 +178,7 @@ class IRDLOperation(Operation):
             ]
             | None
         ) = None,
-    ) -> IRDLOperationInvT:
+    ) -> Self:
         """Create a new operation using builders."""
         op = cls.__new__(cls)
         IRDLOperation.__init__(
@@ -207,8 +207,6 @@ class IRDLOperation(Operation):
 @dataclass
 class IRDLOption(ABC):
     """Additional option used in IRDL."""
-
-    ...
 
 
 @dataclass
@@ -320,21 +318,15 @@ class ParsePropInAttrDict(IRDLOption):
 class OperandOrResultDef(ABC):
     """An operand or a result definition. Should not be used directly."""
 
-    ...
-
 
 @dataclass
 class VariadicDef(OperandOrResultDef):
     """A variadic operand or result definition. Should not be used directly."""
 
-    ...
-
 
 @dataclass
 class OptionalDef(VariadicDef):
     """An optional operand or result definition. Should not be used directly."""
-
-    ...
 
 
 @dataclass(init=False)

@@ -1,4 +1,5 @@
-from collections.abc import Sequence, Set
+from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -67,7 +68,7 @@ class TensorFromMemRefConstraint(
         else:
             return UnrankedTensorType(memref.element_type)
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.memref_constraint.can_infer(var_constraint_names)
 
     def infer(
