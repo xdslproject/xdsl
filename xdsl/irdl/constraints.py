@@ -282,18 +282,18 @@ class TypeVarConstraint(AttrConstraint):
     type_var: TypeVar
     """The instance of the TypeVar used in the definition."""
 
-    constraint: AttrConstraint
-    """The base constraint of the TypeVar."""
+    base_constraint: AttrConstraint
+    """Constraint inferred from the base of the TypeVar."""
 
     def verify(
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        self.constraint.verify(attr, constraint_context)
+        self.base_constraint.verify(attr, constraint_context)
 
     def get_bases(self) -> set[type[Attribute]] | None:
-        return self.constraint.get_bases()
+        return self.base_constraint.get_bases()
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]

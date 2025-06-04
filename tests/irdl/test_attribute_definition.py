@@ -915,7 +915,7 @@ def test_generic_attr():
                 "param",
                 TypeVarConstraint(
                     type_var=AttributeInvT,
-                    constraint=AnyAttr(),
+                    base_constraint=AnyAttr(),
                 ),
             )
         ],
