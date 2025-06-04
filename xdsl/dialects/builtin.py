@@ -21,6 +21,7 @@ from typing import (
 from immutabledict import immutabledict
 from typing_extensions import Self, TypeVar, deprecated
 
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
@@ -2671,4 +2672,5 @@ Builtin = Dialect(
         MemRefType,
         UnrankedMemRefType,
     ],
+    [OpAsmDialectInterface()],
 )
