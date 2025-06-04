@@ -152,7 +152,10 @@ def get_type_var_mapping(
 ) -> tuple[tuple[TypeVar, ...], dict[TypeVar, Any]]:
     """
     Given a Generic class, return the TypeVars used to specialize it, and the mapping
-    from the generic class type variables to the specialized arguments.
+    from the generic class type variables to the specialized arguments for all type
+    variables used in ancestor classes.
+    Raises a ValueError if the specialized arguments for the same TypeVar are not
+    consistent among superclasses.
     """
 
     if not issubclass(cls, Generic):
