@@ -672,7 +672,7 @@ class ErasedSSAValue(SSAValue):
         return self.old_value.owner
 
 
-@dataclass(init=False)  # , slots=True)
+@dataclass(init=False, slots=True)
 class IRNode(ABC):
     def is_ancestor(self, op: IRNode) -> bool:
         "Returns true if the IRNode is an ancestor of another IRNode."
@@ -785,7 +785,7 @@ class OpTraits(Iterable[OpTrait]):
         return isinstance(value, OpTraits) and self._traits == value._traits
 
 
-@dataclass  # (slots=True)
+@dataclass(init=False, slots=True)
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
@@ -934,7 +934,7 @@ class Operation(IRNode):
         assert self.name != ""
         assert isinstance(self.name, str)
 
-    def __init__(
+    def populate(
         self,
         *,
         operands: Sequence[SSAValue] = (),
@@ -944,7 +944,17 @@ class Operation(IRNode):
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
     ) -> None:
-        super().__init__()
+        object.__init__(self)
+
+        self._operands = ()
+        self.results = ()
+        self._successors = ()
+        self.properties = {}
+        self.attributes = {}
+        self.regions = ()
+        self.parent = None
+        self._next_op = None
+        self._prev_op = None
 
         # This is assumed to exist by Operation.operand setter.
         self.operands = operands
@@ -974,7 +984,7 @@ class Operation(IRNode):
         regions: Sequence[Region] = (),
     ) -> Self:
         op = cls.__new__(cls)
-        Operation.__init__(
+        Operation.populate(
             op,
             operands=operands,
             result_types=result_types,

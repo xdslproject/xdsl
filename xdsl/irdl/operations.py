@@ -85,7 +85,7 @@ IRDLOperationContrT = TypeVar(
 )
 
 
-@dataclass(init=False)  # , slots=True)
+@dataclass(init=False, slots=True)
 class IRDLOperation(Operation):
     assembly_format: ClassVar[str | None] = None
 
@@ -154,7 +154,7 @@ class IRDLOperation(Operation):
             ):
                 self.attributes[attr_name] = attr_def.default_value
 
-        return super().__post_init__()
+        return Operation.__post_init__(self)
 
     @classmethod
     def build(
@@ -1851,7 +1851,7 @@ def irdl_op_init(
             case _:
                 pass
 
-    Operation.__init__(
+    Operation.populate(
         self,
         operands=built_operands,
         result_types=built_res_types,
