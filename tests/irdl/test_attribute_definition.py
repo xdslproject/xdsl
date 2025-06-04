@@ -4,6 +4,7 @@ Test the definition of attributes and their constraints.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
@@ -1022,18 +1023,14 @@ class B(Data[int]):
 
 
 _A = TypeVar("_A", bound=Attribute)
-_B = TypeVar("_B", bound=Attribute)
 
 
 def test_var_constraint():
     var_constraint = VarConstraint("var", TypeVarConstraint(_A, BaseAttr(A)))
 
-    with pytest.raises(KeyError, match="hello"):
+    with pytest.raises(KeyError, match="Mapping value missing for type var ~_A"):
         var_constraint.mapping_type_vars({})
 
-    assert var_constraint.mapping_type_vars({_B: BaseAttr(B)}) == VarConstraint(
-        "var", BaseAttr(A)
-    )
     assert var_constraint.mapping_type_vars({_A: BaseAttr(B)}) == VarConstraint(
         "var", BaseAttr(B)
     )
@@ -1042,8 +1039,10 @@ def test_var_constraint():
 def test_typevar_constraint():
     typevar_constraint = TypeVarConstraint(_A, BaseAttr(A))
 
-    assert typevar_constraint.mapping_type_vars({}) == BaseAttr(A)
-    assert typevar_constraint.mapping_type_vars({_B: BaseAttr(B)}) == BaseAttr(A)
+    with pytest.raises(
+        KeyError, match=re.escape("Mapping value missing for type var ~_A")
+    ):
+        assert typevar_constraint.mapping_type_vars({})
     assert typevar_constraint.mapping_type_vars({_A: BaseAttr(B)}) == BaseAttr(B)
 
 
@@ -1052,12 +1051,6 @@ def test_message_constraint():
         TypeVarConstraint(_A, BaseAttr(A)), "test message"
     )
 
-    assert message_constraint.mapping_type_vars({}) == MessageConstraint(
-        BaseAttr(A), "test message"
-    )
-    assert message_constraint.mapping_type_vars({_B: BaseAttr(B)}) == MessageConstraint(
-        BaseAttr(A), "test message"
-    )
     assert message_constraint.mapping_type_vars({_A: BaseAttr(B)}) == MessageConstraint(
         BaseAttr(B), "test message"
     )
@@ -1066,10 +1059,6 @@ def test_message_constraint():
 def test_anyof_constraint():
     anyof_constraint = AnyOf((TypeVarConstraint(_A, BaseAttr(A)), BaseAttr(B)))
 
-    assert anyof_constraint.mapping_type_vars({}) == AnyOf((BaseAttr(A), BaseAttr(B)))
-    assert anyof_constraint.mapping_type_vars({_B: BaseAttr(B)}) == AnyOf(
-        (BaseAttr(A), BaseAttr(B))
-    )
     assert anyof_constraint.mapping_type_vars({_A: BaseAttr(B)}) == AnyOf(
         (BaseAttr(B), BaseAttr(B))
     )
@@ -1078,10 +1067,6 @@ def test_anyof_constraint():
 def test_allof_constraint():
     allof_constraint = AllOf((TypeVarConstraint(_A, BaseAttr(A)), BaseAttr(B)))
 
-    assert allof_constraint.mapping_type_vars({}) == AllOf((BaseAttr(A), BaseAttr(B)))
-    assert allof_constraint.mapping_type_vars({_B: BaseAttr(B)}) == AllOf(
-        (BaseAttr(A), BaseAttr(B))
-    )
     assert allof_constraint.mapping_type_vars({_A: BaseAttr(B)}) == AllOf(
         (BaseAttr(B), BaseAttr(B))
     )
