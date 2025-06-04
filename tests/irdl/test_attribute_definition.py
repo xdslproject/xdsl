@@ -982,7 +982,9 @@ _B = TypeVar("_B", bound=Attribute)
 def test_var_constraint():
     var_constraint = VarConstraint("var", TypeVarConstraint(_A, BaseAttr(A)))
 
-    assert var_constraint.mapping_type_vars({}) == VarConstraint("var", BaseAttr(A))
+    with pytest.raises(KeyError, match="hello"):
+        var_constraint.mapping_type_vars({})
+
     assert var_constraint.mapping_type_vars({_B: BaseAttr(B)}) == VarConstraint(
         "var", BaseAttr(A)
     )

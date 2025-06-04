@@ -297,7 +297,10 @@ class TypeVarConstraint(AttrConstraint):
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> GenericAttrConstraint[Attribute]:
-        return type_var_mapping.get(self.type_var, self.constraint)
+        res = type_var_mapping.get(self.type_var)
+        if res is None:
+            raise KeyError(f"Mapping value missing for type var {self.type_var}")
+        return res
 
 
 @dataclass(frozen=True, init=True)
