@@ -804,6 +804,53 @@ def test_generic_op():
         op_result_fail.verify()
 
 
+class Generic2Op(Generic[_Operand], GenericOp[StringAttr, _Operand, FooType]): ...
+
+
+@irdl_op_definition
+class StringFoo2Op(Generic2Op[FooType]):
+    name = "test.string_specialized_2"
+
+
+def test_generic2_op():
+    """Test generic operation with two levels of specialization."""
+    FooOperand = create_ssa_value(TestType("foo"))
+    BarOperand = create_ssa_value(TestType("bar"))
+    FooResultType = TestType("foo")
+    BarResultType = TestType("bar")
+
+    op = StringFoo2Op(
+        attributes={"attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    op.verify()
+
+    op_attr_fail = StringFoo2Op(
+        attributes={"attr": IntAttr(1)},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_attr_fail.verify()
+
+    op_operand_fail = StringFoo2Op(
+        attributes={"attr": StringAttr("test")},
+        operands=[BarOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_operand_fail.verify()
+
+    op_result_fail = StringFoo2Op(
+        attributes={"attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[BarResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_result_fail.verify()
+
+
 class OtherParentOp(IRDLOperation):
     other_attr = attr_def(Attribute)
 
