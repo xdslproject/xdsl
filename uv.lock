@@ -302,22 +302,7 @@ wheels = [
 [[package]]
 name = "bytesight"
 version = "0.1.2"
-source = { directory = "../../bytesight" }
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "coverage", specifier = ">=7.6.9" },
-    { name = "mypy", specifier = ">=1.13.0" },
-    { name = "pre-commit", specifier = ">=4.0.1" },
-    { name = "pre-commit-hooks", specifier = ">=5.0.0" },
-    { name = "pytest", specifier = ">=8.3.4" },
-]
-docs = [
-    { name = "mkdocs-material", specifier = ">=9.5.48" },
-    { name = "mkdocstrings", extras = ["python"], specifier = ">=0.26.1" },
-]
+source = { git = "https://github.com/EdmundGoodman/bytesight.git#ee773b979ba70d707a4d6532244de21496399c08" }
 
 [[package]]
 name = "certifi"
@@ -3210,7 +3195,7 @@ riscv = [
 [package.metadata]
 requires-dist = [
     { name = "asv", marker = "extra == 'bench'", specifier = ">=0.6.4" },
-    { name = "bytesight", marker = "extra == 'bench'", directory = "../../bytesight" },
+    { name = "bytesight", marker = "extra == 'bench'", git = "https://github.com/EdmundGoodman/bytesight.git" },
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.2" },
     { name = "flameprof", marker = "extra == 'bench'", specifier = ">=0.4" },
