@@ -302,7 +302,7 @@ wheels = [
 [[package]]
 name = "bytesight"
 version = "0.1.2"
-source = { git = "https://github.com/EdmundGoodman/bytesight.git#ee773b979ba70d707a4d6532244de21496399c08" }
+source = { git = "https://github.com/EdmundGoodman/bytesight.git?rev=ee773b979ba70d707a4d6532244de21496399c08#ee773b979ba70d707a4d6532244de21496399c08" }
 
 [[package]]
 name = "certifi"
@@ -3195,7 +3195,7 @@ riscv = [
 [package.metadata]
 requires-dist = [
     { name = "asv", marker = "extra == 'bench'", specifier = ">=0.6.4" },
-    { name = "bytesight", marker = "extra == 'bench'", git = "https://github.com/EdmundGoodman/bytesight.git" },
+    { name = "bytesight", marker = "extra == 'bench'", git = "https://github.com/EdmundGoodman/bytesight.git?rev=ee773b979ba70d707a4d6532244de21496399c08" },
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.2" },
     { name = "flameprof", marker = "extra == 'bench'", specifier = ">=0.4" },
