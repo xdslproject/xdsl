@@ -85,7 +85,7 @@ IRDLOperationContrT = TypeVar(
 )
 
 
-@dataclass(init=False, slots=True)
+@dataclass(init=False)  # , slots=True)
 class IRDLOperation(Operation):
     assembly_format: ClassVar[str | None] = None
 

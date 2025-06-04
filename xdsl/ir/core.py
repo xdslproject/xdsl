@@ -672,7 +672,7 @@ class ErasedSSAValue(SSAValue):
         return self.old_value.owner
 
 
-@dataclass(init=False, slots=True)
+@dataclass(init=False)  # , slots=True)
 class IRNode(ABC):
     def is_ancestor(self, op: IRNode) -> bool:
         "Returns true if the IRNode is an ancestor of another IRNode."
@@ -785,7 +785,7 @@ class OpTraits(Iterable[OpTrait]):
         return isinstance(value, OpTraits) and self._traits == value._traits
 
 
-@dataclass(slots=True)
+@dataclass  # (slots=True)
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
