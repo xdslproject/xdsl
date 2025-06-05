@@ -1349,8 +1349,8 @@ class ContainerOf(
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> Self:
-        return type(self)(self.elem_constr.mapping_type_vars(type_var_mapping))
+    ) -> ContainerOf[AttributeCovT]:
+        return ContainerOf(self.elem_constr.mapping_type_vars(type_var_mapping))
 
 
 VectorOrTensorOf: TypeAlias = (

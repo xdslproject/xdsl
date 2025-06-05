@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
@@ -88,8 +90,10 @@ class TensorFromMemRefConstraint(
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> Self:
-        return type(self)(self.memref_constraint.mapping_type_vars(type_var_mapping))
+    ) -> TensorFromMemRefConstraint:
+        return TensorFromMemRefConstraint(
+            self.memref_constraint.mapping_type_vars(type_var_mapping)
+        )
 
 
 @irdl_op_definition
