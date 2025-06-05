@@ -231,6 +231,7 @@ class ShiftRightbyZero(RewritePattern):
         if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=op.rd.type))
 
+
 class LoadWordWithKnownOffset(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.LwOp, rewriter: PatternRewriter) -> None:
