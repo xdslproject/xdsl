@@ -5,13 +5,19 @@ from xdsl.dialect_interfaces import OpAsmDialectInterface
 
 def test_op_asm_interface():
     interf = OpAsmDialectInterface()
-    key = interf.parse_resource("some_key", "0x0800000001")
-    assert key == "some_key"
-    assert key in interf.blob_storage
 
-    key = interf.parse_resource("some_key", "0x0800000002")
+    key = interf.declare_resource("some_key")
+    assert key == "some_key"
+    interf.parse_resource(key, "0x0800000001")
+    assert interf.blob_storage[key] == "0x0800000001"
+
+    key = interf.declare_resource("some_key")
     assert key == "some_key_0"
-    assert key in interf.blob_storage
+    interf.parse_resource(key, "0x0800000002")
+    assert interf.blob_storage[key] == "0x0800000002"
 
     with pytest.raises(ValueError):
-        interf.parse_resource("other_key", "normal string")
+        interf.parse_resource("some_key", "normal string")
+
+    with pytest.raises(KeyError):
+        interf.parse_resource("non existent key", "0x0800000003")

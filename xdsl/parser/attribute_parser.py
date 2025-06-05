@@ -8,6 +8,7 @@ from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
 from xdsl.context import Context
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
@@ -93,6 +94,13 @@ class AttrParser(BaseParser):
     """
     A dictionary of aliases for attributes.
     The key is the alias name, including the `!` or `#` prefix.
+    """
+
+    dialect_resources: set[tuple[str, str]] = field(
+        default_factory=set[tuple[str, str]]
+    )
+    """
+    Set of resource references encountered during parsing.
     """
 
     def parse_optional_type(self) -> Attribute | None:
@@ -846,6 +854,19 @@ class AttrParser(BaseParser):
             )
 
         return OpaqueAttr.from_strings(*str_lit_list, type=type)
+
+    def _parse_dialect_resource_handle(
+        self, dialect_name: str, interf: OpAsmDialectInterface
+    ) -> str:
+        key = self._parse_token(
+            MLIRTokenKind.BARE_IDENT, "Expected a resource key"
+        ).text
+
+        if (dialect_name, key) not in self.dialect_resources:
+            key = interf.declare_resource(key)
+            self.dialect_resources.add((dialect_name, key))
+
+        return key
 
     def _parse_builtin_dense_resource_attr(self) -> DenseResourceAttr:
         self.parse_characters("<", " in dense_resource attribute")

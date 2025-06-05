@@ -173,14 +173,12 @@ class Parser(AttrParser):
                 )
 
             def parse_resource() -> None:
-                key = self._parse_token(
-                    MLIRTokenKind.BARE_IDENT, "Expected a resource key"
-                )
+                key = self._parse_dialect_resource_handle(dialect_name.text, interface)
                 self._parse_token(MLIRTokenKind.COLON, "expected `:`")
                 value = self.parse_str_literal()
 
                 try:
-                    interface.parse_resource(key.text, value)
+                    interface.parse_resource(key, value)
                 except Exception as e:
                     self.raise_error(f"got an error when parsing a resource: {e}")
 
