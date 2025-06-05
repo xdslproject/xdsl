@@ -5,7 +5,9 @@ See external [documentation](https://en.wikipedia.org/wiki/Disjoint-set_data_str
 """
 
 from collections.abc import Hashable, Sequence
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 
 class IntDisjointSet:

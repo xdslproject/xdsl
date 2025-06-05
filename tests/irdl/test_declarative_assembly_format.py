@@ -2322,7 +2322,6 @@ def test_optional_successor(program: str, generic_program: str):
 ################################################################################
 
 _T = TypeVar("_T", bound=Attribute, covariant=True, default=Attribute)
-_ConstrT = TypeVar("_ConstrT", bound=Attribute, covariant=True)
 
 
 @pytest.mark.parametrize(

@@ -22,6 +22,7 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
+    overload,
 )
 
 from typing_extensions import TypeVar
@@ -384,10 +385,34 @@ def irdl_list_to_attr_constraint(
     return constraints[0]
 
 
+@overload
+def irdl_to_attr_constraint(
+    irdl: (
+        GenericAttrConstraint[AttributeInvT]
+        | "TypeForm[AttributeInvT]"
+        | type[AttributeInvT]
+        | AttributeInvT
+    ),
+    *,
+    allow_type_var: bool = False,
+    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
+) -> GenericAttrConstraint[AttributeInvT]: ...
+
+
+@overload
+def irdl_to_attr_constraint(
+    irdl: Attribute | TypeVar | ConstraintVar,
+    *,
+    allow_type_var: bool = False,
+    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
+) -> AttrConstraint: ...
+
+
 def irdl_to_attr_constraint(
     irdl: IRDLAttrConstraint,
     *,
     allow_type_var: bool = False,
+    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint:
     if isinstance(irdl, GenericAttrConstraint):
         return cast(AttrConstraint, irdl)
@@ -509,11 +534,11 @@ def base(irdl: type[AttributeInvT]) -> GenericAttrConstraint[AttributeInvT]:
     Converts an attribute type into the equivalent constraint, detecting generic
     parameters if present.
     """
-    return cast(GenericAttrConstraint[AttributeInvT], irdl_to_attr_constraint(irdl))
+    return irdl_to_attr_constraint(irdl)
 
 
 def eq(irdl: AttributeInvT) -> GenericAttrConstraint[AttributeInvT]:
     """
     Converts an attribute instance into the equivalent constraint.
     """
-    return cast(GenericAttrConstraint[AttributeInvT], irdl_to_attr_constraint(irdl))
+    return irdl_to_attr_constraint(irdl)

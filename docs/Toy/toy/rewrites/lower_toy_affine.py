@@ -6,7 +6,9 @@ expects that all calls have been inlined, and all shapes have been resolved.
 
 from collections.abc import Callable, Sequence
 from itertools import product
-from typing import TypeAlias, TypeVar, cast
+from typing import TypeAlias, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.builder import Builder, InsertPoint
 from xdsl.context import Context
@@ -136,8 +138,6 @@ def build_affine_for_const(
         body_builder_fn,
     )
 
-
-_Bounds: TypeAlias = tuple[int, ...]
 
 LoopIterationFn: TypeAlias = Callable[[Builder, _ValueRange, _ValueRange], SSAValue]
 """

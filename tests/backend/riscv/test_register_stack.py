@@ -80,20 +80,3 @@ def test_reserve_register():
         ),
     ):
         register_stack.pop(riscv.IntRegisterType)
-
-
-def test_limit():
-    register_stack = RiscvRegisterStack.default()
-    register_stack.limit_registers(1)
-
-    assert not register_stack.pop(riscv.IntRegisterType).register_name.data.startswith(
-        "j"
-    )
-    assert register_stack.pop(riscv.IntRegisterType).register_name.data.startswith("j")
-
-    assert not register_stack.pop(
-        riscv.FloatRegisterType
-    ).register_name.data.startswith("fj")
-    assert register_stack.pop(riscv.FloatRegisterType).register_name.data.startswith(
-        "fj"
-    )

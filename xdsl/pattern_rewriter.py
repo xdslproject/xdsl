@@ -6,7 +6,9 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import TypeVar, Union, final, get_args, get_origin
+from typing import Union, final, get_args, get_origin
+
+from typing_extensions import TypeVar
 
 from xdsl.builder import Builder, BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp

@@ -1,7 +1,9 @@
 from collections.abc import Generator
 from dataclasses import dataclass
 from itertools import chain
-from typing import Any, TypeVar, cast
+from typing import Any, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin

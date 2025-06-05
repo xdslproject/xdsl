@@ -3,7 +3,8 @@ from __future__ import annotations
 import math
 import struct
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, Sequence, Set
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -215,7 +216,7 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
             )
         self.elem_range_constraint.verify(attr.data, constraint_context)
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.elem_range_constraint.can_infer(
             var_constraint_names, length_known=False
         )
@@ -232,12 +233,9 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> GenericAttrConstraint[ArrayAttr[AttributeCovT]]:
-        elem_range_constraint = self.elem_range_constraint.mapping_type_vars(
-            type_var_mapping
+        return ArrayOfConstraint(
+            self.elem_range_constraint.mapping_type_vars(type_var_mapping)
         )
-        if elem_range_constraint is self.elem_range_constraint:
-            return self
-        return ArrayOfConstraint(elem_range_constraint)
 
 
 @irdl_attr_definition
@@ -368,7 +366,7 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
     def variables(self) -> set[str]:
         return self.int_constraint.variables()
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)
 
     def infer(self, context: ConstraintContext) -> IntAttr:
@@ -732,9 +730,6 @@ _IntegerAttrType = TypeVar(
     default=IntegerType | IndexType,
 )
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
-_IntegerAttrTypeConstrT = TypeVar(
-    "_IntegerAttrTypeConstrT", bound=IntegerType | IndexType, covariant=True
-)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
@@ -975,7 +970,7 @@ class FloatData(Data[float]):
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
 
-    def __eq__(self, other: Any):
+    def __eq__(self, other: object):
         # avoid triggering `float('nan') != float('nan')` inequality
         return isinstance(other, FloatData) and (
             math.isnan(self.data) and math.isnan(other.data) or self.data == other.data
@@ -1354,12 +1349,8 @@ class ContainerOf(
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> Self:
-        mapped_constraint = self.elem_constr.mapping_type_vars(type_var_mapping)
-        if mapped_constraint is self.elem_constr:
-            return self
-        else:
-            return type(self)(mapped_constraint)
+    ) -> ContainerOf[AttributeCovT]:
+        return ContainerOf(self.elem_constr.mapping_type_vars(type_var_mapping))
 
 
 VectorOrTensorOf: TypeAlias = (
@@ -2581,7 +2572,7 @@ class DenseIntOrFPElementsAttr(
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
     def _print_one_elem(
-        self, val: int | float | tuple[int, int] | tuple[float, float], printer: Printer
+        self, val: float | tuple[int, int] | tuple[float, float], printer: Printer
     ):
         if isinstance(val, int):
             element_type = cast(IntegerType | IndexType, self.get_element_type())

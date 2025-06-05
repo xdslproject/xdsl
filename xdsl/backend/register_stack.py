@@ -2,7 +2,8 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TypeVar
+
+from typing_extensions import TypeVar
 
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import IntAttr
@@ -134,21 +135,6 @@ class RegisterStack:
         reserved_registers[reg.index.data] -= 1
         if not reserved_registers[reg.index.data]:
             del reserved_registers[reg.index.data]
-
-    def limit_registers(self, limit: int) -> None:
-        """
-        Limits the number of currently available registers to the provided limit.
-        """
-        if limit < 0:
-            raise ValueError(f"Invalid negative limit value {limit}")
-
-        keys = tuple(self.available_registers)
-        if limit:
-            for key in keys:
-                self.available_registers[key] = self.available_registers[key][-limit:]
-        else:
-            for key in keys:
-                del self.available_registers[key]
 
     def exclude_register(self, reg: RegisterType) -> None:
         """

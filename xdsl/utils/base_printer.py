@@ -3,7 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import IO, Any, TypeVar
+from typing import IO, Any
+
+from typing_extensions import TypeVar
 
 
 @dataclass(eq=False, repr=False)

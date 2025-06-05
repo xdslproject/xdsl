@@ -837,27 +837,18 @@ class B(Data[int]):
 
 
 _A = TypeVar("_A", bound=Attribute)
-_B = TypeVar("_B", bound=Attribute)
 
 
 def test_array_of_constraint():
     """Test mapping type variables in ArrayOfConstraint."""
     array_constraint = ArrayOfConstraint(TypeVarConstraint(_A, BaseAttr(A)))
 
-    assert array_constraint.mapping_type_vars({}) == ArrayOfConstraint(BaseAttr(A))
-    assert array_constraint.mapping_type_vars({_B: BaseAttr(B)}) == ArrayOfConstraint(
-        BaseAttr(A)
-    )
     assert array_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ArrayOfConstraint(
         BaseAttr(B)
     )
 
     container_constraint = ContainerOf(TypeVarConstraint(_A, BaseAttr(A)))
 
-    assert container_constraint.mapping_type_vars({}) == ContainerOf(BaseAttr(A))
-    assert container_constraint.mapping_type_vars({_B: BaseAttr(B)}) == ContainerOf(
-        BaseAttr(A)
-    )
     assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ContainerOf(
         BaseAttr(B)
     )
