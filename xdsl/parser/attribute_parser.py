@@ -43,6 +43,7 @@ from xdsl.dialects.builtin import (
     NoneType,
     OpaqueAttr,
     RankedStructure,
+    ShapedType,
     Signedness,
     StridedLayoutAttr,
     StringAttr,
@@ -858,9 +859,7 @@ class AttrParser(BaseParser):
     def _parse_dialect_resource_handle(
         self, dialect_name: str, interf: OpAsmDialectInterface
     ) -> str:
-        key = self._parse_token(
-            MLIRTokenKind.BARE_IDENT, "Expected a resource key"
-        ).text
+        key = self.parse_identifier(" for resource handle")
 
         if (dialect_name, key) not in self.dialect_resources:
             key = interf.declare_resource(key)
@@ -870,10 +869,24 @@ class AttrParser(BaseParser):
 
     def _parse_builtin_dense_resource_attr(self) -> DenseResourceAttr:
         self.parse_characters("<", " in dense_resource attribute")
-        resource_handle = self.parse_identifier(" for resource handle")
+
+        resource_interface = self.ctx.get_dialect("builtin").get_interface(
+            OpAsmDialectInterface
+        )
+        if not isinstance(resource_interface, OpAsmDialectInterface):
+            self.raise_error("builtin dialect should have an OpAsmDialectInterface")
+
+        resource_handle = self._parse_dialect_resource_handle(
+            "builtin", resource_interface
+        )
+
         self.parse_characters(">", " in dense_resource attribute")
         self.parse_characters(":", " in dense_resource attribute")
+
         type = self.parse_type()
+        if not isinstance(type, ShapedType):
+            self.raise_error(f"dense resource should have a shaped type, got: {type}")
+
         return DenseResourceAttr.from_params(resource_handle, type)
 
     def _parse_typed_integer(
