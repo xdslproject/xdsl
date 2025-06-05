@@ -48,6 +48,7 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     ParamAttrDef,
+    ParameterDef,
     TypeVarConstraint,
     VarConstraint,
     base,
@@ -988,7 +989,7 @@ def test_mixed_param_def_apis():
         class InvalidAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
             name = "test.invalid"
             # Using both styles is invalid
-            param1: IntegerType = param_def()  # Using annotation style
+            param1: ParameterDef[IntegerType]  # Using annotation style
             param2: IntegerType = param_def()  # Using param_def style
 
 
