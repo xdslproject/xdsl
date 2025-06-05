@@ -51,6 +51,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
     TypeConversionPattern,
+    attr_constr_rewrite_pattern,
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
@@ -658,7 +659,7 @@ def return_target_analysis(module: builtin.ModuleOp):
 
 
 class StencilTypeConversion(TypeConversionPattern):
-    @attr_type_rewrite_pattern
+    @attr_constr_rewrite_pattern(StencilTypeConstr)
     def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
         return StencilToMemRefType(typ)
 

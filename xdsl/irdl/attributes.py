@@ -435,7 +435,10 @@ def irdl_to_attr_constraint(
 
         type_var_mapping = dict(zip(generic_args, args))
 
-        origin_parameters = irdl_param_attr_get_param_type_hints(origin)
+        # Map the constraints in the attribute definition
+        attr_def = origin.get_irdl_definition()
+        origin_parameters = attr_def.parameters
+
         origin_constraints = [
             irdl_to_attr_constraint(param, allow_type_var=True).mapping_type_vars(
                 type_var_mapping
