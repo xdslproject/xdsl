@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p apply-eqsat-pdl-interp | filecheck %s
+// RUN: xdsl-opt %s -p apply-eqsat | filecheck %s
 
 // CHECK:      %x_c = eqsat.eclass %x : i32
 // CHECK-NEXT: %zero = arith.constant 0 : i32
