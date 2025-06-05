@@ -3,15 +3,18 @@ import re
 from collections.abc import Sequence
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
+    ArrayOfConstraint,
     BFloat16Type,
     BoolAttr,
     BytesAttr,
     ComplexType,
+    ContainerOf,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     Float16Type,
@@ -45,8 +48,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute
-from xdsl.irdl import ConstraintContext, RangeOf, RangeVarConstraint, eq
+from xdsl.ir import Attribute, Data
+from xdsl.irdl import (
+    BaseAttr,
+    ConstraintContext,
+    RangeOf,
+    RangeVarConstraint,
+    TypeVarConstraint,
+    eq,
+    irdl_attr_definition,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -808,3 +819,36 @@ def test_array_constr():
     assert constr.infer(ctx) == ArrayAttr([i32, i32])
 
     assert constr.get_bases() == {ArrayAttr}
+
+
+################################################################################
+# Mapping Type Var
+################################################################################
+
+
+@irdl_attr_definition
+class A(Data[int]):
+    name = "test.a"
+
+
+@irdl_attr_definition
+class B(Data[int]):
+    name = "test.b"
+
+
+_A = TypeVar("_A", bound=Attribute)
+
+
+def test_array_of_constraint():
+    """Test mapping type variables in ArrayOfConstraint."""
+    array_constraint = ArrayOfConstraint(TypeVarConstraint(_A, BaseAttr(A)))
+
+    assert array_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ArrayOfConstraint(
+        BaseAttr(B)
+    )
+
+    container_constraint = ContainerOf(TypeVarConstraint(_A, BaseAttr(A)))
+
+    assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ContainerOf(
+        BaseAttr(B)
+    )

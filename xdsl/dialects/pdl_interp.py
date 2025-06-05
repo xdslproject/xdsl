@@ -5,6 +5,8 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar, cast
 
+from typing_extensions import TypeVar
+
 from xdsl.dialects.builtin import (
     I16,
     I32,
@@ -35,6 +37,7 @@ from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
+    AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
     GenericAttrConstraint,
@@ -464,6 +467,13 @@ class ValueConstrFromResultConstr(
                 f"Expected an attribute of type ValueType or RangeType[ValueType], but got {attr}"
             )
         return self.result_constr.verify(result_type, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericAttrConstraint[ValueType | RangeType[ValueType]]:
+        return ValueConstrFromResultConstr(
+            self.result_constr.mapping_type_vars(type_var_mapping)
+        )
 
 
 @irdl_op_definition

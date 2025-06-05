@@ -164,6 +164,18 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     ) -> AllOf[AttributeCovT]:
         return AllOf((self, value))
 
+    @abstractmethod
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericAttrConstraint[AttributeCovT]:
+        """
+        A helper function to make type vars used in attribute definitions concrete when
+        creating constraints for new attributes or operations.
+        """
+        raise NotImplementedError(
+            "Custom constraints must map type vars in nested constraints, if any."
+        )
+
 
 AttrConstraint: TypeAlias = GenericAttrConstraint[Attribute]
 ConstraintVariableTypeT = TypeVar(
@@ -201,6 +213,14 @@ class TypedAttributeConstraint(GenericAttrConstraint[TypedAttributeCovT]):
 
     def get_bases(self) -> set[type[Attribute]] | None:
         return self.attr_constraint.get_bases()
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> TypedAttributeConstraint[TypedAttributeCovT]:
+        return TypedAttributeConstraint(
+            self.attr_constraint.mapping_type_vars(type_var_mapping),
+            self.type_constraint.mapping_type_vars(type_var_mapping),
+        )
 
 
 @dataclass(frozen=True)
@@ -245,6 +265,44 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
     def get_bases(self) -> set[type[Attribute]] | None:
         return self.constraint.get_bases()
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> VarConstraint[AttributeCovT]:
+        return VarConstraint(
+            self.name, self.constraint.mapping_type_vars(type_var_mapping)
+        )
+
+
+@dataclass(frozen=True)
+class TypeVarConstraint(AttrConstraint):
+    """
+    Stores the TypeVar instance used to define a generic ParametrizedAttribute.
+    """
+
+    type_var: TypeVar
+    """The instance of the TypeVar used in the definition."""
+
+    base_constraint: AttrConstraint
+    """Constraint inferred from the base of the TypeVar."""
+
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        self.base_constraint.verify(attr, constraint_context)
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.base_constraint.get_bases()
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericAttrConstraint[Attribute]:
+        res = type_var_mapping.get(self.type_var)
+        if res is None:
+            raise KeyError(f"Mapping value missing for type var {self.type_var}")
+        return res
+
 
 @dataclass(frozen=True, init=True)
 class ConstraintVar:
@@ -285,6 +343,11 @@ class EqAttrConstraint(Generic[AttributeCovT], GenericAttrConstraint[AttributeCo
     def get_bases(self) -> set[type[Attribute]] | None:
         return {type(self.attr)}
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericAttrConstraint[AttributeCovT]:
+        return self
+
 
 @dataclass(frozen=True)
 class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
@@ -323,6 +386,11 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
             return {self.attr}
         return None
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericAttrConstraint[AttributeCovT]:
+        return self
+
 
 def attr_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
@@ -350,6 +418,11 @@ class AnyAttr(GenericAttrConstraint[Attribute]):
         constraint_context: ConstraintContext,
     ) -> None:
         pass
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> AnyAttr:
+        return self
 
 
 @dataclass(frozen=True, init=False)
@@ -408,6 +481,13 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
                 return
             bases |= b
         return bases
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> AnyOf[AttributeCovT]:
+        return AnyOf(
+            tuple(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
+        )
 
 
 @dataclass(frozen=True)
@@ -470,6 +550,13 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
         self, value: GenericAttrConstraint[AttributeCovT], /
     ) -> AllOf[AttributeCovT]:
         return AllOf((*self.attr_constrs, value))
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> AllOf[AttributeCovT]:
+        return AllOf(
+            tuple(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
+        )
 
 
 ParametrizedAttributeT = TypeVar("ParametrizedAttributeT", bound=ParametrizedAttribute)
@@ -549,6 +636,14 @@ class ParamAttrConstraint(
             return {self.base_attr}
         return None
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> ParamAttrConstraint[ParametrizedAttributeCovT]:
+        return ParamAttrConstraint(
+            self.base_attr,
+            tuple(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
+        )
+
 
 @dataclass(frozen=True, init=False)
 class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
@@ -594,6 +689,13 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
 
     def infer(self, context: ConstraintContext) -> AttributeCovT:
         return self.constr.infer(context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> MessageConstraint[AttributeCovT]:
+        return MessageConstraint(
+            self.constr.mapping_type_vars(type_var_mapping), self.message
+        )
 
 
 @dataclass(frozen=True)
@@ -761,6 +863,18 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         """
         raise ValueError(f"Cannot infer range from constraint {self}")
 
+    @abstractmethod
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericRangeConstraint[AttributeCovT]:
+        """
+        A helper function to make type vars used in attribute definitions concrete when
+        creating constraints for new attributes or operations.
+        """
+        raise NotImplementedError(
+            "Custom constraints must map type vars in nested constraints, if any."
+        )
+
 
 RangeConstraint: TypeAlias = GenericRangeConstraint[Attribute]
 
@@ -812,6 +926,13 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         v = context.get_range_variable(self.name)
         return cast(Sequence[AttributeCovT], v)
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> RangeVarConstraint[AttributeCovT]:
+        return RangeVarConstraint(
+            self.name, self.constraint.mapping_type_vars(type_var_mapping)
+        )
+
 
 @dataclass(frozen=True)
 class RangeOf(GenericRangeConstraint[AttributeCovT]):
@@ -861,6 +982,13 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
         attr = self.constr.infer(context)
         return (attr,) * length
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> RangeOf[AttributeCovT]:
+        return RangeOf(
+            self.constr.mapping_type_vars(type_var_mapping), length=self.length
+        )
+
 
 @dataclass(frozen=True)
 class SingleOf(GenericRangeConstraint[AttributeCovT]):
@@ -895,6 +1023,11 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
         self, context: ConstraintContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
         return (self.constr.infer(context),)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> SingleOf[AttributeCovT]:
+        return SingleOf(self.constr.mapping_type_vars(type_var_mapping))
 
 
 def range_constr_coercion(
