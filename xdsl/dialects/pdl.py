@@ -26,7 +26,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -35,6 +34,7 @@ from xdsl.irdl import (
     opt_operand_def,
     opt_prop_def,
     opt_region_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -145,7 +145,7 @@ _RangeT = TypeVar(
 @irdl_attr_definition
 class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     name = "pdl.range"
-    element_type: ParameterDef[_RangeT]
+    element_type: _RangeT = param_def()
 
     def __init__(self, element_type: _RangeT):
         super().__init__([element_type])

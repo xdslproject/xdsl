@@ -44,7 +44,6 @@ from xdsl.irdl import (
     IntVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    ParameterDef,
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
@@ -63,6 +62,7 @@ from xdsl.irdl import (
     opt_region_def,
     opt_result_def,
     opt_successor_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -410,7 +410,7 @@ def test_unqualified_attr(program: str, generic_program: str):
     @irdl_attr_definition
     class ParamOne(ParametrizedAttribute):
         name = "test.param"
-        p: ParameterDef[Attribute]
+        p: Attribute = param_def()
 
     @irdl_op_definition
     class UnqualifiedAttrOp(IRDLOperation):
@@ -2419,9 +2419,9 @@ def test_nested_inference():
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
 
-        n: ParameterDef[Attribute]
-        p: ParameterDef[_T]
-        q: ParameterDef[Attribute]
+        n: Attribute = param_def()
+        p: _T = param_def()
+        q: Attribute = param_def()
 
         @classmethod
         def constr(
@@ -2465,7 +2465,7 @@ def test_nested_inference_variable():
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
 
-        p: ParameterDef[_T]
+        p: _T = param_def()
 
         @classmethod
         def constr(
@@ -2505,7 +2505,7 @@ def test_non_verifying_inference():
     @irdl_attr_definition
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
-        p: ParameterDef[_T]
+        p: _T = param_def()
 
         @classmethod
         def constr(
@@ -3252,8 +3252,8 @@ class DoubleParamAttr(ParametrizedAttribute, TypeAttribute):
 
     name = "test.param"
 
-    param1: ParameterDef[Attribute]
-    param2: ParameterDef[Attribute]
+    param1: Attribute = param_def()
+    param2: Attribute = param_def()
 
 
 @irdl_op_definition
