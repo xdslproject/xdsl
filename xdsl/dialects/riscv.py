@@ -1557,6 +1557,14 @@ class SlliOp(RdRsImmShiftOperation):
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
 
 
+class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import ShiftRightbyZero
+
+        return (ShiftRightbyZero(),)
+
+
 @irdl_op_definition
 class SrliOp(RdRsImmShiftOperation):
     """
@@ -1569,6 +1577,8 @@ class SrliOp(RdRsImmShiftOperation):
     """
 
     name = "riscv.srli"
+
+    traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
