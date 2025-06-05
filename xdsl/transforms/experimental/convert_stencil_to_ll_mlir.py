@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from itertools import product
 from math import prod
-from typing import TypeVar, cast
+from typing import cast
 from warnings import warn
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, memref, scf

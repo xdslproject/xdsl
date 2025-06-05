@@ -260,8 +260,6 @@ class InnerRefNamespaceTrait(OpTrait):
 class InnerRefNamespaceLike(abc.ABC, OpTrait):
     """Trait-metaclass to check whether an operation is explicitly an IRN or appears compatible."""
 
-    ...
-
 
 InnerRefNamespaceLike.register(SymbolTable)
 InnerRefNamespaceLike.register(InnerRefNamespaceTrait)

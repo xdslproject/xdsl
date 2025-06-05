@@ -1,8 +1,11 @@
-from collections.abc import Sequence, Set
+from __future__ import annotations
+
+from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
@@ -67,7 +70,7 @@ class TensorFromMemRefConstraint(
         else:
             return UnrankedTensorType(memref.element_type)
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.memref_constraint.can_infer(var_constraint_names)
 
     def infer(
@@ -87,12 +90,10 @@ class TensorFromMemRefConstraint(
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> Self:
-        memref_constraint = self.memref_constraint.mapping_type_vars(type_var_mapping)
-        if memref_constraint is self.memref_constraint:
-            return self
-        else:
-            return type(self)(memref_constraint)
+    ) -> TensorFromMemRefConstraint:
+        return TensorFromMemRefConstraint(
+            self.memref_constraint.mapping_type_vars(type_var_mapping)
+        )
 
 
 @irdl_op_definition

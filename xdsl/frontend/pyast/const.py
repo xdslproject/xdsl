@@ -1,5 +1,7 @@
 import ast
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 _T = TypeVar("_T")
 

@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
     f32,
+    i1,
     i32,
 )
 from xdsl.dialects.func import Func
@@ -813,6 +814,22 @@ def test_complex_int(expected: str, value: tuple[int, int]):
     io = StringIO()
     printer.stream = io
     type = ComplexType(i32)
+    printer.print_complex_int(value, type)
+    assert io.getvalue() == expected
+
+
+@pytest.mark.parametrize(
+    "expected, value",
+    [
+        ("(true,true)", (1, 1)),
+        ("(false,false)", (0, 0)),
+    ],
+)
+def test_complex_bool(expected: str, value: tuple[int, int]):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    type = ComplexType(i1)
     printer.print_complex_int(value, type)
     assert io.getvalue() == expected
 

@@ -1,5 +1,4 @@
 // RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}" %s | filecheck %s --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE
-// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive limit_registers=0}" %s | filecheck %s --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE-J
 
 riscv_func.func @external() -> ()
 
@@ -47,25 +46,3 @@ riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      riscv_func.return
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:    }
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:  }
-
-//   CHECK-LIVENESS-BLOCK-NAIVE-J:       builtin.module {
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:    riscv_func.func @external() -> ()
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:    riscv_func.func @main() {
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %zero = riscv.li 0 : !riscv.reg<zero>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %0 = riscv.li 6 : !riscv.reg<j_1>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %1 = riscv.li 5 : !riscv.reg<s0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %2 = riscv.fcvt.s.w %0 : (!riscv.reg<j_1>) -> !riscv.freg<fj_0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %3 = riscv.fcvt.s.w %1 : (!riscv.reg<s0>) -> !riscv.freg<fj_1>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %4 = riscv.fadd.s %2, %3 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %5 = riscv.add %0, %1 : (!riscv.reg<j_1>, !riscv.reg<s0>) -> !riscv.reg<j_0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      riscv_scf.for %6 : !riscv.reg<j_2> = %0 to %1 step %5 {
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      }
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %7 = riscv_scf.for %8 : !riscv.reg<j_1> = %0 to %1 step %5 iter_args(%9 = %5) -> (!riscv.reg<j_0>) {
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        %10 = riscv.mv %9 : (!riscv.reg<j_0>) -> !riscv.reg<j_0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        riscv_scf.yield %10 : !riscv.reg<j_0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      }
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %zero_1 = riscv.li 0 : !riscv.reg<zero>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %zero_2 = riscv.li 0 : !riscv.reg<a0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      riscv_func.return
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:    }
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:  }

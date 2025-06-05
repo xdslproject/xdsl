@@ -4,7 +4,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 Position = int
 """
