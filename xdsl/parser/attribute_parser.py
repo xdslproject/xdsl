@@ -873,7 +873,7 @@ class AttrParser(BaseParser):
         resource_interface = self.ctx.get_dialect("builtin").get_interface(
             OpAsmDialectInterface
         )
-        if not isinstance(resource_interface, OpAsmDialectInterface):
+        if not resource_interface:
             self.raise_error("builtin dialect should have an OpAsmDialectInterface")
 
         resource_handle = self._parse_dialect_resource_handle(

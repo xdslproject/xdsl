@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
+DialectInterfT = TypeVar("DialectInterfT", bound=DialectInterface)
 
 
 @dataclass
@@ -83,13 +84,13 @@ class Dialect:
         except ValueError as e:
             raise ValueError(f"Invalid operation or attribute name {name}.") from e
 
-    def get_interface(self, inter: type[DialectInterface]) -> DialectInterface | None:
+    def get_interface(self, inter: type[DialectInterfT]) -> DialectInterfT | None:
         for i in self._interfaces:
             if isinstance(i, inter):
                 return i
         return None
 
-    def has_interface(self, inter: type[DialectInterface]) -> bool:
+    def has_interface(self, inter: type[DialectInterfT]) -> bool:
         return self.get_interface(inter) is not None
 
 

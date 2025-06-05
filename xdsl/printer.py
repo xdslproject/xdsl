@@ -10,6 +10,7 @@ from typing import Any, cast
 
 from typing_extensions import TypeVar
 
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
@@ -103,6 +104,11 @@ class Printer(BasePrinter):
     )
     _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
     _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
+
+    """
+    resources that were referenced in the ir
+    """
+    _dialect_resources: dict[str, set[str]] = field(default_factory=dict[str, set[str]])
 
     @property
     def ssa_names(self):
@@ -547,7 +553,9 @@ class Printer(BasePrinter):
 
         if isinstance(attribute, DenseResourceAttr):
             handle = attribute.resource_handle.data
-            self.print_string(f"dense_resource<{handle}> : ")
+            self.print_string("dense_resource<")
+            self.print_resource_handle("builtin", handle)
+            self.print_string("> : ")
             self.print_attribute(attribute.type)
             return
 
@@ -904,3 +912,39 @@ class Printer(BasePrinter):
             self.print_op_with_default_format(op)
         if scope:
             self.exit_scope()
+
+    def print_resource_handle(self, dialect: str, handle: str):
+        if dialect not in self._dialect_resources:
+            self._dialect_resources[dialect] = set()
+        self._dialect_resources[dialect].add(handle)
+        self.print_string(handle)
+
+    def print_file_metadata(
+        self, resource_interfaces: dict[str, OpAsmDialectInterface]
+    ):
+        if not self._dialect_resources:
+            return
+
+        self.print_string("\n\n{-#\n")
+        self.print_string("  dialect_resources: {\n")
+
+        for dialect_name, resource_keys in self._dialect_resources.items():
+            if dialect_name not in resource_interfaces:
+                raise ValueError(
+                    f"Dialect {dialect_name} doesn't implement OpAsmDialectInterface"
+                )
+
+            self.print_string("    " + dialect_name + ": {\n")
+
+            sorted_keys = sorted(resource_keys)
+            for resource in sorted_keys[:-1]:
+                val = resource_interfaces[dialect_name].blob_storage[resource]
+                self.print_string(f'      {resource}: "{val}",')
+
+            val = resource_interfaces[dialect_name].blob_storage[sorted_keys[-1]]
+            self.print_string(f'      {sorted_keys[-1]}: "{val}"')
+
+            self.print_string("\n    }\n")
+
+        self.print_string("  }\n")
+        self.print_string("#-}")

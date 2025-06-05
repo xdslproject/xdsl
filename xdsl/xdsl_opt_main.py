@@ -8,6 +8,7 @@ from itertools import accumulate
 from typing import IO, Any
 
 from xdsl.context import Context
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
@@ -220,6 +221,14 @@ class xDSLOptMain(CommandLineTool):
                 print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
+
+            interfaces = [
+                (d.name, d.get_interface(OpAsmDialectInterface))
+                for d in self.ctx.loaded_dialects
+            ]
+            resource_interfaces = {n: interf for n, interf in interfaces if interf}
+            printer.print_file_metadata(resource_interfaces)
+
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):

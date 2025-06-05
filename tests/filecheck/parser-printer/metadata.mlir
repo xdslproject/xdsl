@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | mlir-opt | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s | filecheck %s
 
 builtin.module {
     func.func @constant_dense_resource() {

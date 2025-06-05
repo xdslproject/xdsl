@@ -167,7 +167,7 @@ class Parser(AttrParser):
                 self.raise_error(f"dialect {dialect_name.text} is not registered")
 
             interface = dialect.get_interface(OpAsmDialectInterface)
-            if not interface or type(interface) is not OpAsmDialectInterface:
+            if not interface:
                 self.raise_error(
                     f"dialect {dialect} doesn't have an OpAsmDialectInterface interface"
                 )
