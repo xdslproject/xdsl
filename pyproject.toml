@@ -50,6 +50,7 @@ bench = [
     "flameprof>=0.4",
     "orjson>=3.10.15",
     "pyinstrument>=5.0.1",
+    "bytesight",
 ]
 
 [project.urls]
@@ -74,6 +75,7 @@ zip-safe = false
 
 [tool.uv.sources]
 lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
+bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git" , rev = "ee773b979ba70d707a4d6532244de21496399c08"}
 
 [tool.setuptools.packages]
 find = {}
