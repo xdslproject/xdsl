@@ -21,6 +21,7 @@ from typing import (
 from immutabledict import immutabledict
 from typing_extensions import Self, TypeVar, deprecated
 
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
@@ -2624,6 +2625,10 @@ class DenseIntOrFPElementsAttr(
 DenseIntElementsAttr: TypeAlias = DenseIntOrFPElementsAttr[IndexType | IntegerType]
 
 
+class BuiltinOpAsmDialectInterface(OpAsmDialectInterface):
+    pass
+
+
 Builtin = Dialect(
     "builtin",
     [
@@ -2671,4 +2676,5 @@ Builtin = Dialect(
         MemRefType,
         UnrankedMemRefType,
     ],
+    [BuiltinOpAsmDialectInterface()],
 )

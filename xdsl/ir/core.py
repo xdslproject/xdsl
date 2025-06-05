@@ -29,6 +29,7 @@ from typing import (
 
 from typing_extensions import Self, TypeVar
 
+from xdsl.dialect_interfaces import DialectInterface
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.mlir_lexer import MLIRLexer
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
+DialectInterfT = TypeVar("DialectInterfT", bound=DialectInterface)
 
 
 @dataclass
@@ -56,6 +58,9 @@ class Dialect:
     )
     _attributes: list[type[Attribute]] = field(
         default_factory=list[type["Attribute"]], init=True, repr=True
+    )
+    _interfaces: list[DialectInterface] = field(
+        default_factory=list[DialectInterface], init=True, repr=True
     )
 
     @property
@@ -78,6 +83,15 @@ class Dialect:
             return (first, second)
         except ValueError as e:
             raise ValueError(f"Invalid operation or attribute name {name}.") from e
+
+    def get_interface(self, inter: type[DialectInterfT]) -> DialectInterfT | None:
+        for i in self._interfaces:
+            if isinstance(i, inter):
+                return i
+        return None
+
+    def has_interface(self, inter: type[DialectInterfT]) -> bool:
+        return self.get_interface(inter) is not None
 
 
 A = TypeVar("A", bound="Attribute")
