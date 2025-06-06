@@ -85,6 +85,9 @@ class Dialect:
             raise ValueError(f"Invalid operation or attribute name {name}.") from e
 
     def get_interface(self, inter: type[DialectInterfT]) -> DialectInterfT | None:
+        """
+        Return a class that implements the 'inter' interface if it exists.
+        """
         for i in self._interfaces:
             if isinstance(i, inter):
                 return i
