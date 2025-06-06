@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, TypeAlias, overload
+from typing import ClassVar, TypeAlias
 
 from typing_extensions import Self
 
@@ -56,7 +56,7 @@ class BoolType(ParametrizedAttribute, TypeAttribute):
 @irdl_attr_definition
 class BitVectorType(ParametrizedAttribute, TypeAttribute):
     """
-    This type represents the (_ BitVec width) sort as described in the SMT bit-vector theory.
+    This type represents the (_ BitVec width) sort as described in the SMT bitvector theory.
     The bit-width must be strictly greater than zero.
     """
 
@@ -602,7 +602,7 @@ class AssertOp(IRDLOperation):
 @irdl_op_definition
 class BvConstantOp(IRDLOperation):
     """
-    This operation produces an SSA value equal to the bit-vector constant specified
+    This operation produces an SSA value equal to the bitvector constant specified
     by the ‘value’ attribute.
     """
 
@@ -617,16 +617,7 @@ class BvConstantOp(IRDLOperation):
 
     traits = traits_def(ConstantLike(), Pure())
 
-    @overload
-    def __init__(self, value: BitVectorAttr) -> None: ...
-
-    @overload
-    def __init__(self, value: int, type: int) -> None: ...
-
-    def __init__(self, value: BitVectorAttr | int, type: int | None = None) -> None:
-        if isinstance(value, int):
-            assert type is not None
-            value = BitVectorAttr(value, type)
+    def __init__(self, value: BitVectorAttr) -> None:
         super().__init__(properties={"value": value}, result_types=[value.type])
 
 
