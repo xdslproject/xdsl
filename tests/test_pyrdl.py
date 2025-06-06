@@ -166,9 +166,8 @@ def test_anyof_verify_fail():
 
     f = FloatData(10.0)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unexpected attribute 10.0"):
         constraint.verify(f, ConstraintContext())
-    assert e.value.args[0] == f"Unexpected attribute {f}"
 
 
 @dataclass(frozen=True)
