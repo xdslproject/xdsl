@@ -53,15 +53,19 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             PDLInterpFunctions.run_get_result(self, interpreter, op, args).values[0],
         )
 
-        if (
-            result
-            and len(result.uses) == 1
-            and isinstance(
-                eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
-            )
+        if result is None:
+            return (None,)
+
+        if len(result.uses) == 1 and isinstance(
+            eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
         ):
             assert len(eclass_op.results) == 1
             result = eclass_op.results[0]
+        else:
+            raise InterpretationError(
+                "pdl_interp.get_result currently only supports operations with results"
+                " that are used by a single EClassOp each."
+            )
 
         return (result,)
 
