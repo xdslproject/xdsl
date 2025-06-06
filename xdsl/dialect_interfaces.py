@@ -19,6 +19,20 @@ class OpAsmDialectInterface(DialectInterface):
     ## Aliases - yet to be implemented
 
     ## Resources
+
+    # Keep a dialect specific storage of blobs in the Dialect object.
+
+    # This functionality is usefull when we want to reference some objects
+    # while keeping them outside of ir.
+    # For example if we have a big dense array we might decide to store it in
+    # dialect's storage and use a key to reference it inside the ir.
+    # Or if we want some data to be shared across attributes we might wanna
+    # store it in the storage and use the same key to reference it
+    # in different places in the ir.
+
+    # This can help keep the ir clean and also give some performance improvements
+    # compared to keeping these resources tied to ir objects.
+
     def declare_resource(self, key: str) -> str:
         """
         Declare a resource in the storage.
@@ -38,6 +52,9 @@ class OpAsmDialectInterface(DialectInterface):
         return key
 
     def parse_resource(self, key: str, val: str):
+        """
+        Check that val is a blob and update the key value with it.
+        """
         if not val.startswith("0x"):
             raise ValueError(f"Blob must be a hex string, got: {val}")
 
@@ -47,4 +64,7 @@ class OpAsmDialectInterface(DialectInterface):
         self._blob_storage[key] = val
 
     def lookup(self, key: str) -> str | None:
+        """
+        Get a value tied to a key.
+        """
         return self._blob_storage.get(key)
