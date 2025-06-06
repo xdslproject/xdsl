@@ -1346,6 +1346,11 @@ class ContainerOf(
         else:
             self.elem_constr.verify(attr, constraint_context)
 
+    def get_bases(self) -> set[type[Attribute]] | None:
+        bases = self.elem_constr.get_bases()
+        if bases is not None:
+            return {*bases, TensorType, VectorType}
+
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> ContainerOf[AttributeCovT]:
@@ -2059,7 +2064,7 @@ class MemRefType(
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[MemRefLayoutAttr | NoneAttr]
+    layout: ParameterDef[StridedLayoutAttr | AffineMapAttr | NoneAttr]
     memory_space: ParameterDef[Attribute]
 
     def __init__(
