@@ -166,7 +166,9 @@ def test_anyof_verify_fail():
 
     f = FloatData(10.0)
 
-    with pytest.raises(VerifyException, match=re.escape("Unexpected attribute #test.float<10.0>")):
+    with pytest.raises(
+        VerifyException, match=r"Unexpected attribute #test.float<10.0>"
+    ):
         constraint.verify(f, ConstraintContext())
 
 
