@@ -139,6 +139,44 @@ class YieldOp(IRDLOperation):
         super().__init__(operands=[values])
 
 
+@irdl_op_definition
+class EGraphOp(IRDLOperation):
+    name = "eqsat.egraph"
+
+    outputs = var_result_def()
+    body = region_def()
+
+    traits = lazy_traits_def(lambda: (SingleBlockImplicitTerminator(YieldOp),))
+
+    assembly_format = "`->` type($outputs) $body attr-dict"
+
+    def __init__(
+        self,
+        result_types: Sequence[Attribute] | None,
+        body: Region,
+    ):
+        super().__init__(
+            result_types=(result_types,),
+            regions=[body],
+        )
+
+
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    name = "eqsat.yield"
+    values = var_operand_def()
+
+    traits = traits_def(HasParent(EGraphOp), IsTerminator())
+
+    assembly_format = "$values `:` type($values) attr-dict"
+
+    def __init__(
+        self,
+        *values: SSAValue,
+    ):
+        super().__init__(operands=[values])
+
+
 EqSat = Dialect(
     "eqsat",
     [
