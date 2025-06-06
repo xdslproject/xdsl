@@ -190,6 +190,7 @@ class GenericParser(Generic[TokenKindT]):
         ANGLE = ("<", ">")
         SQUARE = ("[", "]")
         BRACES = ("{", "}")
+        METADATA_TOKEN = ("{-#", "#-}")
         NONE = None
 
     def parse_comma_separated_list(
