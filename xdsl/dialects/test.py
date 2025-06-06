@@ -257,10 +257,6 @@ class TestType(Data[str], TypeAttribute):
             printer.print_string_literal(self.data)
 
 
-class TestOpAsmDialectInterface(OpAsmDialectInterface):
-    pass
-
-
 Test = Dialect(
     "test",
     [
@@ -273,5 +269,5 @@ Test = Dialect(
     [
         TestType,
     ],
-    [TestOpAsmDialectInterface()],
+    [OpAsmDialectInterface()],
 )

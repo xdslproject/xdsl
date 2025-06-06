@@ -2625,10 +2625,6 @@ class DenseIntOrFPElementsAttr(
 DenseIntElementsAttr: TypeAlias = DenseIntOrFPElementsAttr[IndexType | IntegerType]
 
 
-class BuiltinOpAsmDialectInterface(OpAsmDialectInterface):
-    pass
-
-
 Builtin = Dialect(
     "builtin",
     [
@@ -2676,5 +2672,5 @@ Builtin = Dialect(
         MemRefType,
         UnrankedMemRefType,
     ],
-    [BuiltinOpAsmDialectInterface()],
+    [OpAsmDialectInterface()],
 )
