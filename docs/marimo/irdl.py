@@ -334,7 +334,7 @@ def _(ConstraintContext, IntAttr, VerifyException, attr_constr_coercion):
     from xdsl.ir import Attribute
     from xdsl.irdl import AttrConstraint
     from xdsl.utils.hints import isa
-
+    from typing_extensions import TypeVar
 
     @dataclass(frozen=True)
     class ArrayOfConstraint(AttrConstraint):
@@ -354,6 +354,9 @@ def _(ConstraintContext, IntAttr, VerifyException, attr_constr_coercion):
             # We check the constraint for all elements in the array
             for e in attr.data:
                 self.elem_constr.verify(e, constraint_context)
+
+        def mapping_type_vars(self, type_var_mapping: dict[TypeVar, AttrConstraint]):
+            return ArrayOfConstraint(self.elem_constr.mapping_type_vars(type_var_mapping))
 
 
     array_constraint = ArrayOfConstraint(IntAttr)

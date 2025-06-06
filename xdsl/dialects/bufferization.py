@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
@@ -16,6 +20,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
     GenericAttrConstraint,
@@ -82,6 +87,13 @@ class TensorFromMemRefConstraint(
                 f"Expected tensor or unranked tensor type, got {attr}"
             )
         return self.memref_constraint.verify(memref_type, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> TensorFromMemRefConstraint:
+        return TensorFromMemRefConstraint(
+            self.memref_constraint.mapping_type_vars(type_var_mapping)
+        )
 
 
 @irdl_op_definition

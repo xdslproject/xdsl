@@ -4,6 +4,7 @@ Test the definition of attributes and their constraints.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
@@ -13,6 +14,7 @@ from typing import Annotated, Any, Generic, TypeAlias, cast
 import pytest
 from typing_extensions import TypeVar
 
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
@@ -20,9 +22,11 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
+    i32,
 )
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     BitEnumAttribute,
     BuiltinAttribute,
     Data,
@@ -33,19 +37,25 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.irdl import (
+    AllOf,
     AnyAttr,
+    AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
     ConstraintVar,
     GenericData,
     MessageConstraint,
+    ParamAttrConstraint,
     ParamAttrDef,
     ParameterDef,
+    TypeVarConstraint,
+    VarConstraint,
+    base,
     irdl_attr_definition,
     irdl_to_attr_constraint,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 
@@ -258,6 +268,50 @@ def test_typed_attribute():
             name = "test.typed"
 
 
+def test_typed_attribute_parsing_printing():
+    """
+    Test that non builtin TypedAttributes are parsed and printed correctly.
+    """
+
+    @irdl_attr_definition
+    class TypedAttr(TypedAttribute):
+        name = "test.typed"
+        value: ParameterDef[IntAttr]
+        type: ParameterDef[IntegerType]
+
+        @classmethod
+        def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+            with parser.in_angle_brackets():
+                value = parser.parse_integer()
+            parser.parse_punctuation(":")
+            type = parser.parse_type()
+            return (IntAttr(value), type)
+
+        def print_parameters(self, printer: Printer) -> None:
+            printer.print(f"<{self.value.data}> : {self.type}")
+
+        @classmethod
+        def get_type_index(cls) -> int:
+            return 1
+
+        @staticmethod
+        def parse_with_type(
+            parser: AttrParser,
+            type: Attribute,
+        ) -> TypedAttribute:
+            raise NotImplementedError()
+
+        def print_without_type(self, printer: Printer) -> None:
+            raise NotImplementedError()
+
+    ctx = Context()
+    ctx.load_attr_or_type(TypedAttr)
+    attr = Parser(ctx, "#test.typed<42> : i32").parse_attribute()
+    assert attr == TypedAttr([IntAttr(42), i32])
+
+    assert str(attr) == "#test.typed<42> : i32"
+
+
 ################################################################################
 # IntegerAttr
 ################################################################################
@@ -376,6 +430,11 @@ class PositiveIntConstr(AttrConstraint):
             )
         if attr.data <= 0:
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> PositiveIntConstr:
+        return self
 
 
 @irdl_attr_definition
@@ -632,9 +691,6 @@ def test_data_with_generic_missing_generic_data_failure():
     )
 
 
-A = TypeVar("A", bound=Attribute)
-
-
 @dataclass(frozen=True)
 class DataListAttr(AttrConstraint):
     """
@@ -653,13 +709,18 @@ class DataListAttr(AttrConstraint):
         for e in attr.data:
             self.elem_constr.verify(e, constraint_context)
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> DataListAttr:
+        return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
+
 
 @irdl_attr_definition
-class ListData(GenericData[list[A]]):
+class ListData(GenericData[list[AttributeInvT]]):
     name = "test.list"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> list[A]:
+    def parse_parameter(cls, parser: AttrParser) -> list[AttributeInvT]:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -674,7 +735,7 @@ class ListData(GenericData[list[A]]):
         return DataListAttr(irdl_to_attr_constraint(args[0]))
 
     @staticmethod
-    def from_list(data: list[A]) -> ListData[A]:
+    def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
         return ListData(data)
 
 
@@ -837,6 +898,34 @@ def test_custom_constructor():
     assert OveriddenInitAttr.new([StringData("17")]) == OveriddenInitAttr("17")
 
 
+@irdl_attr_definition
+class GenericAttr(Generic[AttributeInvT], ParametrizedAttribute):
+    name = "test.generic_attr"
+
+    param: ParameterDef[AttributeInvT]
+
+
+def test_generic_attr():
+    """Test the generic parameter of a ParametrizedAttribute."""
+
+    assert GenericAttr.get_irdl_definition() == ParamAttrDef(
+        "test.generic_attr",
+        [
+            (
+                "param",
+                TypeVarConstraint(
+                    type_var=AttributeInvT,
+                    base_constraint=AnyAttr(),
+                ),
+            )
+        ],
+    )
+
+    assert base(GenericAttr[IntAttr]) == ParamAttrConstraint(
+        GenericAttr, (BaseAttr(IntAttr),)
+    )
+
+
 ################################################################################
 # ConstraintVar
 ################################################################################
@@ -916,3 +1005,68 @@ def test_builtin_name():
         ParametrizedAttribute, BuiltinAttribute
     ):
         name = "builtin.vector"
+
+
+################################################################################
+# Mapping Type Var
+################################################################################
+
+
+@irdl_attr_definition
+class A(Data[int]):
+    name = "test.a"
+
+
+@irdl_attr_definition
+class B(Data[int]):
+    name = "test.b"
+
+
+_A = TypeVar("_A", bound=Attribute)
+
+
+def test_var_constraint():
+    var_constraint = VarConstraint("var", TypeVarConstraint(_A, BaseAttr(A)))
+
+    with pytest.raises(KeyError, match="Mapping value missing for type var ~_A"):
+        var_constraint.mapping_type_vars({})
+
+    assert var_constraint.mapping_type_vars({_A: BaseAttr(B)}) == VarConstraint(
+        "var", BaseAttr(B)
+    )
+
+
+def test_typevar_constraint():
+    typevar_constraint = TypeVarConstraint(_A, BaseAttr(A))
+
+    with pytest.raises(
+        KeyError, match=re.escape("Mapping value missing for type var ~_A")
+    ):
+        assert typevar_constraint.mapping_type_vars({})
+    assert typevar_constraint.mapping_type_vars({_A: BaseAttr(B)}) == BaseAttr(B)
+
+
+def test_message_constraint():
+    message_constraint = MessageConstraint(
+        TypeVarConstraint(_A, BaseAttr(A)), "test message"
+    )
+
+    assert message_constraint.mapping_type_vars({_A: BaseAttr(B)}) == MessageConstraint(
+        BaseAttr(B), "test message"
+    )
+
+
+def test_anyof_constraint():
+    anyof_constraint = AnyOf((TypeVarConstraint(_A, BaseAttr(A)), BaseAttr(B)))
+
+    assert anyof_constraint.mapping_type_vars({_A: BaseAttr(B)}) == AnyOf(
+        (BaseAttr(B), BaseAttr(B))
+    )
+
+
+def test_allof_constraint():
+    allof_constraint = AllOf((TypeVarConstraint(_A, BaseAttr(A)), BaseAttr(B)))
+
+    assert allof_constraint.mapping_type_vars({_A: BaseAttr(B)}) == AllOf(
+        (BaseAttr(B), BaseAttr(B))
+    )
