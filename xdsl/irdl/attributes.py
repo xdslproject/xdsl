@@ -26,6 +26,8 @@ from typing import (
 
 from typing_extensions import TypeVar
 
+from xdsl.ir import AttributeCovT
+
 if TYPE_CHECKING:
     from typing_extensions import TypeForm
 
@@ -55,7 +57,10 @@ from .constraints import (  # noqa: TID251
     ConstraintVar,
     EqAttrConstraint,
     GenericAttrConstraint,
+    GenericRangeConstraint,
     ParamAttrConstraint,
+    RangeOf,
+    SingleOf,
     TypeVarConstraint,
     VarConstraint,
 )
@@ -490,3 +495,22 @@ def eq(irdl: AttributeInvT) -> GenericAttrConstraint[AttributeInvT]:
     Converts an attribute instance into the equivalent constraint.
     """
     return irdl_to_attr_constraint(irdl)
+
+
+def range_constr_coercion(
+    attr: (
+        AttributeCovT
+        | type[AttributeCovT]
+        | GenericAttrConstraint[AttributeCovT]
+        | GenericRangeConstraint[AttributeCovT]
+    ),
+) -> GenericRangeConstraint[AttributeCovT]:
+    if isinstance(attr, GenericRangeConstraint):
+        return attr
+    return RangeOf(irdl_to_attr_constraint(attr))
+
+
+def single_range_constr_coercion(
+    attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
+) -> GenericRangeConstraint[AttributeCovT]:
+    return SingleOf(irdl_to_attr_constraint(attr))

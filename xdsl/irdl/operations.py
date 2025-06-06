@@ -49,6 +49,8 @@ from .attributes import (  # noqa: TID251
     IRDLGenericAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
+    range_constr_coercion,
+    single_range_constr_coercion,
 )
 from .constraints import (  # noqa: TID251
     AnyAttr,
@@ -58,9 +60,6 @@ from .constraints import (  # noqa: TID251
     GenericRangeConstraint,
     RangeConstraint,
     RangeOf,
-    attr_constr_coercion,
-    range_constr_coercion,
-    single_range_constr_coercion,
 )
 from .error import IRDLAnnotations  # noqa: TID251
 
@@ -1036,12 +1035,12 @@ class OpDef:
 
                             if option.as_property:
                                 prop_def = PropertyDef(
-                                    attr_constr_coercion(DenseArrayBase)
+                                    irdl_to_attr_constraint(DenseArrayBase)
                                 )
                                 op_def.properties[option.attribute_name] = prop_def
                             else:
                                 attr_def = AttributeDef(
-                                    attr_constr_coercion(DenseArrayBase)
+                                    irdl_to_attr_constraint(DenseArrayBase)
                                 )
                                 op_def.attributes[option.attribute_name] = attr_def
                     continue
