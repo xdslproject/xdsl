@@ -7,6 +7,7 @@ from xdsl.dialects import eqsat, pdl, pdl_interp, test
 from xdsl.dialects.builtin import ModuleOp, i32, i64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
+from xdsl.ir import Operation
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
 
@@ -323,6 +324,173 @@ def test_run_getdefiningop_eclass_error_multiple_gdo():
         match="Case where a block contains multiple pdl_interp.get_defining_op is currently not supported",
     ):
         interpreter.run_op(gdo_op2, (eclass_op.results[0],))
+
+def test_run_createoperation_new_operation():
+    """Test that run_createoperation creates new operation and EClass when no existing match."""
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interpreter.register_implementations(interp_functions)
+
+    # Set up a mock rewriter
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+    from xdsl.pattern_rewriter import PatternRewriter
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+    rewriter = PatternRewriter(root)
+    interp_functions.rewriter = rewriter
+
+    # Create operands and types for the operation
+    operand = create_ssa_value(i32)
+    result_type = i32
+
+    # Create CreateOperationOp
+    create_op = pdl_interp.CreateOperationOp(
+        name="test.op",
+        input_operands=[operand],
+        input_attributes=[],
+        input_result_types=[create_ssa_value(pdl.TypeType())],
+    )
+
+    # Run the create operation
+    result = interp_functions.run_createoperation(
+        interpreter, create_op, (operand, result_type)
+    )
+
+    # Should return the created operation
+    assert len(result.values) == 1
+    created_op = result.values[0]
+    assert isinstance(created_op, Operation)
+    assert created_op.name == "test.op"
+
+    # Should add the operation to known_ops
+    assert created_op in interp_functions.known_ops
+    assert interp_functions.known_ops[created_op] is created_op
+
+    # Should create an EClass operation and add it to eclass_union_find
+    # The EClass should be created and inserted after the operation
+    assert len(interp_functions.eclass_union_find._values) == 1  # pyright: ignore[reportPrivateUsage]
+    eclass_op = interp_functions.eclass_union_find._values[0]  # pyright: ignore[reportPrivateUsage]
+    assert isinstance(eclass_op, eqsat.EClassOp)
+
+
+def test_run_createoperation_existing_operation_in_use():
+    """Test that run_createoperation returns existing operation when it's still in use."""
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interpreter.register_implementations(interp_functions)
+
+    # Set up a mock rewriter
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+    from xdsl.pattern_rewriter import PatternRewriter
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+    rewriter = PatternRewriter(root)
+    interp_functions.rewriter = rewriter
+
+    # Create an existing operation that's identical to what we'll create
+    operand = create_ssa_value(i32)
+    existing_op = test.TestOp((operand,), (i32,))
+
+    # Create a user for the existing operation to ensure it's "in use"
+    _user_op = test.TestOp((existing_op.results[0],), (i32,))
+
+    # Add the existing operation to known_ops
+    interp_functions.known_ops[existing_op] = existing_op
+
+    # Create CreateOperationOp that will create an identical operation
+    create_op = pdl_interp.CreateOperationOp(
+        name="test.op",
+        input_operands=[operand],
+        input_attributes=[],
+        input_result_types=[create_ssa_value(pdl.TypeType())],
+    )
+
+    # Track initial rewriter state
+    initial_has_done_action = rewriter.has_done_action
+
+    # Run the create operation
+    result = interp_functions.run_createoperation(
+        interpreter, create_op, (operand, i32)
+    )
+
+    # Should return the existing operation, not create a new one
+    assert len(result.values) == 1
+    returned_op = result.values[0]
+    assert returned_op is existing_op
+
+    # Should restore the rewriter's has_done_action state
+    assert rewriter.has_done_action == initial_has_done_action
+
+
+def test_run_createoperation_existing_operation_not_in_use():
+    """Test that run_createoperation creates new operation when existing has no uses."""
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interpreter.register_implementations(interp_functions)
+
+    # Set up a mock rewriter
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+    from xdsl.pattern_rewriter import PatternRewriter
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+    rewriter = PatternRewriter(root)
+    interp_functions.rewriter = rewriter
+
+    # Create an existing operation with no result uses
+    operand = create_ssa_value(i32)
+    existing_op = test.TestOp((operand,), (i32,))
+
+    # Verify the existing operation has no uses
+    assert len(existing_op.results) > 0, "Existing operation must have results"
+    assert len(existing_op.results[0].uses) == 0, (
+        "Existing operation result should have no uses"
+    )
+
+    # Add the existing operation to known_ops
+    interp_functions.known_ops[existing_op] = existing_op
+
+    # Create CreateOperationOp that will create an identical operation
+    create_op = pdl_interp.CreateOperationOp(
+        name="test.op",
+        input_operands=[operand],
+        input_attributes=[],
+        input_result_types=[create_ssa_value(pdl.TypeType())],
+    )
+
+    # Run the create operation
+    result = interp_functions.run_createoperation(
+        interpreter, create_op, (operand, i32)
+    )
+
+    # Should return a new operation (core behavior test)
+    assert len(result.values) == 1
+    created_op = result.values[0]
+    assert isinstance(created_op, Operation)
+    assert created_op.name == "test.op"
+
+    # The key test: should get a new operation, not the existing unused one
+    assert created_op is not existing_op
+
+    # Should create an EClass operation
+    assert interp_functions.eclass_union_find._values  # pyright: ignore[reportPrivateUsage]
 
 
 def test_run_finalize_empty_stack():
