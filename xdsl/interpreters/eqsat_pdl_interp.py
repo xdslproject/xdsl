@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from ordered_set import OrderedSet
+
 from xdsl.dialects import eqsat, pdl_interp
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.pdl import ValueType
@@ -15,7 +17,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Operation, OpResult, SSAValue
+from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
@@ -53,6 +55,12 @@ class BacktrackPoint:
     """Last valid operand index in the EClassOp (len(operands) - 1)."""
 
 
+@dataclass
+class MergeTodo:
+    to_keep: eqsat.EClassOp
+    to_replace: eqsat.EClassOp
+
+
 @register_impls
 @dataclass
 class EqsatPDLInterpFunctions(PDLInterpFunctions):
@@ -83,10 +91,19 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Used for hashconsing operations. When new operations are created, if they are identical to an existing operation,
     the existing operation is reused instead of creating a new one."""
 
+    known_ops_restore_list: list[Operation] = field(default_factory=list[Operation])
+
     eclass_union_find: DisjointSet[eqsat.EClassOp] = field(
         default_factory=lambda: DisjointSet[eqsat.EClassOp]()
     )
     """Union-find structure tracking which e-classes are equivalent and should be merged."""
+
+    merge_list: list[MergeTodo] = field(default_factory=list[MergeTodo])
+
+    def modification_handler(self, op: Operation):
+        if op in self.known_ops:
+            removed = self.known_ops.pop(op)
+            self.known_ops_restore_list.append(removed)
 
     def populate_known_ops(self, module: ModuleOp) -> None:
         """
@@ -215,6 +232,60 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (defining_op,)
 
+    @impl(pdl_interp.ReplaceOp)
+    def run_replace(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.ReplaceOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert args
+        input_op = args[0]
+        assert isinstance(input_op, Operation)
+        assert len(input_op.results) == 1, (
+            "ReplaceOp currently only supports replacing operations that have a single result"
+        )
+
+        it = iter(input_op.results[0].uses)
+        original_eclass = next(it).operation
+        if not isinstance(original_eclass, eqsat.EClassOp):
+            raise InterpretationError(
+                "Replaced operation result must be used by an EClassOp"
+            )
+
+        repl_values = (
+            (args[1],) if isinstance(op.repl_values.types[0], ValueType) else args[1]
+        )
+        assert len(repl_values) == 1, (
+            "pdl_interp.replace currently only a supports replacing with a single e-class result."
+        )
+        repl_value: SSAValue = repl_values[0]
+        repl_eclass = repl_value.owner
+        if not isinstance(repl_eclass, eqsat.EClassOp):
+            raise InterpretationError(
+                "Replacement value must be the result of an EClassOp"
+            )
+
+        repl_eclass = self.eclass_union_find.find(repl_eclass)
+        original_eclass = self.eclass_union_find.find(original_eclass)
+
+        if repl_eclass == original_eclass:
+            return ()
+
+        self.eclass_union_find.union(
+            original_eclass,
+            repl_eclass,
+        )
+        if self.eclass_union_find.find(original_eclass) == repl_eclass:
+            # In the union-find the canonical representative of the original_eclass
+            # is now the repl_eclass, so we have to keep the repl_eclass:
+            self.merge_list.append(MergeTodo(repl_eclass, original_eclass))
+        else:
+            # otherwise we keep the original_eclass:
+            self.merge_list.append(MergeTodo(original_eclass, repl_eclass))
+
+        return ()
+
     @impl(pdl_interp.CreateOperationOp)
     def run_create_operation(
         self,
@@ -266,3 +337,26 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 self.visited = False
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
+
+    def apply_matches(self):
+        todo = OrderedSet(
+            (self.eclass_union_find.find(todo.to_keep), todo.to_replace)
+            for todo in self.merge_list
+        )
+        self.merge_list.clear()
+        for to_keep, to_replace in todo:
+            operands = to_keep._operands  # pyright: ignore[reportPrivateUsage]
+            startlen = len(operands)
+            for i, val in enumerate(to_replace.operands):
+                val.add_use(Use(to_keep, startlen + i))
+                new_operands = operands + to_replace._operands  # pyright: ignore[reportPrivateUsage]
+                to_keep._operands = new_operands  # pyright: ignore[reportPrivateUsage]
+
+            self.rewriter.replace_op(
+                to_replace, new_ops=[], new_results=to_keep.results
+            )
+
+        while self.known_ops_restore_list:
+            op = self.known_ops_restore_list.pop()
+            assert op not in self.known_ops
+            self.known_ops[op] = op
