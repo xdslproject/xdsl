@@ -69,3 +69,31 @@
 "test.op"() {
   illegal_array_unranked = !emitc.array<*xi32>
 }: ()->()
+
+// -----
+
+// CHECK: EmitC array element type '!emitc.lvalue<i32>' is not a supported EmitC type.
+"test.op"() {
+  lvalue_element_type = !emitc.array<4x!emitc.lvalue<i32>>
+}: ()->()
+
+// -----
+
+// CHECK: !emitc.lvalue cannot wrap !emitc.array type
+"test.op"() {
+  illegal_lvalue_type_1 = !emitc.lvalue<!emitc.array<1xi32>>
+}: ()->()
+
+// -----
+
+// CHECK: !emitc.lvalue must wrap supported emitc type, but got !emitc.lvalue<i32>
+"test.op"() {
+  illegal_lvalue_type_2 = !emitc.lvalue<!emitc.lvalue<i32>>
+}: ()->()
+
+// -----
+
+// CHECK: !emitc.lvalue must wrap supported emitc type, but got i17
+"test.op"() {
+  illegal_lvalue_type_3 = !emitc.lvalue<i17>
+}: ()->()
