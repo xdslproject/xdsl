@@ -14,7 +14,12 @@ from typing import (
 
 from typing_extensions import TypeVar, deprecated
 
-from xdsl.ir import Attribute, AttributeCovT, ParametrizedAttribute, TypedAttribute
+from xdsl.ir import (
+    Attribute,
+    AttributeCovT,
+    ParametrizedAttribute,
+    TypedAttribute,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
