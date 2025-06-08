@@ -138,7 +138,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             if not self.visited:
                 if op != self.backtrack_stack[-1].gdo_op:
                     raise InterpretationError(
-                        "TODO: handle the case where a block contains multiple pdl_interp.get_defining_op."
+                        "Case where a block contains multiple pdl_interp.get_defining_op is currently not supported."
                     )
                 index = self.backtrack_stack[-1].index
                 self.visited = True
