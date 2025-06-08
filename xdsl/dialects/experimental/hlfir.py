@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
+    AnyFloat,
     ArrayAttr,
     Attribute,
     BoolAttr,
@@ -29,17 +30,18 @@ from xdsl.dialects.experimental.fir import (
     DeferredAttr,
     FortranVariableFlagsAttr,
     NoneType,
+    ReferenceType,
 )
 from xdsl.ir import Dialect, TypeAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -63,8 +65,8 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "hlfir.expr"
-    shape: ParameterDef[ArrayAttr[IntegerAttr | DeferredAttr | NoneType]]
-    elementType: ParameterDef[Attribute]
+    shape: ArrayAttr[IntegerAttr | DeferredAttr | NoneType] = param_def()
+    elementType: IntegerType | AnyFloat | ReferenceType = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
