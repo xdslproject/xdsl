@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any
 
 from xdsl.dialects import eqsat, pdl_interp
 from xdsl.dialects.builtin import ModuleOp
@@ -12,7 +12,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Attribute, Operation, OpResult
+from xdsl.ir import Operation, OpResult
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.exceptions import InterpretationError
@@ -48,24 +48,24 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.GetResultOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        result = cast(
-            None | OpResult[Attribute],
-            PDLInterpFunctions.run_get_result(self, interpreter, op, args).values[0],
-        )
+        assert len(args) == 1
+        assert isinstance(args[0], Operation)
+        if len(args[0].results) <= op.index.value.data:
+            result = None
+        else:
+            result = args[0].results[op.index.value.data]
 
         if result is None:
             return (None,)
 
-        if len(result.uses) == 1 and isinstance(
+        if len(result.uses) != 1 or not isinstance(
             eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
         ):
-            assert len(eclass_op.results) == 1
-            result = eclass_op.results[0]
-        else:
             raise InterpretationError(
                 "pdl_interp.get_result currently only supports operations with results"
                 " that are used by a single EClassOp each."
             )
+        result = eclass_op.result
 
         return (result,)
 
