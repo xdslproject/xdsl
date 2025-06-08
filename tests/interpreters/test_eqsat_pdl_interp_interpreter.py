@@ -130,3 +130,61 @@ def test_run_getresults_error_case():
             ),
             (test_op,),
         )
+
+
+def test_run_getresult_none_case():
+    """Test that run_getresult returns None when result index doesn't exist."""
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
+
+    # Create a test operation with only one result
+    c0 = create_ssa_value(i32)
+    test_op = test.TestOp((c0,), (i32,))
+
+    # Try to get result at index 1 (doesn't exist, only index 0 exists)
+    result = interpreter.run_op(
+        pdl_interp.GetResultOp(1, create_ssa_value(pdl.OperationType())), (test_op,)
+    )
+    assert result == (None,)
+
+
+def test_run_getresults_valuetype_multi_results():
+    """Test that run_getresults returns None for ValueType with multiple results."""
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
+
+    # Create a test operation with multiple results
+    c0 = create_ssa_value(i32)
+    test_op = test.TestOp((c0,), (i32, i64))
+
+    # Test GetResultsOp with ValueType (not RangeType) - should return None since op has != 1 result
+    result = interpreter.run_op(
+        pdl_interp.GetResultsOp(
+            None,
+            create_ssa_value(pdl.OperationType()),
+            pdl.ValueType(),
+        ),
+        (test_op,),
+    )
+    assert result == (None,)
+
+
+def test_run_getresults_valuetype_no_results():
+    """Test that run_getresults returns None for ValueType with no results."""
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
+
+    # Create a test operation with no results
+    c0 = create_ssa_value(i32)
+    test_op = test.TestOp((c0,), ())
+
+    # Test GetResultsOp with ValueType (not RangeType) - should return None since op has != 1 result
+    result = interpreter.run_op(
+        pdl_interp.GetResultsOp(
+            None,
+            create_ssa_value(pdl.OperationType()),
+            pdl.ValueType(),
+        ),
+        (test_op,),
+    )
+    assert result == (None,)
