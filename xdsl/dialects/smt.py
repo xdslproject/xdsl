@@ -14,8 +14,10 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     AtLeast,
     GenericAttrConstraint,
     GenericRangeConstraint,
@@ -54,7 +56,7 @@ class BoolType(ParametrizedAttribute, TypeAttribute):
 @irdl_attr_definition
 class BitVectorType(ParametrizedAttribute, TypeAttribute):
     """
-    This type represents the (_ BitVec width) sort as described in the SMT bit-vector theory.
+    This type represents the (_ BitVec width) sort as described in the SMT bitvector theory.
     The bit-width must be strictly greater than zero.
     """
 
@@ -84,6 +86,13 @@ class BitVectorType(ParametrizedAttribute, TypeAttribute):
                 "BitVectorType width must be strictly greater "
                 f"than zero, got {self.width.data}"
             )
+
+    def value_range(self) -> tuple[int, int]:
+        """
+        The range of values that this bitvector can represent.
+        The maximum value is exclusive.
+        """
+        return (0, 1 << self.width.data)
 
 
 NonFuncSMTType: TypeAlias = BoolType | BitVectorType
@@ -134,6 +143,69 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
 SMTType: TypeAlias = NonFuncSMTType | FuncType
 SMTTypeConstr = irdl_to_attr_constraint(SMTType)
+
+
+@irdl_attr_definition
+class BitVectorAttr(TypedAttribute):
+    name = "smt.bv"
+
+    value: ParameterDef[IntAttr]
+    type: ParameterDef[BitVectorType]
+
+    def __init__(self, value: int | IntAttr, type: BitVectorType | int):
+        if isinstance(value, int):
+            value = IntAttr(value)
+        if isinstance(type, int):
+            type = BitVectorType(type)
+        super().__init__([value, type])
+
+    def verify(self) -> None:
+        super().verify()
+        (min_value, max_value) = self.type.value_range()
+        if not (min_value <= self.value.data < max_value):
+            raise VerifyException(
+                f"BitVectorAttr value {self.value.data} is out of range "
+                f"[{min_value}, {max_value}) for type {self.type}"
+            )
+
+    @staticmethod
+    def constr(
+        type_constraint: GenericAttrConstraint[BitVectorType],
+    ) -> GenericAttrConstraint[BitVectorAttr]:
+        return ParamAttrConstraint(
+            BitVectorAttr,
+            (
+                AnyAttr(),
+                type_constraint,
+            ),
+        )
+
+    @classmethod
+    def get_type_index(cls) -> int:
+        return 1
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            value = parser.parse_integer(allow_boolean=False, allow_negative=False)
+        parser.parse_punctuation(":")
+        type = parser.parse_type()
+        return [IntAttr(value), type]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string(f"<{self.value.data}> : {self.type}")
+
+    @staticmethod
+    def parse_with_type(
+        parser: AttrParser,
+        type: Attribute,
+    ) -> TypedAttribute:
+        with parser.in_angle_brackets():
+            value = parser.parse_integer(allow_boolean=False, allow_negative=False)
+        return BitVectorAttr.new([IntAttr(value), type])
+
+    def print_without_type(self, printer: Printer) -> None:
+        printer.print_string(f"<{self.value.data}>")
 
 
 @irdl_op_definition
@@ -207,7 +279,7 @@ class ConstantBoolOp(IRDLOperation):
 
     traits = traits_def(Pure(), ConstantLike())
 
-    assembly_format = "$value attr-dict"
+    assembly_format = "qualified($value) attr-dict"
 
     def __init__(self, value: bool):
         value_attr = BoolAttr.from_bool(value)
@@ -527,6 +599,28 @@ class AssertOp(IRDLOperation):
         super().__init__(operands=[input])
 
 
+@irdl_op_definition
+class BvConstantOp(IRDLOperation):
+    """
+    This operation produces an SSA value equal to the bitvector constant specified
+    by the ‘value’ attribute.
+    """
+
+    name = "smt.bv.constant"
+
+    T: ClassVar = VarConstraint("T", base(BitVectorType))
+
+    value = prop_def(BitVectorAttr.constr(T))
+    result = result_def(T)
+
+    assembly_format = "qualified($value) attr-dict"
+
+    traits = traits_def(ConstantLike(), Pure())
+
+    def __init__(self, value: BitVectorAttr) -> None:
+        super().__init__(properties={"value": value}, result_types=[value.type])
+
+
 SMT = Dialect(
     "smt",
     [
@@ -545,10 +639,12 @@ SMT = Dialect(
         ForallOp,
         YieldOp,
         AssertOp,
+        BvConstantOp,
     ],
     [
         BoolType,
         BitVectorType,
         FuncType,
+        BitVectorAttr,
     ],
 )

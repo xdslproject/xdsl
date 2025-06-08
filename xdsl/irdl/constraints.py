@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import KW_ONLY, dataclass, field
-from inspect import isclass
 from typing import (
     TYPE_CHECKING,
     Generic,
@@ -13,9 +12,14 @@ from typing import (
     cast,
 )
 
-from typing_extensions import TypeVar, assert_never
+from typing_extensions import TypeVar, deprecated
 
-from xdsl.ir import Attribute, AttributeCovT, ParametrizedAttribute, TypedAttribute
+from xdsl.ir import (
+    Attribute,
+    AttributeCovT,
+    ParametrizedAttribute,
+    TypedAttribute,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
@@ -387,6 +391,7 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         return self
 
 
+@deprecated("Please use `irdl_to_attr_constraint` instead")
 def attr_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
 ) -> GenericAttrConstraint[AttributeCovT]:
@@ -394,13 +399,9 @@ def attr_constr_coercion(
     Attributes are coerced into EqAttrConstraints,
     and Attribute types are coerced into BaseAttr.
     """
-    if isinstance(attr, GenericAttrConstraint):
-        return attr
-    if isinstance(attr, Attribute):
-        return EqAttrConstraint(attr)
-    if isclass(attr):
-        return BaseAttr(attr)
-    assert_never(attr)
+    from xdsl.irdl import irdl_to_attr_constraint
+
+    return irdl_to_attr_constraint(attr)
 
 
 @dataclass(frozen=True)
@@ -433,8 +434,10 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
             AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT]
         ],
     ):
+        from xdsl.irdl import irdl_to_attr_constraint
+
         constrs: tuple[GenericAttrConstraint[AttributeCovT], ...] = tuple(
-            attr_constr_coercion(constr) for constr in attr_constrs
+            irdl_to_attr_constraint(constr) for constr in attr_constrs
         )
         object.__setattr__(
             self,
@@ -657,7 +660,9 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
         ),
         message: str,
     ):
-        object.__setattr__(self, "constr", attr_constr_coercion(constr))
+        from xdsl.irdl import irdl_to_attr_constraint
+
+        object.__setattr__(self, "constr", irdl_to_attr_constraint(constr))
         object.__setattr__(self, "message", message)
 
     def verify(
@@ -1023,22 +1028,3 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> SingleOf[AttributeCovT]:
         return SingleOf(self.constr.mapping_type_vars(type_var_mapping))
-
-
-def range_constr_coercion(
-    attr: (
-        AttributeCovT
-        | type[AttributeCovT]
-        | GenericAttrConstraint[AttributeCovT]
-        | GenericRangeConstraint[AttributeCovT]
-    ),
-) -> GenericRangeConstraint[AttributeCovT]:
-    if isinstance(attr, GenericRangeConstraint):
-        return attr
-    return RangeOf(attr_constr_coercion(attr), length=AnyInt())
-
-
-def single_range_constr_coercion(
-    attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
-) -> GenericRangeConstraint[AttributeCovT]:
-    return SingleOf(attr_constr_coercion(attr))

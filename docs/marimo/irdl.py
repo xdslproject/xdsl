@@ -170,7 +170,7 @@ def _(mo):
         r"""
     #### Attribute Constraint Coercion
 
-    To simplify the definitions of constraints, constraint constructors expecting an attribute constraints will coerce `Attribute` to an equality attribute constraint, and will coerce an `Attribute` type to a base attribute constraint. this is done using the `attr_constr_coercion` function:
+    To simplify the definitions of constraints, constraint constructors expecting an attribute constraints will coerce `Attribute` to an equality attribute constraint, and will coerce an `Attribute` type to a base attribute constraint. this is done using the `irdl_to_attr_constraint` function:
     """
     )
     return
@@ -178,12 +178,12 @@ def _(mo):
 
 @app.cell
 def _(BaseAttr, EqAttrConstraint, StringAttr, i32):
-    from xdsl.irdl import AnyOf, attr_constr_coercion
+    from xdsl.irdl import AnyOf, irdl_to_attr_constraint
 
-    assert attr_constr_coercion(i32) == EqAttrConstraint(i32)
-    assert attr_constr_coercion(StringAttr) == BaseAttr(StringAttr)
+    assert irdl_to_attr_constraint(i32) == EqAttrConstraint(i32)
+    assert irdl_to_attr_constraint(StringAttr) == BaseAttr(StringAttr)
     assert AnyOf([i32, StringAttr]) == AnyOf([EqAttrConstraint(i32), BaseAttr(StringAttr)])
-    return AnyOf, attr_constr_coercion
+    return AnyOf, irdl_to_attr_constraint
 
 
 @app.cell(hide_code=True)
@@ -327,7 +327,7 @@ def _(mo):
 
 
 @app.cell
-def _(ConstraintContext, IntAttr, VerifyException, attr_constr_coercion):
+def _(ConstraintContext, IntAttr, VerifyException, irdl_to_attr_constraint):
     from dataclasses import dataclass
 
     from xdsl.dialects.builtin import ArrayAttr
@@ -343,7 +343,7 @@ def _(ConstraintContext, IntAttr, VerifyException, attr_constr_coercion):
 
         # The custom init applies the attribute constraint coercion
         def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
-            object.__setattr__(self, "elem_constr", attr_constr_coercion(constr))
+            object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(constr))
 
         # Check that an attribute satisfies the constraints
         def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:

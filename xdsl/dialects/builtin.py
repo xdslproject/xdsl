@@ -60,7 +60,6 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     RangeOf,
-    attr_constr_coercion,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -1338,7 +1337,7 @@ class ContainerOf(
             AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT]
         ),
     ) -> None:
-        object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
+        object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(elem_constr))
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if isinstance(attr, VectorType) or isinstance(attr, TensorType):

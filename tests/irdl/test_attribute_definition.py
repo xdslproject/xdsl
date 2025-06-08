@@ -714,11 +714,11 @@ class DataListAttr(AttrConstraint):
 
 
 @irdl_attr_definition
-class ListData(GenericData[list[AttributeInvT]]):
+class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
     name = "test.list"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> list[AttributeInvT]:
+    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeInvT, ...]:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -734,7 +734,7 @@ class ListData(GenericData[list[AttributeInvT]]):
 
     @staticmethod
     def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
-        return ListData(data)
+        return ListData(tuple(data))
 
 
 AnyListData: TypeAlias = ListData[Attribute]
@@ -745,7 +745,7 @@ class Test_generic_data_verifier:
         """
         Test that a GenericData can be created.
         """
-        attr = ListData([BoolData(True), ListData([BoolData(False)])])
+        attr = ListData((BoolData(True), ListData((BoolData(False),))))
         stream = StringIO()
         p = Printer(stream=stream)
         p.print_attribute(attr)
@@ -766,7 +766,7 @@ def test_generic_data_wrapper_verifier():
     """
     Test that a GenericData used in constraints pass the verifier when correct.
     """
-    attr = ListDataWrapper((ListData([BoolData(True), BoolData(False)]),))
+    attr = ListDataWrapper((ListData((BoolData(True), BoolData(False))),))
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -782,7 +782,7 @@ def test_generic_data_wrapper_verifier_failure():
     the verifier when constraints are not satisfied.
     """
     with pytest.raises(VerifyException) as e:
-        ListDataWrapper((ListData([BoolData(True), ListData([BoolData(False)])]),))
+        ListDataWrapper((ListData((BoolData(True), ListData((BoolData(False),)))),))
     assert (
         e.value.args[0]
         == "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
@@ -805,7 +805,7 @@ def test_generic_data_no_generics_wrapper_verifier():
     Test that GenericType can be used in constraints without a parameter.
     """
     attr = ListDataNoGenericsWrapper(
-        (ListData([BoolData(True), ListData([BoolData(False)])]),)
+        (ListData((BoolData(True), ListData((BoolData(False),)))),)
     )
     stream = StringIO()
     p = Printer(stream=stream)

@@ -423,6 +423,8 @@ class FormatParser(BaseParser):
 
     def parse_optional_variable(
         self,
+        *,
+        qualified: bool = False,
     ) -> FormatDirective | None:
         """
         Parse a variable, if present, with the following format:
@@ -521,6 +523,10 @@ class FormatParser(BaseParser):
                 ):
                     unique_base = None
 
+                # Ensure qualified attributes stay qualified
+                if qualified:
+                    unique_base = None
+
                 # Chill pyright with TypedAttribute without parameter
                 unique_base = cast(type[Attribute] | None, unique_base)
 
@@ -571,6 +577,21 @@ class FormatParser(BaseParser):
         results = self.parse_typeable_directive()
         self.parse_punctuation(")")
         return FunctionalTypeDirective(operands, results)
+
+    def parse_qualified_directive(self) -> FormatDirective:
+        """
+        Parse a qualified attribute or type directive, with the following format:
+            qualified-directive ::= `qualified` `(` variable `)`
+        """
+        self.parse_punctuation("(")
+        res = self.parse_optional_variable(qualified=True)
+        if res is None:
+            self.raise_error(
+                "expected a variable after 'qualified', found "
+                f"'{self._current_token.text}'"
+            )
+        self.parse_punctuation(")")
+        return res
 
     def parse_optional_group(self) -> FormatDirective:
         """
@@ -691,6 +712,8 @@ class FormatParser(BaseParser):
             return self.create_operands_directive(True)
         if self.parse_optional_keyword("functional-type"):
             return self.parse_functional_type_directive()
+        if self.parse_optional_keyword("qualified"):
+            return self.parse_qualified_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
         if self.parse_optional_punctuation("("):
