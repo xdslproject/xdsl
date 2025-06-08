@@ -414,3 +414,230 @@ def test_run_finalize_with_backtrack_stack():
     assert result.terminator_value.values == ()
     assert result.values == ()
     assert len(interp_functions.backtrack_stack) == 0
+
+
+def test_run_replace():
+    """Test that run_replace correctly merges EClass operations."""
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+
+    # Create test operations
+    c0 = create_ssa_value(i32)
+    original_op = test.TestOp((c0,), (i32,))
+    replacement_op = test.TestOp((c0,), (i32,))
+
+    # Create EClass operations for both
+    original_eclass = eqsat.EClassOp(original_op.results[0], res_type=i32)
+    replacement_eclass = eqsat.EClassOp(replacement_op.results[0], res_type=i32)
+
+    # Add both EClass operations to union-find
+    interp_functions.eclass_union_find.add(original_eclass)
+    interp_functions.eclass_union_find.add(replacement_eclass)
+
+    # Create a ReplaceOp for testing
+    input_op_value = create_ssa_value(pdl.OperationType())
+    repl_value = create_ssa_value(pdl.ValueType())
+    replace_op = pdl_interp.ReplaceOp(input_op_value, [repl_value])
+
+    # Call run_replace directly
+    result = interp_functions.run_replace(
+        interpreter, replace_op, (original_op, replacement_eclass.results[0])
+    )
+
+    # Should return empty tuple
+    assert result.values == ()
+
+    # Should have merged the EClass operations in union-find
+    assert interp_functions.eclass_union_find.connected(
+        original_eclass, replacement_eclass
+    )
+
+    # Should have added a merge todo
+    assert len(interp_functions.merge_list) == 1
+    merge_todo = interp_functions.merge_list[0]
+    # One of them should be the canonical representative
+    canonical = interp_functions.eclass_union_find.find(original_eclass)
+    assert merge_todo.to_keep == canonical
+
+
+def test_run_replace_same_eclass():
+    """Test that run_replace handles replacing with same EClass correctly."""
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+
+    # Create test operation
+    c0 = create_ssa_value(i32)
+    test_op = test.TestOp((c0,), (i32,))
+
+    # Create EClass operation
+    eclass_op = eqsat.EClassOp(test_op.results[0], res_type=i32)
+
+    # Add EClass operation to union-find
+    interp_functions.eclass_union_find.add(eclass_op)
+
+    # Create a ReplaceOp for testing
+    input_op_value = create_ssa_value(pdl.OperationType())
+    repl_value = create_ssa_value(pdl.ValueType())
+    replace_op = pdl_interp.ReplaceOp(input_op_value, [repl_value])
+
+    # Call run_replace directly
+    result = interp_functions.run_replace(
+        interpreter, replace_op, (test_op, eclass_op.results[0])
+    )
+
+    # Should return empty tuple
+    assert result.values == ()
+
+    # Should not add any merge todos since it's the same EClass
+    assert len(interp_functions.merge_list) == 0
+
+
+def test_run_replace_error_not_eclass_original():
+    """Test that run_replace raises error when original operation result is not used by EClass."""
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+
+    # Create test operation without EClass usage
+    c0 = create_ssa_value(i32)
+    test_op = test.TestOp((c0,), (i32,))
+
+    # Create another operation that uses test_op's result (not an EClass)
+    _user_op = test.TestOp((test_op.results[0],), (i32,))
+
+    # Create replacement EClass
+    replacement_op = test.TestOp((c0,), (i32,))
+    replacement_eclass = eqsat.EClassOp(replacement_op.results[0], res_type=i32)
+
+    # Create a ReplaceOp for testing
+    input_op_value = create_ssa_value(pdl.OperationType())
+    repl_value = create_ssa_value(pdl.ValueType())
+    replace_op = pdl_interp.ReplaceOp(input_op_value, [repl_value])
+
+    # Should raise InterpretationError
+    with pytest.raises(
+        InterpretationError,
+        match="Replaced operation result must be used by an EClassOp",
+    ):
+        interp_functions.run_replace(
+            interpreter, replace_op, (test_op, replacement_eclass.results[0])
+        )
+
+
+def test_run_replace_error_not_eclass_replacement():
+    """Test that run_replace raises error when replacement value is not from EClass."""
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+
+    # Create test operation with EClass usage
+    c0 = create_ssa_value(i32)
+    original_op = test.TestOp((c0,), (i32,))
+    _original_eclass = eqsat.EClassOp(original_op.results[0], res_type=i32)
+
+    # Create replacement operation without EClass
+    replacement_op = test.TestOp((c0,), (i32,))
+
+    # Create a ReplaceOp for testing
+    input_op_value = create_ssa_value(pdl.OperationType())
+    repl_value = create_ssa_value(pdl.ValueType())
+    replace_op = pdl_interp.ReplaceOp(input_op_value, [repl_value])
+
+    # Should raise InterpretationError
+    with pytest.raises(
+        InterpretationError,
+        match="Replacement value must be the result of an EClassOp",
+    ):
+        interp_functions.run_replace(
+            interpreter, replace_op, (original_op, replacement_op.results[0])
+        )
+
+
+def test_apply_matches():
+    """Test that apply_matches correctly processes merge operations."""
+    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+
+    # Set up a mock rewriter
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+    from xdsl.pattern_rewriter import PatternRewriter
+
+    # Create test operations and EClasses
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+        op1 = test.TestOp((c0,), (i32,))
+        op2 = test.TestOp((c1,), (i32,))
+        eclass1 = eqsat.EClassOp(op1.results[0], res_type=i32)
+        eclass2 = eqsat.EClassOp(op2.results[0], res_type=i32)
+    rewriter = PatternRewriter(root)
+    interp_functions.rewriter = rewriter
+
+    # Add to union-find and merge them
+    interp_functions.eclass_union_find.add(eclass1)
+    interp_functions.eclass_union_find.add(eclass2)
+    interp_functions.eclass_union_find.union(eclass1, eclass2)
+
+    # Add merge todo manually (simulating what run_replace would do)
+    from xdsl.interpreters.eqsat_pdl_interp import MergeTodo
+
+    canonical = interp_functions.eclass_union_find.find(eclass1)
+    to_replace = eclass2 if canonical == eclass1 else eclass1
+    interp_functions.merge_list.append(MergeTodo(canonical, to_replace))
+
+    # Track initial operand count
+    initial_operand_count = len(canonical.operands)
+
+    # Apply the matches
+    interp_functions.apply_matches()
+
+    # Should have cleared the merge list
+    assert len(interp_functions.merge_list) == 0
+
+    # Should have merged operands from to_replace into canonical
+    assert len(canonical.operands) == initial_operand_count + len(to_replace.operands)
+
+
+def test_apply_matches_with_known_ops_restore():
+    """Test that apply_matches restores operations from known_ops_restore_list."""
+    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+
+    # Set up a mock rewriter
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+    from xdsl.pattern_rewriter import PatternRewriter
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+    rewriter = PatternRewriter(root)
+    interp_functions.rewriter = rewriter
+
+    # Create test operation
+    c0 = create_ssa_value(i32)
+    test_op = test.TestOp((c0,), (i32,))
+
+    # Add operation to restore list (simulating what modification_handler would do)
+    interp_functions.known_ops_restore_list.append(test_op)
+
+    # Verify it's not in known_ops initially
+    assert test_op not in interp_functions.known_ops
+
+    # Apply matches (with empty merge list to focus on restore functionality)
+    interp_functions.apply_matches()
+
+    # Should have restored the operation to known_ops
+    assert test_op in interp_functions.known_ops
+    assert interp_functions.known_ops[test_op] is test_op
+
+    # Should have cleared the restore list
+    assert len(interp_functions.known_ops_restore_list) == 0
