@@ -2495,6 +2495,567 @@ class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 # endregion
 
+# region RV32B/RV64B: "B" Extension for Bit Manipulation, Version 1.0.0
+
+## ZBB extension for Basic Bit-Manipulation. (not complete: population count missing)
+
+@irdl_op_definition
+class RolOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Performs a rotate left of rs1 by the amount in least-significant log2(XLEN) bits of rs2.
+    ```
+    let shamt = if   xlen == 32
+    	        then x[rs2][4..0]
+	            else x[rs2][5..0];
+    let result = (x[rs1] << shamt) | (x[rs2] >> (xlen - shamt));
+    x[rd] = result;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rol).
+    """
+    name = "riscv.rol"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class RorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Performs a rotate right of rs1 by the amount in least-significant log2(XLEN) bits of rs2.
+    ```
+    let shamt = if   xlen == 32
+    	    then x[rs2][4..0]
+	        else x[rs2][5..0];
+    let result = (x[rs1] >> shamt) | (x[rs2] << (xlen - shamt));
+    x[rd] = result;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-ror).
+    """
+    name = "riscv.ror"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class SextBOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+        This instruction sign-extends the least-significant byte in the source to XLEN by copying 
+        the most-significant bit in the byte (i.e., bit 7) to all of the more-significant bits.
+    ```
+    X[rd] = EXTS(X[rs][7..0]);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_b
+    """
+    name = "riscv.sext.b"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class SextHOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+        This instruction sign-extends the least-significant halfword in rs to XLEN by copying the 
+        most-significant bit in the halfword (i.e., bit 15) to all of the more-significant bits.
+    ```
+    x[rd] = EXTS(x[rs][15..0]);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_h
+    """
+    name = "riscv.sext.h"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class ZextHOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+      This instruction zero-extends the least-significant halfword of the source to XLEN by inserting
+     0’s into all of the bits more significant than 15.
+    ```
+    x[rd] = EXTZ(x[rs][15..0]);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-zext_h
+    """
+    name = "riscv.zext.h"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class SextBOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+        This instruction sign-extends the least-significant byte in the source to XLEN by copying 
+        the most-significant bit in the byte (i.e., bit 7) to all of the more-significant bits.
+    ```
+    X[rd] = EXTS(X[rs][7..0]);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_b
+    """
+    name = "riscv.sext.b"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns rs1 with a single bit cleared at the index specified in rs2. 
+    The index is read from the lower log2(XLEN) bits of rs2.
+    ```
+    let index = X(rs2) & (XLEN - 1);
+    X(rd) = X(rs1) & ~(1 << index)
+
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclr
+    """
+    name = "riscv.bclr"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class BclrIOp(RdRsImmShiftOperation):
+    """
+   This instruction returns rs1 with a single bit cleared at the index specified in shamt. 
+   The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding 
+   to shamt[5]=1 are reserved.
+    ```
+    let index = shamt & (XLEN - 1);
+    X(rd) = X(rs1) & ~(1 << index)
+
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri
+    """
+    name = "riscv.bclri"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns a single bit extracted from rs1 at the index specified in rs2. 
+    The index is read from the lower log2(XLEN) bits of rs2.
+    ```
+    let index = X(rs2) & (XLEN - 1);
+    X(rd) = (X(rs1) >> index) & 1;
+
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bext
+    """
+    name = "riscv.bext"
+
+    traits = traits_def(Pure())
+
+class BextIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns a single bit extracted from rs1 at the index specified in rs2. 
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+      to shamt[5]=1 are reserved.
+
+    ```
+    let index = shamt & (XLEN - 1);
+    X(rd) = (X(rs1) >> index) & 1;
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti
+    """
+    name = "riscv.bexti"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns rs1 with a single bit inverted at the index specified in shamt. 
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings 
+    corresponding to shamt[5]=1 are reserved.
+    ```
+    let index = shamt & (XLEN - 1);
+    X(rd) = X(rs1) ^ (1 << index)
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi
+    """
+    name = "riscv.binv"
+
+    traits = traits_def(Pure())
+
+class BinvIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index 
+    is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding 
+    to shamt[5]=1 are reserved.
+
+    ```
+    let index = shamt & (XLEN - 1);
+    x[rd] = x[rs1] & ~(1 << index)
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi
+    """
+    name = "riscv.binvi"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns rs1 with a single bit set at the index specified in rs2. 
+    The index is read from the lower log2(XLEN) bits of rs2.
+    ```
+    let index = X(rs2) & (XLEN - 1);
+    X(rd) = X(rs1) | (1 << index)
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bset
+    """
+    name = "riscv.bset"
+
+    traits = traits_def(Pure())
+
+class BsetIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
+    from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding 
+    to shamt[5]=1 are reserved.
+    ```
+    let index = shamt & (XLEN - 1);
+    x[rd] = x[rs1] | (1 << index)
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bseti
+    """
+    name = "riscv.bseti"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class RolwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs a rotate left on the least-significant word of rs1 by the amount in 
+    least-significant 5 bits of rs2. The resulting word value is sign-extended by copying bit 31 
+    to all of the more-significant bits.
+    ```
+    let rs1 = EXTZ(X(rs1)[31..0])
+    let shamt = X(rs2)[4..0];
+    let result = (rs1 << shamt) | (rs1 >> (32 - shamt));
+    X(rd) = EXTS(result);
+    ```
+    See external 
+    """
+    name = "riscv.rolw"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs a rotate right on the least-significant word of rs1 by the amount in 
+    least-significant 5 bits of rs2. The resultant word is sign-extended by copying bit 31 to all of the more-significant bits.
+    
+    ```
+    let rs1 = EXTZ(X(rs1)[31..0])
+    let shamt = X(rs2)[4..0];
+    let result = (rs1 >> shamt) | (rs1 << (32 - shamt));
+    X(rd) = EXTS(result);
+    ```
+    See external 
+    """
+    name = "riscv.rorw"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class RoriOp(RdRsImmShiftOperation):
+    """
+    This instruction performs a rotate right of rs1 by the amount in the least-significant 
+    log2(XLEN) bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
+    
+    ```
+    let shamt = if   xlen == 32
+    	        then shamt[4..0]
+	            else shamt[5..0];
+    let result = (X(rs1) >> shamt) | (X(rs2) << (xlen - shamt));
+    X(rd) = result;
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rori
+    """
+    name = "riscv.rori"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class RoriwOp(RdRsImmShiftOperation):
+    """
+    This instruction performs a rotate right on the least-significant word of rs1 by the amount in 
+    the least-significant log2(XLEN) bits of shamt. The resulting word value is sign-extended by 
+    copying bit 31 to all of the more-significant bits.
+    
+    ```
+    let rs1 = EXTZ(X(rs1)[31..0];
+    let result = (rs1 >> shamt[4..0]) | (X(rs1) << (32 - shamt[4..0]));
+    X(rd) = EXTS(result[31..0]);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-roriw
+    """
+    name = "riscv.roriw"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class AddUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs an XLEN-wide addition between rs2 and the zero-extended least-significant 
+    word of rs1.
+    
+    ```
+   let base = X(rs2);
+   let index = EXTZ(X(rs1)[31..0]);
+   X(rd) = base + index;
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-add_uw
+    """
+    name = "riscv.add.uw"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class Sh1addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction shifts rs1 to the left by 1 bit and adds it to rs2.
+    
+    ```
+   X(rd) = X(rs2) + (X(rs1) << 1);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh1add
+    """
+    name = "riscv.sh1add"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class Sh2addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction shifts rs1 to the left by 2 places and adds it to rs2.
+    
+    ```
+   X(rd) = X(rs2) + (X(rs1) << 2);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh2add
+    """
+    name = "riscv.sh2add"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class Sh3addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction shifts rs1 to the left by 2 places and adds it to rs2.
+    
+    ```
+   X(rd) = X(rs2) + (X(rs1) << 3);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh3add
+    """
+    name = "riscv.sh3add"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class Sh1addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs an XLEN-wide addition of two addends. The first addend is rs2. 
+    The second addend is the unsigned value formed by extracting the least-significant word of 
+    rs1 and shifting it left by 1 place.
+    
+    ```
+   let base = x[rs2];
+   let index = EXTZ(x[rs1][31..0]);
+   x[rd] = base + (index << 1);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh1add_uw
+    """
+    name = "riscv.sh1add.uw"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class Sh2addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs an XLEN-wide addition of two addends. The first addend is rs2. 
+    The second addend is the unsigned value formed by extracting the least-significant word of rs1 
+    and shifting it left by 2 places.
+    
+    ```
+    let base = x[rs2];
+    let index = EXTZ(x[rs1][31..0]);
+    x[rd] = base + (index << 2);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh2add_uw
+    """
+    name = "riscv.sh2add.uw"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class Sh3addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs an XLEN-wide addition of two addends. The first addend is rs2. 
+    The second addend is the unsigned value formed by extracting the least-significant word of rs1 
+    and shifting it left by 3 places.
+    
+    ```
+   let base = x[rs2];
+   let index = EXTZ(x[rs1][31..0]);
+   x[rd] = base + (index << 3);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh3add_uw
+    """
+    name = "riscv.sh3add.uw"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class SlliUwOp(RdRsImmShiftOperation):
+    """
+    This instruction takes the least-significant word of rs1, zero-extends it, 
+    and shifts it left by the immediate.
+    
+    ```
+    x[rd] = (EXTZ(x[rs][31..0]) << shamt);
+    ```
+    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-slli_uw
+    """
+    name = "riscv.slli.uw"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class AndnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs the bitwise logical AND operation between rs1 and the bitwise inversion of rs2.
+    ```
+    X(rd) = X(rs1) & ~X(rs2);
+    ```
+    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-andn)
+    """
+    name = "riscv.andn"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class OrnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs the bitwise logical OR operation between rs1 and the bitwise inversion of rs2.
+    
+    ```
+    X(rd) = X(rs1) | ~X(rs2);
+    ```
+    See external
+    """
+    name = "riscv.orn"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class XnorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs the bit-wise exclusive-NOR operation on rs1 and rs2.
+    ```
+    X(rd) = ~(X(rs1) ^ X(rs2));
+    ```
+    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-xnor)
+    """
+    name = "riscv.xnor"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class MaxOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns the larger of two signed integers.
+    ```
+    let rs1_val = X(rs1);
+    let rs2_val = X(rs2);
+
+    let result = if   rs1_val <_s rs2_val
+    	        then rs2_val
+	            else rs1_val;
+    X(rd) = result;
+    ```
+    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-max)
+    """
+    name = "riscv.max"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class MaxUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns the larger of two unsigned integers.
+    
+    ```
+    let rs1_val = X(rs1);
+    let rs2_val = X(rs2);
+    let result = if   rs1_val <_u rs2_val
+    	     then rs2_val
+	     else rs1_val;
+    X(rd) = result;
+    ```
+    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-maxu)
+    """
+    name = "riscv.maxu"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class MinOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns the smaller of two signed integers.
+    ```
+    let rs1_val = X(rs1);
+    let rs2_val = X(rs2);
+    let result = if   rs1_val <_s rs2_val
+    	     then rs1_val
+	     else rs2_val;
+    X(rd) = result;
+    ```
+    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-min)
+    """
+    name = "riscv.min"
+
+    traits = traits_def(Pure())
+
+@irdl_op_definition
+class MinUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns the smaller of two unsigned integers.
+    
+    ```
+    let rs1_val = X(rs1);
+    let rs2_val = X(rs2);
+    let result = if   rs1_val <_u rs2_val
+    	        then rs1_val
+	            else rs2_val;
+    X(rd) = result;
+    ```
+    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-min)
+    """
+    name = "riscv.minu"
+
+    traits = traits_def(Pure())
+
+# endregion
+
+# region "ZiCond" Conditional" operations extension
+@irdl_op_definition
+class CZeroEqzOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Moves zero to a register rd, if the condition rs2 is equal to zero, otherwise moves rs1 to rd.
+
+    See external [documentation](https://github.com/riscvarchive/riscv-zicond/blob/main/zicondops.adoc).
+    """
+
+    name = "riscv.czero.eqz"
+
+@irdl_op_definition
+class CZeroNezOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Moves zero to a register rd, if the condition rs2 is nonzero, otherwise moves rs1 to rd.
+
+    See external [documentation](https://github.com/riscvarchive/riscv-zicond/blob/main/zicondops.adoc).
+    """
+
+    name = "riscv.czero.nez"
+# endregion 
+
 # region Assembler pseudo-instructions
 # See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md).
 
@@ -4007,6 +4568,45 @@ RISCV = Dialect(
         RemOp,
         RemuOp,
         LiOp,
+        RolOp,
+        RorOp,
+        RemuwOp,
+        SrliwOp,
+        SraiwOp,
+        AddwOp,
+        SubwOp,
+        SllwOp,
+        SrlwOp,
+        SrawOp,
+        RemwOp,
+        MulwOp,
+        DivwOp,
+        DivuwOp,
+        CZeroEqzOp,
+        CZeroNezOp,
+        BclrOp,
+        BextOp,
+        BinvOp,
+        BsetOp,
+        RolwOp,
+        RorwOp,
+        AddUwOp,
+        Sh1addOp,
+        Sh2addOp,
+        Sh3addOp,
+        Sh1addUwOp,
+        Sh2addUwOp,
+        Sh3addUwOp,
+        SextBOp,
+        SextHOp,
+        ZextHOp,
+        AndnOp,
+        OrnOp,
+        XnorOp,
+        MaxOp,
+        MaxUOp,
+        MinOp,
+        MinUOp,
         EcallOp,
         LabelOp,
         DirectiveOp,
