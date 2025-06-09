@@ -2430,6 +2430,18 @@ class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.mulhu"
 
+@irdl_op_definition
+class MulwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Performs an 32-bit × 32-bit multiplication of signed rs1 by signed rs2.
+    ```
+    x[rd] = (x[rs1] s × x[rs2]) >>s XLEN
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulw).
+    """
+
+    name = "riscv.mulw"
 
 class DivOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
@@ -2468,6 +2480,31 @@ class DivuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.divu"
 
+@irdl_op_definition
+class DivuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Perform an 32 bits by 32 bits unsigned integer division of rs1 by rs2.
+    ```
+    x[rd] = sext(x[rs1][31:0] /u x[rs2][31:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64m.html#divuw).
+    """
+
+    name = "riscv.divuw"
+
+@irdl_op_definition
+class DivwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Perform an 32 bits by 32 bits signed integer division of rs1 by rs2.
+    ```
+    x[rd] = sext(x[rs1][31:0] /s x[rs2][31:0]
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#divw).
+    """
+
+    name = "riscv.divw"
 
 @irdl_op_definition
 class RemOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2492,6 +2529,29 @@ class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.remu"
 
+@irdl_op_definition
+class RemuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Perform an 32 bits by 32 bits unsigned integer reminder of rs1 by rs2.
+    ```
+    x[rd] = sext(x[rs1][31:0] %u x[rs2][31:0])
+    ```
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64m.html#remuw).
+    """
+
+    name = "riscv.remuw"
+
+@irdl_op_definition
+class RemwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Perform an 32 bits by 32 bits signed integer reminder of rs1 by rs2.
+    ```
+    x[rd] = sext(x[rs1][31:0] %s x[rs2][31:0])
+    ```
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64m.html#remw).
+    """
+    
+    name = "riscv.remw"
 
 # endregion
 
