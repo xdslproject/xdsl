@@ -198,9 +198,9 @@ class StencilBoundsAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
-        self.lb.print_nested_parameters(printer)
+        self.lb.print_indices(printer)
         printer.print(", ")
-        self.ub.print_nested_parameters(printer)
+        self.ub.print_indices(printer)
         printer.print(">")
 
     @classmethod
