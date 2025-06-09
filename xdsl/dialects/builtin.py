@@ -1466,6 +1466,9 @@ class DenseArrayBase(
     elt_type: ParameterDef[DenseArrayT]
     data: ParameterDef[BytesAttr]
 
+    def __init__(self, elt_type: DenseArrayT, data: BytesAttr):
+        super().__init__((elt_type, data))
+
     def verify(self):
         data_len = len(self.data.data)
         elt_size = self.elt_type.size
@@ -1493,7 +1496,7 @@ class DenseArrayBase(
 
         bytes_data = data_type.pack(normalized_values)
 
-        return DenseArrayBase([data_type, BytesAttr(bytes_data)])
+        return DenseArrayBase(data_type, BytesAttr(bytes_data))
 
     @staticmethod
     def create_dense_float(
@@ -1508,7 +1511,7 @@ class DenseArrayBase(
 
         bytes_data = struct.pack(fmt, *vals)
 
-        return DenseArrayBase([data_type, BytesAttr(bytes_data)])
+        return DenseArrayBase(data_type, BytesAttr(bytes_data))
 
     @overload
     @staticmethod
