@@ -363,11 +363,11 @@ if __name__ == "__main__":
     OP_CREATION = OpCreation()
     profile(
         {
-            # "IRTraversal.iterate_ops": Benchmark(IR_TRAVERSAL.time_iterate_ops),
-            # "IRTraversal.iterate_block_ops": Benchmark(
-            #     IR_TRAVERSAL.time_iterate_block_ops
-            # ),
-            # "IRTraversal.walk_block_ops": Benchmark(IR_TRAVERSAL.time_walk_block_ops),
+            "IRTraversal.iterate_ops": Benchmark(IR_TRAVERSAL.time_iterate_ops),
+            "IRTraversal.iterate_block_ops": Benchmark(
+                IR_TRAVERSAL.time_iterate_block_ops
+            ),
+            "IRTraversal.walk_block_ops": Benchmark(IR_TRAVERSAL.time_walk_block_ops),
             "Extensibility.interface_check_trait": Benchmark(
                 EXTENSIBILITY.time_interface_check_trait
             ),

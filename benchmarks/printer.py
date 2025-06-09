@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Benchmarks for the printer of the xDSL implementation."""
 
-# from io import StringIO
-
 from benchmarks.workloads import WorkloadBuilder
 from xdsl.printer import Printer as XdslPrinter
 
-MODULE_PRINTER = XdslPrinter()  # stream=StringIO())
+MODULE_PRINTER = XdslPrinter()
 
 
 class Printer:
