@@ -32,6 +32,10 @@
     // CHECK-NEXT: %{{.*}} = riscv.auipc 1 : () -> !riscv.reg
     %mv = riscv.mv %0 : (!riscv.reg) -> !riscv.reg
     // CHECK: %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %srliw = riscv.srliw %0, 1: (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.srliw %0, 1 : (!riscv.reg) -> !riscv.reg
+    %sraiw = riscv.sraiw %0, 1: (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sraiw %0, 1 : (!riscv.reg) -> !riscv.reg
 
     // Integer Register-Register Operations
     %add = riscv.add %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -54,6 +58,16 @@
     // CHECK-NEXT: %{{.*}} = riscv.sub %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %sra = riscv.sra %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.sra %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %addw = riscv.addw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.addw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %subw = riscv.subw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.subw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %sllw = riscv.sllw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sllw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %srlw = riscv.srlw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.srlw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %sraw = riscv.sraw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sraw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     riscv.nop
     // CHECK-NEXT: riscv.nop
 
@@ -160,17 +174,93 @@
     // CHECK-NEXT: %{{.*}} = riscv.mulhsu %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %mulhu = riscv.mulhu %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.mulhu %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %mulw = riscv.mulw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.mulw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+
 
     // Division Operations
     %div = riscv.div %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.div %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %divu = riscv.divu %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.divu %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %divw = riscv.divw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.divw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %divuw = riscv.divuw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.divuw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %rem = riscv.rem %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.rem %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %remu = riscv.remu %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.remu %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %remw = riscv.remw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.remw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %remuw = riscv.remuw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.remuw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    
+    // RV32B/RV64B:  “B” Standard Extension for Bit Manipulation
 
+    %rol = riscv.rol %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.rol %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %ror = riscv.ror %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.ror %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %rori = riscv.rori %0, 1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.rori %{{.*}}, 1 : (!riscv.reg) -> !riscv.reg
+    %roriw = riscv.roriw %0, 1 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.roriw %{{.*}}, 1 : (!riscv.reg) -> !riscv.reg
+    %rolw = riscv.rolw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.rol %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %rorw = riscv.rorw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.ror %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %bclr = riscv.bclr %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.bclr %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %bext = riscv.bext %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.bext %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %bset = riscv.bset %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.bset %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %binv = riscv.binv %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.binv %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %adduw = riscv.add.uw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.add.uw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %sh1add = riscv.sh1add %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sh1add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %sh1adduw = riscv.sh1add.uw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sh1add.uw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %sh2add = riscv.sh2add %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sh2add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %sh2adduw = riscv.sh2add.uw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sh2add.uw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %sh3add = riscv.sh3add %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sh3add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %sh3adduw = riscv.sh3add.uw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sh3add.uw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %sextb = riscv.sext.b %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sext.b %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %sexth = riscv.sext.h %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.sext.h %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %zexth = riscv.zext.h %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.zext.h %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %andn = riscv.andn %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.andn %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %xnor = riscv.xnor %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.xnor %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %orn = riscv.orn %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.orn %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %max = riscv.max %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.max %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %maxu = riscv.maxu %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.maxu %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %min = riscv.min %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.min %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %minu = riscv.minu %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.minu %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+
+
+    // RV32/RV64 Zicond extension for conditional operations 
+
+    %czeroeqzop = riscv.rol %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.czero.eqz %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %czeronezop = riscv.rol %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.czero.nez %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    
     // Assembler pseudo-instructions
 
     %li = riscv.li 1 : !riscv.reg
