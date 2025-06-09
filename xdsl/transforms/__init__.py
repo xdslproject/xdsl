@@ -41,11 +41,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return constant_fold_interp.ConstantFoldInterpPass
 
-    def get_constant_folding_simple():
-        from xdsl.transforms import constant_folding_simple
-
-        return constant_folding_simple.ConstantFoldingSimplePass
-
     def get_control_flow_hoist():
         from xdsl.transforms import control_flow_hoist
 
@@ -277,6 +272,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import eqsat_extract
 
         return eqsat_extract.EqsatExtractPass
+
+    def get_example_constant_folding():
+        from xdsl.transforms import example_constant_folding
+
+        return example_constant_folding.ExampleConstantFoldingPass
 
     def get_frontend_desymrefy():
         from xdsl.frontend.pyast.passes.desymref import FrontendDesymrefyPass
@@ -553,7 +553,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
-        "constant-folding-simple": get_constant_folding_simple,
         "control-flow-hoist": get_control_flow_hoist,
         "convert-arith-to-riscv-snitch": get_convert_arith_to_riscv_snitch,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
@@ -600,6 +599,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
         "eqsat-serialize-egraph": get_eqsat_serialize_egraph,
         "eqsat-extract": get_eqsat_extract,
+        "example-constant-foldinge": get_example_constant_folding,
         "frontend-desymrefy": get_frontend_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
         "function-persist-arg-names": get_function_persist_arg_names,

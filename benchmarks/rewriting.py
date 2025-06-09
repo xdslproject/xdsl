@@ -24,20 +24,20 @@ from xdsl.traits import (
 )
 from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 from xdsl.transforms.canonicalize import CanonicalizePass
-from xdsl.transforms.constant_folding_simple import ConstantFoldingSimplePass
 from xdsl.transforms.dead_code_elimination import (
     LiveSet,
     is_trivially_dead,
     result_only_effects,
     would_be_trivially_dead,
 )
+from xdsl.transforms.example_constant_folding import ExampleConstantFoldingPass
 
 CTX = Context(allow_unregistered=True)
 CTX.load_dialect(Arith)
 CTX.load_dialect(Builtin)
 
 CANONICALIZE_PASS = CanonicalizePass()
-CONSTANT_FOLDING_SIMPLE_PASS = ConstantFoldingSimplePass()
+CONSTANT_FOLDING_SIMPLE_PASS = ExampleConstantFoldingPass()
 
 
 def parse_module(context: Context, contents: str) -> ModuleOp:
