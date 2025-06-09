@@ -12,8 +12,6 @@ from pathlib import Path
 from statistics import mean, median, stdev
 from typing import Any, NamedTuple, cast
 
-from benchmarks.bytecode.bytecode_profiler import profile_bytecode
-
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = (
     "run",
@@ -235,6 +233,7 @@ def viztracer_benchmark(
     args: Namespace,
     benchmarks: dict[str, Benchmark],
     warmup: bool = True,
+    duration: float | None = 0,
 ) -> Path:
     """Use VizTracer to profile a benchmark."""
     from viztracer import VizTracer  # pyright: ignore[reportMissingTypeStubs]
@@ -250,8 +249,25 @@ def viztracer_benchmark(
         test()
     if setup is not None:
         setup()
-    with VizTracer(output_file=str(output_prof)):
+
+    def wrap() -> None:
         test()
+
+    def fix_time(duration: float) -> float:
+        wrap()
+        while (end := time.perf_counter()) - start < duration:
+            pass
+        return end
+
+    if duration is not None:
+        tracer = VizTracer(output_file=str(output_prof))
+        start = time.perf_counter()
+        tracer.start()
+        _end = fix_time(duration)
+        tracer.save()
+    else:
+        with VizTracer(output_file=str(output_prof)):
+            test()
     return output_prof
 
 
@@ -287,6 +303,8 @@ def dis_benchmark(
     benchmarks: dict[str, Benchmark],
 ):
     """Use dis to disassemble a benchmark."""
+    from bytesight import profile_bytecode
+
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     if len(benchmark_runs) != 1:
         raise ValueError("Cannot disassemble multiple benchmarks together")
