@@ -1,3 +1,4 @@
+import builtins
 import re
 from io import StringIO
 from typing import cast
@@ -740,40 +741,78 @@ def test_parse_int(
 
 
 @pytest.mark.parametrize("nonnumeric", ["--", "+", "a", "{", "(1.0, 1.0)"])
-def test_parse_optional_int_or_float_nonnumeric(nonnumeric: str):
+def test_parse_optional_bool_int_or_float_nonnumeric(nonnumeric: str):
     parser = Parser(Context(), nonnumeric)
-    assert parser._parse_optional_int_or_float() is None
+    assert parser._parse_optional_bool_int_or_float() is None
 
 
 @pytest.mark.parametrize(
-    "numeric,is_int", [("1", True), ("1.0", False), ("-1", True), ("-1.0", False)]
+    "numeric,typ",
+    [
+        ("1", int),
+        ("true", bool),
+        ("1.0", float),
+        ("-1", int),
+        ("-1.0", float),
+        ("false", bool),
+    ],
 )
-def test_parse_optional_int_or_float_numeric(numeric: str, is_int: bool):
+def test_parse_optional_bool_int_or_float_numeric(numeric: str, typ: type):
     parser = Parser(Context(), numeric)
-    value_span = parser._parse_optional_int_or_float()
+    value_span = parser._parse_optional_bool_int_or_float()
     assert value_span is not None
     value, span = value_span
-    caster = int if is_int else float
-    assert value == caster(numeric)
-    assert span.text == numeric
+    match typ:
+        case builtins.int:
+            assert value == typ(numeric)
+            assert span.text == numeric
+        case builtins.float:
+            assert value == typ(numeric)
+            assert span.text == numeric
+        case builtins.bool:
+            expected = numeric == "true"
+            assert value == expected
+            assert span.text == numeric
+        case _:
+            pytest.fail("unreachable")
 
 
 @pytest.mark.parametrize("nonnumeric", ["--", "+", "a", "{", "(1.0, 1.0)"])
-def test_parse_int_or_float_nonnumeric(nonnumeric: str):
+def test_parse_bool_int_or_float_nonnumeric(nonnumeric: str):
     parser = Parser(Context(), nonnumeric)
     with pytest.raises(ParseError):
-        parser._parse_int_or_float()
+        parser._parse_bool_int_or_float()
 
 
-@pytest.mark.parametrize("numeric,is_int", [("1", True), ("1.0", False)])
-def test_parse_int_or_float_numeric(numeric: str, is_int: bool):
+@pytest.mark.parametrize(
+    "numeric,typ",
+    [
+        ("1", int),
+        ("true", bool),
+        ("1.0", float),
+        ("-1", int),
+        ("-1.0", float),
+        ("false", bool),
+    ],
+)
+def test_parse_bool_int_or_float_numeric(numeric: str, typ: type):
     parser = Parser(Context(), numeric)
-    value_span = parser._parse_int_or_float()
+    value_span = parser._parse_optional_bool_int_or_float()
     assert value_span is not None
     value, span = value_span
-    caster = int if is_int else float
-    assert value == caster(numeric)
-    assert span.text == numeric
+    match typ:
+        case builtins.int:
+            assert value == typ(numeric)
+            assert span.text == numeric
+        case builtins.float:
+            assert value == typ(numeric)
+            assert span.text == numeric
+        case builtins.bool:
+            expected = numeric == "true"
+            assert value == expected
+            assert span.text == numeric
+        case _:
+            pytest.fail("unreachable")
 
 
 @pytest.mark.parametrize(

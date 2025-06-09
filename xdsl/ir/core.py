@@ -36,6 +36,8 @@ from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
+    from typing_extensions import TypeForm
+
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
@@ -391,11 +393,21 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
-    parameters: tuple[Attribute, ...] = field()
-
     def __init__(self, parameters: Sequence[Attribute] = ()):
-        object.__setattr__(self, "parameters", tuple(parameters))
+        for (f, _), param in zip(
+            self.get_irdl_definition().parameters, parameters, strict=True
+        ):
+            object.__setattr__(self, f, param)
         super().__init__()
+
+    @property
+    def parameters(self) -> tuple[Attribute, ...]:
+        return (
+            *(
+                self.__getattribute__(field)
+                for field, _ in self.get_irdl_definition().parameters
+            ),
+        )
 
     @classmethod
     def new(cls: type[Self], params: Sequence[Attribute]) -> Self:
@@ -542,16 +554,27 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         return name is None or cls._name_regex.fullmatch(name)
 
     @staticmethod
-    def get(arg: SSAValue | Operation) -> SSAValue:
-        "Get a new SSAValue from either a SSAValue, or an operation with a single result."
+    def get(
+        arg: SSAValue | Operation, *, type: TypeForm[AttributeInvT] = Attribute
+    ) -> SSAValue[AttributeInvT]:
+        """
+        Get a new SSAValue from either a SSAValue, or an operation with a single result.
+        Checks that the resulting SSAValue is of the supplied type, if provided.
+        """
+        from xdsl.utils.hints import isa
+
         match arg:
             case SSAValue():
-                return arg
+                if type is Attribute or isa(arg.type, type):
+                    return cast(SSAValue[AttributeInvT], arg)
+                raise ValueError(
+                    f"SSAValue.get: Expected {type} but got SSAValue with type {arg.type}."
+                )
             case Operation():
                 if len(arg.results) == 1:
-                    return arg.results[0]
+                    return SSAValue.get(arg.results[0], type=type)
                 raise ValueError(
-                    "SSAValue.build: expected operation with a single result."
+                    "SSAValue.get: expected operation with a single result."
                 )
 
     def replace_by(self, value: SSAValue) -> None:
@@ -1118,19 +1141,19 @@ class Operation(IRNode):
     _OperationType = TypeVar("_OperationType", bound="Operation")
 
     @classmethod
-    def parse(cls: type[_OperationType], parser: Parser) -> _OperationType:
+    def parse(cls, parser: Parser) -> Self:
         parser.raise_error(f"Operation {cls.name} does not have a custom format.")
 
     def print(self, printer: Printer):
         return printer.print_op_with_default_format(self)
 
     def clone_without_regions(
-        self: OpT,
+        self,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
-    ) -> OpT:
+    ) -> Self:
         """Clone an operation, with empty regions instead."""
         if value_mapper is None:
             value_mapper = {}
@@ -1165,12 +1188,12 @@ class Operation(IRNode):
         return cloned_op
 
     def clone(
-        self: OpT,
+        self,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
-    ) -> OpT:
+    ) -> Self:
         """Clone an operation with all its regions and operations in them."""
         if value_mapper is None:
             value_mapper = {}
@@ -1333,7 +1356,7 @@ class Operation(IRNode):
         printer.print_op(self)
         return res.getvalue()
 
-    def __format__(self, __format_spec: str) -> str:
+    def __format__(self, format_spec: str, /) -> str:
         desc = str(self)
         if "\n" in desc:
             # Description is multi-line, indent each line

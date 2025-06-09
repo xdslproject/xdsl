@@ -28,8 +28,11 @@ class PtrAddToX86(RewritePattern):
         x86_reg_type = x86.register.UNALLOCATED_GENERAL
         ptr_cast_op = UnrealizedConversionCastOp.get((op.addr,), (x86_reg_type,))
         offset_cast_op = UnrealizedConversionCastOp.get((op.offset,), (x86_reg_type,))
-        add_op = x86.RR_AddOp(ptr_cast_op, offset_cast_op, result=x86_reg_type)
-        rewriter.replace_matched_op([ptr_cast_op, offset_cast_op, add_op])
+        add_op = x86.RS_AddOp(ptr_cast_op, offset_cast_op, register_out=x86_reg_type)
+        res_cast_op = UnrealizedConversionCastOp.get(
+            (add_op.register_out,), (ptr.PtrType(),)
+        )
+        rewriter.replace_matched_op([ptr_cast_op, offset_cast_op, add_op, res_cast_op])
 
 
 @dataclass
@@ -58,15 +61,15 @@ class PtrStoreToX86(RewritePattern):
                     "Half-precision vector load is not implemented yet."
                 )
             case 32:
-                mov = x86.ops.MR_VmovupsOp
+                mov = x86.ops.MS_VmovupsOp
             case 64:
-                mov = x86.ops.MR_VmovapdOp
+                mov = x86.ops.MS_VmovapdOp
             case _:
                 raise DiagnosticException(
                     "Float precision must be half, single or double."
                 )
 
-        mov_op = mov(addr_cast_op, vect_cast_op, offset=0)
+        mov_op = mov(addr_cast_op, vect_cast_op, memory_offset=0)
         rewriter.replace_matched_op([addr_cast_op, vect_cast_op, mov_op])
 
 
@@ -94,7 +97,7 @@ class PtrLoadToX86(RewritePattern):
                     "Half-precision vector load is not implemented yet."
                 )
             case 32:
-                mov = x86.ops.RM_VmovupsOp
+                mov = x86.ops.DM_VmovupsOp
             case 64:
                 raise DiagnosticException(
                     "Double precision vector load is not implemented yet."
@@ -106,10 +109,11 @@ class PtrLoadToX86(RewritePattern):
 
         mov_op = mov(
             cast_op,
-            offset=0,
-            result=vector_type_to_register_type(value_type, self.arch),
+            memory_offset=0,
+            destination=vector_type_to_register_type(value_type, self.arch),
         )
-        rewriter.replace_matched_op([cast_op, mov_op])
+        res_cast_op = UnrealizedConversionCastOp.get(mov_op.results, (value_type,))
+        rewriter.replace_matched_op([cast_op, mov_op, res_cast_op])
 
 
 @dataclass(frozen=True)

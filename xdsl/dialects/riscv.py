@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence, Set
+from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 from io import StringIO
 from itertools import chain
-from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
+from typing import IO, Annotated, Generic, Literal, TypeAlias
 
-from typing_extensions import Self, assert_never
+from typing_extensions import Self, TypeVar, assert_never
 
 from xdsl.backend.assembly_printer import (
     AssemblyPrintable,
@@ -420,7 +421,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
         printer.print_regions(self.regions)
         self.print_op_type(printer)
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         """
         Print attributes with custom syntax. Return the names of the attributes printed. Subclasses may override this method.
         """
@@ -635,7 +636,7 @@ class RdRsRsFloatOperationWithFastMath(
         attributes["fastmath"] = flags
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
             printer.print(" fastmath")
             self.fastmath.print_parameter(printer)
@@ -682,7 +683,7 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, i20)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(" ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
@@ -735,7 +736,7 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             attributes["rd"] = parser.parse_attribute()
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(" ")
         print_immediate_value(printer, self.immediate)
         if self.rd is not None:
@@ -798,7 +799,7 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         attributes["immediate"] = parse_immediate_value(parser, si12)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
@@ -855,7 +856,7 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, ui5)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
@@ -918,7 +919,7 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             attributes["rd"] = parser.parse_attribute()
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
         if self.rd is not None:
@@ -1027,7 +1028,7 @@ class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         attributes["offset"] = parse_immediate_value(parser, si12)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(", ")
         print_immediate_value(printer, self.offset)
         return {"offset"}
@@ -1077,7 +1078,7 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         attributes["immediate"] = parse_immediate_value(parser, si12)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
@@ -1209,7 +1210,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             attributes["writeonly"] = UnitAttr()
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(", ")
         printer.print(self.csr.value.data)
         if self.writeonly is not None:
@@ -1282,7 +1283,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             attributes["readonly"] = UnitAttr()
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(", ")
         printer.print(self.csr.value.data)
         if self.readonly is not None:
@@ -1354,7 +1355,7 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
             attributes["writeonly"] = UnitAttr()
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(" ")
         printer.print(self.csr.value.data)
         printer.print(", ")
@@ -1414,7 +1415,7 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, IntegerType(32))
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(" ")
         printer.print(self.csr.value.data)
         printer.print(", ")
@@ -1556,6 +1557,14 @@ class SlliOp(RdRsImmShiftOperation):
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
 
 
+class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import ShiftRightbyZero
+
+        return (ShiftRightbyZero(),)
+
+
 @irdl_op_definition
 class SrliOp(RdRsImmShiftOperation):
     """
@@ -1568,6 +1577,8 @@ class SrliOp(RdRsImmShiftOperation):
     """
 
     name = "riscv.srli"
+
+    traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -2556,7 +2567,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, i32)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(" ")
         print_immediate_value(printer, self.immediate)
         return {"immediate", "fastmath"}
@@ -2629,7 +2640,7 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
         attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(" ")
         printer.print_string_literal(self.label.data)
         return {"label"}
@@ -2695,7 +2706,7 @@ class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
             attributes["value"] = StringAttr(value)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(" ")
         printer.print_string_literal(self.directive.data)
         if self.value is not None:
@@ -3054,7 +3065,7 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
         attributes["fastmath"] = fast
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         if self.fastmath != FastMathFlagsAttr("none"):
             printer.print(" fastmath")
             self.fastmath.print_parameter(printer)
@@ -3103,7 +3114,7 @@ class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, i12)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
@@ -3153,7 +3164,7 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, i12)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}

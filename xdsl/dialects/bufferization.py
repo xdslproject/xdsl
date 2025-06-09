@@ -1,15 +1,18 @@
-from collections.abc import Sequence, Set
+from __future__ import annotations
+
+from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import ClassVar
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
     AnyUnrankedMemRefTypeConstr,
     AnyUnrankedTensorTypeConstr,
-    ContainerType,
     IndexType,
     MemRefType,
-    ShapedType,
     TensorType,
     UnitAttr,
     UnrankedMemRefType,
@@ -17,6 +20,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
     GenericAttrConstraint,
@@ -48,27 +52,48 @@ class TensorFromMemRefConstraint(
         MemRefType[Attribute] | UnrankedMemRefType[Attribute]
     ]
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    @staticmethod
+    def tensor_to_memref(
+        tensor: TensorType | UnrankedTensorType,
+    ) -> MemRefType | UnrankedMemRefType:
+        if isinstance(tensor, TensorType):
+            return MemRefType(tensor.element_type, tensor.shape)
+        else:
+            return UnrankedMemRefType.from_type(tensor.element_type)
+
+    @staticmethod
+    def memref_to_tensor(
+        memref: MemRefType | UnrankedMemRefType,
+    ) -> TensorType | UnrankedTensorType:
+        if isinstance(memref, MemRefType):
+            return TensorType(memref.element_type, memref.shape)
+        else:
+            return UnrankedTensorType(memref.element_type)
+
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.memref_constraint.can_infer(var_constraint_names)
 
     def infer(
         self, context: ConstraintContext
     ) -> TensorType[Attribute] | UnrankedTensorType[Attribute]:
         memref_type = self.memref_constraint.infer(context)
-        if isinstance(memref_type, MemRefType):
-            return TensorType(memref_type.element_type, memref_type.shape)
-        return UnrankedTensorType(memref_type.element_type)
+        return self.memref_to_tensor(memref_type)
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isa(attr, TensorType[Attribute]):
-            memref_type = MemRefType(attr.element_type, attr.shape)
-        elif isa(attr, UnrankedTensorType[Attribute]):
-            memref_type = UnrankedMemRefType.from_type(attr.element_type)
+        if isa(attr, TensorType | UnrankedTensorType):
+            memref_type = self.tensor_to_memref(attr)
         else:
             raise VerifyException(
                 f"Expected tensor or unranked tensor type, got {attr}"
             )
         return self.memref_constraint.verify(memref_type, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> TensorFromMemRefConstraint:
+        return TensorFromMemRefConstraint(
+            self.memref_constraint.mapping_type_vars(type_var_mapping)
+        )
 
 
 @irdl_op_definition
@@ -170,12 +195,7 @@ class ToTensorOp(IRDLOperation):
         restrict: bool = False,
         writable: bool = False,
     ):
-        memref_v = SSAValue.get(memref)
-        memref_t = memref_v.type
-        if not isinstance(memref_t, ContainerType):
-            raise ValueError(f"Expected ContainerType, got {memref_t}")
-        if not isinstance(memref_t, ShapedType):
-            raise ValueError(f"Expected ShapedType, got {memref_t}")
+        memref_v = SSAValue.get(memref, type=MemRefType | UnrankedMemRefType)
         properties = dict[str, Attribute]()
         if restrict:
             properties["restrict"] = UnitAttr()
@@ -183,9 +203,7 @@ class ToTensorOp(IRDLOperation):
             properties["writable"] = UnitAttr()
         super().__init__(
             operands=(memref,),
-            result_types=(
-                TensorType[Any](memref_t.get_element_type(), memref_t.get_shape()),
-            ),
+            result_types=(TensorFromMemRefConstraint.memref_to_tensor(memref_v.type),),
             properties=properties,
         )
 

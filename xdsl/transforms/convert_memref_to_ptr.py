@@ -19,25 +19,33 @@ from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
 
-def offset_calculations(
-    memref_type: memref.MemRefType[Any], indices: Iterable[SSAValue]
+def get_target_ptr(
+    target_memref: SSAValue,
+    memref_type: memref.MemRefType[Any],
+    indices: Iterable[SSAValue],
 ) -> tuple[list[Operation], SSAValue]:
     """
-    Get operations calculating an offset which needs to be added to memref's base
-    pointer to access an element referenced by indices.
+    Get operations returning a pointer to an element of a memref referenced by indices.
     """
 
-    assert isinstance(memref_type.element_type, builtin.FixedBitwidthType)
+    ops: list[Operation] = [memref_ptr := ptr.ToPtrOp(target_memref)]
+    memref_ptr.res.name_hint = target_memref.name_hint
+
+    if not indices:
+        return ops, memref_ptr.res
 
     match memref_type.layout:
         case builtin.NoneAttr():
             strides = builtin.ShapedType.strides_for_shape(memref_type.get_shape())
+            offset = 0
         case builtin.StridedLayoutAttr():
             strides = memref_type.layout.get_strides()
+            if (offset := memref_type.layout.get_offset()) is None:
+                raise DiagnosticException(
+                    f"Unsupported layout with dynamic offset {memref_type.layout}"
+                )
         case _:
             raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
-
-    ops: list[Operation] = []
 
     head: SSAValue | None = None
 
@@ -80,43 +88,36 @@ def offset_calculations(
         ops.append(add_op)
         head = add_op.result
 
-    if head is None:
-        raise DiagnosticException("Got empty indices for offset calculations.")
+    if offset:
+        ops.append(
+            memref_offset_op := arith.ConstantOp.from_int_and_width(
+                offset, builtin.IndexType()
+            )
+        )
+        memref_offset_op.result.name_hint = "memref_base_offset"
+        if head is not None:
+            ops.append(add_op := arith.AddiOp(head, memref_offset_op.result))
+            head = add_op.result
 
-    ops.extend(
-        [
-            bytes_per_element_op := ptr.TypeOffsetOp(
-                memref_type.element_type, builtin.IndexType()
-            ),
-            final_offset := arith.MuliOp(head, bytes_per_element_op),
-        ]
-    )
+    if head is not None:
+        ops.extend(
+            [
+                bytes_per_element_op := ptr.TypeOffsetOp(
+                    memref_type.element_type, builtin.IndexType()
+                ),
+                final_offset := arith.MuliOp(head, bytes_per_element_op),
+                target_ptr := ptr.PtrAddOp(memref_ptr.res, final_offset.result),
+            ]
+        )
 
-    bytes_per_element_op.offset.name_hint = "bytes_per_element"
-    final_offset.result.name_hint = "scaled_pointer_offset"
+        bytes_per_element_op.offset.name_hint = "bytes_per_element"
+        final_offset.result.name_hint = "scaled_pointer_offset"
+        target_ptr.result.name_hint = "offset_pointer"
+        pointer = target_ptr.result
+    else:
+        pointer = memref_ptr.res
 
-    return ops, final_offset.result
-
-
-def get_target_ptr(
-    target_memref: SSAValue,
-    memref_type: memref.MemRefType[Any],
-    indices: Iterable[SSAValue],
-) -> tuple[list[Operation], SSAValue]:
-    """Get operations returning a pointer to an element of a memref referenced by indices."""
-
-    ops: list[Operation] = [memref_ptr := ptr.ToPtrOp(target_memref)]
-    memref_ptr.res.name_hint = target_memref.name_hint
-
-    if not indices:
-        return ops, memref_ptr.res
-
-    offset_ops, offset = offset_calculations(memref_type, indices)
-    ops.extend(offset_ops)
-    ops.append(target_ptr := ptr.PtrAddOp(memref_ptr.res, offset))
-
-    target_ptr.result.name_hint = "offset_pointer"
-    return ops, target_ptr.result
+    return ops, pointer
 
 
 @dataclass

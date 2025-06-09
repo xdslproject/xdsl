@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Annotated, ClassVar, Generic, TypeVar
+from typing import Annotated, ClassVar, Generic
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import (
@@ -764,21 +765,30 @@ class StringFooOp(GenericOp[StringAttr, FooType, FooType]):
     name = "test.string_specialized"
 
 
-def test_generic_op():
+class Generic2Op(Generic[_Operand], GenericOp[StringAttr, _Operand, FooType]): ...
+
+
+@irdl_op_definition
+class StringFoo2Op(Generic2Op[FooType]):
+    name = "test.string_specialized_2"
+
+
+@pytest.mark.parametrize("cls", [StringFooOp, StringFoo2Op])
+def test_generic_op(cls: type[StringFooOp | StringFoo2Op]):
     """Test generic operation."""
     FooOperand = create_ssa_value(TestType("foo"))
     BarOperand = create_ssa_value(TestType("bar"))
     FooResultType = TestType("foo")
     BarResultType = TestType("bar")
 
-    op = StringFooOp(
+    op = cls(
         attributes={"attr": StringAttr("test")},
         operands=[FooOperand],
         result_types=[FooResultType],
     )
     op.verify()
 
-    op_attr_fail = StringFooOp(
+    op_attr_fail = cls(
         attributes={"attr": IntAttr(1)},
         operands=[FooOperand],
         result_types=[FooResultType],
@@ -786,7 +796,7 @@ def test_generic_op():
     with pytest.raises(DiagnosticException):
         op_attr_fail.verify()
 
-    op_operand_fail = StringFooOp(
+    op_operand_fail = cls(
         attributes={"attr": StringAttr("test")},
         operands=[BarOperand],
         result_types=[FooResultType],
@@ -794,7 +804,7 @@ def test_generic_op():
     with pytest.raises(DiagnosticException):
         op_operand_fail.verify()
 
-    op_result_fail = StringFooOp(
+    op_result_fail = cls(
         attributes={"attr": StringAttr("test")},
         operands=[FooOperand],
         result_types=[BarResultType],

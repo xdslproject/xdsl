@@ -3,9 +3,10 @@ from __future__ import annotations
 import ast
 from collections.abc import Callable
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
-from typing import Any, Generic, Literal, TypeAlias, TypeVar
+from typing import Any, Generic, Literal, TypeAlias
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]

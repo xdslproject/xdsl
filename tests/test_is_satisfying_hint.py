@@ -1,4 +1,6 @@
-from typing import Any, Generic, Literal, TypeAlias, TypeVar
+from typing import Any, Generic, Literal, TypeAlias
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -284,7 +286,7 @@ def test_dict_hint_failure():
     assert not isa({0: "0", 2: "1", "2": "2"}, dict[int, str])
 
 
-threeDict: TypeAlias = dict[int, dict[int, dict[int, str]]]
+ThreeDict: TypeAlias = dict[int, dict[int, dict[int, str]]]
 
 
 def test_dict_hint_nested():
@@ -300,11 +302,11 @@ def test_dict_hint_nested():
     assert not isa({0: {"": ""}}, dict[int, dict[int, str]])
     assert not isa({0: {0: 0}}, dict[int, dict[int, str]])
 
-    assert isa({}, threeDict)
-    assert isa({0: {}}, threeDict)
-    assert isa({0: {0: {}}}, threeDict)
-    assert isa({0: {}, 1: {0: {}}}, threeDict)
-    assert isa({0: {}, 1: {0: {0: "0", 1: "32"}}}, threeDict)
+    assert isa({}, ThreeDict)
+    assert isa({0: {}}, ThreeDict)
+    assert isa({0: {0: {}}}, ThreeDict)
+    assert isa({0: {}, 1: {0: {}}}, ThreeDict)
+    assert isa({0: {}, 1: {0: {0: "0", 1: "32"}}}, ThreeDict)
 
 
 ################################################################################

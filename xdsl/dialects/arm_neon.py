@@ -6,7 +6,15 @@ from typing import ClassVar
 from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg, square_brackets_reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
-from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    StringAttr,
+    VectorType,
+    f16,
+    f32,
+    f64,
+    i8,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -18,7 +26,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     VarConstraint,
-    attr_def,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -99,9 +106,24 @@ class NeonArrangement(StrEnum):
     S = "S"
     H = "H"
 
-    def map_to_num_els(self):
-        map = {"D": 2, "S": 4, "H": 8}
-        return map[self.name]
+    @property
+    def num_elements(self):
+        return _NUM_ELEMENTS_BY_ARRANGEMENT[self.name]
+
+    @staticmethod
+    def from_vec_type(vec_type: VectorType):
+        arrangement = _ARRANGEMENT_BY_TYPE.get(vec_type)
+        if arrangement is None:
+            raise ValueError(f"Invalid vector type for ARM NEON: {vec_type}")
+        return arrangement
+
+
+_NUM_ELEMENTS_BY_ARRANGEMENT = {"D": 2, "S": 4, "H": 8}
+_ARRANGEMENT_BY_TYPE: dict[VectorType, NeonArrangement] = {
+    VectorType(f16, (8,)): NeonArrangement.H,
+    VectorType(f32, (4,)): NeonArrangement.S,
+    VectorType(f64, (2,)): NeonArrangement.D,
+}
 
 
 @irdl_attr_definition
@@ -135,7 +157,11 @@ class VectorWithArrangement(AssemblyInstructionArg):
 
     def assembly_str(self):
         if self.index is None:
-            return f"{self.reg.register_name.data}.{self.arrangement.data.map_to_num_els()}{self.arrangement.data.name}"
+            return (
+                f"{self.reg.register_name.data}."
+                f"{self.arrangement.data.num_elements}"
+                f"{self.arrangement.data.name}"
+            )
         else:
             return f"{self.reg.register_name.data}.{self.arrangement.data.name}[{self.index}]"
 
@@ -274,8 +300,8 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     d = operand_def(SAME_NEON_REGISTER_TYPE)
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
-    scalar_idx = attr_def(IntegerAttr[i8])
-    arrangement = attr_def(NeonArrangementAttr)
+    scalar_idx = prop_def(IntegerAttr[i8])
+    arrangement = prop_def(NeonArrangementAttr)
 
     assembly_format = (
         "$d `,` $s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` \
@@ -289,6 +315,7 @@ class DSSFmlaVecScalarOp(ARMInstruction):
         s2: Operation | SSAValue,
         *,
         res: NEONRegisterType,
+        scalar_idx: IntegerAttr,
         arrangement: NeonArrangement | NeonArrangementAttr,
         comment: str | StringAttr | None = None,
     ):
@@ -300,6 +327,9 @@ class DSSFmlaVecScalarOp(ARMInstruction):
             operands=(d, s1, s2),
             attributes={
                 "comment": comment,
+            },
+            properties={
+                "scalar_idx": scalar_idx,
                 "arrangement": arrangement,
             },
             result_types=(res,),
@@ -422,7 +452,7 @@ class DVarSLd1Op(ARMInstruction):
     name = "arm_neon.dvars.ld1"
     s = operand_def(IntRegisterType)
     dest_regs = var_result_def(NEONRegisterType)
-    arrangement = attr_def(NeonArrangementAttr)
+    arrangement = prop_def(NeonArrangementAttr)
 
     assembly_format = " ` ` `[` $s `]` $arrangement attr-dict `:` type($s) `->` `(` type($dest_regs) `)`"
 
@@ -446,6 +476,8 @@ class DVarSLd1Op(ARMInstruction):
             operands=(s,),
             attributes={
                 "comment": comment,
+            },
+            properties={
                 "arrangement": arrangement,
             },
             result_types=[result_types],
@@ -474,7 +506,7 @@ class DVarSSt1Op(ARMInstruction):
     name = "arm_neon.dvars.st1"
     d = operand_def(IntRegisterType)
     src_regs = var_operand_def(NEONRegisterType)
-    arrangement = attr_def(NeonArrangementAttr)
+    arrangement = prop_def(NeonArrangementAttr)
 
     assembly_format = "$src_regs ` ` `[` $d `]` $arrangement attr-dict `:` `(` type($src_regs) `)` `->` type($d)"
 
@@ -498,6 +530,8 @@ class DVarSSt1Op(ARMInstruction):
             operands=[*src_regs],
             attributes={
                 "comment": comment,
+            },
+            properties={
                 "arrangement": arrangement,
             },
             result_types=(d,),

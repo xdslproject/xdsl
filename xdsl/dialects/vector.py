@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     DenseI64ArrayConstr,
     IndexType,
     IndexTypeConstr,
+    IntegerType,
     MemRefType,
     SignlessIntegerConstraint,
     TensorType,
@@ -32,11 +33,11 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
+    base,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
@@ -51,7 +52,7 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import assert_isa, isa
+from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position
 
 DYNAMIC_INDEX: int = -(2**63)
@@ -86,8 +87,7 @@ class LoadOp(IRDLOperation):
     def get(
         ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
     ) -> LoadOp:
-        ref = SSAValue.get(ref)
-        assert assert_isa(ref.type, MemRefType[Attribute])
+        ref = SSAValue.get(ref, type=MemRefType)
 
         return LoadOp.build(
             operands=[ref, indices],
@@ -172,8 +172,7 @@ class FMAOp(IRDLOperation):
     def get(
         lhs: Operation | SSAValue, rhs: Operation | SSAValue, acc: Operation | SSAValue
     ) -> FMAOp:
-        lhs = SSAValue.get(lhs)
-        assert assert_isa(lhs.type, VectorType[Attribute])
+        lhs = SSAValue.get(lhs, type=VectorType)
 
         return FMAOp.build(
             operands=[lhs, rhs, acc],
@@ -226,8 +225,7 @@ class MaskedLoadOp(IRDLOperation):
         mask: SSAValue | Operation,
         passthrough: SSAValue | Operation,
     ) -> MaskedLoadOp:
-        memref = SSAValue.get(memref)
-        assert assert_isa(memref.type, MemRefType[Attribute])
+        memref = SSAValue.get(memref, type=MemRefType)
 
         return MaskedLoadOp.build(
             operands=[memref, indices, mask, passthrough],
@@ -316,7 +314,9 @@ class CreateMaskOp(IRDLOperation):
 class ExtractOp(IRDLOperation):
     name = "vector.extract"
 
-    _T: ClassVar = VarConstraint("T", AnyAttr())
+    _T: ClassVar = VarConstraint(
+        "T", base(IntegerType) | base(IndexType) | AnyFloatConstr
+    )
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
     static_position = prop_def(DenseI64ArrayConstr)
@@ -461,8 +461,7 @@ class ExtractElementOp(IRDLOperation):
         vector: SSAValue | Operation,
         position: SSAValue | Operation | None = None,
     ):
-        vector = SSAValue.get(vector)
-        assert isa(vector.type, VectorType[Attribute])
+        vector = SSAValue.get(vector, type=VectorType)
 
         result_type = vector.type.element_type
 
@@ -476,7 +475,9 @@ class ExtractElementOp(IRDLOperation):
 class InsertOp(IRDLOperation):
     name = "vector.insert"
 
-    _T: ClassVar = VarConstraint("T", AnyAttr())
+    _T: ClassVar = VarConstraint(
+        "T", base(IntegerType) | base(IndexType) | AnyFloatConstr
+    )
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
     static_position = prop_def(DenseI64ArrayConstr)
@@ -635,8 +636,7 @@ class InsertElementOp(IRDLOperation):
         dest: SSAValue | Operation,
         position: SSAValue | Operation | None = None,
     ):
-        dest = SSAValue.get(dest)
-        assert isa(dest.type, VectorType[Attribute])
+        dest = SSAValue.get(dest, type=VectorType)
 
         result_type = SSAValue.get(dest).type
 

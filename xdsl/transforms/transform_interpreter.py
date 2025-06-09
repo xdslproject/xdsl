@@ -6,6 +6,7 @@ from xdsl.dialects import builtin, transform
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.transform import TransformFunctions
 from xdsl.passes import Context, ModulePass
+from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import PassFailedException
 
 
@@ -36,5 +37,5 @@ class TransformInterpreterPass(ModulePass):
             op, self.entry_point
         )
         interpreter = Interpreter(op)
-        interpreter.register_implementations(TransformFunctions())
+        interpreter.register_implementations(TransformFunctions(ctx, get_all_passes()))
         interpreter.call_op(schedule, (op,))

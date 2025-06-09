@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from itertools import product
 from math import prod
-from typing import TypeVar, cast
+from typing import cast
 from warnings import warn
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, memref, scf
@@ -49,6 +51,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
     TypeConversionPattern,
+    attr_constr_rewrite_pattern,
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
@@ -497,7 +500,9 @@ class AccessOpToMemRef(RewritePattern):
             else:
                 memref_load_args.append(arg.idx)
 
-        load = memref.LoadOp.get(op.temp, memref_load_args)
+        load = memref.LoadOp(
+            operands=[op.temp, memref_load_args], result_types=[temp.element_type]
+        )
 
         rewriter.insert_op_before_matched_op(args)
         rewriter.replace_matched_op([*off_const_ops, load], [load.res])
@@ -654,7 +659,7 @@ def return_target_analysis(module: builtin.ModuleOp):
 
 
 class StencilTypeConversion(TypeConversionPattern):
-    @attr_type_rewrite_pattern
+    @attr_constr_rewrite_pattern(StencilTypeConstr)
     def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
         return StencilToMemRefType(typ)
 

@@ -6,7 +6,7 @@ from typing import ClassVar, TypeAlias
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import BoolAttr
+from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, StringAttr
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -14,22 +14,32 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     AtLeast,
+    GenericAttrConstraint,
+    GenericRangeConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
+    ParameterDef,
     RangeOf,
+    RangeVarConstraint,
     VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
+    operand_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import ConstantLike, HasParent, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
@@ -43,7 +53,215 @@ class BoolType(ParametrizedAttribute, TypeAttribute):
     name = "smt.bool"
 
 
-NonFuncSMTType: TypeAlias = BoolType
+@irdl_attr_definition
+class BitVectorType(ParametrizedAttribute, TypeAttribute):
+    """
+    This type represents the (_ BitVec width) sort as described in the SMT bitvector theory.
+    The bit-width must be strictly greater than zero.
+    """
+
+    name = "smt.bv"
+
+    width: ParameterDef[IntAttr]
+
+    def __init__(self, width: int | IntAttr):
+        if isinstance(width, int):
+            width = IntAttr(width)
+        super().__init__([width])
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            width = parser.parse_integer(allow_boolean=False, allow_negative=False)
+
+        return (IntAttr(width),)
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string(f"<{self.width.data}>")
+
+    def verify(self) -> None:
+        super().verify()
+        if self.width.data <= 0:
+            raise VerifyException(
+                "BitVectorType width must be strictly greater "
+                f"than zero, got {self.width.data}"
+            )
+
+    def value_range(self) -> tuple[int, int]:
+        """
+        The range of values that this bitvector can represent.
+        The maximum value is exclusive.
+        """
+        return (0, 1 << self.width.data)
+
+
+NonFuncSMTType: TypeAlias = BoolType | BitVectorType
+NonFuncSMTTypeConstr = irdl_to_attr_constraint(NonFuncSMTType)
+
+
+@irdl_attr_definition
+class FuncType(ParametrizedAttribute, TypeAttribute):
+    """A function type."""
+
+    name = "smt.func"
+
+    domain_types: ParameterDef[ArrayAttr[NonFuncSMTType]]
+    """The types of the function arguments."""
+
+    range_type: ParameterDef[NonFuncSMTType]
+    """The type of the function result."""
+
+    def __init__(
+        self, domain_types: Sequence[NonFuncSMTType], range_type: NonFuncSMTType
+    ):
+        super().__init__([ArrayAttr[NonFuncSMTType](domain_types), range_type])
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            domain_types = parser.parse_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
+            range_type = parser.parse_type()
+
+        return (ArrayAttr(domain_types), range_type)
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<(")
+        printer.print_list(self.domain_types, printer.print_attribute)
+        printer.print_string(") ")
+        printer.print_attribute(self.range_type)
+        printer.print_string(">")
+
+    @staticmethod
+    def constr(
+        domain: GenericRangeConstraint[NonFuncSMTType],
+        range: GenericAttrConstraint[NonFuncSMTType],
+    ) -> GenericAttrConstraint[FuncType]:
+        return ParamAttrConstraint(FuncType, (ArrayAttr.constr(domain), range))
+
+
+SMTType: TypeAlias = NonFuncSMTType | FuncType
+SMTTypeConstr = irdl_to_attr_constraint(SMTType)
+
+
+@irdl_attr_definition
+class BitVectorAttr(TypedAttribute):
+    name = "smt.bv"
+
+    value: ParameterDef[IntAttr]
+    type: ParameterDef[BitVectorType]
+
+    def __init__(self, value: int | IntAttr, type: BitVectorType | int):
+        if isinstance(value, int):
+            value = IntAttr(value)
+        if isinstance(type, int):
+            type = BitVectorType(type)
+        super().__init__([value, type])
+
+    def verify(self) -> None:
+        super().verify()
+        (min_value, max_value) = self.type.value_range()
+        if not (min_value <= self.value.data < max_value):
+            raise VerifyException(
+                f"BitVectorAttr value {self.value.data} is out of range "
+                f"[{min_value}, {max_value}) for type {self.type}"
+            )
+
+    @staticmethod
+    def constr(
+        type_constraint: GenericAttrConstraint[BitVectorType],
+    ) -> GenericAttrConstraint[BitVectorAttr]:
+        return ParamAttrConstraint(
+            BitVectorAttr,
+            (
+                AnyAttr(),
+                type_constraint,
+            ),
+        )
+
+    @classmethod
+    def get_type_index(cls) -> int:
+        return 1
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            value = parser.parse_integer(allow_boolean=False, allow_negative=False)
+        parser.parse_punctuation(":")
+        type = parser.parse_type()
+        return [IntAttr(value), type]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string(f"<{self.value.data}> : {self.type}")
+
+    @staticmethod
+    def parse_with_type(
+        parser: AttrParser,
+        type: Attribute,
+    ) -> TypedAttribute:
+        with parser.in_angle_brackets():
+            value = parser.parse_integer(allow_boolean=False, allow_negative=False)
+        return BitVectorAttr.new([IntAttr(value), type])
+
+    def print_without_type(self, printer: Printer) -> None:
+        printer.print_string(f"<{self.value.data}>")
+
+
+@irdl_op_definition
+class DeclareFunOp(IRDLOperation):
+    """
+    This operation declares a symbolic value just as the declare-const and declare-fun
+    statements in SMT-LIB 2.7. The result type determines the SMT sort of the symbolic
+    value. The returned value can then be used to refer to the symbolic value instead
+    of using the identifier like in SMT-LIB.
+
+    The optionally provided string will be used as a prefix for the newly generated
+    identifier (useful for easier readability when exporting to SMT-LIB). Each declare
+    will always provide a unique new symbolic value even if the identifier strings are
+    the same.
+    """
+
+    name = "smt.declare_fun"
+
+    name_prefix = opt_prop_def(StringAttr, prop_name="namePrefix")
+    result = result_def(SMTType)
+
+    assembly_format = "($namePrefix^)? attr-dict `:` type($result)"
+
+    def __init__(
+        self, result_type: SMTType, name_prefix: StringAttr | str | None = None
+    ):
+        if isinstance(name_prefix, str):
+            name_prefix = StringAttr(name_prefix)
+        super().__init__(
+            result_types=[result_type], properties={"namePrefix": name_prefix}
+        )
+
+
+@irdl_op_definition
+class ApplyFuncOp(IRDLOperation):
+    """
+    This operation performs a function application as described in the SMT-LIB
+    2.7 standard. It is part of the SMT-LIB core theory.
+    """
+
+    name = "smt.apply_func"
+
+    DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(NonFuncSMTTypeConstr))
+    RANGE: ClassVar = VarConstraint("RANGE", NonFuncSMTTypeConstr)
+
+    func = operand_def(FuncType.constr(DOMAIN, RANGE))
+    args = var_operand_def(DOMAIN)
+
+    result = result_def(RANGE)
+
+    assembly_format = "$func `(` $args `)` attr-dict `:` type($func)"
+
+    def __init__(self, func: SSAValue[FuncType], *args: SSAValue):
+        super().__init__(
+            operands=[func, tuple(args)], result_types=[func.type.range_type]
+        )
 
 
 @irdl_op_definition
@@ -61,7 +279,7 @@ class ConstantBoolOp(IRDLOperation):
 
     traits = traits_def(Pure(), ConstantLike())
 
-    assembly_format = "$value attr-dict"
+    assembly_format = "qualified($value) attr-dict"
 
     def __init__(self, value: bool):
         value_attr = BoolAttr.from_bool(value)
@@ -70,6 +288,26 @@ class ConstantBoolOp(IRDLOperation):
     @property
     def value(self) -> bool:
         return bool(self.value_attr)
+
+
+@irdl_op_definition
+class NotOp(IRDLOperation):
+    """
+    This operation performs a boolean negation. The semantics are equivalent
+    to the ’not’ operator in the Core theory of the SMT-LIB Standard 2.7.
+    """
+
+    name = "smt.not"
+
+    input = operand_def(BoolType)
+    result = result_def(BoolType)
+
+    assembly_format = "$input attr-dict"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, input: SSAValue):
+        super().__init__(operands=[input], result_types=[BoolType()])
 
 
 class VariadicBoolOp(IRDLOperation):
@@ -125,6 +363,27 @@ class XOrOp(VariadicBoolOp):
     name = "smt.xor"
 
 
+@irdl_op_definition
+class ImpliesOp(IRDLOperation):
+    """
+    This operation performs a boolean implication. The semantics are equivalent
+    to the `=>` operator in the Core theory of the SMT-LIB Standard 2.7.
+    """
+
+    name = "smt.implies"
+
+    lhs = operand_def(BoolType)
+    rhs = operand_def(BoolType)
+    result = result_def(BoolType)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$lhs `,` $rhs attr-dict"
+
+    def __init__(self, lhs: SSAValue, rhs: SSAValue):
+        super().__init__(operands=[lhs, rhs], result_types=[BoolType()])
+
+
 def _parse_same_operand_type_variadic_to_bool_op(
     parser: Parser,
 ) -> tuple[Sequence[SSAValue], dict[str, Attribute]]:
@@ -167,7 +426,7 @@ class VariadicPredicateOp(IRDLOperation, ABC):
     A predicate with a variadic number (but at least 2) operands.
     """
 
-    T: ClassVar = VarConstraint("T", base(NonFuncSMTType))
+    T: ClassVar = VarConstraint("T", NonFuncSMTTypeConstr)
 
     inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
     result = result_def(BoolType())
@@ -226,6 +485,37 @@ class EqOp(VariadicPredicateOp):
     """
 
     name = "smt.eq"
+
+
+@irdl_op_definition
+class IteOp(IRDLOperation):
+    """
+    This operation returns its second operand or its third operand depending on
+    whether its first operand is true or not. The semantics are equivalent to the
+    ite operator defined in the Core theory of the SMT-LIB 2.7 standard.
+    """
+
+    name = "smt.ite"
+
+    T: ClassVar = VarConstraint("T", NonFuncSMTTypeConstr)
+
+    cond = operand_def(BoolType)
+    then_value = operand_def(T)
+    else_value = operand_def(T)
+
+    result = result_def(T)
+
+    assembly_format = (
+        "$cond `,` $then_value `,` $else_value attr-dict `:` type($result)"
+    )
+
+    traits = traits_def(Pure())
+
+    def __init__(self, cond: SSAValue, then_value: SSAValue, else_value: SSAValue):
+        super().__init__(
+            operands=[cond, then_value, else_value],
+            result_types=[then_value.type],
+        )
 
 
 class QuantifierOp(IRDLOperation, ABC):
@@ -295,18 +585,66 @@ class YieldOp(IRDLOperation):
         super().__init__(operands=[values], result_types=[])
 
 
+@irdl_op_definition
+class AssertOp(IRDLOperation):
+    """Assert that a boolean expression holds."""
+
+    name = "smt.assert"
+
+    input = operand_def(BoolType)
+
+    assembly_format = "$input attr-dict"
+
+    def __init__(self, input: SSAValue):
+        super().__init__(operands=[input])
+
+
+@irdl_op_definition
+class BvConstantOp(IRDLOperation):
+    """
+    This operation produces an SSA value equal to the bitvector constant specified
+    by the ‘value’ attribute.
+    """
+
+    name = "smt.bv.constant"
+
+    T: ClassVar = VarConstraint("T", base(BitVectorType))
+
+    value = prop_def(BitVectorAttr.constr(T))
+    result = result_def(T)
+
+    assembly_format = "qualified($value) attr-dict"
+
+    traits = traits_def(ConstantLike(), Pure())
+
+    def __init__(self, value: BitVectorAttr) -> None:
+        super().__init__(properties={"value": value}, result_types=[value.type])
+
+
 SMT = Dialect(
     "smt",
     [
+        DeclareFunOp,
+        ApplyFuncOp,
         ConstantBoolOp,
+        NotOp,
         AndOp,
         OrOp,
         XOrOp,
+        ImpliesOp,
         DistinctOp,
         EqOp,
+        IteOp,
         ExistsOp,
         ForallOp,
         YieldOp,
+        AssertOp,
+        BvConstantOp,
     ],
-    [BoolType],
+    [
+        BoolType,
+        BitVectorType,
+        FuncType,
+        BitVectorAttr,
+    ],
 )

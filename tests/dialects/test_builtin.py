@@ -3,15 +3,18 @@ import re
 from collections.abc import Sequence
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
+    ArrayOfConstraint,
     BFloat16Type,
     BoolAttr,
     BytesAttr,
     ComplexType,
+    ContainerOf,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     Float16Type,
@@ -45,8 +48,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute
-from xdsl.irdl import ConstraintContext
+from xdsl.ir import Attribute, Data
+from xdsl.irdl import (
+    BaseAttr,
+    ConstraintContext,
+    RangeOf,
+    RangeVarConstraint,
+    TypeVarConstraint,
+    eq,
+    irdl_attr_definition,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -477,6 +488,32 @@ def test_DenseIntOrFPElementsAttr_values():
         FloatAttr(4.0, f32),
     )
 
+    complex_f32 = ComplexType(f32)
+    complex_f32_attr = DenseIntOrFPElementsAttr.create_dense_complex(
+        TensorType(complex_f32, [2]),
+        [(1.0, 2.0), (3.0, 4.0)],
+    )
+    assert tuple(complex_f32_attr.get_complex_values()) == ((1.0, 2.0), (3.0, 4.0))
+    assert tuple(complex_f32_attr.get_values()) == ((1.0, 2.0), (3.0, 4.0))
+    assert tuple(complex_f32_attr.iter_values()) == ((1.0, 2.0), (3.0, 4.0))
+    with pytest.raises(NotImplementedError):
+        complex_f32_attr.get_attrs()
+    with pytest.raises(NotImplementedError):
+        complex_f32_attr.iter_attrs()
+
+    complex_i32 = ComplexType(i32)
+    complex_i32_attr = DenseIntOrFPElementsAttr.create_dense_complex(
+        TensorType(complex_i32, [2]),
+        [(1, 2), (3, 4)],
+    )
+    assert tuple(complex_i32_attr.get_complex_values()) == ((1, 2), (3, 4))
+    assert tuple(complex_i32_attr.get_values()) == ((1, 2), (3, 4))
+    assert tuple(complex_i32_attr.iter_values()) == ((1, 2), (3, 4))
+    with pytest.raises(NotImplementedError):
+        complex_i32_attr.get_attrs()
+    with pytest.raises(NotImplementedError):
+        complex_i32_attr.iter_attrs()
+
 
 @pytest.mark.parametrize(
     "ref,expected",
@@ -643,13 +680,14 @@ def test_unrealized_conversion_cast():
     f32_constant = ConstantOp(FloatAttr(10.1, f32))
 
     conv_op1 = UnrealizedConversionCastOp.get([i64_constant.results[0]], [f32])
-    conv_op2 = UnrealizedConversionCastOp.get([f32_constant.results[0]], [i32])
+    conv_op2, res = UnrealizedConversionCastOp.cast_one(f32_constant.results[0], i32)
 
     assert conv_op1.inputs[0].type == i64
     assert conv_op1.outputs[0].type == f32
 
     assert conv_op2.inputs[0].type == f32
-    assert conv_op2.outputs[0].type == i32
+    assert conv_op2.outputs[0] is res
+    assert res.type == i32
 
 
 @pytest.mark.parametrize(
@@ -764,3 +802,53 @@ def test_vector_constr():
         constr.verify(VectorType(i32, [1, 2], scalable_dims), ConstraintContext())
     with pytest.raises(VerifyException):
         constr.verify(VectorType(i64, [1]), ConstraintContext())
+
+
+def test_array_constr():
+    constr = ArrayAttr.constr(i32)
+    assert constr.verifies(ArrayAttr([]))
+    assert constr.verifies(ArrayAttr([i32]))
+    assert not constr.verifies(ArrayAttr([i64]))
+
+    T = RangeVarConstraint("T", RangeOf(eq(i32)))
+    constr = ArrayAttr.constr(T)
+    assert constr.can_infer({"T"})
+
+    ctx = ConstraintContext()
+    ctx.set_range_variable("T", (i32, i32))
+    assert constr.infer(ctx) == ArrayAttr([i32, i32])
+
+    assert constr.get_bases() == {ArrayAttr}
+
+
+################################################################################
+# Mapping Type Var
+################################################################################
+
+
+@irdl_attr_definition
+class A(Data[int]):
+    name = "test.a"
+
+
+@irdl_attr_definition
+class B(Data[int]):
+    name = "test.b"
+
+
+_A = TypeVar("_A", bound=Attribute)
+
+
+def test_array_of_constraint():
+    """Test mapping type variables in ArrayOfConstraint."""
+    array_constraint = ArrayOfConstraint(TypeVarConstraint(_A, BaseAttr(A)))
+
+    assert array_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ArrayOfConstraint(
+        BaseAttr(B)
+    )
+
+    container_constraint = ContainerOf(TypeVarConstraint(_A, BaseAttr(A)))
+
+    assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ContainerOf(
+        BaseAttr(B)
+    )

@@ -6,7 +6,7 @@
 #
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from dataclasses import dataclass
 from inspect import isclass
 from types import FunctionType, GenericAlias, UnionType
@@ -16,13 +16,17 @@ from typing import (
     Any,
     Generic,
     TypeAlias,
-    TypeVar,
     Union,
     cast,
     get_args,
     get_origin,
     get_type_hints,
+    overload,
 )
+
+from typing_extensions import TypeVar
+
+from xdsl.ir import AttributeCovT
 
 if TYPE_CHECKING:
     from typing_extensions import TypeForm
@@ -36,7 +40,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypedAttribute,
 )
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
+from xdsl.utils.exceptions import PyRDLAttrDefinitionError
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
@@ -53,12 +57,16 @@ from .constraints import (  # noqa: TID251
     ConstraintVar,
     EqAttrConstraint,
     GenericAttrConstraint,
+    GenericRangeConstraint,
     ParamAttrConstraint,
+    RangeOf,
+    SingleOf,
+    TypeVarConstraint,
     VarConstraint,
 )
 from .error import IRDLAnnotations  # noqa: TID251
 
-_DataElement = TypeVar("_DataElement", covariant=True)
+_DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
 
 
 @dataclass(frozen=True)
@@ -202,40 +210,20 @@ class ParamAttrDef:
     def verify(self, attr: ParametrizedAttribute):
         """Verify that `attr` satisfies the invariants."""
 
-        if len(attr.parameters) != len(self.parameters):
-            raise VerifyException(
-                f"In {self.name} attribute verifier: "
-                f"{len(self.parameters)} parameters expected, got "
-                f"{len(attr.parameters)}"
-            )
         constraint_context = ConstraintContext()
-        for param, (_, param_def) in zip(attr.parameters, self.parameters):
-            param_def.verify(param, constraint_context)
+        for field, param_def in self.parameters:
+            param_def.verify(getattr(attr, field), constraint_context)
 
 
 _PAttrTT = TypeVar("_PAttrTT", bound=type[ParametrizedAttribute])
 
 
-def get_accessors_from_param_attr_def(attr_def: ParamAttrDef):
-    # New fields and methods added to the attribute
-    new_fields = dict[str, Any]()
-
-    def param_name_field(idx: int):
-        @property
-        def field(self: ParametrizedAttribute):
-            return self.parameters[idx]
-
-        return field
-
-    for idx, (param_name, _) in enumerate(attr_def.parameters):
-        new_fields[param_name] = param_name_field(idx)
-
+def get_accessors_from_param_attr_def(attr_def: ParamAttrDef) -> dict[str, Any]:
     @classmethod
     def get_irdl_definition(cls: type[ParametrizedAttribute]):
         return attr_def
 
-    new_fields["get_irdl_definition"] = get_irdl_definition
-    return new_fields
+    return {"get_irdl_definition": get_irdl_definition}
 
 
 def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
@@ -316,7 +304,6 @@ def irdl_list_to_attr_constraint(
     pyrdl_constraints: Sequence[IRDLAttrConstraint],
     *,
     allow_type_var: bool = False,
-    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint:
     """
     Convert a list of PyRDL type annotations to an AttrConstraint.
@@ -330,28 +317,47 @@ def irdl_list_to_attr_constraint(
             constraint = irdl_list_to_attr_constraint(
                 list(pyrdl_constraints[:idx]) + list(pyrdl_constraints[idx + 1 :]),
                 allow_type_var=allow_type_var,
-                type_var_mapping=type_var_mapping,
             )
             return VarConstraint(arg.name, constraint)
 
-    constraints: list[AttrConstraint] = []
-    for arg in pyrdl_constraints:
-        # We should not try to convert IRDL annotations, which do not
-        # correspond to constraints
-        if isinstance(arg, IRDLAnnotations):
-            continue
-        constraints.append(
-            irdl_to_attr_constraint(
-                arg,
-                allow_type_var=allow_type_var,
-                type_var_mapping=type_var_mapping,
-            )
-        )
-    if len(constraints) == 0:
-        return AnyAttr()
+    constraints = tuple(
+        irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)
+        for arg in pyrdl_constraints
+        # We should not try to convert IRDL annotations, which do not correspond to
+        # constraints
+        if not isinstance(arg, IRDLAnnotations)
+    )
+
     if len(constraints) > 1:
-        return AllOf(tuple(constraints))
+        return AllOf(constraints)
+
+    if not constraints:
+        return AnyAttr()
+
     return constraints[0]
+
+
+@overload
+def irdl_to_attr_constraint(
+    irdl: (
+        GenericAttrConstraint[AttributeInvT]
+        | "TypeForm[AttributeInvT]"
+        | type[AttributeInvT]
+        | AttributeInvT
+    ),
+    *,
+    allow_type_var: bool = False,
+    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
+) -> GenericAttrConstraint[AttributeInvT]: ...
+
+
+@overload
+def irdl_to_attr_constraint(
+    irdl: Attribute | TypeVar | ConstraintVar,
+    *,
+    allow_type_var: bool = False,
+    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
+) -> AttrConstraint: ...
 
 
 def irdl_to_attr_constraint(
@@ -374,7 +380,6 @@ def irdl_to_attr_constraint(
         return irdl_list_to_attr_constraint(
             get_args(irdl),
             allow_type_var=allow_type_var,
-            type_var_mapping=type_var_mapping,
         )
 
     # Attribute class case
@@ -395,14 +400,12 @@ def irdl_to_attr_constraint(
     # We take the type variable bound constraint.
     if isinstance(irdl, TypeVar):
         if not allow_type_var:
-            raise Exception("TypeVar in unexpected context.")
-        if type_var_mapping:
-            if irdl in type_var_mapping:
-                return type_var_mapping[irdl]
+            raise ValueError("TypeVar in unexpected context.")
         if irdl.__bound__ is None:
-            raise Exception("Type variables used in IRDL are expected to be bound.")
+            raise ValueError("Type variables used in IRDL are expected to be bound.")
         # We do not allow nested type variables.
-        return irdl_to_attr_constraint(irdl.__bound__)
+        constraint = irdl_to_attr_constraint(irdl.__bound__)
+        return TypeVarConstraint(irdl, constraint)
 
     origin = get_origin(irdl)
 
@@ -423,9 +426,7 @@ def irdl_to_attr_constraint(
         and issubclass(origin, Generic)
     ):
         args = [
-            irdl_to_attr_constraint(
-                arg, allow_type_var=allow_type_var, type_var_mapping=type_var_mapping
-            )
+            irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)
             for arg in get_args(irdl)
         ]
         generic_args = get_type_var_from_generic_class(origin)
@@ -437,14 +438,15 @@ def irdl_to_attr_constraint(
                 f" parameters, got {len(args)}."
             )
 
-        type_var_mapping = {
-            parameter: arg for parameter, arg in zip(generic_args, args)
-        }
+        type_var_mapping = dict(zip(generic_args, args))
 
-        origin_parameters = irdl_param_attr_get_param_type_hints(origin)
+        # Map the constraints in the attribute definition
+        attr_def = origin.get_irdl_definition()
+        origin_parameters = attr_def.parameters
+
         origin_constraints = [
-            irdl_to_attr_constraint(
-                param, allow_type_var=True, type_var_mapping=type_var_mapping
+            irdl_to_attr_constraint(param, allow_type_var=True).mapping_type_vars(
+                type_var_mapping
             )
             for _, param in origin_parameters
         ]
@@ -463,7 +465,6 @@ def irdl_to_attr_constraint(
                 irdl_to_attr_constraint(
                     arg,
                     allow_type_var=allow_type_var,
-                    type_var_mapping=type_var_mapping,
                 )
             )
         if len(constraints) > 1:
@@ -486,11 +487,30 @@ def base(irdl: type[AttributeInvT]) -> GenericAttrConstraint[AttributeInvT]:
     Converts an attribute type into the equivalent constraint, detecting generic
     parameters if present.
     """
-    return cast(GenericAttrConstraint[AttributeInvT], irdl_to_attr_constraint(irdl))
+    return irdl_to_attr_constraint(irdl)
 
 
 def eq(irdl: AttributeInvT) -> GenericAttrConstraint[AttributeInvT]:
     """
     Converts an attribute instance into the equivalent constraint.
     """
-    return cast(GenericAttrConstraint[AttributeInvT], irdl_to_attr_constraint(irdl))
+    return irdl_to_attr_constraint(irdl)
+
+
+def range_constr_coercion(
+    attr: (
+        AttributeCovT
+        | type[AttributeCovT]
+        | GenericAttrConstraint[AttributeCovT]
+        | GenericRangeConstraint[AttributeCovT]
+    ),
+) -> GenericRangeConstraint[AttributeCovT]:
+    if isinstance(attr, GenericRangeConstraint):
+        return attr
+    return RangeOf(irdl_to_attr_constraint(attr))
+
+
+def single_range_constr_coercion(
+    attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
+) -> GenericRangeConstraint[AttributeCovT]:
+    return SingleOf(irdl_to_attr_constraint(attr))

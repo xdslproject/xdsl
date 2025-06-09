@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence, Set
+from collections.abc import Iterable, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I16,
@@ -34,6 +37,7 @@ from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
+    AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
     GenericAttrConstraint,
@@ -49,6 +53,7 @@ from xdsl.irdl import (
     successor_def,
     traits_def,
     var_operand_def,
+    var_successor_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -443,7 +448,7 @@ class ValueConstrFromResultConstr(
 ):
     result_constr: GenericAttrConstraint[TypeType | RangeType[TypeType]]
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.result_constr.can_infer(var_constraint_names)
 
     def infer(self, context: ConstraintContext) -> ValueType | RangeType[ValueType]:
@@ -462,6 +467,13 @@ class ValueConstrFromResultConstr(
                 f"Expected an attribute of type ValueType or RangeType[ValueType], but got {attr}"
             )
         return self.result_constr.verify(result_type, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericAttrConstraint[ValueType | RangeType[ValueType]]:
+        return ValueConstrFromResultConstr(
+            self.result_constr.mapping_type_vars(type_var_mapping)
+        )
 
 
 @irdl_op_definition
@@ -597,8 +609,7 @@ class CreateOperationOp(IRDLOperation):
     @staticmethod
     def _parse_input_list(parser: Parser) -> list[SSAValue]:
         values: list[SSAValue] = []
-        parser.parse_punctuation("(")
-        if not parser.parse_optional_punctuation(")"):
+        if parser.parse_optional_punctuation("("):
             values = parser.parse_comma_separated_list(
                 delimiter=Parser.Delimiter.NONE,
                 parse=lambda: parser.parse_operand(),
@@ -676,8 +687,6 @@ class CreateOperationOp(IRDLOperation):
         printer.print_attribute(self.constraint_name)
         if self.input_operands:
             CreateOperationOp._print_input_list(printer, self.input_operands)
-        else:
-            printer.print_string("() ", indent=0)
         if self.input_attributes:
             printer.print_string(" {", indent=0)
             printer.print_list(
@@ -703,13 +712,48 @@ class GetDefiningOpOp(IRDLOperation):
     """
 
     name = "pdl_interp.get_defining_op"
-    value = operand_def(ValueType | ArrayAttr[ValueType])
+    value = operand_def(ValueType | RangeType[ValueType])
     input_op = result_def(OperationType)
 
     assembly_format = "`of` $value `:` type($value) attr-dict"
 
     def __init__(self, value: SSAValue) -> None:
         super().__init__(operands=[value], result_types=[OperationType()])
+
+
+@irdl_op_definition
+class SwitchOperationNameOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpswitch_operation_name-pdl_interpswitchoperationnameop).
+    """
+
+    name = "pdl_interp.switch_operation_name"
+
+    case_values = prop_def(ArrayAttr[StringAttr], prop_name="caseValues")
+
+    input_op = operand_def(OperationType)
+
+    default_dest = successor_def()
+    cases = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+    assembly_format = (
+        "`of` $input_op `to` $caseValues `(` $cases `)` attr-dict `->` $default_dest"
+    )
+
+    def __init__(
+        self,
+        case_values: ArrayAttr[StringAttr] | Iterable[StringAttr],
+        input_op: SSAValue,
+        default_dest: Block,
+        cases: Sequence[Block],
+    ) -> None:
+        case_values = ArrayAttr(case_values)
+        super().__init__(
+            operands=[input_op],
+            properties={"caseValues": case_values},
+            successors=[default_dest, cases],
+        )
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -833,6 +877,7 @@ PDLInterp = Dialect(
         ReplaceOp,
         CreateAttributeOp,
         CreateOperationOp,
+        SwitchOperationNameOp,
         FuncOp,
         GetDefiningOpOp,
     ],

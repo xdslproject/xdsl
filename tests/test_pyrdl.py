@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 import pytest
+from typing_extensions import Self, TypeVar
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
@@ -142,22 +143,28 @@ class LessThan(AttrConstraint):
         if attr.data >= self.bound:
             raise VerifyException(f"{attr} should hold a value less than {self.bound}")
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> Self:
+        return self
+
 
 @dataclass(frozen=True)
 class GreaterThan(AttrConstraint):
     bound: int
 
-    def verify(
-        self,
-        attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(f"{attr} should be of base attribute {IntData.name}")
         if attr.data <= self.bound:
             raise VerifyException(
                 f"{attr} should hold a value greater than {self.bound}"
             )
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> Self:
+        return self
 
 
 def test_anyof_verify():

@@ -1,17 +1,18 @@
 import dataclasses
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable
 from dataclasses import Field, dataclass, field
 from types import NoneType, UnionType
 from typing import (
     Any,
     ClassVar,
     NamedTuple,
-    TypeVar,
     Union,
     get_args,
     get_origin,
 )
+
+from typing_extensions import Self, TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin
@@ -60,7 +61,7 @@ class ModulePass(ABC):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None: ...
 
     @classmethod
-    def from_pass_spec(cls: type[ModulePassT], spec: PipelinePassSpec) -> ModulePassT:
+    def from_pass_spec(cls, spec: PipelinePassSpec) -> Self:
         """
         This method takes a PipelinePassSpec, does type checking on the
         arguments, and then instantiates an instance of the ModulePass
@@ -116,7 +117,7 @@ class ModulePass(ABC):
         return cls(**arg_dict)
 
     @classmethod
-    def required_fields(cls: type[ModulePassT]) -> set[str]:
+    def required_fields(cls) -> set[str]:
         """
         Inspects the definition of the pass for fields that do not have default values.
         """
@@ -210,15 +211,15 @@ class PipelinePass(ModulePass):
         self.passes[-1].apply(ctx, op)
 
     @classmethod
-    def build_pipeline_tuples(
+    def iter_passes(
         cls,
         available_passes: dict[str, Callable[[], type[ModulePass]]],
         pass_spec_pipeline: Iterable[PipelinePassSpec],
-    ) -> Iterator[tuple[type[ModulePass], PipelinePassSpec]]:
+    ) -> Iterable[ModulePass]:
         for p in pass_spec_pipeline:
             if p.name not in available_passes:
                 raise Exception(f"Unrecognized pass: {p.name}")
-            yield (available_passes[p.name](), p)
+            yield available_passes[p.name]().from_pass_spec(p)
 
 
 def _convert_pass_arg_to_type(

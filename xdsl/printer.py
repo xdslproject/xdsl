@@ -6,7 +6,9 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Any, TypeVar, cast
+from typing import Any, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -18,8 +20,9 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BFloat16Type,
     BoolAttr,
+    BuiltinAttribute,
     BytesAttr,
-    ComplexElementT,
+    ComplexElementCovT,
     ComplexType,
     DenseArrayBase,
     DenseResourceAttr,
@@ -343,31 +346,30 @@ class Printer(BasePrinter):
         self.print_float(attribute.value.data, attribute.type)
 
     def print_complex_float(
-        self, value: tuple[float, float], type: ComplexType[ComplexElementT]
+        self, value: tuple[float, float], type: ComplexType[ComplexElementCovT]
     ):
         assert isinstance(type.element_type, AnyFloat)
-        self.print_string("(")
         real, imag = value[0], value[1]
+        self.print_string("(")
         self.print_float(real, type.element_type)
         self.print_string(",")
         self.print_float(imag, type.element_type)
         self.print_string(")")
 
     def print_complex_int(
-        self, value: tuple[int, int], type: ComplexType[ComplexElementT]
+        self, value: tuple[int, int], type: ComplexType[ComplexElementCovT]
     ):
-        assert isinstance(type.element_type, IntegerType)
-        self.print_string("(")
+        assert isinstance(elem_ty := type.element_type, IntegerType)
         real, imag = value[0], value[1]
-        self.print_string(str(real))
-        self.print_string(",")
-        self.print_string(str(imag))
-        self.print_string(")")
+        if elem_ty.width.data == 1:
+            real = "true" if real else "false"
+            imag = "true" if imag else "false"
+        self.print_string(f"({real},{imag})")
 
     def print_complex(
         self,
         value: tuple[float, float] | tuple[int, int],
-        type: ComplexType[ComplexElementT],
+        type: ComplexType[ComplexElementCovT],
     ):
         if isinstance(type.element_type, IntegerType):
             assert isa(value, tuple[int, int])
@@ -468,7 +470,9 @@ class Printer(BasePrinter):
                 return
             # Otherwise we fall through to TypedAttribute case
 
-        if isinstance(attribute, TypedAttribute):
+        if isinstance(attribute, TypedAttribute) and isinstance(
+            attribute, BuiltinAttribute
+        ):
             attribute.print_without_type(self)
             self.print_string(" : ")
             self.print_attribute(attribute.get_type())

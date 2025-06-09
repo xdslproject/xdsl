@@ -6,7 +6,7 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence, Set
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
@@ -18,7 +18,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedSegments,
     ConstraintContext,
-    ConstraintVariableType,
     OpDef,
     OptionalDef,
     OptOperandDef,
@@ -28,14 +27,12 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
-    VarExtractor,
     VariadicDef,
     VarOperandDef,
     VarRegionDef,
     VarResultDef,
     VarSingleBlockRegionDef,
     VarSuccessorDef,
-    merge_extractor_dicts,
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
@@ -56,7 +53,6 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalResultVariable,
     OptionalSuccessorVariable,
     OptionalUnitAttrVariable,
-    ParsingState,
     PunctuationDirective,
     RegionDirective,
     RegionVariable,
@@ -158,14 +154,14 @@ class FormatParser(BaseParser):
             elements.append(self.parse_format_directive())
 
         attr_dict_idx = self.verify_attr_dict(elements)
-        extractors = self.extractors_by_name()
+        variables = self.get_constraint_variables()
         self.verify_directives(elements)
         self.verify_properties(elements, attr_dict_idx)
-        self.verify_operands(extractors.keys())
-        self.verify_results(extractors.keys())
+        self.verify_operands(variables)
+        self.verify_results(variables)
         self.verify_regions()
         self.verify_successors()
-        return FormatProgram(tuple(elements), extractors)
+        return FormatProgram(tuple(elements))
 
     def verify_directives(self, elements: list[FormatDirective]):
         """
@@ -208,101 +204,30 @@ class FormatParser(BaseParser):
                 case _:
                     pass
 
-    @dataclass(frozen=True)
-    class _OperandLengthResolver(VarExtractor[ParsingState]):
-        idx: int
-        inner: VarExtractor[int]
-
-        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
-            assert isinstance(ops := a.operands[self.idx], Sequence)
-            return self.inner.extract_var(len(ops))
-
-    @dataclass(frozen=True)
-    class _OperandResultExtractor(VarExtractor[ParsingState]):
-        idx: int
-        is_operand: bool
-        inner: VarExtractor[Sequence[Attribute]]
-
-        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
-            if self.is_operand:
-                types = a.operand_types[self.idx]
-            else:
-                types = a.result_types[self.idx]
-            assert types is not None
-            if isinstance(types, Attribute):
-                types = (types,)
-            return self.inner.extract_var(types)
-
-    @dataclass(frozen=True)
-    class _AttrExtractor(VarExtractor[ParsingState]):
-        """
-        Extracts constraint variables from the attributes/properties of an operation.
-        If the default_value field is None, then the attribute/property must always be
-        present (which is only the case for non-optional attributes/properties with no
-        default value).
-        """
-
-        name: str
-        is_prop: bool
-        inner: VarExtractor[Attribute]
-        default_value: Attribute | None
-
-        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
-            if self.is_prop:
-                attr = a.properties.get(self.name, self.default_value)
-            else:
-                attr = a.attributes.get(self.name, self.default_value)
-            assert attr is not None
-            return self.inner.extract_var(attr)
-
-    def extractors_by_name(self) -> dict[str, VarExtractor[ParsingState]]:
+    def get_constraint_variables(self) -> set[str]:
         """
         Find out which constraint variables can be inferred from the parsed attributes.
         """
-        extractor_dicts: list[dict[str, VarExtractor[ParsingState]]] = []
+        vars = set[str]()
         for i, (_, operand_def) in enumerate(self.op_def.operands):
-            extractor_dicts.append(
-                {
-                    v: self._OperandLengthResolver(i, r)
-                    for v, r in operand_def.constr.get_length_extractors().items()
-                }
-            )
+            vars |= operand_def.constr.variables_from_length()
             if self.seen_operand_types[i]:
-                extractor_dicts.append(
-                    {
-                        v: self._OperandResultExtractor(i, True, r)
-                        for v, r in operand_def.constr.get_variable_extractors().items()
-                    }
-                )
+                vars |= operand_def.constr.variables()
         for i, (_, result_def) in enumerate(self.op_def.results):
             if self.seen_result_types[i]:
-                extractor_dicts.append(
-                    {
-                        v: self._OperandResultExtractor(i, False, r)
-                        for v, r in result_def.constr.get_variable_extractors().items()
-                    }
-                )
-        for prop_name, prop_def in self.op_def.properties.items():
+                vars |= result_def.constr.variables()
+        for prop_def in self.op_def.properties.values():
             if isinstance(prop_def, OptionalDef) and prop_def.default_value is None:
                 continue
-            extractor_dicts.append(
-                {
-                    v: self._AttrExtractor(prop_name, True, r, prop_def.default_value)
-                    for v, r in prop_def.constr.get_variable_extractors().items()
-                }
-            )
-        for attr_name, attr_def in self.op_def.attributes.items():
+            vars |= prop_def.constr.variables()
+        for attr_def in self.op_def.attributes.values():
             if isinstance(attr_def, OptionalDef) and attr_def.default_value is None:
                 continue
-            extractor_dicts.append(
-                {
-                    v: self._AttrExtractor(attr_name, False, r, attr_def.default_value)
-                    for v, r in attr_def.constr.get_variable_extractors().items()
-                }
-            )
-        return merge_extractor_dicts(*extractor_dicts)
+            vars |= attr_def.constr.variables()
 
-    def verify_operands(self, var_constraint_names: Set[str]):
+        return vars
+
+    def verify_operands(self, var_constraint_names: AbstractSet[str]):
         """
         Check that all operands and operand types are refered at least once, or inferred
         from another construct.
@@ -333,7 +258,7 @@ class FormatParser(BaseParser):
                         "custom assembly format"
                     )
 
-    def verify_results(self, var_constraint_names: Set[str]):
+    def verify_results(self, var_constraint_names: AbstractSet[str]):
         """Check that all result types are refered at least once, or inferred
         from another construct."""
 
@@ -498,6 +423,8 @@ class FormatParser(BaseParser):
 
     def parse_optional_variable(
         self,
+        *,
+        qualified: bool = False,
     ) -> FormatDirective | None:
         """
         Parse a variable, if present, with the following format:
@@ -566,7 +493,10 @@ class FormatParser(BaseParser):
                 else self.op_def.attributes.get(attr_name)
             )
             if isinstance(attr_def, AttrOrPropDef):
-                unique_base = attr_def.constr.get_unique_base()
+                bases = attr_def.constr.get_bases()
+                unique_base = (
+                    bases.pop() if bases is not None and len(bases) == 1 else None
+                )
                 if unique_base == UnitAttr:
                     return OptionalUnitAttrVariable(
                         variable_name, is_property, None, None
@@ -591,6 +521,10 @@ class FormatParser(BaseParser):
                     and unique_base in Builtin.attributes
                     and unique_type is None
                 ):
+                    unique_base = None
+
+                # Ensure qualified attributes stay qualified
+                if qualified:
                     unique_base = None
 
                 # Chill pyright with TypedAttribute without parameter
@@ -643,6 +577,21 @@ class FormatParser(BaseParser):
         results = self.parse_typeable_directive()
         self.parse_punctuation(")")
         return FunctionalTypeDirective(operands, results)
+
+    def parse_qualified_directive(self) -> FormatDirective:
+        """
+        Parse a qualified attribute or type directive, with the following format:
+            qualified-directive ::= `qualified` `(` variable `)`
+        """
+        self.parse_punctuation("(")
+        res = self.parse_optional_variable(qualified=True)
+        if res is None:
+            self.raise_error(
+                "expected a variable after 'qualified', found "
+                f"'{self._current_token.text}'"
+            )
+        self.parse_punctuation(")")
+        return res
 
     def parse_optional_group(self) -> FormatDirective:
         """
@@ -763,6 +712,8 @@ class FormatParser(BaseParser):
             return self.create_operands_directive(True)
         if self.parse_optional_keyword("functional-type"):
             return self.parse_functional_type_directive()
+        if self.parse_optional_keyword("qualified"):
+            return self.parse_qualified_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
         if self.parse_optional_punctuation("("):

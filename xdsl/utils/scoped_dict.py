@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar, overload
+from typing import Generic, overload
+
+from typing_extensions import TypeVar
 
 _Key = TypeVar("_Key")
 _Value = TypeVar("_Value")

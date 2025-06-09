@@ -14,14 +14,13 @@ from typing import (
     Generic,
     Literal,
     TypeAlias,
-    TypeVar,
     cast,
     get_args,
     get_origin,
     overload,
 )
 
-from typing_extensions import assert_never
+from typing_extensions import Self, TypeVar, assert_never
 
 from xdsl.ir import (
     Attribute,
@@ -50,6 +49,8 @@ from .attributes import (  # noqa: TID251
     IRDLGenericAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
+    range_constr_coercion,
+    single_range_constr_coercion,
 )
 from .constraints import (  # noqa: TID251
     AnyAttr,
@@ -59,9 +60,6 @@ from .constraints import (  # noqa: TID251
     GenericRangeConstraint,
     RangeConstraint,
     RangeOf,
-    attr_constr_coercion,
-    range_constr_coercion,
-    single_range_constr_coercion,
 )
 from .error import IRDLAnnotations  # noqa: TID251
 
@@ -159,7 +157,7 @@ class IRDLOperation(Operation):
 
     @classmethod
     def build(
-        cls: type[IRDLOperationInvT],
+        cls,
         *,
         operands: (
             Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
@@ -179,7 +177,7 @@ class IRDLOperation(Operation):
             ]
             | None
         ) = None,
-    ) -> IRDLOperationInvT:
+    ) -> Self:
         """Create a new operation using builders."""
         op = cls.__new__(cls)
         IRDLOperation.__init__(
@@ -208,8 +206,6 @@ class IRDLOperation(Operation):
 @dataclass
 class IRDLOption(ABC):
     """Additional option used in IRDL."""
-
-    ...
 
 
 @dataclass
@@ -321,21 +317,15 @@ class ParsePropInAttrDict(IRDLOption):
 class OperandOrResultDef(ABC):
     """An operand or a result definition. Should not be used directly."""
 
-    ...
-
 
 @dataclass
 class VariadicDef(OperandOrResultDef):
     """A variadic operand or result definition. Should not be used directly."""
 
-    ...
-
 
 @dataclass
 class OptionalDef(VariadicDef):
     """An optional operand or result definition. Should not be used directly."""
-
-    ...
 
 
 @dataclass(init=False)
@@ -1045,12 +1035,12 @@ class OpDef:
 
                             if option.as_property:
                                 prop_def = PropertyDef(
-                                    attr_constr_coercion(DenseArrayBase)
+                                    irdl_to_attr_constraint(DenseArrayBase)
                                 )
                                 op_def.properties[option.attribute_name] = prop_def
                             else:
                                 attr_def = AttributeDef(
-                                    attr_constr_coercion(DenseArrayBase)
+                                    irdl_to_attr_constraint(DenseArrayBase)
                                 )
                                 op_def.attributes[option.attribute_name] = attr_def
                     continue
@@ -1088,11 +1078,13 @@ class OpDef:
                 def get_constraint(
                     pyrdl_constr: IRDLAttrConstraint,
                 ) -> AttrConstraint:
-                    return irdl_list_to_attr_constraint(
+                    constraint = irdl_list_to_attr_constraint(
                         (pyrdl_constr,),
                         allow_type_var=True,
-                        type_var_mapping=type_var_mapping,
                     )
+                    if type_var_mapping is not None:
+                        constraint = constraint.mapping_type_vars(type_var_mapping)
+                    return constraint
 
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_range_constraint(

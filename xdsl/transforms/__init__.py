@@ -308,6 +308,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return inline_snrt.InlineSnrtPass
 
+    def get_licm():
+        from xdsl.transforms import loop_invariant_code_motion
+
+        return loop_invariant_code_motion.LoopInvariantCodeMotionPass
+
     def get_lift_arith_to_linalg():
         from xdsl.transforms.lift_arith_to_linalg import LiftArithToLinalg
 
@@ -533,6 +538,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return varith_transformations.VarithFuseRepeatedOperandsPass
 
+    def get_x86_allocate_registers():
+        from xdsl.transforms import x86_allocate_registers
+
+        return x86_allocate_registers.X86AllocateRegisters
+
     # Please insert pass and `get_` function in alphabetical order
 
     return {
@@ -596,6 +606,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "inline-snrt": get_inline_snrt,
+        "licm": get_licm,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-fuse-multiply-add": get_linalg_fuse_multiply_add,
         "linalg-to-csl": get_linalg_to_csl,
@@ -641,4 +652,5 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
+        "x86-allocate-registers": get_x86_allocate_registers,
     }
