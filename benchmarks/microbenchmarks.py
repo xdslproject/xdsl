@@ -297,12 +297,12 @@ class OpCreation:
     def time_operation_create_optimised(self) -> None:
         """Time creating an empty operation directly."""
         empty_op = EmptyOp.__new__(EmptyOp)
-        empty_op._operands = tuple()  # pyright: ignore[reportPrivateUsage]
-        empty_op.results = tuple()
+        empty_op._operands = ()  # pyright: ignore[reportPrivateUsage]
+        empty_op.results = ()
         empty_op.properties = {}
         empty_op.attributes = {}
-        empty_op._successors = tuple()  # pyright: ignore[reportPrivateUsage]
-        empty_op.regions = tuple()
+        empty_op._successors = ()  # pyright: ignore[reportPrivateUsage]
+        empty_op.regions = ()
 
     def time_operation_constant_init(self) -> None:
         """Time instantiating a constant integer."""
@@ -315,12 +315,12 @@ class OpCreation:
         integer_attr = IntegerAttr.__new__(IntegerAttr)
         object.__setattr__(integer_attr, "parameters", (int_attr, i32))
         constant_op = ConstantOp.__new__(ConstantOp)
-        constant_op._operands = tuple()  # pyright: ignore[reportPrivateUsage]
+        constant_op._operands = ()  # pyright: ignore[reportPrivateUsage]
         constant_op.results = (OpResult(i32, constant_op, 0),)
         constant_op.properties = {"value": integer_attr}
         constant_op.attributes = {}
-        constant_op._successors = tuple()  # pyright: ignore[reportPrivateUsage]
-        constant_op.regions = tuple()
+        constant_op._successors = ()  # pyright: ignore[reportPrivateUsage]
+        constant_op.regions = ()
 
     def time_operation_clone(self) -> None:
         """Time cloning an module of 100 empty operations.
