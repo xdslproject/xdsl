@@ -106,9 +106,9 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            self.print_nested_parameters(printer)
+            self.print_indices(printer)
 
-    def print_nested_parameters(self, printer: Printer) -> None:
+    def print_indices(self, printer: Printer) -> None:
         printer.print(f"[{', '.join(str(e) for e in self)}]")
 
     def verify(self) -> None:
