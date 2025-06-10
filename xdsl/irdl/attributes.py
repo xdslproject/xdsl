@@ -6,7 +6,7 @@
 #
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from dataclasses import dataclass
 from inspect import isclass
 from types import FunctionType, GenericAlias, UnionType
@@ -25,6 +25,8 @@ from typing import (
 )
 
 from typing_extensions import TypeVar
+
+from xdsl.ir import AttributeCovT
 
 if TYPE_CHECKING:
     from typing_extensions import TypeForm
@@ -55,13 +57,16 @@ from .constraints import (  # noqa: TID251
     ConstraintVar,
     EqAttrConstraint,
     GenericAttrConstraint,
+    GenericRangeConstraint,
     ParamAttrConstraint,
+    RangeOf,
+    SingleOf,
     TypeVarConstraint,
     VarConstraint,
 )
 from .error import IRDLAnnotations  # noqa: TID251
 
-_DataElement = TypeVar("_DataElement", covariant=True)
+_DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
 
 
 @dataclass(frozen=True)
@@ -435,7 +440,10 @@ def irdl_to_attr_constraint(
 
         type_var_mapping = dict(zip(generic_args, args))
 
-        origin_parameters = irdl_param_attr_get_param_type_hints(origin)
+        # Map the constraints in the attribute definition
+        attr_def = origin.get_irdl_definition()
+        origin_parameters = attr_def.parameters
+
         origin_constraints = [
             irdl_to_attr_constraint(param, allow_type_var=True).mapping_type_vars(
                 type_var_mapping
@@ -487,3 +495,22 @@ def eq(irdl: AttributeInvT) -> GenericAttrConstraint[AttributeInvT]:
     Converts an attribute instance into the equivalent constraint.
     """
     return irdl_to_attr_constraint(irdl)
+
+
+def range_constr_coercion(
+    attr: (
+        AttributeCovT
+        | type[AttributeCovT]
+        | GenericAttrConstraint[AttributeCovT]
+        | GenericRangeConstraint[AttributeCovT]
+    ),
+) -> GenericRangeConstraint[AttributeCovT]:
+    if isinstance(attr, GenericRangeConstraint):
+        return attr
+    return RangeOf(irdl_to_attr_constraint(attr))
+
+
+def single_range_constr_coercion(
+    attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
+) -> GenericRangeConstraint[AttributeCovT]:
+    return SingleOf(irdl_to_attr_constraint(attr))
