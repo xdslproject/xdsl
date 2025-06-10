@@ -207,9 +207,9 @@
     %roriw = riscv.roriw %0, 1 : (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.roriw %{{.*}}, 1 : (!riscv.reg) -> !riscv.reg
     %rolw = riscv.rolw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.rol %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.rolw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %rorw = riscv.rorw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.ror %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.rorw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %bclr = riscv.bclr %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.bclr %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %bext = riscv.bext %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -256,9 +256,9 @@
 
     // RV32/RV64 Zicond extension for conditional operations 
 
-    %czeroeqzop = riscv.rol %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %czeroeqzop = riscv.czero.eqz %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.czero.eqz %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
-    %czeronezop = riscv.rol %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %czeronezop = riscv.czero.nez %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.czero.nez %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     
     // Assembler pseudo-instructions
