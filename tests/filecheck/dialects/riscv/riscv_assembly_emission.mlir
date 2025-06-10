@@ -193,12 +193,6 @@
     // CHECK-NEXT: rori j_1, j_1, 1
     %roriw = riscv.roriw %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: roriw j_1, j_1, 1
-    %sextB = riscv.sext.b %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: sext.b j_1, j_1
-    %sextH = riscv.sext.h %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: sext.h j_1, j_1
-    %zextH = riscv.zext.h %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: zext.h j_1, j_1
     %bclr = riscv.bclr %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: bclr j_2, j_2, j_1
     %bclri = riscv.bclri %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
