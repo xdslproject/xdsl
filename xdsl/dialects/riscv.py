@@ -2861,6 +2861,7 @@ class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
+@irdl_op_definition
 class BextIOp(RdRsImmShiftOperation):
     """
     This instruction returns a single bit extracted from rs1 at the index specified in rs2.
@@ -2896,6 +2897,7 @@ class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
+@irdl_op_definition
 class BinvIOp(RdRsImmShiftOperation):
     """
     This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
@@ -2930,6 +2932,7 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
+@irdl_op_definition
 class BsetIOp(RdRsImmShiftOperation):
     """
     This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
@@ -4875,6 +4878,7 @@ RISCV = Dialect(
         BinvIOp,
         RoriOp,
         RoriwOp,
+        SlliUwOp,
         EcallOp,
         LabelOp,
         DirectiveOp,
