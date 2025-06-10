@@ -2705,7 +2705,7 @@ class RolOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let result = (x[rs1] << shamt) | (x[rs2] >> (xlen - shamt));
     x[rd] = result;
     ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rol).
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rol).
     """
     name = "riscv.rol"
 
@@ -2736,7 +2736,7 @@ class SextHOp(RdRsIntegerOperation[IntRegisterType]):
     ```
     x[rd] = EXTS(x[rs][15..0]);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_h)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_h).
     """
     name = "riscv.sext.h"
 
@@ -2750,7 +2750,7 @@ class ZextHOp(RdRsIntegerOperation[IntRegisterType]):
     ```
     x[rd] = EXTZ(x[rs][15..0]);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-zext_h)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-zext_h).
     """
     name = "riscv.zext.h"
 
@@ -2764,7 +2764,7 @@ class SextBOp(RdRsIntegerOperation[IntRegisterType]):
     ```
     X[rd] = EXTS(X[rs][7..0]);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_b)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_b).
     """
     name = "riscv.sext.b"
 
@@ -2779,7 +2779,7 @@ class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let index = X(rs2) & (XLEN - 1);
     X(rd) = X(rs1) & ~(1 << index)
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclr)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclr).
     """
     name = "riscv.bclr"
 
@@ -2795,7 +2795,7 @@ class BclrIOp(RdRsImmShiftOperation):
     let index = shamt & (XLEN - 1);
     X(rd) = X(rs1) & ~(1 << index)
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri).
     """
     name = "riscv.bclri"
 
@@ -2810,7 +2810,7 @@ class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let index = X(rs2) & (XLEN - 1);
     X(rd) = (X(rs1) >> index) & 1;
     ```
-    See external https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bext
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bext).
     """
     name = "riscv.bext"
 
@@ -2825,7 +2825,7 @@ class BextIOp(RdRsImmShiftOperation):
     let index = shamt & (XLEN - 1);
     X(rd) = (X(rs1) >> index) & 1;
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti).
     """
     name = "riscv.bexti"
 
@@ -2841,7 +2841,7 @@ class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let index = shamt & (XLEN - 1);
     X(rd) = X(rs1) ^ (1 << index)
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
     """
     name = "riscv.binv"
 
@@ -2856,7 +2856,7 @@ class BinvIOp(RdRsImmShiftOperation):
     let index = shamt & (XLEN - 1);
     x[rd] = x[rs1] & ~(1 << index)
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
     """
     name = "riscv.binvi"
 
@@ -2871,7 +2871,7 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let index = X(rs2) & (XLEN - 1);
     X(rd) = X(rs1) | (1 << index)
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bset)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bset).
     """
     name = "riscv.bset"
 
@@ -2886,7 +2886,7 @@ class BsetIOp(RdRsImmShiftOperation):
     let index = shamt & (XLEN - 1);
     x[rd] = x[rs1] | (1 << index)
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bseti)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bseti).
     """
     name = "riscv.bseti"
 
@@ -2904,7 +2904,7 @@ class RolwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let result = (rs1 << shamt) | (rs1 >> (32 - shamt));
     X(rd) = EXTS(result);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rolw)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rolw).
     """
     name = "riscv.rolw"
 
@@ -2922,7 +2922,7 @@ class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let result = (rs1 >> shamt) | (rs1 << (32 - shamt));
     X(rd) = EXTS(result);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rorw)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rorw).
     """
     name = "riscv.rorw"
 
@@ -2940,7 +2940,7 @@ class RoriOp(RdRsImmShiftOperation):
     let result = (X(rs1) >> shamt) | (X(rs2) << (xlen - shamt));
     X(rd) = result;
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rori)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rori).
     """
     name = "riscv.rori"
 
@@ -2957,7 +2957,7 @@ class RoriwOp(RdRsImmShiftOperation):
     let result = (rs1 >> shamt[4..0]) | (X(rs1) << (32 - shamt[4..0]));
     X(rd) = EXTS(result[31..0]);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-roriw)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-roriw).
     """
     name = "riscv.roriw"
 
@@ -2973,7 +2973,7 @@ class AddUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let index = EXTZ(X(rs1)[31..0]);
     X(rd) = base + index;
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-add_uw)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-add_uw).
     """
     name = "riscv.add.uw"
 
@@ -2986,7 +2986,7 @@ class Sh1addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     ```
     X(rd) = X(rs2) + (X(rs1) << 1);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh1add)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh1add).
     """
     name = "riscv.sh1add"
 
@@ -2999,7 +2999,7 @@ class Sh2addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     ```
     X(rd) = X(rs2) + (X(rs1) << 2);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh2add)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh2add).
     """
     name = "riscv.sh2add"
 
@@ -3012,7 +3012,7 @@ class Sh3addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     ```
     X(rd) = X(rs2) + (X(rs1) << 3);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh3add)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh3add).
     """
     name = "riscv.sh3add"
 
@@ -3030,7 +3030,7 @@ class Sh1addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let index = EXTZ(x[rs1][31..0]);
     x[rd] = base + (index << 1);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh1add_uw)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh1add_uw).
     """
     name = "riscv.sh1add.uw"
 
@@ -3047,7 +3047,7 @@ class Sh2addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let index = EXTZ(x[rs1][31..0]);
     x[rd] = base + (index << 2);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh2add_uw)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh2add_uw).
     """
     name = "riscv.sh2add.uw"
 
@@ -3065,7 +3065,7 @@ class Sh3addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     let index = EXTZ(x[rs1][31..0]);
     x[rd] = base + (index << 3);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh3add_uw)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh3add_uw).
     """
     name = "riscv.sh3add.uw"
 
@@ -3079,7 +3079,7 @@ class SlliUwOp(RdRsImmShiftOperation):
     ```
     x[rd] = (EXTZ(x[rs][31..0]) << shamt);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-slli_uw)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-slli_uw).
     """
     name = "riscv.slli.uw"
 
@@ -3092,7 +3092,7 @@ class AndnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     ```
     X(rd) = X(rs1) & ~X(rs2);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-andn)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-andn).
     """
     name = "riscv.andn"
 
@@ -3105,7 +3105,7 @@ class OrnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     ```
     X(rd) = X(rs1) | ~X(rs2);
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-orn)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-orn).
     """
     name = "riscv.orn"
 
@@ -3118,7 +3118,7 @@ class XnorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     ```
     X(rd) = ~(X(rs1) ^ X(rs2));
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-xnor)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-xnor).
     """
     name = "riscv.xnor"
 
@@ -3137,7 +3137,7 @@ class MaxOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 	            else rs1_val;
     X(rd) = result;
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-max)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-max).
     """
     name = "riscv.max"
 
@@ -3155,7 +3155,7 @@ class MaxUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 	     else rs1_val;
     X(rd) = result;
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-maxu)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-maxu).
     """
     name = "riscv.maxu"
 
@@ -3173,7 +3173,7 @@ class MinOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 	     else rs2_val;
     X(rd) = result;
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-min)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-min).
     """
     name = "riscv.min"
 
@@ -3191,7 +3191,7 @@ class MinUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 	            else rs2_val;
     X(rd) = result;
     ```
-    See external (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-minu)
+    See external [documentation] (https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-minu).
     """
     name = "riscv.minu"
 
@@ -3205,7 +3205,7 @@ class CZeroEqzOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Moves zero to a register rd, if the condition rs2 is equal to zero, otherwise moves rs1 to rd.
     
-    See external (https://github.com/riscvarchive/riscv-zicond/blob/main/zicondops.adoc).
+    See external [documentation] (https://github.com/riscvarchive/riscv-zicond/blob/main/zicondops.adoc).
     """
     name = "riscv.czero.eqz"
 
@@ -3214,7 +3214,7 @@ class CZeroNezOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Moves zero to a register rd, if the condition rs2 is nonzero, otherwise moves rs1 to rd.
 
-    See external (https://github.com/riscvarchive/riscv-zicond/blob/main/zicondops.adoc).
+    See external [documentation] (https://github.com/riscvarchive/riscv-zicond/blob/main/zicondops.adoc).
     """
     name = "riscv.czero.nez"
 # endregion 
