@@ -48,6 +48,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     TensorType,
+    TupleType,
     UnitAttr,
     UnrankedMemRefType,
     UnrankedTensorType,
@@ -674,6 +675,12 @@ class Printer(BasePrinter):
 
         if isinstance(attribute, AffineSetAttr):
             self.print_string(f"affine_set<{attribute.data}>")
+            return
+
+        if isinstance(attribute, TupleType):
+            self.print_string("tuple<", indent=0)
+            self.print_list(attribute.types, self.print_attribute)
+            self.print_string(">", indent=0)
             return
 
         if isinstance(attribute, UnregisteredAttr):
