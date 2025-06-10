@@ -103,3 +103,21 @@ class ArithFunctions(InterpreterFunctions):
                 raise InterpretationError(
                     f"arith.cmpi predicate {op.predicate} mot implemented yet."
                 )
+
+    @impl(arith.ShLIOp)
+    def run_shlsi(self, interpreter: Interpreter, op: arith.ShLIOp, args: PythonValues):
+        lhs: int
+        rhs: int
+        (lhs, rhs) = args
+        assert rhs >= 0
+        return (lhs << rhs,)
+
+    @impl(arith.ShRSIOp)
+    def run_shrsi(
+        self, interpreter: Interpreter, op: arith.ShRSIOp, args: PythonValues
+    ):
+        lhs: int
+        rhs: int
+        (lhs, rhs) = args
+        assert rhs >= 0
+        return (lhs >> rhs,)
