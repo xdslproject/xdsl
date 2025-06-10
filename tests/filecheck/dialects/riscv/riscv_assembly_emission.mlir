@@ -231,8 +231,8 @@
     // CHECK-NEXT: sh3add.uw j_2, j_2, j_1
     %slliuw = riscv.slli.uw %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: slli.uw j_1, j_1, 1
-    %andn = riscv.andn %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
-    // CHECK-NEXT: slli.uw j_1, j_1, 1
+    %andn = riscv.andn %1, %2 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
+    // CHECK-NEXT: andn j_2, j_2, j_1
     %orn = riscv.orn %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: orn j_2, j_2, j_1
     %xnor = riscv.xnor %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
