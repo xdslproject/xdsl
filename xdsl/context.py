@@ -287,7 +287,12 @@ class Context:
             raise UnregisteredConstructException(f"Dialect {name} is not registered")
         return dialect
 
-    def get_optional_dialect(self, name: str) -> "Dialect | None":
+    def get_optional_dialect(
+        self, name: str, load_if_needed: bool = False
+    ) -> "Dialect | None":
+        if load_if_needed:
+            if name in self._registered_dialects and name not in self._loaded_dialects:
+                self.load_registered_dialect(name)
         if name in self._loaded_dialects:
             return self._loaded_dialects[name]
         return None
