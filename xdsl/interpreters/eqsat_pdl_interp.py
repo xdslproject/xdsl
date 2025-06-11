@@ -24,23 +24,68 @@ from xdsl.utils.scoped_dict import ScopedDict
 
 @dataclass
 class BacktrackPoint:
+    """
+    Represents a point in pattern matching where backtracking may be needed.
+
+    When a GetDefiningOpOp encounters an EClassOp with multiple operands,
+    we need to try matching against each operand. This class captures the
+    interpreter state so we can backtrack and try the next operand if
+    the current match fails.
+    """
+
     block: Block
+    """The block to return to when backtracking."""
+
     block_args: tuple[SSAValue, ...]
+    """Block arguments to restore when backtracking."""
+
     scope: ScopedDict[SSAValue, Any]
+    """Variable scope to restore when backtracking."""
+
     gdo_op: pdl_interp.GetDefiningOpOp
+    """The GetDefiningOpOp that created this backtrack point."""
+
     index: int
+    """Current operand index being tried in the EClassOp."""
+
     max_index: int
+    """Last valid operand index in the EClassOp (len(operands) - 1)."""
 
 
 @register_impls
 @dataclass
 class EqsatPDLInterpFunctions(PDLInterpFunctions):
+    """Interpreter functions for PDL patterns operating on e-graphs."""
+
     backtrack_stack: list[BacktrackPoint] = field(default_factory=list[BacktrackPoint])
+    """Stack of backtrack points for exploring multiple matching paths in e-classes."""
+
     visited: bool = True
+    """Signals whether the GetDefiningOp (GDO) in the block that run_finalize jumps to has been encountered.
+
+    This is to handle when a block contains GDOs before the GDO we're backtracking to.
+    If this is the case, run_finalize jumps to the block but will encounter the wrong GDOs first.
+    e.g.:
+    ```
+    BB0:
+        %0 = pdl_interp.get_defining_op ...
+        %1 = pdl_interp.get_defining_op ...
+    BB1:
+        pdl_interp.finalize # backtrack to BB0 at this point
+    ```
+    Backtracking works by jumping to the start of the block containing the GDO (`BB0`).
+    When we need to backtrack to the second GDO (`%1`), `visited` is still `False` when encountering the first GDO (`%0`).
+    This allows us to know that we have to skip the first GDO and continue with the second one.
+    """
+
     known_ops: KnownOps = field(default_factory=KnownOps)
+    """Used for hashconsing operations. When new operations are created, if they are identical to an existing operation,
+    the existing operation is reused instead of creating a new one."""
+
     eclass_union_find: DisjointSet[eqsat.EClassOp] = field(
         default_factory=lambda: DisjointSet[eqsat.EClassOp]()
     )
+    """Union-find structure tracking which e-classes are equivalent and should be merged."""
 
     def populate_known_ops(self, module: ModuleOp) -> None:
         """
@@ -135,8 +180,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             ],
         )
         if isinstance(eclass_op := defining_op, eqsat.EClassOp):
-            if not self.visited:
+            if not self.visited:  # we come directly from run_finalize
                 if op != self.backtrack_stack[-1].gdo_op:
+                    # we first encounter a GDO that is not the one we are backtracking to:
                     raise InterpretationError(
                         "Case where a block contains multiple pdl_interp.get_defining_op is currently not supported."
                     )
