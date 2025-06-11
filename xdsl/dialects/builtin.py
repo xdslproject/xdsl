@@ -1432,16 +1432,19 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class DenseResourceAttr(ParametrizedAttribute, BuiltinAttribute):
+class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
     name = "dense_resource"
 
     resource_handle: ParameterDef[StringAttr]
+    type: ParameterDef[ShapedType]
 
-    # Should be a ShapedType, but this is not defined yet in xDSL
-    type: ParameterDef[Attribute]
+    def print_without_type(self, printer: Printer):
+        printer.print_string("dense_resource<")
+        printer.print_resource_handle("builtin", self.resource_handle.data)
+        printer.print_string(">")
 
     @staticmethod
-    def from_params(handle: str | StringAttr, type: Attribute) -> DenseResourceAttr:
+    def from_params(handle: str | StringAttr, type: ShapedType) -> DenseResourceAttr:
         if isinstance(handle, str):
             handle = StringAttr(handle)
         return DenseResourceAttr([handle, type])
