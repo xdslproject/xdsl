@@ -14,24 +14,33 @@ class DialectInterface:
 
 
 class OpAsmDialectInterface(DialectInterface):
-    _blob_storage: dict[str, str] = {}
+    """
+    The OpAsm interface generally deals with making printed ir look less verbose.
+    It implements two main functionalities - Aliases and Resources.
 
-    ## Aliases - yet to be implemented
+    ## Aliases
+    If you have some commonly used types and attributes `AsmPrinter` can generate aliases for them through this interface.
+    For example, `!my_dialect.type<a=3,b=4,c=5,d=tuple,e=another_type>` and `#my_dialect.attr<a=3>`
+    can be aliased to `!my_dialect_type` and `#my_dialect_attr`, simplifying further references.
+
+    **This is not yet implemented in xdsl**
 
     ## Resources
+    Keep a dialect specific storage of blobs in the Dialect object.
 
-    # Keep a dialect specific storage of blobs in the Dialect object.
+    This functionality is usefull when we want to reference some objects
+    while keeping them outside of ir.
+    For example if we have a big dense array we might decide to store it in
+    dialect's storage and use a key to reference it inside the ir.
+    Or if we want some data to be shared across attributes we might wanna
+    store it in the storage and use the same key to reference it
+    in different places in the ir.
 
-    # This functionality is usefull when we want to reference some objects
-    # while keeping them outside of ir.
-    # For example if we have a big dense array we might decide to store it in
-    # dialect's storage and use a key to reference it inside the ir.
-    # Or if we want some data to be shared across attributes we might wanna
-    # store it in the storage and use the same key to reference it
-    # in different places in the ir.
+    This can help keep the ir clean and also give some performance improvements
+    compared to keeping these resources tied to ir objects.
+    """
 
-    # This can help keep the ir clean and also give some performance improvements
-    # compared to keeping these resources tied to ir objects.
+    _blob_storage: dict[str, str] = {}
 
     def declare_resource(self, key: str) -> str:
         """
