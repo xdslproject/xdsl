@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any
 
 from xdsl.dialects import eqsat, pdl_interp
 from xdsl.dialects.builtin import ModuleOp
@@ -173,12 +173,18 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.GetDefiningOpOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        defining_op = cast(
-            None | Operation,
-            PDLInterpFunctions.run_get_defining_op(self, interpreter, op, args).values[
-                0
-            ],
-        )
+        assert len(args) == 1
+        if args[0] is None:
+            return (None,)
+        assert isinstance(args[0], SSAValue)
+        if not isinstance(args[0], OpResult):
+            defining_op = None
+        else:
+            assert isinstance(args[0].owner, Operation), (
+                "Cannot get defining op of a Block argument"
+            )
+            defining_op = args[0].owner
+
         if isinstance(eclass_op := defining_op, eqsat.EClassOp):
             if not self.visited:  # we come directly from run_finalize
                 if op != self.backtrack_stack[-1].gdo_op:
