@@ -178,36 +178,39 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             return (None,)
         assert isinstance(args[0], SSAValue)
         if not isinstance(args[0], OpResult):
-            defining_op = None
+            return (None,)
         else:
             assert isinstance(args[0].owner, Operation), (
                 "Cannot get defining op of a Block argument"
             )
             defining_op = args[0].owner
 
-        if isinstance(eclass_op := defining_op, eqsat.EClassOp):
-            if not self.visited:  # we come directly from run_finalize
-                if op != self.backtrack_stack[-1].gdo_op:
-                    # we first encounter a GDO that is not the one we are backtracking to:
-                    raise InterpretationError(
-                        "Case where a block contains multiple pdl_interp.get_defining_op is currently not supported."
-                    )
-                index = self.backtrack_stack[-1].index
-                self.visited = True
-            else:
-                block = op.parent_block()
-                assert block
-                block_args = interpreter.get_values(block.args)
-                scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
-                assert scope
-                index = 0
-                self.backtrack_stack.append(
-                    BacktrackPoint(
-                        block, block_args, scope, op, index, len(eclass_op.operands) - 1
-                    )
+        if not isinstance(defining_op, eqsat.EClassOp):
+            return (defining_op,)
+
+        eclass_op = defining_op
+        if not self.visited:  # we come directly from run_finalize
+            if op != self.backtrack_stack[-1].gdo_op:
+                # we first encounter a GDO that is not the one we are backtracking to:
+                raise InterpretationError(
+                    "Case where a block contains multiple pdl_interp.get_defining_op is currently not supported."
                 )
-            defining_op = eclass_op.operands[index].owner
-            assert isinstance(defining_op, Operation)
+            index = self.backtrack_stack[-1].index
+            self.visited = True
+        else:
+            block = op.parent_block()
+            assert block
+            block_args = interpreter.get_values(block.args)
+            scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
+            assert scope
+            index = 0
+            self.backtrack_stack.append(
+                BacktrackPoint(
+                    block, block_args, scope, op, index, len(eclass_op.operands) - 1
+                )
+            )
+        defining_op = eclass_op.operands[index].owner
+        assert isinstance(defining_op, Operation)
 
         return (defining_op,)
 
