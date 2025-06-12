@@ -1,4 +1,3 @@
-import pytest
 from typing import cast
 
 from xdsl.dialects.builtin import (
