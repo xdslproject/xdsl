@@ -42,6 +42,7 @@ from xdsl.dialects.builtin import (
     NoneType,
     OpaqueAttr,
     RankedStructure,
+    ShapedType,
     Signedness,
     StridedLayoutAttr,
     StringAttr,
@@ -858,7 +859,11 @@ class AttrParser(BaseParser):
         resource_handle = self.parse_identifier(" for resource handle")
         self.parse_characters(">", " in dense_resource attribute")
         self.parse_characters(":", " in dense_resource attribute")
+
         type = self.parse_type()
+        if not isinstance(type, ShapedType):
+            self.raise_error(f"dense resource should have a shaped type, got: {type}")
+
         return DenseResourceAttr.from_params(resource_handle, type)
 
     def _parse_typed_integer(
