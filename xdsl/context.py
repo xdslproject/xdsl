@@ -287,21 +287,17 @@ class Context:
             raise UnregisteredConstructException(f"Dialect {name} is not registered")
         return dialect
 
-    def get_optional_dialect(
-        self, name: str, load_if_needed: bool = False
-    ) -> "Dialect | None":
+    def get_optional_dialect(self, name: str) -> "Dialect | None":
         """
-        Get a loaded dialect if it exists.
+        Get a dialect from its name if it exists.
+        If the dialect is not registered, return None.
+        """
+        if name in self._registered_dialects and name not in self._loaded_dialects:
+            self.load_registered_dialect(name)
 
-        `load_if_needed` parameter if set loads the corresponding registered
-        dialect if it wasn't loaded before.
-        With the parameter set function is equivalent to MLIR's `MLIRContext::getOrLoadDialect`.
-        """
-        if load_if_needed:
-            if name in self._registered_dialects and name not in self._loaded_dialects:
-                self.load_registered_dialect(name)
         if name in self._loaded_dialects:
             return self._loaded_dialects[name]
+
         return None
 
 
