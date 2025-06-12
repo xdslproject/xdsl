@@ -290,6 +290,13 @@ class Context:
     def get_optional_dialect(
         self, name: str, load_if_needed: bool = False
     ) -> "Dialect | None":
+        """
+        Get a loaded dialect if it exists.
+
+        `load_if_needed` parameter if set loads the corresponding registered
+        dialect if it wasn't loaded before.
+        With the parameter set function is equivalent to MLIR's `MLIRContext::getOrLoadDialect`.
+        """
         if load_if_needed:
             if name in self._registered_dialects and name not in self._loaded_dialects:
                 self.load_registered_dialect(name)
