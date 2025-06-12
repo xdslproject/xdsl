@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from xdsl.context import Context
@@ -192,3 +194,222 @@ def test_run_getresults_valuetype_no_results():
         (test_op,),
     )
     assert result == (None,)
+
+
+def test_run_getdefiningop():
+    """Test that run_getdefiningop handles regular operations correctly."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create a test operation and its result
+    c0 = create_ssa_value(i32)
+    test_op = test.TestOp((c0,), (i32,))
+
+    # Test GetDefiningOpOp with regular operation result
+    result = interpreter.run_op(
+        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())),
+        (test_op.results[0],),
+    )
+
+    # Should return the defining operation
+    assert result == (test_op,)
+
+    # Should not have set up any backtracking for regular operations
+    assert len(interp_functions.backtrack_stack) == 0
+
+
+def test_run_getdefiningop_eclass_not_visited():
+    """Test that run_getdefiningop handles EClassOp when not visited."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create test operations
+    c0 = create_ssa_value(i32)
+    test_op = test.TestOp((c0,), (i32,))
+    eclass_op = eqsat.EClassOp(test_op.results[0], res_type=i32)
+
+    # Create GetDefiningOpOp
+    gdo_op = pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
+
+    # Set up backtrack stack and visited state
+    from xdsl.interpreters.eqsat_pdl_interp import BacktrackPoint
+    from xdsl.ir import Block
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    block = Block()
+    scope = ScopedDict[Any, Any]()
+    backtrack_point = BacktrackPoint(block, (), scope, gdo_op, 0, 0)
+    interp_functions.backtrack_stack.append(backtrack_point)
+    interp_functions.visited = False
+
+    # Test with EClassOp result
+    result = interpreter.run_op(gdo_op, (eclass_op.results[0],))
+
+    # Should use index from backtrack stack and set visited to True
+    assert interp_functions.visited
+    assert result == (test_op,)  # Should return the operand at index 0
+
+
+def test_run_getdefiningop_eclass_visited():
+    """Test that run_getdefiningop handles EClassOp when visited."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create test operations with multiple operands
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
+    test_op1 = test.TestOp((c0,), (i32,))
+    test_op2 = test.TestOp((c1,), (i32,))
+    eclass_op = eqsat.EClassOp(test_op1.results[0], test_op2.results[0], res_type=i32)
+
+    # Create a block and add the GetDefiningOpOp to it
+    from xdsl.ir import Block
+
+    block = Block()
+    gdo_op = pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
+    block.add_op(gdo_op)
+
+    # Set visited to True and create a parent scope for the interpreter context
+    interp_functions.visited = True
+
+    # Create a child scope to give the current context a parent
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    child_scope = ScopedDict(parent=interpreter._ctx)  # pyright: ignore[reportPrivateUsage]
+    interpreter._ctx = child_scope  # pyright: ignore[reportPrivateUsage]
+
+    # Test with EClassOp result
+    result = interpreter.run_op(gdo_op, (eclass_op.results[0],))
+
+    # Should create new backtrack point and use index 0
+    assert len(interp_functions.backtrack_stack) == 1
+    assert interp_functions.backtrack_stack[0].index == 0
+    assert interp_functions.backtrack_stack[0].max_index == 1  # len(operands) - 1
+    assert result == (test_op1,)  # Should return the operand at index 0
+
+
+def test_run_getdefiningop_eclass_error_multiple_gdo():
+    """Test that run_getdefiningop raises error for multiple get_defining_op in block."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create test operations
+    c0 = create_ssa_value(i32)
+    test_op = test.TestOp((c0,), (i32,))
+    eclass_op = eqsat.EClassOp(test_op.results[0], res_type=i32)
+
+    # Create two different GetDefiningOpOp operations
+    gdo_op1 = pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
+    gdo_op2 = pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
+
+    # Set up backtrack stack with different gdo_op and visited=False
+    from xdsl.interpreters.eqsat_pdl_interp import BacktrackPoint
+    from xdsl.ir import Block
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    block = Block()
+    scope = ScopedDict[Any, Any]()
+    backtrack_point = BacktrackPoint(block, (), scope, gdo_op1, 0, 1)  # Different op
+    interp_functions.backtrack_stack.append(backtrack_point)
+    interp_functions.visited = False
+
+    # Test should raise InterpretationError when using different gdo_op
+    with pytest.raises(
+        InterpretationError,
+        match="Case where a block contains multiple pdl_interp.get_defining_op is currently not supported",
+    ):
+        interpreter.run_op(gdo_op2, (eclass_op.results[0],))
+
+
+def test_run_finalize_empty_stack():
+    """Test that run_finalize handles empty backtrack stack correctly."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Test finalize with empty backtrack stack - should return empty values
+    result = interpreter.run_op(pdl_interp.FinalizeOp(), ())
+    assert result == ()
+
+
+def test_backtrack_stack_manipulation():
+    """Test that backtrack stack operations work correctly."""
+    interp_functions = EqsatPDLInterpFunctions(Context())
+
+    # Verify initial state
+    assert len(interp_functions.backtrack_stack) == 0
+    assert interp_functions.visited
+
+    # Test adding to backtrack stack
+    from xdsl.interpreters.eqsat_pdl_interp import BacktrackPoint
+    from xdsl.ir import Block
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    block = Block()
+    scope = ScopedDict[Any, Any]()
+    gdo_op = pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
+    backtrack_point = BacktrackPoint(block, (), scope, gdo_op, 0, 2)
+
+    interp_functions.backtrack_stack.append(backtrack_point)
+    assert len(interp_functions.backtrack_stack) == 1
+    assert interp_functions.backtrack_stack[0].index == 0
+    assert interp_functions.backtrack_stack[0].max_index == 2
+
+
+def test_run_finalize_with_backtrack_stack():
+    """Test that run_finalize handles non-empty backtrack stack correctly."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Import necessary classes
+    from xdsl.interpreter import Successor
+    from xdsl.interpreters.eqsat_pdl_interp import BacktrackPoint
+    from xdsl.ir import Block
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    # Create a backtrack point that hasn't reached its max index
+    block = Block()
+    scope = ScopedDict[Any, Any]()
+    gdo_op = pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
+    backtrack_point = BacktrackPoint(
+        block, (), scope, gdo_op, 0, 2
+    )  # index < max_index
+
+    interp_functions.backtrack_stack.append(backtrack_point)
+
+    # Store original interpreter scope
+    original_scope = interpreter._ctx  # pyright: ignore[reportPrivateUsage]
+
+    # Test finalize with backtrack stack that can continue
+    result = interp_functions.run_finalize(interpreter, pdl_interp.FinalizeOp(), ())
+
+    # Should return a Successor to continue backtracking
+    assert isinstance(result.terminator_value, Successor)
+    assert result.terminator_value.block is block
+    assert result.terminator_value.args == ()
+    assert result.values == ()
+
+    # Should increment the index and set visited to False
+    assert interp_functions.backtrack_stack[0].index == 1
+    assert not interp_functions.visited
+
+    # Should restore the interpreter scope from the backtrack point
+    assert interpreter._ctx is scope  # pyright: ignore[reportPrivateUsage]
+    assert interpreter._ctx is not original_scope  # pyright: ignore[reportPrivateUsage]
+
+    # Test finalize when backtrack point reaches max index
+    interp_functions.backtrack_stack[0].index = 2  # Set to max_index
+    from xdsl.interpreter import ReturnedValues
+
+    result = interp_functions.run_finalize(interpreter, pdl_interp.FinalizeOp(), ())
+
+    # Should pop the backtrack point and return empty values
+    assert isinstance(result.terminator_value, ReturnedValues)
+    assert result.terminator_value.values == ()
+    assert result.values == ()
+    assert len(interp_functions.backtrack_stack) == 0
