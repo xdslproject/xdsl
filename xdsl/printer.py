@@ -104,11 +104,6 @@ class Printer(BasePrinter):
     _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
     _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
 
-    """
-    resources that were referenced in the ir
-    """
-    _dialect_resources: dict[str, set[str]] = field(default_factory=dict[str, set[str]])
-
     @property
     def ssa_names(self):
         return self._ssa_names[-1]
@@ -552,9 +547,8 @@ class Printer(BasePrinter):
 
         if isinstance(attribute, DenseResourceAttr):
             handle = attribute.resource_handle.data
-            self.print_string("dense_resource<")
-            self.print_resource_handle("builtin", handle)
-            self.print_string("> : ")
+            self.print_string(f"dense_resource<{handle}> : ")
+            self.print_attribute(attribute.type)
             return
 
         if isinstance(attribute, TensorType):
@@ -910,13 +904,3 @@ class Printer(BasePrinter):
             self.print_op_with_default_format(op)
         if scope:
             self.exit_scope()
-
-    def print_resource_handle(self, dialect: str, handle: str):
-        """
-        Print resource handle.
-        Keep track of referenced resources to print only relevant ones.
-        """
-        if dialect not in self._dialect_resources:
-            self._dialect_resources[dialect] = set()
-        self._dialect_resources[dialect].add(handle)
-        self.print_string(handle)
