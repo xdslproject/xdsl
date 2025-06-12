@@ -206,9 +206,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                         block, block_args, scope, op, index, len(eclass_op.operands) - 1
                     )
                 )
-            return PDLInterpFunctions.run_get_defining_op(
-                self, interpreter, op, (eclass_op.operands[index],)
-            ).values
+            defining_op = eclass_op.operands[index].owner
+            assert isinstance(defining_op, Operation)
 
         return (defining_op,)
 
