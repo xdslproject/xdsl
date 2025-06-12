@@ -1135,11 +1135,6 @@ class ComplexType(
         self: ComplexType[IntegerType], values: Sequence[tuple[int, int]]
     ) -> bytes: ...
 
-    @overload
-    def pack(
-        self, values: Sequence[tuple[int, int]] | Sequence[tuple[float, float]]
-    ) -> bytes: ...
-
     def pack(self, values: Sequence[tuple[float, float] | tuple[int, int]]) -> bytes:
         return self.element_type.pack(tuple(val for vals in values for val in vals))  # pyright: ignore[reportArgumentType]
 
@@ -2372,7 +2367,7 @@ class DenseIntOrFPElementsAttr(
         type: RankedStructure[ComplexType[ComplexElementCovT]],
         data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
     ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementCovT]]:
-        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
+        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
 
     @overload
     @staticmethod
@@ -2579,8 +2574,9 @@ class DenseIntOrFPElementsAttr(
             element_type.print_value_without_type(val, printer)
         elif isinstance(val, float):
             printer.print_float(val, cast(AnyFloat, self.get_element_type()))
-        else:
-            raise NotImplementedError("Next PR")
+        else:  # complex
+            assert isinstance(element_type := self.get_element_type(), ComplexType)
+            printer.print_complex(val, element_type)
 
     def _print_dense_list(
         self,

@@ -720,6 +720,7 @@ class AttrParser(BaseParser):
         RankedStructure[IntegerType]
         | RankedStructure[IndexType]
         | RankedStructure[AnyFloat]
+        | RankedStructure[ComplexType]
     ):
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
@@ -727,12 +728,13 @@ class AttrParser(BaseParser):
             base(RankedStructure[IntegerType])
             | base(RankedStructure[IndexType])
             | base(RankedStructure[AnyFloat])
+            | base(RankedStructure[ComplexType])
         ).verifies(
             type,
         ):
             self.raise_error(
                 "Expected memref, vector or tensor type of "
-                "integer, index, or float type"
+                "integer, index, float, or complex type"
             )
 
         # Check for static shapes in type
@@ -822,7 +824,11 @@ class AttrParser(BaseParser):
 
         if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedStructure[AnyFloat], type)
-            return DenseIntOrFPElementsAttr.create_dense_float(new_type, data_values)
+            new_data = cast(Sequence[int | float], data_values)
+            return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
+        elif isinstance(type.element_type, ComplexType):
+            new_type = cast(RankedStructure[ComplexType], type)
+            return DenseIntOrFPElementsAttr.create_dense_complex(new_type, data_values)  # pyright: ignore[reportCallIssue,reportUnknownVariableType,reportArgumentType]
         else:
             new_type = cast(RankedStructure[IntegerType | IndexType], type)
             new_data = cast(Sequence[int], data_values)
@@ -933,14 +939,14 @@ class AttrParser(BaseParser):
     class _TensorLiteralElement:
         """
         The representation of a tensor literal element used during parsing.
-        It is either an integer, float, or boolean. It also has a check if
+        It is either an integer, float, boolean, or complex. It also has a check if
         the element has a negative sign (it is already applied to the value).
         This class is used to parse a tensor literal before the tensor literal
         type is known
         """
 
         is_negative: bool
-        value: int | float | bool
+        value: int | float | bool | tuple[int, int] | tuple[float, float]
         """
         An integer, float, boolean, integer complex, or float complex value.
         The tuple should be of type `_TensorLiteralElement`, but python does
@@ -976,16 +982,29 @@ class AttrParser(BaseParser):
             Convert the element to a float value. Raises an error if the type
             is compatible.
             """
+            if isinstance(self.value, tuple):
+                parser.raise_error("No conversion from complex to float")
             return float(self.value)
+
+        def to_complex(
+            self, parser: AttrParser, type: ComplexType
+        ) -> tuple[float, float] | tuple[int, int]:
+            assert isinstance(self.value, tuple)
+
+            if isinstance(type.element_type, AnyFloat):
+                return (float(self.value[0]), float(self.value[1]))
+
+            match type.element_type:
+                case IntegerType():
+                    return (int(self.value[0]), int(self.value[1]))
+
+            raise NotImplementedError()
 
         def to_type(
             self,
             parser: AttrParser,
             type: AnyFloat | IntegerType | IndexType | ComplexType,
         ):
-            if isinstance(type, ComplexType):
-                raise NotImplementedError("Implemented in follow up PR")
-
             if isinstance(type, AnyFloat):
                 return self.to_float(parser)
 
@@ -1000,6 +1019,9 @@ class AttrParser(BaseParser):
                     return self.to_int(
                         parser, allow_negative=True, allow_booleans=False
                     )
+
+                case ComplexType():
+                    return self.to_complex(parser, type)
 
     def _parse_optional_bool_int_or_float(
         self,
@@ -1083,6 +1105,9 @@ class AttrParser(BaseParser):
         if scalar_span := self._parse_optional_bool_int_or_float():
             value, span = scalar_span
             return self._TensorLiteralElement(value < 0, value, span)
+        elif complex_span := self._parse_optional_complex():
+            value, span = complex_span
+            return self._TensorLiteralElement(False, value, span)
 
         self.raise_error("Expected either a float, integer, or complex literal")
 
