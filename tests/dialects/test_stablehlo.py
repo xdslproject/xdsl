@@ -8,9 +8,9 @@ from xdsl.dialects.builtin import (
     IntegerType,
     RankedStructure,
     TensorType,
+    f32,
     i1,
     i32,
-    f32,
     i64,
 )
 from xdsl.dialects.stablehlo import ConstantOp
