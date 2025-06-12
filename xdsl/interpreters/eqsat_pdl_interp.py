@@ -58,15 +58,18 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         if result is None:
             return (None,)
 
-        if len(result.uses) != 1 or not isinstance(
-            eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
-        ):
-            raise InterpretationError(
-                "pdl_interp.get_result currently only supports operations with results"
-                " that are used by a single EClassOp each."
-            )
-        result = eclass_op.result
-
+        if len(result.uses) == 1:
+            if isinstance(
+                eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
+            ):
+                result = eclass_op.result
+        elif result.uses:  # multiple uses
+            for use in result.uses:
+                if isinstance(use.operation, eqsat.EClassOp):
+                    raise InterpretationError(
+                        "pdl_interp.get_result currently only supports operations with results"
+                        " that are used by a single EClassOp each."
+                    )
         return (result,)
 
     @impl(pdl_interp.GetResultsOp)
@@ -86,14 +89,18 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         results: list[OpResult] = []
         for result in src_op.results:
-            if len(result.uses) == 1 and isinstance(
-                eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
-            ):
-                assert len(eclass_op.results) == 1
-                results.append(eclass_op.results[0])
-            else:
-                raise InterpretationError(
-                    "pdl_interp.get_results currently only supports operations with results"
-                    " that are used by a single EClassOp each."
-                )
+            if len(result.uses) == 1:
+                if isinstance(
+                    eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
+                ):
+                    assert len(eclass_op.results) == 1
+                    result = eclass_op.results[0]
+            elif result.uses:  # multiple uses
+                for use in result.uses:
+                    if isinstance(use.operation, eqsat.EClassOp):
+                        raise InterpretationError(
+                            "pdl_interp.get_results currently only supports operations with results"
+                            " that are used by a single EClassOp each."
+                        )
+            results.append(result)
         return (results,)

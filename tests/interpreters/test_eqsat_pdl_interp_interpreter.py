@@ -67,6 +67,8 @@ def test_run_getresult_error_case():
     # Create a test operation with result that is not used by EClass
     c0 = create_ssa_value(i32)
     test_op = test.TestOp((c0,), (i32,))
+    _eclass_user = eqsat.EClassOp(test_op.results[0])
+    _extra_user = test.TestOp((test_op.results[0],))
 
     # Don't create any EClass operations, so result is not used by EClass
 
@@ -114,6 +116,8 @@ def test_run_getresults_error_case():
     # Create a test operation with results that are not used by EClass
     c0 = create_ssa_value(i32)
     test_op = test.TestOp((c0,), (i32, i64))
+    _eclass_user = eqsat.EClassOp(test_op.results[0])
+    _extra_user = test.TestOp((test_op.results[0],))
 
     # Don't create any EClass operations, so results are not used by EClass
 
