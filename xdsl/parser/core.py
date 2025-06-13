@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Literal, overload
 
 from xdsl.context import Context
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -126,6 +127,9 @@ class Parser(AttrParser):
                     MLIRTokenKind.EXCLAMATION_IDENT,
                 ):
                     self._parse_alias_def()
+                    continue
+                if self._current_token.kind in (MLIRTokenKind.FILE_METADATA_BEGIN,):
+                    self._parse_file_metadata_dictionary()
                     continue
                 if (parsed_op := self.parse_optional_operation()) is not None:
                     parsed_ops.append(parsed_op)
@@ -944,4 +948,70 @@ class Parser(AttrParser):
             self.Delimiter.PAREN,
             self.parse_unresolved_operand,
             " in operation argument list",
+        )
+
+    def _parse_resource(
+        self, dialect_name: str, interface: OpAsmDialectInterface
+    ) -> None:
+        key = self._parse_dialect_resource_handle(dialect_name, interface)
+        self._parse_token(MLIRTokenKind.COLON, "expected `:`")
+        value = self.parse_str_literal()
+
+        try:
+            interface.parse_resource(key, value)
+        except Exception as e:
+            self.raise_error(f"got an error when parsing a resource: {e}")
+
+    def _parse_single_dialect_resources(self) -> None:
+        dialect_name = self._parse_token(
+            MLIRTokenKind.BARE_IDENT, "Expected a dialect name"
+        )
+        self._parse_token(MLIRTokenKind.COLON, "expected `:`")
+
+        dialect = self.ctx.get_optional_dialect(dialect_name.text)
+        if dialect is None:
+            self.raise_error(f"dialect {dialect_name.text} is not registered")
+
+        interface = dialect.get_interface(OpAsmDialectInterface)
+        if not interface:
+            self.raise_error(
+                f"dialect {dialect.name} doesn't have an OpAsmDialectInterface interface"
+            )
+
+        self.parse_comma_separated_list(
+            self.Delimiter.BRACES, lambda: self._parse_resource(dialect.name, interface)
+        )
+
+    def _parse_dialect_resources(self) -> None:
+        self.parse_comma_separated_list(
+            self.Delimiter.BRACES, self._parse_single_dialect_resources
+        )
+
+    def _parse_external_resources(self) -> None:
+        raise NotImplementedError("Currently only dialect resources are supported")
+
+    def _parse_metadata_element(self) -> None:
+        resource_type = self._parse_token(
+            MLIRTokenKind.BARE_IDENT, "Expected a resource type key"
+        )
+
+        self._parse_token(MLIRTokenKind.COLON, "expected `:`")
+
+        match resource_type.text:
+            case "dialect_resources":
+                self._parse_dialect_resources()
+            case "external_resources":
+                self._parse_external_resources()
+            case _:
+                self.raise_error(
+                    f"got an unexpected key in file metadata: {resource_type.text}"
+                )
+
+    def _parse_file_metadata_dictionary(self) -> None:
+        """
+        Parse metadata section {-# ... #-} of the file.
+        Returns None since results are stored in the context object.
+        """
+        self.parse_comma_separated_list(
+            self.Delimiter.METADATA_TOKEN, self._parse_metadata_element
         )

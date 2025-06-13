@@ -6,6 +6,7 @@ from typing import cast
 import pytest
 
 from xdsl.context import Context
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     ArrayAttr,
     Builtin,
@@ -1061,3 +1062,19 @@ def test_parse_singleton_enum_fail():
     parser = Parser(Context(), "b")
     with pytest.raises(ParseError, match="Expected `a`"):
         parser.parse_str_enum(MySingletonEnum)
+
+
+def test_metadata_parsing():
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    metadata_dict = '{-# dialect_resources: {test: {some_res: "0x1"}} #-}'
+
+    parser = Parser(ctx, metadata_dict)
+    assert parser._parse_file_metadata_dictionary() is None
+
+    test_dialect = ctx.get_dialect("test")
+    interface = test_dialect.get_interface(OpAsmDialectInterface)
+    assert interface
+
+    element = interface.lookup("some_res")
+    assert element == "0x1"
