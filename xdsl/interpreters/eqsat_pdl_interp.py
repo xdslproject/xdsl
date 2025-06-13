@@ -216,16 +216,14 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         return (defining_op,)
 
     @impl(pdl_interp.CreateOperationOp)
-    def run_createoperation(
+    def run_create_operation(
         self,
         interpreter: Interpreter,
         op: pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         has_done_action_checkpoint = self.rewriter.has_done_action
-        (new_op,) = PDLInterpFunctions.run_create_operation(
-            self, interpreter, op, args
-        ).values
+        (new_op,) = super().run_create_operation(interpreter, op, args).values
 
         assert isinstance(new_op, Operation)
 

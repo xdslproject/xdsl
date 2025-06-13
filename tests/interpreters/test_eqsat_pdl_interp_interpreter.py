@@ -325,8 +325,9 @@ def test_run_getdefiningop_eclass_error_multiple_gdo():
     ):
         interpreter.run_op(gdo_op2, (eclass_op.results[0],))
 
-def test_run_createoperation_new_operation():
-    """Test that run_createoperation creates new operation and EClass when no existing match."""
+
+def test_run_create_operation_new_operation():
+    """Test that run_create_operation creates new operation and EClass when no existing match."""
     interpreter = Interpreter(ModuleOp([]))
     ctx = Context()
     ctx.register_dialect("test", lambda: test.Test)
@@ -358,7 +359,7 @@ def test_run_createoperation_new_operation():
     )
 
     # Run the create operation
-    result = interp_functions.run_createoperation(
+    result = interp_functions.run_create_operation(
         interpreter, create_op, (operand, result_type)
     )
 
@@ -379,8 +380,8 @@ def test_run_createoperation_new_operation():
     assert isinstance(eclass_op, eqsat.EClassOp)
 
 
-def test_run_createoperation_existing_operation_in_use():
-    """Test that run_createoperation returns existing operation when it's still in use."""
+def test_run_create_operation_existing_operation_in_use():
+    """Test that run_create_operation returns existing operation when it's still in use."""
     interpreter = Interpreter(ModuleOp([]))
     ctx = Context()
     ctx.register_dialect("test", lambda: test.Test)
@@ -421,7 +422,7 @@ def test_run_createoperation_existing_operation_in_use():
     initial_has_done_action = rewriter.has_done_action
 
     # Run the create operation
-    result = interp_functions.run_createoperation(
+    result = interp_functions.run_create_operation(
         interpreter, create_op, (operand, i32)
     )
 
@@ -434,8 +435,8 @@ def test_run_createoperation_existing_operation_in_use():
     assert rewriter.has_done_action == initial_has_done_action
 
 
-def test_run_createoperation_existing_operation_not_in_use():
-    """Test that run_createoperation creates new operation when existing has no uses."""
+def test_run_create_operation_existing_operation_not_in_use():
+    """Test that run_create_operation creates new operation when existing has no uses."""
     interpreter = Interpreter(ModuleOp([]))
     ctx = Context()
     ctx.register_dialect("test", lambda: test.Test)
@@ -476,7 +477,7 @@ def test_run_createoperation_existing_operation_not_in_use():
     )
 
     # Run the create operation
-    result = interp_functions.run_createoperation(
+    result = interp_functions.run_create_operation(
         interpreter, create_op, (operand, i32)
     )
 
