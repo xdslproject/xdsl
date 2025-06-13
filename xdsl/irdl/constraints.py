@@ -441,7 +441,6 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         )
 
         bases = set[Attribute]()
-
         for c in constrs:
             b = c.get_bases()
             if b is None:
@@ -452,6 +451,7 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
                 raise PyRDLError(
                     f"Constraints {constrs} do not have disjoint bases so cannot be put in an `AnyOf` constraint."
                 )
+            bases |= b
 
         object.__setattr__(
             self,

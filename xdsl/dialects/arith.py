@@ -1167,13 +1167,15 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        signlessIntegerLike
-        | floatingPointLike
+        ContainerOf(
+            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
+        )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        signlessIntegerLike
-        | floatingPointLike
+        ContainerOf(
+            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
+        )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 

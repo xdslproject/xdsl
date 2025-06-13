@@ -18,6 +18,7 @@ from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
@@ -29,6 +30,7 @@ from xdsl.irdl import (
     eq,
     irdl_attr_definition,
 )
+from xdsl.utils.exceptions import PyRDLError
 
 
 def test_failing_inference():
@@ -94,6 +96,28 @@ def test_attr_constraint_get_bases(
     constraint: AttrConstraint, expected: set[type[Attribute]] | None
 ):
     assert constraint.get_bases() == expected
+
+
+@pytest.mark.parametrize(
+    "c1, c2, msg",
+    [
+        (
+            AnyAttr(),
+            BaseAttr(AttrA),
+            re.escape(
+                "Constraint AnyAttr() cannot appear in an `AnyOf` constraint as its bases aren't known"
+            ),
+        ),
+        (
+            BaseAttr(AttrA) | BaseAttr(AttrB),
+            BaseAttr(AttrA),
+            "Constraint AnyAttr() cannot appear in an `AnyOf` constraint sa its bases aren't known",
+        ),
+    ],
+)
+def test_any_of_overlapping(c1: AttrConstraint, c2: AttrConstraint, msg: str):
+    with pytest.raises(PyRDLError, match=msg):
+        AnyOf((c1, c2))
 
 
 def test_param_attr_constraint_inference():
