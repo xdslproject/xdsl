@@ -78,3 +78,14 @@
     }
   }
 #-}
+
+// -----
+
+// CHECK: dialect arith doesn't have an OpAsmDialectInterface interface
+{-#
+  dialect_resources: {
+    arith: {
+      key: "0x1"
+    }
+  }
+#-}
