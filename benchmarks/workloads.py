@@ -98,7 +98,7 @@ class WorkloadBuilder:
         return ModuleOp(
             [
                 ConstantOp(
-                    DenseIntOrFPElementsAttr.from_list(
+                    DenseIntOrFPElementsAttr.create_dense_int(
                         type=tensor_type, data=dense_attr
                     )
                 )
