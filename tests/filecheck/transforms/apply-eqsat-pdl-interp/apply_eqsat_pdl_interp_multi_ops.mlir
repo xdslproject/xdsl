@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p apply-eqsat-pdl-interp | filecheck %s
+// RUN: xdsl-opt %s -p apply-eqsat | filecheck %s
 
 // CHECK:      func.func @impl() -> i32 {
 // CHECK-NEXT:   %a = arith.constant 3 : i32
