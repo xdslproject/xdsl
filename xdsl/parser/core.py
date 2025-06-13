@@ -950,7 +950,9 @@ class Parser(AttrParser):
             " in operation argument list",
         )
 
-    def _parse_resource(self, dialect_name: str, interface: OpAsmDialectInterface):
+    def _parse_resource(
+        self, dialect_name: str, interface: OpAsmDialectInterface
+    ) -> None:
         key = self._parse_dialect_resource_handle(dialect_name, interface)
         self._parse_token(MLIRTokenKind.COLON, "expected `:`")
         value = self.parse_str_literal()
@@ -960,7 +962,7 @@ class Parser(AttrParser):
         except Exception as e:
             self.raise_error(f"got an error when parsing a resource: {e}")
 
-    def _parse_single_dialect_resources(self):
+    def _parse_single_dialect_resources(self) -> None:
         dialect_name = self._parse_token(
             MLIRTokenKind.BARE_IDENT, "Expected a dialect name"
         )
@@ -980,7 +982,7 @@ class Parser(AttrParser):
             self.Delimiter.BRACES, lambda: self._parse_resource(dialect.name, interface)
         )
 
-    def _parse_dialect_resources(self):
+    def _parse_dialect_resources(self) -> None:
         self.parse_comma_separated_list(
             self.Delimiter.BRACES, self._parse_single_dialect_resources
         )
@@ -988,7 +990,7 @@ class Parser(AttrParser):
     def _parse_external_resources(self) -> None:
         raise NotImplementedError("Currently only dialect resources are supported")
 
-    def _parse_metadata_element(self):
+    def _parse_metadata_element(self) -> None:
         resource_type = self._parse_token(
             MLIRTokenKind.BARE_IDENT, "Expected a resource type key"
         )
@@ -1005,7 +1007,11 @@ class Parser(AttrParser):
                     f"got an unexpected key in file metadata: {resource_type.text}"
                 )
 
-    def _parse_file_metadata_dictionary(self):
+    def _parse_file_metadata_dictionary(self) -> None:
+        """
+        Parse metadata section {-# ... #-} of the file.
+        Returns None since results are stored in the context object.
+        """
         self.parse_comma_separated_list(
             self.Delimiter.METADATA_TOKEN, self._parse_metadata_element
         )
