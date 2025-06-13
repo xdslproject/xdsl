@@ -10,6 +10,7 @@ from typing import Any, cast
 
 from typing_extensions import TypeVar
 
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
@@ -61,6 +62,7 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Data,
+    Dialect,
     OpaqueSyntaxAttribute,
     Operation,
     ParametrizedAttribute,
@@ -103,6 +105,11 @@ class Printer(BasePrinter):
     )
     _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
     _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
+
+    _dialect_resources: dict[str, set[str]] = field(default_factory=dict[str, set[str]])
+    """
+    resources that were referenced in the ir
+    """
 
     @property
     def ssa_names(self):
@@ -547,7 +554,9 @@ class Printer(BasePrinter):
 
         if isinstance(attribute, DenseResourceAttr):
             handle = attribute.resource_handle.data
-            self.print_string(f"dense_resource<{handle}> : ")
+            self.print_string("dense_resource<")
+            self.print_resource_handle("builtin", handle)
+            self.print_string("> : ")
             self.print_attribute(attribute.type)
             return
 
@@ -904,3 +913,49 @@ class Printer(BasePrinter):
             self.print_op_with_default_format(op)
         if scope:
             self.exit_scope()
+
+    def print_resource_handle(self, dialect: str, handle: str) -> None:
+        if dialect not in self._dialect_resources:
+            self._dialect_resources[dialect] = set()
+        self._dialect_resources[dialect].add(handle)
+        self.print_string(handle)
+
+    def print_metadata(self, dialects: Iterable[Dialect]) -> None:
+        if not self._dialect_resources:
+            return
+
+        # Prepare data
+        resources_for_printing: dict[str, dict[str, str]] = {}
+        resource_dialects = {
+            d.name: d.get_interface(OpAsmDialectInterface)
+            for d in dialects
+            if d.has_interface(OpAsmDialectInterface)
+        }
+
+        for dialect_name, resource_keys in self._dialect_resources.items():
+            interface = resource_dialects.get(dialect_name)
+            assert interface
+            resources = interface.build_resources(resource_keys)
+            if resources:
+                resources_for_printing[dialect_name] = resources
+
+        if not resources_for_printing:
+            # None of the referenced resources actually exist
+            return
+
+        # Printing
+        self.print_string("\n\n{-#\n")
+        self.print_string("  dialect_resources: {\n")
+
+        for dialect_name, resources in resources_for_printing.items():
+            self.print_string("    " + dialect_name + ": {\n")
+            sorted_elements = sorted(resources.items(), key=lambda x: x[0])
+            for key, resource in sorted_elements[:-1]:
+                self.print_string(f'      {key}: "{resource}",')
+            self.print_string(
+                f'      {sorted_elements[-1][0]}: "{sorted_elements[-1][1]}"'
+            )
+            self.print_string("\n    }\n")
+
+        self.print_string("  }\n")
+        self.print_string("#-}")
