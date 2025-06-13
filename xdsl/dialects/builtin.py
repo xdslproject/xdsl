@@ -1434,7 +1434,9 @@ class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
     type: ParameterDef[ShapedType]
 
     def print_without_type(self, printer: Printer):
-        printer.print_string(f"dense_resource<{self.resource_handle.data}>")
+        printer.print_string("dense_resource<")
+        printer.print_resource_handle("builtin", self.resource_handle.data)
+        printer.print_string(">")
 
     @staticmethod
     def from_params(handle: str | StringAttr, type: ShapedType) -> DenseResourceAttr:

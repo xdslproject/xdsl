@@ -35,3 +35,8 @@ def test_op_asm_interface():
 
     with pytest.raises(KeyError):
         interf.parse_resource("non existent key", "0x0800000003")
+
+    interf.declare_resource("non_assigned_key")
+    assert interf.build_resources(["some_key", "non_assigned_key"]) == {
+        "some_key": "0x0800000001"
+    }
