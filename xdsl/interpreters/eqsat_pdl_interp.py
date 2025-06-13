@@ -92,6 +92,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     the existing operation is reused instead of creating a new one."""
 
     known_ops_restore_list: list[Operation] = field(default_factory=list[Operation])
+    """List of operations that have been modified during the pattern matching."""
 
     eclass_union_find: DisjointSet[eqsat.EClassOp] = field(
         default_factory=lambda: DisjointSet[eqsat.EClassOp]()
@@ -99,8 +100,15 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Union-find structure tracking which e-classes are equivalent and should be merged."""
 
     merge_list: list[MergeTodo] = field(default_factory=list[MergeTodo])
+    """List of e-classes that should be merged by `apply_matches` after the pattern matching is done."""
 
     def modification_handler(self, op: Operation):
+        """
+        Keeps `known_ops` up to date.
+        Whenever an operation is modified, for example when its operands are updated to a different eclass value,
+        the operation is added to `known_ops_restore_list`. At the end of `apply_matches`, all the (now updated)
+        operations in `known_ops_restore_list` are put back into `known_ops`.
+        """
         if op in self.known_ops:
             removed = self.known_ops.pop(op)
             self.known_ops_restore_list.append(removed)
