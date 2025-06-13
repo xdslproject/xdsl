@@ -16,6 +16,7 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Block, Operation, OpResult, SSAValue
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.exceptions import InterpretationError
@@ -213,6 +214,44 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         assert isinstance(defining_op, Operation)
 
         return (defining_op,)
+
+    @impl(pdl_interp.CreateOperationOp)
+    def run_create_operation(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CreateOperationOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        has_done_action_checkpoint = self.rewriter.has_done_action
+        (new_op,) = super().run_create_operation(interpreter, op, args).values
+
+        assert isinstance(new_op, Operation)
+
+        # Check if an identical operation already exists in our known_ops map
+        if existing_op := self.known_ops.get(new_op):
+            # CSE can have removed the existing operation, here we check if it is still in use:
+            if existing_op.results and existing_op.results[0].uses:
+                self.rewriter.erase_op(new_op)
+                self.rewriter.has_done_action = has_done_action_checkpoint
+                return (existing_op,)
+            else:
+                # if CSE has removed the existing operation, we can remove it from our known_ops map:
+                self.known_ops.pop(existing_op)
+
+        # No existing eclass for this operation yet
+
+        eclass_op = eqsat.EClassOp(
+            new_op.results[0],
+        )
+        self.rewriter.insert_op(
+            eclass_op,
+            InsertPoint.after(new_op),
+        )
+
+        self.known_ops[new_op] = new_op
+        self.eclass_union_find.add(eclass_op)
+
+        return (new_op,)
 
     @impl_terminator(pdl_interp.FinalizeOp)
     def run_finalize(
