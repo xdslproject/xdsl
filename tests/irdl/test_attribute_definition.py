@@ -729,7 +729,7 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
             printer.print_string("]")
 
     @classmethod
-    def generic_constraint(cls) -> AttrConstraint:
+    def constr(cls) -> AttrConstraint:
         return DataListAttr(TypeVarConstraint(AttributeInvT, AnyAttr()))
 
     @staticmethod

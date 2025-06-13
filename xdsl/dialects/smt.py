@@ -6,7 +6,13 @@ from typing import ClassVar, TypeAlias
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, StringAttr
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    ArrayOfConstraint,
+    BoolAttr,
+    IntAttr,
+    StringAttr,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -138,7 +144,7 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
         domain: GenericRangeConstraint[NonFuncSMTType],
         range: GenericAttrConstraint[NonFuncSMTType],
     ) -> GenericAttrConstraint[FuncType]:
-        return ParamAttrConstraint(FuncType, (ArrayAttr.constr(domain), range))
+        return ParamAttrConstraint(FuncType, (ArrayOfConstraint(domain), range))
 
 
 SMTType: TypeAlias = NonFuncSMTType | FuncType

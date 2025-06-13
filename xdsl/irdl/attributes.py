@@ -77,7 +77,7 @@ class GenericData(Data[_DataElement], ABC):
 
     @classmethod
     @abstractmethod
-    def generic_constraint(cls) -> AttrConstraint:
+    def constr(cls) -> AttrConstraint:
         """
         Returns a constraint for this subclass.
         Generic arguments are constrained via TypeVarConstraints.
@@ -422,7 +422,7 @@ def irdl_to_attr_constraint(
         return AllOf(
             (
                 BaseAttr(origin),
-                origin.generic_constraint().mapping_type_vars({type_var: constr}),
+                origin.constr().mapping_type_vars({type_var: constr}),
             )
         )
 

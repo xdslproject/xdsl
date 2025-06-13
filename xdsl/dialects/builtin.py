@@ -15,6 +15,7 @@ from typing import (
     TypeAlias,
     cast,
     overload,
+    override,
 )
 
 from immutabledict import immutabledict
@@ -167,23 +168,19 @@ class ArrayAttr(
         printer.print_string("]")
 
     @classmethod
-    def generic_constraint(cls) -> AttrConstraint:
-        return ArrayOfConstraint(RangeOf(TypeVarConstraint(AttributeCovT, AnyAttr())))
+    @override
+    def constr(
+        cls, base_constraint: IRDLGenericAttrConstraint[AttributeCovT] = AnyAttr()
+    ) -> AttrConstraint:
+        return ArrayOfConstraint(
+            RangeOf(TypeVarConstraint(AttributeCovT, base_constraint))
+        )
 
     def __len__(self):
         return len(self.data)
 
     def __iter__(self) -> Iterator[AttributeCovT]:
         return iter(self.data)
-
-    @staticmethod
-    def constr(
-        constr: (
-            IRDLGenericAttrConstraint[AttributeInvT]
-            | GenericRangeConstraint[AttributeInvT]
-        ),
-    ) -> GenericAttrConstraint[ArrayAttr[AttributeInvT]]:
-        return ArrayOfConstraint(constr)
 
 
 @dataclass(frozen=True)
