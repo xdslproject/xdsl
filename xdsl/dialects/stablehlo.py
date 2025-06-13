@@ -6,7 +6,6 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 """
 
 import abc
-import builtins
 from collections.abc import Sequence
 from typing import Annotated, ClassVar, TypeAlias, cast
 
@@ -17,18 +16,12 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     AnyTensorTypeConstr,
     ArrayAttr,
-    ComplexElementCovT,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
-    IndexType,
     IntegerAttr,
     IntegerType,
-    RankedStructure,
     TensorType,
-    f32,
-    i1,
-    i32,
     i64,
 )
 from xdsl.ir import (
@@ -583,74 +576,8 @@ class ConstantOp(IRDLOperation):
     value = attr_def(DenseIntOrFPElementsAttr)
     output = result_def(AnyTensorType)
 
-    def __init__(
-        self,
-        value: Sequence[float]
-        | Sequence[int]
-        | Sequence[tuple[float, float]]
-        | Sequence[tuple[int, int]]
-        | DenseIntOrFPElementsAttr,
-        element_ty: ComplexElementCovT | None = None,
-        shape: Sequence[int] | None = None,
-    ):
-        if isinstance(value, DenseIntOrFPElementsAttr):
-            # Fast path if the user passes in a DenseIntOrFPElementsAttr
-            # then assume the same type as the value
-            assert element_ty is None
-            assert shape is None
-            super().__init__(attributes={"value": value}, result_types=(value.type,))
-            return
-
-        head, *_ = value
-
-        if element_ty is None:
-            match head:
-                case (builtins.bool(), builtins.bool()):
-                    # Floats come first because isinstance(True, int)
-                    safe_element_ty = ComplexType(i1)
-                case (builtins.int(), builtins.int()):
-                    safe_element_ty = ComplexType(i32)
-                case (builtins.float(), builtins.float()):
-                    safe_element_ty = ComplexType(f32)
-                case builtins.bool():
-                    safe_element_ty = i1
-                case builtins.int():
-                    safe_element_ty = i32
-                case builtins.float():
-                    safe_element_ty = f32
-                case _:
-                    raise NotImplementedError()
-        else:
-            safe_element_ty = element_ty
-
-        if shape is None:
-            shape = (len(value),)
-
-        assert safe_element_ty is not None
-        assert shape is not None
-        assert not isinstance(value, DenseIntOrFPElementsAttr)
-
-        match value, safe_element_ty:
-            case (builtins.int(), *_), IntegerType():
-                type = TensorType(safe_element_ty, shape)
-                type = cast(RankedStructure[IntegerType | IndexType], type)
-                value = cast(Sequence[int], value)
-                value = DenseIntOrFPElementsAttr.create_dense_int(type, value)
-            case (builtins.float(), *_), _:
-                # This is because I cannot have AnyFloat in the case statement.
-                assert isinstance(safe_element_ty, AnyFloat)
-                type = TensorType(safe_element_ty, shape)
-                type = cast(RankedStructure[AnyFloat], type)
-                value = DenseIntOrFPElementsAttr.create_dense_float(type, value)
-            case (tuple(), *_), ComplexType():
-                type = TensorType(safe_element_ty, shape)
-                type = cast(RankedStructure[ComplexType], type)
-                value = DenseIntOrFPElementsAttr.create_dense_complex(type, value)  # pyright: ignore[reportCallIssue,reportUnknownVariableType,reportArgumentType]
-            case _:
-                raise NotImplementedError()
-
-        assert isinstance(value, DenseIntOrFPElementsAttr)
-        super().__init__(attributes={"value": value}, result_types=(type,))  # pyright: ignore[reportUnknownArgumentType]
+    def __init__(self, value: DenseIntOrFPElementsAttr):
+        super().__init__(attributes={"value": value}, result_types=(value.type,))
 
 
 @irdl_op_definition
