@@ -88,25 +88,27 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
-        parser.parse_characters("<")
-        result = cls.parse_nested_parameters(parser)
-        parser.parse_characters(">")
-        return result
+        with parser.in_angle_brackets():
+            return [cls.parse_indices(parser)]
 
     @classmethod
-    def parse_nested_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        """Parse only the attribute parameters without enclosing angle brackets."""
+    def parse_indices(cls, parser: AttrParser) -> ArrayAttr:
+        """
+        Parse a comma-separated, square delimited, list of integers into an ArrayAttr of
+        IntAttrs.
+
+        e.g.: `[1, 2, 3]`
+        """
         ints = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, lambda: parser.parse_integer(allow_boolean=False)
         )
-        return [ArrayAttr(IntAttr(i) for i in ints)]
+        return ArrayAttr(IntAttr(i) for i in ints)
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        self.print_nested_parameters(printer)
-        printer.print(">")
+        with printer.in_angle_brackets():
+            self.print_indices(printer)
 
-    def print_nested_parameters(self, printer: Printer) -> None:
+    def print_indices(self, printer: Printer) -> None:
         printer.print(f"[{', '.join(str(e) for e in self)}]")
 
     def verify(self) -> None:
@@ -196,19 +198,18 @@ class StencilBoundsAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
-        self.lb.print_nested_parameters(printer)
+        self.lb.print_indices(printer)
         printer.print(", ")
-        self.ub.print_nested_parameters(printer)
+        self.ub.print_indices(printer)
         printer.print(">")
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_punctuation("<")
-        lb = IndexAttr(IndexAttr.parse_nested_parameters(parser))
-        parser.parse_punctuation(",")
-        ub = IndexAttr(IndexAttr.parse_nested_parameters(parser))
-        parser.parse_punctuation(">")
-        return [lb, ub]
+        with parser.in_angle_brackets():
+            lb = IndexAttr([IndexAttr.parse_indices(parser)])
+            parser.parse_punctuation(",")
+            ub = IndexAttr([IndexAttr.parse_indices(parser)])
+            return [lb, ub]
 
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
         if isinstance(other, IntAttr):

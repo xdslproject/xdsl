@@ -288,8 +288,16 @@ class Context:
         return dialect
 
     def get_optional_dialect(self, name: str) -> "Dialect | None":
+        """
+        Get a dialect from its name if it exists.
+        If the dialect is not registered, return None.
+        """
+        if name in self._registered_dialects and name not in self._loaded_dialects:
+            self.load_registered_dialect(name)
+
         if name in self._loaded_dialects:
             return self._loaded_dialects[name]
+
         return None
 
 

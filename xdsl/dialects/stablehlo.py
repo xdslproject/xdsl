@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ComplexType,
     DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     IntegerAttr,
     IntegerType,
     TensorType,
@@ -563,6 +564,23 @@ class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
 
 
 @irdl_op_definition
+class ConstantOp(IRDLOperation):
+    """
+    Produces an `output` tensor from a constant `value`.
+
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#constant)
+    """
+
+    name = "stablehlo.constant"
+
+    value = attr_def(DenseIntOrFPElementsAttr)
+    output = result_def(AnyTensorType)
+
+    def __init__(self, value: DenseIntOrFPElementsAttr):
+        super().__init__(attributes={"value": value}, result_types=(value.type,))
+
+
+@irdl_op_definition
 class MultiplyOp(ElementwiseBinaryOperation):
     """
     Performs element-wise product of two tensors `lhs` and `rhs` and produces a
@@ -779,6 +797,7 @@ StableHLO = Dialect(
         CaseOp,
         CbrtOp,
         CeilOp,
+        ConstantOp,
         CountLeadingZerosOp,
         MultiplyOp,
         NotOp,
