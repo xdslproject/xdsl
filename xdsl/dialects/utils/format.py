@@ -259,7 +259,7 @@ def parse_func_op_like(
             ret = (arg, arg_attr_dict)
         return ret
 
-    def parse_fun_output() -> tuple[Attribute, dict[str, Attribute]]:
+    def parse_fun_output() -> tuple[TypeAttribute, dict[str, Attribute]]:
         arg_type = parser.parse_optional_type()
         if arg_type is None:
             parser.raise_error("Return type should be specified")
@@ -298,7 +298,7 @@ def parse_func_op_like(
         arg_attrs = None
 
     # Parse return type
-    return_types: list[Attribute] = []
+    return_types: list[TypeAttribute] = []
     res_attrs_raw: list[dict[str, Attribute]] | None = []
     if parser.parse_optional_punctuation("->"):
         return_attributes = parser.parse_optional_comma_separated_list(

@@ -17,7 +17,15 @@ from xdsl.dialects.utils import (
     parse_for_op_like,
     print_for_op_like,
 )
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -678,7 +686,7 @@ class IndexSwitchOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         arg = parser.parse_operand()
         attr_dict = parser.parse_optional_attr_dict()
-        result_types: list[Attribute] = []
+        result_types: list[TypeAttribute] = []
         if parser.parse_optional_punctuation("->"):
             types = parser.parse_optional_undelimited_comma_separated_list(
                 parser.parse_optional_type, parser.parse_type
