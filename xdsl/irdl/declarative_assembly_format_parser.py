@@ -596,9 +596,10 @@ class FormatParser(BaseParser):
     def parse_optional_group(self) -> FormatDirective:
         """
         Parse an optional group, with the following format:
-          group ::= `(` then-elements `)` `?`
+          group ::= `(` then-elements `)` (`:` `(` else-elements `)` )? `?`
         """
         then_elements = tuple[FormatDirective, ...]()
+        else_elements = tuple[FormatDirective, ...]()
         anchor: Directive | None = None
 
         while not self.parse_optional_punctuation(")"):
@@ -607,6 +608,12 @@ class FormatParser(BaseParser):
                 if anchor is not None:
                     self.raise_error("An optional group can only have one anchor.")
                 anchor = then_elements[-1]
+
+        if self.parse_optional_punctuation(":"):
+            self.parse_punctuation("(")
+            while not self.parse_optional_punctuation(")"):
+                else_elements += (self.parse_format_directive(),)
+
         self.parse_punctuation("?")
 
         # Pull whitespace element of front, as they are not parsed
@@ -637,6 +644,7 @@ class FormatParser(BaseParser):
             ),
             then_elements[first_non_whitespace_index],
             then_elements[first_non_whitespace_index + 1 :],
+            else_elements,
         )
 
     def parse_keyword_or_punctuation(self) -> FormatDirective:
