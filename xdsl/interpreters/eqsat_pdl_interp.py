@@ -353,11 +353,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         )
         self.merge_list.clear()
         for to_keep, to_replace in todo:
-            operands = to_keep._operands  # pyright: ignore[reportPrivateUsage]
+            operands = to_keep.operands
             startlen = len(operands)
             for i, val in enumerate(to_replace.operands):
                 val.add_use(Use(to_keep, startlen + i))
-                new_operands = operands + to_replace._operands  # pyright: ignore[reportPrivateUsage]
+                new_operands = (*operands, *to_replace.operands)
                 to_keep.operands = new_operands
 
             self.rewriter.replace_op(
