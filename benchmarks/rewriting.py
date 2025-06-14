@@ -30,12 +30,14 @@ from xdsl.transforms.dead_code_elimination import (
     result_only_effects,
     would_be_trivially_dead,
 )
+from xdsl.transforms.example_constant_folding import ExampleConstantFoldingPass
 
 CTX = Context(allow_unregistered=True)
 CTX.load_dialect(Arith)
 CTX.load_dialect(Builtin)
 
 CANONICALIZE_PASS = CanonicalizePass()
+CONSTANT_FOLDING_SIMPLE_PASS = ExampleConstantFoldingPass()
 
 
 def parse_module(context: Context, contents: str) -> ModuleOp:
@@ -68,6 +70,10 @@ class ConstantFolding:
     def time_constant_folding_20(self) -> None:
         """Time canonicalizing constant folding for 20 items."""
         CANONICALIZE_PASS.apply(CTX, self.workload_constant_20)
+
+    def time_constant_folding_simple_20(self) -> None:
+        """Time simple constant folding for 20 items."""
+        CONSTANT_FOLDING_SIMPLE_PASS.apply(CTX, self.workload_constant_20)
 
     def setup_constant_folding_100(self) -> None:
         """Setup the constant folding 100 items benchmark."""
@@ -371,7 +377,11 @@ if __name__ == "__main__":
         {
             "ConstantFolding.20": Benchmark(
                 CONSTANT_FOLDING.time_constant_folding_20,
-                CONSTANT_FOLDING.setup,
+                CONSTANT_FOLDING.setup_constant_folding_20,
+            ),
+            "ConstantFoldingSimple.20": Benchmark(
+                CONSTANT_FOLDING.time_constant_folding_simple_20,
+                CONSTANT_FOLDING.setup_constant_folding_20,
             ),
             "ConstantFolding.100": Benchmark(
                 CONSTANT_FOLDING.time_constant_folding_100,
