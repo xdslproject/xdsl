@@ -35,38 +35,60 @@ class RemoveRedundantFMvD(RewritePattern):
 class MultiplyImmediates(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None and (
-            rs2 := get_constant_value(op.rs2)
-        ) is not None:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(
-                riscv.LiOp(
-                    rs1.value.data * rs2.value.data,
-                    rd=rd,
+        lhs: int | None = None
+        rhs: int | None = None
+        if (rs1 := get_constant_value(op.rs1)) is not None:
+            lhs = rs1.value.data
+
+        if (rs2 := get_constant_value(op.rs2)) is not None:
+            rhs = rs2.value.data
+
+        rd = cast(riscv.IntRegisterType, op.rd.type)
+
+        match (lhs, rhs):
+            case int(), None:
+                rewriter.replace_matched_op(
+                    riscv.MulOp(
+                        op.rs2,
+                        op.rs1,
+                        rd=rd,
+                    )
                 )
-            )
+            case None, int():
+                if rhs == 0:
+                    rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+                    return
+                elif rhs == 1:
+                    rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+                    return
+                else:
+                    return
+            case int(), int():
+                rewriter.replace_matched_op(riscv.LiOp(lhs * rhs, rd=rd))
+            case _:
+                return
 
 
-class MultiplyImmediateZero(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
-        elif (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+# class MultiplyImmediateZero(RewritePattern):
+#     @op_type_rewrite_pattern
+#     def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
+#         if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
+#             rd = cast(riscv.IntRegisterType, op.rd.type)
+#             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+#         elif (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
+#             rd = cast(riscv.IntRegisterType, op.rd.type)
+#             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
 
 
-class MultiplyImmediateOne(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 1:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
-        elif (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 1:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+# class MultiplyImmediateOne(RewritePattern):
+#     @op_type_rewrite_pattern
+#     def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
+#         if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 1:
+#             rd = cast(riscv.IntRegisterType, op.rd.type)
+#             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+#         elif (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 1:
+#             rd = cast(riscv.IntRegisterType, op.rd.type)
+#             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
 
 
 class DivideByOneIdentity(RewritePattern):

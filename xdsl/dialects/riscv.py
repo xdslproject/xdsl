@@ -2535,12 +2535,13 @@ class MulOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
-            MultiplyImmediateOne,
+            # MultiplyImmediateOne,
             MultiplyImmediates,
-            MultiplyImmediateZero,
+            # MultiplyImmediateZero,
         )
 
-        return (MultiplyImmediates(), MultiplyImmediateZero(), MultiplyImmediateOne())
+        # return (MultiplyImmediates(), MultiplyImmediateZero(), MultiplyImmediateOne())
+        return (MultiplyImmediates(),)
 
 
 @irdl_op_definition
