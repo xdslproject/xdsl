@@ -678,9 +678,9 @@ class Printer(BasePrinter):
             return
 
         if isinstance(attribute, TupleType):
-            self.print_string("tuple<", indent=0)
+            self.print_string("tuple<")
             self.print_list(attribute.types, self.print_attribute)
-            self.print_string(">", indent=0)
+            self.print_string(">")
             return
 
         if isinstance(attribute, UnregisteredAttr):
