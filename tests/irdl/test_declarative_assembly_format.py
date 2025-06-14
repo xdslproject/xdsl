@@ -3453,7 +3453,7 @@ def test_non_qualified_attr():
     parser = Parser(ctx, 'test.non_qualified_attr <"test">')
     op = parser.parse_operation()
     assert isinstance(op, NonQualifiedAttrOp)
-    assert op.attr == MyAttr([StringAttr("test")])
+    assert op.attr == MyAttr(StringAttr("test"))
 
 
 @irdl_op_definition
@@ -3473,4 +3473,4 @@ def test_qualified_attr():
     parser = Parser(ctx, 'test.qualified_attr #test.my_attr<"test">')
     op = parser.parse_operation()
     assert isinstance(op, QualifiedAttrOp)
-    assert op.attr == MyAttr([StringAttr("test")])
+    assert op.attr == MyAttr(StringAttr("test"))

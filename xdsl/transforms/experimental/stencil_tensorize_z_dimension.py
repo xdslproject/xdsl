@@ -434,7 +434,7 @@ class ConstOpUpdateShape(RewritePattern):
                 if needs_update_shape(op.result.type, typ):
                     assert isinstance(op.value, DenseIntOrFPElementsAttr)
                     rewriter.replace_matched_op(
-                        ConstantOp(DenseIntOrFPElementsAttr([typ, op.value.data]))
+                        ConstantOp(DenseIntOrFPElementsAttr(typ, op.value.data))
                     )
 
 

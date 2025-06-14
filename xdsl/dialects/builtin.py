@@ -272,7 +272,8 @@ class SymbolNameAttr(ParametrizedAttribute, BuiltinAttribute):
     def __init__(self, data: str | StringAttr) -> None:
         if isinstance(data, str):
             data = StringAttr(data)
-        super().__init__([data])
+        object.__setattr__(self, "data", data)
+        self.__post_init__()
 
 
 @irdl_attr_definition
@@ -575,7 +576,9 @@ class IntegerType(
             data = IntAttr(data)
         if isinstance(signedness, Signedness):
             signedness = SignednessAttr(signedness)
-        super().__init__([data, signedness])
+        object.__setattr__(self, "width", data)
+        object.__setattr__(self, "signedness", signedness)
+        self.__post_init__()
 
     def __repr__(self):
         width = self.width.data
@@ -782,7 +785,9 @@ class IntegerAttr(
             )
             if normalized_value is not None:
                 value = normalized_value
-        super().__init__([IntAttr(value), value_type])
+        object.__setattr__(self, "value", IntAttr(value))
+        object.__setattr__(self, "type", value_type)
+        self.__post_init__()
 
     @staticmethod
     def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
@@ -1172,7 +1177,7 @@ class TupleType(ParametrizedAttribute, BuiltinAttribute):
     def __init__(self, types: list[TypeAttribute] | ArrayAttr[TypeAttribute]) -> None:
         if isinstance(types, list):
             types = ArrayAttr(types)
-        super().__init__([types])
+        object.__setattr__(self, "types", types)
 
 
 @irdl_attr_definition
@@ -1581,13 +1586,13 @@ class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     def from_lists(
         inputs: Sequence[Attribute], outputs: Sequence[Attribute]
     ) -> FunctionType:
-        return FunctionType([ArrayAttr(inputs), ArrayAttr(outputs)])
+        return FunctionType(ArrayAttr(inputs), ArrayAttr(outputs))
 
     @staticmethod
     def from_attrs(
         inputs: ArrayAttr[Attribute], outputs: ArrayAttr[Attribute]
     ) -> FunctionType:
-        return FunctionType([inputs, outputs])
+        return FunctionType(inputs, outputs)
 
 
 @irdl_attr_definition
@@ -1600,7 +1605,7 @@ class OpaqueAttr(ParametrizedAttribute, BuiltinAttribute):
 
     @staticmethod
     def from_strings(name: str, value: str, type: Attribute = NoneAttr()) -> OpaqueAttr:
-        return OpaqueAttr([StringAttr(name), StringAttr(value), type])
+        return OpaqueAttr(StringAttr(name), StringAttr(value), type)
 
 
 class MemRefLayoutAttr(Attribute, ABC):
@@ -1673,7 +1678,9 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
         if offset is None:
             offset = NoneAttr()
 
-        super().__init__([strides, offset])
+        object.__setattr__(self, "strides", strides)
+        object.__setattr__(self, "offset", offset)
+        self.__post_init__()
 
     def get_strides(self) -> Sequence[int | None]:
         return tuple(
@@ -1926,7 +1933,11 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
             is_opaque = IntAttr(int(is_opaque))
         if isinstance(value, str):
             value = StringAttr(value)
-        super().__init__([attr_name, is_type, is_opaque, value])
+        object.__setattr__(self, "attr_name", attr_name)
+        object.__setattr__(self, "is_type", is_type)
+        object.__setattr__(self, "is_opaque", is_opaque)
+        object.__setattr__(self, "value", value)
+        self.__post_init__()
 
     @classmethod
     def with_name_and_type(cls, name: str, is_type: bool) -> type[UnregisteredAttr]:
@@ -2078,14 +2089,11 @@ class MemRefType(
             s = ArrayAttr(
                 [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
             )
-        super().__init__(
-            (
-                s,
-                element_type,
-                layout,
-                memory_space,
-            )
-        )
+        object.__setattr__(self, "shape", s)
+        object.__setattr__(self, "element_type", element_type)
+        object.__setattr__(self, "layout", layout)
+        object.__setattr__(self, "memory_space", memory_space)
+        self.__post_init__()
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -2297,12 +2305,8 @@ class DenseIntOrFPElementsAttr(
             else:
                 value = data
             return DenseIntOrFPElementsAttr(
-                [
-                    type,
-                    BytesAttr(
-                        type.element_type.pack((value,)) * prod(type.get_shape())
-                    ),
-                ]
+                type,
+                BytesAttr(type.element_type.pack((value,)) * prod(type.get_shape())),
             )
 
         # Non-splat case
@@ -2320,7 +2324,7 @@ class DenseIntOrFPElementsAttr(
             normalized_values = data
 
         return DenseIntOrFPElementsAttr(
-            [type, BytesAttr(type.element_type.pack(normalized_values))]
+            type, BytesAttr(type.element_type.pack(normalized_values))
         )
 
     @staticmethod
@@ -2338,10 +2342,8 @@ class DenseIntOrFPElementsAttr(
             data, float | int
         ):  # Pyright allows an int to be passed into this function
             return DenseIntOrFPElementsAttr(
-                [
-                    type,
-                    BytesAttr(type.element_type.pack((data,)) * prod(type.get_shape())),
-                ]
+                type,
+                BytesAttr(type.element_type.pack((data,)) * prod(type.get_shape())),
             )
 
         # Non-splat case
@@ -2350,7 +2352,7 @@ class DenseIntOrFPElementsAttr(
         else:
             data = cast(Sequence[float], data)
 
-        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
+        return DenseIntOrFPElementsAttr(type, BytesAttr(type.element_type.pack(data)))
 
     @overload
     @staticmethod
@@ -2371,7 +2373,7 @@ class DenseIntOrFPElementsAttr(
         type: RankedStructure[ComplexType[ComplexElementCovT]],
         data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
     ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementCovT]]:
-        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
+        return DenseIntOrFPElementsAttr(type, BytesAttr(type.element_type.pack(data)))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
 
     @overload
     @staticmethod

@@ -312,18 +312,16 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
     name = "csl.ptr"
 
-    type: ParameterDef[TypeAttribute]
+    type: ParameterDef[Attribute]
     kind: ParameterDef[PtrKindAttr]
     constness: ParameterDef[PtrConstAttr]
 
     @staticmethod
     def get(typ: Attribute, is_single: bool, is_const: bool):
         return PtrType(
-            [
-                typ,
-                PtrKindAttr(PtrKind.SINGLE if is_single else PtrKind.MANY),
-                PtrConstAttr(PtrConst.CONST if is_const else PtrConst.VAR),
-            ]
+            typ,
+            PtrKindAttr(PtrKind.SINGLE if is_single else PtrKind.MANY),
+            PtrConstAttr(PtrConst.CONST if is_const else PtrConst.VAR),
         )
 
     def get_element_type(self) -> Attribute:
@@ -358,10 +356,10 @@ DsdElementTypeConstr = (
 
 
 f16_pointer = PtrType(
-    [Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+    Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
 )
 f32_pointer = PtrType(
-    [Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+    Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
 )
 i8_value = IntegerType(8, Signedness.SIGNED)
 u16_value = IntegerType(16, Signedness.UNSIGNED)
@@ -369,16 +367,16 @@ i16_value = IntegerType(16, Signedness.SIGNED)
 u32_value = IntegerType(32, Signedness.UNSIGNED)
 i32_value = IntegerType(32, Signedness.SIGNED)
 i16_pointer = PtrType(
-    [i16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+    i16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
 )
 u16_pointer = PtrType(
-    [u16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+    u16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
 )
 i32_pointer = PtrType(
-    [i32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+    i32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
 )
 u32_pointer = PtrType(
-    [u32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+    u32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
 )
 
 
@@ -444,14 +442,14 @@ class VariableOp(IRDLOperation):
         return self.res.type.get_element_type()
 
     @staticmethod
-    def from_type(child_type: Attribute) -> VariableOp:
-        return VariableOp(result_types=[VarType([child_type])])
+    def from_type(child_type: TypeAttribute) -> VariableOp:
+        return VariableOp(result_types=[VarType(child_type)])
 
     @staticmethod
     def from_value(value: ParamAttr) -> VariableOp:
         return VariableOp(
             properties={"default": value},
-            result_types=[VarType([value.type])],
+            result_types=[VarType(value.type)],
         )
 
     def verify_(self) -> None:
@@ -1853,11 +1851,9 @@ class AddressOfFnOp(IRDLOperation):
     def __init__(self, fn: FuncOp):
         fn_name = SymbolRefAttr(fn.sym_name)
         res = PtrType(
-            [
-                fn.function_type,
-                PtrKindAttr(PtrKind.SINGLE),
-                PtrConstAttr(PtrConst.CONST),
-            ]
+            fn.function_type,
+            PtrKindAttr(PtrKind.SINGLE),
+            PtrConstAttr(PtrConst.CONST),
         )
 
         super().__init__(properties={"fn_name": fn_name}, result_types=[res])

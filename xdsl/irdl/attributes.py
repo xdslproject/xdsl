@@ -24,7 +24,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, dataclass_transform
 
 from xdsl.ir import AttributeCovT
 
@@ -249,7 +249,7 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
         new_fields["get_type_index"] = get_type_index
 
     return runtime_final(
-        dataclass(frozen=True, init=False)(
+        dataclass(frozen=True)(
             type.__new__(
                 type(cls),
                 cls.__name__,
@@ -263,6 +263,7 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
 TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
 
 
+@dataclass_transform(frozen_default=True)
 def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     check_attr_name(cls)
     if issubclass(cls, ParametrizedAttribute):

@@ -250,7 +250,8 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
         type2: ParameterDef[IntegerType | AnyFloat | ReferenceType] | None = None,
     ):
         if type2 is not None:
-            super().__init__([ArrayAttr([NoneType()]), type1, type2])
+            shape_array_attr = ArrayAttr([NoneType()])
+            t2 = type2
         else:
             if shape is None:
                 shape = [1]
@@ -260,13 +261,11 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
                     for d in shape
                 ]
             )
-            super().__init__(
-                [
-                    shape_array_attr,
-                    type1,
-                    NoneType(),
-                ]
-            )
+            t2 = NoneType()
+        object.__setattr__(self, "shape", shape_array_attr)
+        object.__setattr__(self, "type", type1)
+        object.__setattr__(self, "type2", t2)
+        self.__post_init__()
 
     def print_parameters(self, printer: Printer) -> None:
         # We need extra work here as the builtin tuple is not being supported

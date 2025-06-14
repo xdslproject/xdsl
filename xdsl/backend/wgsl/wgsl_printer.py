@@ -5,7 +5,7 @@ from typing import cast
 
 from xdsl.dialects import arith, builtin, gpu, memref
 from xdsl.dialects.builtin import MemRefType
-from xdsl.ir import Attribute, Operation, SSAValue
+from xdsl.ir import Operation, SSAValue
 from xdsl.utils.base_printer import BasePrinter
 from xdsl.utils.hints import isa
 
@@ -50,7 +50,7 @@ class WGSLPrinter(BasePrinter):
                 arg_type = "f32"
             elif arg.type == builtin.IndexType():
                 arg_type = "u32"
-            elif isa(arg.type, MemRefType[Attribute]):
+            elif isa(arg.type, MemRefType):
                 if arg.type.element_type == builtin.IndexType():
                     arg_type = "u32"
                 else:
@@ -148,7 +148,7 @@ class WGSLPrinter(BasePrinter):
         """
         It is used for linearizing known sizes memref accesses.
         """
-        memref_type = cast(MemRefType[Attribute], op.memref.type)
+        memref_type = cast(MemRefType, op.memref.type)
         memref_dimension = memref_type.get_num_dims()
         memref_size = memref_type.get_shape()
         for size in memref_size:

@@ -53,7 +53,9 @@ class EmitC_ArrayType(
         shape = ArrayAttr(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
         )
-        super().__init__([shape, element_type])
+        object.__setattr__(self, "shape", shape)
+        object.__setattr__(self, "element_type", element_type)
+        self.__post_init__()
 
     def verify(self) -> None:
         if not self.shape.data:

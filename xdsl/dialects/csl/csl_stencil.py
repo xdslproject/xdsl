@@ -81,15 +81,13 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         neighbor: Sequence[int] | builtin.DenseArrayBase,
     ):
         data_type = builtin.i64
-        super().__init__(
-            [
-                (
-                    neighbor
-                    if isinstance(neighbor, builtin.DenseArrayBase)
-                    else builtin.DenseArrayBase.from_list(data_type, neighbor)
-                ),
-            ]
+        neighbor_param = (
+            neighbor
+            if isinstance(neighbor, builtin.DenseArrayBase)
+            else builtin.DenseArrayBase.from_list(data_type, neighbor)
         )
+        object.__setattr__(self, "neighbor_param", neighbor_param)
+        self.__post_init__()
 
     @classmethod
     def from_dmp_exch_decl_attr(cls, src: dmp.ExchangeDeclarationAttr):
@@ -167,9 +165,6 @@ class CoeffAttr(ParametrizedAttribute):
     name = "csl_stencil.coeff"
     offset: ParameterDef[stencil.IndexAttr]
     coeff: ParameterDef[FloatAttr[AnyFloat]]
-
-    def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
-        super().__init__([offset, coeff])
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):

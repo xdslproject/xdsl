@@ -95,7 +95,7 @@ class HLSStreamType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def get(element_type: Attribute):
-        return HLSStreamType([element_type])
+        return HLSStreamType(element_type)
 
 
 @irdl_op_definition
@@ -110,7 +110,7 @@ class HLSStreamOp(IRDLOperation):
 
         attrs["elem_type"] = elem_type
 
-        stream_type = HLSStreamType([elem_type])
+        stream_type = HLSStreamType(elem_type)
         return HLSStreamOp.build(result_types=[stream_type], attributes=attrs)
 
 

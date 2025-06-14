@@ -1,5 +1,6 @@
 import re
 from abc import ABC
+from dataclasses import dataclass
 
 import pytest
 
@@ -71,12 +72,12 @@ class AttrC(Base):
     "constraint, expected",
     [
         (AnyAttr(), None),
-        (EqAttrConstraint(AttrB([AttrA()])), {AttrB}),
+        (EqAttrConstraint(AttrB(AttrA())), {AttrB}),
         (BaseAttr(Base), None),
         (BaseAttr(AttrA), {AttrA}),
-        (EqAttrConstraint(AttrB([AttrA()])) | AnyAttr(), None),
-        (EqAttrConstraint(AttrB([AttrA()])) | BaseAttr(AttrA), {AttrA, AttrB}),
-        (EqAttrConstraint(AttrB([AttrA()])) | BaseAttr(AttrB), {AttrB}),
+        (EqAttrConstraint(AttrB(AttrA())) | AnyAttr(), None),
+        (EqAttrConstraint(AttrB(AttrA())) | BaseAttr(AttrA), {AttrA, AttrB}),
+        (EqAttrConstraint(AttrB(AttrA())) | BaseAttr(AttrB), {AttrB}),
         (AllOf((AnyAttr(), BaseAttr(Base))), None),
         (AllOf((AnyAttr(), BaseAttr(AttrA))), {AttrA}),
         (ParamAttrConstraint(AttrA, [BaseAttr(AttrB)]), {AttrA}),
@@ -98,6 +99,7 @@ def test_attr_constraint_get_bases(
 
 
 def test_param_attr_constraint_inference():
+    @dataclass(frozen=True)
     class BaseWrapAttr(ParametrizedAttribute):
         name = "test.wrap"
 
@@ -116,7 +118,7 @@ def test_param_attr_constraint_inference():
     )
 
     assert constr.can_infer(set())
-    assert constr.infer(ConstraintContext()) == WrapAttr((StringAttr("Hello"),))
+    assert constr.infer(ConstraintContext()) == WrapAttr(StringAttr("Hello"))
 
     var_constr = ParamAttrConstraint(
         WrapAttr,
@@ -132,7 +134,7 @@ def test_param_attr_constraint_inference():
 
     assert var_constr.can_infer({"T"})
     assert var_constr.infer(ConstraintContext({"T": StringAttr("Hello")})) == WrapAttr(
-        (StringAttr("Hello"),)
+        StringAttr("Hello")
     )
 
     base_constr = ParamAttrConstraint(

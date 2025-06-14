@@ -137,6 +137,7 @@ class Attribute(ABC):
         return res.getvalue()
 
 
+@dataclass(frozen=True)
 class BuiltinAttribute(Attribute, ABC):
     """
     This class is used to mark builtin attributes.
@@ -297,6 +298,7 @@ class EnumAttribute(Data[EnumType]):
         return cast(EnumType, parser.parse_str_enum(cls.enum_type))
 
 
+@dataclass(frozen=True, init=False)
 class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
     """
     Core helper for BitEnumAttributes. Takes a StrEnum type parameter, and
@@ -408,16 +410,9 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
                 )
 
 
-@dataclass(frozen=True, init=False)
+@dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
-
-    def __init__(self, parameters: Sequence[Attribute] = ()):
-        for (f, _), param in zip(
-            self.get_irdl_definition().parameters, parameters, strict=True
-        ):
-            object.__setattr__(self, f, param)
-        super().__init__()
 
     @property
     def parameters(self) -> tuple[Attribute, ...]:
@@ -441,9 +436,13 @@ class ParametrizedAttribute(Attribute):
         # We do this to allow users to redefine their own __init__.
         attr = cls.__new__(cls)
 
-        # Call the __init__ of ParametrizedAttribute, which will set the
-        # parameters field.
-        ParametrizedAttribute.__init__(attr, tuple(params))
+        # Set the parameters based on the definition
+        for (f, _), param in zip(
+            cls.get_irdl_definition().parameters, params, strict=True
+        ):
+            object.__setattr__(attr, f, param)
+        attr.__post_init__()
+
         return attr
 
     @classmethod

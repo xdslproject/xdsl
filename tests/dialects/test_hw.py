@@ -368,7 +368,7 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
 
 
 def test_hwmoduleop_hwmodulelike():
-    module_type = ModuleType((ArrayAttr(()),))
+    module_type = ModuleType(ArrayAttr(()))
 
     hw_module = HWModuleOp(
         StringAttr("foo"), module_type, Region((Block((OutputOp(),)),))
@@ -379,11 +379,7 @@ def test_hwmoduleop_hwmodulelike():
     assert hw_module_like.get_hw_module_type(hw_module) == module_type
 
     new_module_type = ModuleType(
-        (
-            ArrayAttr(
-                (ModulePort((StringAttr("in1"), i32, DirectionAttr(Direction.INPUT))),)
-            ),
-        )
+        ArrayAttr((ModulePort(StringAttr("in1"), i32, DirectionAttr(Direction.INPUT)),))
     )
     hw_module_like.set_hw_module_type(hw_module, new_module_type)
     assert hw_module_like.get_hw_module_type(hw_module) == new_module_type
