@@ -283,11 +283,11 @@ class AttrParser(BaseParser):
 
     @overload
     def _parse_extended_type_or_attribute(
-        self, attr_or_dialect_name: str, is_type: Literal[True] = True
+        self, attr_or_dialect_name: str, is_type: Literal[True]
     ) -> TypeAttribute: ...
 
     def _parse_extended_type_or_attribute(
-        self, attr_or_dialect_name: str, is_type: bool = True
+        self, attr_or_dialect_name: str, is_type: bool
     ) -> Attribute:
         """
         Parse the contents of a dialect or alias type or attribute, with format:
