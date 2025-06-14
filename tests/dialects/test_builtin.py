@@ -767,6 +767,17 @@ def test_create_dense_wrong_size():
         DenseArrayBase(i16, BytesAttr(b"F"))
 
 
+def test_create_dense_params():
+    import warnings
+
+    with warnings.catch_warnings(record=True) as w:
+        attr = DenseArrayBase((i8, BytesAttr(b"FF")))
+    assert len(w) == 1
+    assert issubclass(w[0].category, DeprecationWarning)
+
+    assert attr == DenseArrayBase(i8, BytesAttr(b"FF"))
+
+
 def test_strides():
     assert ShapedType.strides_for_shape(()) == ()
     assert ShapedType.strides_for_shape((), factor=2) == ()
