@@ -656,10 +656,10 @@ def test_run_replace_same_eclass():
     )
 
     # Should return empty tuple
-    assert result.values == ()
+    assert not result.values
 
     # Should not add any merge todos since it's the same EClass
-    assert len(interp_functions.merge_list) == 0
+    assert not interp_functions.merge_list
 
 
 def test_run_replace_error_not_eclass_original():
@@ -767,7 +767,7 @@ def test_apply_matches():
     interp_functions.apply_matches()
 
     # Should have cleared the merge list
-    assert len(interp_functions.merge_list) == 0
+    assert not interp_functions.merge_list
 
     # Should have merged operands from to_replace into canonical
     assert len(canonical.operands) == initial_operand_count + len(to_replace.operands)
@@ -808,4 +808,4 @@ def test_apply_matches_with_known_ops_restore():
     assert interp_functions.known_ops[test_op] is test_op
 
     # Should have cleared the restore list
-    assert len(interp_functions.known_ops_restore_list) == 0
+    assert not interp_functions.known_ops_restore_list
