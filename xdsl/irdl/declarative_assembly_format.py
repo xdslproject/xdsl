@@ -1314,17 +1314,20 @@ class OptionalGroupDirective(FormatDirective):
     then_whitespace: tuple[WhitespaceDirective, ...]
     then_first: FormatDirective
     then_elements: tuple[FormatDirective, ...]
+    else_elements: tuple[FormatDirective, ...]
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         # If the first element was parsed, parse the then-elements as usual
         if ret := self.then_first.parse(parser, state):
             for element in self.then_elements:
                 element.parse(parser, state)
-        # Otherwise, just explicitly set the variadic/optional variables and
-        # type to empty
+            for element in self.else_elements:
+                element.set_empty(state)
         else:
             for element in self.then_elements:
                 element.set_empty(state)
+            for element in self.else_elements:
+                element.parse(parser, state)
         return ret
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -1335,8 +1338,13 @@ class OptionalGroupDirective(FormatDirective):
                 *self.then_elements,
             ):
                 element.print(printer, state, op)
+        else:
+            for element in self.else_elements:
+                element.print(printer, state, op)
 
     def set_empty(self, state: ParsingState) -> None:
         self.then_first.set_empty(state)
         for element in self.then_elements:
+            element.set_empty(state)
+        for element in self.else_elements:
             element.set_empty(state)
