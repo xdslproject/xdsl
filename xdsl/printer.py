@@ -186,7 +186,7 @@ class Printer(BasePrinter):
             return
 
         # Multiple results
-        self.print_list(op.results, self.print)
+        self.print_list(op.results, self.print_ssa_value)
         self.print_string(" = ")
 
     def print_ssa_value(self, value: SSAValue) -> str:
