@@ -3,6 +3,7 @@
 
 import cProfile
 import gc
+import math
 import subprocess
 import time
 from argparse import ArgumentParser, Namespace
@@ -21,6 +22,7 @@ PROFILERS = (
     "pyinstrument",
     "dis",
 )
+PERF_COUNTER_RESOLUTION = time.get_clock_info("perf_counter").resolution
 
 
 class Benchmark(NamedTuple):
@@ -33,8 +35,8 @@ class Benchmark(NamedTuple):
 def warmed_timeit(
     func: Callable[[], Any],
     setup: Callable[[], Any] | None = None,
-    number: int = 100,
-    warmup: int = 3,
+    repeats: int = 1000,
+    warmups: int = 3,
 ) -> tuple[float, float, float]:
     """
     Time the contents of a class method with setup and warmup.
@@ -55,32 +57,65 @@ def warmed_timeit(
     # measurements
     gcold = gc.isenabled()
     gc.disable()
+
     # Pre-populate the arrays to avoid costs of re-sizing them
-    times = [0.0 for _ in range(number)]
-    offset = [0.0 for _ in range(number)]
+    times = [0.0 for _ in range(repeats)]
+    offset = [0.0 for _ in range(repeats)]
 
-    # Run the interleaved setup and function calls to warm up
-    for _ in range(warmup):
+    # Warm up before measuring
+    for _ in range(warmups):
         if setup is not None:
             setup()
         func()
 
-    for i in range(number):
-        # Optionally run setup code (for example resetting mutable state) before
-        # each measurement iteration
-        if setup is not None:
-            setup()
+    # If the function is close to the resolution of the timer, group it into
+    # batches to aim for measurement periods of at least 25x the resolution.
+    if setup is not None:
+        setup()
+    batch_size_func_start = time.perf_counter()
+    func()
+    batch_size_func_end = time.perf_counter()
+    single_func_time = batch_size_func_end - batch_size_func_start
+    if single_func_time > PERF_COUNTER_RESOLUTION * 25:
+        batch_size = 1
+    else:
+        batch_size = math.ceil(
+            (PERF_COUNTER_RESOLUTION * 25 * 1000000000)
+            / (single_func_time * 1000000000)
+        )
+
+    for i in range(repeats):
         # Calculate the base cost of method invocation and timing overhead, so
-        # we can offset our final measurements by it
-        offset_start = time.perf_counter()
-        benchmark_class_empty()
-        offset_end = time.perf_counter()
-        offset[i] = offset_end - offset_start
+        # we can offset our final measurements by it. Setup functions are invoked
+        # in separate clauses despite code duplication to avoid overhead
+        loop = range(batch_size)
+        if setup is not None:
+            offset_start = time.perf_counter()
+            for _ in loop:
+                setup()
+                benchmark_class_empty()
+            offset_end = time.perf_counter()
+        else:
+            offset_start = time.perf_counter()
+            for _ in loop:
+                benchmark_class_empty()
+            offset_end = time.perf_counter()
+        offset[i] = (offset_end - offset_start) / batch_size
+
         # Time the actual function we want to measure
-        func_start = time.perf_counter()
-        func()
-        func_end = time.perf_counter()
-        times[i] = func_end - func_start
+        loop = range(batch_size)
+        if setup is not None:
+            func_start = time.perf_counter()
+            for _ in loop:
+                setup()
+                func()
+            func_end = time.perf_counter()
+        else:
+            func_start = time.perf_counter()
+            for _ in loop:
+                func()
+            func_end = time.perf_counter()
+        times[i] = (func_end - func_start) / batch_size
 
     # Re-enable the garbage collector if it was initially on
     if gcold:
@@ -198,6 +233,7 @@ def viztracer_benchmark(
     args: Namespace,
     benchmarks: dict[str, Benchmark],
     warmup: bool = True,
+    duration: float | None = 0,
 ) -> Path:
     """Use VizTracer to profile a benchmark."""
     from viztracer import VizTracer  # pyright: ignore[reportMissingTypeStubs]
@@ -213,8 +249,25 @@ def viztracer_benchmark(
         test()
     if setup is not None:
         setup()
-    with VizTracer(output_file=str(output_prof)):
+
+    def wrap() -> None:
         test()
+
+    def fix_time(duration: float) -> float:
+        wrap()
+        while (end := time.perf_counter()) - start < duration:
+            pass
+        return end
+
+    if duration is not None:
+        tracer = VizTracer(output_file=str(output_prof))
+        start = time.perf_counter()
+        tracer.start()
+        _end = fix_time(duration)
+        tracer.save()
+    else:
+        with VizTracer(output_file=str(output_prof)):
+            test()
     return output_prof
 
 
