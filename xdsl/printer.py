@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     FunctionType,
     IntegerType,
+    StringAttr,
     UnitAttr,
     UnregisteredOp,
 )
@@ -638,3 +639,10 @@ class Printer(BasePrinter):
 
         self.print_string("  }\n")
         self.print_string("#-}")
+
+    def print_symbol_name(self, sym_name: StringAttr):
+        """
+        Prints a string attribute as a symbol name, prepending it with an '@'
+        """
+        self.print_string("@")
+        self.print_string(sym_name.data)

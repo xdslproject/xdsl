@@ -2212,7 +2212,8 @@ class ModuleOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.sym_name is not None:
-            printer.print(f" @{self.sym_name.data}")
+            printer.print_string(" ")
+            printer.print_symbol_name(self.sym_name)
 
         if self.attributes:
             printer.print_op_attributes(self.attributes, print_keyword=True)
