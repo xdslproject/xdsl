@@ -349,7 +349,7 @@ class StreamingRegionOp(IRDLOperation):
                         printer.print_string("\n")
                         printer.print_list(
                             self.patterns.data,
-                            lambda attr: printer.print_attribute(attr),
+                            printer.print_attribute,
                             delimiter=",\n",
                         )
                 printer.print_string("\n]")
