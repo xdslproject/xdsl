@@ -345,7 +345,7 @@ class StreamingRegionOp(IRDLOperation):
             if self.patterns.data:
                 printer.print_string("\npatterns = [")
                 with printer.indented():
-                    if len(self.patterns.data):
+                    if self.patterns.data:
                         printer.print_string("\n")
                         printer.print_list(
                             self.patterns.data,
