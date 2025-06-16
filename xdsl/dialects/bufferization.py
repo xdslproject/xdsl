@@ -48,9 +48,7 @@ class TensorFromMemRefConstraint(
     a tensor instead of a memref.
     """
 
-    memref_constraint: GenericAttrConstraint[
-        MemRefType[Attribute] | UnrankedMemRefType[Attribute]
-    ]
+    memref_constraint: GenericAttrConstraint[MemRefType | UnrankedMemRefType]
 
     @staticmethod
     def tensor_to_memref(

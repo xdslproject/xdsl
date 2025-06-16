@@ -15,7 +15,6 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyFloat,
-    AnyUnrankedMemRefType,
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
@@ -624,7 +623,7 @@ class Printer(BasePrinter):
             return
 
         if isinstance(attribute, MemRefType):
-            attribute = cast(MemRefType[Attribute], attribute)
+            attribute = cast(MemRefType, attribute)
             self.print_string("memref<")
             if attribute.shape.data:
                 self.print_list(
@@ -647,8 +646,7 @@ class Printer(BasePrinter):
             self.print_string(">")
             return
 
-        if isinstance(attribute, UnrankedMemRefType):
-            attribute = cast(AnyUnrankedMemRefType, attribute)
+        if isa(attribute, UnrankedMemRefType):
             self.print_string("memref<*x")
             self.print_attribute(attribute.element_type)
             if not isinstance(attribute.memory_space, NoneAttr):

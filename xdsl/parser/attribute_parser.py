@@ -537,7 +537,7 @@ class AttrParser(BaseParser):
 
     def _parse_memref_attrs(
         self,
-    ) -> MemRefType[Attribute] | UnrankedMemRefType[Attribute]:
+    ) -> MemRefType | UnrankedMemRefType:
         shape, type = self.parse_shape()
 
         # Unranked case
