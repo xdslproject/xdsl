@@ -343,7 +343,7 @@ class CslPrintContext:
         that created the memref (e.g. memref.alloc, csl.constants, ...)
         """
         type = val.type
-        assert isa(type, MemRefType[Attribute])
+        assert isa(type, MemRefType)
         assert isinstance(val, OpResult), (
             "The value provided to _memref_type_to_string must be an op result"
         )

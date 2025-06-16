@@ -2213,8 +2213,7 @@ class UnrankedMemRefType(
         return self.element_type
 
 
-AnyUnrankedMemRefType: TypeAlias = UnrankedMemRefType[Attribute]
-AnyUnrankedMemRefTypeConstr = BaseAttr[AnyUnrankedMemRefType](UnrankedMemRefType)
+AnyUnrankedMemRefTypeConstr = BaseAttr[UnrankedMemRefType](UnrankedMemRefType)
 
 RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]

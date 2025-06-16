@@ -70,7 +70,7 @@ class AllocOp(IRDLOperation):
     async_dependencies = var_operand_def(AsyncTokenAttr)
 
     async_token = result_def(AsyncTokenAttr)
-    result = result_def(MemRefType[Attribute])
+    result = result_def(MemRefType)
 
     def __init__(
         self,
@@ -106,7 +106,7 @@ class ChannelGetOp(IRDLOperation):
     chan_name = attr_def(SymbolRefAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     indices = var_operand_def(AsyncTokenAttr())
-    dst = operand_def(MemRefType[Attribute])
+    dst = operand_def(MemRefType)
     dst_offsets = var_operand_def(IndexType())
     dst_sizes = var_operand_def(IndexType())
     dst_strides = var_operand_def(IndexType())
@@ -148,7 +148,7 @@ class ChannelPutOp(IRDLOperation):
 
     async_dependencies = var_operand_def(AsyncTokenAttr())
     indices = var_operand_def(IndexType())
-    src = operand_def(MemRefType[Attribute])
+    src = operand_def(MemRefType)
     src_offsets = var_operand_def(IndexType())
     src_sizes = var_operand_def(IndexType())
     src_strides = var_operand_def(IndexType())
@@ -213,7 +213,7 @@ class DeallocOp(IRDLOperation):
     name = "air.dealloc"
 
     async_dependencies = var_operand_def(AsyncTokenAttr)
-    memref = operand_def(MemRefType[Attribute])
+    memref = operand_def(MemRefType)
 
     async_token = result_def(AsyncTokenAttr)
 
@@ -232,11 +232,11 @@ class DmaMemcpyNdOp(IRDLOperation):
     name = "air.dma_memcpy_nd"
 
     async_dependencies = var_operand_def(AsyncTokenAttr())
-    dst = operand_def(MemRefType[Attribute])
+    dst = operand_def(MemRefType)
     dst_offsets = var_operand_def(IndexType())
     dst_sizes = var_operand_def(IndexType())
     dst_strides = var_operand_def(IndexType())
-    src = operand_def(MemRefType[Attribute])
+    src = operand_def(MemRefType)
     src_offsets = var_operand_def(IndexType())
     src_sizes = var_operand_def(IndexType())
     src_strides = var_operand_def(IndexType())
