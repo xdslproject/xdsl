@@ -279,11 +279,13 @@ class StreamingRegionOp(IRDLOperation):
             if self.stride_patterns.data:
                 printer.print_string("\npatterns = [")
                 with printer.indented():
-                    printer.print_list(
-                        self.stride_patterns.data,
-                        lambda attr: printer.print("\n", attr),
-                        delimiter=",",
-                    )
+                    if len(self.stride_patterns.data):
+                        printer.print_string("\n")
+                        printer.print_list(
+                            self.stride_patterns.data,
+                            lambda attr: printer.print_attribute(attr),
+                            delimiter=",\n",
+                        )
                 printer.print_string("\n]")
             else:
                 printer.print_string("\npatterns = []")

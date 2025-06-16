@@ -426,9 +426,14 @@ class ExtractOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         # Print the vector operand
-        printer.print(" ", self.vector, "[")
+        printer.print_string(" ")
+        printer.print_ssa_value(self.vector)
+        printer.print_string("[")
         printer.print_list(self.get_mixed_position(), printer.print)
-        printer.print("] : ", self.result.type, " from ", self.vector.type)
+        printer.print_string("] : ")
+        printer.print_attribute(self.result.type)
+        printer.print_string(" from ")
+        printer.print_attribute(self.vector.type)
 
 
 @irdl_op_definition
@@ -595,9 +600,16 @@ class InsertOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         # Print the vector operand
-        printer.print(" ", self.source, ", ", self.dest, "[")
+        printer.print_string(" ")
+        printer.print_ssa_value(self.source)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.dest)
+        printer.print_string("[")
         printer.print_list(self.get_mixed_position(), printer.print)
-        printer.print("] : ", self.source.type, " into ", self.dest.type)
+        printer.print_string("] : ")
+        printer.print_attribute(self.source.type)
+        printer.print_string(" into ")
+        printer.print_attribute(self.dest.type)
 
 
 @irdl_op_definition

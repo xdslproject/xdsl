@@ -836,9 +836,9 @@ class WaitAllOp(IRDLOperation):
         super().__init__(operands=[async_dependencies], result_types=[AsyncTokenAttr()])
 
     def print(self, printer: Printer):
-        printer.print(" async ")
+        printer.print_string(" async ")
         if self.async_dependencies:
-            printer.print(self.async_dependencies, printer.print_ssa_value, ",")
+            printer.print_list(self.async_dependencies, printer.print_ssa_value)
 
     @classmethod
     def parse(cls, parser: Parser) -> WaitAllOp:

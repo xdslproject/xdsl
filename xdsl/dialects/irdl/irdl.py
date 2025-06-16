@@ -135,7 +135,7 @@ class DialectOp(IRDLOperation):
         return DialectOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" @", self.sym_name.data, " ")
+        printer.print(f" @{self.sym_name.data} ")
         if self.body.block.ops:
             printer.print_region(self.body)
 
@@ -165,7 +165,7 @@ class TypeOp(IRDLOperation):
         return TypeOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" @", self.sym_name.data, " ")
+        printer.print(f" @{self.sym_name.data} ")
         if self.body.block.ops:
             printer.print_region(self.body)
 
@@ -220,7 +220,7 @@ class AttributeOp(IRDLOperation):
         return AttributeOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" @", self.sym_name.data, " ")
+        printer.print(f" @{self.sym_name.data} ")
         if self.body.block.ops:
             printer.print_region(self.body)
 
@@ -305,7 +305,7 @@ class OperationOp(IRDLOperation):
         return OperationOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" @", self.sym_name.data, " ")
+        printer.print(f" @{self.sym_name.data} ")
         if self.body.block.ops:
             printer.print_region(self.body)
 
@@ -348,7 +348,8 @@ def _print_argument_with_var(
     printer.print_string(": ")
     variadicity = data[1].data
     if variadicity != VariadicityEnum.SINGLE:
-        printer.print(variadicity, " ")
+        printer.print_string(str(variadicity))
+        printer.print(" ")
     printer.print(data[2])
 
 

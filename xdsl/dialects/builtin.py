@@ -2019,7 +2019,8 @@ class ModuleOp(IRDLOperation):
             printer.print(" {\n")
             printer.print("}")
         else:
-            printer.print(" ", self.body)
+            printer.print_string(" ")
+            printer.print_region(self.body)
 
 
 # FloatXXType shortcuts
@@ -2113,10 +2114,15 @@ class MemRefType(
         return [shape, type, layout, memory_space]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<", self.shape, ", ", self.element_type)
-        if self.layout != NoneAttr() or self.memory_space != NoneAttr():
-            printer.print(", ", self.layout, ", ", self.memory_space)
-        printer.print(">")
+        with printer.in_angle_brackets():
+            printer.print(self.shape)
+            printer.print_string(", ")
+            printer.print_attribute(self.element_type)
+            if self.layout != NoneAttr() or self.memory_space != NoneAttr():
+                printer.print_string(", ")
+                printer.print(self.layout)
+                printer.print_string(", ")
+                printer.print(self.memory_space)
 
     def get_affine_map(self) -> AffineMap:
         """
@@ -2614,7 +2620,7 @@ class DenseIntOrFPElementsAttr(
         elif self.is_splat():
             self._print_one_elem(data[0], printer)
         elif len(self) > 100:
-            printer.print('"', "0x", self.data.data.hex().upper(), '"')
+            printer.print_string(f'"0x{self.data.data.hex().upper()}"')
         else:
             self._print_dense_list(data, shape, printer)
         printer.print_string(">")

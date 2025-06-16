@@ -61,7 +61,8 @@ class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(" ", self.format_str)
+        printer.print_string(" ")
+        printer.print_attribute(self.format_str)
         return {"format_str"}
 
     def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg, ...]:

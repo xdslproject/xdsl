@@ -1020,7 +1020,8 @@ class LayoutOp(IRDLOperation):
         return cls(parser.parse_region())
 
     def print(self, printer: Printer):
-        printer.print(" ", self.body)
+        printer.print_string(" ")
+        printer.print_region(self.body)
 
 
 @irdl_op_definition
