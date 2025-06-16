@@ -49,6 +49,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     TensorType,
+    TupleType,
     UnitAttr,
     UnrankedMemRefType,
     UnrankedTensorType,
@@ -433,7 +434,7 @@ class AttrParser(BaseParser):
             "memref": self._parse_memref_attrs,
             "tensor": self._parse_tensor_attrs,
             "complex": self._parse_complex_attrs,
-            "tuple": unimplemented,
+            "tuple": self._parse_tuple_attrs,
         }
 
         if name not in builtin_parsers:
@@ -618,6 +619,14 @@ class AttrParser(BaseParser):
             return TensorType(type, shape, encoding)
 
         return TensorType(type, shape)
+
+    def _parse_tuple_attrs(self) -> TupleType:
+        params = self.parse_optional_undelimited_comma_separated_list(
+            self.parse_optional_attribute, self.parse_attribute
+        )
+        if params is None:
+            params = []
+        return TupleType(params)
 
     def _parse_attribute_type(self) -> Attribute:
         """
