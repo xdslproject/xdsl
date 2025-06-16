@@ -20,10 +20,9 @@ def test_icmp_incorrect_comparison():
     a = create_ssa_value(i32)
     b = create_ssa_value(i32)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unknown comparison mnemonic: slet"):
         # 'slet' is an invalid comparison operation
         _icmp_op = ICmpOp(a, b, "slet")
-    assert e.value.args[0] == "Unknown comparison mnemonic: slet"
 
 
 def test_comb_concat_builder():

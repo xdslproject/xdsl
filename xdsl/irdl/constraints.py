@@ -445,7 +445,21 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
             constrs,
         )
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    class AnyOfException(VerifyException):
+        attr: Attribute
+
+        def __init__(self, attr: Attribute) -> None:
+            self.attr = attr
+            super().__init__()
+
+        def __str__(self) -> str:
+            return f"Unexpected attribute {self.attr}"
+
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext | None = None,
+    ) -> None:
         constraint_context = constraint_context or ConstraintContext()
         for attr_constr in self.attr_constrs:
             # Copy the constraint to ensure that if the constraint fails, the
@@ -458,7 +472,7 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
                 return
             except VerifyException:
                 pass
-        raise VerifyException(f"Unexpected attribute {attr}")
+        raise AnyOf.AnyOfException(attr)
 
     def __or__(
         self, value: GenericAttrConstraint[_AttributeCovT], /

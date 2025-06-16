@@ -598,18 +598,18 @@ def test_vector_rank_constraint_rank_mismatch():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorRankConstraint(3)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Expected vector rank to be 3, got 2."):
         constraint.verify(vector_type, ConstraintContext())
-    assert e.value.args[0] == "Expected vector rank to be 3, got 2."
 
 
 def test_vector_rank_constraint_attr_mismatch():
     memref_type = MemRefType(i32, [1, 2])
     constraint = VectorRankConstraint(3)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException, match="memref<1x2xi32> should be of type VectorType."
+    ):
         constraint.verify(memref_type, ConstraintContext())
-    assert e.value.args[0] == "memref<1x2xi32> should be of type VectorType."
 
 
 def test_vector_base_type_constraint_verify():
@@ -623,18 +623,20 @@ def test_vector_base_type_constraint_type_mismatch():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeConstraint(i64)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException, match="Expected vector type to be i64, got i32."
+    ):
         constraint.verify(vector_type, ConstraintContext())
-    assert e.value.args[0] == "Expected vector type to be i64, got i32."
 
 
 def test_vector_base_type_constraint_attr_mismatch():
     memref_type = MemRefType(i32, [1, 2])
     constraint = VectorBaseTypeConstraint(i32)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException, match="memref<1x2xi32> should be of type VectorType."
+    ):
         constraint.verify(memref_type, ConstraintContext())
-    assert e.value.args[0] == "memref<1x2xi32> should be of type VectorType."
 
 
 def test_vector_base_type_and_rank_constraint_verify():
@@ -648,31 +650,31 @@ def test_vector_base_type_and_rank_constraint_base_type_mismatch():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i64, 2)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException, match="Expected vector type to be i64, got i32."
+    ):
         constraint.verify(vector_type, ConstraintContext())
-    assert e.value.args[0] == "Expected vector type to be i64, got i32."
 
 
 def test_vector_base_type_and_rank_constraint_rank_mismatch():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 3)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Expected vector rank to be 3, got 2."):
         constraint.verify(vector_type, ConstraintContext())
-    assert e.value.args[0] == "Expected vector rank to be 3, got 2."
 
 
 def test_vector_base_type_and_rank_constraint_attr_mismatch():
     memref_type = MemRefType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 2)
 
-    error_msg = """The following constraints were not satisfied:
+    with pytest.raises(
+        VerifyException,
+        match="""The following constraints were not satisfied:
 memref<1x2xi32> should be of type VectorType.
-memref<1x2xi32> should be of type VectorType."""
-
-    with pytest.raises(VerifyException) as e:
+memref<1x2xi32> should be of type VectorType.""",
+    ):
         constraint.verify(memref_type, ConstraintContext())
-    assert e.value.args[0] == error_msg
 
 
 def test_unrealized_conversion_cast():
