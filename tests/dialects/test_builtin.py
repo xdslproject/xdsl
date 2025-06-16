@@ -764,7 +764,7 @@ def test_create_dense_wrong_size():
         VerifyException,
         match=re.escape("Data length of array (1) not divisible by element size 2"),
     ):
-        DenseArrayBase((i16, BytesAttr(b"F")))
+        DenseArrayBase(i16, BytesAttr(b"F"))
 
 
 def test_strides():
