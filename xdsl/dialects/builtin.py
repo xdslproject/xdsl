@@ -1164,12 +1164,12 @@ class DictionaryAttr(GenericData[immutabledict[str, Attribute]], BuiltinAttribut
 
 
 @irdl_attr_definition
-class TupleType(ParametrizedAttribute, BuiltinAttribute):
+class TupleType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "tuple"
 
-    types: ParameterDef[ArrayAttr[Attribute]]
+    types: ParameterDef[ArrayAttr[TypeAttribute]]
 
-    def __init__(self, types: list[Attribute] | ArrayAttr[Attribute]) -> None:
+    def __init__(self, types: list[TypeAttribute] | ArrayAttr[TypeAttribute]) -> None:
         if isinstance(types, list):
             types = ArrayAttr(types)
         super().__init__([types])

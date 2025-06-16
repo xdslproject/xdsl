@@ -4,7 +4,7 @@ import math
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal, NoReturn, cast
+from typing import Any, Literal, NoReturn, cast, overload
 
 import xdsl.parser as affine_parser
 from xdsl.context import Context
@@ -49,6 +49,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     TensorType,
+    TupleType,
     UnitAttr,
     UnrankedMemRefType,
     UnrankedTensorType,
@@ -56,7 +57,7 @@ from xdsl.dialects.builtin import (
     VectorType,
     i64,
 )
-from xdsl.ir import Attribute, Data, ParametrizedAttribute
+from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import base
 from xdsl.utils.bitwise_casts import (
@@ -104,7 +105,7 @@ class AttrParser(BaseParser):
     Set of resource references encountered during parsing.
     """
 
-    def parse_optional_type(self) -> Attribute | None:
+    def parse_optional_type(self) -> TypeAttribute | None:
         """
         Parse an xDSL type, if present.
         An xDSL type is either a builtin type, which can have various format,
@@ -125,7 +126,7 @@ class AttrParser(BaseParser):
             return self._parse_extended_type_or_attribute(token.text[1:], True)
         return self._parse_optional_builtin_type()
 
-    def parse_type(self) -> Attribute:
+    def parse_type(self) -> TypeAttribute:
         """
         Parse an xDSL type.
         An xDSL type is either a builtin type, which can have various format,
@@ -276,8 +277,18 @@ class AttrParser(BaseParser):
         else:
             raise TypeError("Attributes are either ParametrizedAttribute or Data.")
 
+    @overload
     def _parse_extended_type_or_attribute(
-        self, attr_or_dialect_name: str, is_type: bool = True
+        self, attr_or_dialect_name: str, is_type: Literal[False]
+    ) -> Attribute: ...
+
+    @overload
+    def _parse_extended_type_or_attribute(
+        self, attr_or_dialect_name: str, is_type: Literal[True]
+    ) -> TypeAttribute: ...
+
+    def _parse_extended_type_or_attribute(
+        self, attr_or_dialect_name: str, is_type: bool
     ) -> Attribute:
         """
         Parse the contents of a dialect or alias type or attribute, with format:
@@ -400,7 +411,7 @@ class AttrParser(BaseParser):
         assert body is not None
         return body
 
-    def _parse_optional_builtin_parametrized_type(self) -> ParametrizedAttribute | None:
+    def _parse_optional_builtin_parametrized_type(self) -> TypeAttribute | None:
         """
         Parse an builtin parametrized type, if present, with format:
             builtin-parametrized-type ::= builtin-name `<` args `>`
@@ -418,12 +429,12 @@ class AttrParser(BaseParser):
                 f"Builtin {name} is not supported yet!",
             )
 
-        builtin_parsers: dict[str, Callable[[], ParametrizedAttribute]] = {
+        builtin_parsers: dict[str, Callable[[], TypeAttribute]] = {
             "vector": self._parse_vector_attrs,
             "memref": self._parse_memref_attrs,
             "tensor": self._parse_tensor_attrs,
             "complex": self._parse_complex_attrs,
-            "tuple": unimplemented,
+            "tuple": self._parse_tuple_attrs,
         }
 
         if name not in builtin_parsers:
@@ -608,6 +619,14 @@ class AttrParser(BaseParser):
             return TensorType(type, shape, encoding)
 
         return TensorType(type, shape)
+
+    def _parse_tuple_attrs(self) -> TupleType:
+        params = self.parse_optional_undelimited_comma_separated_list(
+            self.parse_optional_type, self.parse_type
+        )
+        if params is None:
+            params = []
+        return TupleType(params)
 
     def _parse_attribute_type(self) -> Attribute:
         """
@@ -1411,7 +1430,7 @@ class AttrParser(BaseParser):
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
     _builtin_float_type_regex = re.compile(r"^f(\d+)$")
 
-    def _parse_optional_integer_or_float_type(self) -> Attribute | None:
+    def _parse_optional_integer_or_float_type(self) -> TypeAttribute | None:
         """
         Parse as integer or float type, if present.
           integer-or-float-type ::= index-type | integer-type | float-type
@@ -1460,7 +1479,7 @@ class AttrParser(BaseParser):
 
         return None
 
-    def _parse_optional_builtin_type(self) -> Attribute | None:
+    def _parse_optional_builtin_type(self) -> TypeAttribute | None:
         """
         parse a builtin-type, like i32, index, vector<i32>, none, if present.
         """
