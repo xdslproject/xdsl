@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, cast
@@ -118,14 +117,6 @@ class Printer(BasePrinter):
     @property
     def block_names(self):
         return self._block_names[-1]
-
-    @contextmanager
-    def in_angle_brackets(self):
-        self.print_string("<")
-        try:
-            yield
-        finally:
-            self.print_string(">")
 
     def print(self, *argv: Any) -> None:
         for arg in argv:

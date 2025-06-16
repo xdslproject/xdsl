@@ -1030,6 +1030,35 @@ def test_get_printed_name():
     assert f"%{picked_name}" == printed.getvalue()
 
 
+def test_delimiters():
+    printer = Printer()
+
+    printer.stream = StringIO()
+    with printer.in_angle_brackets():
+        printer.print_string("testing")
+    assert "<testing>" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_square_brackets():
+        printer.print_string("testing")
+    assert "[testing]" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_braces():
+        printer.print_string("testing")
+    assert "{testing}" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_parens():
+        printer.print_string("testing")
+    assert "(testing)" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.delimited("test<", ">"):
+        printer.print_string("testing")
+    assert "test<testing>" == printer.stream.getvalue()
+
+
 def assert_print_op(
     operation: Operation,
     expected: str,
