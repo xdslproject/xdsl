@@ -137,7 +137,7 @@ class Attribute(ABC):
         return res.getvalue()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class BuiltinAttribute(Attribute, ABC):
     """
     This class is used to mark builtin attributes.

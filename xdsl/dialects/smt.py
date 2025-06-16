@@ -68,6 +68,7 @@ class BitVectorType(ParametrizedAttribute, TypeAttribute):
         if isinstance(width, int):
             width = IntAttr(width)
         object.__setattr__(self, "width", width)
+        self.__post_init__()
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -116,6 +117,7 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
     ):
         object.__setattr__(self, "domain_types", ArrayAttr(domain_types))
         object.__setattr__(self, "range_type", range_type)
+        self.__post_init__()
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -160,6 +162,7 @@ class BitVectorAttr(TypedAttribute):
             type = BitVectorType(type)
         object.__setattr__(self, "value", value)
         object.__setattr__(self, "type", type)
+        self.__post_init__()
 
     def verify(self) -> None:
         super().verify()

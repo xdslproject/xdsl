@@ -99,7 +99,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
     ):
         data_type = builtin.i64
         object.__setattr__(
-            self, "offset", builtin.DenseArrayBase.from_list(data_type, offset)
+            self, "offset_", builtin.DenseArrayBase.from_list(data_type, offset)
         )
         object.__setattr__(
             self, "size_", builtin.DenseArrayBase.from_list(data_type, size)

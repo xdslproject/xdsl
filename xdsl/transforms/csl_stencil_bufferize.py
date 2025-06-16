@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
+    AnyDenseElement,
     AnyTensorType,
     AnyTensorTypeConstr,
     DenseArrayBase,
@@ -384,7 +385,7 @@ class ArithConstBufferize(RewritePattern):
             return
         assert isinstance(op.value, DenseIntOrFPElementsAttr)
         assert isa(op.value.type, TensorType[Attribute])
-        typ = DenseIntOrFPElementsAttr(
+        typ = DenseIntOrFPElementsAttr[AnyDenseElement](
             tensor_to_memref_type(op.value.type), op.value.data
         )
         rewriter.replace_matched_op(

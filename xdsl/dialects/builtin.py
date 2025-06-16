@@ -293,7 +293,9 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
             nested = ArrayAttr(
                 [StringAttr(x) if isinstance(x, str) else x for x in nested]
             )
-        super().__init__([root, nested])
+        object.__setattr__(self, "root_reference", root)
+        object.__setattr__(self, "nested_references", nested)
+        self.__post_init__()
 
     def string_value(self):
         root = self.root_reference.data
@@ -1029,7 +1031,9 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
 
         data_attr = FloatData(value)
 
-        super().__init__([data_attr, type])
+        object.__setattr__(self, "value", data_attr)
+        object.__setattr__(self, "type", type)
+        self.__post_init__()
 
     @staticmethod
     def parse_with_type(
@@ -1081,9 +1085,6 @@ class ComplexType(
 ):
     name = "complex"
     element_type: ParameterDef[ComplexElementCovT]
-
-    def __init__(self, element_type: ComplexElementCovT):
-        super().__init__([element_type])
 
     def get_element_type(self) -> ComplexElementCovT:
         return self.element_type
@@ -1178,6 +1179,7 @@ class TupleType(ParametrizedAttribute, BuiltinAttribute):
         if isinstance(types, list):
             types = ArrayAttr(types)
         object.__setattr__(self, "types", types)
+        self.__post_init__()
 
 
 @irdl_attr_definition
@@ -1207,7 +1209,10 @@ class VectorType(
         if scalable_dims is None:
             false = BoolAttr(False, i1)
             scalable_dims = ArrayAttr(false for _ in shape)
-        super().__init__([shape, element_type, scalable_dims])
+        object.__setattr__(self, "shape", shape)
+        object.__setattr__(self, "element_type", element_type)
+        object.__setattr__(self, "scalable_dims", scalable_dims)
+        self.__post_init__()
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -1282,7 +1287,10 @@ class TensorType(
         shape = ArrayAttr(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
         )
-        super().__init__([shape, element_type, encoding])
+        object.__setattr__(self, "shape", shape)
+        object.__setattr__(self, "element_type", element_type)
+        object.__setattr__(self, "encoding", encoding)
+        self.__post_init__()
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -1309,9 +1317,6 @@ class UnrankedTensorType(
     name = "unranked_tensor"
 
     element_type: ParameterDef[AttributeCovT]
-
-    def __init__(self, element_type: AttributeCovT) -> None:
-        super().__init__([element_type])
 
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
@@ -1445,7 +1450,7 @@ class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
     def from_params(handle: str | StringAttr, type: ShapedType) -> DenseResourceAttr:
         if isinstance(handle, str):
             handle = StringAttr(handle)
-        return DenseResourceAttr([handle, type])
+        return DenseResourceAttr(handle, type)
 
 
 DenseArrayT = TypeVar(
@@ -1467,9 +1472,6 @@ class DenseArrayBase(
 
     elt_type: ParameterDef[DenseArrayT]
     data: ParameterDef[BytesAttr]
-
-    def __init__(self, elt_type: DenseArrayT, data: BytesAttr):
-        super().__init__((elt_type, data))
 
     def verify(self):
         data_len = len(self.data.data)
@@ -2216,7 +2218,7 @@ class UnrankedMemRefType(
         referenced_type: _UnrankedMemRefTypeElemsInit,
         memory_space: Attribute = NoneAttr(),
     ) -> UnrankedMemRefType[_UnrankedMemRefTypeElemsInit]:
-        return UnrankedMemRefType([referenced_type, memory_space])
+        return UnrankedMemRefType(referenced_type, memory_space)
 
     def get_element_type(self) -> _UnrankedMemRefTypeElems:
         return self.element_type

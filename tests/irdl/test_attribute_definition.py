@@ -859,11 +859,11 @@ class OveriddenInitAttr(ParametrizedAttribute):
     param: ParameterDef[Attribute]
 
     def __init__(self, param: int | str):
-        match param:
-            case int():
-                super().__init__(IntData(param))
-            case str():
-                super().__init__(StringData(param))
+        object.__setattr__(
+            self,
+            "param",
+            IntData(param) if isinstance(param, int) else StringData(param),
+        )
 
 
 def test_generic_constructor():

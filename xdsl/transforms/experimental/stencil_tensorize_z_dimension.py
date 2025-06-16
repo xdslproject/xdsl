@@ -60,7 +60,7 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
-def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
+def get_required_result_type(op: Operation) -> TensorType | None:
     for result in op.results:
         for use in result.uses:
             if (
@@ -69,8 +69,8 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
             ):
                 for ret in p_op.results:
                     if is_tensorized(ret.type):
-                        if isa(ret.type, TempType[Attribute]) and isa(
-                            r_type := ret.type.get_element_type(), TensorType[Attribute]
+                        if isa(ret.type, TempType) and isa(
+                            r_type := ret.type.get_element_type(), TensorType
                         ):
                             return r_type
                 # abort when encountering an un-tensorized ReturnOp successor
@@ -92,7 +92,7 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
                     static_sizes[dimdiff:],
                 )
             for ret in use.operation.results:
-                if isa(r_type := ret.type, TensorType[Attribute]):
+                if isa(r_type := ret.type, TensorType):
                     return r_type
 
 

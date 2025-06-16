@@ -384,6 +384,7 @@ class InnerSymAttr(
         if not isinstance(syms, ArrayAttr):
             syms = ArrayAttr(syms)
         object.__setattr__(self, "props", syms)
+        self.__post_init__()
 
     def get_sym_if_exists(self, field_id: IntAttr | int) -> StringAttr | None:
         """Get the inner sym name for field_id, if it exists."""
@@ -564,7 +565,7 @@ class ParamDeclAttr(ParametrizedAttribute):
     @classmethod
     def parse_free_standing_parameters(
         cls, parser: AttrParser, only_accept_string_literal_name: bool = False
-    ) -> Sequence[Attribute]:
+    ) -> tuple[StringAttr, TypeAttribute]:
         """
         Parses the parameter declaration without the encompassing angle brackets.
         If only_accept_string_literal_name is True, the parser will not accept
@@ -716,7 +717,9 @@ class ParsedModuleHeader(NamedTuple):
         name = parser.parse_symbol_name()
         parameters = parser.parse_optional_comma_separated_list(
             parser.Delimiter.ANGLE,
-            lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
+            lambda: ParamDeclAttr(
+                *ParamDeclAttr.parse_free_standing_parameters(parser)
+            ),
         )
         args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parse_module_arg

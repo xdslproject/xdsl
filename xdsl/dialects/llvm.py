@@ -14,7 +14,6 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseI32ArrayConstr,
     DenseI64ArrayConstr,
-    IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -84,11 +83,11 @@ def _parse_llvm_type(parser: AttrParser):
     if parser.parse_optional_characters("void"):
         return LLVMVoidType()
     if parser.parse_optional_characters("ptr"):
-        return LLVMPointerType(LLVMPointerType.parse_parameters(parser))
+        return LLVMPointerType(*LLVMPointerType.parse_parameters(parser))
     if parser.parse_optional_characters("array"):
-        return LLVMArrayType(LLVMArrayType.parse_parameters(parser))
+        return LLVMArrayType(*LLVMArrayType.parse_parameters(parser))
     if parser.parse_optional_characters("struct"):
-        return LLVMStructType(LLVMStructType.parse_parameters(parser))
+        return LLVMStructType(*LLVMStructType.parse_parameters(parser))
 
 
 def parse_llvm_type(parser: AttrParser):
@@ -100,7 +99,7 @@ def parse_llvm_type(parser: AttrParser):
 def parse_optional_llvm_type(parser: AttrParser):
     if (l := _parse_llvm_type(parser)) is not None:
         return l
-    return parser.parse_optional_attribute()
+    return parser.parse_optional_type()
 
 
 @irdl_attr_definition
@@ -113,14 +112,14 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
 
     # An empty string refers to a struct without a name.
     struct_name: ParameterDef[StringAttr]
-    types: ParameterDef[ArrayAttr[Attribute]]
+    types: ParameterDef[ArrayAttr]
 
     # TODO: Add this parameter once xDSL supports the necessary capabilities.
     #  bitmask = ParameterDef(StringAttr)
 
     @staticmethod
     def from_type_list(types: Sequence[Attribute]) -> LLVMStructType:
-        return LLVMStructType([StringAttr(""), ArrayAttr(types)])
+        return LLVMStructType(StringAttr(""), ArrayAttr(types))
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
@@ -132,7 +131,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         printer.print(")>")
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(cls, parser: AttrParser) -> tuple[StringAttr, ArrayAttr]:
         parser.parse_characters("<", " in LLVM struct")
         struct_name = parser.parse_optional_str_literal()
         if struct_name is None:
@@ -144,7 +143,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
             parser.Delimiter.PAREN, lambda: parse_llvm_type(parser)
         )
         parser.parse_characters(">", " to close LLVM struct parameters")
-        return [StringAttr(struct_name), ArrayAttr(params)]
+        return (StringAttr(struct_name), ArrayAttr(params))
 
 
 @irdl_attr_definition
@@ -169,27 +168,29 @@ class LLVMPointerType(
         printer.print_string(">")
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(
+        cls, parser: AttrParser
+    ) -> tuple[Attribute | NoneAttr, IntAttr | NoneAttr]:
         if parser.parse_optional_characters("<") is None:
-            return [NoneAttr(), NoneAttr()]
+            return (NoneAttr(), NoneAttr())
         type = parse_optional_llvm_type(parser)
         if type is None:
             parser.raise_error("Expected first parameter of llvm.ptr to be a type!")
         if parser.parse_optional_characters(",") is None:
             parser.parse_characters(">", " for llvm.ptr parameters")
-            return [type, NoneAttr()]
+            return (type, NoneAttr())
         parser.parse_characters(",", " between llvm.ptr args")
         addr_space = parser.parse_integer()
         parser.parse_characters(">", " to end llvm.ptr parameters")
-        return [type, IntegerAttr(addr_space, IndexType())]
+        return (type, IntAttr(addr_space))
 
     @staticmethod
     def opaque():
-        return LLVMPointerType([NoneAttr(), NoneAttr()])
+        return LLVMPointerType(NoneAttr(), NoneAttr())
 
     @staticmethod
     def typed(type: Attribute):
-        return LLVMPointerType([type, NoneAttr()])
+        return LLVMPointerType(type, NoneAttr())
 
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
@@ -202,35 +203,40 @@ class LLVMPointerType(
 class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.array"
 
-    size: ParameterDef[IntAttr]
-    type: ParameterDef[Attribute]
+    size: ParameterDef[IntAttr | NoneAttr]
+    type: ParameterDef[TypeAttribute | NoneAttr]
 
     def print_parameters(self, printer: Printer) -> None:
+        if isinstance(self.size, NoneAttr):
+            return
         printer.print_string("<")
         printer.print_string(str(self.size.data))
-        printer.print_string(" x ")
-        printer.print_attribute(self.type)
+        if not isinstance(self.type, TypeAttribute):
+            printer.print_string(" x ")
+            printer.print_attribute(self.type)
         printer.print_string(">")
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(
+        cls, parser: AttrParser
+    ) -> tuple[IntAttr | NoneAttr, TypeAttribute | NoneAttr]:
         if parser.parse_optional_characters("<") is None:
-            return [NoneAttr(), NoneAttr()]
+            return (NoneAttr(), NoneAttr())
         size = IntAttr(parser.parse_integer())
         if parser.parse_optional_characters(">") is not None:
-            return [size, NoneAttr()]
+            return (size, NoneAttr())
         parser.parse_shape_delimiter()
         type = parse_optional_llvm_type(parser)
         if type is None:
             parser.raise_error("Expected second parameter of llvm.array to be a type!")
         parser.parse_characters(">", " to end llvm.array parameters")
-        return [size, type]
+        return (size, type)
 
     @staticmethod
-    def from_size_and_type(size: int | IntAttr, type: Attribute):
+    def from_size_and_type(size: int | IntAttr, type: TypeAttribute):
         if isinstance(size, int):
             size = IntAttr(size)
-        return LLVMArrayType([size, type])
+        return LLVMArrayType(size, type)
 
 
 @irdl_attr_definition
@@ -263,7 +269,10 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         if output is None:
             output = LLVMVoidType()
         variad_attr = UnitAttr() if is_variadic else NoneAttr()
-        super().__init__([inputs, output, variad_attr])
+        object.__setattr__(self, "inputs", inputs)
+        object.__setattr__(self, "output", output)
+        object.__setattr__(self, "variadic", variad_attr)
+        self.__post_init__()
 
     @property
     def is_variadic(self) -> bool:
@@ -331,7 +340,8 @@ class LinkageAttr(ParametrizedAttribute):
     def __init__(self, linkage: str | StringAttr) -> None:
         if isinstance(linkage, str):
             linkage = StringAttr(linkage)
-        super().__init__([linkage])
+        object.__setattr__(self, "linkage", linkage)
+        self.__post_init__()
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -1470,7 +1480,8 @@ class CallingConventionAttr(ParametrizedAttribute):
         return self.convention.data
 
     def __init__(self, conv: str):
-        super().__init__([StringAttr(conv)])
+        object.__setattr__(self, "convention", StringAttr(conv))
+        self.__post_init__()
 
     def _verify(self):
         if self.cconv_name not in LLVM_CALLING_CONVS:
