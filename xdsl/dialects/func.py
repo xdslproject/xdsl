@@ -5,7 +5,6 @@ from collections.abc import Sequence
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
-    FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
     SymbolRefAttr,
@@ -318,7 +317,7 @@ class FuncOp(IRDLOperation):
 class CallOp(IRDLOperation):
     name = "func.call"
     arguments = var_operand_def()
-    callee = prop_def(FlatSymbolRefAttrConstr)
+    callee = prop_def(SymbolRefAttr)
     res = var_result_def()
 
     traits = traits_def(
