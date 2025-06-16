@@ -1164,7 +1164,7 @@ class DictionaryAttr(GenericData[immutabledict[str, Attribute]], BuiltinAttribut
 
 
 @irdl_attr_definition
-class TupleType(ParametrizedAttribute, BuiltinAttribute):
+class TupleType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "tuple"
 
     types: ParameterDef[ArrayAttr[TypeAttribute]]
