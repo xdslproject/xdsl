@@ -622,7 +622,7 @@ class AttrParser(BaseParser):
 
     def _parse_tuple_attrs(self) -> TupleType:
         params = self.parse_optional_undelimited_comma_separated_list(
-            self.parse_optional_attribute, self.parse_attribute
+            self.parse_optional_type, self.parse_type
         )
         if params is None:
             params = []
