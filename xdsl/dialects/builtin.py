@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 import struct
-import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
@@ -1464,31 +1463,8 @@ class DenseArrayBase(
     elt_type: ParameterDef[DenseArrayT]
     data: ParameterDef[BytesAttr]
 
-    @overload
-    def __init__(self, elt_type: DenseArrayT, data: BytesAttr) -> None: ...
-
-    @overload
-    def __init__(
-        self, elt_type: Sequence[Attribute] = (), data: None = None
-    ) -> None: ...
-
-    def __init__(
-        self,
-        elt_type: DenseArrayT | Sequence[Attribute] = (),
-        data: BytesAttr | None = None,
-    ) -> None:
-        if data is None:
-            warnings.warn(
-                "DenseArrayBase(elt_type: Sequence[Attribute]) is deprecated, "
-                "use DenseArrayBase(elt_type: DenseArrayT, data: BytesAttr) instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            elt_type_seq: Sequence[Attribute] = elt_type  # pyright: ignore[reportAssignmentType]
-            ParametrizedAttribute.__init__(self, tuple(elt_type_seq))
-        else:
-            _elt_type: DenseArrayT = elt_type  # pyright: ignore[reportAssignmentType]
-            super().__init__((_elt_type, data))
+    def __init__(self, elt_type: DenseArrayT, data: BytesAttr):
+        super().__init__((elt_type, data))
 
     def verify(self):
         data_len = len(self.data.data)
