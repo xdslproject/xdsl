@@ -54,6 +54,7 @@ from xdsl.traits import (
     Pure,
     RecursiveMemoryEffect,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -108,9 +109,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
         parser.parse_characters("to")
-        to = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
+        to = parser.parse_comma_separated_list(Delimiter.SQUARE, parser.parse_integer)
         parser.parse_characters(">")
 
         return [builtin.DenseArrayBase.from_list(builtin.i64, to)]
@@ -299,7 +298,7 @@ class ApplyOp(IRDLOperation):
             value = parser.resolve_operand(value, type)
             return value
 
-        ops = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_args)
+        ops = parser.parse_comma_separated_list(Delimiter.PAREN, parse_args)
 
         if parser.parse_optional_punctuation("->"):
             parser.parse_punctuation("(")
@@ -310,9 +309,7 @@ class ApplyOp(IRDLOperation):
         else:
             parser.parse_keyword("outs")
             parser.parse_punctuation("(")
-            destinations = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parse_args
-            )
+            destinations = parser.parse_comma_separated_list(Delimiter.NONE, parse_args)
             result_types = []
         parser.parse_punctuation(")")
 

@@ -17,6 +17,7 @@ from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
 from xdsl.ir import Dialect, SSAValue
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -131,7 +132,7 @@ def test_print_dynamic_index_list():
         DYNAMIC_INDEX,
         [],
         [1, 2, 3],
-        delimiter=Parser.Delimiter.PAREN,
+        delimiter=Delimiter.PAREN,
     )
     assert stream.getvalue() == "(1, 2, 3)"
 
@@ -145,15 +146,13 @@ def test_print_dynamic_index_list():
 @pytest.mark.parametrize(
     "delimiter,expected",
     [
-        (Parser.Delimiter.SQUARE, "[1, 2, 3]"),
-        (Parser.Delimiter.PAREN, "(1, 2, 3)"),
-        (Parser.Delimiter.ANGLE, "<1, 2, 3>"),
-        (Parser.Delimiter.BRACES, "{1, 2, 3}"),
+        (Delimiter.SQUARE, "[1, 2, 3]"),
+        (Delimiter.PAREN, "(1, 2, 3)"),
+        (Delimiter.ANGLE, "<1, 2, 3>"),
+        (Delimiter.BRACES, "{1, 2, 3}"),
     ],
 )
-def test_print_dynamic_index_list_delimiters(
-    delimiter: Parser.Delimiter, expected: str
-):
+def test_print_dynamic_index_list_delimiters(delimiter: Delimiter, expected: str):
     stream = StringIO()
     printer = Printer(stream)
     print_dynamic_index_list(printer, DYNAMIC_INDEX, [], [1, 2, 3], delimiter=delimiter)
@@ -218,7 +217,7 @@ def test_parse_dynamic_index_list_with_custom_delimiter():
     parser.ssa_values["0"] = (test_values[0],)
     parser.ssa_values["1"] = (test_values[1],)
     values, indices = parse_dynamic_index_list_with_types(
-        parser, dynamic_index=dynamic_index, delimiter=Parser.Delimiter.PAREN
+        parser, dynamic_index=dynamic_index, delimiter=Delimiter.PAREN
     )
     assert len(values) == 2
     assert values[0] is test_values[0]

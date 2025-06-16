@@ -61,6 +61,7 @@ from xdsl.traits import (
     IsTerminator,
     NoTerminator,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -212,7 +213,7 @@ class StridePattern(ParametrizedAttribute):
             ub = ArrayAttr(
                 IntegerAttr(i, index)
                 for i in parser.parse_comma_separated_list(
-                    parser.Delimiter.SQUARE, parser.parse_integer
+                    Delimiter.SQUARE, parser.parse_integer
                 )
             )
             parser.parse_punctuation(",")
@@ -397,11 +398,11 @@ class StreamingRegionOp(IRDLOperation):
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
             unresolved_ins = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+                Delimiter.NONE, parser.parse_unresolved_operand
             )
             parser.parse_punctuation(":")
             ins_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
+                Delimiter.NONE, parser.parse_type
             )
             parser.parse_punctuation(")")
             ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
@@ -412,11 +413,11 @@ class StreamingRegionOp(IRDLOperation):
         if parser.parse_optional_characters("outs"):
             parser.parse_punctuation("(")
             unresolved_outs = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+                Delimiter.NONE, parser.parse_unresolved_operand
             )
             parser.parse_punctuation(":")
             outs_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
+                Delimiter.NONE, parser.parse_type
             )
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
@@ -683,7 +684,7 @@ class GenericOp(IRDLOperation):
 
         parser.parse_punctuation("(")
         optional_inits = parser.parse_comma_separated_list(
-            Parser.Delimiter.NONE, lambda: cls._parse_init(parser)
+            Delimiter.NONE, lambda: cls._parse_init(parser)
         )
         parser.parse_punctuation(")")
         enumerated_inits = tuple(
@@ -776,11 +777,11 @@ class GenericOp(IRDLOperation):
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
             unresolved_ins = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+                Delimiter.NONE, parser.parse_unresolved_operand
             )
             parser.parse_punctuation(":")
             ins_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
+                Delimiter.NONE, parser.parse_type
             )
             parser.parse_punctuation(")")
             ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
@@ -791,11 +792,11 @@ class GenericOp(IRDLOperation):
         if parser.parse_optional_characters("outs"):
             parser.parse_punctuation("(")
             unresolved_outs = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+                Delimiter.NONE, parser.parse_unresolved_operand
             )
             parser.parse_punctuation(":")
             outs_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
+                Delimiter.NONE, parser.parse_type
             )
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)

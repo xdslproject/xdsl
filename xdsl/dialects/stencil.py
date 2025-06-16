@@ -71,6 +71,7 @@ from xdsl.traits import (
     Pure,
     RecursiveMemoryEffect,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -100,7 +101,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
         e.g.: `[1, 2, 3]`
         """
         ints = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, lambda: parser.parse_integer(allow_boolean=False)
+            Delimiter.SQUARE, lambda: parser.parse_integer(allow_boolean=False)
         )
         return ArrayAttr(IntAttr(i) for i in ints)
 
@@ -545,7 +546,7 @@ class ApplyOp(IRDLOperation):
             return parser.resolve_operand(op, type)
 
         assign_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parse_assign_args
+            Delimiter.PAREN, parse_assign_args
         )
         args: tuple[Parser.Argument, ...]
         operands: tuple[SSAValue, ...]
@@ -561,7 +562,7 @@ class ApplyOp(IRDLOperation):
             parser.parse_keyword("outs")
             parser.parse_punctuation("(")
             destinations = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parse_operand
+                Delimiter.NONE, parse_operand
             )
             result_types = []
         parser.parse_punctuation(")")

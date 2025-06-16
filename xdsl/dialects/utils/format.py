@@ -19,6 +19,7 @@ from xdsl.ir import (
 from xdsl.irdl import IRDLOperation, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.delimiter import Delimiter
 
 
 class AbstractYieldOperation(Generic[AttributeInvT], IRDLOperation):
@@ -147,13 +148,13 @@ def parse_for_op_like(
     iter_arg_types: list[Attribute] = []
     if parser.parse_optional_characters("iter_args"):
         for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
+            Delimiter.PAREN, lambda: parse_assignment(parser)
         ):
             unresolved_iter_args.append(iter_arg)
             iter_arg_unresolved_operands.append(iter_arg_operand)
         parser.parse_characters("->")
         iter_arg_types = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parser.parse_attribute
+            Delimiter.PAREN, parser.parse_attribute
         )
 
     iter_arg_operands = parser.resolve_operands(
@@ -268,7 +269,7 @@ def parse_func_op_like(
 
     # Parse function arguments
     args = parser.parse_comma_separated_list(
-        parser.Delimiter.PAREN,
+        Delimiter.PAREN,
         parse_fun_input,
     )
 
@@ -302,7 +303,7 @@ def parse_func_op_like(
     res_attrs_raw: list[dict[str, Attribute]] | None = []
     if parser.parse_optional_punctuation("->"):
         return_attributes = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, parse_fun_output
+            Delimiter.PAREN, parse_fun_output
         )
         if return_attributes is None:
             # output attributes are supported only if return results are enclosed in brackets (...)

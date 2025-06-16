@@ -87,6 +87,7 @@ from xdsl.utils.comparisons import (
     unsigned_upper_bound,
     unsigned_value_range,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 from xdsl.utils.hints import isa
 
@@ -152,7 +153,7 @@ class ArrayAttr(
     def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
         with parser.in_angle_brackets():
             data = parser.parse_comma_separated_list(
-                parser.Delimiter.SQUARE, parser.parse_attribute
+                Delimiter.SQUARE, parser.parse_attribute
             )
             # the type system can't ensure that the elements are of type _ArrayAttrT
             result = cast(tuple[AttributeCovT, ...], tuple(data))
@@ -1786,12 +1787,12 @@ class UnrealizedConversionCastOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         if parser.parse_optional_characters("to") is None:
             args = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE,
+                Delimiter.NONE,
                 parser.parse_unresolved_operand,
             )
             parser.parse_punctuation(":")
             input_types = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE,
+                Delimiter.NONE,
                 parser.parse_type,
             )
             parser.parse_characters("to")
@@ -1799,7 +1800,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
         else:
             inputs = list[SSAValue]()
         output_types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE,
+            Delimiter.NONE,
             parser.parse_type,
         )
         attributes = parser.parse_optional_attr_dict()

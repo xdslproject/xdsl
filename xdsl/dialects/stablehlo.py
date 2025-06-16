@@ -55,6 +55,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 IntegerTensorType: TypeAlias = TensorType[IntegerType]
@@ -309,7 +310,7 @@ class DotAttr(ParametrizedAttribute):
         parser.parse_characters(name)
         parser.parse_punctuation("=")
         value = parser.parse_comma_separated_list(
-            AttrParser.Delimiter.SQUARE,
+            Delimiter.SQUARE,
             lambda: IntegerAttr(parser.parse_integer(), i64),
         )
         return ArrayAttr(value)

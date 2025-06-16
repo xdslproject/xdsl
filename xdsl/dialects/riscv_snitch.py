@@ -69,6 +69,7 @@ from xdsl.traits import (
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 # region Snitch Extensions
@@ -318,13 +319,13 @@ class FRepOperation(RISCVInstruction):
         iter_arg_types: list[Attribute] = []
         if parser.parse_optional_characters("iter_args"):
             for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
-                Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
+                Delimiter.PAREN, lambda: parse_assignment(parser)
             ):
                 unresolved_iter_args.append(iter_arg)
                 iter_arg_unresolved_operands.append(iter_arg_operand)
             parser.parse_characters("->")
             iter_arg_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.PAREN, parser.parse_attribute
+                Delimiter.PAREN, parser.parse_attribute
             )
 
         iter_arg_operands = parser.resolve_operands(

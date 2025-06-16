@@ -56,6 +56,7 @@ from xdsl.traits import (
     IsTerminator,
     SingleBlockImplicitTerminator,
 )
+from xdsl.utils.delimiter import Delimiter
 
 
 @irdl_attr_definition
@@ -314,13 +315,13 @@ class ExecuteOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> ExecuteOp:
         async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
+            Delimiter.SQUARE, parser.parse_operand
         )
 
         result_types: list[Attribute] | None = []
         if parser.parse_optional_characters("->"):
             result_types = parser.parse_optional_comma_separated_list(
-                parser.Delimiter.PAREN, parser.parse_type
+                Delimiter.PAREN, parser.parse_type
             )
 
         body = parser.parse_region()
@@ -452,7 +453,7 @@ class HerdOp(IRDLOperation):
     def parse(cls, parser: Parser) -> HerdOp:
         sym_name = parser.parse_optional_symbol_name()
         async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
+            Delimiter.SQUARE, parser.parse_operand
         )
         parser.parse_keyword("tile")
         arg_list = parser.parse_op_args_list()
@@ -550,7 +551,7 @@ class LaunchOp(IRDLOperation):
         sym_name = parser.parse_optional_symbol_name()
 
         async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
+            Delimiter.SQUARE, parser.parse_operand
         )
 
         block_args_lst: list[Parser.Argument] = []
@@ -844,7 +845,7 @@ class WaitAllOp(IRDLOperation):
     def parse(cls, parser: Parser) -> WaitAllOp:
         parser.parse_keyword("async")
         async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
+            Delimiter.SQUARE, parser.parse_operand
         )
 
         return WaitAllOp(async_dependencies)

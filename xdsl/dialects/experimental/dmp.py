@@ -41,6 +41,7 @@ from xdsl.traits import (
     MemoryEffect,
     MemoryEffectKind,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -197,21 +198,17 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         parser.parse_characters("<")
         parser.parse_characters("at")
         offset = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
+            Delimiter.SQUARE, parser.parse_integer
         )
         parser.parse_characters("size")
-        size = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
+        size = parser.parse_comma_separated_list(Delimiter.SQUARE, parser.parse_integer)
         parser.parse_characters("source")
         parser.parse_characters("offset")
         source_offset = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
+            Delimiter.SQUARE, parser.parse_integer
         )
         parser.parse_characters("to")
-        to = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
+        to = parser.parse_comma_separated_list(Delimiter.SQUARE, parser.parse_integer)
         parser.parse_characters(">")
 
         return [

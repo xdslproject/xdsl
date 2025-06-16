@@ -35,6 +35,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import NoMemoryEffect
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -165,7 +166,7 @@ class EmptyOp(IRDLOperation):
             dynamic_sizes = ()
         else:
             unresolved_dynamic_sizes = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+                Delimiter.NONE, parser.parse_unresolved_operand
             )
             unresolved_types = (IndexType(),) * len(unresolved_dynamic_sizes)
             parser.parse_punctuation(")")
@@ -242,7 +243,7 @@ class ReshapeOp(IRDLOperation):
         parser.parse_punctuation(")")
         parser.parse_punctuation(":")
         parser.parse_punctuation("(")
-        parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
+        parser.parse_comma_separated_list(Delimiter.NONE, parser.parse_type)
         parser.parse_punctuation(")")
         parser.parse_optional_punctuation("->")
         result_type = parser.parse_attribute()
@@ -464,7 +465,7 @@ class ExtractOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         tensor = parser.parse_operand()
         indices = parser.parse_comma_separated_list(
-            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
+            delimiter=Delimiter.SQUARE, parse=parser.parse_operand
         )
         parser.parse_punctuation(":")
         source_tensor_type = parser.parse_type()
@@ -509,7 +510,7 @@ class InsertOp(IRDLOperation):
         parser.parse_characters("into")
         dest = parser.parse_operand()
         indices = parser.parse_comma_separated_list(
-            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
+            delimiter=Delimiter.SQUARE, parse=parser.parse_operand
         )
         parser.parse_punctuation(":")
         parser.parse_type()

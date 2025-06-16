@@ -6,11 +6,11 @@ that is inherited from the different parsers used in xDSL.
 from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
-from enum import Enum
 from typing import Generic, NoReturn, overload
 
 from typing_extensions import TypeVar
 
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, Token, TokenKindT
 
@@ -181,18 +181,6 @@ class GenericParser(Generic[TokenKindT]):
             self.raise_error(error_message)
         return res
 
-    class Delimiter(Enum):
-        """
-        Supported delimiters when parsing lists.
-        """
-
-        PAREN = ("(", ")")
-        ANGLE = ("<", ">")
-        SQUARE = ("[", "]")
-        BRACES = ("{", "}")
-        METADATA_TOKEN = ("{-#", "#-}")
-        NONE = None
-
     def parse_comma_separated_list(
         self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
     ) -> list[_AnyInvT]:
@@ -237,7 +225,7 @@ class GenericParser(Generic[TokenKindT]):
         `parse_optional_undelimited_comma_separated_list` instead.
         """
 
-        if delimiter == self.Delimiter.NONE:
+        if delimiter == Delimiter.NONE:
             raise ValueError(
                 "Cannot use `Delimiter.NONE` with "
                 "`parse_optional_comma_separated_list`. Use "

@@ -15,6 +15,7 @@ from collections.abc import Iterable, Sequence
 from xdsl.ir import Attribute, SSAValue
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -91,7 +92,7 @@ def print_dynamic_index_list(
     integers: Iterable[int],
     value_types: Sequence[Attribute] = (),
     *,
-    delimiter: Parser.Delimiter = Parser.Delimiter.SQUARE,
+    delimiter: Delimiter = Delimiter.SQUARE,
 ):
     """
     Prints a list with either
@@ -152,7 +153,7 @@ def parse_dynamic_index_list_with_types(
     parser: Parser,
     dynamic_index: int,
     *,
-    delimiter: Parser.Delimiter = Parser.Delimiter.SQUARE,
+    delimiter: Delimiter = Delimiter.SQUARE,
 ) -> tuple[Sequence[SSAValue], Sequence[int]]:
     """
     Parses an in index list, composed of a mix of indices and ssa values with types:
@@ -181,7 +182,7 @@ def parse_dynamic_index_list_without_types(
     parser: Parser,
     dynamic_index: int,
     *,
-    delimiter: Parser.Delimiter = Parser.Delimiter.SQUARE,
+    delimiter: Delimiter = Delimiter.SQUARE,
 ) -> tuple[Sequence[UnresolvedOperand], Sequence[int]]:
     """
     Parses an in index list, composed of a mix of indices and ssa values without types:

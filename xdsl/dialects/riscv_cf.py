@@ -27,6 +27,7 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator
 from xdsl.utils.comparisons import to_signed, to_unsigned
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -172,12 +173,12 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
         parser.parse_punctuation(",")
         then_block = parser.parse_successor()
         then_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+            Delimiter.PAREN, lambda: _parse_type_pair(parser)
         )
         parser.parse_punctuation(",")
         else_block = parser.parse_successor()
         else_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+            Delimiter.PAREN, lambda: _parse_type_pair(parser)
         )
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(rs1, rs2, then_args, else_args, then_block, else_block)
@@ -372,7 +373,7 @@ class BranchOp(riscv.RISCVAsmOperation):
     def parse(cls, parser: Parser) -> Self:
         successor = parser.parse_successor()
         block_arguments = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+            Delimiter.PAREN, lambda: _parse_type_pair(parser)
         )
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(block_arguments, successor)
@@ -451,7 +452,7 @@ class JOp(RISCVInstruction):
     def parse(cls, parser: Parser) -> Self:
         successor = parser.parse_successor()
         block_arguments = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+            Delimiter.PAREN, lambda: _parse_type_pair(parser)
         )
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(block_arguments, successor)

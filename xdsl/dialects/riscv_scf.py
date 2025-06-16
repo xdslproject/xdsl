@@ -42,6 +42,7 @@ from xdsl.traits import (
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -323,7 +324,7 @@ class WhileOp(IRDLOperation):
             return arg, operand
 
         tuples = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN,
+            Delimiter.PAREN,
             parse_assignment,
         )
 
@@ -405,9 +406,7 @@ class ConditionOp(IRDLOperation):
         )
         if unresolved_arguments is not None:
             parser.parse_punctuation(":")
-            types = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parser.parse_type
-            )
+            types = parser.parse_comma_separated_list(Delimiter.NONE, parser.parse_type)
             arguments = parser.resolve_operands(unresolved_arguments, types, pos)
         else:
             arguments: Sequence[SSAValue] = ()

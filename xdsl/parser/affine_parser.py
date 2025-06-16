@@ -7,6 +7,7 @@ from xdsl.ir.affine import (
     AffineMap,
     AffineSet,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import MLIRToken, MLIRTokenKind
 
@@ -127,7 +128,7 @@ class AffineParser(BaseParser):
         def parse_expr() -> AffineExpr:
             return self._parse_affine_expr(dims, syms)
 
-        return self.parse_comma_separated_list(self.Delimiter.PAREN, parse_expr)
+        return self.parse_comma_separated_list(Delimiter.PAREN, parse_expr)
 
     # TODO: Extend to semi-affine maps; see https://github.com/xdslproject/xdsl/issues/1087
     def _parse_affine_constraint(
@@ -167,7 +168,7 @@ class AffineParser(BaseParser):
         def parse_constraint() -> AffineConstraintExpr:
             return self._parse_affine_constraint(dims, syms)
 
-        return self.parse_comma_separated_list(self.Delimiter.PAREN, parse_constraint)
+        return self.parse_comma_separated_list(Delimiter.PAREN, parse_constraint)
 
     def _parse_affine_space(self) -> tuple[list[str], list[str]]:
         """
@@ -182,12 +183,12 @@ class AffineParser(BaseParser):
             ).text
 
         # Parse dimensions
-        dims = self.parse_comma_separated_list(self.Delimiter.PAREN, parse_id)
+        dims = self.parse_comma_separated_list(Delimiter.PAREN, parse_id)
         # Parse optional symbols
         if self._current_token.kind != MLIRTokenKind.L_SQUARE:
             syms = []
         else:
-            syms = self.parse_comma_separated_list(self.Delimiter.SQUARE, parse_id)
+            syms = self.parse_comma_separated_list(Delimiter.SQUARE, parse_id)
         # TODO: Do not allow duplicate ids.
         return dims, syms
 

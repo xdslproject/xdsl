@@ -51,6 +51,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import Pure
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position
@@ -407,7 +408,7 @@ class ExtractOp(IRDLOperation):
 
         # Parse the positions
         positions = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parse_int_or_value
+            Delimiter.SQUARE, parse_int_or_value
         )
 
         # parse the attribute dictionary
@@ -575,7 +576,7 @@ class InsertOp(IRDLOperation):
 
         # Parse the positions
         positions = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parse_int_or_value
+            Delimiter.SQUARE, parse_int_or_value
         )
 
         # parse the attribute dictionary
@@ -879,7 +880,7 @@ class TransferReadOp(VectorTransferOperation):
     def parse(cls, parser: Parser) -> TransferReadOp:
         source = parser.parse_unresolved_operand()
         indices = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parser.parse_operand
+            Delimiter.SQUARE, parser.parse_operand
         )
         parser.parse_punctuation(",")
         padding = parser.parse_operand()
@@ -986,7 +987,7 @@ class TransferWriteOp(VectorTransferOperation):
         parser.parse_punctuation(",")
         source = parser.parse_unresolved_operand()
         indices = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parser.parse_operand
+            Delimiter.SQUARE, parser.parse_operand
         )
         if parser.parse_optional_punctuation(","):
             mask_start_pos = parser.pos

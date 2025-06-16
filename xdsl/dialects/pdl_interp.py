@@ -63,6 +63,7 @@ from xdsl.traits import (
     IsTerminator,
     SymbolOpInterface,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -611,12 +612,12 @@ class CreateOperationOp(IRDLOperation):
         values: list[SSAValue] = []
         if parser.parse_optional_punctuation("("):
             values = parser.parse_comma_separated_list(
-                delimiter=Parser.Delimiter.NONE,
+                delimiter=Delimiter.NONE,
                 parse=lambda: parser.parse_operand(),
             )
             parser.parse_punctuation(":")
             parser.parse_comma_separated_list(
-                delimiter=Parser.Delimiter.NONE,
+                delimiter=Delimiter.NONE,
                 parse=lambda: parser.parse_type(),
             )
             parser.parse_punctuation(")")
@@ -631,7 +632,7 @@ class CreateOperationOp(IRDLOperation):
         input_attribute_names = None
         input_attributes = None
         attributes = parser.parse_optional_comma_separated_list(
-            delimiter=Parser.Delimiter.BRACES,
+            delimiter=Delimiter.BRACES,
             parse=lambda: CreateOperationOp._parse_attr(parser),
         )
         if attributes is not None:

@@ -67,6 +67,7 @@ from xdsl.traits import (
     SameOperandsAndResultType,
     SymbolOpInterface,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -141,7 +142,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
             parser.parse_characters(",", " after type")
 
         params = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parse_llvm_type(parser)
+            Delimiter.PAREN, lambda: parse_llvm_type(parser)
         )
         parser.parse_characters(">", " to close LLVM struct parameters")
         return [StringAttr(struct_name), ArrayAttr(params)]
@@ -303,7 +304,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
             return parse_llvm_type(parser)
 
         inputs = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, _parse_attr_or_variadic
+            Delimiter.PAREN, _parse_attr_or_variadic
         )
         is_varargs: NoneAttr | UnitAttr = NoneAttr()
         if inputs and inputs[-1] is Ellipsis:

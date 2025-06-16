@@ -34,6 +34,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 ICMP_COMPARISON_OPERATIONS = [
@@ -132,7 +133,7 @@ class VariadicCombOperation(IRDLOperation, ABC):
     @classmethod
     def parse(cls, parser: Parser):
         inputs = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_unresolved_operand
+            Delimiter.NONE, parser.parse_unresolved_operand
         )
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
@@ -506,11 +507,11 @@ class ConcatOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser):
         inputs = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_unresolved_operand
+            Delimiter.NONE, parser.parse_unresolved_operand
         )
         parser.parse_punctuation(":")
         input_types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_type
+            Delimiter.NONE, parser.parse_type
         )
         sum_of_width = _get_sum_of_int_width(input_types)
         if sum_of_width is None:

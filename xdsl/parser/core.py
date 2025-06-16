@@ -18,6 +18,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import IRDLOperation
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Span
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
@@ -210,7 +211,7 @@ class Parser(AttrParser):
             block_arg = block.insert_arg(arg_type, len(block.args))
             self._register_ssa_definition(arg_name.text[1:], (block_arg,), arg_name)
 
-        self.parse_comma_separated_list(self.Delimiter.PAREN, parse_argument)
+        self.parse_comma_separated_list(Delimiter.PAREN, parse_argument)
         return block
 
     def _parse_block_body(self, block: Block):
@@ -611,7 +612,7 @@ class Parser(AttrParser):
         """
         if self._current_token.kind == MLIRTokenKind.L_PAREN:
             return self.parse_comma_separated_list(
-                self.Delimiter.PAREN, self.parse_region, " in operation region list"
+                Delimiter.PAREN, self.parse_region, " in operation region list"
             )
         return []
 
@@ -779,7 +780,7 @@ class Parser(AttrParser):
         """
         if self._current_token.kind == MLIRTokenKind.PERCENT_IDENT:
             res = self.parse_comma_separated_list(
-                self.Delimiter.NONE, self._parse_op_result, " in operation result list"
+                Delimiter.NONE, self._parse_op_result, " in operation result list"
             )
             self.parse_punctuation("=", " after operation result list")
             return res
@@ -798,7 +799,7 @@ class Parser(AttrParser):
             return dict()
 
         entries = self.parse_comma_separated_list(
-            self.Delimiter.BRACES, self._parse_attribute_entry
+            Delimiter.BRACES, self._parse_attribute_entry
         )
         self.parse_punctuation(">")
 
@@ -934,7 +935,7 @@ class Parser(AttrParser):
             successor      ::= caret-id
         """
         return self.parse_comma_separated_list(
-            self.Delimiter.SQUARE,
+            Delimiter.SQUARE,
             lambda: self.expect(self.parse_successor, "block-id expected"),
         )
 
@@ -945,7 +946,7 @@ class Parser(AttrParser):
            value-use-list ::= `%` suffix-id (`,` `%` suffix-id)*
         """
         return self.parse_comma_separated_list(
-            self.Delimiter.PAREN,
+            Delimiter.PAREN,
             self.parse_unresolved_operand,
             " in operation argument list",
         )
@@ -979,12 +980,12 @@ class Parser(AttrParser):
             )
 
         self.parse_comma_separated_list(
-            self.Delimiter.BRACES, lambda: self._parse_resource(dialect.name, interface)
+            Delimiter.BRACES, lambda: self._parse_resource(dialect.name, interface)
         )
 
     def _parse_dialect_resources(self) -> None:
         self.parse_comma_separated_list(
-            self.Delimiter.BRACES, self._parse_single_dialect_resources
+            Delimiter.BRACES, self._parse_single_dialect_resources
         )
 
     def _parse_external_resources(self) -> None:
@@ -1013,5 +1014,5 @@ class Parser(AttrParser):
         Returns None since results are stored in the context object.
         """
         self.parse_comma_separated_list(
-            self.Delimiter.METADATA_TOKEN, self._parse_metadata_element
+            Delimiter.METADATA_TOKEN, self._parse_metadata_element
         )

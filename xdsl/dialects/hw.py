@@ -57,6 +57,7 @@ from xdsl.traits import (
     SymbolOpInterface,
     SymbolTable,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -415,7 +416,7 @@ class InnerSymAttr(
             return [ArrayAttr([InnerSymPropertiesAttr(sym_name, 0, "public")])]
 
         data = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE,
+            Delimiter.SQUARE,
             lambda: InnerSymPropertiesAttr.parse_parameters(parser),
         )
         return [ArrayAttr(InnerSymPropertiesAttr(*tup) for tup in data)]
@@ -532,9 +533,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
             return ModulePort([StringAttr(name), typ, DirectionAttr(direction)])
 
         return [
-            ArrayAttr(
-                parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_port)
-            )
+            ArrayAttr(parser.parse_comma_separated_list(Delimiter.ANGLE, parse_port))
         ]
 
     def print_parameters(self, printer: Printer):
@@ -714,12 +713,10 @@ class ParsedModuleHeader(NamedTuple):
         sym_visibility = parser.parse_optional_visibility_keyword()
         name = parser.parse_symbol_name()
         parameters = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.ANGLE,
+            Delimiter.ANGLE,
             lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
         )
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parse_module_arg
-        )
+        args = parser.parse_comma_separated_list(Delimiter.PAREN, parse_module_arg)
 
         return cls(
             visibility=sym_visibility,
@@ -1156,11 +1153,11 @@ class InstanceOp(IRDLOperation):
             return (port_name, port_type)
 
         input_ports = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parse_input_port, "input port list expected"
+            Delimiter.PAREN, parse_input_port, "input port list expected"
         )
         parser.parse_punctuation("->")
         output_ports = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parse_output_port, "output port list expected"
+            Delimiter.PAREN, parse_output_port, "output port list expected"
         )
         attributes_attr = parser.parse_optional_attr_dict_with_reserved_attr_names(
             (
@@ -1277,7 +1274,7 @@ class OutputOp(IRDLOperation):
 
         parser.parse_punctuation(":")
         types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_attribute
+            Delimiter.NONE, parser.parse_attribute
         )
         operands = parser.resolve_operands(operands, types, parser.pos)
         return cls(operands)

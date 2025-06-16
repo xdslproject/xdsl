@@ -36,6 +36,7 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator, Pure
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -331,12 +332,10 @@ class SwitchOp(IRDLOperation):
         block = parser.parse_successor()
         if parser.parse_optional_punctuation("("):
             unresolved = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+                Delimiter.NONE, parser.parse_unresolved_operand
             )
             parser.parse_punctuation(":")
-            types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            types = parser.parse_comma_separated_list(Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             operands = parser.resolve_operands(unresolved, types, parser.pos)
             return (block, operands)
@@ -364,7 +363,7 @@ class SwitchOp(IRDLOperation):
         case_operands: tuple[tuple[SSAValue, ...], ...] = ()
         if parser.parse_optional_punctuation(","):
             cases = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, lambda: cls._parse_case(parser)
+                Delimiter.NONE, lambda: cls._parse_case(parser)
             )
             assert isinstance(flag_type, IntegerType | IndexType)
             data = tuple(x for (x, _, _) in cases)

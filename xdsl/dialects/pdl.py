@@ -45,6 +45,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, NoTerminator, OptionalSymbolOpInterface
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -56,13 +57,9 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
     At least one operand is expected.
     """
     pos = parser.pos
-    operands = parser.parse_comma_separated_list(
-        Parser.Delimiter.NONE, parser.parse_operand
-    )
+    operands = parser.parse_comma_separated_list(Delimiter.NONE, parser.parse_operand)
     parser.parse_punctuation(":")
-    types = parser.parse_comma_separated_list(
-        Parser.Delimiter.NONE, parser.parse_attribute
-    )
+    types = parser.parse_comma_separated_list(Delimiter.NONE, parser.parse_attribute)
     end_pos = parser.pos
     if len(operands) != len(types):
         parser.raise_error(
@@ -243,7 +240,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
         result_types = []
         if parser.parse_optional_punctuation(":") is not None:
             result_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_attribute
+                Delimiter.NONE, parser.parse_attribute
             )
         return ApplyNativeRewriteOp(name, operands, result_types)
 
@@ -430,7 +427,7 @@ class OperationOp(IRDLOperation):
             return (name, type)
 
         attributes = parser.parse_optional_comma_separated_list(
-            Parser.Delimiter.BRACES, parse_attribute_entry
+            Delimiter.BRACES, parse_attribute_entry
         )
         if attributes is None:
             attributes = []

@@ -66,6 +66,7 @@ from xdsl.traits import (
     SymbolOpInterface,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -236,10 +237,10 @@ class AllocOp(IRDLOperation):
         #  %alloc = memref.alloc(%a)[%s] {alignment = 64 : i64} : memref<3x2xf32>
 
         unresolved_dynamic_sizes = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_unresolved_operand
+            Delimiter.PAREN, parser.parse_unresolved_operand
         )
         unresolved_symbol_operands = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
+            Delimiter.SQUARE, parser.parse_unresolved_operand
         )
         if unresolved_symbol_operands is None:
             unresolved_symbol_operands = []

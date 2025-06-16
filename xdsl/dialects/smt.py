@@ -42,6 +42,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import ConstantLike, HasParent, IsTerminator, Pure
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -120,7 +121,7 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
             domain_types = parser.parse_comma_separated_list(
-                parser.Delimiter.PAREN, parser.parse_type
+                Delimiter.PAREN, parser.parse_type
             )
             range_type = parser.parse_type()
 
@@ -394,7 +395,7 @@ def _parse_same_operand_type_variadic_to_bool_op(
     """
     operand_pos = parser.pos
     operands = parser.parse_comma_separated_list(
-        parser.Delimiter.NONE, parser.parse_unresolved_operand, "operand list"
+        Delimiter.NONE, parser.parse_unresolved_operand, "operand list"
     )
     attr_dict = parser.parse_optional_attr_dict()
     parser.parse_punctuation(":")

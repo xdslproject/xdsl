@@ -46,6 +46,7 @@ from xdsl.traits import (
     SymbolOpInterface,
     SymbolTable,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -86,7 +87,7 @@ class VariadicityArrayAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> tuple[ArrayAttr[VariadicityAttr]]:
         data = parser.parse_comma_separated_list(
-            AttrParser.Delimiter.SQUARE, lambda: VariadicityAttr.parse_parameter(parser)
+            Delimiter.SQUARE, lambda: VariadicityAttr.parse_parameter(parser)
         )
         return (ArrayAttr(VariadicityAttr(x) for x in data),)
 
@@ -265,7 +266,7 @@ class ParametersOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> ParametersOp:
         args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
+            Delimiter.PAREN, lambda: _parse_argument(parser)
         )
         return ParametersOp(
             tuple(x[1] for x in args),
@@ -381,7 +382,7 @@ class OperandsOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> OperandsOp:
         args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument_with_var(parser)
+            Delimiter.PAREN, lambda: _parse_argument_with_var(parser)
         )
         return OperandsOp(
             tuple(x[2] for x in args),
@@ -428,7 +429,7 @@ class ResultsOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> ResultsOp:
         args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument_with_var(parser)
+            Delimiter.PAREN, lambda: _parse_argument_with_var(parser)
         )
         return ResultsOp(
             tuple(x[2] for x in args),
@@ -489,7 +490,7 @@ class AttributesOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> AttributesOp:
         tuples = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.BRACES, lambda: _parse_attribute(parser)
+            Delimiter.BRACES, lambda: _parse_attribute(parser)
         )
         if tuples is None:
             return AttributesOp.get(dict())
@@ -533,7 +534,7 @@ class RegionsOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> RegionsOp:
         args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
+            Delimiter.PAREN, lambda: _parse_argument(parser)
         )
         return RegionsOp(
             tuple(x[1] for x in args),
@@ -654,9 +655,7 @@ class ParametricOp(IRDLOperation):
         base_type = parser.parse_attribute()
         if not isinstance(base_type, SymbolRefAttr):
             parser.raise_error("expected symbol reference")
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.ANGLE, parser.parse_operand
-        )
+        args = parser.parse_comma_separated_list(Delimiter.ANGLE, parser.parse_operand)
         return ParametricOp(base_type, args)
 
     def print(self, printer: Printer) -> None:
@@ -739,9 +738,7 @@ class AnyOfOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> AnyOfOp:
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_operand
-        )
+        args = parser.parse_comma_separated_list(Delimiter.PAREN, parser.parse_operand)
         return AnyOfOp(args)
 
     def print(self, printer: Printer) -> None:
@@ -764,9 +761,7 @@ class AllOfOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> AllOfOp:
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_operand
-        )
+        args = parser.parse_comma_separated_list(Delimiter.PAREN, parser.parse_operand)
         return AllOfOp(args)
 
     def print(self, printer: Printer) -> None:

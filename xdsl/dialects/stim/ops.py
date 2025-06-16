@@ -16,6 +16,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.utils.delimiter import Delimiter
 
 
 @irdl_attr_definition
@@ -91,7 +92,7 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
     ) -> tuple[ArrayAttr[FloatData | IntAttr], QubitAttr]:
         parser.parse_punctuation("<")
         coords = parser.parse_comma_separated_list(
-            delimiter=parser.Delimiter.PAREN,
+            delimiter=Delimiter.PAREN,
             parse=lambda: IntAttr(x)
             if type(x := parser.parse_number(allow_boolean=False)) is int
             else FloatData(x),

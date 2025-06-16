@@ -58,6 +58,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -327,11 +328,11 @@ class GenericOp(IRDLOperation):
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
             unresolved_ins = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+                Delimiter.NONE, parser.parse_unresolved_operand
             )
             parser.parse_punctuation(":")
             ins_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
+                Delimiter.NONE, parser.parse_type
             )
             parser.parse_punctuation(")")
             ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
@@ -342,11 +343,11 @@ class GenericOp(IRDLOperation):
         if parser.parse_optional_characters("outs"):
             parser.parse_punctuation("(")
             unresolved_outs = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+                Delimiter.NONE, parser.parse_unresolved_operand
             )
             parser.parse_punctuation(":")
             outs_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
+                Delimiter.NONE, parser.parse_type
             )
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
@@ -365,7 +366,7 @@ class GenericOp(IRDLOperation):
 
         if parser.parse_optional_punctuation("->"):
             res_types = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parser.parse_attribute
+                Delimiter.NONE, parser.parse_attribute
             )
         else:
             res_types = ()
@@ -459,11 +460,11 @@ class NamedOpBase(IRDLOperation, ABC):
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
             unresolved_ins = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+                Delimiter.NONE, parser.parse_unresolved_operand
             )
             parser.parse_punctuation(":")
             ins_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
+                Delimiter.NONE, parser.parse_type
             )
             parser.parse_punctuation(")")
             ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
@@ -474,11 +475,11 @@ class NamedOpBase(IRDLOperation, ABC):
         if parser.parse_optional_characters("outs"):
             parser.parse_punctuation("(")
             unresolved_outs = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+                Delimiter.NONE, parser.parse_unresolved_operand
             )
             parser.parse_punctuation(":")
             outs_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
+                Delimiter.NONE, parser.parse_type
             )
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
@@ -496,7 +497,7 @@ class NamedOpBase(IRDLOperation, ABC):
 
         if parser.parse_optional_punctuation("->"):
             res_types = parser.parse_optional_comma_separated_list(
-                parser.Delimiter.PAREN, parser.parse_attribute
+                Delimiter.PAREN, parser.parse_attribute
             )
             if res_types is None:
                 res_types = [[parser.parse_attribute()]]
@@ -962,7 +963,7 @@ class TransposeOp(IRDLOperation):
         parser.parse_keyword("permutation")
         parser.parse_punctuation("=")
         permutation = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
+            Delimiter.SQUARE, parser.parse_integer
         )
         transpose = cls(
             input,
@@ -1333,7 +1334,7 @@ class BroadcastOp(IRDLOperation):
         parser.parse_keyword("dimensions")
         parser.parse_punctuation("=")
         dimensions = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
+            Delimiter.SQUARE, parser.parse_integer
         )
         broadcast = cls(
             input,

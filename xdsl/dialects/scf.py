@@ -54,6 +54,7 @@ from xdsl.traits import (
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -122,7 +123,7 @@ class WhileOp(IRDLOperation):
             return arg, operand
 
         tuples = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN,
+            Delimiter.PAREN,
             parse_assignment,
         )
 
@@ -231,7 +232,7 @@ class IfOp(IRDLOperation):
         return_types = []
         if parser.parse_optional_punctuation("->"):
             return_types = parser.parse_comma_separated_list(
-                parser.Delimiter.PAREN, parser.parse_type
+                Delimiter.PAREN, parser.parse_type
             )
         else:
             return_types = []

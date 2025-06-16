@@ -41,6 +41,7 @@ from xdsl.traits import (
     RecursivelySpeculatable,
     RecursiveMemoryEffect,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -79,12 +80,12 @@ class ApplyOp(IRDLOperation):
         if not isinstance(m, AffineMapAttr):
             parser.raise_error("Expected affine map attr", at_position=pos)
         dims = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parser.parse_operand()
+            Delimiter.PAREN, lambda: parser.parse_operand()
         )
         if dims is None:
             dims = []
         syms = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, lambda: parser.parse_operand()
+            Delimiter.SQUARE, lambda: parser.parse_operand()
         )
         if syms is None:
             syms = []

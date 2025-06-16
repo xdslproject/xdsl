@@ -65,6 +65,7 @@ from xdsl.utils.bitwise_casts import (
     convert_u32_to_f32,
     convert_u64_to_f64,
 )
+from xdsl.utils.delimiter import Delimiter
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.lexer import Position, Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
@@ -211,7 +212,7 @@ class AttrParser(BaseParser):
 
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
         attrs = self.parse_optional_comma_separated_list(
-            self.Delimiter.BRACES, self._parse_attribute_entry
+            Delimiter.BRACES, self._parse_attribute_entry
         )
         if attrs is None:
             return dict()
@@ -681,7 +682,7 @@ class AttrParser(BaseParser):
         # Parse stride list
         self._parse_token(MLIRTokenKind.LESS, "Expected `<` after `strided`")
         strides = self.parse_comma_separated_list(
-            self.Delimiter.SQUARE,
+            Delimiter.SQUARE,
             lambda: self._parse_int_or_question(" in stride list"),
             " in stride list",
         )
@@ -867,7 +868,7 @@ class AttrParser(BaseParser):
 
     def _parse_builtin_opaque_attr(self):
         str_lit_list = self.parse_comma_separated_list(
-            self.Delimiter.ANGLE, self.parse_str_literal
+            Delimiter.ANGLE, self.parse_str_literal
         )
 
         if len(str_lit_list) != 2:
@@ -961,13 +962,13 @@ class AttrParser(BaseParser):
 
         if isinstance(element_type, IntegerType):
             values = self.parse_comma_separated_list(
-                self.Delimiter.NONE,
+                Delimiter.NONE,
                 lambda: self._parse_typed_integer(element_type, allow_boolean=True),
             )
             res = DenseArrayBase.create_dense_int(element_type, values)
         else:
             values = self.parse_comma_separated_list(
-                self.Delimiter.NONE,
+                Delimiter.NONE,
                 lambda: self.parse_float(),
             )
             res = DenseArrayBase.create_dense_float(element_type, values)
@@ -1174,7 +1175,7 @@ class AttrParser(BaseParser):
         the data, and [2, 3] for the shape.
         """
         res = self.parse_optional_comma_separated_list(
-            self.Delimiter.SQUARE, self._parse_tensor_literal
+            Delimiter.SQUARE, self._parse_tensor_literal
         )
         if res is not None:
             if len(res) == 0:
@@ -1358,7 +1359,7 @@ class AttrParser(BaseParser):
             array-attr ::= `[` (attribute (`,` attribute)*)? `]`
         """
         attrs = self.parse_optional_comma_separated_list(
-            self.Delimiter.SQUARE, self.parse_attribute
+            Delimiter.SQUARE, self.parse_attribute
         )
         if attrs is None:
             return None
@@ -1385,13 +1386,13 @@ class AttrParser(BaseParser):
             return None
 
         # Parse the arguments
-        args = self.parse_comma_separated_list(self.Delimiter.PAREN, self.parse_type)
+        args = self.parse_comma_separated_list(Delimiter.PAREN, self.parse_type)
 
         self.parse_punctuation("->")
 
         # Parse the returns
         returns = self.parse_optional_comma_separated_list(
-            self.Delimiter.PAREN, self.parse_type
+            Delimiter.PAREN, self.parse_type
         )
         if returns is None:
             returns = [self.parse_type()]
@@ -1401,7 +1402,7 @@ class AttrParser(BaseParser):
         self, skip_white_space: bool = True
     ) -> list[Attribute]:
         res = self.parse_optional_comma_separated_list(
-            self.Delimiter.ANGLE, self.parse_attribute
+            Delimiter.ANGLE, self.parse_attribute
         )
         if res is None:
             return []

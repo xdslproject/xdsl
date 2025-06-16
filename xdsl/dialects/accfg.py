@@ -39,6 +39,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import SymbolOpInterface
+from xdsl.utils.delimiter import Delimiter
 
 
 class EffectsEnum(Enum):
@@ -330,7 +331,7 @@ class SetupOp(IRDLOperation):
             return name, val
 
         args: Sequence[tuple[str, SSAValue]] = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parse_itm
+            Delimiter.PAREN, parse_itm
         )
 
         attributes = {}
