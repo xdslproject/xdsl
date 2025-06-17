@@ -4,7 +4,7 @@ The math_xdsl dialect contains extensions to the math dialect.
 
 from enum import auto
 
-from xdsl.ir import Attribute, Dialect, EnumAttribute
+from xdsl.ir import Attribute, Dialect, EnumAttribute, SpacedOpaqueSyntaxAttribute
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -35,7 +35,7 @@ class Constant(StrEnum):
 
 
 @irdl_attr_definition
-class ConstantAttr(EnumAttribute[Constant]):
+class ConstantAttr(EnumAttribute[Constant], SpacedOpaqueSyntaxAttribute):
     name = "math_xdsl.constant"
 
 
@@ -77,5 +77,7 @@ MathXDSL = Dialect(
     [
         ConstantOp,
     ],
-    [ConstantAttr],
+    [
+        ConstantAttr,
+    ],
 )

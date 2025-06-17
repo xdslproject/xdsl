@@ -34,18 +34,18 @@
 // CHECK-NEXT: }
 
 // CHECK-GENERIC-NEXT: "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   %0 = "math_xdsl.constant"() <{symbol = #math_xdsl.constante}> : () -> f32
-// CHECK-GENERIC-NEXT:   %1 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantpi}> : () -> f32
-// CHECK-GENERIC-NEXT:   %2 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantm_2_sqrtpi}> : () -> f32
-// CHECK-GENERIC-NEXT:   %3 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantlog2e}> : () -> f32
-// CHECK-GENERIC-NEXT:   %4 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantpi_2}> : () -> f32
-// CHECK-GENERIC-NEXT:   %5 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantsqrt2}> : () -> f32
-// CHECK-GENERIC-NEXT:   %6 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantlog10e}> : () -> f32
-// CHECK-GENERIC-NEXT:   %7 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantpi_4}> : () -> f32
-// CHECK-GENERIC-NEXT:   %8 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantsqrt1_2}> : () -> f32
-// CHECK-GENERIC-NEXT:   %9 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantln2}> : () -> f32
-// CHECK-GENERIC-NEXT:   %10 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantm_1_pi}> : () -> f32
-// CHECK-GENERIC-NEXT:   %11 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantinfinity}> : () -> f32
-// CHECK-GENERIC-NEXT:   %12 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantln10}> : () -> f32
-// CHECK-GENERIC-NEXT:   %13 = "math_xdsl.constant"() <{symbol = #math_xdsl.constantm_2_pi}> : () -> f32
+// CHECK-GENERIC-NEXT:   %0 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant e>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %1 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant pi>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %2 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant m_2_sqrtpi>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %3 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant log2e>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %4 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant pi_2>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %5 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant sqrt2>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %6 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant log10e>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %7 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant pi_4>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %8 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant sqrt1_2>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %9 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant ln2>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %10 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant m_1_pi>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %11 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant infinity>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %12 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant ln10>}> : () -> f32
+// CHECK-GENERIC-NEXT:   %13 = "math_xdsl.constant"() <{symbol = #math_xdsl<constant m_2_pi>}> : () -> f32
 // CHECK-GENERIC-NEXT: }) : () -> ()
