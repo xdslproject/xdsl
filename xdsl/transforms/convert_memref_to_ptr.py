@@ -4,7 +4,7 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, ptr
-from xdsl.ir import Attribute, Operation, SSAValue
+from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -174,7 +174,7 @@ class LowerMemRefFuncOpPattern(RewritePattern):
             if not isinstance(arg_type := arg.type, memref.MemRefType):
                 continue
 
-            old_type = cast(memref.MemRefType[Attribute], arg_type)
+            old_type = cast(memref.MemRefType, arg_type)
             arg = rewriter.replace_value_with_new_type(arg, ptr.PtrType())
 
             if not arg.uses:

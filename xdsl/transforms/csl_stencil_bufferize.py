@@ -76,7 +76,7 @@ class StencilTypeConversion(TypeConversionPattern):
     @attr_type_rewrite_pattern
     def convert_type(
         self, typ: stencil.FieldType[TensorType[Attribute]]
-    ) -> memref.MemRefType[Attribute]:
+    ) -> memref.MemRefType:
         # todo should this convert to `memref` or `stencil.field<..xmemref<..>>`?
         return tensor_to_memref_type(typ.get_element_type())
 
@@ -91,7 +91,7 @@ class ApplyOpBufferize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
-        if isa(op.accumulator.type, memref.MemRefType[Attribute]):
+        if isa(op.accumulator.type, memref.MemRefType):
             return
 
         # convert args

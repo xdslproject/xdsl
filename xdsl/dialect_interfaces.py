@@ -1,3 +1,6 @@
+from collections.abc import Iterable
+
+
 class DialectInterface:
     """
     A base class for dialects' interfaces.
@@ -77,3 +80,14 @@ class OpAsmDialectInterface(DialectInterface):
         Get a value tied to a key.
         """
         return self._blob_storage.get(key)
+
+    def build_resources(self, keys: Iterable[str]) -> dict[str, str]:
+        """
+        Return dict of resources for a provided list of keys.
+        Filter out keys that haven't been assigned a value.
+        Usually used for printing, when provided with list of
+        keys referenced in the ir.
+        """
+        return {
+            key: self._blob_storage[key] for key in keys if self._blob_storage.get(key)
+        }

@@ -444,7 +444,8 @@ class OperationOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.opName is not None:
-            printer.print(" ", self.opName)
+            printer.print_string(" ")
+            printer.print_attribute(self.opName)
 
         if len(self.operand_values) != 0:
             printer.print(" (")
@@ -452,7 +453,9 @@ class OperationOp(IRDLOperation):
             printer.print(")")
 
         def print_attribute_entry(entry: tuple[StringAttr, SSAValue]):
-            printer.print(entry[0], " = ", entry[1])
+            printer.print_attribute(entry[0])
+            printer.print_string(" = ")
+            printer.print_ssa_value(entry[1])
 
         if len(self.attributeValueNames) != 0:
             printer.print(" {")
@@ -586,8 +589,10 @@ class PatternOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.sym_name is not None:
-            printer.print(" @", self.sym_name.data)
-        printer.print(" : benefit(", self.benefit.value.data, ") ", self.body)
+            printer.print_string(" @")
+            printer.print_string(self.sym_name.data)
+        printer.print_string(f" : benefit({self.benefit.value.data}) ")
+        printer.print_region(self.body)
 
 
 @irdl_op_definition
@@ -650,9 +655,10 @@ class RangeOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if len(self.arguments) == 0:
-            printer.print(" : ", self.result.type)
+            printer.print_string(" : ")
+            printer.print_attribute(self.result.type)
             return
-        printer.print(" ")
+        printer.print_string(" ")
         print_operands_with_types(printer, self.arguments)
 
 
@@ -772,11 +778,13 @@ class ResultsOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.index is None:
-            printer.print(" of ", self.parent_)
-            return
-        printer.print(
-            " ", self.index.value.data, " of ", self.parent_, " -> ", self.val.type
-        )
+            printer.print_string(" of ")
+            printer.print_ssa_value(self.parent_)
+        else:
+            printer.print_string(f" {self.index.value.data} of ")
+            printer.print_ssa_value(self.parent_)
+            printer.print_string(" -> ")
+            printer.print_attribute(self.val.type)
 
 
 @irdl_op_definition

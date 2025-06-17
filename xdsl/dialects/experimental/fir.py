@@ -25,7 +25,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     StringAttr,
     SymbolRefAttr,
-    TupleType,
     UnitAttr,
 )
 from xdsl.ir import (
@@ -138,44 +137,6 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.ref"
     type: ParameterDef[Attribute]
-
-    def print_parameters(self, printer: Printer) -> None:
-        # We need this to pretty print a tuple and its members if
-        # this is referencing one, otherwise just let the type
-        # handle its own printing
-        printer.print("<")
-        if isinstance(self.type, TupleType):
-            printer.print("tuple<")
-            for idx, t in enumerate(self.type.types.data):
-                if idx > 0:
-                    printer.print(", ")
-                printer.print(t)
-            printer.print(">")
-        else:
-            printer.print(self.type)
-        printer.print(">")
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        # This is complicated by the fact we need to parse tuple
-        # here also as the buildin dialect does not support this
-        # yet
-        parser.parse_characters("<")
-        has_tuple = parser.parse_optional_keyword("tuple")
-        if has_tuple is None:
-            param_type = parser.parse_type()
-            parser.parse_characters(">")
-            return [param_type]
-        else:
-            # If its a tuple then there are any number of types
-            def parse_types():
-                return parser.parse_type()
-
-            param_types = parser.parse_comma_separated_list(
-                parser.Delimiter.ANGLE, parse_types
-            )
-            parser.parse_characters(">")
-            return [TupleType(param_types)]
 
 
 @irdl_attr_definition

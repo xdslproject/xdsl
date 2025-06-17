@@ -1018,7 +1018,8 @@ class LayoutOp(IRDLOperation):
         return cls(parser.parse_region())
 
     def print(self, printer: Printer):
-        printer.print(" ", self.body)
+        printer.print_string(" ")
+        printer.print_region(self.body)
 
 
 @irdl_op_definition
@@ -1149,7 +1150,7 @@ class GetMemDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
+    base_addr = operand_def(base(MemRefType) | base(TensorType[Attribute]))
     tensor_access = opt_prop_def(AffineMapAttr)
 
     traits = traits_def(
@@ -1225,7 +1226,7 @@ class SetDsdBaseAddrOp(IRDLOperation):
 
     op = operand_def(DsdType)
     base_addr = operand_def(
-        base(MemRefType[Attribute]) | base(TensorType[Attribute]) | base(PtrType)
+        base(MemRefType) | base(TensorType[Attribute]) | base(PtrType)
     )
     result = result_def(DsdType)
 
@@ -1891,7 +1892,7 @@ class AddressOfOp(IRDLOperation):
     def __init__(self, value: SSAValue | Operation, result_type: PtrType):
         super().__init__(operands=[value], result_types=[result_type])
 
-    def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
+    def _verify_memref_addr(self, val_ty: MemRefType, res_ty: PtrType):
         """
         Verify that if the address of a memref is taken, the resulting pointer is either:
         - A single pointer to the array type or
@@ -1929,7 +1930,7 @@ class AddressOfOp(IRDLOperation):
     def verify_(self) -> None:
         val_ty = self.value.type
         res_ty = self.res.type
-        if isa(val_ty, MemRefType[Attribute]):
+        if isa(val_ty, MemRefType):
             self._verify_memref_addr(val_ty, res_ty)
         else:
             if res_ty.get_element_type() != val_ty:

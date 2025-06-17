@@ -4,7 +4,7 @@ from xdsl.context import Context
 from xdsl.dialects import memref, scf
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.csl import csl_stencil, csl_wrapper
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -35,8 +35,8 @@ class MaterializeInApplyDest(RewritePattern):
         views: list[Operation] = []
         add_args: list[SSAValue] = []
         for src, dst in zip(op.arguments, apply.dest, strict=True):
-            assert isa(src.type, memref.MemRefType[Attribute])
-            assert isa(dst.type, memref.MemRefType[Attribute])
+            assert isa(src.type, memref.MemRefType)
+            assert isa(dst.type, memref.MemRefType)
             dst_arg = apply.done_exchange.block.insert_arg(
                 dst.type, len(apply.done_exchange.block.args)
             )

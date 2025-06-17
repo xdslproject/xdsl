@@ -353,7 +353,7 @@ class TypeDirective(FormatDirective):
         if not types:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_list(types, printer.print_attribute)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -523,7 +523,7 @@ class OperandVariable(VariableDirective, OperandDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_ssa_value(getattr(op, self.name))
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -567,7 +567,7 @@ class VariadicOperandVariable(VariadicVariable, OperandDirective):
         if not operand:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_list(operand, printer.print_ssa_value)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -612,7 +612,7 @@ class OptionalOperandVariable(OptionalVariable, OperandDirective):
         if not operand:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_ssa_value(operand)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -720,7 +720,7 @@ class OperandsDirective(OperandsOrResultDirective, FormatDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if op.operands:
             if state.should_emit_space or not state.last_was_punctuation:
-                printer.print(" ")
+                printer.print_string(" ")
             printer.print_list(op.operands, printer.print_ssa_value)
             state.last_was_punctuation = False
             state.should_emit_space = True
@@ -925,7 +925,7 @@ class RegionVariable(RegionDirective, VariableDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_region(getattr(op, self.name))
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -955,7 +955,7 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
         if not region:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_list(region, printer.print_region, delimiter=" ")
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -983,7 +983,7 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
         if not region:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_region(region)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -1015,7 +1015,7 @@ class SuccessorVariable(VariableDirective, SuccessorDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_block_name(getattr(op, self.name))
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -1043,7 +1043,7 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
         if not successor:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_list(successor, printer.print_block_name)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -1071,7 +1071,7 @@ class OptionalSuccessorVariable(OptionalVariable, SuccessorDirective):
         if not successor:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_block_name(successor)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -1123,7 +1123,7 @@ class AttributeVariable(FormatDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         state.should_emit_space = True
         state.last_was_punctuation = False
 
@@ -1238,7 +1238,7 @@ class WhitespaceDirective(FormatDirective):
         return False
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        printer.print(self.whitespace)
+        printer.print_string(self.whitespace)
         state.last_was_punctuation = self.whitespace == ""
         state.should_emit_space = False
 
@@ -1271,9 +1271,9 @@ class PunctuationDirective(FormatDirective):
                 emit_space = True
 
             if emit_space:
-                printer.print(" ")
+                printer.print_string(" ")
 
-        printer.print(self.punctuation)
+        printer.print_string(self.punctuation)
 
         state.should_emit_space = self.punctuation not in ("<", "(", "{", "[")
         state.last_was_punctuation = True
@@ -1299,8 +1299,8 @@ class KeywordDirective(FormatDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space:
-            printer.print(" ")
-        printer.print(self.keyword)
+            printer.print_string(" ")
+        printer.print_string(self.keyword)
         state.should_emit_space = True
         state.last_was_punctuation = False
 

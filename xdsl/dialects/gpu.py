@@ -151,7 +151,7 @@ class AllocOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    result = result_def(memref.MemRefType[Attribute])
+    result = result_def(memref.MemRefType)
     asyncToken = opt_result_def(AsyncTokenType)
 
     def verify_(self) -> None:

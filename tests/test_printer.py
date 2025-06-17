@@ -561,7 +561,12 @@ class PlusCustomFormatOp(IRDLOperation):
         return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=[type])
 
     def print(self, printer: Printer):
-        printer.print(" ", self.lhs, " + ", self.rhs, " : ", self.res.type)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(" + ")
+        printer.print_ssa_value(self.rhs)
+        printer.print_string(" : ")
+        printer.print_attribute(self.res.type)
 
 
 def test_generic_format():
@@ -698,7 +703,8 @@ class CustomFormatAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         assert 0 <= self.attr.data <= 1
-        printer.print("<", "zero" if self.attr.data == 0 else "one", ">")
+        with printer.in_angle_brackets():
+            printer.print_string("zero" if self.attr.data == 0 else "one")
 
 
 @irdl_op_definition
@@ -1028,6 +1034,35 @@ def test_get_printed_name():
     printed = StringIO()
     picked_name = Printer(printed).print_ssa_value(val)
     assert f"%{picked_name}" == printed.getvalue()
+
+
+def test_delimiters():
+    printer = Printer()
+
+    printer.stream = StringIO()
+    with printer.in_angle_brackets():
+        printer.print_string("testing")
+    assert "<testing>" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_square_brackets():
+        printer.print_string("testing")
+    assert "[testing]" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_braces():
+        printer.print_string("testing")
+    assert "{testing}" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_parens():
+        printer.print_string("testing")
+    assert "(testing)" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.delimited("test<", ">"):
+        printer.print_string("testing")
+    assert "test<testing>" == printer.stream.getvalue()
 
 
 def assert_print_op(

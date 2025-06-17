@@ -945,7 +945,7 @@ class ExternalLoadOp(IRDLOperation):
     @staticmethod
     def get(
         arg: SSAValue | Operation,
-        res_type: FieldType[Attribute] | memref.MemRefType[Attribute],
+        res_type: FieldType[Attribute] | memref.MemRefType,
     ):
         return ExternalLoadOp.build(operands=[arg], result_types=[res_type])
 

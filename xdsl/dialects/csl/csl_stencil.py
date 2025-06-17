@@ -144,7 +144,7 @@ class PrefetchOp(IRDLOperation):
         topo: dmp.RankTopoAttr,
         num_chunks: IntegerAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
-        result_type: memref.MemRefType[Attribute] | TensorType[Attribute] | None = None,
+        result_type: memref.MemRefType | TensorType[Attribute] | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
@@ -462,7 +462,7 @@ class AccessOp(IRDLOperation):
         self,
         op: Operand,
         offset: stencil.IndexAttr,
-        result_type: TensorType[Attribute] | MemRefType[Attribute],
+        result_type: TensorType[Attribute] | MemRefType,
         offset_mapping: stencil.IndexAttr | None = None,
     ):
         super().__init__(
@@ -557,7 +557,7 @@ class AccessOp(IRDLOperation):
 
     def verify_(self) -> None:
         if tuple(self.offset) == (0, 0):
-            if isa(self.op.type, memref.MemRefType[Attribute]):
+            if isa(self.op.type, memref.MemRefType):
                 if not self.result.type == self.op.type:
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type} but "

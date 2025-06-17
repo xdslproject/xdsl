@@ -414,10 +414,13 @@ class ArithmeticBinOperation(IRDLOperation, ABC):
         return cls(operands[0], operands[1], attributes)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.lhs.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 class OverflowFlag(StrEnum):
@@ -487,12 +490,15 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         return cls(operands[0], operands[1], attributes, overflowFlags)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         if self.overflowFlags:
             self.overflowFlags.print(printer)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.lhs.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 class ArithmeticBinOpExact(IRDLOperation, ABC):
@@ -546,10 +552,13 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 
     def print(self, printer: Printer) -> None:
         self.print_exact(printer)
-        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.lhs.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
@@ -612,10 +621,13 @@ class IntegerConversionOp(IRDLOperation, ABC):
         return cls(operands[0], res_type, attributes)
 
     def print(self, printer: Printer):
-        printer.print(" ", self.arg)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.arg)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.arg.type, " to ", self.res.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.arg.type)
+        printer.print_string(" to ")
+        printer.print_attribute(self.res.type)
 
 
 class IntegerConversionOpNNeg(IRDLOperation, ABC):
@@ -678,12 +690,15 @@ class IntegerConversionOpOverflow(IRDLOperation, ABC):
         return cls(operands[0], res_type, attributes, overflowFlags)
 
     def print(self, printer: Printer):
-        printer.print(" ", self.arg)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.arg)
         if self.overflowFlags:
             self.overflowFlags.print(printer)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.arg.type, " to ", self.res.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.arg.type)
+        printer.print_string(" to ")
+        printer.print_attribute(self.res.type)
 
 
 @irdl_op_definition
@@ -867,7 +882,10 @@ class ICmpOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(' "')
         self.print_predicate(printer)
-        printer.print('" ', self.lhs, ", ", self.rhs)
+        printer.print_string('" ')
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
         printer.print(self.lhs.type)
@@ -1596,7 +1614,8 @@ class ConstantOp(IRDLOperation):
             self.value.print_without_type(printer)
         else:
             printer.print(self.value)
-        printer.print(") : ", self.result.type)
+        printer.print_string(") : ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_attr_definition

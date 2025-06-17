@@ -418,12 +418,13 @@ def _print_same_operand_type_variadic_to_bool_op(
     `%op1, %op2, ..., %opN attr-dict : T` where `T` is the type of all
     operands.
     """
-    printer.print(" ")
+    printer.print_string(" ")
     printer.print_list(operands, printer.print_ssa_value)
     if attr_dict:
         printer.print_string(" ")
         printer.print_attr_dict(attr_dict)
-    printer.print(" : ", operands[0].type)
+    printer.print_string(" : ")
+    printer.print_attribute(operands[0].type)
 
 
 class VariadicPredicateOp(IRDLOperation, ABC):
