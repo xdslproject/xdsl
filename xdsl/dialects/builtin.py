@@ -170,11 +170,13 @@ class ArrayAttr(
     @classmethod
     @override
     def constr(
-        cls, base_constraint: IRDLGenericAttrConstraint[AttributeCovT] = AnyAttr()
+        cls,
+        base_constraint: IRDLGenericAttrConstraint[AttributeCovT]
+        | GenericRangeConstraint[AttributeInvT] = RangeOf(
+            TypeVarConstraint(AttributeCovT, AnyAttr())
+        ),
     ) -> AttrConstraint:
-        return ArrayOfConstraint(
-            RangeOf(TypeVarConstraint(AttributeCovT, base_constraint))
-        )
+        return ArrayOfConstraint(base_constraint)
 
     def __len__(self):
         return len(self.data)
