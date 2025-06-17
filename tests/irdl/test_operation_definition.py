@@ -246,7 +246,7 @@ def test_constraint_var_fail_not_satisfy_constraint():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: Unexpected attribute operand at position 0 does not verify:",
+        match="Operation does not verify: operand at position 0 does not verify",
     ):
         op.verify()
 
@@ -328,7 +328,7 @@ def test_generic_constraint_var_fail_not_satisfy_constraint():
     )
     with pytest.raises(
         DiagnosticException,
-        match='Unexpected attribute !test.type<"foo">',
+        match="Operation does not verify: operand at position 0 does not verify",
     ):
         op.verify()
 
