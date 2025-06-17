@@ -7,9 +7,9 @@ from enum import auto
 from xdsl.ir import Attribute, Dialect, EnumAttribute
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
+    prop_def,
     result_def,
 )
 from xdsl.utils.str_enum import StrEnum
@@ -39,9 +39,9 @@ class ConstantAttr(EnumAttribute[Constant]):
 
 @irdl_op_definition
 class ConstantOp(IRDLOperation):
-    name = "constant"
+    name = "math_xdsl.constant"
 
-    symbol = attr_def(ConstantAttr)
+    symbol = prop_def(ConstantAttr)
 
     value = result_def()
 
@@ -56,7 +56,7 @@ class ConstantOp(IRDLOperation):
         )
 
 
-Math_xdsl = Dialect(
+MathXDSL = Dialect(
     "math_xdsl",
     [
         ConstantOp,
