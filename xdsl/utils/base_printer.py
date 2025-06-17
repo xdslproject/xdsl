@@ -68,6 +68,26 @@ class BasePrinter:
                 self.print_string(delimiter)
             print_fn(elem)
 
+    @contextmanager
+    def delimited(self, start: str, end: str):
+        self.print_string(start)
+        try:
+            yield
+        finally:
+            self.print_string(end)
+
+    def in_angle_brackets(self):
+        return self.delimited("<", ">")
+
+    def in_braces(self):
+        return self.delimited("{", "}")
+
+    def in_parens(self):
+        return self.delimited("(", ")")
+
+    def in_square_brackets(self):
+        return self.delimited("[", "]")
+
     def _print_new_line(
         self, indent: int | None = None, print_message: bool = True
     ) -> None:

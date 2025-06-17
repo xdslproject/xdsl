@@ -19,7 +19,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
-    Attribute,
     Block,
     BlockArgument,
     Operation,
@@ -161,8 +160,8 @@ class LowerApplyOp(RewritePattern):
         rewriter.insert_op([chunk_fn, done_fn], InsertPoint.after(parent_func))
 
         # ensure we send only core data
-        assert isa(op.accumulator.type, memref.MemRefType[Attribute])
-        assert isa(op.field.type, memref.MemRefType[Attribute])
+        assert isa(op.accumulator.type, memref.MemRefType)
+        assert isa(op.field.type, memref.MemRefType)
         # the accumulator might have additional dims when used for holding prefetched data
         send_buf_shape = op.accumulator.type.get_shape()[
             -len(op.field.type.get_shape()) :
@@ -397,7 +396,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             and isinstance(subview := accumulator.op, memref.SubviewOp)
             and subview.source == op.receive_chunk.block.args[2]
         ):
-            assert isa(subview.source.type, memref.MemRefType[Attribute])
+            assert isa(subview.source.type, memref.MemRefType)
             new_ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], i16))
             new_ops.append(
                 new_acc := csl.IncrementDsdOffsetOp.build(

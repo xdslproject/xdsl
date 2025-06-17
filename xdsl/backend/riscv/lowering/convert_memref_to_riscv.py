@@ -25,7 +25,7 @@ from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
 )
 from xdsl.interpreters.utils.ptr import TypedPtr
-from xdsl.ir import Attribute, Operation, Region, SSAValue
+from xdsl.ir import Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -337,7 +337,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
         result = op.result
         source_type = source.type
         assert isinstance(source_type, MemRefType)
-        source_type = cast(MemRefType[Attribute], source_type)
+        source_type = cast(MemRefType, source_type)
         result_type = result.type
 
         result_layout_attr = result_type.layout
