@@ -15,11 +15,10 @@ from typing import (
     TypeAlias,
     cast,
     overload,
-    override,
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeVar, deprecated
+from typing_extensions import Self, TypeVar, deprecated, override
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.ir import (
