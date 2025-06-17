@@ -12,50 +12,18 @@ from typing_extensions import TypeVar
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    AffineSetAttr,
     AnyFloat,
-    AnyUnrankedTensorType,
-    AnyVectorType,
-    ArrayAttr,
-    BFloat16Type,
-    BoolAttr,
     BuiltinAttribute,
-    BytesAttr,
     ComplexElementCovT,
     ComplexType,
-    DenseArrayBase,
-    DenseResourceAttr,
-    DictionaryAttr,
     Float16Type,
     Float32Type,
     Float64Type,
-    Float80Type,
-    Float128Type,
     FloatAttr,
     FunctionType,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
     IntegerType,
-    LocationAttr,
-    MemRefType,
-    NoneAttr,
-    NoneType,
-    OpaqueAttr,
-    Signedness,
-    StridedLayoutAttr,
-    StringAttr,
-    SymbolRefAttr,
-    TensorType,
-    TupleType,
     UnitAttr,
-    UnrankedMemRefType,
-    UnrankedTensorType,
-    UnregisteredAttr,
     UnregisteredOp,
-    VectorType,
-    i1,
 )
 from xdsl.ir import (
     Attribute,
@@ -70,7 +38,6 @@ from xdsl.ir import (
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
-    TypedAttribute,
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.base_printer import BasePrinter
@@ -427,280 +394,9 @@ class Printer(BasePrinter):
                     self.print_string(f"{repr(value)}")
 
     def print_attribute(self, attribute: Attribute) -> None:
-        if isinstance(attribute, UnitAttr):
-            self.print_string("unit")
-            return
-
-        if isinstance(attribute, LocationAttr):
-            self.print_string("loc(unknown)")
-            return
-
-        if isinstance(attribute, IntegerType):
-            if attribute.signedness.data == Signedness.SIGNLESS:
-                self.print_string("i")
-            elif attribute.signedness.data == Signedness.SIGNED:
-                self.print_string("si")
-            elif attribute.signedness.data == Signedness.UNSIGNED:
-                self.print_string("ui")
-            self.print_string(str(attribute.width.data))
-            return
-
-        if isinstance(attribute, BFloat16Type):
-            self.print_string("bf16")
-            return
-        if isinstance(attribute, Float16Type):
-            self.print_string("f16")
-            return
-        if isinstance(attribute, Float32Type):
-            self.print_string("f32")
-            return
-        if isinstance(attribute, Float64Type):
-            self.print_string("f64")
-            return
-        if isinstance(attribute, Float80Type):
-            self.print_string("f80")
-            return
-        if isinstance(attribute, Float128Type):
-            self.print_string("f128")
-            return
-
-        if isinstance(attribute, IntegerAttr):
-            # boolean shorthands
-            if (
-                isinstance(
-                    (ty := attribute.get_type()),
-                    IntegerType,
-                )
-                and ty.width.data == 1
-            ):
-                self.print_string("true" if attribute.value.data else "false")
-                return
-            # Otherwise we fall through to TypedAttribute case
-
-        if isinstance(attribute, TypedAttribute) and isinstance(
-            attribute, BuiltinAttribute
-        ):
-            attribute.print_without_type(self)
-            self.print_string(" : ")
-            self.print_attribute(attribute.get_type())
-            return
-
-        if isinstance(attribute, StringAttr):
-            self.print_string_literal(attribute.data)
-            return
-
-        if isinstance(attribute, BytesAttr):
-            self.print_bytes_literal(attribute.data)
-            return
-
-        if isinstance(attribute, SymbolRefAttr):
-            self.print_string("@")
-            self.print_identifier_or_string_literal(attribute.root_reference.data)
-            for ref in attribute.nested_references.data:
-                self.print_string("::@")
-                self.print_identifier_or_string_literal(ref.data)
-            return
-
-        # Complex types have MLIR shorthands but XDSL does not.
-        if isa(attribute, ComplexType):
-            self.print_string("complex<")
-            self.print_attribute(attribute.element_type)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, ArrayAttr):
-            attribute = cast(ArrayAttr[Attribute], attribute)
-            self.print_string("[")
-            self.print_list(attribute.data, self.print_attribute)
-            self.print_string("]")
-            return
-
-        if isa(attribute, DenseArrayBase):
-            self.print_string("array<")
-            self.print_attribute(attribute.elt_type)
-            if len(attribute) == 0:
-                self.print_string(">")
-                return
-            data = attribute.iter_values()
-            self.print_string(": ")
-            # There is a bug in MLIR which will segfault when parsing DenseArrayBase type i1 as 0 or 1,
-            # therefore we need to print these as false and true
-            if attribute.elt_type == i1:
-                self.print_list(
-                    data,
-                    lambda x: self.print_string("true" if x else "false"),
-                )
-            else:
-                self.print_list(data, lambda x: self.print_string(f"{x}"))
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, DictionaryAttr):
-            self.print_attr_dict(attribute.data)
-            return
-
-        if isinstance(attribute, FunctionType):
-            self.print_string("(")
-            self.print_list(attribute.inputs.data, self.print_attribute)
-            self.print_string(") -> ")
-            outputs = attribute.outputs.data
-            if len(outputs) == 1 and not isinstance(outputs[0], FunctionType):
-                self.print_attribute(outputs[0])
-            else:
-                self.print_string("(")
-                self.print_list(outputs, self.print_attribute)
-                self.print_string(")")
-            return
-
-        if isinstance(attribute, DenseResourceAttr):
-            handle = attribute.resource_handle.data
-            self.print_string("dense_resource<")
-            self.print_resource_handle("builtin", handle)
-            self.print_string("> : ")
-            self.print_attribute(attribute.type)
-            return
-
-        if isinstance(attribute, TensorType):
-            attribute = cast(AnyVectorType, attribute)
-            self.print_string("tensor<")
-            self.print_list(
-                attribute.shape.data,
-                lambda x: (
-                    self.print_string(f"{x.data}")
-                    if x.data != -1
-                    else self.print_string("?")
-                ),
-                "x",
-            )
-            if len(attribute.shape.data) != 0:
-                self.print_string("x")
-            self.print_attribute(attribute.element_type)
-            if isinstance(attribute, TensorType) and attribute.encoding != NoneAttr():
-                self.print_string(", ")
-                self.print_attribute(attribute.encoding)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, VectorType):
-            attribute = cast(AnyVectorType, attribute)
-
-            self.print_string("vector<")
-
-            self.print_list(
-                zip(attribute.shape, attribute.scalable_dims, strict=True),
-                self._print_vector_dim,
-                delimiter="x",
-            )
-            if attribute.shape.data:
-                self.print_string("x")
-
-            self.print_attribute(attribute.element_type)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, UnrankedTensorType):
-            attribute = cast(AnyUnrankedTensorType, attribute)
-            self.print_string("tensor<*x")
-            self.print_attribute(attribute.element_type)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, StridedLayoutAttr):
-            self.print_string("strided<[")
-
-            def print_int_or_question(value: IntAttr | NoneAttr) -> None:
-                self.print_string(
-                    f"{value.data}" if isinstance(value, IntAttr) else "?"
-                )
-
-            self.print_list(attribute.strides.data, print_int_or_question, ", ")
-            self.print_string("]")
-            if attribute.offset == IntAttr(0):
-                self.print_string(">")
-                return
-            self.print_string(", offset: ")
-            print_int_or_question(attribute.offset)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, MemRefType):
-            attribute = cast(MemRefType, attribute)
-            self.print_string("memref<")
-            if attribute.shape.data:
-                self.print_list(
-                    attribute.shape.data,
-                    lambda x: (
-                        self.print_string(f"{x.data}")
-                        if x.data != -1
-                        else self.print_string("?")
-                    ),
-                    "x",
-                )
-                self.print_string("x")
-            self.print_attribute(attribute.element_type)
-            if not isinstance(attribute.layout, NoneAttr):
-                self.print_string(", ")
-                self.print_attribute(attribute.layout)
-            if not isinstance(attribute.memory_space, NoneAttr):
-                self.print_string(", ")
-                self.print_attribute(attribute.memory_space)
-            self.print_string(">")
-            return
-
-        if isa(attribute, UnrankedMemRefType):
-            self.print_string("memref<*x")
-            self.print_attribute(attribute.element_type)
-            if not isinstance(attribute.memory_space, NoneAttr):
-                self.print_string(", ")
-                self.print_attribute(attribute.memory_space)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, IndexType):
-            self.print_string("index")
-            return
-
-        if isinstance(attribute, NoneType):
-            self.print_string("none")
-            return
-
-        if isinstance(attribute, OpaqueAttr):
-            self.print_string("opaque<")
-            self.print_attribute(attribute.ident)
-            self.print_string(", ")
-            self.print_attribute(attribute.value)
-            self.print_string(">")
-
-            if not isinstance(attribute.type, NoneAttr):
-                self.print_string(" : ")
-                self.print_attribute(attribute.type)
-            return
-
-        if isinstance(attribute, AffineMapAttr):
-            self.print_string(f"affine_map<{attribute.data}>")
-            return
-
-        if isinstance(attribute, AffineSetAttr):
-            self.print_string(f"affine_set<{attribute.data}>")
-            return
-
-        if isinstance(attribute, TupleType):
-            self.print_string("tuple<")
-            self.print_list(attribute.types, self.print_attribute)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, UnregisteredAttr):
-            # Do not print `!` or `#` for unregistered builtin attributes
-            self.print_string("!" if attribute.is_type.data else "#")
-            if attribute.is_opaque.data:
-                self.print_string(
-                    f"{attribute.attr_name.data.replace('.', '<', 1)}{attribute.value.data}>"
-                )
-            else:
-                self.print_string(attribute.attr_name.data)
-                if attribute.value.data:
-                    self.print_string(f"<{attribute.value.data}>")
+        # Print builtin attributes
+        if isinstance(attribute, BuiltinAttribute):
+            attribute.print_builtin(self)
             return
 
         # Print dialect attributes
@@ -721,19 +417,6 @@ class Printer(BasePrinter):
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print_string(">")
-
-        return
-
-    def _print_vector_dim(self, pair: tuple[IntAttr, BoolAttr]):
-        """
-        Helper method to print a vector dimension either as static (`4`) or scalable
-        (`[4]`).
-        """
-        dim, scalable = pair
-        if scalable:
-            self.print_string(f"[{dim.data}]")
-        else:
-            self.print_string(f"{dim.data}")
 
     def print_successors(self, successors: Sequence[Block]):
         if len(successors) == 0:

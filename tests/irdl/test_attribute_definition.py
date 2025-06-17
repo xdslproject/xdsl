@@ -642,7 +642,7 @@ def test_informative_constraint():
     constr = MessageConstraint(NoneAttr(), "User-enlightening message.")
     with pytest.raises(
         VerifyException,
-        match="User-enlightening message.\nUnderlying verification failure: Expected attribute #none but got #builtin.int<1>",
+        match="User-enlightening message.\nUnderlying verification failure: Expected attribute none but got #builtin.int<1>",
     ):
         constr.verify(IntAttr(1), ConstraintContext())
     assert constr.can_infer(set())
