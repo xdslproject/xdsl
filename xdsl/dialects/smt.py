@@ -621,6 +621,45 @@ class BvConstantOp(IRDLOperation):
         super().__init__(properties={"value": value}, result_types=[value.type])
 
 
+class UnaryBVOp(IRDLOperation, ABC):
+    """
+    A unary bitvector operation.
+    It has one operand and one result of the same bitvector type.
+    """
+
+    T: ClassVar = VarConstraint("T", base(BitVectorType))
+
+    input = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$input attr-dict `:` type($result)"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, input: SSAValue[BitVectorType]):
+        super().__init__(operands=[input], result_types=[input.type])
+
+
+@irdl_op_definition
+class BVNotOp(UnaryBVOp):
+    """
+    A unary bitwise not operation for bitvectors.
+    It corresponds to the 'not' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.not"
+
+
+@irdl_op_definition
+class BVNegOp(UnaryBVOp):
+    """
+    A unary negation operation for bitvectors.
+    It corresponds to the 'neg' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.neg"
+
+
 SMT = Dialect(
     "smt",
     [
@@ -640,6 +679,8 @@ SMT = Dialect(
         YieldOp,
         AssertOp,
         BvConstantOp,
+        BVNegOp,
+        BVNotOp,
     ],
     [
         BoolType,

@@ -9,6 +9,8 @@ from xdsl.dialects.smt import (
     BitVectorType,
     BoolType,
     BvConstantOp,
+    BVNegOp,
+    BVNotOp,
     ConstantBoolOp,
     DeclareFunOp,
     DistinctOp,
@@ -21,6 +23,7 @@ from xdsl.dialects.smt import (
     NotOp,
     OrOp,
     QuantifierOp,
+    UnaryBVOp,
     VariadicBoolOp,
     XOrOp,
     YieldOp,
@@ -165,3 +168,11 @@ def test_bv_constant_op():
     op = BvConstantOp(bv_attr)
     assert op.value == bv_attr
     assert op.result.type == BitVectorType(32)
+
+
+@pytest.mark.parametrize("op_type", [BVNotOp, BVNegOp])
+def test_bv_unary_op(op_type: type[UnaryBVOp]):
+    arg = create_ssa_value(BitVectorType(32))
+    op = op_type(arg)
+    assert op.input == arg
+    assert op.result.type == arg.type
