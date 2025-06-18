@@ -308,11 +308,10 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
         return root
 
     def print_builtin(self, printer: Printer):
-        printer.print_string("@")
-        printer.print_identifier_or_string_literal(self.root_reference.data)
+        printer.print_symbol_name(self.root_reference.data)
         for ref in self.nested_references.data:
-            printer.print_string("::@")
-            printer.print_identifier_or_string_literal(ref.data)
+            printer.print_string("::")
+            printer.print_symbol_name(ref.data)
 
 
 class EmptyArrayAttrConstraint(AttrConstraint):
@@ -2208,7 +2207,8 @@ class ModuleOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.sym_name is not None:
-            printer.print(f" @{self.sym_name.data}")
+            printer.print_string(" ")
+            printer.print_symbol_name(self.sym_name.data)
 
         if self.attributes:
             printer.print_op_attributes(self.attributes, print_keyword=True)

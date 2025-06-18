@@ -638,3 +638,11 @@ class Printer(BasePrinter):
 
         self.print_string("  }\n")
         self.print_string("#-}")
+
+    def print_symbol_name(self, sym_name: str):
+        """
+        Prints a string attribute as a symbol name, prepending it with an '@',
+        and printing it as a string literal if it is not an identifier.
+        """
+        self.print_string("@")
+        self.print_identifier_or_string_literal(sym_name)

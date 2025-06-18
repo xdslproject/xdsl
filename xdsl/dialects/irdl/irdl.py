@@ -135,8 +135,10 @@ class DialectOp(IRDLOperation):
         return DialectOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(f" @{self.sym_name.data} ")
+        printer.print_string(" ")
+        printer.print_symbol_name(self.sym_name.data)
         if self.body.block.ops:
+            printer.print_string(" ")
             printer.print_region(self.body)
 
 
@@ -165,8 +167,10 @@ class TypeOp(IRDLOperation):
         return TypeOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(f" @{self.sym_name.data} ")
+        printer.print_string(" ")
+        printer.print_symbol_name(self.sym_name.data)
         if self.body.block.ops:
+            printer.print_string(" ")
             printer.print_region(self.body)
 
     @property
@@ -220,8 +224,10 @@ class AttributeOp(IRDLOperation):
         return AttributeOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(f" @{self.sym_name.data} ")
+        printer.print_string(" ")
+        printer.print_symbol_name(self.sym_name.data)
         if self.body.block.ops:
+            printer.print_string(" ")
             printer.print_region(self.body)
 
     @property
@@ -304,8 +310,10 @@ class OperationOp(IRDLOperation):
         return OperationOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(f" @{self.sym_name.data} ")
+        printer.print_string(" ")
+        printer.print_symbol_name(self.sym_name.data)
         if self.body.block.ops:
+            printer.print_string(" ")
             printer.print_region(self.body)
 
     @property

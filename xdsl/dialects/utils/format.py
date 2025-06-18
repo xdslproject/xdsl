@@ -192,7 +192,8 @@ def print_func_op_like(
     res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
 ):
-    printer.print(f" @{sym_name.data}")
+    printer.print_string(" ")
+    printer.print_symbol_name(sym_name.data)
     if body.blocks:
         with printer.in_parens():
             if arg_attrs is not None:

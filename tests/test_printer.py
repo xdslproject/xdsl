@@ -1065,6 +1065,18 @@ def test_delimiters():
     assert "test<testing>" == printer.stream.getvalue()
 
 
+def test_symbol_printing():
+    printer = Printer()
+
+    printer.stream = StringIO()
+    printer.print_symbol_name("symbol")
+    assert "@symbol" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    printer.print_symbol_name("@symbol")
+    assert '@"@symbol"' == printer.stream.getvalue()
+
+
 def assert_print_op(
     operation: Operation,
     expected: str,
