@@ -29,8 +29,6 @@ def get_linalg_str(func_jit, args):
         pm = PassManager.parse(
             "builtin.module(func.func("
             "shape-legalize-to-stablehlo,"
-            "stablehlo-aggressive-folder,"
-            "stablehlo-aggressive-simplification,"
             "stablehlo-legalize-to-linalg"
             "))"
         )
