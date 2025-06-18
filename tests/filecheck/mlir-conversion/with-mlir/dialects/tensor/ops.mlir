@@ -38,5 +38,5 @@
 // CHECK-NEXT:  %collapsed = tensor.collapse_shape %6 [[0, 1], [2, 3]] : tensor<2x3x2x3xf32> into tensor<6x6xf32>
 // CHECK-NEXT:  %extracted = tensor.extract %1[%2] : tensor<2xf32>
 // CHECK-NEXT:  %{{.*}} = tensor.insert %extracted into %1[%2] : tensor<2xf32>
-// CHECK-NEXT:  %fromelements = tensor.from_elements %i1, %i1: tensor<2xindex>
+// CHECK-NEXT:  %{{.*}} = tensor.from_elements %2, %2: tensor<2xindex>
 // CHECK-NEXT: }
