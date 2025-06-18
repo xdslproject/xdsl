@@ -284,7 +284,6 @@ IRDLGenericAttrConstraint: TypeAlias = (
     | type[AttributeInvT]
     | "TypeForm[AttributeInvT]"
     | ConstraintVar
-    | TypeVar
 )
 """
 Attribute constraints represented using the IRDL python frontend. Attribute constraints
@@ -353,7 +352,7 @@ def irdl_to_attr_constraint(
 
 @overload
 def irdl_to_attr_constraint(
-    irdl: Attribute | TypeVar | ConstraintVar,
+    irdl: Attribute | ConstraintVar,
     *,
     allow_type_var: bool = False,
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
