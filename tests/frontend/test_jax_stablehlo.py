@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 try:
@@ -50,9 +49,9 @@ def test_matmul():
     compiled_string = get_linalg_str(
         jax.jit(matmul, donate_argnames="C", keep_unused=True),
         (
-            jax.random.uniform(key, [8, 8], dtype=np.float32),
-            jax.random.uniform(key, [8, 8], dtype=np.float32),
-            jax.random.uniform(key, [8, 8], dtype=np.float32),
+            jax.random.uniform(key, [8, 8]),
+            jax.random.uniform(key, [8, 8]),
+            jax.random.uniform(key, [8, 8]),
         ),
     )
     print(compiled_string)
