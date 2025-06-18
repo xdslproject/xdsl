@@ -309,11 +309,10 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
         return root
 
     def print_builtin(self, printer: Printer):
-        printer.print_string("@")
-        printer.print_identifier_or_string_literal(self.root_reference.data)
+        printer.print_symbol_name(self.root_reference.data)
         for ref in self.nested_references.data:
-            printer.print_string("::@")
-            printer.print_identifier_or_string_literal(ref.data)
+            printer.print_string("::")
+            printer.print_symbol_name(ref.data)
 
 
 class EmptyArrayAttrConstraint(AttrConstraint):
