@@ -163,6 +163,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Math
 
+    def get_math_xdsl():
+        from xdsl.dialects.math_xdsl import MathXDSL
+
+        return MathXDSL
+
     def get_memref():
         from xdsl.dialects.memref import MemRef
 
@@ -370,6 +375,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "llvm": get_llvm,
         "ltl": get_ltl,
         "math": get_math,
+        "math_xdsl": get_math_xdsl,
         "memref": get_memref,
         "memref_stream": get_memref_stream,
         "ml_program": get_ml_program,
