@@ -21,6 +21,7 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
+    overload,
 )
 
 from typing_extensions import TypeVar
@@ -282,6 +283,7 @@ IRDLGenericAttrConstraint: TypeAlias = (
     | AttributeInvT
     | type[AttributeInvT]
     | "TypeForm[AttributeInvT]"
+    | ConstraintVar
 )
 """
 Attribute constraints represented using the IRDL python frontend. Attribute constraints
@@ -290,6 +292,7 @@ can either be:
 - An instance of `Attribute` representing an equality constraint on an attribute.
 - A type representing a specific attribute class.
 - A TypeForm that can represent both unions and generic attributes.
+- A `ConstraintVar` representing a constraint variable.
 """
 
 IRDLAttrConstraint = IRDLGenericAttrConstraint[Attribute]
@@ -333,35 +336,55 @@ def irdl_list_to_attr_constraint(
     return constraints[0]
 
 
+@overload
 def irdl_to_attr_constraint(
-    irdl: IRDLGenericAttrConstraint[AttributeInvT],
+    irdl: (
+        GenericAttrConstraint[AttributeInvT]
+        | "TypeForm[AttributeInvT]"
+        | type[AttributeInvT]
+        | AttributeInvT
+    ),
     *,
     allow_type_var: bool = False,
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
-) -> GenericAttrConstraint[AttributeInvT]:
+) -> GenericAttrConstraint[AttributeInvT]: ...
+
+
+@overload
+def irdl_to_attr_constraint(
+    irdl: Attribute | ConstraintVar,
+    *,
+    allow_type_var: bool = False,
+    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
+) -> AttrConstraint: ...
+
+
+def irdl_to_attr_constraint(
+    irdl: IRDLAttrConstraint,
+    *,
+    allow_type_var: bool = False,
+    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
+) -> AttrConstraint:
     if isinstance(irdl, GenericAttrConstraint):
-        return cast(GenericAttrConstraint[AttributeInvT], irdl)
+        return cast(AttrConstraint, irdl)
 
     if isinstance(irdl, Attribute):
-        return cast(GenericAttrConstraint[AttributeInvT], EqAttrConstraint(irdl))
+        return EqAttrConstraint(irdl)
 
     # Annotated case
     # Each argument of the Annotated type corresponds to a constraint to satisfy.
     # If there is a `ConstraintVar` annotation, we add the entire constraint to
     # the constraint variable.
     if get_origin(irdl) == Annotated:
-        return cast(
-            GenericAttrConstraint[AttributeInvT],
-            irdl_list_to_attr_constraint(
-                get_args(irdl),
-                allow_type_var=allow_type_var,
-            ),
+        return irdl_list_to_attr_constraint(
+            get_args(irdl),
+            allow_type_var=allow_type_var,
         )
 
     # Attribute class case
     # This is an `AnyAttr`, which does not constrain the attribute.
     if irdl is Attribute:
-        return cast(GenericAttrConstraint[AttributeInvT], AnyAttr())
+        return AnyAttr()
 
     # Attribute class case
     # This is a coercion for an `BaseAttr`.
@@ -370,7 +393,7 @@ def irdl_to_attr_constraint(
         and not isinstance(irdl, GenericAlias)
         and issubclass(irdl, Attribute)
     ):
-        return cast(GenericAttrConstraint[AttributeInvT], BaseAttr(irdl))
+        return BaseAttr(irdl)
 
     # Type variable case
     # We take the type variable bound constraint.
@@ -381,9 +404,7 @@ def irdl_to_attr_constraint(
             raise ValueError("Type variables used in IRDL are expected to be bound.")
         # We do not allow nested type variables.
         constraint = irdl_to_attr_constraint(irdl.__bound__)
-        return cast(
-            GenericAttrConstraint[AttributeInvT], TypeVarConstraint(irdl, constraint)
-        )
+        return TypeVarConstraint(irdl, constraint)
 
     origin = get_origin(irdl)
 
@@ -433,10 +454,7 @@ def irdl_to_attr_constraint(
             )
             for _, param in origin_parameters
         ]
-        return cast(
-            GenericAttrConstraint[AttributeInvT],
-            ParamAttrConstraint(origin, origin_constraints),
-        )
+        return ParamAttrConstraint(origin, origin_constraints)
 
     # Union case
     # This is a coercion for an `AnyOf` constraint.
@@ -454,8 +472,8 @@ def irdl_to_attr_constraint(
                 )
             )
         if len(constraints) > 1:
-            return cast(GenericAttrConstraint[AttributeInvT], AnyOf(constraints))
-        return cast(GenericAttrConstraint[AttributeInvT], constraints[0])
+            return AnyOf(constraints)
+        return constraints[0]
 
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):
