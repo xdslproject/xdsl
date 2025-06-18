@@ -259,35 +259,35 @@ class ApplyOp(IRDLOperation):
 
     def print(self, printer: Printer):
         def print_arg(arg: SSAValue):
-            printer.print(arg)
-            printer.print(" : ")
-            printer.print(arg.type)
+            printer.print_ssa_value(arg)
+            printer.print_string(" : ")
+            printer.print_attribute(arg.type)
 
-        printer.print("(")
+        with printer.in_parens():
+            # args required by function signature, plus optional args for regions
+            args = [self.field, self.accumulator, *self.args_rchunk, *self.args_dexchng]
 
-        # args required by function signature, plus optional args for regions
-        args = [self.field, self.accumulator, *self.args_rchunk, *self.args_dexchng]
-
-        printer.print_list(args, print_arg)
+            printer.print_list(args, print_arg)
         if self.dest:
-            printer.print(") outs (")
-            printer.print_list(self.dest, print_arg)
+            printer.print_string(" outs ")
+            with printer.in_parens():
+                printer.print_list(self.dest, print_arg)
         else:
-            printer.print(") -> (")
-            printer.print_list(self.res.types, printer.print_attribute)
+            printer.print_string(" -> ")
+            with printer.in_parens():
+                printer.print_list(self.res.types, printer.print_attribute)
 
-        printer.print(") ")
-        printer.print("<")
-        printer.print_attr_dict(self.properties)
-        printer.print("> ")
+        printer.print_string(" ")
+        with printer.in_angle_brackets():
+            printer.print_attr_dict(self.properties)
+        printer.print_string(" ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
-        printer.print("(")
-        printer.print_region(self.receive_chunk, print_entry_block_args=True)
-        printer.print(", ")
-        printer.print_region(self.done_exchange, print_entry_block_args=True)
-        printer.print(")")
+        with printer.in_parens():
+            printer.print_region(self.receive_chunk, print_entry_block_args=True)
+            printer.print_string(", ")
+            printer.print_region(self.done_exchange, print_entry_block_args=True)
         if self.bounds is not None:
-            printer.print(" to ")
+            printer.print_string(" to ")
             self.bounds.print_parameters(printer)
 
     @classmethod
@@ -477,7 +477,7 @@ class AccessOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.op)
         printer.print_op_attributes(
             self.attributes,
@@ -490,17 +490,16 @@ class AccessOp(IRDLOperation):
             mapping = range(len(self.offset))
         offset = list(self.offset)
 
-        printer.print("[")
-        index = 0
-        for i in range(len(self.offset)):
-            if i in mapping:
-                printer.print(offset[index])
-                index += 1
-            else:
-                printer.print("_")
-            if i != len(self.offset) - 1:
-                printer.print(", ")
-        printer.print("]")
+        with printer.in_square_brackets():
+            index = 0
+            for i in range(len(self.offset)):
+                if i in mapping:
+                    printer.print_string(str(offset[index]))
+                    index += 1
+                else:
+                    printer.print_string("_")
+                if i != len(self.offset) - 1:
+                    printer.print_string(", ")
 
         printer.print_string(" : ")
         printer.print_attribute(self.op.type)
