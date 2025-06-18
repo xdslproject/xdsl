@@ -899,14 +899,10 @@ def test_parse_number(
     ],
 )
 def test_parse_optional_builtin_int_or_float_attr(
-    text: str, expected_value: IntegerAttr | FloatAttr | None
+    text: str, expected_value: IntegerAttr | FloatAttr
 ):
     parser = Parser(Context(), text)
-    if expected_value is None:
-        with pytest.raises(ValueError, match="Hello"):
-            parser.parse_optional_builtin_int_or_float_attr()
-    else:
-        assert parser.parse_optional_builtin_int_or_float_attr() == expected_value
+    assert parser.parse_optional_builtin_int_or_float_attr() == expected_value
 
 
 @pytest.mark.parametrize(
