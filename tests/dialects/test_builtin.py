@@ -32,6 +32,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     Signedness,
     StridedLayoutAttr,
+    StringAttr,
     SymbolRefAttr,
     TensorType,
     UnrealizedConversionCastOp,
@@ -819,6 +820,8 @@ def test_array_constr():
     assert constr.infer(ctx) == ArrayAttr([i32, i32])
 
     assert constr.get_bases() == {ArrayAttr}
+
+    bla = ArrayAttr[StringAttr].constr(i32)
 
 
 ################################################################################

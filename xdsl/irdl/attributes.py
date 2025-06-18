@@ -24,7 +24,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import Self, TypeVar
 
 from xdsl.ir import AttributeCovT
 
@@ -77,7 +77,9 @@ class GenericData(Data[_DataElement], ABC):
 
     @classmethod
     @abstractmethod
-    def constr(cls) -> AttrConstraint:
+    def constr(
+        cls, base_constraint: "IRDLGenericAttrConstraint[AttributeCovT]"
+    ) -> GenericAttrConstraint[Self]:
         """
         Returns a constraint for this subclass.
         Generic arguments are constrained via TypeVarConstraints.
@@ -280,7 +282,7 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
 
 IRDLGenericAttrConstraint: TypeAlias = (
     GenericAttrConstraint[AttributeInvT]
-    | Attribute
+    | AttributeInvT
     | type[AttributeInvT]
     | "TypeForm[AttributeInvT]"
     | ConstraintVar
@@ -353,7 +355,7 @@ def irdl_to_attr_constraint(
 
 @overload
 def irdl_to_attr_constraint(
-    irdl: Attribute | TypeVar | ConstraintVar,
+    irdl: Attribute | TypeVar,
     *,
     allow_type_var: bool = False,
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
@@ -416,13 +418,12 @@ def irdl_to_attr_constraint(
             raise Exception(f"GenericData args must have length 1, got {args}")
         origin = cast(type[GenericData[Any]], origin)
         args = cast(tuple[Attribute], args)
-        type_var = get_type_var_from_generic_class(origin)[0]
         constr = irdl_to_attr_constraint(args[0])
 
         return AllOf(
             (
                 BaseAttr(origin),
-                origin.constr().mapping_type_vars({type_var: constr}),
+                origin.constr(constr),
             )
         )
 

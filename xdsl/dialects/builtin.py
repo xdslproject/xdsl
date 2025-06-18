@@ -61,7 +61,6 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     RangeOf,
-    TypeVarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -171,10 +170,8 @@ class ArrayAttr(
     def constr(
         cls,
         base_constraint: IRDLGenericAttrConstraint[AttributeCovT]
-        | GenericRangeConstraint[AttributeInvT] = RangeOf(
-            TypeVarConstraint(AttributeCovT, AnyAttr())
-        ),
-    ) -> AttrConstraint:
+        | GenericRangeConstraint[AttributeCovT],
+    ) -> GenericAttrConstraint[ArrayAttr[AttributeCovT]]:
         return ArrayOfConstraint(base_constraint)
 
     def __len__(self):
