@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import cast
+from typing import ClassVar, cast
 
 from typing_extensions import Self
 
@@ -19,11 +19,12 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     i64,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue, TypeAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    VarConstraint,
     base,
     irdl_op_definition,
     operand_def,
@@ -516,6 +517,17 @@ class InsertOp(IRDLOperation):
         return cls(scalar, dest, indices)
 
 
+@irdl_op_definition
+class FromElementsOp(IRDLOperation):
+    name = "tensor.from_elements"
+
+    T: ClassVar = VarConstraint("T", base(TypeAttribute))
+
+    elements = var_operand_def(T)
+    result = result_def(TensorType[T])
+    assembly_format = "$elements attr-dict `:` type($result)"
+
+
 Tensor = Dialect(
     "tensor",
     [
@@ -528,6 +540,7 @@ Tensor = Dialect(
         CollapseShapeOp,
         ExtractOp,
         InsertOp,
+        FromElementsOp,
     ],
     [],
 )
