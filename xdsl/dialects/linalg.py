@@ -876,7 +876,7 @@ class TransposeOp(IRDLOperation):
 
     hidden_region = region_def("single_block")
 
-    permutation = prop_def(DenseArrayBase)
+    permutation = prop_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
@@ -931,19 +931,22 @@ class TransposeOp(IRDLOperation):
                 )
 
     def print(self, printer: Printer):
-        printer.print_string(" ins(")
-        printer.print(self.input)
-        printer.print_string(":")
-        printer.print(self.input.type)
-        printer.print_string(")")
-        printer.print_string(" outs(")
-        printer.print(self.init)
-        printer.print_string(":")
-        printer.print(self.init.type)
-        printer.print_string(") ")
-        printer.print_string("permutation")
-        printer.print_string(" = ")
-        printer.print(list(self.permutation.get_values()))
+        printer.print_string(" ins")
+        with printer.in_parens():
+            printer.print_ssa_value(self.input)
+            printer.print_string(":")
+            printer.print_attribute(self.input.type)
+        printer.print_string(" outs")
+        with printer.in_parens():
+            printer.print_ssa_value(self.init)
+            printer.print_string(":")
+            printer.print_attribute(self.init.type)
+        printer.print_string(" permutation = ")
+        with printer.in_square_brackets():
+            printer.print_list(
+                self.permutation.get_values(),
+                lambda x: printer.print_string(str(x)),
+            )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -1242,7 +1245,7 @@ class BroadcastOp(IRDLOperation):
 
     hidden_region = region_def("single_block")
 
-    dimensions = attr_def(DenseArrayBase)
+    dimensions = attr_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
@@ -1302,19 +1305,21 @@ class BroadcastOp(IRDLOperation):
                 )
 
     def print(self, printer: Printer):
-        printer.print_string(" ins(")
-        printer.print(self.input)
-        printer.print_string(":")
-        printer.print(self.input.type)
-        printer.print_string(")")
-        printer.print_string(" outs(")
-        printer.print(self.init)
-        printer.print_string(":")
-        printer.print(self.init.type)
-        printer.print_string(") ")
-        printer.print_string("dimensions")
-        printer.print_string(" = ")
-        printer.print(list(self.dimensions.get_values()))
+        printer.print_string(" ins")
+        with printer.in_parens():
+            printer.print_ssa_value(self.input)
+            printer.print_string(":")
+            printer.print_attribute(self.input.type)
+        printer.print_string(" outs")
+        with printer.in_parens():
+            printer.print_ssa_value(self.init)
+            printer.print_string(":")
+            printer.print_attribute(self.init.type)
+        printer.print_string(" dimensions = ")
+        with printer.in_square_brackets():
+            printer.print_list(
+                self.dimensions.get_values(), lambda x: printer.print_string(str(x))
+            )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
