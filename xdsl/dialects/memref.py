@@ -563,7 +563,7 @@ class ExpandShapeOp(AlterShapeOperation):
         printer.print_list(t, lambda x: printer.print_string(str(x)))
         printer.print_string("]")
         if self.attributes:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_attr_dict(self.attributes)
         printer.print_string(" : ")
         printer.print_attribute(self.src.type)
