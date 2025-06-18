@@ -821,6 +821,33 @@ def test_array_constr():
     assert constr.get_bases() == {ArrayAttr}
 
 
+def test_dense_array_constr():
+    constr = DenseArrayBase.constr()
+    assert constr.verifies(DenseArrayBase.from_list(i32, [1, 2, 3]))
+    assert constr.verifies(DenseArrayBase.from_list(i64, [1, 2, 3]))
+    assert constr.verifies(DenseArrayBase.from_list(f32, [1.0, 2.0, 3.0]))
+
+    constr = DenseArrayBase.constr(IntegerType)
+    assert constr.verifies(DenseArrayBase.from_list(i32, [1, 2, 3]))
+    assert constr.verifies(DenseArrayBase.from_list(i64, [1, 2, 3]))
+    assert not constr.verifies(DenseArrayBase.from_list(f32, [1.0, 2.0, 3.0]))
+
+    constr = DenseArrayBase.constr(i32)
+    assert constr.verifies(DenseArrayBase.from_list(i32, [1, 2, 3]))
+    assert not constr.verifies(DenseArrayBase.from_list(i64, [1, 2, 3]))
+    assert not constr.verifies(DenseArrayBase.from_list(f32, [1.0, 2.0, 3.0]))
+
+    constr = DenseArrayBase.constr(i64)
+    assert not constr.verifies(DenseArrayBase.from_list(i32, [1, 2, 3]))
+    assert constr.verifies(DenseArrayBase.from_list(i64, [1, 2, 3]))
+    assert not constr.verifies(DenseArrayBase.from_list(f32, [1.0, 2.0, 3.0]))
+
+    constr = DenseArrayBase.constr(AnyFloat)
+    assert not constr.verifies(DenseArrayBase.from_list(i32, [1, 2, 3]))
+    assert not constr.verifies(DenseArrayBase.from_list(i64, [1, 2, 3]))
+    assert constr.verifies(DenseArrayBase.from_list(f32, [1.0, 2.0, 3.0]))
+
+
 ################################################################################
 # Mapping Type Var
 ################################################################################
