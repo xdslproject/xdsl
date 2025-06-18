@@ -20,7 +20,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypedAttribute,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import PyRDLError, VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
 if TYPE_CHECKING:
@@ -439,6 +439,20 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         constrs: tuple[GenericAttrConstraint[AttributeCovT], ...] = tuple(
             irdl_to_attr_constraint(constr) for constr in attr_constrs
         )
+
+        bases = set[Attribute]()
+        for c in constrs:
+            b = c.get_bases()
+            if b is None:
+                raise PyRDLError(
+                    f"Constraint {c} cannot appear in an `AnyOf` constraint as its bases aren't known."
+                )
+            if not b.isdisjoint(bases):
+                raise PyRDLError(
+                    f"Constraints {constrs} do not have disjoint bases so cannot be put in an `AnyOf` constraint."
+                )
+            bases |= b
+
         object.__setattr__(
             self,
             "attr_constrs",
