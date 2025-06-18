@@ -1712,8 +1712,10 @@ class DenseArrayBase(
     @classmethod
     def constr(
         cls,
-        element_type: IRDLGenericAttrConstraint[DenseArrayInvT],
+        element_type: IRDLGenericAttrConstraint[DenseArrayInvT] | None = None,
     ) -> GenericAttrConstraint[DenseArrayBase[DenseArrayInvT]]:
+        if element_type is None:
+            return BaseAttr[DenseArrayBase[DenseArrayInvT]](DenseArrayBase)
         return ParamAttrConstraint[DenseArrayBase[DenseArrayInvT]](
             DenseArrayBase, (element_type, AnyAttr())
         )

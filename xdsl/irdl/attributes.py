@@ -280,7 +280,7 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
 
 IRDLGenericAttrConstraint: TypeAlias = (
     GenericAttrConstraint[AttributeInvT]
-    | Attribute
+    | AttributeInvT
     | type[AttributeInvT]
     | "TypeForm[AttributeInvT]"
     | ConstraintVar
