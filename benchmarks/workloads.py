@@ -25,7 +25,8 @@ class WorkloadBuilder:
     @classmethod
     def wrap_module(cls, ops: list[str]) -> str:
         """Wrap a list of operations as a module."""
-        workload = f'"builtin.module"() ({{\n  {"\n  ".join(ops)}\n}}) : () -> ()'
+        body = "\n  ".join(ops)
+        workload = f'"builtin.module"() ({{\n  {body}\n}}) : () -> ()'
         return workload
 
     @classmethod
@@ -98,7 +99,7 @@ class WorkloadBuilder:
         return ModuleOp(
             [
                 ConstantOp(
-                    DenseIntOrFPElementsAttr.from_list(
+                    DenseIntOrFPElementsAttr.create_dense_int(
                         type=tensor_type, data=dense_attr
                     )
                 )

@@ -141,7 +141,7 @@ class StreamOpLowering(RewritePattern):
         self, op: memref_stream.StreamingRegionOp, rewriter: PatternRewriter
     ) -> None:
         operand_types = tuple(
-            cast(memref.MemRefType[Attribute], value_type)
+            cast(memref.MemRefType, value_type)
             for value in op.operands
             if isinstance(value_type := value.type, memref.MemRefType)
         )

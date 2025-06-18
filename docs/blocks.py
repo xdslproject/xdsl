@@ -1,29 +1,30 @@
 import textwrap
 import xml.etree.ElementTree as etree
+from collections.abc import Callable
 from typing import Any
 
 from pymdownx.blocks import BlocksExtension  # pyright: ignore[reportMissingTypeStubs]
 from pymdownx.blocks.block import (  # pyright: ignore[reportMissingTypeStubs]
     Block,
-    type_string,  # pyright: ignore[reportUnknownVariableType]
-    type_string_in,  # pyright: ignore[reportUnknownVariableType]
+    type_string,
+    type_string_in,
 )
 
 
 class BaseMarimoBlock(Block):
     """Base class for marimo embed blocks"""
 
-    OPTIONS: dict[str, list[str | Any]] = {
-        "size": [
+    OPTIONS: dict[str, tuple[Any, Callable[[Any], Any]]] = {
+        "size": (
             "medium",
             type_string_in(["small", "medium", "large", "xlarge", "xxlarge"]),
-        ],
-        "mode": ["read", type_string_in(["read", "edit"])],
+        ),
+        "mode": ("read", type_string_in(["read", "edit"])),
     }
 
     options: dict[str, Any]
 
-    def on_create(self, parent: etree.Element) -> etree.Element:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def on_create(self, parent: etree.Element) -> etree.Element:
         container = etree.SubElement(parent, "div")
         container.set("class", "marimo-embed-container")
         return container
@@ -52,15 +53,15 @@ class BaseMarimoBlock(Block):
         iframe.set("scrolling", "no")
         iframe.set("style", "height: 75vh")
 
-    def on_markdown(self) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def on_markdown(self) -> str:
         return "raw"
 
 
 class MarimoEmbedBlock(BaseMarimoBlock):
     NAME: str = "marimo-embed"
-    OPTIONS: dict[str, list[str | Any]] = {
+    OPTIONS: dict[str, tuple[Any, Callable[[Any], Any]]] = {
         **BaseMarimoBlock.OPTIONS,
-        "app_width": ["wide", type_string_in(["wide", "full", "compact"])],
+        "app_width": ("wide", type_string_in(["wide", "full", "compact"])),
     }
 
     def on_end(self, block: etree.Element) -> None:
@@ -81,10 +82,10 @@ class MarimoEmbedBlock(BaseMarimoBlock):
 
 class MarimoEmbedFileBlock(BaseMarimoBlock):
     NAME: str = "marimo-embed-file"
-    OPTIONS: dict[str, list[str | Any]] = {
+    OPTIONS: dict[str, tuple[Any, Callable[[Any], Any]]] = {
         **BaseMarimoBlock.OPTIONS,
-        "filepath": ["", type_string],
-        "show_source": ["true", type_string_in(["true", "false"])],
+        "filepath": ("", type_string),
+        "show_source": ("true", type_string_in(["true", "false"])),
     }
 
     def on_end(self, block: etree.Element) -> None:

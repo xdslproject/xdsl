@@ -140,12 +140,21 @@ class Attribute(ABC):
 class BuiltinAttribute(Attribute, ABC):
     """
     This class is used to mark builtin attributes.
-    Unlike other attributes in MLIR, printing and parsing of *Builtin*
-    attributes is handled directly by the parser.
+    Unlike other attributes in MLIR, parsing of *Builtin* attributes
+    is handled directly by the parser.
+    Printing of these attributes is handled by the `print_builtin` function, which must
+    be implemented by all *Builtin* attributes.
     Attributes outside of the `builtin` dialect should not inherit from `BuiltinAttribute`.
     """
 
-    pass
+    @abstractmethod
+    def print_builtin(self, printer: Printer) -> None:
+        """
+        Prints the attribute using the supplied printer.
+        `BuiltinAttribute`s need not follow the same rules as other attributes, for example
+        they do not need to be prefixed by `!` or `#` and do not need to print their name.
+        """
+        ...
 
 
 class TypeAttribute(Attribute):

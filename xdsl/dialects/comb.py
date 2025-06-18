@@ -89,12 +89,12 @@ class BinCombOperation(IRDLOperation, ABC):
         return cls(lhs, rhs, result_type)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_ssa_value(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_ssa_value(self.rhs)
-        printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.result.type)
 
 
 class VariadicCombOperation(IRDLOperation, ABC):
@@ -142,10 +142,10 @@ class VariadicCombOperation(IRDLOperation, ABC):
         return cls.create(operands=inputs, result_types=[result_type])
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
-        printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
@@ -331,15 +331,15 @@ class ICmpOp(IRDLOperation, ABC):
         return cls(operand1, operand2, arg, has_two_state_semantics)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         if self.two_state is not None:
-            printer.print("bin ")
+            printer.print_string("bin ")
         printer.print_string(ICMP_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -376,12 +376,12 @@ class ParityOp(IRDLOperation):
         return cls(op, two_state)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         if self.two_state is not None:
-            printer.print("bin ")
+            printer.print_string("bin ")
         printer.print_ssa_value(self.input)
-        printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
@@ -448,9 +448,9 @@ class ExtractOp(IRDLOperation):
         return cls(op, IntegerAttr(bit, 32), result_type.outputs.data[0])
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_ssa_value(self.input)
-        printer.print(f" from {self.low_bit.value.data} : ")
+        printer.print_string(f" from {self.low_bit.value.data} : ")
         printer.print_function_type([self.input.type], [self.result.type])
 
 
@@ -519,9 +519,9 @@ class ConcatOp(IRDLOperation):
         return cls.create(operands=inputs, result_types=[IntegerType(sum_of_width)])
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_list(self.inputs.types, printer.print_attribute)
 
 
@@ -548,9 +548,9 @@ class ReplicateOp(IRDLOperation):
         return cls.create(operands=operands, result_types=fun_type.outputs.data)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_ssa_value(self.input)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_function_type((self.input.type,), (self.result.type,))
 
 
@@ -597,13 +597,13 @@ class MuxOp(IRDLOperation):
         return cls(condition, true_val, false_val)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.cond)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.true_value)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.false_value)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
 

@@ -139,11 +139,10 @@ class InnerRefAttr(ParametrizedAttribute):
         ]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<@")
-        printer.print_string(self.module_ref.root_reference.data)
-        printer.print_string("::@")
-        printer.print_string(self.sym_name.data)
-        printer.print_string(">")
+        with printer.in_angle_brackets():
+            printer.print_symbol_name(self.module_ref.root_reference.data)
+            printer.print_string("::")
+            printer.print_symbol_name(self.sym_name.data)
 
 
 @dataclass(frozen=True)
@@ -465,9 +464,9 @@ class Direction(Enum):
     def print(self, printer: Printer, short: bool = False) -> None:
         match self:
             case Direction.INPUT:
-                printer.print("input" if not short else "in")
+                printer.print_string("input" if not short else "in")
             case Direction.OUTPUT:
-                printer.print("output" if not short else "out")
+                printer.print_string("output" if not short else "out")
 
     def is_input_like(self) -> bool:
         return self == Direction.INPUT
@@ -540,9 +539,9 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer):
         def print_port(port: ModulePort):
             port.dir.data.print(printer)
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_identifier_or_string_literal(port.port_name.data)
-            printer.print(" : ")
+            printer.print_string(" : ")
             printer.print_attribute(port.type)
 
         with printer.in_angle_brackets():
@@ -603,7 +602,7 @@ class ParamDeclAttr(ParametrizedAttribute):
             printer.print_attribute(self.port_name)
         else:
             printer.print_identifier_or_string_literal(self.port_name.data)
-        printer.print(": ")
+        printer.print_string(": ")
         printer.print_attribute(self.type)
 
     def print_parameters(self, printer: Printer):
@@ -745,9 +744,10 @@ def print_module_header(
     name of an SSA value, or a string decided beforehand.
     """
     if visibility is not None:
-        printer.print(f" {visibility.data}")
-    printer.print(" @")
-    printer.print_identifier_or_string_literal(module_name.data)
+        printer.print_string(" ")
+        printer.print_string(visibility.data)
+    printer.print_string(" ")
+    printer.print_symbol_name(module_name.data)
 
     # Print parameters
     if parameters is not None and len(parameters.data) != 0:
@@ -757,13 +757,12 @@ def print_module_header(
                 lambda x: x.print_free_standing_parameters(printer),
             )
 
-    printer.print("(")
     arg_iter = iter(arg_ssa_iter)
 
     def print_port(port: ModulePort):
         ssa_arg = next(arg_iter) if port.dir.data.is_input_like() else None
         port.dir.data.print(printer, short=True)
-        printer.print(" ")
+        printer.print_string(" ")
 
         # Print argument
         if ssa_arg is not None:
@@ -771,19 +770,19 @@ def print_module_header(
                 used_name = printer.print_ssa_value(ssa_arg)
             else:
                 assert isinstance(ssa_arg, str)
-                printer.print(f"%{ssa_arg}")
+                printer.print_string("%")
+                printer.print_string(ssa_arg)
                 used_name = ssa_arg
             if port.port_name.data != used_name:
-                printer.print(" ")
+                printer.print_string(" ")
                 printer.print_identifier_or_string_literal(port.port_name.data)
         else:
             printer.print_identifier_or_string_literal(port.port_name.data)
-        printer.print(": ")
+        printer.print_string(": ")
         printer.print_attribute(port.type)
 
-    printer.print_list(module_type.ports.data, print_port)
-
-    printer.print(")")
+    with printer.in_parens():
+        printer.print_list(module_type.ports.data, print_port)
 
 
 _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT: list[str] = [
@@ -917,7 +916,7 @@ class HWModuleOp(IRDLOperation):
             reserved_attr_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
             print_keyword=True,
         )
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_region(self.body, print_entry_block_args=False)
 
 
@@ -1188,41 +1187,41 @@ class InstanceOp(IRDLOperation):
         )
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_attribute(self.instance_name)
-        printer.print(" ")
+        printer.print_string(" ")
         if self.inner_sym is not None:
-            printer.print("sym ")
+            printer.print_string("sym ")
             printer.print_attribute(self.inner_sym)
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_attribute(self.module_name)
 
         def print_input_port(name: str, operand: SSAValue):
             printer.print_identifier_or_string_literal(name)
-            printer.print(": ")
+            printer.print_string(": ")
             printer.print_operand(operand)
-            printer.print(": ")
+            printer.print_string(": ")
             printer.print_attribute(operand.type)
 
         def print_output_port(name: str, port_type: Attribute):
             printer.print_identifier_or_string_literal(name)
-            printer.print(": ")
+            printer.print_string(": ")
             printer.print_attribute(port_type)
 
-        printer.print("(")
-        printer.print_list(
-            zip((name.data for name in self.arg_names), self.operands),
-            lambda x: print_input_port(*x),
-        )
-        printer.print(") -> (")
-        printer.print_list(
-            zip(
-                (name.data for name in self.result_names),
-                self.result_types,
-            ),
-            lambda x: print_output_port(*x),
-        )
-        printer.print(")")
+        with printer.in_parens():
+            printer.print_list(
+                zip((name.data for name in self.arg_names), self.operands),
+                lambda x: print_input_port(*x),
+            )
+        printer.print_string(" -> ")
+        with printer.in_parens():
+            printer.print_list(
+                zip(
+                    (name.data for name in self.result_names),
+                    self.result_types,
+                ),
+                lambda x: print_output_port(*x),
+            )
         printer.print_op_attributes(
             self.attributes,
             reserved_attr_names=(
@@ -1286,9 +1285,9 @@ class OutputOp(IRDLOperation):
         if len(self.inputs) == 0:
             return
 
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_operand)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_list(self.inputs.types, printer.print_attribute)
 
 

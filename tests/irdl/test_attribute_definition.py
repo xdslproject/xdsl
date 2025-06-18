@@ -377,9 +377,10 @@ def test_bose_constraint():
 
 def test_base_constraint_fail():
     """Test the verifier of a union constraint."""
-    with pytest.raises(Exception) as e:
+    with pytest.raises(
+        VerifyException, match="#test.str<foo> should be of base attribute test.bool"
+    ):
         BoolWrapperAttr((StringData("foo"),))
-    assert e.value.args[0] == "#test.str<foo> should be of base attribute test.bool"
 
 
 ################################################################################
@@ -414,9 +415,8 @@ def test_union_constraint_right():
 
 def test_union_constraint_fail():
     """Test the verifier of a union constraint."""
-    with pytest.raises(Exception) as e:
+    with pytest.raises(VerifyException, match="Unexpected attribute #test.str<foo>"):
         BoolOrIntParamAttr((StringData("foo"),))
-    assert e.value.args[0] == "Unexpected attribute #test.str<foo>"
 
 
 ################################################################################
@@ -457,9 +457,8 @@ def test_annotated_constraint():
 
 def test_annotated_constraint_fail():
     """Test that the verifier of an annotated constraint can fail."""
-    with pytest.raises(Exception) as e:
+    with pytest.raises(VerifyException, match="Expected positive integer, got -42."):
         PositiveIntAttr((IntData(-42),))
-    assert e.value.args[0] == "Expected positive integer, got -42."
 
 
 ################################################################################
@@ -499,9 +498,8 @@ def test_typevar_attribute_bool():
 
 def test_typevar_attribute_fail():
     """Test that the verifier of an generic attribute can fail."""
-    with pytest.raises(Exception) as e:
+    with pytest.raises(VerifyException, match="Unexpected attribute #test.str<foo>"):
         ParamWrapperAttr(StringData("foo"))  # pyright: ignore
-    assert e.value.args[0] == "Unexpected attribute #test.str<foo>"
 
 
 @irdl_attr_definition
@@ -531,9 +529,10 @@ def test_param_attr_constraint_fail():
     Test that the verifier of an attribute with
     a parametric constraint can fail.
     """
-    with pytest.raises(Exception) as e:
+    with pytest.raises(
+        VerifyException, match="#test.bool<True> should be of base attribute test.int"
+    ):
         ParamConstrAttr(ParamWrapperAttr(BoolData(True)))  # pyright: ignore
-    assert e.value.args[0] == "#test.bool<True> should be of base attribute test.int"
 
 
 _U = TypeVar("_U", bound=IntData)
@@ -569,9 +568,10 @@ def test_nested_generic_constraint_fail():
     Test that the verifier of an attribute with
     a parametric constraint can fail.
     """
-    with pytest.raises(Exception) as e:
+    with pytest.raises(
+        VerifyException, match="#test.bool<True> should be of base attribute test.int"
+    ):
         NestedParamWrapperAttr(ParamWrapperAttr(BoolData(True)))  # pyright: ignore
-    assert e.value.args[0] == "#test.bool<True> should be of base attribute test.int"
 
 
 @irdl_attr_definition
@@ -601,9 +601,8 @@ def test_nested_param_attr_constraint_fail():
     """
     Test that the verifier of a nested parametric constraint can fail.
     """
-    with pytest.raises(Exception) as e:
+    with pytest.raises(VerifyException, match="Expected positive integer, got -42."):
         NestedParamConstrAttr((NestedParamWrapperAttr(ParamWrapperAttr(IntData(-42))),))
-    assert e.value.args[0] == "Expected positive integer, got -42."
 
 
 ################################################################################
@@ -644,7 +643,7 @@ def test_informative_constraint():
     constr = MessageConstraint(NoneAttr(), "User-enlightening message.")
     with pytest.raises(
         VerifyException,
-        match="User-enlightening message.\nUnderlying verification failure: Expected attribute #none but got #builtin.int<1>",
+        match="User-enlightening message.\nUnderlying verification failure: Expected attribute none but got #builtin.int<1>",
     ):
         constr.verify(IntAttr(1), ConstraintContext())
     assert constr.can_infer(set())
@@ -684,13 +683,15 @@ def test_data_with_generic_missing_generic_data_failure():
     Test error message when a generic data is used in constraints
     without implementing GenericData.
     """
-    with pytest.raises(Exception) as e:
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
+            "attribute constraint. Consider making it inherit from `GenericData` "
+            "instead of `Data`."
+        ),
+    ):
         irdl_attr_definition(MissingGenericDataDataWrapper)
-    assert e.value.args[0] == (
-        "Generic `Data` type 'test.missing_genericdata' cannot be converted to "
-        "an attribute constraint. Consider making it inherit from "
-        "`GenericData` instead of `Data`."
-    )
 
 
 @irdl_attr_definition
@@ -709,7 +710,7 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
 
     @classmethod
     def constr(
-        cls, base_constraint: IRDLGenericAttrConstraint[AttributeInvT]
+        cls, base_constraint: IRDLGenericAttrConstraint[AttributeInvT] | AttrConstraint
     ) -> GenericAttrConstraint[ListData[AttributeInvT]]:
         return DataListAttr[AttributeInvT](irdl_to_attr_constraint(base_constraint))
 
@@ -786,16 +787,13 @@ def test_generic_data_wrapper_verifier_failure():
     Test that a GenericData used in constraints fails
     the verifier when constraints are not satisfied.
     """
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
+        ),
+    ):
         ListDataWrapper((ListData((BoolData(True), ListData((BoolData(False),)))),))
-    assert (
-        e.value.args[0]
-        == "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
-    )
-    assert (
-        e.value.args[0]
-        == "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
-    )
 
 
 @irdl_attr_definition

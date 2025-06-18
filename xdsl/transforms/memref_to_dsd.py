@@ -21,7 +21,7 @@ from xdsl.dialects.builtin import (
     i16,
 )
 from xdsl.dialects.csl.csl import ZerosOpAttr
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue
+from xdsl.ir import Operation, OpResult, SSAValue
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -188,7 +188,7 @@ class LowerSubviewOpPass(RewritePattern):
     def _update_sizes(
         subview: memref.SubviewOp, curr_op: SSAValue | Operation
     ) -> list[Operation]:
-        assert isa(subview.source.type, MemRefType[Attribute])
+        assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
 
         static_sizes = cast(Sequence[int], subview.static_sizes.get_values())
@@ -221,7 +221,7 @@ class LowerSubviewOpPass(RewritePattern):
     def _update_strides(
         subview: memref.SubviewOp, curr_op: SSAValue | Operation
     ) -> list[Operation]:
-        assert isa(subview.source.type, MemRefType[Attribute])
+        assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
 
         static_strides = cast(Sequence[int], subview.static_strides.get_values())
@@ -254,7 +254,7 @@ class LowerSubviewOpPass(RewritePattern):
     def _update_offsets(
         subview: memref.SubviewOp, curr_op: SSAValue | Operation
     ) -> list[Operation]:
-        assert isa(subview.source.type, MemRefType[Attribute])
+        assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
 
         static_offsets = cast(Sequence[int], subview.static_offsets.get_values())
@@ -298,7 +298,7 @@ class LowerCopyOpPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.CopyOp, rewriter: PatternRewriter, /):
-        assert isa(op.source.type, MemRefType[Attribute])
+        assert isa(op.source.type, MemRefType)
 
         match op.source.type.get_element_type():
             case Float16Type():
@@ -325,7 +325,7 @@ class LowerUnrealizedConversionCastOpPass(RewritePattern):
         self, op: UnrealizedConversionCastOp, rewriter: PatternRewriter, /
     ):
         if all(isa(t, csl.DsdType) for t in op.inputs.types) and all(
-            isa(t, MemRefType[Attribute]) for t in op.outputs.types
+            isa(t, MemRefType) for t in op.outputs.types
         ):
             rewriter.replace_matched_op([], new_results=op.inputs)
 
@@ -370,10 +370,7 @@ class CslVarUpdate(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.VariableOp, rewriter: PatternRewriter, /):
-        if (
-            not isa(elem_t := op.res.type.get_element_type(), MemRefType[Attribute])
-            or op.default
-        ):
+        if not isa(elem_t := op.res.type.get_element_type(), MemRefType) or op.default:
             return
         dsd_t = csl.DsdType(
             csl.DsdKind.mem1d_dsd if len(elem_t.shape) == 1 else csl.DsdKind.mem4d_dsd
@@ -387,7 +384,7 @@ class CslVarLoad(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.LoadVarOp, rewriter: PatternRewriter, /):
         if (
-            not isa(op.res.type, MemRefType[Attribute])
+            not isa(op.res.type, MemRefType)
             or not isinstance(op.var.type, csl.VarType)
             or not isa(op.var.type.get_element_type(), csl.DsdType)
         ):
