@@ -193,7 +193,7 @@ def print_func_op_like(
     reserved_attr_names: Sequence[str],
 ):
     printer.print_string(" ")
-    printer.print_symbol_name(sym_name)
+    printer.print_symbol_name(sym_name.data)
     if body.blocks:
         printer.print("(")
         if arg_attrs is not None:
