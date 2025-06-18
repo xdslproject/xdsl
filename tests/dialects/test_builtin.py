@@ -379,20 +379,6 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     assert isinstance(value2, float)
     assert value2 == 5.0
 
-    t1 = FloatAttr(4.0, f32)
-    t2 = FloatAttr(5.0, f32)
-
-    check2 = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, [2]), [t1, t2])
-
-    value3 = check2.get_attrs()[0].value.data
-    value4 = check2.get_attrs()[1].value.data
-
-    # Ensure type conversion happened properly during attribute construction.
-    assert isinstance(value3, float)
-    assert value3 == 4.0
-    assert isinstance(value4, float)
-    assert value4 == 5.0
-
 
 def test_DenseIntOrFPElementsAttr_splat():
     attr_int = DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [3]), 4)

@@ -2522,81 +2522,26 @@ class DenseIntOrFPElementsAttr(
     @deprecated("Please use `create_dense_int` instead.")
     def create_dense_index(
         type: RankedStructure[IndexType],
-        data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
+        data: Sequence[int],
     ) -> DenseIntOrFPElementsAttr[IndexType]:
         return DenseIntOrFPElementsAttr.create_dense_int(type, data)
 
     @staticmethod
     def create_dense_int(
-        type: RankedStructure[_IntegerAttrType],
-        data: int
-        | IntegerAttr[_IntegerAttrType]
-        | Sequence[int]
-        | Sequence[IntegerAttr[_IntegerAttrType]],
+        type: RankedStructure[_IntegerAttrType], data: int | Sequence[int]
     ) -> DenseIntOrFPElementsAttr[_IntegerAttrType]:
-        # Splat case
-        if isinstance(data, IntegerAttr):
-            data = data.value.data
         if isinstance(data, int):
-            if isinstance(type.element_type, IntegerType):
-                value = type.element_type.get_normalized_value(data)
-            else:
-                value = data
-            return DenseIntOrFPElementsAttr(
-                [
-                    type,
-                    BytesAttr(
-                        type.element_type.pack((value,)) * prod(type.get_shape())
-                    ),
-                ]
-            )
-
-        # Non-splat case
-        if len(data) and isinstance(data[0], IntegerAttr):
-            data = [el.value.data for el in cast(Sequence[IntegerAttr], data)]
-        else:
-            data = cast(Sequence[int], data)
-
-        # ints are normalized
-        if isinstance(type.element_type, IntegerType):
-            normalized_values = tuple(
-                type.element_type.get_normalized_value(value) for value in data
-            )
-        else:
-            normalized_values = data
-
-        return DenseIntOrFPElementsAttr(
-            [type, BytesAttr(type.element_type.pack(normalized_values))]
-        )
+            data = (data,)
+        return DenseIntOrFPElementsAttr.from_list(type, data)
 
     @staticmethod
     def create_dense_float(
         type: RankedStructure[_FloatAttrType],
-        data: float
-        | FloatAttr[_FloatAttrType]
-        | Sequence[float]
-        | Sequence[FloatAttr[_FloatAttrType]],
+        data: float | Sequence[float],
     ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
-        # Splat case
-        if isinstance(data, FloatAttr):
-            data = data.value.data
-        if isinstance(
-            data, float | int
-        ):  # Pyright allows an int to be passed into this function
-            return DenseIntOrFPElementsAttr(
-                [
-                    type,
-                    BytesAttr(type.element_type.pack((data,)) * prod(type.get_shape())),
-                ]
-            )
-
-        # Non-splat case
-        if len(data) and isa(data[0], FloatAttr):
-            data = [el.value.data for el in cast(Sequence[FloatAttr], data)]
-        else:
-            data = cast(Sequence[float], data)
-
-        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])
+        if isinstance(data, int | float):
+            data = (data,)
+        return DenseIntOrFPElementsAttr.from_list(type, cast(Sequence[float], data))
 
     @overload
     @staticmethod
@@ -2622,109 +2567,58 @@ class DenseIntOrFPElementsAttr(
     @overload
     @staticmethod
     def from_list(
-        type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-        ),
-        data: (
-            Sequence[int]
-            | Sequence[IntegerAttr[IndexType]]
-            | Sequence[IntegerAttr[IntegerType]]
-        ),
-    ) -> DenseIntOrFPElementsAttr: ...
+        type: (RankedStructure[_FloatAttrTypeInvT]),
+        data: (Sequence[float]),
+    ) -> DenseIntOrFPElementsAttr[_FloatAttrTypeInvT]: ...
 
     @overload
     @staticmethod
     def from_list(
-        type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-        ),
-        data: Sequence[int | float] | Sequence[FloatAttr],
-    ) -> DenseIntOrFPElementsAttr: ...
+        type: (RankedStructure[_IntegerAttrTypeInvT]),
+        data: Sequence[int],
+    ) -> DenseIntOrFPElementsAttr[_IntegerAttrTypeInvT]: ...
+
+    @overload
+    @staticmethod
+    def from_list(
+        type: (RankedStructure[ComplexType[_IntegerTypeInvT]]),
+        data: Sequence[tuple[int, int]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[_IntegerTypeInvT]]: ...
+
+    @overload
+    @staticmethod
+    def from_list(
+        type: (RankedStructure[ComplexType[_FloatAttrTypeInvT]]),
+        data: Sequence[tuple[float, float]],
+    ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
 
     @staticmethod
-    @deprecated("Please use `create_dense_{int/float}` instead.")
     def from_list(
         type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
+            RankedStructure[
+                AnyFloat
+                | IntegerType
+                | IndexType
+                | ComplexType[IntegerType]
+                | ComplexType[AnyFloat]
+            ]
         ),
-        data: Sequence[int | float] | Sequence[IntegerAttr] | Sequence[FloatAttr],
+        data: Sequence[int]
+        | Sequence[float]
+        | Sequence[tuple[int, int]]
+        | Sequence[tuple[float, float]],
     ) -> DenseIntOrFPElementsAttr:
-        # splat value given
-        if len(data) == 1 and prod(type.get_shape()) != 1:
-            new_data = data[0]
-        else:
-            new_data = data
+        # Normalise ints
+        if isinstance(t := type.get_element_type(), IntegerType):
+            data = tuple(t.get_normalized_value(cast(int, x)) for x in data)
 
-        if isinstance(type.element_type, AnyFloat):
-            new_type = cast(RankedStructure[AnyFloat], type)
-            new_data = cast(
-                float | FloatAttr | Sequence[float] | Sequence[FloatAttr[AnyFloat]],
-                new_data,
-            )
-            return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
-        else:
-            new_type = cast(RankedStructure[IntegerType | IndexType], type)
-            new_data = cast(
-                int | IntegerAttr | Sequence[int] | Sequence[IntegerAttr], new_data
-            )
-            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
+        b = type.element_type.pack(data)  # pyright: ignore[reportArgumentType]
 
-    @staticmethod
-    @deprecated("Please use `create_dense_{int/float}` instead.")
-    def vector_from_list(
-        data: Sequence[int] | Sequence[float],
-        data_type: IntegerType | IndexType | AnyFloat,
-        shape: Sequence[int] | None = None,
-    ) -> DenseIntOrFPElementsAttr:
-        if not shape:
-            shape = [len(data)]
-        if isinstance(data_type, AnyFloat):
-            return DenseIntOrFPElementsAttr.create_dense_float(
-                VectorType(data_type, shape), data
-            )
-        else:
-            assert isinstance(data_type, IntegerType | IndexType)
-            data = cast(Sequence[int], data)
-            return DenseIntOrFPElementsAttr.create_dense_int(
-                VectorType(data_type, shape), data
-            )
+        # Splat case
+        if len(data) == 1 and (p := prod(type.get_shape())) != 1:
+            b *= p
 
-    @staticmethod
-    @deprecated("Please use `create_dense_{int/float}` instead.")
-    def tensor_from_list(
-        data: (
-            Sequence[int]
-            | Sequence[float]
-            | Sequence[IntegerAttr[IndexType]]
-            | Sequence[IntegerAttr[IntegerType]]
-            | Sequence[FloatAttr]
-        ),
-        data_type: IntegerType | IndexType | AnyFloat,
-        shape: Sequence[int],
-    ) -> DenseIntOrFPElementsAttr:
-        if isinstance(data_type, AnyFloat):
-            new_data = cast(Sequence[float] | Sequence[FloatAttr], data)
-            if len(new_data) == 1 and prod(shape) != 1:
-                new_data = new_data[0]
-            return DenseIntOrFPElementsAttr.create_dense_float(
-                TensorType(data_type, shape), new_data
-            )
-        else:
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr], data)
-            if len(new_data) == 1 and prod(shape) != 1:
-                new_data = new_data[0]
-            return DenseIntOrFPElementsAttr.create_dense_int(
-                TensorType(data_type, shape), new_data
-            )
+        return DenseIntOrFPElementsAttr((type, BytesAttr(b)))
 
     def iter_values(
         self,
