@@ -202,11 +202,10 @@ class ApplyNativeConstraintOp(IRDLOperation):
         return ApplyNativeConstraintOp(name, operands)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.constraint_name.data)
-        printer.print("(")
-        print_operands_with_types(printer, self.operands)
-        printer.print(")")
+        with printer.in_parens():
+            print_operands_with_types(printer, self.operands)
 
 
 @irdl_op_definition
@@ -248,13 +247,12 @@ class ApplyNativeRewriteOp(IRDLOperation):
         return ApplyNativeRewriteOp(name, operands, result_types)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.constraint_name.data)
-        printer.print("(")
-        print_operands_with_types(printer, self.operands)
-        printer.print(")")
+        with printer.in_parens():
+            print_operands_with_types(printer, self.operands)
         if len(self.results) != 0:
-            printer.print(" : ")
+            printer.print_string(" : ")
             printer.print_list(self.result_types, printer.print)
 
 
@@ -451,9 +449,9 @@ class OperationOp(IRDLOperation):
             printer.print_attribute(self.opName)
 
         if len(self.operand_values) != 0:
-            printer.print(" (")
-            print_operands_with_types(printer, self.operand_values)
-            printer.print(")")
+            printer.print_string(" ")
+            with printer.in_parens():
+                print_operands_with_types(printer, self.operand_values)
 
         def print_attribute_entry(entry: tuple[StringAttr, SSAValue]):
             printer.print_attribute(entry[0])
@@ -461,17 +459,17 @@ class OperationOp(IRDLOperation):
             printer.print_ssa_value(entry[1])
 
         if len(self.attributeValueNames) != 0:
-            printer.print(" {")
-            printer.print_list(
-                zip(self.attributeValueNames, self.attribute_values),
-                print_attribute_entry,
-            )
-            printer.print("}")
+            printer.print_string(" ")
+            with printer.in_braces():
+                printer.print_list(
+                    zip(self.attributeValueNames, self.attribute_values),
+                    print_attribute_entry,
+                )
 
         if len(self.type_values) != 0:
-            printer.print(" -> (")
-            print_operands_with_types(printer, self.type_values)
-            printer.print(")")
+            printer.print_string(" -> ")
+            with printer.in_parens():
+                print_operands_with_types(printer, self.type_values)
 
 
 def _visit_pdl_ops(op: Operation, visited: set[Operation]):

@@ -883,14 +883,14 @@ class CmpiOp(ComparisonOperation):
         return cls(operand1, operand2, arg)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
 
         printer.print_string(CMPI_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -991,16 +991,16 @@ class CmpfOp(ComparisonOperation):
         return cls(operand1, operand2, arg, fastmath)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string(CMPF_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
         if self.fastmath != FastMathFlagsAttr("none"):
             printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
