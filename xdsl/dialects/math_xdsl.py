@@ -1,5 +1,11 @@
 """
 The math_xdsl dialect contains extensions to the math dialect.
+Currently, it only contains the `math_xdsl.constant` operation and
+a related attribute, which can be used to define and use
+mathematical constants in IR.
+
+The idea is to upstream these extension to the math dialect in MLIR
+at some point when they have matured.
 """
 
 from enum import auto
