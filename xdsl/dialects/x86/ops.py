@@ -178,7 +178,7 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
 
     def print(self, printer: Printer) -> None:
         if self.operands:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_list(self.operands, printer.print_operand)
         printed_attributes = self.custom_print_attributes(printer)
         unprinted_attributes = {
@@ -198,7 +198,7 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         return self.attributes.keys()
 
     def print_op_type(self, printer: Printer) -> None:
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_operation_type(self)
 
 
@@ -404,7 +404,7 @@ class RM_Operation(
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
@@ -459,7 +459,7 @@ class DM_Operation(
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
@@ -561,7 +561,7 @@ class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -615,7 +615,7 @@ class MS_Operation(
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
@@ -673,10 +673,10 @@ class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         if self.memory_offset.value.data != 0:
-            printer.print(", ")
+            printer.print_string(", ")
             print_immediate_value(printer, self.memory_offset)
         return {"immediate", "memory_offset"}
 
@@ -728,7 +728,7 @@ class DSI_Operation(
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -791,10 +791,10 @@ class DMI_Operation(
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         if self.memory_offset.value.data != 0:
-            printer.print(", ")
+            printer.print_string(", ")
             print_immediate_value(printer, self.memory_offset)
         return {"immediate", "memory_offset"}
 
@@ -840,7 +840,7 @@ class M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
@@ -1781,7 +1781,7 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
@@ -1840,7 +1840,7 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
@@ -1951,7 +1951,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
@@ -2014,7 +2014,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
@@ -2058,7 +2058,7 @@ class LabelOp(X86AsmOperation, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.label.data)
         return {"label"}
 
@@ -2121,10 +2121,10 @@ class DirectiveOp(X86AsmOperation, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.directive.data)
         if self.value is not None:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_string_literal(self.value.data)
         return {"directive", "value"}
 
@@ -2308,7 +2308,7 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
@@ -2362,7 +2362,7 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -2422,7 +2422,7 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
 
@@ -2491,9 +2491,9 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"immediate", "memory_offset"}
 
