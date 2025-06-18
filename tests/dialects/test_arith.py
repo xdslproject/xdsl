@@ -430,20 +430,18 @@ def test_cmpf_incorrect_comparison():
     a = ConstantOp(FloatAttr(1.0, f32))
     b = ConstantOp(FloatAttr(2.0, f32))
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unknown comparison mnemonic: eq"):
         # 'eq' is a comparison op for cmpi but not cmpf
         _cmpf_op = CmpfOp(a, b, "eq")
-    assert e.value.args[0] == "Unknown comparison mnemonic: eq"
 
 
 def test_cmpi_incorrect_comparison():
     a = ConstantOp.from_int_and_width(1, i32)
     b = ConstantOp.from_int_and_width(2, i32)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unknown comparison mnemonic: oeq"):
         # 'oeq' is a comparison op for cmpf but not cmpi
         _cmpi_op = CmpiOp(a, b, "oeq")
-    assert e.value.args[0] == "Unknown comparison mnemonic: oeq"
 
 
 def test_cmpi_index_type():
