@@ -1345,7 +1345,7 @@ def get_variadic_sizes_from_attr(
     from the corresponding attribute.
     """
     # Circular import because DenseArrayBase is defined using IRDL
-    from xdsl.dialects.builtin import DenseArrayBase, i32
+    from xdsl.dialects.builtin import I32, DenseArrayBase
 
     container = op.properties if from_prop else op.attributes
     container_name = "property" if from_prop else "attribute"
@@ -1356,17 +1356,12 @@ def get_variadic_sizes_from_attr(
             f"Expected {size_attribute_name} {container_name} in {op.name} operation."
         )
     attribute = container[size_attribute_name]
-    if not isa(attribute, DenseArrayBase):
+    if not isa(attribute, DenseArrayBase[I32]):
         raise VerifyException(
             f"{size_attribute_name} {container_name} is expected "
-            "to be a DenseArrayBase."
+            "to be a DenseArrayBase of i32."
         )
 
-    if attribute.elt_type != i32:
-        raise VerifyException(
-            f"{size_attribute_name} {container_name} is expected to "
-            "be a DenseArrayBase of i32"
-        )
     def_sizes = cast(Sequence[int], attribute.get_values())
 
     if len(def_sizes) != len(defs):

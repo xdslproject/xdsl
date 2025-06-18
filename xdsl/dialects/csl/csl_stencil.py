@@ -4,8 +4,10 @@ from typing import TypeAlias, cast
 
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
+    I64,
     AnyFloat,
     AnyTensorTypeConstr,
+    DenseArrayBase,
     Float16Type,
     Float32Type,
     FloatAttr,
@@ -74,19 +76,19 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "csl_stencil.exchange"
 
-    neighbor_param: ParameterDef[builtin.DenseArrayBase]
+    neighbor_param: ParameterDef[DenseArrayBase[I64]]
 
     def __init__(
         self,
-        neighbor: Sequence[int] | builtin.DenseArrayBase,
+        neighbor: Sequence[int] | DenseArrayBase,
     ):
         data_type = builtin.i64
         super().__init__(
             [
                 (
                     neighbor
-                    if isinstance(neighbor, builtin.DenseArrayBase)
-                    else builtin.DenseArrayBase.from_list(data_type, neighbor)
+                    if isinstance(neighbor, DenseArrayBase)
+                    else DenseArrayBase.from_list(data_type, neighbor)
                 ),
             ]
         )
@@ -113,7 +115,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         )
         parser.parse_characters(">")
 
-        return [builtin.DenseArrayBase.from_list(builtin.i64, to)]
+        return [DenseArrayBase.from_list(builtin.i64, to)]
 
 
 @irdl_op_definition

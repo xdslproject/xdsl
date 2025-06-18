@@ -610,7 +610,7 @@ class IndexSwitchOp(IRDLOperation):
     name = "scf.index_switch"
 
     arg = operand_def(IndexType)
-    cases = prop_def(DenseArrayBase)
+    cases = prop_def(DenseArrayBase.constr(i64))
 
     output = var_result_def()
 
@@ -651,9 +651,6 @@ class IndexSwitchOp(IRDLOperation):
             )
 
     def verify_(self) -> None:
-        if self.cases.elt_type != i64:
-            raise VerifyException("case values should have type i64")
-
         if len(self.cases) != len(self.case_regions):
             raise VerifyException(
                 f"has {len(self.case_regions)} case regions but {len(self.cases)} case values"

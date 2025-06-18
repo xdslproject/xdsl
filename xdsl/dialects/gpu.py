@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     FunctionType,
     IndexType,
+    IntegerType,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
@@ -365,8 +366,12 @@ class FuncOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     function_type = prop_def(FunctionType)
     kernel = opt_prop_def(UnitAttr)
-    known_block_size = opt_attr_def(DenseArrayBase, attr_name="gpu.known_block_size")
-    known_grid_size = opt_attr_def(DenseArrayBase, attr_name="gpu.known_grid_size")
+    known_block_size = opt_attr_def(
+        DenseArrayBase[IntegerType], attr_name="gpu.known_block_size"
+    )
+    known_grid_size = opt_attr_def(
+        DenseArrayBase[IntegerType], attr_name="gpu.known_grid_size"
+    )
 
     traits = traits_def(IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface())
 

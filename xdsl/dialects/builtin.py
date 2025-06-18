@@ -1650,6 +1650,12 @@ class DenseArrayBase(
     def iter_values(self) -> Iterator[float] | Iterator[int]:
         return self.elt_type.iter_unpack(self.data.data)
 
+    @overload
+    def get_values(self: DenseArrayBase[IntegerType]) -> tuple[int, ...]: ...
+
+    @overload
+    def get_values(self: DenseArrayBase[AnyFloat]) -> tuple[float, ...]: ...
+
     def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
         return self.elt_type.unpack(self.data.data, len(self))
 

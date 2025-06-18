@@ -135,7 +135,7 @@ class LowerSubviewOpPass(RewritePattern):
                 "1d access into nd memref must specify one size > 1"
             )
             size, size_count = counter_sizes.most_common()[0]
-            size = cast(int, size)
+            size = size
 
             assert size_count == 1, (
                 "1d access into nd memref can only specify one size > 1, which can occur only once"
@@ -145,9 +145,7 @@ class LowerSubviewOpPass(RewritePattern):
             )
 
             amap: list[AffineExpr] = [
-                AffineConstantExpr(
-                    cast(int, o) if o != memref.SubviewOp.DYNAMIC_INDEX else 0
-                )
+                AffineConstantExpr(o if o != memref.SubviewOp.DYNAMIC_INDEX else 0)
                 for o in op.static_offsets.get_values()
             ]
             amap[sizes.index(size)] += AffineDimExpr(0)
