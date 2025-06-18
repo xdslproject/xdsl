@@ -7,7 +7,6 @@ from types import EllipsisType
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
-    I32,
     I64,
     AnyFloatConstr,
     ArrayAttr,
@@ -1284,7 +1283,7 @@ class ExtractValueOp(IRDLOperation):
 
     name = "llvm.extractvalue"
 
-    position = prop_def(DenseArrayBase[I64])
+    position = prop_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
 
     res = result_def(Attribute)
@@ -1314,7 +1313,7 @@ class InsertValueOp(IRDLOperation):
 
     name = "llvm.insertvalue"
 
-    position = prop_def(DenseArrayBase[I64])
+    position = prop_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
     value = operand_def(Attribute)
 
@@ -1621,7 +1620,7 @@ class CallIntrinsicOp(IRDLOperation):
 
     fastmathFlags = opt_prop_def(FastMathAttr)
     intrin = prop_def(StringAttr)
-    op_bundle_sizes = prop_def(DenseArrayBase[I32])
+    op_bundle_sizes = prop_def(DenseArrayBase.constr(i32))
     args = var_operand_def()
     op_bundle_operands = var_operand_def()
     ress = opt_result_def()
@@ -1683,7 +1682,8 @@ class CallOp(IRDLOperation):
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr("none"))
     CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
     op_bundle_sizes = prop_def(
-        DenseArrayBase[I32], default_value=DenseArrayBase.create_dense_int(i32, ())
+        DenseArrayBase.constr(i32),
+        default_value=DenseArrayBase.create_dense_int(i32, ()),
     )
     TailCallKind = prop_def(
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)

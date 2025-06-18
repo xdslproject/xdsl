@@ -1573,6 +1573,12 @@ DenseArrayT = TypeVar(
     covariant=True,
 )
 
+DenseArrayInvT = TypeVar(
+    "DenseArrayInvT",
+    bound=IntegerType | AnyFloat,
+    default=IntegerType | AnyFloat,
+)
+
 
 @irdl_attr_definition
 class DenseArrayBase(
@@ -1702,6 +1708,15 @@ class DenseArrayBase(
 
     def __len__(self) -> int:
         return len(self.data.data) // self.elt_type.size
+
+    @classmethod
+    def constr(
+        cls,
+        element_type: IRDLGenericAttrConstraint[DenseArrayInvT],
+    ) -> GenericAttrConstraint[DenseArrayBase[DenseArrayInvT]]:
+        return ParamAttrConstraint[DenseArrayBase[DenseArrayInvT]](
+            DenseArrayBase, (element_type, AnyAttr())
+        )
 
 
 @irdl_attr_definition
