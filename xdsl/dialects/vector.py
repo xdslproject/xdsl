@@ -6,12 +6,12 @@ from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
     I1,
+    I64,
     AffineMapAttr,
     AnyFloatConstr,
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
-    DenseI64ArrayConstr,
     IndexType,
     IndexTypeConstr,
     IntegerType,
@@ -319,7 +319,7 @@ class ExtractOp(IRDLOperation):
     )
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
-    static_position = prop_def(DenseI64ArrayConstr)
+    static_position = prop_def(DenseArrayBase[I64])
 
     vector = operand_def(_V)
     dynamic_position = var_operand_def(IndexTypeConstr)
@@ -485,7 +485,7 @@ class InsertOp(IRDLOperation):
     )
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
-    static_position = prop_def(DenseI64ArrayConstr)
+    static_position = prop_def(DenseArrayBase[I64])
 
     source = operand_def(VectorType.constr(_T) | _T)
     dest = operand_def(_V)
