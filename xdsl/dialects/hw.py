@@ -139,11 +139,10 @@ class InnerRefAttr(ParametrizedAttribute):
         ]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<@")
-        printer.print_string(self.module_ref.root_reference.data)
-        printer.print_string("::@")
-        printer.print_string(self.sym_name.data)
-        printer.print_string(">")
+        with printer.in_angle_brackets():
+            printer.print_symbol_name(self.module_ref.root_reference.data)
+            printer.print_string("::")
+            printer.print_symbol_name(self.sym_name.data)
 
 
 @dataclass(frozen=True)
@@ -747,6 +746,7 @@ def print_module_header(
     if visibility is not None:
         printer.print_string(" ")
         printer.print_string(visibility.data)
+    printer.print_string(" ")
     printer.print_symbol_name(module_name.data)
 
     # Print parameters
