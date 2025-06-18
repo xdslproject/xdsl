@@ -76,7 +76,7 @@ class GenericData(Data[_DataElement], ABC):
 
     @classmethod
     @abstractmethod
-    def constr(cls, base_constraint: AttrConstraint) -> AttrConstraint:
+    def generic_constraint(cls) -> AttrConstraint:
         """
         Returns a constraint for this subclass.
         Generic arguments are constrained via TypeVarConstraints.
@@ -393,12 +393,12 @@ def irdl_to_attr_constraint(
         if len(args) != 1:
             raise Exception(f"GenericData args must have length 1, got {args}")
         origin = cast(type[GenericData[Any]], origin)
-        args = cast(tuple[Attribute], args)
+        type_var = get_type_var_from_generic_class(origin)[0]
         constr = irdl_to_attr_constraint(args[0])
 
         return cast(
             GenericAttrConstraint[AttributeInvT],
-            origin.constr(constr),
+            origin.generic_constraint().mapping_type_vars({type_var: constr}),
         )
 
     # Generic ParametrizedAttributes case

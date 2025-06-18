@@ -12,7 +12,7 @@ from io import StringIO
 from typing import Annotated, Generic, TypeAlias, cast
 
 import pytest
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, override
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import (
@@ -46,7 +46,6 @@ from xdsl.irdl import (
     ConstraintVar,
     GenericAttrConstraint,
     GenericData,
-    IRDLGenericAttrConstraint,
     MessageConstraint,
     ParamAttrConstraint,
     ParamAttrDef,
@@ -55,7 +54,6 @@ from xdsl.irdl import (
     VarConstraint,
     base,
     irdl_attr_definition,
-    irdl_to_attr_constraint,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
@@ -709,10 +707,9 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
             printer.print_string("]")
 
     @classmethod
-    def constr(
-        cls, base_constraint: IRDLGenericAttrConstraint[AttributeInvT] | AttrConstraint
-    ) -> GenericAttrConstraint[ListData[AttributeInvT]]:
-        return DataListAttr[AttributeInvT](irdl_to_attr_constraint(base_constraint))
+    @override
+    def generic_constraint(cls) -> AttrConstraint:
+        return DataListAttr(TypeVarConstraint(AttributeInvT, AnyAttr()))
 
     @staticmethod
     def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
