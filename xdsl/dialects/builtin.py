@@ -163,9 +163,8 @@ class ArrayAttr(
         self.print_builtin(printer)
 
     def print_builtin(self, printer: Printer):
-        printer.print_string("[")
-        printer.print_list(self.data, printer.print_attribute)
-        printer.print_string("]")
+        with printer.in_square_brackets():
+            printer.print_list(self.data, printer.print_attribute)
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
@@ -1138,9 +1137,9 @@ class ComplexType(
         super().__init__([element_type])
 
     def print_builtin(self, printer: Printer):
-        printer.print_string("complex<")
-        printer.print_attribute(self.element_type)
-        printer.print_string(">")
+        printer.print_string("complex")
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.element_type)
 
     def get_element_type(self) -> ComplexElementCovT:
         return self.element_type
@@ -1426,9 +1425,8 @@ class UnrankedTensorType(
         return self.element_type
 
     def print_builtin(self, printer: Printer):
-        printer.print_string("tensor<*x")
-        printer.print_attribute(self.element_type)
-        printer.print_string(">")
+        with printer.delimited("tensor<*x", ">"):
+            printer.print_attribute(self.element_type)
 
 
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
@@ -1553,9 +1551,9 @@ class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
     type: ParameterDef[ShapedType]
 
     def print_without_type(self, printer: Printer):
-        printer.print_string("dense_resource<")
-        printer.print_resource_handle("builtin", self.resource_handle.data)
-        printer.print_string(">")
+        printer.print_string("dense_resource")
+        with printer.in_angle_brackets():
+            printer.print_resource_handle("builtin", self.resource_handle.data)
 
     def print_builtin(self, printer: Printer):
         self.print_without_type(printer)
@@ -1722,16 +1720,15 @@ class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     outputs: ParameterDef[ArrayAttr[Attribute]]
 
     def print_builtin(self, printer: Printer):
-        printer.print_string("(")
-        printer.print_list(self.inputs.data, printer.print_attribute)
-        printer.print_string(") -> ")
+        with printer.in_parens():
+            printer.print_list(self.inputs.data, printer.print_attribute)
+        printer.print_string(" -> ")
         outputs = self.outputs.data
         if len(outputs) == 1 and not isinstance(outputs[0], FunctionType):
             printer.print_attribute(outputs[0])
         else:
-            printer.print_string("(")
-            printer.print_list(outputs, printer.print_attribute)
-            printer.print_string(")")
+            with printer.in_parens():
+                printer.print_list(outputs, printer.print_attribute)
 
     @staticmethod
     def from_lists(
@@ -1847,17 +1844,16 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
         printer.print_string(f"{value.data}" if isinstance(value, IntAttr) else "?")
 
     def print_builtin(self, printer: Printer):
-        printer.print_string("strided<[")
-        printer.print_list(
-            self.strides.data, lambda value: self._print_int_or_question(printer, value)
-        )
-        printer.print_string("]")
-        if self.offset == IntAttr(0):
-            printer.print_string(">")
-            return
-        printer.print_string(", offset: ")
-        self._print_int_or_question(printer, self.offset)
-        printer.print_string(">")
+        printer.print_string("strided")
+        with printer.in_angle_brackets():
+            with printer.in_square_brackets():
+                printer.print_list(
+                    self.strides.data,
+                    lambda value: self._print_int_or_question(printer, value),
+                )
+            if self.offset != IntAttr(0):
+                printer.print_string(", offset: ")
+                self._print_int_or_question(printer, self.offset)
 
     def get_strides(self) -> Sequence[int | None]:
         return tuple(
