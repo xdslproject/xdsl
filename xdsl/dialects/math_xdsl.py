@@ -12,8 +12,6 @@ from xdsl.irdl import (
     prop_def,
     result_def,
 )
-from xdsl.parser import Parser
-from xdsl.printer import Printer
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -47,6 +45,8 @@ class ConstantOp(IRDLOperation):
 
     value = result_def()
 
+    assembly_format = "$symbol attr-dict `:` type($value)"
+
     def __init__(self, symbol: Constant | ConstantAttr, result_type: Attribute):
         if not isinstance(symbol, ConstantAttr):
             symbol = ConstantAttr(symbol)
@@ -56,20 +56,6 @@ class ConstantOp(IRDLOperation):
             },
             result_types=[result_type],
         )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> "ConstantOp":
-        symbol_str = parser.parse_identifier()
-        symbol = ConstantAttr(Constant(symbol_str))
-
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-
-        return ConstantOp(symbol, result_type)
-
-    def print(self, printer: Printer):
-        printer.print_string(f" {self.symbol.data} : ")
-        printer.print_attribute(self.value.type)
 
 
 MathXDSL = Dialect(
