@@ -418,10 +418,7 @@ def irdl_to_attr_constraint(
         type_var = get_type_var_from_generic_class(origin)[0]
         constr = irdl_to_attr_constraint(args[0])
 
-        return cast(
-            GenericAttrConstraint[AttributeInvT],
-            origin.generic_constraint().mapping_type_vars({type_var: constr}),
-        )
+        return origin.generic_constraint().mapping_type_vars({type_var: constr})
 
     # Generic ParametrizedAttributes case
     # We translate it to constraints over the attribute parameters.
