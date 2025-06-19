@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
-from xdsl.ir import Block
+from xdsl.dialects.arith import ConstantOp
+from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp, i32
+from xdsl.ir import Block, OpResult
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -64,7 +66,7 @@ class IRTraversal:
     """Benchmark the time to traverse xDSL IR."""
 
     EXAMPLE_BLOCK_NUM_OPS = 1_000
-    EXAMPLE_OPS = (EmptyOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS))
+    EXAMPLE_OPS = [EmptyOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS)]
     EXAMPLE_BLOCK = Block(ops=EXAMPLE_OPS)
 
     def time_iterate_ops(self) -> None:
@@ -203,9 +205,12 @@ class Extensibility:
 
     def time_trait_check_optimised(self) -> None:
         """Time checking the trait of an operation using optimised code."""
+        OP = Extensibility.OP_WITH_REGION
+        TRAIT = Extensibility.TRAIT_4
+
         has_trait = False
-        for t in Extensibility.OP_WITH_REGION.traits._traits:  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues, reportPrivateUsage]
-            if isinstance(t, Extensibility.TRAIT_4):
+        for t in OP.traits._traits:  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues, reportPrivateUsage]
+            if isinstance(t, TRAIT):
                 has_trait = True
                 break
         assert has_trait
@@ -238,22 +243,33 @@ class Extensibility:
         Extensibility.OP_WITH_REGION.has_trait(TraitB)
 
 
+def get_clone_op() -> ModuleOp:
+    """Get the cloning operation workload."""
+    module = ModuleOp([])
+    module.body.block.insert_arg(i32, 0)
+    for _ in range(100):
+        module.body.block.add_op(EmptyOp())
+    return module
+
+
 class OpCreation:
     """Benchmark creating an operation in xDSL."""
 
-    CONSTANT_OPERATION = EmptyOp()
+    CLONE_OPERATION = get_clone_op()
+    EMPTY_OP = EmptyOp()
 
     def time_operation_create(self) -> None:
         """Time creating an empty operation.
 
         For comparison with the "How Slow is MLIR" testbench
-        `CreateOps/hoistedOpState`, implemented as:
+        `CreateOps/simple`, implemented as:
 
         ```
-        OperationState opState(unknownLoc, "testbench.empty");
         for (auto _ : state) {
-            for (int j = 0; j < state.range(0); ++j)
+            for (int j = 0; j < state.range(0); ++j) {
+                OperationState opState(unknownLoc, "testbench.empty");
                 Operation::create(opState);
+            }
         }
         ```
         """
@@ -263,25 +279,51 @@ class OpCreation:
         """Time building an empty operation.
 
         For comparison with the "How Slow is MLIR" testbench
-        `CreateOps/llvm_withInsertRegistered`, implemented as:
+        `CreateOps/simpleRegistered`, implemented as:
 
         ```
-        auto module = std::make_unique<llvm::Module>("MyModule", ctx);
-        auto *fTy = llvm::FunctionType::get(llvm::Type::getVoidTy(ctx), false);
-        auto *func = llvm::Function::Create(fTy, llvm::Function::ExternalLinkage,
-                                            "", module.get());
-        auto *block = llvm::BasicBlock::Create(ctx, "", func);
-        llvm::IRBuilder<> builder(block);
+        ctx->loadDialect<TestBenchDialect>();
+        OpBuilder b(ctx.get());
         for (auto _ : state) {
-            for (int j = 0; j < state.range(0); ++j)
-                builder.CreateUnreachable();
+            for (int j = 0; j < state.range(0); ++j) {
+            b.create<EmptyOp>(unknownLoc);
+            }
         }
+        state.SetComplexityN(state.range(0));
         ```
         """
         EmptyOp.build()
 
+    def time_operation_create_optimised(self) -> None:
+        """Time creating an empty operation directly."""
+        empty_op = EmptyOp.__new__(EmptyOp)
+        empty_op._operands = ()  # pyright: ignore[reportPrivateUsage]
+        empty_op.results = ()
+        empty_op.properties = {}
+        empty_op.attributes = {}
+        empty_op._successors = ()  # pyright: ignore[reportPrivateUsage]
+        empty_op.regions = ()
+
+    def time_operation_constant_init(self) -> None:
+        """Time instantiating a constant integer."""
+        ConstantOp(IntegerAttr(100, i32))
+
+    def time_operation_constant_create(self) -> None:
+        """Time creating a constant integer."""
+        int_attr = IntAttr.__new__(IntAttr)
+        object.__setattr__(int_attr, "data", 100)
+        integer_attr = IntegerAttr.__new__(IntegerAttr)
+        object.__setattr__(integer_attr, "parameters", (int_attr, i32))
+        constant_op = ConstantOp.__new__(ConstantOp)
+        constant_op._operands = ()  # pyright: ignore[reportPrivateUsage]
+        constant_op.results = (OpResult(i32, constant_op, 0),)
+        constant_op.properties = {"value": integer_attr}
+        constant_op.attributes = {}
+        constant_op._successors = ()  # pyright: ignore[reportPrivateUsage]
+        constant_op.regions = ()
+
     def time_operation_clone(self) -> None:
-        """Time cloning an empty operation.
+        """Time cloning an module of 100 empty operations.
 
         For comparison with the "How Slow is MLIR" testbench `Cloning/cloneOps`,
         implemented as:
@@ -300,7 +342,11 @@ class OpCreation:
         }
         ```
         """
-        OpCreation.CONSTANT_OPERATION.clone()
+        OpCreation.CLONE_OPERATION.clone()
+
+    def time_operation_clone_single(self) -> None:
+        """Time cloning an empty operation."""
+        OpCreation.EMPTY_OP.clone()
 
 
 if __name__ == "__main__":
@@ -334,6 +380,18 @@ if __name__ == "__main__":
             ),
             "OpCreation.operation_create": Benchmark(OP_CREATION.time_operation_create),
             "OpCreation.operation_build": Benchmark(OP_CREATION.time_operation_build),
+            "OpCreation.operation_create_optimised": Benchmark(
+                OP_CREATION.time_operation_create_optimised
+            ),
             "OpCreation.operation_clone": Benchmark(OP_CREATION.time_operation_clone),
+            "OpCreation.operation_clone_single": Benchmark(
+                OP_CREATION.time_operation_clone_single
+            ),
+            "OpCreation.operation_constant_init": Benchmark(
+                OP_CREATION.time_operation_constant_init
+            ),
+            "OpCreation.operation_constant_create": Benchmark(
+                OP_CREATION.time_operation_constant_create
+            ),
         }
     )
