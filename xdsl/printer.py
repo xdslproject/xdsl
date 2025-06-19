@@ -19,9 +19,11 @@ from xdsl.dialects.builtin import (
     Float32Type,
     Float64Type,
     FunctionType,
+    IndexType,
     IntegerType,
     UnitAttr,
     UnregisteredOp,
+    i1,
 )
 from xdsl.ir import (
     Attribute,
@@ -379,6 +381,19 @@ class Printer(BasePrinter):
                 else:
                     # default to full python precision
                     self.print_string(f"{repr(value)}")
+
+    def print_int(self, value: int, type: IntegerType | IndexType | None = None):
+        """
+        Prints the numeric value of an integer, except when the (optional) specified type
+        is `i1`, in which case a boolean "true" or "false" is printed instead.
+        """
+        if type == i1:
+            if value:
+                self.print_string("true")
+            else:
+                self.print_string("false")
+        else:
+            self.print_string(f"{value:d}")
 
     def print_attribute(self, attribute: Attribute) -> None:
         # Print builtin attributes

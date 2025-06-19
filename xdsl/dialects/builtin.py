@@ -670,15 +670,6 @@ class IntegerType(
     def bitwidth(self) -> int:
         return self.width.data
 
-    def print_value_without_type(self, value: int, printer: Printer):
-        """
-        Prints the value, printing `true` or `false` if `self.width.data == 1`.
-        """
-        if self.width.data == 1:
-            printer.print_string("true" if value else "false", indent=0)
-        else:
-            printer.print_string(f"{value}")
-
     @property
     def format(self) -> str:
         format_index = ((self.bitwidth + 7) >> 3) - 1  #  = ceil(bw / 8) - 1
@@ -736,12 +727,6 @@ class LocationAttr(ParametrizedAttribute, BuiltinAttribute):
 @irdl_attr_definition
 class IndexType(ParametrizedAttribute, BuiltinAttribute, StructPackableType[int]):
     name = "index"
-
-    def print_value_without_type(self, value: int, printer: Printer):
-        """
-        Prints the value.
-        """
-        printer.print_string(f"{value}")
 
     def print_builtin(self, printer: Printer):
         printer.print_string("index")
@@ -857,7 +842,7 @@ class IntegerAttr(
         return IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type)
 
     def print_without_type(self, printer: Printer):
-        self.type.print_value_without_type(self.value.data, printer)
+        printer.print_int(self.value.data, self.type)
 
     def get_type(self) -> Attribute:
         return self.type
@@ -2820,8 +2805,9 @@ class DenseIntOrFPElementsAttr(
         self, val: float | tuple[int, int] | tuple[float, float], printer: Printer
     ):
         if isinstance(val, int):
-            element_type = cast(IntegerType | IndexType, self.get_element_type())
-            element_type.print_value_without_type(val, printer)
+            printer.print_int(
+                val, cast(IntegerType | IndexType, self.get_element_type())
+            )
         elif isinstance(val, float):
             printer.print_float(val, cast(AnyFloat, self.get_element_type()))
         else:  # complex
