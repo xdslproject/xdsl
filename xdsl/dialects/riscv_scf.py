@@ -298,18 +298,24 @@ class WhileOp(IRDLOperation):
                     f" got {block_arg.type}"
                 )
 
+    @staticmethod
+    def _print_pair(printer: Printer, pair: tuple[SSAValue, SSAValue]):
+        printer.print_ssa_value(pair[0])
+        printer.print_string(" = ")
+        printer.print_ssa_value(pair[1])
+
     def print(self, printer: Printer):
         printer.print_string(" (")
         block_args = self.before_region.block.args
         printer.print_list(
             zip(block_args, self.arguments, strict=True),
-            lambda pair: printer.print(pair[0], " = ", pair[1]),
+            lambda pair: self._print_pair(printer, pair),
         )
         printer.print_string(") : ")
         printer.print_operation_type(self)
         printer.print_string(" ")
         printer.print_region(self.before_region, print_entry_block_args=False)
-        printer.print(" do ")
+        printer.print_string(" do ")
         printer.print_region(self.after_region)
         if self.attributes:
             printer.print_op_attributes(self.attributes, print_keyword=True)
@@ -376,11 +382,15 @@ class ConditionOp(IRDLOperation):
         super().__init__(operands=[cond, output_ops])
 
     def print(self, printer: Printer):
-        printer.print("(", self.cond, " : ", self.cond.type, ") ")
+        printer.print_string("(")
+        printer.print_ssa_value(self.cond)
+        printer.print_string(" : ")
+        printer.print_attribute(self.cond.type)
+        printer.print_string(") ")
         if self.attributes:
             printer.print_op_attributes(self.attributes)
         if self.arguments:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_list(self.arguments, printer.print_ssa_value)
             printer.print_string(" : ")
             printer.print_list(

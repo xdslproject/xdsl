@@ -311,7 +311,7 @@ class BufferOpToMemRef(RewritePattern):
             temp_t.get_element_type(), shape=temp_t.get_shape(), layout=layout
         )
         alloc_type = alloc.memref.type
-        assert isa(alloc_type, MemRefType[Attribute])
+        assert isa(alloc_type, MemRefType)
 
         rewriter.insert_op(alloc, InsertPoint.before(first_op))
 
@@ -660,7 +660,7 @@ def return_target_analysis(module: builtin.ModuleOp):
 
 class StencilTypeConversion(TypeConversionPattern):
     @attr_constr_rewrite_pattern(StencilTypeConstr)
-    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
+    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType:
         return StencilToMemRefType(typ)
 
 

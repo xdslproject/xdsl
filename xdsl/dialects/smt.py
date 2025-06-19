@@ -413,12 +413,13 @@ def _print_same_operand_type_variadic_to_bool_op(
     `%op1, %op2, ..., %opN attr-dict : T` where `T` is the type of all
     operands.
     """
-    printer.print(" ")
+    printer.print_string(" ")
     printer.print_list(operands, printer.print_ssa_value)
     if attr_dict:
         printer.print_string(" ")
         printer.print_attr_dict(attr_dict)
-    printer.print(" : ", operands[0].type)
+    printer.print_string(" : ")
+    printer.print_attribute(operands[0].type)
 
 
 class VariadicPredicateOp(IRDLOperation, ABC):
@@ -621,6 +622,45 @@ class BvConstantOp(IRDLOperation):
         super().__init__(properties={"value": value}, result_types=[value.type])
 
 
+class UnaryBVOp(IRDLOperation, ABC):
+    """
+    A unary bitvector operation.
+    It has one operand and one result of the same bitvector type.
+    """
+
+    T: ClassVar = VarConstraint("T", base(BitVectorType))
+
+    input = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$input attr-dict `:` type($result)"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, input: SSAValue[BitVectorType]):
+        super().__init__(operands=[input], result_types=[input.type])
+
+
+@irdl_op_definition
+class BVNotOp(UnaryBVOp):
+    """
+    A unary bitwise not operation for bitvectors.
+    It corresponds to the 'not' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.not"
+
+
+@irdl_op_definition
+class BVNegOp(UnaryBVOp):
+    """
+    A unary negation operation for bitvectors.
+    It corresponds to the 'neg' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.neg"
+
+
 SMT = Dialect(
     "smt",
     [
@@ -640,6 +680,8 @@ SMT = Dialect(
         YieldOp,
         AssertOp,
         BvConstantOp,
+        BVNegOp,
+        BVNotOp,
     ],
     [
         BoolType,

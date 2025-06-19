@@ -11,7 +11,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
-    DenseI64ArrayConstr,
     IndexType,
     IndexTypeConstr,
     IntegerType,
@@ -72,7 +71,7 @@ class LoadOp(IRDLOperation):
     )
 
     def verify_(self):
-        assert isa(self.base.type, MemRefType[Attribute])
+        assert isa(self.base.type, MemRefType)
         assert isa(self.result.type, VectorType[Attribute])
 
         if self.base.type.element_type != self.result.type.element_type:
@@ -109,7 +108,7 @@ class StoreOp(IRDLOperation):
     )
 
     def verify_(self):
-        assert isa(self.base.type, MemRefType[Attribute])
+        assert isa(self.base.type, MemRefType)
         assert isa(self.vector.type, VectorType[Attribute])
 
         if self.base.type.element_type != self.vector.type.element_type:
@@ -193,7 +192,7 @@ class MaskedLoadOp(IRDLOperation):
 
     def verify_(self):
         memref_type = self.base.type
-        assert isa(memref_type, MemRefType[Attribute])
+        assert isa(memref_type, MemRefType)
         memref_element_type = memref_type.element_type
 
         res_type = self.result.type
@@ -245,7 +244,7 @@ class MaskedStoreOp(IRDLOperation):
 
     def verify_(self):
         memref_type = self.base.type
-        assert isa(memref_type, MemRefType[Attribute])
+        assert isa(memref_type, MemRefType)
         memref_element_type = memref_type.element_type
 
         value_to_store_type = self.value_to_store.type
@@ -319,7 +318,7 @@ class ExtractOp(IRDLOperation):
     )
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
-    static_position = prop_def(DenseI64ArrayConstr)
+    static_position = prop_def(DenseArrayBase.constr(i64))
 
     vector = operand_def(_V)
     dynamic_position = var_operand_def(IndexTypeConstr)
@@ -426,9 +425,14 @@ class ExtractOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         # Print the vector operand
-        printer.print(" ", self.vector, "[")
+        printer.print_string(" ")
+        printer.print_ssa_value(self.vector)
+        printer.print_string("[")
         printer.print_list(self.get_mixed_position(), printer.print)
-        printer.print("] : ", self.result.type, " from ", self.vector.type)
+        printer.print_string("] : ")
+        printer.print_attribute(self.result.type)
+        printer.print_string(" from ")
+        printer.print_attribute(self.vector.type)
 
 
 @irdl_op_definition
@@ -480,7 +484,7 @@ class InsertOp(IRDLOperation):
     )
     _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
-    static_position = prop_def(DenseI64ArrayConstr)
+    static_position = prop_def(DenseArrayBase.constr(i64))
 
     source = operand_def(VectorType.constr(_T) | _T)
     dest = operand_def(_V)
@@ -595,9 +599,16 @@ class InsertOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         # Print the vector operand
-        printer.print(" ", self.source, ", ", self.dest, "[")
+        printer.print_string(" ")
+        printer.print_ssa_value(self.source)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.dest)
+        printer.print_string("[")
         printer.print_list(self.get_mixed_position(), printer.print)
-        printer.print("] : ", self.source.type, " into ", self.dest.type)
+        printer.print_string("] : ")
+        printer.print_attribute(self.source.type)
+        printer.print_string(" into ")
+        printer.print_attribute(self.dest.type)
 
 
 @irdl_op_definition
@@ -769,7 +780,7 @@ class VectorTransferOperation(IRDLOperation, ABC):
     def resolve_attrs(
         parser: Parser,
         attributes_dict: dict[str, Attribute],
-        shaped_type: TensorType[Attribute] | MemRefType[Attribute],
+        shaped_type: TensorType[Attribute] | MemRefType,
         vector_type: VectorType[Attribute],
         mask_start_pos: Position | None,
         mask_end_pos: Position | None,

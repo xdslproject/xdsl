@@ -6,6 +6,7 @@ from typing import cast
 import pytest
 
 from xdsl.context import Context
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     ArrayAttr,
     Builtin,
@@ -898,14 +899,10 @@ def test_parse_number(
     ],
 )
 def test_parse_optional_builtin_int_or_float_attr(
-    text: str, expected_value: IntegerAttr | FloatAttr | None
+    text: str, expected_value: IntegerAttr | FloatAttr
 ):
     parser = Parser(Context(), text)
-    if expected_value is None:
-        with pytest.raises(ValueError):
-            parser.parse_optional_builtin_int_or_float_attr()
-    else:
-        assert parser.parse_optional_builtin_int_or_float_attr() == expected_value
+    assert parser.parse_optional_builtin_int_or_float_attr() == expected_value
 
 
 @pytest.mark.parametrize(
@@ -1061,3 +1058,19 @@ def test_parse_singleton_enum_fail():
     parser = Parser(Context(), "b")
     with pytest.raises(ParseError, match="Expected `a`"):
         parser.parse_str_enum(MySingletonEnum)
+
+
+def test_metadata_parsing():
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    metadata_dict = '{-# dialect_resources: {test: {some_res: "0x1"}} #-}'
+
+    parser = Parser(ctx, metadata_dict)
+    assert parser._parse_file_metadata_dictionary() is None
+
+    test_dialect = ctx.get_dialect("test")
+    interface = test_dialect.get_interface(OpAsmDialectInterface)
+    assert interface
+
+    element = interface.lookup("some_res")
+    assert element == "0x1"

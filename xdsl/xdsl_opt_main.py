@@ -220,6 +220,7 @@ class xDSLOptMain(CommandLineTool):
                 print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
+            printer.print_metadata(self.ctx.loaded_dialects)
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):

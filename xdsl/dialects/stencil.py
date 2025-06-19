@@ -88,26 +88,28 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
-        parser.parse_characters("<")
-        result = cls.parse_nested_parameters(parser)
-        parser.parse_characters(">")
-        return result
+        with parser.in_angle_brackets():
+            return [cls.parse_indices(parser)]
 
     @classmethod
-    def parse_nested_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        """Parse only the attribute parameters without enclosing angle brackets."""
+    def parse_indices(cls, parser: AttrParser) -> ArrayAttr:
+        """
+        Parse a comma-separated, square delimited, list of integers into an ArrayAttr of
+        IntAttrs.
+
+        e.g.: `[1, 2, 3]`
+        """
         ints = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, lambda: parser.parse_integer(allow_boolean=False)
         )
-        return [ArrayAttr(IntAttr(i) for i in ints)]
+        return ArrayAttr(IntAttr(i) for i in ints)
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        self.print_nested_parameters(printer)
-        printer.print(">")
+        with printer.in_angle_brackets():
+            self.print_indices(printer)
 
-    def print_nested_parameters(self, printer: Printer) -> None:
-        printer.print(f"[{', '.join(str(e) for e in self)}]")
+    def print_indices(self, printer: Printer) -> None:
+        printer.print_string(f"[{', '.join(str(e) for e in self)}]")
 
     def verify(self) -> None:
         l = len(self)
@@ -195,20 +197,18 @@ class StencilBoundsAttr(ParametrizedAttribute):
         )
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        self.lb.print_nested_parameters(printer)
-        printer.print(", ")
-        self.ub.print_nested_parameters(printer)
-        printer.print(">")
+        with printer.in_angle_brackets():
+            self.lb.print_indices(printer)
+            printer.print_string(", ")
+            self.ub.print_indices(printer)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_punctuation("<")
-        lb = IndexAttr(IndexAttr.parse_nested_parameters(parser))
-        parser.parse_punctuation(",")
-        ub = IndexAttr(IndexAttr.parse_nested_parameters(parser))
-        parser.parse_punctuation(">")
-        return [lb, ub]
+        with parser.in_angle_brackets():
+            lb = IndexAttr([IndexAttr.parse_indices(parser)])
+            parser.parse_punctuation(",")
+            ub = IndexAttr([IndexAttr.parse_indices(parser)])
+            return [lb, ub]
 
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
         if isinstance(other, IntAttr):
@@ -318,19 +318,18 @@ class StencilType(
         return [bounds, opt_type]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        if isinstance(self.bounds, StencilBoundsAttr):
-            printer.print_list(
-                zip(self.bounds.lb, self.bounds.ub),
-                lambda b: printer.print(f"[{b[0]},{b[1]}]"),
-                "x",
-            )
-            printer.print("x")
-        else:
-            for _ in range(self.bounds.data):
-                printer.print("?x")
-        printer.print_attribute(self.element_type)
-        printer.print(">")
+        with printer.in_angle_brackets():
+            if isinstance(self.bounds, StencilBoundsAttr):
+                printer.print_list(
+                    zip(self.bounds.lb, self.bounds.ub),
+                    lambda b: printer.print_string(f"[{b[0]},{b[1]}]"),
+                    "x",
+                )
+                printer.print_string("x")
+            else:
+                for _ in range(self.bounds.data):
+                    printer.print_string("?x")
+            printer.print_attribute(self.element_type)
 
     def __init__(
         self,
@@ -497,33 +496,35 @@ class ApplyOp(IRDLOperation):
 
     def print(self, printer: Printer):
         def print_assign_argument(args: tuple[BlockArgument, SSAValue, Attribute]):
-            printer.print(args[0])
-            printer.print(" = ")
-            printer.print(args[1])
-            printer.print(" : ")
-            printer.print(args[2])
+            printer.print_ssa_value(args[0])
+            printer.print_string(" = ")
+            printer.print_ssa_value(args[1])
+            printer.print_string(" : ")
+            printer.print_attribute(args[2])
 
         def print_destination_operand(dest: SSAValue):
-            printer.print(dest)
-            printer.print(" : ")
-            printer.print(dest.type)
+            printer.print_ssa_value(dest)
+            printer.print_string(" : ")
+            printer.print_attribute(dest.type)
 
-        printer.print("(")
-        printer.print_list(
-            zip(self.region.block.args, self.args, self.args.types),
-            print_assign_argument,
-        )
+        with printer.in_parens():
+            printer.print_list(
+                zip(self.region.block.args, self.args, self.args.types),
+                print_assign_argument,
+            )
         if self.dest:
-            printer.print(") outs (")
-            printer.print_list(self.dest, print_destination_operand)
+            printer.print_string(" outs ")
+            with printer.in_parens():
+                printer.print_list(self.dest, print_destination_operand)
         else:
-            printer.print(") -> (")
-            printer.print_list(self.res.types, printer.print_attribute)
-        printer.print(") ")
+            printer.print_string(" -> ")
+            with printer.in_parens():
+                printer.print_list(self.res.types, printer.print_attribute)
+        printer.print_string(" ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_region(self.region, print_entry_block_args=False)
         if self.bounds is not None:
-            printer.print(" to ")
+            printer.print_string(" to ")
             self.bounds.print_parameters(printer)
 
     @classmethod
@@ -926,7 +927,7 @@ class ExternalLoadOp(IRDLOperation):
     @staticmethod
     def get(
         arg: SSAValue | Operation,
-        res_type: FieldType[Attribute] | memref.MemRefType[Attribute],
+        res_type: FieldType[Attribute] | memref.MemRefType,
     ):
         return ExternalLoadOp.build(operands=[arg], result_types=[res_type])
 
@@ -1031,7 +1032,7 @@ class AccessOp(IRDLOperation):
     )
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.temp)
         printer.print_op_attributes(
             self.attributes,
@@ -1049,17 +1050,16 @@ class AccessOp(IRDLOperation):
             mapping = range(apply.get_rank())
         offset = list(self.offset)
 
-        printer.print("[")
-        index = 0
-        for i in range(apply.get_rank()):
-            if i in mapping:
-                printer.print(offset[index])
-                index += 1
-            else:
-                printer.print("_")
-            if i != apply.get_rank() - 1:
-                printer.print(", ")
-        printer.print("]")
+        with printer.in_square_brackets():
+            index = 0
+            for i in range(apply.get_rank()):
+                if i in mapping:
+                    printer.print_string(str(offset[index]))
+                    index += 1
+                else:
+                    printer.print_string("_")
+                if i != apply.get_rank() - 1:
+                    printer.print_string(", ")
 
         printer.print_string(" : ")
         printer.print_attribute(self.temp.type)
