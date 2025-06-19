@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     Float16Type,
     Float32Type,
     Float64Type,
-    FloatAttr,
     FunctionType,
     IntegerType,
     UnitAttr,
@@ -306,9 +305,6 @@ class Printer(BasePrinter):
                 case _:
                     self.print_string(chr(byte))
         self.print_string('"')
-
-    def print_float_attr(self, attribute: FloatAttr):
-        self.print_float(attribute.value.data, attribute.type)
 
     def print_complex_float(
         self, value: tuple[float, float], type: ComplexType[ComplexElementCovT]

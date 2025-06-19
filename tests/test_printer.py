@@ -875,7 +875,7 @@ def test_float_attr():
 
         io_attr = StringIO()
         printer.stream = io_attr
-        printer.print_float_attr(FloatAttr(value, type))
+        FloatAttr(value, type).print_without_type(printer)
 
         assert io_float.getvalue() == io_attr.getvalue()
 
