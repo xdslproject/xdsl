@@ -313,7 +313,8 @@ class OpCreation:
         int_attr = IntAttr.__new__(IntAttr)
         object.__setattr__(int_attr, "data", 100)
         integer_attr = IntegerAttr.__new__(IntegerAttr)
-        object.__setattr__(integer_attr, "parameters", (int_attr, i32))
+        object.__setattr__(integer_attr, "value", int_attr)
+        object.__setattr__(integer_attr, "type", i32)
         constant_op = ConstantOp.__new__(ConstantOp)
         constant_op._operands = ()  # pyright: ignore[reportPrivateUsage]
         constant_op.results = (OpResult(i32, constant_op, 0),)

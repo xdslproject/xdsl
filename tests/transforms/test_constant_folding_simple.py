@@ -9,7 +9,10 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.ir import Operation
-from xdsl.transforms.test_constant_folding import TestConstantFoldingPass
+from xdsl.transforms.test_constant_folding import (
+    TestConstantFoldingPass,
+    TestSpecialisedConstantFoldingPass,
+)
 
 
 @pytest.fixture(params=[(1,), (10, 100), (100, 100, 100)])
@@ -24,7 +27,7 @@ def constant_folding_workload(request: pytest.FixtureRequest) -> tuple[ModuleOp,
     return ModuleOp(ops), sum(constants)
 
 
-def test_constant_folding_simple(
+def test_constant_folding(
     constant_folding_workload: tuple[ModuleOp, int],
 ) -> None:
     """Test constant folding is correct for a workload."""
@@ -34,6 +37,22 @@ def test_constant_folding_simple(
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     simple_pass = TestConstantFoldingPass()
+
+    simple_pass.apply(ctx, module)
+    result = module.ops.last.result.op.value.value.data  # pyright: ignore
+    assert result == target
+
+
+def test_constant_folding_specialised(
+    constant_folding_workload: tuple[ModuleOp, int],
+) -> None:
+    """Test constant folding is correct for a workload."""
+    module, target = constant_folding_workload
+
+    ctx = Context(allow_unregistered=True)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
+    simple_pass = TestSpecialisedConstantFoldingPass()
 
     simple_pass.apply(ctx, module)
     result = module.ops.last.result.op.value.value.data  # pyright: ignore
