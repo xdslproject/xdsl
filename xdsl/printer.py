@@ -13,7 +13,6 @@ from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     AnyFloat,
     BuiltinAttribute,
-    ComplexElementCovT,
     ComplexType,
     Float16Type,
     Float32Type,
@@ -309,37 +308,32 @@ class Printer(BasePrinter):
         self.print_string('"')
 
     def print_complex_float(
-        self, value: tuple[float, float], type: ComplexType[ComplexElementCovT]
+        self, value: tuple[float, float], type: ComplexType[AnyFloat]
     ):
-        assert isinstance(type.element_type, AnyFloat)
-        real, imag = value[0], value[1]
-        self.print_string("(")
-        self.print_float(real, type.element_type)
-        self.print_string(",")
-        self.print_float(imag, type.element_type)
-        self.print_string(")")
+        real, imag = value
+        with self.in_parens():
+            self.print_float(real, type.element_type)
+            self.print_string(",")
+            self.print_float(imag, type.element_type)
 
-    def print_complex_int(
-        self, value: tuple[int, int], type: ComplexType[ComplexElementCovT]
-    ):
-        assert isinstance(elem_ty := type.element_type, IntegerType)
-        real, imag = value[0], value[1]
-        if elem_ty.width.data == 1:
-            real = "true" if real else "false"
-            imag = "true" if imag else "false"
-        self.print_string(f"({real},{imag})")
+    def print_complex_int(self, value: tuple[int, int], type: ComplexType[IntegerType]):
+        real, imag = value
+        with self.in_parens():
+            self.print_int(real, type.element_type)
+            self.print_string(",")
+            self.print_int(imag, type.element_type)
 
     def print_complex(
         self,
         value: tuple[float, float] | tuple[int, int],
-        type: ComplexType[ComplexElementCovT],
+        type: ComplexType[IntegerType | AnyFloat],
     ):
         if isinstance(type.element_type, IntegerType):
             assert isa(value, tuple[int, int])
-            self.print_complex_int(value, type)
+            self.print_complex_int(value, cast(ComplexType[IntegerType], type))
         else:
             assert isa(value, tuple[float, float])
-            self.print_complex_float(value, type)
+            self.print_complex_float(value, cast(ComplexType[AnyFloat], type))
 
     def print_float(self, value: float, type: AnyFloat):
         if math.isnan(value) or math.isinf(value):
