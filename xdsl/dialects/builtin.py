@@ -2568,7 +2568,7 @@ class DenseIntOrFPElementsAttr(
     @staticmethod
     def from_list(
         type: (RankedStructure[_FloatAttrTypeInvT]),
-        data: (Sequence[float]),
+        data: Sequence[float],
     ) -> DenseIntOrFPElementsAttr[_FloatAttrTypeInvT]: ...
 
     @overload
