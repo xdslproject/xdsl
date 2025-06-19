@@ -542,7 +542,7 @@ class ExpandShapeOp(AlterShapeOperation):
             operands=[src, output_shape],
             properties={
                 "reassociation": reassociation,
-                "static_output_shape": DenseArrayBase.create_dense_int(
+                "static_output_shape": DenseArrayBase.from_list(
                     IntegerType(64), static_output_shape
                 ),
             },
@@ -690,11 +690,11 @@ class SubviewOp(IRDLOperation):
         result_type: Attribute,
     ):
         if not isinstance(static_offsets, DenseArrayBase):
-            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
+            static_offsets = DenseArrayBase.from_list(i64, static_offsets)
         if not isinstance(static_sizes, DenseArrayBase):
-            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
+            static_sizes = DenseArrayBase.from_list(i64, static_sizes)
         if not isinstance(static_strides, DenseArrayBase):
-            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
+            static_strides = DenseArrayBase.from_list(i64, static_strides)
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],
@@ -965,11 +965,11 @@ class ReinterpretCastOp(IRDLOperation):
         result_type: Attribute,
     ):
         if not isinstance(static_offsets, DenseArrayBase):
-            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
+            static_offsets = DenseArrayBase.from_list(i64, static_offsets)
         if not isinstance(static_sizes, DenseArrayBase):
-            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
+            static_sizes = DenseArrayBase.from_list(i64, static_sizes)
         if not isinstance(static_strides, DenseArrayBase):
-            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
+            static_strides = DenseArrayBase.from_list(i64, static_strides)
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],

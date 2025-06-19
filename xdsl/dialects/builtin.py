@@ -1625,68 +1625,44 @@ class DenseArrayBase(
     def get_element_type(self) -> DenseArrayT:
         return self.elt_type
 
+    @deprecated("Please use from_list(data_type, data) instead.")
     @staticmethod
     def create_dense_int(
-        data_type: _IntegerTypeInvT, data: Sequence[int] | Sequence[IntAttr]
+        data_type: _IntegerTypeInvT, data: Sequence[int]
     ) -> DenseArrayBase[_IntegerTypeInvT]:
-        if len(data) and isinstance(data[0], IntAttr):
-            value_list = tuple(d.data for d in cast(Sequence[IntAttr], data))
-        else:
-            value_list = cast(Sequence[int], data)
+        return DenseArrayBase.from_list(data_type, data)
 
-        normalized_values = tuple(
-            data_type.get_normalized_value(value) for value in value_list
-        )
-
-        bytes_data = data_type.pack(normalized_values)
-
-        return DenseArrayBase(data_type, BytesAttr(bytes_data))
-
+    @deprecated("Please use from_list(data_type, data) instead.")
     @staticmethod
     def create_dense_float(
-        data_type: _FloatAttrTypeInvT, data: Sequence[float] | Sequence[FloatData]
+        data_type: _FloatAttrTypeInvT, data: Sequence[float]
     ) -> DenseArrayBase[_FloatAttrTypeInvT]:
-        if len(data) and isinstance(data[0], int | float):
-            vals = data
-        else:
-            vals = tuple(attr.data for attr in cast(Sequence[FloatData], data))
-
-        fmt = data_type.format[0] + str(len(data)) + data_type.format[1:]
-
-        bytes_data = struct.pack(fmt, *vals)
-
-        return DenseArrayBase(data_type, BytesAttr(bytes_data))
+        return DenseArrayBase.from_list(data_type, data)
 
     @overload
     @staticmethod
     def from_list(
-        data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
-    ) -> DenseArrayBase: ...
+        data_type: _IntegerTypeInvT, data: Sequence[int]
+    ) -> DenseArrayBase[_IntegerTypeInvT]: ...
 
     @overload
     @staticmethod
     def from_list(
-        data_type: Attribute, data: Sequence[int | float] | Sequence[FloatData]
-    ) -> DenseArrayBase: ...
+        data_type: _FloatAttrTypeInvT, data: Sequence[float]
+    ) -> DenseArrayBase[_FloatAttrTypeInvT]: ...
 
     @staticmethod
     def from_list(
-        data_type: Attribute,
-        data: (
-            Sequence[int]
-            | Sequence[int | float]
-            | Sequence[IntAttr]
-            | Sequence[FloatData]
-        ),
+        data_type: IntegerType | AnyFloat,
+        data: (Sequence[int] | Sequence[float]),
     ) -> DenseArrayBase:
         if isinstance(data_type, IntegerType):
-            _data = cast(Sequence[int] | Sequence[IntAttr], data)
-            return DenseArrayBase.create_dense_int(data_type, _data)
-        elif isinstance(data_type, AnyFloat):
-            _data = cast(Sequence[int | float] | Sequence[FloatData], data)
-            return DenseArrayBase.create_dense_float(data_type, _data)
-        else:
-            raise TypeError(f"Unsupported element type {data_type}")
+            data = tuple(
+                data_type.get_normalized_value(value)
+                for value in cast(Sequence[int], data)
+            )
+        bytes_data = data_type.pack(data)  # pyright: ignore[reportArgumentType]
+        return DenseArrayBase(data_type, BytesAttr(bytes_data))
 
     def iter_values(self) -> Iterator[float] | Iterator[int]:
         return self.elt_type.iter_unpack(self.data.data)

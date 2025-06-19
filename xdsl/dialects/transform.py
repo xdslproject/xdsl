@@ -9,7 +9,6 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     DictionaryAttr,
     FunctionType,
-    IntAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
@@ -318,12 +317,12 @@ class GetResultOp(IRDLOperation):
     def __init__(
         self,
         target: SSAValue,
-        raw_position_list: (Sequence[int] | Sequence[IntAttr] | DenseArrayBase),
+        raw_position_list: (Sequence[int] | DenseArrayBase),
         is_inverted: bool = False,
         is_all: bool = False,
     ):
         if isinstance(raw_position_list, Sequence):
-            raw_position_list = DenseArrayBase.create_dense_int(
+            raw_position_list = DenseArrayBase.from_list(
                 IntegerType(64), raw_position_list
             )
         super().__init__(
@@ -623,22 +622,16 @@ class TileOp(IRDLOperation):
         self,
         target: SSAValue,
         dynamic_sizes: Sequence[SSAValue],
-        static_sizes: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None = None,
-        interchange: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None = None,
-        scalable_sizes: (
-            DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None
-        ) = None,
+        static_sizes: DenseArrayBase | Sequence[int] | None = None,
+        interchange: DenseArrayBase | Sequence[int] | None = None,
+        scalable_sizes: (DenseArrayBase | Sequence[int] | None) = None,
     ):
         if isinstance(static_sizes, Sequence):
-            static_sizes = DenseArrayBase.create_dense_int(
-                IntegerType(64), static_sizes
-            )
+            static_sizes = DenseArrayBase.from_list(IntegerType(64), static_sizes)
         if isinstance(interchange, Sequence):
-            interchange = DenseArrayBase.create_dense_int(IntegerType(64), interchange)
+            interchange = DenseArrayBase.from_list(IntegerType(64), interchange)
         if isinstance(scalable_sizes, Sequence):
-            scalable_sizes = DenseArrayBase.create_dense_int(
-                IntegerType(1), scalable_sizes
-            )
+            scalable_sizes = DenseArrayBase.from_list(IntegerType(1), scalable_sizes)
         super().__init__(
             operands=(target, dynamic_sizes),
             properties={
@@ -692,20 +685,20 @@ class TileToForallOp(IRDLOperation):
         tile_sizes: Sequence[SSAValue],
         packed_num_threads: SSAValue | None,
         packed_tile_sizes: SSAValue | None,
-        static_num_threads: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
-        static_tile_sizes: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
-        mapping: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
+        static_num_threads: DenseArrayBase | Sequence[int] | None,
+        static_tile_sizes: DenseArrayBase | Sequence[int] | None,
+        mapping: DenseArrayBase | Sequence[int] | None,
     ):
         if isinstance(static_num_threads, Sequence):
-            static_num_threads = DenseArrayBase.create_dense_int(
+            static_num_threads = DenseArrayBase.from_list(
                 IntegerType(64), static_num_threads
             )
         if isinstance(static_tile_sizes, Sequence):
-            static_tile_sizes = DenseArrayBase.create_dense_int(
+            static_tile_sizes = DenseArrayBase.from_list(
                 IntegerType(64), static_tile_sizes
             )
         if isinstance(mapping, Sequence):
-            mapping = DenseArrayBase.create_dense_int(IntegerType(64), mapping)
+            mapping = DenseArrayBase.from_list(IntegerType(64), mapping)
 
         super().__init__(
             operands=[

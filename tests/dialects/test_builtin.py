@@ -744,7 +744,7 @@ def test_create_dense_int():
             "Integer value 99999999 is out of range for type i8 which supports values in the range [-128, 256)"
         ),
     ):
-        DenseArrayBase.create_dense_int(i8, (99999999, 255, 256))
+        DenseArrayBase.from_list(i8, (99999999, 255, 256))
 
 
 def test_create_dense_wrong_size():

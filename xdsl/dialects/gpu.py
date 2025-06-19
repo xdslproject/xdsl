@@ -389,11 +389,11 @@ class FuncOp(IRDLOperation):
             "function_type": function_type,
         }
         if known_block_size is not None:
-            attributes["gpu.known_block_size"] = DenseArrayBase.create_dense_int(
+            attributes["gpu.known_block_size"] = DenseArrayBase.from_list(
                 i32, known_block_size
             )
         if known_grid_size is not None:
-            attributes["gpu.known_grid_size"] = DenseArrayBase.create_dense_int(
+            attributes["gpu.known_grid_size"] = DenseArrayBase.from_list(
                 i32, known_grid_size
             )
         if kernel:

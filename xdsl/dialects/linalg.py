@@ -968,7 +968,7 @@ class TransposeOp(IRDLOperation):
         transpose = cls(
             input,
             init,
-            DenseArrayBase.create_dense_int(i64, permutation),
+            DenseArrayBase.from_list(i64, permutation),
             result,
         )
         return transpose
@@ -1341,7 +1341,7 @@ class BroadcastOp(IRDLOperation):
         broadcast = cls(
             input,
             init,
-            DenseArrayBase.create_dense_int(i64, dimensions),
+            DenseArrayBase.from_list(i64, dimensions),
             result,
         )
         return broadcast
