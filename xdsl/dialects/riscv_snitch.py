@@ -145,7 +145,7 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> set[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -711,14 +711,14 @@ class DMCopyImmOp(RISCVInstruction):
         return self.dest, self.size, self.config
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.size)
         printer.print_string(", ")
         printer.print(self.config.value.data)
         if self.attributes:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_attr_dict(self.attributes)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_operation_type(self)
 
     @classmethod
@@ -763,12 +763,12 @@ class DMStatImmOp(RISCVInstruction):
         return self.dest, self.status
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print(self.status.value.data)
         if self.attributes:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_attr_dict(self.attributes)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_operation_type(self)
 
     @classmethod
@@ -948,7 +948,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
 
     def custom_print_attributes(self, printer: Printer) -> set[str]:
         if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
-            printer.print(" fastmath")
+            printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
         return {"fastmath"}
 
