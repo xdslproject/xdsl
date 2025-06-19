@@ -278,11 +278,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return eqsat_extract.EqsatExtractPass
 
-    def get_example_constant_folding():
-        from xdsl.transforms import example_constant_folding
-
-        return example_constant_folding.ExampleConstantFoldingPass
-
     def get_frontend_desymrefy():
         from xdsl.frontend.pyast.passes.desymref import FrontendDesymrefyPass
 
@@ -528,6 +523,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return function_transformations.TestAddBenchTimersToTopLevelFunctions
 
+    def get_test_constant_folding():
+        from xdsl.transforms import test_constant_folding
+
+        return test_constant_folding.TestConstantFoldingPass
+
     def get_test_lower_linalg_to_snitch():
         from xdsl.transforms import test_lower_linalg_to_snitch
 
@@ -605,7 +605,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
         "eqsat-serialize-egraph": get_eqsat_serialize_egraph,
         "eqsat-extract": get_eqsat_extract,
-        "example-constant-foldinge": get_example_constant_folding,
         "frontend-desymrefy": get_frontend_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
         "function-persist-arg-names": get_function_persist_arg_names,
@@ -655,6 +654,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
+        "test-constant-folding": get_test_constant_folding,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,

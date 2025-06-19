@@ -21,7 +21,6 @@ PROFILERS = (
     "pyinstrument",
     "dis",
 )
-PERF_COUNTER_RESOLUTION = time.get_clock_info("perf_counter").resolution
 
 
 class Benchmark(NamedTuple):

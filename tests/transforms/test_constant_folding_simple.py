@@ -9,7 +9,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.ir import Operation
-from xdsl.transforms.example_constant_folding import ExampleConstantFoldingPass
+from xdsl.transforms.test_constant_folding import TestConstantFoldingPass
 
 
 @pytest.fixture(params=[(1,), (10, 100), (100, 100, 100)])
@@ -33,7 +33,7 @@ def test_constant_folding_simple(
     ctx = Context(allow_unregistered=True)
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
-    simple_pass = ExampleConstantFoldingPass()
+    simple_pass = TestConstantFoldingPass()
 
     simple_pass.apply(ctx, module)
     result = module.ops.last.result.op.value.value.data  # pyright: ignore

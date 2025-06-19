@@ -19,7 +19,7 @@ from xdsl.traits import ConstantLike, OpTrait
 
 
 @dataclass
-class ExampleConstantFoldingIntegerAdditionPattern(RewritePattern):
+class TestConstantFoldingIntegerAdditionPattern(RewritePattern):
     """Rewrite pattern that constant folds integer types."""
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
@@ -44,12 +44,12 @@ class ExampleConstantFoldingIntegerAdditionPattern(RewritePattern):
         rewriter.replace_matched_op(folded_op, [folded_op.results[0]])
 
 
-class ExampleConstantFoldingPass(ModulePass):
+class TestConstantFoldingPass(ModulePass):
     """
     A pass that applies applies simple constant folding.
     """
 
-    name = "example-constant-folding"
+    name = "test-constant-folding"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         """Apply the pass."""
@@ -60,7 +60,7 @@ class ExampleConstantFoldingPass(ModulePass):
 
     def apply_pattern(self, ctx: Context, op: ModuleOp) -> None:
         """Apply the pass using the pattern rewriter."""
-        pattern = ExampleConstantFoldingIntegerAdditionPattern()
+        pattern = TestConstantFoldingIntegerAdditionPattern()
         PatternRewriteWalker(pattern).rewrite_module(op)
 
     def apply_split(self, ctx: Context, op: ModuleOp) -> None:
