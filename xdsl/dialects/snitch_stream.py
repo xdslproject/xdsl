@@ -306,7 +306,7 @@ class StreamingRegionOp(IRDLOperation):
             printer.print_string(")")
 
         if self.attributes:
-            printer.print(" attributes = ")
+            printer.print_string(" attributes = ")
             printer.print_op_attributes(self.attributes)
 
         printer.print_string(" ")

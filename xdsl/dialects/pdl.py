@@ -79,7 +79,7 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
 
 def print_operands_with_types(printer: Printer, operands: Iterable[SSAValue]) -> None:
     printer.print_list(operands, printer.print)
-    printer.print(" : ")
+    printer.print_string(" : ")
     printer.print_list([operand.type for operand in operands], printer.print)
 
 
@@ -169,13 +169,13 @@ class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer) -> None:
         match self.element_type:
             case AttributeType():
-                printer.print("<attribute>")
+                printer.print_string("<attribute>")
             case OperationType():
-                printer.print("<operation>")
+                printer.print_string("<operation>")
             case TypeType():
-                printer.print("<type>")
+                printer.print_string("<type>")
             case ValueType():
-                printer.print("<value>")
+                printer.print_string("<value>")
 
 
 @irdl_op_definition

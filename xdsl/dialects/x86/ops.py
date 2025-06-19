@@ -1150,7 +1150,7 @@ class S_PushOp(X86Instruction, X86CustomFormatOperation):
 
     rsp_in = operand_def(RSP)
     rsp_out = result_def(RSP)
-    source = operand_def(R1InvT)
+    source = operand_def(X86RegisterType)
 
     def __init__(
         self,
@@ -1187,7 +1187,7 @@ class D_PopOp(X86Instruction, X86CustomFormatOperation):
 
     rsp_in = operand_def(RSP)
     rsp_out = result_def(RSP)
-    destination = result_def(R1InvT)
+    destination = result_def(X86RegisterType)
 
     def __init__(
         self,
@@ -1279,7 +1279,7 @@ class S_IDivOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.s.idiv"
 
-    source = operand_def(R1InvT)
+    source = operand_def(X86RegisterType)
     rdx_input = operand_def(RDX)
     rax_input = operand_def(RAX)
 
@@ -1743,7 +1743,7 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
     rsp_in = operand_def(RSP)
     rsp_out = result_def(RSP)
 
-    memory = operand_def(R1InvT)
+    memory = operand_def(X86RegisterType)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     def __init__(
@@ -1907,7 +1907,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.m.idiv"
 
-    memory = operand_def(R1InvT)
+    memory = operand_def(X86RegisterType)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     rdx_in = operand_def(RDX)
     rdx_out = result_def(RDX)
@@ -2225,8 +2225,8 @@ class SS_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.ss.cmp"
 
-    source1 = operand_def(R1InvT)
-    source2 = operand_def(R2InvT)
+    source1 = operand_def(X86RegisterType)
+    source2 = operand_def(X86RegisterType)
 
     result = result_def(RFLAGSRegisterType)
 

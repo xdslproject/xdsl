@@ -1085,7 +1085,7 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         return FloatAttr(parser.parse_float(), type)
 
     def print_without_type(self, printer: Printer):
-        return printer.print_float_attr(self)
+        return printer.print_float(self.value.data, self.type)
 
     def print_builtin(self, printer: Printer):
         self.print_without_type(printer)
@@ -2008,7 +2008,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
             return printer.print_attribute(operand.type)
 
         if self.inputs:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_list(self.inputs, printer.print_operand)
             printer.print_string(" : ")
             printer.print_list(self.inputs, print_fn)
@@ -2225,8 +2225,8 @@ class ModuleOp(IRDLOperation):
 
         if not self.body.block.ops:
             # Do not print the entry block if the region has an empty block
-            printer.print(" {\n")
-            printer.print("}")
+            printer.print_string(" {\n")
+            printer.print_string("}")
         else:
             printer.print_string(" ")
             printer.print_region(self.body)

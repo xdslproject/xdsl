@@ -116,11 +116,11 @@ class LoopDimMapAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print("processor = ")
+            printer.print_string("processor = ")
             printer.print(self.processor.data)
-            printer.print(", map = ")
+            printer.print_string(", map = ")
             printer.print(self.map.data)
-            printer.print(", bound = ")
+            printer.print_string(", bound = ")
             printer.print(self.bound.data)
 
     @classmethod
