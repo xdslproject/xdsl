@@ -105,12 +105,12 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print("(")
-            for i, elem in enumerate(self.coords):
-                if i:
-                    printer.print_string(", ")
-                printer.print(elem.data)
-            printer.print("), ")
+            with printer.in_parens():
+                for i, elem in enumerate(self.coords):
+                    if i:
+                        printer.print_string(", ")
+                    printer.print(elem.data)
+            printer.print_string(", ")
             printer.print(self.qubit_name)
 
     def print_stim(self, printer: StimPrinter):

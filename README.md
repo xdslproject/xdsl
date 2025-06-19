@@ -45,7 +45,7 @@ pip install xdsl
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions may result in problems. The supported
-MLIR version is 20.1.1.
+MLIR version is 20.1.7.
 
 ### Subprojects With Extra Dependencies
 

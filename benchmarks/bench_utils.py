@@ -2,14 +2,14 @@
 """Utilities for profiling ASV benchmarks with a variety of tools."""
 
 import cProfile
-import gc
 import subprocess
 import time
 from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
 from pathlib import Path
-from statistics import mean, median, stdev
 from typing import Any, NamedTuple, cast
+
+from benchmarks.warmed_timeit import warmed_timeit
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = (
@@ -28,72 +28,6 @@ class Benchmark(NamedTuple):
 
     body: Callable[[], Any]
     setup: Callable[[], Any] | None = None
-
-
-def warmed_timeit(
-    func: Callable[[], Any],
-    setup: Callable[[], Any] | None = None,
-    number: int = 100,
-    warmup: int = 3,
-) -> tuple[float, float, float]:
-    """
-    Time the contents of a class method with setup and warmup.
-
-    Derived from <https://github.com/python/cpython/blob/3.13/Lib/timeit.py>.
-    """
-
-    class EmptyBenchmarkClass:
-        """A class with an empty method call as a baseline for timing."""
-
-        def empty(self) -> None:
-            """An empty method call."""
-            pass
-
-    benchmark_class_empty = EmptyBenchmarkClass().empty
-
-    # Inspired by timeit, we disable garbage collection for less noise in
-    # measurements
-    gcold = gc.isenabled()
-    gc.disable()
-    # Pre-populate the arrays to avoid costs of re-sizing them
-    times = [0.0 for _ in range(number)]
-    offset = [0.0 for _ in range(number)]
-
-    # Run the interleaved setup and function calls to warm up
-    for _ in range(warmup):
-        if setup is not None:
-            setup()
-        func()
-
-    for i in range(number):
-        # Optionally run setup code (for example resetting mutable state) before
-        # each measurement iteration
-        if setup is not None:
-            setup()
-        # Calculate the base cost of method invocation and timing overhead, so
-        # we can offset our final measurements by it
-        offset_start = time.perf_counter()
-        benchmark_class_empty()
-        offset_end = time.perf_counter()
-        offset[i] = offset_end - offset_start
-        # Time the actual function we want to measure
-        func_start = time.perf_counter()
-        func()
-        func_end = time.perf_counter()
-        times[i] = func_end - func_start
-
-    # Re-enable the garbage collector if it was initially on
-    if gcold:
-        gc.enable()
-
-    # Return the mean, median, and standard deviations of the measured times.
-    # The mean offset is subtracted from the median time for the best
-    # approximation given the data we can record
-    return (
-        mean(times) - mean(offset),
-        median(times) - mean(offset),
-        stdev(times) + stdev(offset),
-    )
 
 
 def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
@@ -198,6 +132,7 @@ def viztracer_benchmark(
     args: Namespace,
     benchmarks: dict[str, Benchmark],
     warmup: bool = True,
+    duration: float | None = 0,
 ) -> Path:
     """Use VizTracer to profile a benchmark."""
     from viztracer import VizTracer  # pyright: ignore[reportMissingTypeStubs]
@@ -213,8 +148,25 @@ def viztracer_benchmark(
         test()
     if setup is not None:
         setup()
-    with VizTracer(output_file=str(output_prof)):
+
+    def wrap() -> None:
         test()
+
+    def fix_time(duration: float) -> float:
+        wrap()
+        while (end := time.perf_counter()) - start < duration:
+            pass
+        return end
+
+    if duration is not None:
+        tracer = VizTracer(output_file=str(output_prof))
+        start = time.perf_counter()
+        tracer.start()
+        _end = fix_time(duration)
+        tracer.save()
+    else:
+        with VizTracer(output_file=str(output_prof)):
+            test()
     return output_prof
 
 

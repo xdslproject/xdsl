@@ -372,7 +372,7 @@ class StreamingRegionOp(IRDLOperation):
             printer.print_string(")")
 
         if self.attributes:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(self.attributes)
 
         printer.print_string(" ")
@@ -661,7 +661,7 @@ class GenericOp(IRDLOperation):
             del extra_attrs["library_call"]
 
         if extra_attrs:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(extra_attrs)
 
         printer.print_string(" ")

@@ -243,7 +243,7 @@ class GenericOp(IRDLOperation):
             del extra_attrs["library_call"]
 
         if extra_attrs:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(extra_attrs)
 
         printer.print_string(" ")
@@ -254,11 +254,10 @@ class GenericOp(IRDLOperation):
             if len(self.res) == 1:
                 printer.print_attribute(self.res[0].type)
             else:
-                printer.print("(")
-                printer.print_list(
-                    self.res, lambda res: printer.print_attribute(res.type)
-                )
-                printer.print(")")
+                with printer.in_parens():
+                    printer.print_list(
+                        self.res, lambda res: printer.print_attribute(res.type)
+                    )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -535,7 +534,7 @@ class NamedOpBase(IRDLOperation, ABC):
             printer.print_string(")")
 
         if extra_attrs and not self.PRINT_ATTRS_IN_FRONT:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(extra_attrs)
 
         if self.res:
@@ -543,11 +542,10 @@ class NamedOpBase(IRDLOperation, ABC):
             if len(self.res) == 1:
                 printer.print_attribute(self.res[0].type)
             else:
-                printer.print("(")
-                printer.print_list(
-                    self.res, lambda res: printer.print_attribute(res.type)
-                )
-                printer.print(")")
+                with printer.in_parens():
+                    printer.print_list(
+                        self.res, lambda res: printer.print_attribute(res.type)
+                    )
 
     @staticmethod
     def body_arg_types(
