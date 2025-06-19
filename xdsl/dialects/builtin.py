@@ -2567,28 +2567,28 @@ class DenseIntOrFPElementsAttr(
     @overload
     @staticmethod
     def from_list(
-        type: (RankedStructure[_FloatAttrTypeInvT]),
+        type: RankedStructure[_FloatAttrTypeInvT],
         data: Sequence[float],
     ) -> DenseIntOrFPElementsAttr[_FloatAttrTypeInvT]: ...
 
     @overload
     @staticmethod
     def from_list(
-        type: (RankedStructure[_IntegerAttrTypeInvT]),
+        type: RankedStructure[_IntegerAttrTypeInvT],
         data: Sequence[int],
     ) -> DenseIntOrFPElementsAttr[_IntegerAttrTypeInvT]: ...
 
     @overload
     @staticmethod
     def from_list(
-        type: (RankedStructure[ComplexType[_IntegerTypeInvT]]),
+        type: RankedStructure[ComplexType[_IntegerTypeInvT]],
         data: Sequence[tuple[int, int]],
     ) -> DenseIntOrFPElementsAttr[ComplexType[_IntegerTypeInvT]]: ...
 
     @overload
     @staticmethod
     def from_list(
-        type: (RankedStructure[ComplexType[_FloatAttrTypeInvT]]),
+        type: RankedStructure[ComplexType[_FloatAttrTypeInvT]],
         data: Sequence[tuple[float, float]],
     ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
 
