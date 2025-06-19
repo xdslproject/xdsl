@@ -1085,7 +1085,7 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         return FloatAttr(parser.parse_float(), type)
 
     def print_without_type(self, printer: Printer):
-        return printer.print_float_attr(self)
+        return printer.print_float(self.value.data, self.type)
 
     def print_builtin(self, printer: Printer):
         self.print_without_type(printer)
