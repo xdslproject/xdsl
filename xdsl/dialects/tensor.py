@@ -372,7 +372,7 @@ class ExpandShapeOp(IRDLOperation):
         return cls(src, dyn_shape, reassociation, shape_attr, result_type)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_ssa_value(self.src)
         printer.print(" ")
         printer.print_attribute(self.reassociation)
