@@ -14,9 +14,11 @@ from xdsl.dialects.builtin import (
     ComplexType,
     FloatAttr,
     FunctionType,
+    IndexType,
     IntAttr,
     IntegerType,
     ModuleOp,
+    Signedness,
     SymbolRefAttr,
     UnitAttr,
     f32,
@@ -790,6 +792,44 @@ def test_float():
     _test_float_print("0x4D95DCF5", 22e8 / 7, f32)
     _test_float_print("3.14285714e+16", 22e16 / 7, f32)
     _test_float_print("-3.14285707", -22 / 7, f32)
+
+
+@pytest.mark.parametrize(
+    "expected, value, type",
+    [
+        ("true", -1, IntegerType(1)),
+        ("false", 0, IntegerType(1)),
+        ("true", True, IntegerType(1)),
+        ("false", False, IntegerType(1)),
+        ("-1", -1, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("0", 0, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("1", True, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("0", False, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("-1", -1, IntegerType(32)),
+        ("0", 0, IntegerType(32)),
+        ("1", True, IntegerType(32)),
+        ("0", False, IntegerType(32)),
+        ("-1", -1, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("0", 0, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("1", True, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("0", False, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("-1", -1, IndexType),
+        ("0", 0, IndexType),
+        ("1", True, IndexType),
+        ("0", False, IndexType),
+        ("-1", -1, None),
+        ("0", 0, None),
+        ("1", True, None),
+        ("0", False, None),
+    ],
+)
+def test_int(expected: str, value: int, type: IntegerType | IndexType | None):
+    printer = Printer()
+    printer.stream = StringIO()
+
+    printer.print_int(value, type)
+
+    assert printer.stream.getvalue() == expected
 
 
 @pytest.mark.parametrize(
