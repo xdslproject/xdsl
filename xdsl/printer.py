@@ -6,9 +6,8 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, cast
-from warnings import deprecated
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
