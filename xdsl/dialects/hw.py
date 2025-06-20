@@ -323,7 +323,7 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
         printer.print_string("<@")
         printer.print_string(self.sym_name.data)
         printer.print_string(",")
-        printer.print_string(str(self.field_id.data))
+        printer.print_int(self.field_id.data)
         printer.print_string(",")
         printer.print_string(self.sym_visibility.data)
         printer.print_string(">")

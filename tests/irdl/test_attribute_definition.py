@@ -152,9 +152,8 @@ class IntListData(Data[tuple[int, ...]]):
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string("[")
-            printer.print_list(self.data, lambda x: printer.print_string(str(x)))
-            printer.print_string("]")
+            with printer.in_square_brackets():
+                printer.print_list(self.data, printer.print_int)
 
 
 def test_non_class_data():

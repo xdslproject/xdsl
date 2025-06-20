@@ -203,11 +203,10 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     type: ParameterDef[Attribute]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<")
-        printer.print_string(str(self.size.data))
-        printer.print_string(" x ")
-        printer.print_attribute(self.type)
-        printer.print_string(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.size.data)
+            printer.print_string(" x ")
+            printer.print_attribute(self.type)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:

@@ -184,13 +184,19 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         )
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<at [")
-        printer.print_list(self.offset, lambda x: printer.print_string(str(x)))
-        printer.print_string("] size [")
-        printer.print_list(self.size, lambda x: printer.print_string(str(x)))
-        printer.print_string("] source offset [")
-        printer.print_list(self.source_offset, lambda x: printer.print_string(str(x)))
-        printer.print_string(f"] to {list(self.neighbor)}>")
+        with printer.in_angle_brackets():
+            printer.print_string("at ")
+            with printer.in_square_brackets():
+                printer.print_list(self.offset, printer.print_int)
+            printer.print_string(" size ")
+            with printer.in_square_brackets():
+                printer.print_list(self.size, printer.print_int)
+            printer.print_string(" source offset ")
+            with printer.in_square_brackets():
+                printer.print_list(self.source_offset, printer.print_int)
+            printer.print_string(" to ")
+            with printer.in_square_brackets():
+                printer.print_list(self.neighbor, printer.print_int)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
