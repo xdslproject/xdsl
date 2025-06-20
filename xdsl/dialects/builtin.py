@@ -1588,15 +1588,13 @@ class DenseArrayBase(
                 return
             data = self.iter_values()
             printer.print_string(": ")
-            # There is a bug in MLIR which will segfault when parsing DenseArrayBase type i1 as 0 or 1,
-            # therefore we need to print these as false and true
-            if self.elt_type == i1:
+            elt_type: IntegerType | AnyFloat = self.elt_type
+            if isinstance(elt_type, IntegerType):
                 printer.print_list(
-                    data,
-                    lambda x: printer.print_string("true" if x else "false"),
+                    data, lambda x: printer.print_int(cast(int, x), elt_type)
                 )
             else:
-                printer.print_list(data, lambda x: printer.print_string(str(x)))
+                printer.print_list(data, lambda x: printer.print_float(x, elt_type))
 
     def verify(self):
         data_len = len(self.data.data)
