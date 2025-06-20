@@ -326,6 +326,7 @@ class ExpandShapeOp(IRDLOperation):
         reassociation: ReassociationAttr,
         static_output_shape: Sequence[int] | DenseArrayBase,
         result_type: TensorType[Attribute],
+        attribrutes: dict[str, Attribute] | None = None,
     ):
         if not isinstance(static_output_shape, DenseArrayBase):
             static_output_shape = DenseArrayBase.create_dense_int(
@@ -339,6 +340,7 @@ class ExpandShapeOp(IRDLOperation):
                 "reassociation": reassociation,
                 "output_shape": static_output_shape,
             },
+            attributes=attribrutes,
         )
 
     @classmethod
@@ -358,6 +360,8 @@ class ExpandShapeOp(IRDLOperation):
             dyn_shape, (index,) * len(dyn_shape), parser.pos
         )
 
+        attributes = parser.parse_optional_attr_dict()
+
         parser.parse_punctuation(":")
         src_type = parser.parse_type()
         parser.parse_characters("into")
@@ -369,23 +373,26 @@ class ExpandShapeOp(IRDLOperation):
         reassociation = cast(ReassociationAttr, reassociation)
         result_type = cast(TensorType[Attribute], result_type)
 
-        return cls(src, dyn_shape, reassociation, shape_attr, result_type)
+        return cls(src, dyn_shape, reassociation, shape_attr, result_type, attributes)
 
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_ssa_value(self.src)
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_attribute(self.reassociation)
-        printer.print(" output_shape ")
+        printer.print_string(" output_shape ")
         print_dynamic_index_list(
             printer,
             self.DYNAMIC_INDEX,
             self.dynamic_output_shape,
             (cast(int, i) for i in self.output_shape.get_values()),
         )
-        printer.print(" : ")
+
+        printer.print_op_attributes(attributes=self.attributes)
+
+        printer.print_string(" : ")
         printer.print_attribute(self.src.type)
-        printer.print(" into ")
+        printer.print_string(" into ")
         printer.print_attribute(self.result.type)
 
 
