@@ -82,7 +82,7 @@ class ClockDividerOp(IRDLOperation):
         printer.print_string(" ")
         printer.print_operand(self.clockIn)
         printer.print_string(" by ")
-        self.pow2.print_without_type(printer)
+        printer.print(self.pow2.value.data)
 
 
 @irdl_op_definition

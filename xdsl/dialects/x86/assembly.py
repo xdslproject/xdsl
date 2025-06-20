@@ -69,7 +69,7 @@ def parse_optional_immediate_value(
 def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
     match immediate:
         case IntegerAttr():
-            immediate.print_without_type(printer)
+            printer.print(immediate.value.data)
         case LabelAttr():
             printer.print_string_literal(immediate.data)
 

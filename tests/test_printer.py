@@ -398,7 +398,7 @@ def test_print_block_argument():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block_argument(block.args[0])
-    p.print_string(", ")
+    p.print(", ")
     p.print_block_argument(block.args[1], print_type=False)
     assert io.getvalue() == """%0 : i32, %1"""
 
@@ -410,7 +410,7 @@ def test_print_block_argument_location():
     io = StringIO()
     p = Printer(stream=io, print_debuginfo=True)
     p.print_block_argument(block.args[0])
-    p.print_string(", ")
+    p.print(", ")
     p.print_block_argument(block.args[1])
     assert io.getvalue() == """%0 : i32 loc(unknown), %1 : i32 loc(unknown)"""
 
@@ -438,7 +438,7 @@ def test_print_block_without_arguments():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block_argument(block.args[0])
-    p.print_string(", ")
+    p.print(", ")
     p.print_block_argument(block.args[1])
     p.print_block(block, print_block_args=False)
     assert io.getvalue() == """%0 : i32, %1 : i32\n  "test.op"(%1) : (i32) -> ()"""
@@ -502,9 +502,9 @@ def test_print_region_without_arguments():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block_argument(block.args[0])
-    p.print_string(", ")
+    p.print(", ")
     p.print_block_argument(block.args[1])
-    p.print_string(" ")
+    p.print(" ")
     p.print_region(region, print_entry_block_args=False)
     assert io.getvalue() == """%0 : i32, %1 : i32 {\n  "test.op"(%1) : (i32) -> ()\n}"""
 
@@ -1176,5 +1176,5 @@ def assert_print_op(
         indent_num_spaces=indent_num_spaces,
     )
 
-    printer.print_op(operation)
+    printer.print(operation)
     assert file.getvalue().strip() == expected.strip()

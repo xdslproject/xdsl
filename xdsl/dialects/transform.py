@@ -821,8 +821,7 @@ class NamedSequenceOp(IRDLOperation):
     def print(self, printer: Printer):
         if self.sym_visibility:
             visibility = self.sym_visibility.data
-            printer.print_string(" ")
-            printer.print_string(visibility)
+            printer.print(f" {visibility}")
 
         print_func_op_like(
             printer,

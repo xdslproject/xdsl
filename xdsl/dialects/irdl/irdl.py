@@ -774,7 +774,7 @@ class AllOfOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         with printer.in_parens():
-            printer.print_list(self.args, printer.print_ssa_value)
+            printer.print_list(self.args, printer.print)
 
 
 IRDL = Dialect(

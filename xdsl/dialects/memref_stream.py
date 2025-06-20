@@ -223,12 +223,9 @@ class StridePattern(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string("ub = ")
-            with printer.in_square_brackets():
-                printer.print_list(
-                    self.ub, lambda attr: attr.print_without_type(printer)
-                )
-            printer.print_string(f", index_map = {self.index_map.data}")
+            printer.print_string("ub = [")
+            printer.print_list(self.ub, lambda attr: printer.print(attr.value.data))
+            printer.print_string(f"], index_map = {self.index_map.data}")
 
     def rank(self):
         return len(self.ub)

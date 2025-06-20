@@ -31,7 +31,7 @@ class MLIROptPass(ModulePass):
 
         stream = StringIO()
         printer = Printer(print_generic_format=self.generic, stream=stream)
-        printer.print_module_op(op)
+        printer.print(op)
 
         my_string = stream.getvalue()
 

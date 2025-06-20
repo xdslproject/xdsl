@@ -287,10 +287,7 @@ def test_typed_attribute_parsing_printing():
             return (IntAttr(value), type)
 
         def print_parameters(self, printer: Printer) -> None:
-            with printer.in_angle_brackets():
-                printer.print_int(self.value.data)
-            printer.print_string(" : ")
-            printer.print_attribute(self.type)
+            printer.print(f"<{self.value.data}> : {self.type}")
 
         @classmethod
         def get_type_index(cls) -> int:
