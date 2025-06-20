@@ -621,6 +621,15 @@ class BvConstantOp(IRDLOperation):
     def __init__(self, value: BitVectorAttr) -> None:
         super().__init__(properties={"value": value}, result_types=[value.type])
 
+    @staticmethod
+    def from_value_and_type(value: int, type: BitVectorType | int) -> BvConstantOp:
+        """
+        Create a new `BvConstantOp` from a value and a bitvector width.
+        """
+        if isinstance(type, int):
+            type = BitVectorType(type)
+        return BvConstantOp(BitVectorAttr(value, type))
+
 
 class UnaryBVOp(IRDLOperation, ABC):
     """
