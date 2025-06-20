@@ -337,6 +337,7 @@ class ReshapeOp(IRDLOperation):
 class ExpandShapeOp(IRDLOperation):
     """
     Operation to produce a tensor with a higher rank
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorexpand_shape-tensorexpandshapeop)
     """
 
     # Constant value used to denote dynamic indices in offsets, sizes, and strides.
@@ -346,11 +347,11 @@ class ExpandShapeOp(IRDLOperation):
     name = "tensor.expand_shape"
 
     src = operand_def(TensorType)
-    dynamic_output_shape = var_operand_def(IndexType)  # Dynamic dims
+    dynamic_output_shape = var_operand_def(IndexType)
 
     reassociation = prop_def(ReassociationAttr)
 
-    output_shape = prop_def(DenseArrayBase)
+    output_shape = prop_def(DenseArrayBase.constr(i64))
 
     result = result_def(AnyAttr())
 
@@ -361,11 +362,10 @@ class ExpandShapeOp(IRDLOperation):
         reassociation: ReassociationAttr,
         static_output_shape: Sequence[int] | DenseArrayBase,
         result_type: TensorType[Attribute],
+        attribrutes: dict[str, Attribute] | None = None,
     ):
         if not isinstance(static_output_shape, DenseArrayBase):
-            static_output_shape = DenseArrayBase.create_dense_int(
-                i64, static_output_shape
-            )
+            static_output_shape = DenseArrayBase.from_list(i64, static_output_shape)
 
         super().__init__(
             operands=[src, dynamic_output_shape],
@@ -374,6 +374,7 @@ class ExpandShapeOp(IRDLOperation):
                 "reassociation": reassociation,
                 "output_shape": static_output_shape,
             },
+            attributes=attribrutes,
         )
 
     @classmethod
@@ -393,34 +394,39 @@ class ExpandShapeOp(IRDLOperation):
             dyn_shape, (index,) * len(dyn_shape), parser.pos
         )
 
+        attributes = parser.parse_optional_attr_dict()
+
         parser.parse_punctuation(":")
         src_type = parser.parse_type()
         parser.parse_characters("into")
         result_type = parser.parse_type()
         src = parser.resolve_operand(src_operand, src_type)
 
-        shape_attr = DenseArrayBase.create_dense_int(i64, static_shape)
+        shape_attr = DenseArrayBase.from_list(i64, static_shape)
 
         reassociation = cast(ReassociationAttr, reassociation)
         result_type = cast(TensorType[Attribute], result_type)
 
-        return cls(src, dyn_shape, reassociation, shape_attr, result_type)
+        return cls(src, dyn_shape, reassociation, shape_attr, result_type, attributes)
 
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_ssa_value(self.src)
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_attribute(self.reassociation)
-        printer.print(" output_shape ")
+        printer.print_string(" output_shape ")
         print_dynamic_index_list(
             printer,
             self.DYNAMIC_INDEX,
             self.dynamic_output_shape,
-            (cast(int, i) for i in self.output_shape.get_values()),
+            self.output_shape.get_values(),
         )
-        printer.print(" : ")
+
+        printer.print_op_attributes(attributes=self.attributes)
+
+        printer.print_string(" : ")
         printer.print_attribute(self.src.type)
-        printer.print(" into ")
+        printer.print_string(" into ")
         printer.print_attribute(self.result.type)
 
 
