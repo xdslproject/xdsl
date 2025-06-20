@@ -523,11 +523,12 @@ class InputApp(App[None]):
                 output_text = "No input"
             case Exception() as e:
                 output_stream = StringIO()
-                Printer(output_stream).print(e)
+                Printer(output_stream).print_string(str(e))
                 output_text = output_stream.getvalue()
             case ModuleOp():
                 output_stream = StringIO()
-                Printer(output_stream).print(self.current_module)
+                Printer(output_stream).print_module_op(self.current_module)
+
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)

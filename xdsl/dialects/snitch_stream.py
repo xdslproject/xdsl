@@ -118,13 +118,17 @@ class StridePattern(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string("ub = [")
-            printer.print_list(self.ub, lambda attr: printer.print(attr.data))
-            printer.print_string("], strides = [")
-            printer.print_list(self.strides, lambda attr: printer.print(attr.data))
-            printer.print_string("]")
+            printer.print_string("ub = ")
+            with printer.in_square_brackets():
+                printer.print_list(self.ub, lambda attr: printer.print_int(attr.data))
+            printer.print_string(", strides = ")
+            with printer.in_square_brackets():
+                printer.print_list(
+                    self.strides, lambda attr: printer.print_int(attr.data)
+                )
             if self.repeat.data != 1:
-                printer.print_string(f", repeat = {self.repeat.data}")
+                printer.print_string(", repeat = ")
+                printer.print_int(self.repeat.data)
 
     @staticmethod
     def from_bounds_and_strides(

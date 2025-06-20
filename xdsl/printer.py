@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, cast
+from warnings import deprecated
 
 from typing_extensions import TypeVar
 
@@ -20,6 +21,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerType,
+    ModuleOp,
     UnitAttr,
     UnregisteredOp,
     i1,
@@ -85,6 +87,7 @@ class Printer(BasePrinter):
     def block_names(self):
         return self._block_names[-1]
 
+    @deprecated("Please use type-specific print methods")
     def print(self, *argv: Any) -> None:
         for arg in argv:
             if isinstance(arg, str):
@@ -111,6 +114,13 @@ class Printer(BasePrinter):
 
             text = str(arg)
             self.print_string(text)
+
+    def print_module_op(self, module_op: ModuleOp) -> None:
+        """
+        Prints a module followed by a newline.
+        """
+        self.print_op(module_op)
+        self._print_new_line()
 
     K = TypeVar("K")
     V = TypeVar("V")

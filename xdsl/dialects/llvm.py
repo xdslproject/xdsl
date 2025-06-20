@@ -1597,7 +1597,7 @@ class ConstantOp(IRDLOperation):
             if isa(self.value, IntegerAttr) and self.result.type == IntegerType(64):
                 self.value.print_without_type(printer)
             else:
-                printer.print(self.value)
+                printer.print_attribute(self.value)
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
