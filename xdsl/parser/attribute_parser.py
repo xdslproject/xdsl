@@ -964,13 +964,13 @@ class AttrParser(BaseParser):
                 self.Delimiter.NONE,
                 lambda: self._parse_typed_integer(element_type, allow_boolean=True),
             )
-            res = DenseArrayBase.create_dense_int(element_type, values)
+            res = DenseArrayBase.from_list(element_type, values)
         else:
             values = self.parse_comma_separated_list(
                 self.Delimiter.NONE,
                 lambda: self.parse_float(),
             )
-            res = DenseArrayBase.create_dense_float(element_type, values)
+            res = DenseArrayBase.from_list(element_type, values)
 
         self.parse_characters(">", " in dense array")
 
