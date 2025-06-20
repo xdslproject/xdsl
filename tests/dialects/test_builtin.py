@@ -383,14 +383,14 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
 def test_DenseIntOrFPElementsAttr_splat():
     attr_int = DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [3]), 4)
     assert len(attr_int) == 3
-    assert tuple(attr_int.get_int_values()) == (4, 4, 4)
+    assert tuple(attr_int.get_values()) == (4, 4, 4)
     assert attr_int.is_splat()
 
     attr_float = DenseIntOrFPElementsAttr.create_dense_float(
         TensorType(f32, [2, 2]), 4.5
     )
     assert len(attr_float) == 4
-    assert tuple(attr_float.get_float_values()) == (4.5, 4.5, 4.5, 4.5)
+    assert tuple(attr_float.get_values()) == (4.5, 4.5, 4.5, 4.5)
     assert attr_float.is_splat()
 
 
@@ -479,7 +479,6 @@ def test_DenseIntOrFPElementsAttr_values():
         TensorType(complex_f32, [2]),
         [(1.0, 2.0), (3.0, 4.0)],
     )
-    assert tuple(complex_f32_attr.get_complex_values()) == ((1.0, 2.0), (3.0, 4.0))
     assert tuple(complex_f32_attr.get_values()) == ((1.0, 2.0), (3.0, 4.0))
     assert tuple(complex_f32_attr.iter_values()) == ((1.0, 2.0), (3.0, 4.0))
     with pytest.raises(NotImplementedError):
@@ -492,7 +491,6 @@ def test_DenseIntOrFPElementsAttr_values():
         TensorType(complex_i32, [2]),
         [(1, 2), (3, 4)],
     )
-    assert tuple(complex_i32_attr.get_complex_values()) == ((1, 2), (3, 4))
     assert tuple(complex_i32_attr.get_values()) == ((1, 2), (3, 4))
     assert tuple(complex_i32_attr.iter_values()) == ((1, 2), (3, 4))
     with pytest.raises(NotImplementedError):

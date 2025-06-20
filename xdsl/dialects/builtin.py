@@ -597,7 +597,7 @@ class IntegerType(
             printer.print_string("si")
         elif self.signedness.data == Signedness.UNSIGNED:
             printer.print_string("ui")
-        printer.print_string(str(self.width.data))
+        printer.print_int(self.width.data)
 
     def __repr__(self):
         width = self.width.data
@@ -2481,7 +2481,7 @@ class DenseIntOrFPElementsAttr(
 
     def verify(self) -> None:
         # zero rank type should only hold 1 value
-        data_len = len(self.get_values())
+        data_len = len(self)
         if not self.type.get_shape() and data_len != 1:
             raise VerifyException(
                 f"A zero-rank {self.type.name} can only hold 1 value but {data_len} were given."
@@ -2602,6 +2602,7 @@ class DenseIntOrFPElementsAttr(
         """
         return self.get_element_type().iter_unpack(self.data.data)
 
+    @deprecated("Please use `get_values` instead")
     def get_int_values(self) -> Sequence[int]:
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr,
@@ -2611,6 +2612,7 @@ class DenseIntOrFPElementsAttr(
         assert isinstance(el_type, IntegerType | IndexType), el_type
         return el_type.unpack(self.data.data, len(self))
 
+    @deprecated("Please use `get_values` instead")
     def get_float_values(self) -> Sequence[float]:
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr,
@@ -2620,6 +2622,7 @@ class DenseIntOrFPElementsAttr(
         assert isinstance(el_type, AnyFloat), el_type
         return el_type.unpack(self.data.data, len(self))
 
+    @deprecated("Please use `get_values` instead")
     def get_complex_values(
         self,
     ) -> Sequence[tuple[int, int]] | Sequence[tuple[float, float]]:
@@ -2631,13 +2634,41 @@ class DenseIntOrFPElementsAttr(
         assert isinstance(el_type, ComplexType), el_type
         return el_type.unpack(self.data.data, len(self))
 
+    @overload
+    def get_values(
+        self: DenseIntOrFPElementsAttr[IntegerType | IndexType],
+    ) -> tuple[int, ...]: ...
+
+    @overload
+    def get_values(self: DenseIntOrFPElementsAttr[AnyFloat]) -> tuple[float, ...]: ...
+
+    @overload
+    def get_values(
+        self: DenseIntOrFPElementsAttr[ComplexType[IntegerType]],
+    ) -> tuple[tuple[int, int], ...]: ...
+
+    @overload
+    def get_values(
+        self: DenseIntOrFPElementsAttr[ComplexType[AnyFloat]],
+    ) -> tuple[tuple[float, float], ...]: ...
+
+    @overload
     def get_values(
         self,
     ) -> (
-        Sequence[int]
-        | Sequence[float]
-        | Sequence[tuple[int, int]]
-        | Sequence[tuple[float, float]]
+        tuple[int, ...]
+        | tuple[float, ...]
+        | tuple[tuple[int, int], ...]
+        | tuple[tuple[float, float], ...]
+    ): ...
+
+    def get_values(
+        self,
+    ) -> (
+        tuple[int, ...]
+        | tuple[float, ...]
+        | tuple[tuple[int, int], ...]
+        | tuple[tuple[float, float], ...]
     ):
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
@@ -2716,19 +2747,20 @@ class DenseIntOrFPElementsAttr(
         printer.print_string("]")
 
     def print_without_type(self, printer: Printer):
-        printer.print_string("dense<")
+        printer.print_string("dense")
+        length = len(self)
         data = self.get_values()
-        shape = self.get_shape() if self.shape_is_complete else (len(data),)
+        shape = self.get_shape() if self.shape_is_complete else (length,)
         assert shape is not None, "If shape is complete, then it cannot be None"
-        if len(data) == 0:
-            pass
-        elif self.is_splat():
-            self._print_one_elem(data[0], printer)
-        elif len(self) > 100:
-            printer.print_string(f'"0x{self.data.data.hex().upper()}"')
-        else:
-            self._print_dense_list(data, shape, printer)
-        printer.print_string(">")
+        with printer.in_angle_brackets():
+            if length == 0:
+                pass
+            elif self.is_splat():
+                self._print_one_elem(data[0], printer)
+            elif length > 100:
+                printer.print_string(f'"0x{self.data.data.hex().upper()}"')
+            else:
+                self._print_dense_list(data, shape, printer)
 
     def print_builtin(self, printer: Printer):
         self.print_without_type(printer)

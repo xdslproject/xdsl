@@ -497,7 +497,7 @@ class AccessOp(IRDLOperation):
             index = 0
             for i in range(len(self.offset)):
                 if i in mapping:
-                    printer.print_string(str(offset[index]))
+                    printer.print_int(offset[index])
                     index += 1
                 else:
                     printer.print_string("_")

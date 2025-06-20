@@ -26,6 +26,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Operation, Region, SSAValue
+from xdsl.irdl import irdl_to_attr_constraint
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -262,7 +263,7 @@ class ConvertMemRefGlobalOp(RewritePattern):
                 f"Unsupported memref.global initial value: {initial_value}"
             )
 
-        memref_type = cast(memref.MemRefType[Any], op.type)
+        memref_type = op.type
         element_type = memref_type.element_type
 
         # Only handle a small subset of elements
@@ -274,13 +275,22 @@ class ConvertMemRefGlobalOp(RewritePattern):
                     raise DiagnosticException(
                         f"Unsupported memref element type for riscv lowering: {element_type}"
                     )
-                ints = initial_value.get_int_values()
+                assert irdl_to_attr_constraint(
+                    DenseIntOrFPElementsAttr[IntegerType]
+                ).verifies(initial_value)
+                ints = initial_value.get_values()
                 ptr = TypedPtr.new_int32(ints).raw
             case Float32Type():
-                floats = initial_value.get_float_values()
+                assert irdl_to_attr_constraint(
+                    DenseIntOrFPElementsAttr[Float32Type]
+                ).verifies(initial_value)
+                floats = initial_value.get_values()
                 ptr = TypedPtr.new_float32(floats).raw
             case Float64Type():
-                floats = initial_value.get_float_values()
+                assert irdl_to_attr_constraint(
+                    DenseIntOrFPElementsAttr[Float64Type]
+                ).verifies(initial_value)
+                floats = initial_value.get_values()
                 ptr = TypedPtr.new_float64(floats).raw
             case _:
                 raise DiagnosticException(
