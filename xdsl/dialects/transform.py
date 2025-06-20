@@ -14,6 +14,8 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i1,
+    i64,
 )
 from xdsl.dialects.func import FuncOpCallableInterface
 from xdsl.dialects.utils import (
@@ -611,9 +613,9 @@ class TileOp(IRDLOperation):
 
     target = operand_def(TransformHandleType)
     dynamic_sizes = var_operand_def(TransformHandleType)
-    static_sizes = opt_prop_def(DenseArrayBase)
-    interchange = opt_prop_def(DenseArrayBase)
-    scalable_sizes = opt_prop_def(DenseArrayBase)
+    static_sizes = opt_prop_def(DenseArrayBase.constr(i64))
+    interchange = opt_prop_def(DenseArrayBase.constr(i64))
+    scalable_sizes = opt_prop_def(DenseArrayBase.constr(i1))
 
     tiled_linalg_op = result_def(AnyOpType)
     loops = var_result_def(AnyOpType)

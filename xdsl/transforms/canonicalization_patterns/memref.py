@@ -1,5 +1,3 @@
-from collections.abc import Sequence
-
 from xdsl.dialects import memref
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -16,7 +14,7 @@ class MemRefSubviewOfSubviewFolding(RewritePattern):
         if not isinstance(source_subview, memref.SubviewOp):
             return
 
-        current_strides = op.static_strides.get_values()
+        current_strides = op.static_strides.get_int_values()
 
         if not all(stride == 1 for stride in current_strides):
             return
@@ -48,17 +46,13 @@ class MemRefSubviewOfSubviewFolding(RewritePattern):
         new_offsets = [
             off1 + off2
             for off1, off2 in zip(
-                op.static_offsets.iter_values(),
-                source_subview.static_offsets.iter_values(),
+                op.static_offsets.get_int_values(),
+                source_subview.static_offsets.get_int_values(),
                 strict=True,
             )
         ]
 
-        current_sizes = op.static_sizes.get_values()
-
-        assert isa(new_offsets, Sequence[int])
-        assert isa(current_sizes, Sequence[int])
-        assert isa(current_strides, Sequence[int])
+        current_sizes = op.static_sizes.get_int_values()
 
         new_op = memref.SubviewOp.from_static_parameters(
             source_subview.source,

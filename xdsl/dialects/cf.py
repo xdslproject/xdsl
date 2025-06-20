@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
 
 from typing_extensions import Self
 
@@ -189,7 +188,7 @@ class SwitchOp(IRDLOperation):
     case_operands = var_operand_def()
 
     # Copied from AttrSizedSegments
-    case_operand_segments = prop_def(DenseArrayBase)
+    case_operand_segments = prop_def(DenseArrayBase.constr(i32))
 
     default_block = successor_def()
 
@@ -237,10 +236,7 @@ class SwitchOp(IRDLOperation):
                 "case_operand_segments is expected to be a DenseArrayBase of i32"
             )
 
-        def_sizes = cast(
-            tuple[int, ...],
-            self.case_operand_segments.get_values(),
-        )
+        def_sizes = self.case_operand_segments.get_int_values()
 
         if sum(def_sizes) != len(self.case_operands):
             raise VerifyException(

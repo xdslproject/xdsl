@@ -74,7 +74,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "csl_stencil.exchange"
 
-    neighbor_param: ParameterDef[builtin.DenseArrayBase]
+    neighbor_param: ParameterDef[builtin.DenseArrayBase[builtin.IntegerType]]
 
     def __init__(
         self,
@@ -96,9 +96,8 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         return cls(src.neighbor)
 
     @property
-    def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_param.get_values()
-        assert isa(data, tuple[int, ...])
+    def neighbor(self) -> Sequence[int]:
+        data = self.neighbor_param.get_int_values()
         return data
 
     def print_parameters(self, printer: Printer) -> None:

@@ -405,16 +405,15 @@ class RankTopoAttr(ParametrizedAttribute):
 
     name = "dmp.topo"
 
-    shape: ParameterDef[builtin.DenseArrayBase]
+    shape: ParameterDef[builtin.DenseArrayBase[builtin.IntegerType]]
 
     def __init__(self, shape: Sequence[int]):
         if len(shape) < 1:
             raise ValueError("dmp.grid must have at least one dimension!")
         super().__init__([builtin.DenseArrayBase.from_list(builtin.i64, shape)])
 
-    def as_tuple(self) -> tuple[int, ...]:
-        shape = self.shape.get_values()
-        assert isa(shape, tuple[int, ...])
+    def as_tuple(self) -> Sequence[int]:
+        shape = self.shape.get_int_values()
         return shape
 
     def node_count(self) -> int:

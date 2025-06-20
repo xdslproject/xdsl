@@ -137,7 +137,7 @@ class ConvertAccessOpPattern(RewritePattern):
                 use := list(new_access_op.result.uses)[0].operation,
                 tensor.ExtractSliceOp,
             )
-            and use.static_sizes.get_values() == res_type.get_shape()
+            and use.static_sizes.get_int_values() == res_type.get_shape()
             and len(use.offsets) == 0
             and len(use.sizes) == 0
             and len(use.strides) == 0

@@ -226,9 +226,9 @@ def test_func():
     assert func.kernel == builtin.UnitAttr()
     assert func.sym_name == builtin.StringAttr(kernel)
     assert func.known_block_size is not None
-    assert func.known_block_size.get_values() == known_block_size
+    assert func.known_block_size.get_int_values() == known_block_size
     assert func.known_grid_size is not None
-    assert func.known_grid_size.get_values() == known_grid_size
+    assert func.known_grid_size.get_int_values() == known_grid_size
 
     assert func.function_type == builtin.FunctionType.from_lists(inputs, [])
     assert func.body is body

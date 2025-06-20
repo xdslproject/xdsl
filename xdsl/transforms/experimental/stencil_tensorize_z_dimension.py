@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeGuard
 
@@ -15,7 +14,6 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
-    IntAttr,
     IntegerType,
     ModuleOp,
     ShapedType,
@@ -364,11 +362,7 @@ class ExtractSliceOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: ExtractSliceOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ):
-                if isa(offsets := op.static_offsets.get_values(), Sequence[IntAttr]):
-                    new_offsets = [o.data for o in offsets]
-                else:
-                    assert isa(offsets, Sequence[int])
-                    new_offsets = offsets
+                new_offsets = op.static_offsets.get_int_values()
                 rewriter.replace_matched_op(
                     ExtractSliceOp.from_static_parameters(
                         op.source, new_offsets, typ.get_shape()

@@ -39,7 +39,7 @@ class WGSLPrinter(BasePrinter):
     def _(self, op: gpu.FuncOp):
         workgroup_size = (1,)
         if op.known_block_size:
-            workgroup_size = op.known_block_size.get_values()
+            workgroup_size = op.known_block_size.get_int_values()
         for arg in op.body.block.args:
             auth = "read"
             arg_type = ""

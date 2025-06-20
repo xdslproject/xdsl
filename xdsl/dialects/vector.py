@@ -334,9 +334,9 @@ class ExtractOp(IRDLOperation):
         """
         Returns the list of positions, represented as either an SSAValue or an int
         """
-        static_positions = self.static_position.get_values()
+        static_positions = self.static_position.get_int_values()
         return get_dynamic_index_list(
-            cast(tuple[int, ...], static_positions),
+            static_positions,
             self.dynamic_position,
             ExtractOp.DYNAMIC_INDEX,
         )
@@ -344,7 +344,7 @@ class ExtractOp(IRDLOperation):
     def verify_(self):
         # Check that static position attribute and dynamic position operands
         # are compatible.
-        static_values = cast(tuple[int, ...], self.static_position.get_values())
+        static_values = self.static_position.get_int_values()
         verify_dynamic_index_list(
             static_values,
             self.dynamic_position,
@@ -501,9 +501,9 @@ class InsertOp(IRDLOperation):
         """
         Returns the list of positions, represented as either an SSAValue or an int.
         """
-        static_positions = self.static_position.get_values()
+        static_positions = self.static_position.get_int_values()
         return get_dynamic_index_list(
-            cast(tuple[int, ...], static_positions),
+            static_positions,
             self.dynamic_position,
             InsertOp.DYNAMIC_INDEX,
         )
@@ -511,7 +511,7 @@ class InsertOp(IRDLOperation):
     def verify_(self):
         # Check that static position attribute and dynamic position operands
         # are compatible.
-        static_values = cast(tuple[int, ...], self.static_position.get_values())
+        static_values = self.static_position.get_int_values()
         verify_dynamic_index_list(
             static_values,
             self.dynamic_position,

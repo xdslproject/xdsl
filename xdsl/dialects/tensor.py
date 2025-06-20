@@ -301,9 +301,9 @@ class ExtractSliceOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -350,9 +350,9 @@ class InsertSliceOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]

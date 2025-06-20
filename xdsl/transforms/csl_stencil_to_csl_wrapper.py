@@ -93,7 +93,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     max_distance = max(max_distance, ap.max_distance())
 
             # find max x and y dimensions
-            if len(shape := apply_op.topo.shape.get_values()) == 2:
+            if len(shape := apply_op.topo.shape.get_int_values()) == 2:
                 assert isinstance(shape[0], int), "Cannot have a float data shape"
                 assert isinstance(shape[1], int), "Cannot have a float data shape"
                 width = max(width, shape[0])
