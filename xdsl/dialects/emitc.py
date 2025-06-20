@@ -141,12 +141,6 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
         if isinstance(self.value_type, EmitC_ArrayType):
             raise VerifyException("!emitc.lvalue cannot wrap !emitc.array type")
 
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser):
-        with parser.in_angle_brackets():
-            type = parser.parse_type()
-            return type
-
 
 _SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
 
