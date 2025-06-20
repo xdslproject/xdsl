@@ -28,7 +28,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypeAttribute,
 )
-from xdsl.irdl import ParameterDef, irdl_attr_definition, isa
+from xdsl.irdl import ParameterDef, irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -147,7 +147,7 @@ def is_integer_index_or_opaque_type(
     only for integer and index types.
     See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
     """
-    return _is_supported_integer_type(type_attr) or isa(type_attr, IndexType)
+    return _is_supported_integer_type(type_attr) or isinstance(type_attr, IndexType)
 
 
 EmitC = Dialect(
