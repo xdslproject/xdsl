@@ -135,7 +135,6 @@ class LowerSubviewOpPass(RewritePattern):
                 "1d access into nd memref must specify one size > 1"
             )
             size, size_count = counter_sizes.most_common()[0]
-            size = size
 
             assert size_count == 1, (
                 "1d access into nd memref can only specify one size > 1, which can occur only once"
