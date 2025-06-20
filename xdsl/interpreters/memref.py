@@ -76,7 +76,7 @@ class MemRefFunctions(InterpreterFunctions):
             raise NotImplementedError(
                 "MemRefs that are not dense int or float arrays are not implemented"
             )
-        data = initial_value.get_values()
+        data = initial_value.get_untyped_values()
         shape = initial_value.get_shape()
         assert shape is not None
         xtype = xtype_for_el_type(
