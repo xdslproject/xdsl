@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
     TensorType,
+    i64,
 )
 from xdsl.dialects.experimental import dmp
 from xdsl.dialects.utils import AbstractYieldOperation
@@ -115,7 +116,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         )
         parser.parse_characters(">")
 
-        return [DenseArrayBase.from_list(builtin.i64, to)]
+        return [DenseArrayBase.from_list(i64, to)]
 
 
 @irdl_op_definition
