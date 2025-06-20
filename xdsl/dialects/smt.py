@@ -661,6 +661,156 @@ class BVNegOp(UnaryBVOp):
     name = "smt.bv.neg"
 
 
+class BinaryBVOp(IRDLOperation, ABC):
+    """
+    A binary bitvector operation.
+    It has two operands and one result of the same bitvector type.
+    """
+
+    T: ClassVar = VarConstraint("T", base(BitVectorType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, lhs: SSAValue[BitVectorType], rhs: SSAValue[BitVectorType]):
+        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
+
+
+@irdl_op_definition
+class BVAndOp(BinaryBVOp):
+    """
+    A bitwise AND operation for bitvectors.
+    It corresponds to the 'bvand' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.and"
+
+
+@irdl_op_definition
+class BVOrOp(BinaryBVOp):
+    """
+    A bitwise OR operation for bitvectors.
+    It corresponds to the 'bvor' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.or"
+
+
+@irdl_op_definition
+class BVXOrOp(BinaryBVOp):
+    """
+    A bitwise XOR operation for bitvectors.
+    It corresponds to the 'bvxor' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.xor"
+
+
+@irdl_op_definition
+class BVAddOp(BinaryBVOp):
+    """
+    An addition operation for bitvectors.
+    It corresponds to the 'bvadd' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.add"
+
+
+@irdl_op_definition
+class BVMulOp(BinaryBVOp):
+    """
+    A multiplication operation for bitvectors.
+    It corresponds to the 'bvmul' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.mul"
+
+
+@irdl_op_definition
+class BVUDivOp(BinaryBVOp):
+    """
+    An unsigned division operation (rounded towards zero) for bitvectors.
+    It corresponds to the 'bvudiv' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.udiv"
+
+
+@irdl_op_definition
+class BVSDivOp(BinaryBVOp):
+    """
+    A two's complement signed division operation (rounded towards zero) for bitvectors.
+    It corresponds to the 'bvsdiv' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.sdiv"
+
+
+@irdl_op_definition
+class BVURemOp(BinaryBVOp):
+    """
+    An unsigned remainder for bitvectors.
+    It corresponds to the 'bvurem' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.urem"
+
+
+@irdl_op_definition
+class BVSRemOp(BinaryBVOp):
+    """
+    A two's complement signed remainder (sign follows dividend) for bitvectors.
+    It corresponds to the 'bvsrem' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.srem"
+
+
+@irdl_op_definition
+class BVSModOp(BinaryBVOp):
+    """
+    A two's complement signed remainder (sign follows divisor) for bitvectors.
+    It corresponds to the 'bvsmod' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.smod"
+
+
+@irdl_op_definition
+class BVShlOp(BinaryBVOp):
+    """
+    A shift left for bitvectors.
+    It corresponds to the 'bvshl' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.shl"
+
+
+@irdl_op_definition
+class BVLShrOp(BinaryBVOp):
+    """
+    A logical shift right for bitvectors.
+    It corresponds to the 'bvlshr' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.lshr"
+
+
+@irdl_op_definition
+class BVAShrOp(BinaryBVOp):
+    """
+    An arithmetic shift right for bitvectors.
+    It corresponds to the 'bvashr' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.ashr"
+
+
 SMT = Dialect(
     "smt",
     [
@@ -682,6 +832,19 @@ SMT = Dialect(
         BvConstantOp,
         BVNegOp,
         BVNotOp,
+        BVAndOp,
+        BVOrOp,
+        BVXOrOp,
+        BVAddOp,
+        BVMulOp,
+        BVUDivOp,
+        BVSDivOp,
+        BVURemOp,
+        BVSRemOp,
+        BVSModOp,
+        BVShlOp,
+        BVLShrOp,
+        BVAShrOp,
     ],
     [
         BoolType,
