@@ -853,14 +853,14 @@ class AttrParser(BaseParser):
         if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedStructure[AnyFloat], type)
             new_data = cast(Sequence[int | float], data_values)
-            return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
+            return DenseIntOrFPElementsAttr.from_list(new_type, new_data)
         elif isinstance(type.element_type, ComplexType):
             new_type = cast(RankedStructure[ComplexType], type)
-            return DenseIntOrFPElementsAttr.create_dense_complex(new_type, data_values)  # pyright: ignore[reportCallIssue,reportUnknownVariableType,reportArgumentType]
+            return DenseIntOrFPElementsAttr.from_list(new_type, data_values)  # pyright: ignore[reportCallIssue,reportUnknownVariableType,reportArgumentType]
         else:
             new_type = cast(RankedStructure[IntegerType | IndexType], type)
             new_data = cast(Sequence[int], data_values)
-            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
+            return DenseIntOrFPElementsAttr.from_list(new_type, new_data)
 
     def _parse_builtin_dense_attr(self) -> DenseIntOrFPElementsAttr:
         return self.parse_dense_int_or_fp_elements_attr(None)

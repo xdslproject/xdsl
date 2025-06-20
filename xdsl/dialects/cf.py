@@ -368,7 +368,7 @@ class SwitchOp(IRDLOperation):
             )
             assert isinstance(flag_type, IntegerType | IndexType)
             data = tuple(x for (x, _, _) in cases)
-            case_values = DenseIntElementsAttr.create_dense_int(
+            case_values = DenseIntElementsAttr.from_list(
                 VectorType(flag_type, (len(data),)), data
             )
             case_blocks = tuple(x for (_, x, _) in cases)

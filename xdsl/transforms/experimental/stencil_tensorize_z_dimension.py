@@ -205,7 +205,7 @@ class ArithOpTensorize(RewritePattern):
             assert isinstance(float_attr := scalar_op.op.value, FloatAttr)
             scalar_value = float_attr.value.data
             tens_const = ConstantOp(
-                DenseIntOrFPElementsAttr.create_dense_float(dest_typ, scalar_value)
+                DenseIntOrFPElementsAttr.from_list(dest_typ, [scalar_value])
             )
             rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
             return tens_const.result

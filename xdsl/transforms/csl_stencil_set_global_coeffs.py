@@ -91,7 +91,7 @@ def get_coeff_api_ops(op: csl_stencil.ApplyOp, wrapper: csl_wrapper.ModuleOp):
     ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
 
     cnsts = {
-        d: arith.ConstantOp(DenseIntOrFPElementsAttr.create_dense_float(memref_t, v))
+        d: arith.ConstantOp(DenseIntOrFPElementsAttr.from_list(memref_t, v))
         for d, v in cmap.items()
     }
     addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}

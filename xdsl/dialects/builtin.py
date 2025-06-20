@@ -2478,14 +2478,7 @@ class DenseIntOrFPElementsAttr(
             )
 
     @staticmethod
-    @deprecated("Please use `create_dense_int` instead.")
-    def create_dense_index(
-        type: RankedStructure[IndexType],
-        data: Sequence[int],
-    ) -> DenseIntOrFPElementsAttr[IndexType]:
-        return DenseIntOrFPElementsAttr.create_dense_int(type, data)
-
-    @staticmethod
+    @deprecated("Please use `from_list` instead")
     def create_dense_int(
         type: RankedStructure[_IntegerAttrType], data: int | Sequence[int]
     ) -> DenseIntOrFPElementsAttr[_IntegerAttrType]:
@@ -2494,6 +2487,7 @@ class DenseIntOrFPElementsAttr(
         return DenseIntOrFPElementsAttr.from_list(type, data)
 
     @staticmethod
+    @deprecated("Please use `from_list` instead")
     def create_dense_float(
         type: RankedStructure[_FloatAttrType],
         data: float | Sequence[float],
@@ -2517,11 +2511,12 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr[ComplexType[_FloatAttrTypeInvT]]: ...
 
     @staticmethod
+    @deprecated("Please use `from_list` instead")
     def create_dense_complex(
-        type: RankedStructure[ComplexType[ComplexElementCovT]],
+        type: RankedStructure[ComplexType],
         data: Sequence[tuple[float, float]] | Sequence[tuple[int, int]],
-    ) -> DenseIntOrFPElementsAttr[ComplexType[ComplexElementCovT]]:
-        return DenseIntOrFPElementsAttr([type, BytesAttr(type.element_type.pack(data))])  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
+    ) -> DenseIntOrFPElementsAttr[ComplexType]:
+        return DenseIntOrFPElementsAttr.from_list(type, data)  # pyright: ignore[reportCallIssue, reportUnknownVariableType, reportArgumentType]
 
     @overload
     @staticmethod
