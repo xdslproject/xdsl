@@ -51,7 +51,7 @@ class IntData(Data[int]):
 
     def print_parameter(self, printer: Printer):
         with printer.in_angle_brackets():
-            printer.print_string(str(self.data))
+            printer.print_int(self.data)
 
 
 @irdl_attr_definition

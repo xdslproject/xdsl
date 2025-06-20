@@ -597,7 +597,7 @@ class IntegerType(
             printer.print_string("si")
         elif self.signedness.data == Signedness.UNSIGNED:
             printer.print_string("ui")
-        printer.print_string(str(self.width.data))
+        printer.print_int(self.width.data)
 
     def __repr__(self):
         width = self.width.data

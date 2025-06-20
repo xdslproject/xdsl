@@ -1212,7 +1212,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print_string(", ")
-        printer.print_string(str(self.csr.value.data))
+        self.csr.print_without_type(printer)
         if self.writeonly is not None:
             printer.print_string(', "w"')
         return {"csr", "writeonly"}
@@ -1285,7 +1285,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print_string(", ")
-        printer.print_string(str(self.csr.value.data))
+        self.csr.print_without_type(printer)
         if self.readonly is not None:
             printer.print_string(', "r"')
         return {"csr", "readonly"}
@@ -1357,7 +1357,7 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print_string(" ")
-        printer.print_string(str(self.csr.value.data))
+        self.csr.print_without_type(printer)
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         if self.writeonly is not None:
@@ -1417,7 +1417,7 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print_string(" ")
-        printer.print_string(str(self.csr.value.data))
+        self.csr.print_without_type(printer)
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"csr", "immediate"}
@@ -4778,7 +4778,7 @@ def parse_immediate_value(
 def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
     match immediate:
         case IntegerAttr():
-            printer.print_string(str(immediate.value.data))
+            immediate.print_without_type(printer)
         case LabelAttr():
             printer.print_string_literal(immediate.data)
 
