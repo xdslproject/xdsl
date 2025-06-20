@@ -1657,6 +1657,10 @@ class DenseArrayBase(
     def get_values(self: DenseArrayBase[AnyFloat]) -> tuple[float, ...]: ...
 
     def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
+        """
+        Get a tuple of `int` or `float` values, depending on whether `self.elt_type` is
+        an integer type or a floating point type.
+        """
         return self.elt_type.unpack(self.data.data, len(self))
 
     def iter_attrs(self) -> Iterator[IntegerAttr] | Iterator[FloatAttr]:
