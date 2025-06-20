@@ -5,8 +5,6 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
-    I1,
-    I64,
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
@@ -626,9 +624,9 @@ class TileOp(IRDLOperation):
         self,
         target: SSAValue,
         dynamic_sizes: Sequence[SSAValue],
-        static_sizes: DenseArrayBase[I64] | Sequence[int] | None = None,
-        interchange: DenseArrayBase[I64] | Sequence[int] | None = None,
-        scalable_sizes: (DenseArrayBase[I1] | Sequence[int] | None) = None,
+        static_sizes: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
+        interchange: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
+        scalable_sizes: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
     ):
         if isinstance(static_sizes, Sequence):
             static_sizes = DenseArrayBase.from_list(i64, static_sizes)
