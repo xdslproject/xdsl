@@ -134,27 +134,19 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def offset(self) -> tuple[int, ...]:
-        data = self.offset_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.offset_.get_values()
 
     @property
     def size(self) -> tuple[int, ...]:
-        data = self.size_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.size_.get_values()
 
     @property
     def source_offset(self) -> tuple[int, ...]:
-        data = self.source_offset_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.source_offset_.get_values()
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.neighbor_.get_values()
 
     @property
     def elem_count(self) -> int:

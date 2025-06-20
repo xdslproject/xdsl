@@ -100,9 +100,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_param.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.neighbor_param.get_values()
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string(f"<to {list(self.neighbor)}>")

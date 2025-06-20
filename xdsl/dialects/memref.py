@@ -1131,7 +1131,7 @@ class ReinterpretCastOp(IRDLOperation):
         for dim, (actual, expected) in enumerate(
             zip(
                 self.result.type.get_shape(),
-                cast(tuple[int], self.static_sizes.get_values()),
+                self.static_sizes.get_values(),
                 strict=True,
             )
         ):
