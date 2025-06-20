@@ -131,7 +131,7 @@ def test_constant_construction():
     assert c3.value.type == f32
 
     value_type = TensorType(i32, [2, 2])
-    c5 = ConstantOp(DenseIntOrFPElementsAttr.create_dense_int(value_type, [1, 2, 3, 4]))
+    c5 = ConstantOp(DenseIntOrFPElementsAttr.from_list(value_type, [1, 2, 3, 4]))
     assert c5.value.type == value_type
 
 

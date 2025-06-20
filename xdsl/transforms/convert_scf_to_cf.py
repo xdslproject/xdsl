@@ -213,7 +213,7 @@ class SwitchLowering(RewritePattern):
                 case_value,
                 default_block,
                 (),
-                DenseIntElementsAttr.create_dense_int(
+                DenseIntElementsAttr.from_list(
                     VectorType(i32, (len(case_values),)), case_values
                 ),
                 case_successors,

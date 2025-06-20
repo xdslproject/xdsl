@@ -72,7 +72,7 @@ class FoldConstantReshapeOpPattern(RewritePattern):
 
         assert isa(op.res.type, TensorTypeF64)
 
-        new_value = DenseIntOrFPElementsAttr.create_dense_float(
+        new_value = DenseIntOrFPElementsAttr.from_list(
             type=op.res.type, data=reshape_input_op.value.get_values()
         )
         new_op = ConstantOp(new_value)
