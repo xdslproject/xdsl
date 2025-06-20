@@ -644,7 +644,7 @@ class RiscvFunctions(InterpreterFunctions):
                 return attr.value.data
             case builtin.DenseIntOrFPElementsAttr():
                 assert isa(attr, DenseIntOrFPElementsAttr)
-                data = attr.get_untyped_values()
+                data = attr.get_values()
                 data_ptr = ptr.TypedPtr[Any].new(
                     data,
                     xtype=xtype_for_el_type(

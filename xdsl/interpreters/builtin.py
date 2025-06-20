@@ -88,7 +88,7 @@ class BuiltinFunctions(InterpreterFunctions):
     ) -> ShapedArray[Any]:
         assert isa(attr, builtin.DenseIntOrFPElementsAttr)
         shape = attr.get_shape()
-        data = attr.get_untyped_values()
+        data = attr.get_values()
         data_ptr = ptr.TypedPtr[Any].new(
             data,
             xtype=xtype_for_el_type(

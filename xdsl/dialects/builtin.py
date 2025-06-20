@@ -2642,6 +2642,7 @@ class DenseIntOrFPElementsAttr(
         self: DenseIntOrFPElementsAttr[ComplexType[AnyFloat]],
     ) -> tuple[tuple[float, float], ...]: ...
 
+    @overload
     def get_values(
         self,
     ) -> (
@@ -2649,13 +2650,9 @@ class DenseIntOrFPElementsAttr(
         | tuple[float, ...]
         | tuple[tuple[int, int], ...]
         | tuple[tuple[float, float], ...]
-    ):
-        """
-        Return all the values of the elements in this DenseIntOrFPElementsAttr
-        """
-        return self.get_untyped_values()
+    ): ...
 
-    def get_untyped_values(
+    def get_values(
         self,
     ) -> (
         tuple[int, ...]
@@ -2695,7 +2692,7 @@ class DenseIntOrFPElementsAttr(
         Return whether or not this dense attribute is defined entirely
         by a single value (splat).
         """
-        values = self.get_untyped_values()
+        values = self.get_values()
         return values.count(values[0]) == len(values)
 
     @staticmethod
@@ -2742,7 +2739,7 @@ class DenseIntOrFPElementsAttr(
     def print_without_type(self, printer: Printer):
         printer.print_string("dense")
         length = len(self)
-        data = self.get_untyped_values()
+        data = self.get_values()
         shape = self.get_shape() if self.shape_is_complete else (length,)
         assert shape is not None, "If shape is complete, then it cannot be None"
         with printer.in_angle_brackets():
