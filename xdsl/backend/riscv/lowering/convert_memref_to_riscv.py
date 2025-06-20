@@ -274,13 +274,19 @@ class ConvertMemRefGlobalOp(RewritePattern):
                     raise DiagnosticException(
                         f"Unsupported memref element type for riscv lowering: {element_type}"
                     )
-                ints = initial_value.get_int_values()
+                ints = cast(
+                    DenseIntOrFPElementsAttr[IntegerType], initial_value
+                ).get_int_values()
                 ptr = TypedPtr.new_int32(ints).raw
             case Float32Type():
-                floats = initial_value.get_float_values()
+                floats = cast(
+                    DenseIntOrFPElementsAttr[Float32Type], initial_value
+                ).get_float_values()
                 ptr = TypedPtr.new_float32(floats).raw
             case Float64Type():
-                floats = initial_value.get_float_values()
+                floats = cast(
+                    DenseIntOrFPElementsAttr[Float64Type], initial_value
+                ).get_float_values()
                 ptr = TypedPtr.new_float64(floats).raw
             case _:
                 raise DiagnosticException(
