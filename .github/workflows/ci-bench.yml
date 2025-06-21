@@ -1,0 +1,41 @@
+# This workflow will install Python dependencies and run regression micro-Benchmarks
+# https://codspeed.io/docs/benchmarks/python
+
+name: CI - Micro Benchmarks
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the master branch
+  push:
+    branches:
+      - main
+  pull_request:
+  # `workflow_dispatch` allows CodSpeed to trigger backtest
+  # performance analysis in order to generate initial data.
+  workflow_dispatch:
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install the project
+        run: VENV_EXTRAS="--extra dev" make venv
+
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+            token: ${{ secrets.CODSPEED_TOKEN }}
+            run: uv run pytest tests/ --codspeed

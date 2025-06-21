@@ -57,6 +57,11 @@ filecheck: uv-installed
 pytest: uv-installed
 	uv run pytest tests -W error -vv
 
+# run pytest tests
+.PHONY: pytest-bench
+pytest-bench: uv-installed
+	uv run pytest tests --codspeed -W error -vv
+
 # run tests for Toy tutorial
 .PHONY: filecheck-toy
 filecheck-toy: uv-installed

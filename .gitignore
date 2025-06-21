@@ -166,3 +166,6 @@ docs/ret.xdsl
 # direnv
 .direnv
 .envrc
+
+# codspeed benchmark times
+.codspeed
