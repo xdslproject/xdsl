@@ -272,17 +272,6 @@ class BytesAttr(Data[bytes], BuiltinAttribute):
 
 
 @irdl_attr_definition
-class SymbolNameAttr(ParametrizedAttribute, BuiltinAttribute):
-    name = "symbol_name"
-    data: ParameterDef[StringAttr]
-
-    def __init__(self, data: str | StringAttr) -> None:
-        if isinstance(data, str):
-            data = StringAttr(data)
-        super().__init__([data])
-
-
-@irdl_attr_definition
 class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "symbol_ref"
     root_reference: ParameterDef[StringAttr]
@@ -2792,7 +2781,6 @@ Builtin = Dialect(
         # Attributes
         StringAttr,
         SymbolRefAttr,
-        SymbolNameAttr,
         IntAttr,
         IntegerAttr,
         ArrayAttr,
