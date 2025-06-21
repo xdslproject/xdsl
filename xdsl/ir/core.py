@@ -795,6 +795,10 @@ class OpTraits(Iterable[OpTrait]):
     ) -> None:
         self._traits = traits
 
+    def copy(self) -> OpTraits:
+        """Returns a copy of this instance."""
+        return OpTraits(self._traits)
+
     @property
     def traits(self) -> frozenset[OpTrait]:
         """Returns a copy of this instance's traits."""
