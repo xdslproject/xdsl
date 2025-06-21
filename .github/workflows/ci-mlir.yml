@@ -36,10 +36,9 @@ jobs:
         cache-dependency-glob: "xdsl/uv.lock"
 
     - name: Set up Python ${{ matrix.python-version }}
-      run: |
-        # Change directory so that xdsl-opt can be found during installation.
-        cd xdsl
-        uv python install ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
 
     - name: Install the package locally and nbval
       run: |
