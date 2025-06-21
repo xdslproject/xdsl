@@ -358,9 +358,9 @@ class FRepOperation(RISCVInstruction):
         printer.print_ssa_value(self.max_rep)
         if self.stagger_count.data and self.stagger_mask.data:
             printer.print_string(", ")
-            printer.print(self.stagger_count.data)
+            printer.print_int(self.stagger_count.data)
             printer.print_string(", ")
-            printer.print(self.stagger_mask.data)
+            printer.print_int(self.stagger_mask.data)
 
         printer.print_op_attributes(
             self.attributes, reserved_attr_names=("stagger_count", "stagger_mask")
@@ -714,7 +714,7 @@ class DMCopyImmOp(RISCVInstruction):
         printer.print_string(" ")
         printer.print_operand(self.size)
         printer.print_string(", ")
-        printer.print(self.config.value.data)
+        self.config.print_without_type(printer)
         if self.attributes:
             printer.print_string(" ")
             printer.print_attr_dict(self.attributes)
@@ -764,7 +764,7 @@ class DMStatImmOp(RISCVInstruction):
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
-        printer.print(self.status.value.data)
+        self.status.print_without_type(printer)
         if self.attributes:
             printer.print_string(" ")
             printer.print_attr_dict(self.attributes)

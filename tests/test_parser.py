@@ -54,7 +54,7 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     attr = DictionaryAttr(data)
 
     with StringIO() as io:
-        Printer(io).print(attr)
+        Printer(io).print_attribute(attr)
         text = io.getvalue()
 
     ctx = Context()
