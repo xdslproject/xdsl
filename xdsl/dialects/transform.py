@@ -14,6 +14,8 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i1,
+    i64,
 )
 from xdsl.dialects.func import FuncOpCallableInterface
 from xdsl.dialects.utils import (
@@ -611,9 +613,9 @@ class TileOp(IRDLOperation):
 
     target = operand_def(TransformHandleType)
     dynamic_sizes = var_operand_def(TransformHandleType)
-    static_sizes = opt_prop_def(DenseArrayBase)
-    interchange = opt_prop_def(DenseArrayBase)
-    scalable_sizes = opt_prop_def(DenseArrayBase)
+    static_sizes = opt_prop_def(DenseArrayBase.constr(i64))
+    interchange = opt_prop_def(DenseArrayBase.constr(i64))
+    scalable_sizes = opt_prop_def(DenseArrayBase.constr(i1))
 
     tiled_linalg_op = result_def(AnyOpType)
     loops = var_result_def(AnyOpType)
@@ -622,16 +624,16 @@ class TileOp(IRDLOperation):
         self,
         target: SSAValue,
         dynamic_sizes: Sequence[SSAValue],
-        static_sizes: DenseArrayBase | Sequence[int] | None = None,
-        interchange: DenseArrayBase | Sequence[int] | None = None,
-        scalable_sizes: (DenseArrayBase | Sequence[int] | None) = None,
+        static_sizes: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
+        interchange: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
+        scalable_sizes: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
     ):
         if isinstance(static_sizes, Sequence):
-            static_sizes = DenseArrayBase.from_list(IntegerType(64), static_sizes)
+            static_sizes = DenseArrayBase.from_list(i64, static_sizes)
         if isinstance(interchange, Sequence):
-            interchange = DenseArrayBase.from_list(IntegerType(64), interchange)
+            interchange = DenseArrayBase.from_list(i64, interchange)
         if isinstance(scalable_sizes, Sequence):
-            scalable_sizes = DenseArrayBase.from_list(IntegerType(1), scalable_sizes)
+            scalable_sizes = DenseArrayBase.from_list(i1, scalable_sizes)
         super().__init__(
             operands=(target, dynamic_sizes),
             properties={

@@ -94,8 +94,6 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
             # find max x and y dimensions
             if len(shape := apply_op.topo.shape.get_values()) == 2:
-                assert isinstance(shape[0], int), "Cannot have a float data shape"
-                assert isinstance(shape[1], int), "Cannot have a float data shape"
                 width = max(width, shape[0])
                 height = max(height, shape[1])
             else:

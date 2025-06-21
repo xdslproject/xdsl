@@ -916,7 +916,7 @@ class TransposeOp(IRDLOperation):
                 f"Input rank ({input_rank}) does not match size of permutation ({permutation_size})"
             )
 
-        permutation_shape = cast(list[int], self.permutation.get_values())
+        permutation_shape = self.permutation.get_values()
 
         for i in range(len(input_shape)):
             input_dimension = input_shape[permutation_shape[i]]
@@ -941,10 +941,7 @@ class TransposeOp(IRDLOperation):
             printer.print_attribute(self.init.type)
         printer.print_string(" permutation = ")
         with printer.in_square_brackets():
-            printer.print_list(
-                self.permutation.get_values(),
-                lambda x: printer.print_string(str(x)),
-            )
+            printer.print_list(self.permutation.get_values(), printer.print_int)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -1315,9 +1312,7 @@ class BroadcastOp(IRDLOperation):
             printer.print_attribute(self.init.type)
         printer.print_string(" dimensions = ")
         with printer.in_square_brackets():
-            printer.print_list(
-                self.dimensions.get_values(), lambda x: printer.print_string(str(x))
-            )
+            printer.print_list(self.dimensions.get_values(), printer.print_int)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:

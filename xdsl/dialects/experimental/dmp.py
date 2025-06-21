@@ -85,10 +85,10 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "dmp.exchange"
 
-    offset_: ParameterDef[builtin.DenseArrayBase]
-    size_: ParameterDef[builtin.DenseArrayBase]
-    source_offset_: ParameterDef[builtin.DenseArrayBase]
-    neighbor_: ParameterDef[builtin.DenseArrayBase]
+    offset_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
+    size_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
+    source_offset_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
+    neighbor_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
 
     def __init__(
         self,
@@ -134,27 +134,19 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def offset(self) -> tuple[int, ...]:
-        data = self.offset_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.offset_.get_values()
 
     @property
     def size(self) -> tuple[int, ...]:
-        data = self.size_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.size_.get_values()
 
     @property
     def source_offset(self) -> tuple[int, ...]:
-        data = self.source_offset_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.source_offset_.get_values()
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.neighbor_.get_values()
 
     @property
     def elem_count(self) -> int:
@@ -269,33 +261,29 @@ class ShapeAttr(ParametrizedAttribute):
 
     name = "dmp.shape_with_halo"
 
-    buff_lb_: ParameterDef[builtin.DenseArrayBase]
-    buff_ub_: ParameterDef[builtin.DenseArrayBase]
-    core_lb_: ParameterDef[builtin.DenseArrayBase]
-    core_ub_: ParameterDef[builtin.DenseArrayBase]
+    buff_lb_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
+    buff_ub_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
+    core_lb_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
+    core_ub_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
 
     @property
     def buff_lb(self) -> tuple[int, ...]:
         data = self.buff_lb_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def buff_ub(self) -> tuple[int, ...]:
         data = self.buff_ub_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def core_lb(self) -> tuple[int, ...]:
         data = self.core_lb_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def core_ub(self) -> tuple[int, ...]:
         data = self.core_ub_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
@@ -411,7 +399,7 @@ class RankTopoAttr(ParametrizedAttribute):
 
     name = "dmp.topo"
 
-    shape: ParameterDef[builtin.DenseArrayBase]
+    shape: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
 
     def __init__(self, shape: Sequence[int]):
         if len(shape) < 1:
@@ -420,7 +408,6 @@ class RankTopoAttr(ParametrizedAttribute):
 
     def as_tuple(self) -> tuple[int, ...]:
         shape = self.shape.get_values()
-        assert isa(shape, tuple[int, ...])
         return shape
 
     def node_count(self) -> int:

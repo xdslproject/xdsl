@@ -1,7 +1,5 @@
 import collections
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl, memref
@@ -135,7 +133,6 @@ class LowerSubviewOpPass(RewritePattern):
                 "1d access into nd memref must specify one size > 1"
             )
             size, size_count = counter_sizes.most_common()[0]
-            size = cast(int, size)
 
             assert size_count == 1, (
                 "1d access into nd memref can only specify one size > 1, which can occur only once"
@@ -145,9 +142,7 @@ class LowerSubviewOpPass(RewritePattern):
             )
 
             amap: list[AffineExpr] = [
-                AffineConstantExpr(
-                    cast(int, o) if o != memref.SubviewOp.DYNAMIC_INDEX else 0
-                )
+                AffineConstantExpr(o if o != memref.SubviewOp.DYNAMIC_INDEX else 0)
                 for o in op.static_offsets.get_values()
             ]
             amap[sizes.index(size)] += AffineDimExpr(0)
@@ -191,7 +186,7 @@ class LowerSubviewOpPass(RewritePattern):
         assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
 
-        static_sizes = cast(Sequence[int], subview.static_sizes.get_values())
+        static_sizes = subview.static_sizes.get_values()
 
         if static_sizes[0] == memref.SubviewOp.DYNAMIC_INDEX:
             ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], i16))
@@ -224,7 +219,7 @@ class LowerSubviewOpPass(RewritePattern):
         assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
 
-        static_strides = cast(Sequence[int], subview.static_strides.get_values())
+        static_strides = subview.static_strides.get_values()
 
         if static_strides[0] == memref.SubviewOp.DYNAMIC_INDEX:
             ops.append(cast_op := arith.IndexCastOp(subview.strides[0], i8))
@@ -257,7 +252,7 @@ class LowerSubviewOpPass(RewritePattern):
         assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
 
-        static_offsets = cast(Sequence[int], subview.static_offsets.get_values())
+        static_offsets = subview.static_offsets.get_values()
 
         if subview.offsets:
             ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], i16))

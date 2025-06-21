@@ -1586,15 +1586,19 @@ class DenseArrayBase(
             printer.print_attribute(self.elt_type)
             if len(self) == 0:
                 return
-            data = self.iter_values()
             printer.print_string(": ")
-            elt_type: IntegerType | AnyFloat = self.elt_type
+            elt_type = self.elt_type
             if isinstance(elt_type, IntegerType):
+                int_self: DenseArrayBase[IntegerType] = self  # pyright: ignore[reportAssignmentType]
                 printer.print_list(
-                    data, lambda x: printer.print_int(cast(int, x), elt_type)
+                    int_self.iter_values(),
+                    lambda x: printer.print_int(x, elt_type),
                 )
             else:
-                printer.print_list(data, lambda x: printer.print_float(x, elt_type))
+                float_self: DenseArrayBase[AnyFloat] = self  # pyright: ignore[reportAssignmentType]
+                printer.print_list(
+                    float_self.iter_values(), lambda x: printer.print_float(x, elt_type)
+                )
 
     def verify(self):
         data_len = len(self.data.data)
@@ -1647,10 +1651,30 @@ class DenseArrayBase(
         bytes_data = data_type.pack(data)  # pyright: ignore[reportArgumentType]
         return DenseArrayBase(data_type, BytesAttr(bytes_data))
 
+    @overload
+    def iter_values(self: DenseArrayBase[IntegerType]) -> Iterator[int]: ...
+
+    @overload
+    def iter_values(self: DenseArrayBase[AnyFloat]) -> Iterator[float]: ...
+
     def iter_values(self) -> Iterator[float] | Iterator[int]:
+        """
+        Returns an iterator of `int` or `float` values, depending on whether
+        `self.elt_type` is an integer type or a floating point type.
+        """
         return self.elt_type.iter_unpack(self.data.data)
 
+    @overload
+    def get_values(self: DenseArrayBase[IntegerType]) -> tuple[int, ...]: ...
+
+    @overload
+    def get_values(self: DenseArrayBase[AnyFloat]) -> tuple[float, ...]: ...
+
     def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
+        """
+        Get a tuple of `int` or `float` values, depending on whether `self.elt_type` is
+        an integer type or a floating point type.
+        """
         return self.elt_type.unpack(self.data.data, len(self))
 
     def iter_attrs(self) -> Iterator[IntegerAttr] | Iterator[FloatAttr]:
