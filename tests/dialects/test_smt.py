@@ -183,6 +183,14 @@ def test_bv_constant_op():
     assert op.value == bv_attr
     assert op.result.type == BitVectorType(32)
 
+    op2 = BvConstantOp.from_value_and_type(42, 32)
+    assert op2.value == bv_attr
+    assert op2.result.type == BitVectorType(32)
+
+    op3 = BvConstantOp.from_value_and_type(42, BitVectorType(32))
+    assert op3.value == bv_attr
+    assert op3.result.type == BitVectorType(32)
+
 
 @pytest.mark.parametrize("op_type", [BVNotOp, BVNegOp])
 def test_bv_unary_op(op_type: type[UnaryBVOp]):
