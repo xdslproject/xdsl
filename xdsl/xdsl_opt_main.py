@@ -84,6 +84,10 @@ class xDSLOptMain(CommandLineTool):
                 except DiagnosticException as e:
                     if self.args.verify_diagnostics:
                         print(e)
+                        # __notes__ only in Python 3.11 and above
+                        if hasattr(e, "__notes__"):
+                            for e in e.__notes__:
+                                print(e)
                     else:
                         raise
                 finally:

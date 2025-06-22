@@ -1760,8 +1760,6 @@ builtin.module {
 }
 """
     expected = """\
-Error while applying pattern: Expected operation to not be erroneous!
-
 "builtin.module"() ({
   "test.op"() {erroneous = false} : () -> ()
   "test.op"() : () -> ()
