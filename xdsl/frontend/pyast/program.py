@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import Any
 
+from typing_extensions import TypeForm
+
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import CodeGeneration
 from xdsl.frontend.pyast.exception import FrontendProgramException
@@ -12,10 +14,9 @@ from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import (
     FunctionRegistry,
     TypeConverter,
-    TypeName,
     TypeRegistry,
 )
-from xdsl.ir import Operation, TypeAttribute
+from xdsl.ir import Attribute, Operation, TypeAttribute
 from xdsl.printer import Printer
 
 
@@ -38,9 +39,6 @@ class FrontendProgram:
     xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
-    type_names: dict[TypeName, type] = field(default_factory=dict[TypeName, type])
-    """Mappings from source type names to source types."""
-
     type_registry: TypeRegistry = field(default_factory=TypeRegistry)
     """Mappings between source code and IR type."""
 
@@ -50,30 +48,17 @@ class FrontendProgram:
     file: str | None = field(default=None)
     """Path to the file that contains the program."""
 
-    def register_type(self, source_type: type, ir_type: TypeAttribute) -> None:
+    def register_type(
+        self, source_type: type | TypeForm[Attribute], ir_type: TypeAttribute
+    ) -> None:
         """Associate a type in the source code with its type in the IR."""
-        if (type_name := source_type.__qualname__) in self.type_names:
-            raise FrontendProgramException(
-                f"Cannot re-register type name '{type_name}'"
-            )
-        # Qualified names not being registered implies matching objects aren't
-        assert source_type not in self.type_registry
-        if not self.type_registry.valid_insert(source_type, ir_type):
-            raise FrontendProgramException(
-                f"Cannot register multiple source types for IR type '{ir_type.__name__}'"
-            )
-        self.type_names[type_name] = source_type
-        self.type_registry[source_type] = ir_type
+        self.type_registry.insert(source_type, ir_type)
 
     def register_function(
         self, function: Callable[..., Any], ir_op: type[Operation]
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
-        if function in self.function_registry:
-            raise FrontendProgramException(
-                f"Cannot re-register function '{function.__qualname__}'"
-            )
-        self.function_registry[function] = ir_op
+        self.function_registry.insert(function, ir_op)
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
@@ -95,7 +80,6 @@ Cannot compile program without the code context. Try to use:
 
         type_converter = TypeConverter(
             globals=self.globals,
-            type_names=self.type_names,
             type_registry=self.type_registry,
             function_registry=self.function_registry,
         )

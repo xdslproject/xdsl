@@ -163,15 +163,13 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
 
         ir_type = cast(TypeAttribute, lhs.type)
-        source_type = self.type_converter.get_source_type(ir_type)
+        source_type = self.type_converter.type_registry.get_annotation(ir_type)
         if source_type is not None:  # NOTE: To support old codebase
             method_name = python_AST_operator_to_python_overload[op_name]
             function_name = f"{source_type.__qualname__}.{method_name}"
-            function = self.type_converter.resolve_function(
-                module_name=source_type.__module__, function_name=function_name
-            )
-            op = self.type_converter.get_operation(
-                method=function,
+            op = self.type_converter.function_registry.resolve_operation(
+                module_name=source_type.__module__,
+                function_name=function_name,
                 args=(lhs, rhs),
             )
             if op is not None:
@@ -256,15 +254,13 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
 
         ir_type = cast(TypeAttribute, lhs.type)
-        source_type = self.type_converter.get_source_type(ir_type)
+        source_type = self.type_converter.type_registry.get_annotation(ir_type)
         if source_type is not None:  # NOTE: To support old codebase
             method_name = python_AST_cmpop_to_python_overload[op_name]
             function_name = f"{source_type.__qualname__}.{method_name}"
-            function = self.type_converter.resolve_function(
-                module_name=source_type.__module__, function_name=function_name
-            )
-            op = self.type_converter.get_operation(
-                method=function,
+            op = self.type_converter.function_registry.resolve_operation(
+                module_name=source_type.__module__,
+                function_name=function_name,
                 args=(lhs, rhs),
             )
             if op is not None:
@@ -505,15 +501,17 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     arg.col_offset,
                     "Function arguments must be type hinted",
                 )
-            if not isinstance(arg.annotation, ast.Name):
-                raise CodeGenerationException(
-                    self.file,
-                    arg.lineno,
-                    arg.col_offset,
-                    f"Unsupported function argument type: '{ast.unparse(arg.annotation)}'",
-                )
-            xdsl_type = self.type_converter.get_ir_type(arg.annotation.id)
+            xdsl_type = self.type_converter.type_registry.resolve_attribute(
+                ast.unparse(arg.annotation)
+            )
             if xdsl_type is None:
+                if not isinstance(arg.annotation, ast.Name):
+                    raise CodeGenerationException(
+                        self.file,
+                        arg.lineno,
+                        arg.col_offset,
+                        f"Unsupported function argument type: '{ast.unparse(arg.annotation)}'",
+                    )
                 xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
             argument_types.append(xdsl_type)
 
@@ -526,7 +524,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.col_offset,
                     f"Unsupported function return type: '{ast.unparse(node.returns)}'",
                 )
-            xdsl_type = self.type_converter.get_ir_type(node.returns.id)
+            xdsl_type = self.type_converter.type_registry.resolve_attribute(
+                node.returns.id
+            )
             if xdsl_type is None:
                 xdsl_type = self.type_converter.convert_type_hint(node.returns)
             return_types.append(xdsl_type)
