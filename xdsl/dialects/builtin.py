@@ -889,9 +889,9 @@ class IntegerAttr(
 
     def __add__(self, other: Self) -> Self:
         """Add two integers."""
-        assert self.type == other.type
-        result = int.__add__(self.value.data, other.value.data)
-        return type(self)(result, self.type, truncate_bits=True)
+        return type(self)(
+            self.value.data + other.value.data, self.type, truncate_bits=True
+        )
 
 
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
