@@ -6,7 +6,7 @@ from xdsl.frontend.pyast.context import CodeContext
 from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
-p.register_type(IntegerAttr[I64], i64)
+p.register_type(IntegerAttr[I64], i64, annotation_name="IntegerAttr[I64]")
 p.register_function(IntegerAttr.__add__, arith.AddiOp)
 with CodeContext(p):
     # CHECK:      builtin.module {

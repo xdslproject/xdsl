@@ -86,13 +86,24 @@ class TypeRegistry:
         self._mapping: dict[type | TypeForm[Attribute], TypeAttribute] = {}
         self._type_names: dict[str, type | TypeForm[Attribute]] = {}
 
+    def _get_annotation_name(
+        self, annotation: type | TypeForm[Attribute], annotation_name: str | None = None
+    ) -> str:
+        """Get the name of an annotation."""
+        if annotation_name is not None:
+            return annotation_name
+        return annotation.__qualname__
+
     def insert(
-        self, annotation: type | TypeForm[Attribute], attribute: TypeAttribute
+        self,
+        annotation: type | TypeForm[Attribute],
+        attribute: TypeAttribute,
+        annotation_name: str | None = None,
     ) -> None:
         """Insert a relation between a Python type annotation and an IR type attribute."""
         # Enforce type is not generic/final if not subclass attribute
         # Resolve attributes
-        annotation_name = annotation.__qualname__
+        annotation_name = self._get_annotation_name(annotation, annotation_name)
         if annotation_name in self._type_names:
             raise FrontendProgramException(
                 f"Cannot re-register type name '{annotation_name}'"

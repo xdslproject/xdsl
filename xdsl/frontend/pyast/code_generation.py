@@ -517,17 +517,17 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         return_types: list[Attribute] = []
         if node.returns is not None:
-            if not isinstance(node.returns, ast.Name):
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    f"Unsupported function return type: '{ast.unparse(node.returns)}'",
-                )
             xdsl_type = self.type_converter.type_registry.resolve_attribute(
-                node.returns.id
+                ast.unparse(node.returns)
             )
             if xdsl_type is None:
+                if not isinstance(node.returns, ast.Name):
+                    raise CodeGenerationException(
+                        self.file,
+                        node.lineno,
+                        node.col_offset,
+                        f"Unsupported function return type: '{ast.unparse(node.returns)}'",
+                    )
                 xdsl_type = self.type_converter.convert_type_hint(node.returns)
             return_types.append(xdsl_type)
 
