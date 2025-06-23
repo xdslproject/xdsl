@@ -79,39 +79,40 @@ class PtrLoadToX86(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter):
-        value_type = op.res.type
-        if not isinstance(value_type, VectorType):
-            raise DiagnosticException(
-                "The lowering of ptr.load is not yet implemented for non-vector types."
-            )
-        value_type = cast(VectorType, value_type)
         # Pointer cast
         x86_reg_type = x86.register.UNALLOCATED_GENERAL
-        cast_op = UnrealizedConversionCastOp.get((op.addr,), (x86_reg_type,))
-        # Choose the x86 vector instruction according to the
-        # abstract vector element size
-        element_size = cast(FixedBitwidthType, value_type.get_element_type()).bitwidth
-        match element_size:
-            case 16:
-                raise DiagnosticException(
-                    "Half-precision vector load is not implemented yet."
-                )
-            case 32:
-                mov = x86.ops.DM_VmovupsOp
-            case 64:
-                raise DiagnosticException(
-                    "Double precision vector load is not implemented yet."
-                )
-            case _:
-                raise DiagnosticException(
-                    "Float precision must be half, single or double."
-                )
+        cast_op, addr_x86 = UnrealizedConversionCastOp.cast_one(op.addr, x86_reg_type)
+        #
+        value_type = op.res.type
+        if isinstance(value_type, VectorType):
+            value_type = cast(VectorType, value_type)
+            # Choose the x86 vector instruction according to the
+            # abstract vector element size
+            match cast(FixedBitwidthType, value_type.get_element_type()).bitwidth:
+                case 16:
+                    raise DiagnosticException(
+                        "Half-precision vector load is not implemented yet."
+                    )
+                case 32:
+                    mov = x86.ops.DM_VmovupsOp
+                case 64:
+                    raise DiagnosticException(
+                        "Double precision vector load is not implemented yet."
+                    )
+                case _:
+                    raise DiagnosticException(
+                        "Float precision must be half, single or double."
+                    )
+            mov_op = mov(
+                addr_x86,
+                memory_offset=0,
+                destination=vector_type_to_register_type(value_type, self.arch),
+            )
+        else:
+            mov_op = x86.DM_MovOp(
+                addr_x86, memory_offset=0, destination=x86.register.UNALLOCATED_GENERAL
+            )
 
-        mov_op = mov(
-            cast_op,
-            memory_offset=0,
-            destination=vector_type_to_register_type(value_type, self.arch),
-        )
         res_cast_op = UnrealizedConversionCastOp.get(mov_op.results, (value_type,))
         rewriter.replace_matched_op([cast_op, mov_op, res_cast_op])
 
