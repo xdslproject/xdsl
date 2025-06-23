@@ -1,11 +1,14 @@
 from typing import cast
 
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
+    ShapedType,
     VectorType,
 )
 from xdsl.dialects.x86.register import X86VectorRegisterType
+from xdsl.ir import Attribute
 from xdsl.utils.exceptions import DiagnosticException
 
 
@@ -30,3 +33,12 @@ def vector_type_to_register_type(
             "The vector size and target architecture are inconsistent."
         )
     return vect_reg_type
+
+
+def scalar_type_to_register_type(value_type: Attribute) -> RegisterType:
+    assert not isinstance(value_type, ShapedType)
+    assert isinstance(value_type, FixedBitwidthType)
+    if value_type.bitwidth <= 64:
+        return x86.register.UNALLOCATED_GENERAL
+    else:
+        raise DiagnosticException("Not implemented for bitwidth larger than 64.")
