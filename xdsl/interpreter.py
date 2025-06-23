@@ -691,12 +691,6 @@ class Interpreter:
         for ssa_value, result_value in pairs:
             self._ctx[ssa_value] = result_value
 
-    def is_in_root_scope(self) -> bool:
-        """
-        Returns True if the current scope is the root scope.
-        """
-        return self._ctx.parent is None
-
     def push_scope(self, name: str | None = None) -> None:
         """
         Create new scope in current environment, with optional custom `name`.
