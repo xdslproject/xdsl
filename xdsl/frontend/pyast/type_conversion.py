@@ -65,6 +65,7 @@ class FunctionRegistry:
         kwargs: dict[str, SSAValue[Attribute]] = dict(),
     ) -> Operation | None:
         """Get a concrete IR operation from a function name and its arguments."""
+        # Start at the module, and walk till a function leaf is found
         function = importlib.import_module(module_name)
         for attr in function_name.split("."):
             function = getattr(function, attr, None)
@@ -84,31 +85,18 @@ class TypeRegistry:
     def __init__(self):
         """Instantiate the function registry."""
         self._mapping: dict[type | TypeForm[Attribute], TypeAttribute] = {}
-        self._type_names: dict[str, type | TypeForm[Attribute]] = {}
-
-    def _get_annotation_name(
-        self, annotation: type | TypeForm[Attribute], annotation_name: str | None = None
-    ) -> str:
-        """Get the name of an annotation."""
-        if annotation_name is not None:
-            return annotation_name
-        return annotation.__qualname__
 
     def insert(
         self,
         annotation: type | TypeForm[Attribute],
         attribute: TypeAttribute,
-        annotation_name: str | None = None,
     ) -> None:
         """Insert a relation between a Python type annotation and an IR type attribute."""
         # Enforce type is not generic/final if not subclass attribute
-        # Resolve attributes
-        annotation_name = self._get_annotation_name(annotation, annotation_name)
-        if annotation_name in self._type_names:
+        if annotation in self._mapping:
             raise FrontendProgramException(
-                f"Cannot re-register type name '{annotation_name}'"
+                f"Cannot re-register type name '{annotation.__qualname__}'"
             )
-        self._type_names[annotation_name] = annotation
         self._mapping[annotation] = attribute
 
     def get_annotation(
@@ -130,11 +118,11 @@ class TypeRegistry:
         """Get the Python type annotation from an IR type attribute."""
         return self._mapping.get(annotation, None)
 
-    def resolve_attribute(self, annotation_name: str) -> TypeAttribute | None:
+    def resolve_attribute(
+        self, annotation_name: str, globals: dict[str, Any]
+    ) -> TypeAttribute | None:
         """Get an IR type attribute from a string annotation."""
-        annotation = self._type_names.get(annotation_name, None)
-        if annotation is None:
-            return None
+        annotation = eval(annotation_name, globals=globals)
         return self._mapping.get(annotation, None)
 
 

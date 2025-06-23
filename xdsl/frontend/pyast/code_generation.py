@@ -502,7 +502,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     "Function arguments must be type hinted",
                 )
             xdsl_type = self.type_converter.type_registry.resolve_attribute(
-                ast.unparse(arg.annotation)
+                ast.unparse(arg.annotation), self.type_converter.globals
             )
             if xdsl_type is None:
                 if not isinstance(arg.annotation, ast.Name):
@@ -518,7 +518,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         return_types: list[Attribute] = []
         if node.returns is not None:
             xdsl_type = self.type_converter.type_registry.resolve_attribute(
-                ast.unparse(node.returns)
+                ast.unparse(node.returns), self.type_converter.globals
             )
             if xdsl_type is None:
                 if not isinstance(node.returns, ast.Name):

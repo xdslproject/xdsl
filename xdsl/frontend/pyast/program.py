@@ -52,10 +52,9 @@ class FrontendProgram:
         self,
         source_type: type | TypeForm[Attribute],
         ir_type: TypeAttribute,
-        annotation_name: str | None = None,
     ) -> None:
         """Associate a type in the source code with its type in the IR."""
-        self.type_registry.insert(source_type, ir_type, annotation_name)
+        self.type_registry.insert(source_type, ir_type)
 
     def register_function(
         self, function: Callable[..., Any], ir_op: type[Operation]
