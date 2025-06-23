@@ -193,9 +193,9 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
             return True
         case EmitC_ArrayType():
             elem_type = cast(Attribute, type_attr.get_element_type())
-            return not isa(elem_type, EmitC_ArrayType) and is_supported_emitc_type(
-                elem_type
-            )
+            return not isinstance(
+                elem_type, EmitC_ArrayType
+            ) and is_supported_emitc_type(elem_type)
         case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
             return True
         case TensorType():
