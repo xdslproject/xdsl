@@ -100,7 +100,7 @@ def check_roundtrip(program: str, ctx: Context):
     printer = Printer(stream=res_io)
     for op in ops[:-1]:
         printer.print_op(op)
-        printer.print("\n")
+        printer.print_string("\n")
     printer.print_op(ops[-1])
 
     assert program == res_io.getvalue()
@@ -3427,3 +3427,50 @@ def test_int_attr_verify_errors(program: str, error: str):
     with pytest.raises(VerifyException, match=error):
         op = parser.parse_operation()
         op.verify()
+
+
+@irdl_attr_definition
+class MyAttr(ParametrizedAttribute):
+    name = "test.my_attr"
+
+    param: ParameterDef[StringAttr]
+
+
+@irdl_op_definition
+class NonQualifiedAttrOp(IRDLOperation):
+    name = "test.non_qualified_attr"
+
+    attr = prop_def(MyAttr)
+
+    assembly_format = "$attr attr-dict"
+
+
+def test_non_qualified_attr():
+    ctx = Context()
+    ctx.load_op(NonQualifiedAttrOp)
+    ctx.load_attr_or_type(MyAttr)
+    ctx.load_dialect(Test)
+    parser = Parser(ctx, 'test.non_qualified_attr <"test">')
+    op = parser.parse_operation()
+    assert isinstance(op, NonQualifiedAttrOp)
+    assert op.attr == MyAttr([StringAttr("test")])
+
+
+@irdl_op_definition
+class QualifiedAttrOp(IRDLOperation):
+    name = "test.qualified_attr"
+
+    attr = prop_def(MyAttr)
+
+    assembly_format = "qualified($attr) attr-dict"
+
+
+def test_qualified_attr():
+    ctx = Context()
+    ctx.load_op(QualifiedAttrOp)
+    ctx.load_attr_or_type(MyAttr)
+    ctx.load_dialect(Test)
+    parser = Parser(ctx, 'test.qualified_attr #test.my_attr<"test">')
+    op = parser.parse_operation()
+    assert isinstance(op, QualifiedAttrOp)
+    assert op.attr == MyAttr([StringAttr("test")])

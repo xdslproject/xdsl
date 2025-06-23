@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     base,
@@ -300,9 +301,9 @@ class ExtractSliceOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -349,9 +350,9 @@ class InsertSliceOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -516,6 +517,17 @@ class InsertOp(IRDLOperation):
         return cls(scalar, dest, indices)
 
 
+@irdl_op_definition
+class FromElementsOp(IRDLOperation):
+    name = "tensor.from_elements"
+
+    ElementType = Annotated[Attribute, ConstraintVar("ElementType")]
+
+    elements = var_operand_def(ElementType)
+    result = result_def(TensorType[ElementType])
+    assembly_format = "$elements attr-dict `:` type($result)"
+
+
 Tensor = Dialect(
     "tensor",
     [
@@ -528,6 +540,7 @@ Tensor = Dialect(
         CollapseShapeOp,
         ExtractOp,
         InsertOp,
+        FromElementsOp,
     ],
     [],
 )

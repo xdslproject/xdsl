@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any
 
 from ordered_set import OrderedSet
 
@@ -17,7 +17,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Attribute, Block, Operation, OpResult, SSAValue, Use
+from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
@@ -27,12 +27,32 @@ from xdsl.utils.scoped_dict import ScopedDict
 
 @dataclass
 class BacktrackPoint:
+    """
+    Represents a point in pattern matching where backtracking may be needed.
+
+    When a GetDefiningOpOp encounters an EClassOp with multiple operands,
+    we need to try matching against each operand. This class captures the
+    interpreter state so we can backtrack and try the next operand if
+    the current match fails.
+    """
+
     block: Block
+    """The block to return to when backtracking."""
+
     block_args: tuple[SSAValue, ...]
+    """Block arguments to restore when backtracking."""
+
     scope: ScopedDict[SSAValue, Any]
+    """Variable scope to restore when backtracking."""
+
     gdo_op: pdl_interp.GetDefiningOpOp
+    """The GetDefiningOpOp that created this backtrack point."""
+
     index: int
+    """Current operand index being tried in the EClassOp."""
+
     max_index: int
+    """Last valid operand index in the EClassOp (len(operands) - 1)."""
 
 
 @dataclass
@@ -44,16 +64,51 @@ class MergeTodo:
 @register_impls
 @dataclass
 class EqsatPDLInterpFunctions(PDLInterpFunctions):
+    """Interpreter functions for PDL patterns operating on e-graphs."""
+
     backtrack_stack: list[BacktrackPoint] = field(default_factory=list[BacktrackPoint])
+    """Stack of backtrack points for exploring multiple matching paths in e-classes."""
+
     visited: bool = True
+    """Signals whether the GetDefiningOp (GDO) in the block that run_finalize jumps to has been encountered.
+
+    This is to handle when a block contains GDOs before the GDO we're backtracking to.
+    If this is the case, run_finalize jumps to the block but will encounter the wrong GDOs first.
+    e.g.:
+    ```
+    BB0:
+        %0 = pdl_interp.get_defining_op ...
+        %1 = pdl_interp.get_defining_op ...
+    BB1:
+        pdl_interp.finalize # backtrack to BB0 at this point
+    ```
+    Backtracking works by jumping to the start of the block containing the GDO (`BB0`).
+    When we need to backtrack to the second GDO (`%1`), `visited` is still `False` when encountering the first GDO (`%0`).
+    This allows us to know that we have to skip the first GDO and continue with the second one.
+    """
+
     known_ops: KnownOps = field(default_factory=KnownOps)
+    """Used for hashconsing operations. When new operations are created, if they are identical to an existing operation,
+    the existing operation is reused instead of creating a new one."""
+
     known_ops_restore_list: list[Operation] = field(default_factory=list[Operation])
+    """List of operations that have been modified during the pattern matching."""
+
     eclass_union_find: DisjointSet[eqsat.EClassOp] = field(
         default_factory=lambda: DisjointSet[eqsat.EClassOp]()
     )
+    """Union-find structure tracking which e-classes are equivalent and should be merged."""
+
     merge_list: list[MergeTodo] = field(default_factory=list[MergeTodo])
+    """List of e-classes that should be merged by `apply_matches` after the pattern matching is done."""
 
     def modification_handler(self, op: Operation):
+        """
+        Keeps `known_ops` up to date.
+        Whenever an operation is modified, for example when its operands are updated to a different eclass value,
+        the operation is added to `known_ops_restore_list`. At the end of `apply_matches`, all the (now updated)
+        operations in `known_ops_restore_list` are put back into `known_ops`.
+        """
         if op in self.known_ops:
             removed = self.known_ops.pop(op)
             self.known_ops_restore_list.append(removed)
@@ -80,21 +135,28 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.GetResultOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        result = cast(
-            None | OpResult[Attribute],
-            PDLInterpFunctions.run_get_result(self, interpreter, op, args).values[0],
-        )
+        assert len(args) == 1
+        assert isinstance(args[0], Operation)
+        if len(args[0].results) <= op.index.value.data:
+            result = None
+        else:
+            result = args[0].results[op.index.value.data]
 
-        if (
-            result
-            and len(result.uses) == 1
-            and isinstance(
+        if result is None:
+            return (None,)
+
+        if len(result.uses) == 1:
+            if isinstance(
                 eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
-            )
-        ):
-            assert len(eclass_op.results) == 1
-            result = eclass_op.results[0]
-
+            ):
+                result = eclass_op.result
+        elif result.uses:  # multiple uses
+            for use in result.uses:
+                if isinstance(use.operation, eqsat.EClassOp):
+                    raise InterpretationError(
+                        "pdl_interp.get_result currently only supports operations with results"
+                        " that are used by a single EClassOp each."
+                    )
         return (result,)
 
     @impl(pdl_interp.GetResultsOp)
@@ -114,16 +176,20 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         results: list[OpResult] = []
         for result in src_op.results:
-            if len(result.uses) == 1 and isinstance(
-                eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
-            ):
-                assert len(eclass_op.results) == 1
-                results.append(eclass_op.results[0])
-            else:
-                raise InterpretationError(
-                    "pdl_interp.get_results currently only supports operations with results"
-                    " that are used by a single EClassOp each."
-                )
+            if len(result.uses) == 1:
+                if isinstance(
+                    eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
+                ):
+                    assert len(eclass_op.results) == 1
+                    result = eclass_op.results[0]
+            elif result.uses:  # multiple uses
+                for use in result.uses:
+                    if isinstance(use.operation, eqsat.EClassOp):
+                        raise InterpretationError(
+                            "pdl_interp.get_results currently only supports operations with results"
+                            " that are used by a single EClassOp each."
+                        )
+            results.append(result)
         return (results,)
 
     @impl(pdl_interp.GetDefiningOpOp)
@@ -133,35 +199,44 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.GetDefiningOpOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        defining_op = cast(
-            None | Operation,
-            PDLInterpFunctions.run_get_defining_op(self, interpreter, op, args).values[
-                0
-            ],
-        )
-        if isinstance(eclass_op := defining_op, eqsat.EClassOp):
-            if not self.visited:
-                if op != self.backtrack_stack[-1].gdo_op:
-                    raise InterpretationError(
-                        "TODO: handle the case where a block contains multiple pdl_interp.get_defining_op."
-                    )
-                index = self.backtrack_stack[-1].index
-                self.visited = True
-            else:
-                block = op.parent_block()
-                assert block
-                block_args = interpreter.get_values(block.args)
-                scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
-                assert scope
-                index = 0
-                self.backtrack_stack.append(
-                    BacktrackPoint(
-                        block, block_args, scope, op, index, len(eclass_op.operands) - 1
-                    )
+        assert len(args) == 1
+        if args[0] is None:
+            return (None,)
+        assert isinstance(args[0], SSAValue)
+        if not isinstance(args[0], OpResult):
+            return (None,)
+        else:
+            assert isinstance(args[0].owner, Operation), (
+                "Cannot get defining op of a Block argument"
+            )
+            defining_op = args[0].owner
+
+        if not isinstance(defining_op, eqsat.EClassOp):
+            return (defining_op,)
+
+        eclass_op = defining_op
+        if not self.visited:  # we come directly from run_finalize
+            if op != self.backtrack_stack[-1].gdo_op:
+                # we first encounter a GDO that is not the one we are backtracking to:
+                raise InterpretationError(
+                    "Case where a block contains multiple pdl_interp.get_defining_op is currently not supported."
                 )
-            return PDLInterpFunctions.run_get_defining_op(
-                self, interpreter, op, (eclass_op.operands[index],)
-            ).values
+            index = self.backtrack_stack[-1].index
+            self.visited = True
+        else:
+            block = op.parent_block()
+            assert block
+            block_args = interpreter.get_values(block.args)
+            scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
+            assert scope
+            index = 0
+            self.backtrack_stack.append(
+                BacktrackPoint(
+                    block, block_args, scope, op, index, len(eclass_op.operands) - 1
+                )
+            )
+        defining_op = eclass_op.operands[index].owner
+        assert isinstance(defining_op, Operation)
 
         return (defining_op,)
 
@@ -185,16 +260,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             raise InterpretationError(
                 "Replaced operation result must be used by an EClassOp"
             )
-        operands_to_delete: list[int] = []
-        if len(input_op.results[0].uses) != 1:
-            for use in it:
-                if use.operation is not original_eclass:
-                    raise InterpretationError(
-                        "Replaced operation result must be used by a single EClassOp"
-                    )
-                operands_to_delete.append(use.index)
-        for index in operands_to_delete:
-            original_eclass.delete_operand(index)
 
         repl_values = (
             (args[1],) if isinstance(op.repl_values.types[0], ValueType) else args[1]
@@ -230,16 +295,14 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         return ()
 
     @impl(pdl_interp.CreateOperationOp)
-    def run_createoperation(
+    def run_create_operation(
         self,
         interpreter: Interpreter,
         op: pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         has_done_action_checkpoint = self.rewriter.has_done_action
-        (new_op,) = PDLInterpFunctions.run_create_operation(
-            self, interpreter, op, args
-        ).values
+        (new_op,) = super().run_create_operation(interpreter, op, args).values
 
         assert isinstance(new_op, Operation)
 
@@ -290,12 +353,12 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         )
         self.merge_list.clear()
         for to_keep, to_replace in todo:
-            operands = to_keep._operands  # pyright: ignore[reportPrivateUsage]
+            operands = to_keep.operands
             startlen = len(operands)
             for i, val in enumerate(to_replace.operands):
                 val.add_use(Use(to_keep, startlen + i))
-                new_operands = operands + to_replace._operands  # pyright: ignore[reportPrivateUsage]
-                to_keep._operands = new_operands  # pyright: ignore[reportPrivateUsage]
+                new_operands = (*operands, *to_replace.operands)
+                to_keep.operands = new_operands
 
             self.rewriter.replace_op(
                 to_replace, new_ops=[], new_results=to_keep.results

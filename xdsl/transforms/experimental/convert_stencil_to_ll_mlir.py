@@ -51,6 +51,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
     TypeConversionPattern,
+    attr_constr_rewrite_pattern,
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
@@ -310,7 +311,7 @@ class BufferOpToMemRef(RewritePattern):
             temp_t.get_element_type(), shape=temp_t.get_shape(), layout=layout
         )
         alloc_type = alloc.memref.type
-        assert isa(alloc_type, MemRefType[Attribute])
+        assert isa(alloc_type, MemRefType)
 
         rewriter.insert_op(alloc, InsertPoint.before(first_op))
 
@@ -658,8 +659,8 @@ def return_target_analysis(module: builtin.ModuleOp):
 
 
 class StencilTypeConversion(TypeConversionPattern):
-    @attr_type_rewrite_pattern
-    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
+    @attr_constr_rewrite_pattern(StencilTypeConstr)
+    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType:
         return StencilToMemRefType(typ)
 
 

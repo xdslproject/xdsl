@@ -14,8 +14,10 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     AtLeast,
     GenericAttrConstraint,
     GenericRangeConstraint,
@@ -54,7 +56,7 @@ class BoolType(ParametrizedAttribute, TypeAttribute):
 @irdl_attr_definition
 class BitVectorType(ParametrizedAttribute, TypeAttribute):
     """
-    This type represents the (_ BitVec width) sort as described in the SMT bit-vector theory.
+    This type represents the (_ BitVec width) sort as described in the SMT bitvector theory.
     The bit-width must be strictly greater than zero.
     """
 
@@ -84,6 +86,13 @@ class BitVectorType(ParametrizedAttribute, TypeAttribute):
                 "BitVectorType width must be strictly greater "
                 f"than zero, got {self.width.data}"
             )
+
+    def value_range(self) -> tuple[int, int]:
+        """
+        The range of values that this bitvector can represent.
+        The maximum value is exclusive.
+        """
+        return (0, 1 << self.width.data)
 
 
 NonFuncSMTType: TypeAlias = BoolType | BitVectorType
@@ -134,6 +143,69 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
 SMTType: TypeAlias = NonFuncSMTType | FuncType
 SMTTypeConstr = irdl_to_attr_constraint(SMTType)
+
+
+@irdl_attr_definition
+class BitVectorAttr(TypedAttribute):
+    name = "smt.bv"
+
+    value: ParameterDef[IntAttr]
+    type: ParameterDef[BitVectorType]
+
+    def __init__(self, value: int | IntAttr, type: BitVectorType | int):
+        if isinstance(value, int):
+            value = IntAttr(value)
+        if isinstance(type, int):
+            type = BitVectorType(type)
+        super().__init__([value, type])
+
+    def verify(self) -> None:
+        super().verify()
+        (min_value, max_value) = self.type.value_range()
+        if not (min_value <= self.value.data < max_value):
+            raise VerifyException(
+                f"BitVectorAttr value {self.value.data} is out of range "
+                f"[{min_value}, {max_value}) for type {self.type}"
+            )
+
+    @staticmethod
+    def constr(
+        type_constraint: GenericAttrConstraint[BitVectorType],
+    ) -> GenericAttrConstraint[BitVectorAttr]:
+        return ParamAttrConstraint(
+            BitVectorAttr,
+            (
+                AnyAttr(),
+                type_constraint,
+            ),
+        )
+
+    @classmethod
+    def get_type_index(cls) -> int:
+        return 1
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            value = parser.parse_integer(allow_boolean=False, allow_negative=False)
+        parser.parse_punctuation(":")
+        type = parser.parse_type()
+        return [IntAttr(value), type]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string(f"<{self.value.data}> : {self.type}")
+
+    @staticmethod
+    def parse_with_type(
+        parser: AttrParser,
+        type: Attribute,
+    ) -> TypedAttribute:
+        with parser.in_angle_brackets():
+            value = parser.parse_integer(allow_boolean=False, allow_negative=False)
+        return BitVectorAttr.new([IntAttr(value), type])
+
+    def print_without_type(self, printer: Printer) -> None:
+        printer.print_string(f"<{self.value.data}>")
 
 
 @irdl_op_definition
@@ -207,7 +279,7 @@ class ConstantBoolOp(IRDLOperation):
 
     traits = traits_def(Pure(), ConstantLike())
 
-    assembly_format = "$value attr-dict"
+    assembly_format = "qualified($value) attr-dict"
 
     def __init__(self, value: bool):
         value_attr = BoolAttr.from_bool(value)
@@ -341,12 +413,13 @@ def _print_same_operand_type_variadic_to_bool_op(
     `%op1, %op2, ..., %opN attr-dict : T` where `T` is the type of all
     operands.
     """
-    printer.print(" ")
+    printer.print_string(" ")
     printer.print_list(operands, printer.print_ssa_value)
     if attr_dict:
         printer.print_string(" ")
         printer.print_attr_dict(attr_dict)
-    printer.print(" : ", operands[0].type)
+    printer.print_string(" : ")
+    printer.print_attribute(operands[0].type)
 
 
 class VariadicPredicateOp(IRDLOperation, ABC):
@@ -527,6 +600,226 @@ class AssertOp(IRDLOperation):
         super().__init__(operands=[input])
 
 
+@irdl_op_definition
+class BvConstantOp(IRDLOperation):
+    """
+    This operation produces an SSA value equal to the bitvector constant specified
+    by the ‘value’ attribute.
+    """
+
+    name = "smt.bv.constant"
+
+    T: ClassVar = VarConstraint("T", base(BitVectorType))
+
+    value = prop_def(BitVectorAttr.constr(T))
+    result = result_def(T)
+
+    assembly_format = "qualified($value) attr-dict"
+
+    traits = traits_def(ConstantLike(), Pure())
+
+    def __init__(self, value: BitVectorAttr) -> None:
+        super().__init__(properties={"value": value}, result_types=[value.type])
+
+    @staticmethod
+    def from_value_and_type(value: int, type: BitVectorType | int) -> BvConstantOp:
+        """
+        Create a new `BvConstantOp` from a value and a bitvector width.
+        """
+        if isinstance(type, int):
+            type = BitVectorType(type)
+        return BvConstantOp(BitVectorAttr(value, type))
+
+
+class UnaryBVOp(IRDLOperation, ABC):
+    """
+    A unary bitvector operation.
+    It has one operand and one result of the same bitvector type.
+    """
+
+    T: ClassVar = VarConstraint("T", base(BitVectorType))
+
+    input = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$input attr-dict `:` type($result)"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, input: SSAValue[BitVectorType]):
+        super().__init__(operands=[input], result_types=[input.type])
+
+
+@irdl_op_definition
+class BVNotOp(UnaryBVOp):
+    """
+    A unary bitwise not operation for bitvectors.
+    It corresponds to the 'not' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.not"
+
+
+@irdl_op_definition
+class BVNegOp(UnaryBVOp):
+    """
+    A unary negation operation for bitvectors.
+    It corresponds to the 'neg' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.neg"
+
+
+class BinaryBVOp(IRDLOperation, ABC):
+    """
+    A binary bitvector operation.
+    It has two operands and one result of the same bitvector type.
+    """
+
+    T: ClassVar = VarConstraint("T", base(BitVectorType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+
+    traits = traits_def(Pure())
+
+    def __init__(self, lhs: SSAValue[BitVectorType], rhs: SSAValue[BitVectorType]):
+        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
+
+
+@irdl_op_definition
+class BVAndOp(BinaryBVOp):
+    """
+    A bitwise AND operation for bitvectors.
+    It corresponds to the 'bvand' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.and"
+
+
+@irdl_op_definition
+class BVOrOp(BinaryBVOp):
+    """
+    A bitwise OR operation for bitvectors.
+    It corresponds to the 'bvor' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.or"
+
+
+@irdl_op_definition
+class BVXOrOp(BinaryBVOp):
+    """
+    A bitwise XOR operation for bitvectors.
+    It corresponds to the 'bvxor' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.xor"
+
+
+@irdl_op_definition
+class BVAddOp(BinaryBVOp):
+    """
+    An addition operation for bitvectors.
+    It corresponds to the 'bvadd' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.add"
+
+
+@irdl_op_definition
+class BVMulOp(BinaryBVOp):
+    """
+    A multiplication operation for bitvectors.
+    It corresponds to the 'bvmul' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.mul"
+
+
+@irdl_op_definition
+class BVUDivOp(BinaryBVOp):
+    """
+    An unsigned division operation (rounded towards zero) for bitvectors.
+    It corresponds to the 'bvudiv' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.udiv"
+
+
+@irdl_op_definition
+class BVSDivOp(BinaryBVOp):
+    """
+    A two's complement signed division operation (rounded towards zero) for bitvectors.
+    It corresponds to the 'bvsdiv' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.sdiv"
+
+
+@irdl_op_definition
+class BVURemOp(BinaryBVOp):
+    """
+    An unsigned remainder for bitvectors.
+    It corresponds to the 'bvurem' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.urem"
+
+
+@irdl_op_definition
+class BVSRemOp(BinaryBVOp):
+    """
+    A two's complement signed remainder (sign follows dividend) for bitvectors.
+    It corresponds to the 'bvsrem' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.srem"
+
+
+@irdl_op_definition
+class BVSModOp(BinaryBVOp):
+    """
+    A two's complement signed remainder (sign follows divisor) for bitvectors.
+    It corresponds to the 'bvsmod' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.smod"
+
+
+@irdl_op_definition
+class BVShlOp(BinaryBVOp):
+    """
+    A shift left for bitvectors.
+    It corresponds to the 'bvshl' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.shl"
+
+
+@irdl_op_definition
+class BVLShrOp(BinaryBVOp):
+    """
+    A logical shift right for bitvectors.
+    It corresponds to the 'bvlshr' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.lshr"
+
+
+@irdl_op_definition
+class BVAShrOp(BinaryBVOp):
+    """
+    An arithmetic shift right for bitvectors.
+    It corresponds to the 'bvashr' operation in SMT-LIB.
+    """
+
+    name = "smt.bv.ashr"
+
+
 SMT = Dialect(
     "smt",
     [
@@ -545,10 +838,27 @@ SMT = Dialect(
         ForallOp,
         YieldOp,
         AssertOp,
+        BvConstantOp,
+        BVNegOp,
+        BVNotOp,
+        BVAndOp,
+        BVOrOp,
+        BVXOrOp,
+        BVAddOp,
+        BVMulOp,
+        BVUDivOp,
+        BVSDivOp,
+        BVURemOp,
+        BVSRemOp,
+        BVSModOp,
+        BVShlOp,
+        BVLShrOp,
+        BVAShrOp,
     ],
     [
         BoolType,
         BitVectorType,
         FuncType,
+        BitVectorAttr,
     ],
 )

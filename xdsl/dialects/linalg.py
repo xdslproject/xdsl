@@ -243,7 +243,7 @@ class GenericOp(IRDLOperation):
             del extra_attrs["library_call"]
 
         if extra_attrs:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(extra_attrs)
 
         printer.print_string(" ")
@@ -254,11 +254,10 @@ class GenericOp(IRDLOperation):
             if len(self.res) == 1:
                 printer.print_attribute(self.res[0].type)
             else:
-                printer.print("(")
-                printer.print_list(
-                    self.res, lambda res: printer.print_attribute(res.type)
-                )
-                printer.print(")")
+                with printer.in_parens():
+                    printer.print_list(
+                        self.res, lambda res: printer.print_attribute(res.type)
+                    )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -535,7 +534,7 @@ class NamedOpBase(IRDLOperation, ABC):
             printer.print_string(")")
 
         if extra_attrs and not self.PRINT_ATTRS_IN_FRONT:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(extra_attrs)
 
         if self.res:
@@ -543,11 +542,10 @@ class NamedOpBase(IRDLOperation, ABC):
             if len(self.res) == 1:
                 printer.print_attribute(self.res[0].type)
             else:
-                printer.print("(")
-                printer.print_list(
-                    self.res, lambda res: printer.print_attribute(res.type)
-                )
-                printer.print(")")
+                with printer.in_parens():
+                    printer.print_list(
+                        self.res, lambda res: printer.print_attribute(res.type)
+                    )
 
     @staticmethod
     def body_arg_types(
@@ -876,7 +874,7 @@ class TransposeOp(IRDLOperation):
 
     hidden_region = region_def("single_block")
 
-    permutation = prop_def(DenseArrayBase)
+    permutation = prop_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
@@ -918,7 +916,7 @@ class TransposeOp(IRDLOperation):
                 f"Input rank ({input_rank}) does not match size of permutation ({permutation_size})"
             )
 
-        permutation_shape = cast(list[int], self.permutation.get_values())
+        permutation_shape = self.permutation.get_values()
 
         for i in range(len(input_shape)):
             input_dimension = input_shape[permutation_shape[i]]
@@ -931,19 +929,19 @@ class TransposeOp(IRDLOperation):
                 )
 
     def print(self, printer: Printer):
-        printer.print_string(" ins(")
-        printer.print(self.input)
-        printer.print_string(":")
-        printer.print(self.input.type)
-        printer.print_string(")")
-        printer.print_string(" outs(")
-        printer.print(self.init)
-        printer.print_string(":")
-        printer.print(self.init.type)
-        printer.print_string(") ")
-        printer.print_string("permutation")
-        printer.print_string(" = ")
-        printer.print(list(self.permutation.get_values()))
+        printer.print_string(" ins")
+        with printer.in_parens():
+            printer.print_ssa_value(self.input)
+            printer.print_string(":")
+            printer.print_attribute(self.input.type)
+        printer.print_string(" outs")
+        with printer.in_parens():
+            printer.print_ssa_value(self.init)
+            printer.print_string(":")
+            printer.print_attribute(self.init.type)
+        printer.print_string(" permutation = ")
+        with printer.in_square_brackets():
+            printer.print_list(self.permutation.get_values(), printer.print_int)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -967,7 +965,7 @@ class TransposeOp(IRDLOperation):
         transpose = cls(
             input,
             init,
-            DenseArrayBase.create_dense_int(i64, permutation),
+            DenseArrayBase.from_list(i64, permutation),
             result,
         )
         return transpose
@@ -1242,7 +1240,7 @@ class BroadcastOp(IRDLOperation):
 
     hidden_region = region_def("single_block")
 
-    dimensions = attr_def(DenseArrayBase)
+    dimensions = attr_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
@@ -1302,19 +1300,19 @@ class BroadcastOp(IRDLOperation):
                 )
 
     def print(self, printer: Printer):
-        printer.print_string(" ins(")
-        printer.print(self.input)
-        printer.print_string(":")
-        printer.print(self.input.type)
-        printer.print_string(")")
-        printer.print_string(" outs(")
-        printer.print(self.init)
-        printer.print_string(":")
-        printer.print(self.init.type)
-        printer.print_string(") ")
-        printer.print_string("dimensions")
-        printer.print_string(" = ")
-        printer.print(list(self.dimensions.get_values()))
+        printer.print_string(" ins")
+        with printer.in_parens():
+            printer.print_ssa_value(self.input)
+            printer.print_string(":")
+            printer.print_attribute(self.input.type)
+        printer.print_string(" outs")
+        with printer.in_parens():
+            printer.print_ssa_value(self.init)
+            printer.print_string(":")
+            printer.print_attribute(self.init.type)
+        printer.print_string(" dimensions = ")
+        with printer.in_square_brackets():
+            printer.print_list(self.dimensions.get_values(), printer.print_int)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -1338,7 +1336,7 @@ class BroadcastOp(IRDLOperation):
         broadcast = cls(
             input,
             init,
-            DenseArrayBase.create_dense_int(i64, dimensions),
+            DenseArrayBase.from_list(i64, dimensions),
             result,
         )
         return broadcast

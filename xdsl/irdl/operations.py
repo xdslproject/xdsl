@@ -38,17 +38,15 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
-from xdsl.utils.hints import (
-    PropertyType,
-    get_type_var_mapping,
-    isa,
-)
+from xdsl.utils.hints import PropertyType, get_type_var_mapping
 
 from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
     IRDLGenericAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
+    range_constr_coercion,
+    single_range_constr_coercion,
 )
 from .constraints import (  # noqa: TID251
     AnyAttr,
@@ -58,9 +56,6 @@ from .constraints import (  # noqa: TID251
     GenericRangeConstraint,
     RangeConstraint,
     RangeOf,
-    attr_constr_coercion,
-    range_constr_coercion,
-    single_range_constr_coercion,
 )
 from .error import IRDLAnnotations  # noqa: TID251
 
@@ -1036,12 +1031,12 @@ class OpDef:
 
                             if option.as_property:
                                 prop_def = PropertyDef(
-                                    attr_constr_coercion(DenseArrayBase)
+                                    irdl_to_attr_constraint(DenseArrayBase)
                                 )
                                 op_def.properties[option.attribute_name] = prop_def
                             else:
                                 attr_def = AttributeDef(
-                                    attr_constr_coercion(DenseArrayBase)
+                                    irdl_to_attr_constraint(DenseArrayBase)
                                 )
                                 op_def.attributes[option.attribute_name] = attr_def
                     continue
@@ -1357,18 +1352,13 @@ def get_variadic_sizes_from_attr(
             f"Expected {size_attribute_name} {container_name} in {op.name} operation."
         )
     attribute = container[size_attribute_name]
-    if not isa(attribute, DenseArrayBase):
+    if not DenseArrayBase.constr(i32).verifies(attribute):
         raise VerifyException(
             f"{size_attribute_name} {container_name} is expected "
-            "to be a DenseArrayBase."
+            "to be a DenseArrayBase of i32."
         )
 
-    if attribute.elt_type != i32:
-        raise VerifyException(
-            f"{size_attribute_name} {container_name} is expected to "
-            "be a DenseArrayBase of i32"
-        )
-    def_sizes = cast(Sequence[int], attribute.get_values())
+    def_sizes = attribute.get_values()
 
     if len(def_sizes) != len(defs):
         raise VerifyException(

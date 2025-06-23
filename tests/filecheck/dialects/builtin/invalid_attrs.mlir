@@ -21,3 +21,11 @@
 // CHECK-NEXT:                                        Integer value 99999999 is out of range for type i8 which supports values in the range [-128, 256)
 "builtin.module" () {"test" = array<i8: 99999999, 255, 256>} ({
 })
+
+// -----
+"builtin.module" () {"test" = dense_resource<some_key>: i8} ({
+})
+
+//     CHECK: "builtin.module" () {"test" = dense_resource<some_key>: i8} ({
+// CHECK-NEXT:                                                          ^
+// CHECK-NEXT:                                                          dense resource should have a shaped type, got: i8

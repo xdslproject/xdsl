@@ -37,7 +37,7 @@ class ApplyEqsatPDLInterpPass(ModulePass):
         assert matcher is not None, "matcher function not found"
 
         # Initialize interpreter and implementations once
-        interpreter = Interpreter(op)
+        interpreter = Interpreter(pdl_interp_module)
         implementations = EqsatPDLInterpFunctions(ctx)
         implementations.populate_known_ops(op)
         interpreter.register_implementations(implementations)

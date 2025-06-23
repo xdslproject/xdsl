@@ -14,7 +14,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     StridedLayoutAttr,
 )
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -70,7 +70,7 @@ def insert_subview(
     source_type = memref_val.type
     if not isinstance(source_type, memref.MemRefType):
         raise DiagnosticException("Cannot create subview from non-memref type")
-    source_type = cast(MemRefType[Attribute], source_type)
+    source_type = cast(MemRefType, source_type)
     layout_attr = source_type.layout
     assert (strides := source_type.get_strides())
     strides = tuple(strides)
