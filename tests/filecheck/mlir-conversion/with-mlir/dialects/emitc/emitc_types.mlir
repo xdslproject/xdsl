@@ -28,12 +28,14 @@
 // CHECK: f64 = !emitc.lvalue<f64>
 // CHECK-SAME: i32 = !emitc.lvalue<i32>
 // CHECK-SAME: index = !emitc.lvalue<index>
-// CHECK-SAME: tensor_i32 = !emitc.lvalue<tensor<1xi32>>
+// CHECK-SAME: tensor_i32 = !emitc.lvalue<tensor<1xi32>>,
+// CHECK-SAME: tuple_i32 = !emitc.lvalue<tuple<i32, i32>>
 "test.op"() {
   f64 = !emitc.lvalue<f64>,
   i32 = !emitc.lvalue<i32>,
   index = !emitc.lvalue<index>,
-  tensor_i32 = !emitc.lvalue<tensor<1xi32>>
+  tensor_i32 = !emitc.lvalue<tensor<1xi32>>,
+  tuple_i32 = !emitc.lvalue<tuple<i32, i32>>
   // emitc.ptr and emitc.opaque types are not supported yet.
   // Once they are supported, the following lines can be uncommented:
   // ptr_i32 = !emitc.lvalue<!emitc.ptr<i32>>,

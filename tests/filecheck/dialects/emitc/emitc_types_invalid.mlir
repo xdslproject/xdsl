@@ -104,3 +104,10 @@
 "test.op"() {
   illegal_lvalue_tensor_emitc_array_i32 = !emitc.lvalue<tensor<1x!emitc.array<1xi32>>>
 }: ()->()
+
+// -----
+
+// CHECK: !emitc.lvalue must wrap supported emitc type, but got tuple<!emitc.array<1xi32>>
+"test.op"() {
+  illegal_lvalue_tuple_emitc_array_i32 = !emitc.lvalue<tuple<!emitc.array<1xi32>>>
+}: ()->()
