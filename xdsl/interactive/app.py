@@ -527,7 +527,9 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
             case ModuleOp():
                 output_stream = StringIO()
-                Printer(output_stream).print_module_op(self.current_module)
+                printer = Printer(output_stream)
+                printer.print_op(self.current_module)
+                printer.print_string("\n")
 
                 output_text = output_stream.getvalue()
 

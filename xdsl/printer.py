@@ -20,7 +20,6 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerType,
-    ModuleOp,
     UnitAttr,
     UnregisteredOp,
     i1,
@@ -113,13 +112,6 @@ class Printer(BasePrinter):
 
             text = str(arg)
             self.print_string(text)
-
-    def print_module_op(self, module_op: ModuleOp) -> None:
-        """
-        Prints a module followed by a newline.
-        """
-        self.print_op(module_op)
-        self._print_new_line()
 
     K = TypeVar("K")
     V = TypeVar("V")

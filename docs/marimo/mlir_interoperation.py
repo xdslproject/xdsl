@@ -93,7 +93,7 @@ def _(op):
 
     # Print in xdsl format
     printer = Printer()
-    printer.print_module_op(op)
+    printer.print_op(op)
     return
 
 

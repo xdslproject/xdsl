@@ -29,7 +29,7 @@ def rewrite_and_compare(
 
     file = StringIO()
     printer = Printer(stream=file, print_generic_format=True)
-    printer.print_module_op(module)
+    printer.print_op(module)
 
     assert file.getvalue().strip() == expected_prog.strip()
 
