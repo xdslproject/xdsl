@@ -68,7 +68,7 @@ class ContiguousArrayOfIntArray(AttrConstraint):
                 continue
             flat_values.extend(e.value.data for e in elements)
         # Check that the flattened list is contiguous
-        for i in range(len(flat_values) - 1):
+        for l, r in zip(flat_numbers[1:], flat_numbers[:-1]):
             if flat_values[i + 1] != flat_values[i] + 1:
                 raise VerifyException(f"All inner arrays must be contiguous: {attr}")
 
