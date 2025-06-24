@@ -6,6 +6,7 @@ from collections.abc import Set as AbstractSet
 from dataclasses import KW_ONLY, dataclass, field
 from typing import (
     TYPE_CHECKING,
+    Any,
     Generic,
     TypeAlias,
     TypeGuard,
@@ -394,6 +395,13 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     ) -> GenericAttrConstraint[AttributeCovT]:
         return self
 
+    def __or__(
+        self, value: GenericAttrConstraint[_AttributeCovT], /
+    ) -> GenericAttrConstraint[AttributeCovT | _AttributeCovT]:
+        if isinstance(value, BaseAttr) and self.attr is value.attr:
+            return self
+        return super().__or__(value)
+
 
 @deprecated("Please use `irdl_to_attr_constraint` instead")
 def attr_constr_coercion(
@@ -650,6 +658,20 @@ class ParamAttrConstraint(
         return ParamAttrConstraint(
             self.base_attr,
             tuple(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
+        )
+
+    def __or__(self, value: GenericAttrConstraint[_AttributeCovT], /):
+        if (
+            not isinstance(value, ParamAttrConstraint)
+            or self.base_attr is not cast(ParamAttrConstraint[Any], value).base_attr
+        ):
+            return super().__or__(value)  # pyright: ignore[reportUnknownArgumentType]
+        return ParamAttrConstraint(
+            self.base_attr,
+            tuple(
+                l | r
+                for l, r in zip(self.param_constrs, value.param_constrs, strict=True)
+            ),
         )
 
 
