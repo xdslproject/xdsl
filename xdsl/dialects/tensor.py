@@ -222,7 +222,7 @@ class EmptyOp(IRDLOperation):
 
 
 ReassociationAttr = Annotated[
-    ArrayAttr[ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]],
+    ArrayAttr[ArrayAttr[IntegerAttr[I64]]],
     ContiguousArrayOfIntArray(),
 ]
 
