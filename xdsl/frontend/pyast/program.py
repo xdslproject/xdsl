@@ -69,11 +69,7 @@ class FrontendProgram:
         self, function: Callable[..., Any], ir_op: type[Operation]
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
-        if function in self.function_registry:
-            raise FrontendProgramException(
-                f"Cannot re-register function '{function.__qualname__}'"
-            )
-        self.function_registry[function] = ir_op
+        self.function_registry.insert(function, ir_op)
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:

@@ -20,7 +20,50 @@ from xdsl.frontend.pyast.exception import (
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 
 TypeName: TypeAlias = str
-FunctionRegistry: TypeAlias = dict[Callable[..., Any], type[Operation]]
+
+
+class FunctionRegistry:
+    """A mapping between Python callables and IR operation types."""
+
+    def __init__(self):
+        """Instantiate the function registry."""
+        self._mapping: dict[Callable[..., Any], type[Operation]] = {}
+
+    def insert(
+        self, callable: Callable[..., Any], operation_type: type[Operation]
+    ) -> None:
+        """Insert a relation between a Python callable and an IR operation type."""
+        if callable in self._mapping:
+            raise FrontendProgramException(
+                f"Cannot re-register function '{callable.__qualname__}'"
+            )
+        self._mapping[callable] = operation_type
+
+    def get_operation_type(
+        self, callable: Callable[..., Any]
+    ) -> type[Operation] | None:
+        """Get the IR operation type from a Python callable"""
+        return self._mapping.get(callable, None)
+
+    def resolve_operation(
+        self,
+        module_name: str,
+        function_name: str,
+        args: tuple[SSAValue[Attribute], ...] = tuple(),
+        kwargs: dict[str, SSAValue[Attribute]] = dict(),
+    ) -> Operation | None:
+        """Get a concrete IR operation from a function name and its arguments."""
+        # Start at the module, and walk till a function leaf is found
+        function = importlib.import_module(module_name)
+        for attr in function_name.split("."):
+            function = getattr(function, attr, None)
+        assert function is not None, (
+            f"'{module_name}.{function_name}' must exist to be passed as argument during registration"
+        )
+        assert callable(function), "Guaranteed by type signature of registration method"
+        if (operation_type := self.get_operation_type(function)) is not None:
+            return operation_type(*args, **kwargs)
+        return None
 
 
 class TypeRegistry(dict[type, TypeAttribute]):
@@ -213,30 +256,3 @@ class TypeConverter:
     def get_source_type(self, ir_type: TypeAttribute) -> type | None:
         """Get the source type from its IR type."""
         return self.type_registry.get_backwards(ir_type)
-
-    def resolve_function(
-        self,
-        module_name: str,
-        function_name: str,
-    ) -> Callable[..., Any]:
-        """Resolve a function in the current namespace."""
-        function = importlib.import_module(module_name)
-        for attr in function_name.split("."):
-            function = getattr(function, attr, None)
-        if function is None:
-            raise FrontendProgramException(
-                f"Unable to resolve function '{module_name}.{function_name}'"
-            )
-        assert callable(function)  # Guaranteed by types a registration time
-        return function
-
-    def get_operation(
-        self,
-        method: Callable[..., Any],
-        args: tuple[SSAValue[Attribute], ...] = tuple(),
-        kwargs: dict[str, SSAValue[Attribute]] = dict(),
-    ) -> Operation | None:
-        """Get the method attribute type from a type and method name."""
-        if method in self.function_registry:
-            return self.function_registry[method].__call__(*args, **kwargs)
-        return None
