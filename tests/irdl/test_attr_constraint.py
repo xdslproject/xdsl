@@ -233,7 +233,10 @@ def test_memref_to_tensor(
             AllOf((BaseAttr(AttrA), BaseAttr(AttrB), BaseAttr(AttrC))),
         ),
         (AnyAttr() | BaseAttr(AttrA), AnyAttr()),
+        (BaseAttr(AttrA) | AnyAttr(), AnyAttr()),
         (AnyAttr() & BaseAttr(AttrA), BaseAttr(AttrA)),
+        # Note the [Attribute] to provide a supertype of AttrA and Attribute
+        (BaseAttr[Attribute](AttrA) & AnyAttr(), BaseAttr(AttrA)),
     ],
 )
 def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):

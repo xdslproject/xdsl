@@ -156,11 +156,15 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     def __or__(
         self, value: GenericAttrConstraint[_AttributeCovT], /
     ) -> GenericAttrConstraint[AttributeCovT | _AttributeCovT]:
+        if isinstance(value, AnyAttr):
+            return value  # pyright: ignore[reportReturnType]
         return AnyOf((self, value))
 
     def __and__(
         self, value: GenericAttrConstraint[AttributeCovT], /
     ) -> GenericAttrConstraint[AttributeCovT]:
+        if isinstance(value, AnyAttr):
+            return self
         return AllOf((self, value))
 
     @abstractmethod
