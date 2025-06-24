@@ -4,8 +4,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    TypeAlias,
     _GenericAlias,  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
+    cast,
 )
 
 import xdsl.dialects.builtin as xdsl_builtin
@@ -18,8 +18,6 @@ from xdsl.frontend.pyast.exception import (
     FrontendProgramException,
 )
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
-
-TypeName: TypeAlias = str
 
 
 class FunctionRegistry:
@@ -66,25 +64,49 @@ class FunctionRegistry:
         return None
 
 
-class TypeRegistry(dict[type, TypeAttribute]):
-    """Mappings between source code and IR type.
+class TypeRegistry:
+    """A mapping between Python type annotations and IR type attributes."""
 
-    This mapping must be one-to-one, with each source type having only IR type.
-    This is to ensure that the lowering then reconstructing an AST is
-    idempotent, as with a many-to-one mapping the source type to reconstruct
-    cannot necessarily be correctly selected.
-    """
+    def __init__(self):
+        """Instantiate the function registry."""
+        self._mapping: dict[type, TypeAttribute] = {}
 
-    def valid_insert(self, key: type, value: TypeAttribute) -> bool:
-        """Check that both the key and value are unique."""
-        return key not in self and value not in self.values()
+    def insert(
+        self,
+        annotation: type,
+        attribute: TypeAttribute,
+    ) -> None:
+        """Insert a relation between a Python type annotation and an IR type attribute."""
+        if annotation in self._mapping:
+            raise FrontendProgramException(
+                f"Cannot re-register type name '{annotation.__qualname__}'"
+            )
+        if attribute in self._mapping.values():
+            raise FrontendProgramException(
+                f"Cannot register multiple source types for IR type '{attribute.__name__}'"
+            )
+        self._mapping[annotation] = attribute
 
-    def get_backwards(self, lookup: TypeAttribute) -> type | None:
-        """Get a dictionary mapping values to keys."""
-        for key, value in self.items():
-            if value == lookup:
+    def get_annotation(self, attribute: TypeAttribute) -> type | None:
+        """Get the Python type annotation from an IR type attribute.
+
+        This supports many-to-one mappings by resolving greedily on the first
+        mapping inserted.
+        """
+        for key, value in self._mapping.items():
+            if value == attribute:
                 return key
         return None
+
+    def resolve_attribute(
+        self, annotation_name: str, globals: dict[str, Any]
+    ) -> TypeAttribute | None:
+        """Get an IR type attribute from a string annotation."""
+        annotation = cast(
+            type,
+            eval(annotation_name, globals, None),
+        )
+        return self._mapping.get(annotation, None)
 
 
 @dataclass
@@ -98,17 +120,14 @@ class TypeConverter:
     annotation without explicitly constructing it.
     """
 
-    type_names: dict[TypeName, type] = field(default_factory=dict[TypeName, type])
-    """Mappings from source type names to source types."""
-
     type_registry: TypeRegistry = field(default_factory=TypeRegistry)
     """Mappings between source code and ir type, indexed by name."""
 
     function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between methods on objects and their operations."""
 
-    name_to_xdsl_type_map: dict[TypeName, Attribute] = field(
-        default_factory=dict[TypeName, Attribute]
+    name_to_xdsl_type_map: dict[str, Attribute] = field(
+        default_factory=dict[str, Attribute]
     )
     """
     Map to cache xDSL types created so far to avoid repeated conversions.
@@ -134,7 +153,7 @@ class TypeConverter:
         self,
         frontend_type: type[_FrontendType],
         xdsl_type: Attribute,
-        type_name: TypeName,
+        type_name: str,
     ) -> None:
         """Records frontend and corresponding xDSL types in cache."""
         if type_name not in self.name_to_xdsl_type_map:
@@ -233,26 +252,3 @@ class TypeConverter:
             type_hint.col_offset,
             f"Unknown type hint AST node '{type_hint}'.",
         )
-
-    def get_ir_type(
-        self,
-        source_type_name: TypeName,
-    ) -> TypeAttribute | None:
-        """Get the IR type by its source code type name.
-
-        Normally, the attribute is a class which can be instantiated with no
-        parameters. However, in some cases it is parameterised, such as
-        `IntegerType` with its bitwidth. In this case, `Annotated` types such as
-        `I1` defined as `Annotated[IntegerType, IntegerType(1)]` are provided
-        already by xDSL, so we can extract the attribute instance from this.
-        """
-        if source_type_name not in self.type_names:
-            return None
-        source_type = self.type_names[source_type_name]
-        if source_type not in self.type_registry:
-            return None
-        return self.type_registry[source_type]
-
-    def get_source_type(self, ir_type: TypeAttribute) -> type | None:
-        """Get the source type from its IR type."""
-        return self.type_registry.get_backwards(ir_type)
