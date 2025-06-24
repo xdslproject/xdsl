@@ -129,7 +129,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 self.eclass_union_find.add(op)
 
     @impl(pdl_interp.GetResultOp)
-    def run_getresult(
+    def run_get_result(
         self,
         interpreter: Interpreter,
         op: pdl_interp.GetResultOp,
@@ -160,7 +160,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         return (result,)
 
     @impl(pdl_interp.GetResultsOp)
-    def run_getresults(
+    def run_get_results(
         self,
         interpreter: Interpreter,
         op: pdl_interp.GetResultsOp,
@@ -193,7 +193,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         return (results,)
 
     @impl(pdl_interp.GetDefiningOpOp)
-    def run_getdefiningop(
+    def run_get_defining_op(
         self,
         interpreter: Interpreter,
         op: pdl_interp.GetDefiningOpOp,

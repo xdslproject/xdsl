@@ -18,6 +18,7 @@ from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
@@ -217,3 +218,26 @@ def test_memref_to_tensor(
     input: MemRefType | UnrankedMemRefType, output: TensorType | UnrankedTensorType
 ):
     assert TensorFromMemRefConstraint.memref_to_tensor(input) == output
+
+
+@pytest.mark.parametrize(
+    "lhs, rhs",
+    [
+        (
+            BaseAttr(AttrA) | BaseAttr(AttrB) | BaseAttr(AttrC),
+            AnyOf((BaseAttr(AttrA), BaseAttr(AttrB), BaseAttr(AttrC))),
+        ),
+        (
+            # Note the [Attribute] to provide a supertype of AttrA and AttrB
+            BaseAttr[Attribute](AttrA) & BaseAttr(AttrB) & BaseAttr(AttrC),
+            AllOf((BaseAttr(AttrA), BaseAttr(AttrB), BaseAttr(AttrC))),
+        ),
+        (AnyAttr() | BaseAttr(AttrA), AnyAttr()),
+        (BaseAttr(AttrA) | AnyAttr(), AnyAttr()),
+        (AnyAttr() & BaseAttr(AttrA), BaseAttr(AttrA)),
+        # Note the [Attribute] to provide a supertype of AttrA and Attribute
+        (BaseAttr[Attribute](AttrA) & AnyAttr(), BaseAttr(AttrA)),
+    ],
+)
+def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
+    assert lhs == rhs

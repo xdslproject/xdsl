@@ -65,10 +65,13 @@ class TypeRegistry:
         attribute: TypeAttribute,
     ) -> None:
         """Insert a relation between a Python type annotation and an IR type attribute."""
-        # Enforce type is not generic/final if not subclass attribute
         if annotation in self._mapping:
             raise FrontendProgramException(
                 f"Cannot re-register type name '{annotation.__qualname__}'"
+            )
+        if attribute in self._mapping.values():
+            raise FrontendProgramException(
+                f"Cannot register multiple source types for IR type '{attribute.__name__}'"
             )
         self._mapping[annotation] = attribute
 

@@ -261,6 +261,14 @@ try:
 except FrontendProgramException as e:
     print(e.msg)
 
+
+try:
+    # CHECK-NEXT: Cannot register multiple source types for IR type 'BigIntegerType'
+    p.register_type(float, BigIntegerType)
+except FrontendProgramException as e:
+    print(e.msg)
+
+
 try:
     # CHECK-NEXT: Binary operation 'Pow' is not supported by type 'int' which does not overload '__pow__'.
     with CodeContext(p):
