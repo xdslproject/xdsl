@@ -41,7 +41,7 @@ p.register_type(IntegerAttr[SI32], si32)
 p.register_type(IntegerAttr[SI64], si64)
 p.register_type(IntegerAttr[UI32], ui32)
 p.register_type(IntegerAttr[UI64], ui64)
-p.register_type(IndexType, IndexType())
+p.register_type(IntegerAttr[IndexType], IndexType())
 p.register_type(FloatAttr[Float16Type], f16)
 p.register_type(FloatAttr[Float32Type], f32)
 p.register_type(FloatAttr[Float64Type], f64)
@@ -63,7 +63,7 @@ with CodeContext(p):
         return
 
     # CHECK: @indexed(%{{.*}} : index)
-    def indexed(x: IndexType):
+    def indexed(x: IntegerAttr[IndexType]):
         return
 
     # CHECK: @fp(%{{.*}} : f16, %{{.*}} : f32, %{{.*}} : f64)

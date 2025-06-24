@@ -19,7 +19,7 @@ p = FrontendProgram()
 p.register_type(IntegerAttr[I1], i1)
 p.register_type(IntegerAttr[I32], i32)
 p.register_type(FloatAttr[Float32Type], f32)
-p.register_type(IndexType, IndexType())
+p.register_type(IntegerAttr[IndexType], IndexType())
 with CodeContext(p):
     # CHECK:      func.func @test_for_I(%{{.*}} : index) {
     # CHECK:        %{{.*}} = arith.constant 0 : index
@@ -30,7 +30,7 @@ with CodeContext(p):
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
 
-    def test_for_I(end: IndexType):
+    def test_for_I(end: IntegerAttr[IndexType]):
         for _ in range(
             end  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
         ):
@@ -45,7 +45,7 @@ with CodeContext(p):
     # CHECK-NEXT:   }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
-    def test_for_II(start: IndexType, end: IndexType):
+    def test_for_II(start: IntegerAttr[IndexType], end: IntegerAttr[IndexType]):
         for _ in range(
             start,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
             end,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
@@ -61,7 +61,11 @@ with CodeContext(p):
     # CHECK-NEXT:   }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
-    def test_for_III(start: IndexType, end: IndexType, step: IndexType):
+    def test_for_III(
+        start: IntegerAttr[IndexType],
+        end: IntegerAttr[IndexType],
+        step: IntegerAttr[IndexType],
+    ):
         for _ in range(
             start,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
             end,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
@@ -88,7 +92,9 @@ with CodeContext(p):
     # CHECK-NEXT:     }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT:   }
-    def test_for_IV(a: IndexType, b: IndexType, c: IndexType):
+    def test_for_IV(
+        a: IntegerAttr[IndexType], b: IntegerAttr[IndexType], c: IntegerAttr[IndexType]
+    ):
         for _ in range(
             a  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
         ):
@@ -122,7 +128,9 @@ except CodeGenerationException as e:
 try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop start, got 'f32'.
-        def test_not_supported_loop_II(start: FloatAttr[Float32Type], end: IndexType):
+        def test_not_supported_loop_II(
+            start: FloatAttr[Float32Type], end: IntegerAttr[IndexType]
+        ):
             for _ in range(start, end):
                 pass
             return
@@ -136,7 +144,9 @@ try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop step, got 'f32'.
         def test_not_supported_loop_III(
-            start: IndexType, end: IndexType, step: FloatAttr[Float32Type]
+            start: IntegerAttr[IndexType],
+            end: IntegerAttr[IndexType],
+            step: FloatAttr[Float32Type],
         ):
             for _ in range(start, end, step):
                 pass
