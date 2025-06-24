@@ -73,9 +73,7 @@ builtin.module {
 
 // -----
 
-builtin.module {
-  %t0 = "test.op"() : () -> (tensor<4x1xf32>)
+%t0 = "test.op"() : () -> (tensor<4x1xf32>)
 
-  // CHECK: All inner arrays must be contiguous: [[0 : i64, 1 : i64], [3 : i64]]
-  %res_collapse = tensor.collapse_shape %t0 [ [0, 1], [3] ] : tensor<4x1xf32> into tensor<4x1xf32>
-}
+// CHECK: All inner arrays must be contiguous: [[0 : i64, 1 : i64], [3 : i64]]
+%res_collapse = tensor.collapse_shape %t0 [ [0, 1], [3] ] : tensor<4x1xf32> into tensor<4x1xf32>
