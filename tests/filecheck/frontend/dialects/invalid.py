@@ -2,8 +2,8 @@
 
 from collections.abc import Callable
 
+from xdsl.dialects.builtin import I1, I32, I64, IntegerAttr, i1, i32, i64
 from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.dialects.builtin import i1, i32, i64
 from xdsl.frontend.pyast.exception import (
     CodeGenerationException,
     FrontendProgramException,
@@ -11,11 +11,13 @@ from xdsl.frontend.pyast.exception import (
 from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
-
+p.register_type(IntegerAttr[I1], i1)
+p.register_type(IntegerAttr[I32], i32)
+p.register_type(IntegerAttr[I64], i64)
 try:
     with CodeContext(p):
         # CHECK: Expected non-zero number of return types in function 'test_no_return_type', but got 0.
-        def test_no_return_type(a: i32) -> i32:
+        def test_no_return_type(a: IntegerAttr[I32]) -> IntegerAttr[I32]:
             return
 
     p.compile(desymref=False)
@@ -26,7 +28,9 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
         # CHECK: Type signature and the type of the return value do not match at position 0: expected i32, got i64.
-        def test_wrong_return_type(a: i32, b: i64) -> i32:
+        def test_wrong_return_type(
+            a: IntegerAttr[I32], b: IntegerAttr[I64]
+        ) -> IntegerAttr[I32]:
             return b
 
     p.compile(desymref=False)
@@ -37,7 +41,7 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
         # CHECK: Expected no return types in function 'test_wrong_return_type'.
-        def test_wrong_return_type(a: i32):
+        def test_wrong_return_type(a: IntegerAttr[I32]):
             return a
 
     p.compile(desymref=False)
@@ -48,7 +52,9 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
         # CHECK: Expected the same types for binary operation 'Add', but got i32 and i64.
-        def bin_op_type_mismatch(a: i32, b: i64) -> i32:
+        def bin_op_type_mismatch(
+            a: IntegerAttr[I32], b: IntegerAttr[I64]
+        ) -> IntegerAttr[I32]:
             return a + b
 
     p.compile(desymref=False)
@@ -59,7 +65,9 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
         # CHECK: Expected the same types for comparison operator 'Lt', but got i32 and i64.
-        def cmp_op_type_mismatch(a: i32, b: i64) -> i1:
+        def cmp_op_type_mismatch(
+            a: IntegerAttr[I32], b: IntegerAttr[I64]
+        ) -> IntegerAttr[I1]:
             return a < b
 
     p.compile(desymref=False)
