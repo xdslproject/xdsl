@@ -1,14 +1,15 @@
 # RUN: python %s | filecheck %s
 
 from xdsl.dialects.bigint import AddOp, BigIntegerType
+from xdsl.dialects.builtin import I32, IntegerAttr, i32
 from xdsl.frontend.pyast.block import block
 from xdsl.frontend.pyast.const import Const
 from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.dialects.builtin import i32
 from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
+p.register_type(IntegerAttr[I32], i32)
 
 #      CHECK: Cannot compile program without the code context
 # CHECK-NEXT:     p = FrontendProgram()
@@ -128,7 +129,7 @@ try:
     with CodeContext(p):
 
         def test():
-            a: Const[i32] = 23
+            a: Const[IntegerAttr[I32]] = 23
             # CHECK-NEXT: Constant 'a' is already defined and cannot be assigned to.
             a = 3
             return
@@ -140,11 +141,11 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        a: Const[i32] = 23
+        a: Const[IntegerAttr[I32]] = 23
 
         # CHECK-NEXT: Constant 'a' is already defined.
         def test():
-            a: i32 = 3
+            a: IntegerAttr[I32] = 3
             return
 
     p.compile(desymref=False)
@@ -154,7 +155,7 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        b: Const[i32] = 23
+        b: Const[IntegerAttr[I32]] = 23
 
         def test():
             @block
@@ -172,7 +173,7 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[i32] = 23
+        c: Const[IntegerAttr[I32]] = 23
 
         def foo():
             # CHECK-NEXT: Constant 'c' is already defined and cannot be assigned to.
@@ -186,11 +187,11 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[i32] = 23
+        c: Const[IntegerAttr[I32]] = 23
 
         def foo():
             # CHECK-NEXT: Constant 'c' is already defined.
-            c: i32 = 2
+            c: IntegerAttr[I32] = 2
             return
 
     p.compile(desymref=False)
@@ -200,10 +201,10 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[i32] = 23
+        c: Const[IntegerAttr[I32]] = 23
 
         # CHECK-NEXT: Constant 'c' is already defined and cannot be used as a function/block argument name.
-        def foo(c: i32):
+        def foo(c: IntegerAttr[I32]):
             return
 
     p.compile(desymref=False)
@@ -213,7 +214,7 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        e: Const[i32] = 23
+        e: Const[IntegerAttr[I32]] = 23
 
         def foo():
             @block
@@ -231,7 +232,7 @@ except FrontendProgramException as e:
 
 with CodeContext(p):
     # CHECK-NEXT: Expected non-zero number of return types in function 'foo', but got 0.
-    def foo() -> i32:
+    def foo() -> IntegerAttr[I32]:
         return
 
 
