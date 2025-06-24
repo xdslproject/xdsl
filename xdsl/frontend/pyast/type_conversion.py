@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import (
     Any,
     _GenericAlias,  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
+    cast,
 )
 
 from typing_extensions import TypeForm
@@ -122,7 +123,9 @@ class TypeRegistry:
         self, annotation_name: str, globals: dict[str, Any]
     ) -> TypeAttribute | None:
         """Get an IR type attribute from a string annotation."""
-        annotation = eval(annotation_name, globals=globals)
+        annotation = cast(
+            type | TypeForm[Attribute], eval(annotation_name, globals=globals)
+        )
         return self._mapping.get(annotation, None)
 
 
