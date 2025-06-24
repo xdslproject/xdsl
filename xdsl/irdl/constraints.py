@@ -155,12 +155,12 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
 
     def __or__(
         self, value: GenericAttrConstraint[_AttributeCovT], /
-    ) -> AnyOf[AttributeCovT | _AttributeCovT]:
+    ) -> GenericAttrConstraint[AttributeCovT | _AttributeCovT]:
         return AnyOf((self, value))
 
     def __and__(
         self, value: GenericAttrConstraint[AttributeCovT], /
-    ) -> AllOf[AttributeCovT]:
+    ) -> GenericAttrConstraint[AttributeCovT]:
         return AllOf((self, value))
 
     @abstractmethod
@@ -419,6 +419,12 @@ class AnyAttr(GenericAttrConstraint[Attribute]):
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> AnyAttr:
         return self
+
+    def __or__(self, value: GenericAttrConstraint[_AttributeCovT], /):
+        return self
+
+    def __and__(self, value: GenericAttrConstraint[AttributeCovT], /):
+        return value
 
 
 @dataclass(frozen=True, init=False)
