@@ -299,7 +299,7 @@ class EnumAttribute(Data[EnumType]):
         _check_enum_constraints(cls)
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print(self.data.value)
+        printer.print_string(self.data.value)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
@@ -407,13 +407,15 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
         with printer.in_angle_brackets():
             flags = self.data
             if len(flags) == 0 and self.none_value is not None:
-                printer.print(self.none_value)
+                printer.print_string(self.none_value)
             elif len(flags) == len(self.enum_type) and self.all_value is not None:
-                printer.print(self.all_value)
+                printer.print_string(self.all_value)
             else:
                 # make sure we emit flags in a consistent order
-                printer.print(
-                    ",".join(flag.value for flag in self.enum_type if flag in flags)
+                printer.print_list(
+                    tuple(flag.value for flag in self.enum_type if flag in flags),
+                    printer.print_string,
+                    ",",
                 )
 
 

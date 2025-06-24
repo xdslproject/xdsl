@@ -428,7 +428,12 @@ class ExtractOp(IRDLOperation):
         printer.print_string(" ")
         printer.print_ssa_value(self.vector)
         printer.print_string("[")
-        printer.print_list(self.get_mixed_position(), printer.print)
+        printer.print_list(
+            self.get_mixed_position(),
+            lambda x: printer.print_int(x)
+            if isinstance(x, int)
+            else printer.print_ssa_value(x),
+        )
         printer.print_string("] : ")
         printer.print_attribute(self.result.type)
         printer.print_string(" from ")
@@ -604,7 +609,12 @@ class InsertOp(IRDLOperation):
         printer.print_string(", ")
         printer.print_ssa_value(self.dest)
         printer.print_string("[")
-        printer.print_list(self.get_mixed_position(), printer.print)
+        printer.print_list(
+            self.get_mixed_position(),
+            lambda x: printer.print_int(x)
+            if isinstance(x, int)
+            else printer.print_ssa_value(x),
+        )
         printer.print_string("] : ")
         printer.print_attribute(self.source.type)
         printer.print_string(" into ")

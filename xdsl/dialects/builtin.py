@@ -62,7 +62,6 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     RangeOf,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -332,16 +331,14 @@ class EmptyArrayAttrConstraint(AttrConstraint):
         return self
 
 
-FlatSymbolRefAttrConstraint = MessageConstraint(
+FlatSymbolRefAttrConstr = MessageConstraint(
     ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
-    "Unexpected nested symbols in FlatSymbolRefAttr.",
+    "Expected SymbolRefAttr with no nested symbols.",
 )
 """Constrain SymbolRef to be FlatSymbolRef"""
 
-FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
+FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstr]
 """SymbolRef constrained to have an empty `nested_references` property."""
-
-FlatSymbolRefAttrConstr = base(SymbolRefAttr) & FlatSymbolRefAttrConstraint
 
 
 @irdl_attr_definition
@@ -2310,14 +2307,14 @@ class MemRefType(
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print(self.shape)
+            printer.print_attribute(self.shape)
             printer.print_string(", ")
             printer.print_attribute(self.element_type)
             if self.layout != NoneAttr() or self.memory_space != NoneAttr():
                 printer.print_string(", ")
-                printer.print(self.layout)
+                printer.print_attribute(self.layout)
                 printer.print_string(", ")
-                printer.print(self.memory_space)
+                printer.print_attribute(self.memory_space)
 
     def print_builtin(self, printer: Printer):
         printer.print_string("memref")
