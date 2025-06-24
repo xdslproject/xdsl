@@ -157,14 +157,14 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     def __or__(
         self, value: GenericAttrConstraint[_AttributeCovT], /
     ) -> GenericAttrConstraint[AttributeCovT | _AttributeCovT]:
-        if isinstance(value, AnyAttr):
+        if isinstance(value, AnyAttr) or self == value:
             return value  # pyright: ignore[reportReturnType]
         return AnyOf((self, value))
 
     def __and__(
         self, value: GenericAttrConstraint[AttributeCovT], /
     ) -> GenericAttrConstraint[AttributeCovT]:
-        if isinstance(value, AnyAttr):
+        if isinstance(value, AnyAttr) or self == value:
             return self
         return AllOf((self, value))
 
@@ -394,13 +394,6 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> GenericAttrConstraint[AttributeCovT]:
         return self
-
-    def __or__(
-        self, value: GenericAttrConstraint[_AttributeCovT], /
-    ) -> GenericAttrConstraint[AttributeCovT | _AttributeCovT]:
-        if isinstance(value, BaseAttr) and self.attr is value.attr:
-            return self
-        return super().__or__(value)
 
 
 @deprecated("Please use `irdl_to_attr_constraint` instead")
