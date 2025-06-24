@@ -125,7 +125,7 @@ class TypeRegistry:
         """Get an IR type attribute from a string annotation."""
         annotation = cast(
             type | TypeForm[Attribute],
-            eval(annotation_name, globals=globals),  # pyright: ignore[reportCallIssue]
+            eval(annotation_name, globals, None),
         )
         return self._mapping.get(annotation, None)
 
