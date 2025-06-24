@@ -887,6 +887,12 @@ class IntegerAttr(
         """
         return tuple(IntegerAttr(value, type) for value in type.unpack(buffer, num))
 
+    def __add__(self, other: Self) -> Self:
+        """Add two integers."""
+        return type(self)(
+            self.value.data + other.value.data, self.type, truncate_bits=True
+        )
+
 
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
