@@ -4,20 +4,27 @@ from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import Attribute, SSAValue
-from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.ir import Attribute, Operation, SSAValue
 
 
-def cast_values_to_regs(
+def cast_to_regs(
     values: Sequence[SSAValue],
-    rewriter: PatternRewriter,
-    register_map: Callable[[Attribute], RegisterType],
-) -> Sequence[SSAValue[RegisterType]]:
-    registers: list[SSAValue[RegisterType]] = []
+    register_map: Callable[[Attribute], type[RegisterType]],
+) -> tuple[list[Operation], list[SSAValue[Attribute]]]:
+    """
+    Return cast operations for operands that don't already have a register type
+    and the new list of values that are all guaranteed to have register types.
+    """
+    registers: list[SSAValue] = []
+    operations: list[Operation] = []
     for v in values:
-        cast_op, cast_value = UnrealizedConversionCastOp.cast_one(
-            v, register_map(v.type)
-        )
-        rewriter.insert_op_before_matched_op(cast_op)
-        registers.append(cast_value)
-    return registers
+        if isinstance(v.type, RegisterType):
+            new_value = v
+        else:
+            cast_op, new_value = UnrealizedConversionCastOp.cast_one(
+                v, register_map(v.type).unallocated()
+            )
+            new_value.name_hint = v.name_hint
+            operations.append(cast_op)
+        registers.append(new_value)
+    return operations, registers

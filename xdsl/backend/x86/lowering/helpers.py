@@ -1,6 +1,7 @@
 from typing import cast
 
 from xdsl.backend.register_type import RegisterType
+from xdsl.backend.utils import cast_to_regs
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
@@ -8,7 +9,8 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.x86.register import X86VectorRegisterType
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, SSAValue
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import DiagnosticException
 
 
@@ -35,10 +37,19 @@ def vector_type_to_register_type(
     return vect_reg_type
 
 
-def scalar_type_to_register_type(value_type: Attribute) -> RegisterType:
+def scalar_type_to_register_type(value_type: Attribute) -> type[RegisterType]:
     assert not isinstance(value_type, ShapedType)
     assert isinstance(value_type, FixedBitwidthType)
     if value_type.bitwidth <= 64:
-        return x86.register.UNALLOCATED_GENERAL
+        return x86.register.GeneralRegisterType
     else:
         raise DiagnosticException("Not implemented for bitwidth larger than 64.")
+
+
+def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue[Attribute]]:
+    new_ops, new_operands = cast_to_regs(
+        values=rewriter.current_operation.operands,
+        register_map=scalar_type_to_register_type,
+    )
+    rewriter.insert_op_before_matched_op(new_ops)
+    return new_operands

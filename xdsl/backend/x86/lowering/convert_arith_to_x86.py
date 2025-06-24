@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-from xdsl.backend.utils import cast_values_to_regs
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, x86
 from xdsl.dialects.builtin import (
@@ -16,7 +15,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.utils.exceptions import DiagnosticException
 
-from .helpers import scalar_type_to_register_type
+from .helpers import cast_operands_to_regs
 
 
 @dataclass
@@ -27,11 +26,7 @@ class ArithAddiToX86(RewritePattern):
             raise DiagnosticException(
                 "Lowering of arith.addi not implemented for ShapedType"
             )
-        lhs_x86, rhs_x86 = cast_values_to_regs(
-            values=[op.lhs, op.rhs],
-            rewriter=rewriter,
-            register_map=scalar_type_to_register_type,
-        )
+        lhs_x86, rhs_x86 = cast_operands_to_regs(rewriter=rewriter)
         rhs_copy_op = x86.DS_MovOp(
             source=rhs_x86, destination=x86.register.UNALLOCATED_GENERAL
         )

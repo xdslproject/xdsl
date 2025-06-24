@@ -1,6 +1,7 @@
 from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
 
+from xdsl.backend.utils import cast_to_regs
 from xdsl.dialects import builtin, riscv
 from xdsl.ir import Attribute, Block, Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
@@ -18,28 +19,6 @@ def register_type_for_type(
     if isinstance(attr, builtin.AnyFloat):
         return riscv.FloatRegisterType
     return riscv.IntRegisterType
-
-
-def cast_to_regs(values: Iterable[SSAValue]) -> tuple[list[Operation], list[SSAValue]]:
-    """
-    Return cast operations for operands that don't already have a register type, and
-    the new list of values that are all guaranteed to have register types.
-    """
-
-    new_ops = list[Operation]()
-    new_values = list[SSAValue]()
-
-    for value in values:
-        if not isinstance(value.type, riscv.RISCVRegisterType):
-            register_type = register_type_for_type(value.type)
-            cast_op = builtin.UnrealizedConversionCastOp.get(
-                (value,), (register_type.unallocated(),)
-            )
-            new_ops.append(cast_op)
-            value = cast_op.results[0]
-        new_values.append(value)
-
-    return new_ops, new_values
 
 
 def move_ops_for_value(
@@ -177,7 +156,9 @@ def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     if the operands were not already int registers
     """
 
-    new_ops, new_operands = cast_ops_for_values(rewriter.current_operation.operands)
+    new_ops, new_operands = cast_to_regs(
+        values=rewriter.current_operation.operands, register_map=register_type_for_type
+    )
     rewriter.insert_op_before_matched_op(new_ops)
     return new_operands
 

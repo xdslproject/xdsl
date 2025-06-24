@@ -7,10 +7,10 @@
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %i0 = "test.op"() : () -> i32
 // CHECK-NEXT:   %i1 = "test.op"() : () -> i32
-// CHECK-NEXT:   %0 = builtin.unrealized_conversion_cast %i0 : i32 to !x86.reg
-// CHECK-NEXT:   %1 = builtin.unrealized_conversion_cast %i1 : i32 to !x86.reg
-// CHECK-NEXT:   %i2 = x86.ds.mov %1 : (!x86.reg) -> !x86.reg
-// CHECK-NEXT:   %i2_1 = x86.rs.add %i2, %0 : (!x86.reg, !x86.reg) -> !x86.reg
+// CHECK-NEXT:   %i0_1 = builtin.unrealized_conversion_cast %i0 : i32 to !x86.reg
+// CHECK-NEXT:   %i1_1 = builtin.unrealized_conversion_cast %i1 : i32 to !x86.reg
+// CHECK-NEXT:   %i2 = x86.ds.mov %i1_1 : (!x86.reg) -> !x86.reg
+// CHECK-NEXT:   %i2_1 = x86.rs.add %i2, %i0_1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT:   %i2_2 = builtin.unrealized_conversion_cast %i2 : !x86.reg to i32
 // CHECK-NEXT: }
 

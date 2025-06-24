@@ -5,6 +5,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_to_regs,
     move_to_a_regs,
     move_to_unallocated_regs,
+    register_type_for_type,
 )
 from xdsl.context import Context
 from xdsl.dialects import func, riscv_func
@@ -62,7 +63,9 @@ class LowerFuncCallOp(RewritePattern):
         if len(op.res) > 2:
             raise ValueError("Cannot lower func.call with more than 2 results")
 
-        cast_operand_ops, register_operands = cast_to_regs(op.arguments)
+        cast_operand_ops, register_operands = cast_to_regs(
+            op.arguments, register_type_for_type
+        )
         operand_types = op.arguments.types
         move_operand_ops, moved_operands = move_to_a_regs(
             register_operands, operand_types
@@ -100,7 +103,7 @@ class LowerReturnOp(RewritePattern):
         if len(op.arguments) > 2:
             raise ValueError("Cannot lower func.return with more than 2 arguments")
 
-        cast_ops, register_values = cast_to_regs(op.arguments)
+        cast_ops, register_values = cast_to_regs(op.arguments, register_type_for_type)
         move_ops, moved_values = move_to_a_regs(register_values, op.arguments.types)
 
         rewriter.insert_op_before_matched_op(cast_ops)
