@@ -5,7 +5,10 @@ from xdsl.dialects.builtin import I32, IntegerAttr, i32
 from xdsl.frontend.pyast.block import block
 from xdsl.frontend.pyast.const import Const
 from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.exception import FrontendProgramException
+from xdsl.frontend.pyast.exception import (
+    CodeGenerationException,
+    FrontendProgramException,
+)
 from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
@@ -259,7 +262,7 @@ except FrontendProgramException as e:
     print(e.msg)
 
 try:
-    # CHECK-NEXT: Fell back to old implementation and failed
+    # CHECK-NEXT: Binary operation 'Pow' is not supported by type 'int' which does not overload '__pow__'.
     with CodeContext(p):
 
         def foo(a: int, b: int):
@@ -267,5 +270,5 @@ try:
 
     p.compile(desymref=False)
     print(p.textual_format())
-except KeyError:
-    print("Fell back to old implementation and failed")
+except CodeGenerationException as e:
+    print(e.msg)

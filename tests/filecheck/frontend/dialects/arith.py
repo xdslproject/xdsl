@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.frontend.pyast.context import CodeContext
+from xdsl.frontend.pyast.exception import CodeGenerationException
 from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
@@ -176,7 +177,7 @@ print(p.textual_format())
 
 try:
     with CodeContext(p):
-        # CHECK: Fell back to old implementation and failed
+        # CHECK: Binary operation 'FloorDiv' is not supported by type 'FloatAttr' which does not overload '__floordiv__'.
         def test_missing_floordiv_overload_f64(
             a: FloatAttr[Float64Type], b: FloatAttr[Float64Type]
         ) -> FloatAttr[Float64Type]:
@@ -185,12 +186,12 @@ try:
 
     p.compile(desymref=False)
     print(p.textual_format())
-except KeyError as e:
-    print("Fell back to old implementation and failed")
+except CodeGenerationException as e:
+    print(e.msg)
 
 try:
     with CodeContext(p):
-        # CHECK: Fell back to old implementation and failed
+        # CHECK: Comparison operation 'In' is not supported by type 'f64' which does not overload '__contains__'.
         def test_missing_contains_overload_f64(
             a: FloatAttr[Float64Type], b: FloatAttr[Float64Type]
         ) -> FloatAttr[Float64Type]:
@@ -199,5 +200,5 @@ try:
 
     p.compile(desymref=False)
     print(p.textual_format())
-except KeyError as e:
-    print("Fell back to old implementation and failed")
+except CodeGenerationException as e:
+    print(e.msg)
