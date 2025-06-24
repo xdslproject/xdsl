@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.backend.register_stack import RegisterStack
-from xdsl.dialects.riscv import Registers
+from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, Registers
 
 
 @dataclass
@@ -20,10 +20,8 @@ class RiscvRegisterStack(RegisterStack):
     }
 
     DEFAULT_AVAILABLE_REGISTERS = (
-        *reversed(Registers.A),
-        *reversed(Registers.T),
-        *reversed(Registers.FA),
-        *reversed(Registers.FT),
+        *reversed(IntRegisterType.allocatable_registers()),
+        *reversed(FloatRegisterType.allocatable_registers()),
     )
 
     @classmethod
