@@ -60,12 +60,7 @@ class ContiguousArrayOfIntArray(AttrConstraint):
             )
 
         # Flatten all integer values from all inner arrays
-        flat_values: list[int] = []
-        for inner in attr.data:
-            elements = inner.data
-            if not elements:
-                continue
-            flat_values.extend(e.value.data for e in elements)
+        flat_values = [e.value.data for inner in attr.data for e in inner.data]
         # Check that the flattened list is contiguous
         for prev, curr in zip(flat_values, flat_values[1:]):
             if curr != prev + 1:
