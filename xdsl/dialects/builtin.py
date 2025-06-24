@@ -683,11 +683,19 @@ i32 = IntegerType(32)
 i16 = IntegerType(16)
 i8 = IntegerType(8)
 i1 = IntegerType(1)
+si64 = IntegerType(64, signedness=Signedness.SIGNED)
+si32 = IntegerType(32, signedness=Signedness.SIGNED)
+ui64 = IntegerType(64, signedness=Signedness.UNSIGNED)
+ui32 = IntegerType(32, signedness=Signedness.UNSIGNED)
 I64 = Annotated[IntegerType, i64]
 I32 = Annotated[IntegerType, i32]
 I16 = Annotated[IntegerType, i16]
 I8 = Annotated[IntegerType, i8]
 I1 = Annotated[IntegerType, i1]
+SI64 = Annotated[IntegerType, si64]
+SI32 = Annotated[IntegerType, si32]
+UI64 = Annotated[IntegerType, ui64]
+UI32 = Annotated[IntegerType, ui32]
 
 _IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
 
