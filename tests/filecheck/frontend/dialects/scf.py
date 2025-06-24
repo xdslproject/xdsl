@@ -4,6 +4,7 @@ from xdsl.dialects.builtin import (
     I1,
     I32,
     Float32Type,
+    FloatAttr,
     IndexType,
     IntegerAttr,
     f32,
@@ -17,7 +18,7 @@ from xdsl.frontend.pyast.program import FrontendProgram
 p = FrontendProgram()
 p.register_type(IntegerAttr[I1], i1)
 p.register_type(IntegerAttr[I32], i32)
-p.register_type(Float32Type, f32)
+p.register_type(FloatAttr[Float32Type], f32)
 p.register_type(IndexType, IndexType())
 with CodeContext(p):
     # CHECK:      func.func @test_for_I(%{{.*}} : index) {
@@ -121,7 +122,7 @@ except CodeGenerationException as e:
 try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop start, got 'f32'.
-        def test_not_supported_loop_II(start: Float32Type, end: IndexType):
+        def test_not_supported_loop_II(start: FloatAttr[Float32Type], end: IndexType):
             for _ in range(start, end):
                 pass
             return
@@ -135,7 +136,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop step, got 'f32'.
         def test_not_supported_loop_III(
-            start: IndexType, end: IndexType, step: Float32Type
+            start: IndexType, end: IndexType, step: FloatAttr[Float32Type]
         ):
             for _ in range(start, end, step):
                 pass
@@ -205,7 +206,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected the same types for if expression, but got i32 and f32.
         def test_type_mismatch_in_if_expr(
-            cond: IntegerAttr[I1], x: IntegerAttr[I32], y: Float32Type
+            cond: IntegerAttr[I1], x: IntegerAttr[I32], y: FloatAttr[Float32Type]
         ) -> IntegerAttr[I32]:
             return x if cond else y
 

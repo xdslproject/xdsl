@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     Float16Type,
     Float32Type,
     Float64Type,
+    FloatAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -41,9 +42,9 @@ p.register_type(IntegerAttr[SI64], si64)
 p.register_type(IntegerAttr[UI32], ui32)
 p.register_type(IntegerAttr[UI64], ui64)
 p.register_type(IndexType, IndexType())
-p.register_type(Float16Type, f16)
-p.register_type(Float32Type, f32)
-p.register_type(Float64Type, f64)
+p.register_type(FloatAttr[Float16Type], f16)
+p.register_type(FloatAttr[Float32Type], f32)
+p.register_type(FloatAttr[Float64Type], f64)
 with CodeContext(p):
     # CHECK: @bool(%{{.*}} : i1)
     def bool(x: IntegerAttr[I1]):
@@ -66,7 +67,9 @@ with CodeContext(p):
         return
 
     # CHECK: @fp(%{{.*}} : f16, %{{.*}} : f32, %{{.*}} : f64)
-    def fp(x: Float16Type, y: Float32Type, z: Float64Type):
+    def fp(
+        x: FloatAttr[Float16Type], y: FloatAttr[Float32Type], z: FloatAttr[Float64Type]
+    ):
         return
 
 
