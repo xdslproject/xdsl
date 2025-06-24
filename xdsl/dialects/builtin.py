@@ -62,7 +62,6 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     RangeOf,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -332,16 +331,14 @@ class EmptyArrayAttrConstraint(AttrConstraint):
         return self
 
 
-FlatSymbolRefAttrConstraint = MessageConstraint(
+FlatSymbolRefAttrConstr = MessageConstraint(
     ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
     "Unexpected nested symbols in FlatSymbolRefAttr.",
 )
 """Constrain SymbolRef to be FlatSymbolRef"""
 
-FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
+FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstr]
 """SymbolRef constrained to have an empty `nested_references` property."""
-
-FlatSymbolRefAttrConstr = base(SymbolRefAttr) & FlatSymbolRefAttrConstraint
 
 
 @irdl_attr_definition
