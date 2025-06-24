@@ -9,13 +9,13 @@ from typing_extensions import Self, TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    I64,
     Annotated,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
     DenseArrayBase,
     IndexType,
     IntegerAttr,
-    IntegerType,
     TensorType,
     UnrankedTensorType,
     i64,
@@ -46,9 +46,8 @@ from xdsl.utils.hints import isa
 @dataclass(frozen=True)
 class ContiguousArrayOfIntArray(AttrConstraint):
     """
-    Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values in each inner array.
-    For example: [[0, 1], [2, 3]] is valid, but [[0, 2], [3, 4]] is not.
-    Each inner array must contain IntegerAttr elements whose integer values are contiguous.
+    Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values across all inner arrays.
+    For example: [[0, 1], [2, 3]] is valid, but [[3, 4], [0, 1]] is not.
     An empty inner array is considered contiguous.
     """
 
@@ -68,8 +67,8 @@ class ContiguousArrayOfIntArray(AttrConstraint):
                 continue
             flat_values.extend(e.value.data for e in elements)
         # Check that the flattened list is contiguous
-        for l, r in zip(flat_numbers[1:], flat_numbers[:-1]):
-            if flat_values[i + 1] != flat_values[i] + 1:
+        for prev, curr in zip(flat_values, flat_values[1:]):
+            if curr != prev + 1:
                 raise VerifyException(f"All inner arrays must be contiguous: {attr}")
 
     def mapping_type_vars(
