@@ -47,7 +47,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         self._rewriter = None
 
     @impl(pdl_interp.GetOperandOp)
-    def run_getoperand(
+    def run_get_operand(
         self,
         interpreter: Interpreter,
         op: pdl_interp.GetOperandOp,

@@ -166,6 +166,15 @@ class IntRegisterType(RISCVRegisterType):
     def infinite_register_prefix(cls):
         return "j_"
 
+    # This class variable is created and exclusively accessed in `abi_name_by_index`.
+    # _ALLOCATABLE_REGISTERS: ClassVar[tuple[IntRegisterType, ...]]
+
+    @classmethod
+    def allocatable_registers(cls):
+        if not hasattr(cls, "_ALLOCATABLE_REGISTERS"):
+            cls._ALLOCATABLE_REGISTERS = (*Registers.T, *Registers.A)
+        return cls._ALLOCATABLE_REGISTERS
+
 
 _RV32F_ABI_INDEX_BY_NAME = {
     "ft0": 0,
@@ -224,6 +233,15 @@ class FloatRegisterType(RISCVRegisterType):
     @classmethod
     def infinite_register_prefix(cls):
         return "fj_"
+
+    # This class variable is created and exclusively accessed in `abi_name_by_index`.
+    # _ALLOCATABLE_REGISTERS: ClassVar[tuple[FloatRegisterType, ...]]
+
+    @classmethod
+    def allocatable_registers(cls):
+        if not hasattr(cls, "_ALLOCATABLE_REGISTERS"):
+            cls._ALLOCATABLE_REGISTERS = (*Registers.FT, *Registers.FA)
+        return cls._ALLOCATABLE_REGISTERS
 
 
 RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
