@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from xdsl.backend.x86.lowering.helpers import cast_operands_to_regs
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, x86
 from xdsl.dialects.builtin import (
@@ -14,8 +15,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.exceptions import DiagnosticException
-
-from .helpers import cast_operands_to_regs
 
 
 @dataclass
