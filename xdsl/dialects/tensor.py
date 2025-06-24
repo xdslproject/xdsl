@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import cast
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
@@ -21,7 +22,9 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AttrConstraint,
     AttrSizedOperandSegments,
+    ConstraintContext,
     ConstraintVar,
     IRDLOperation,
     Operand,
@@ -37,6 +40,43 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import NoMemoryEffect
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
+
+
+@dataclass(frozen=True)
+class ContiguousArrayOfIntArray(AttrConstraint):
+    """
+    Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values in each inner array.
+    For example: [[0, 1], [2, 3]] is valid, but [[0, 2], [3, 4]] is not.
+    Each inner array must contain IntegerAttr elements whose integer values are contiguous.
+    An empty inner array is considered contiguous.
+    """
+
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
+        if not isa(attr, ArrayAttr[ArrayAttr[IntegerAttr]]):
+            raise VerifyException(
+                f"Expected ArrayAttr but got {getattr(attr, 'name', type(attr))}"
+            )
+
+        # Flatten all integer values from all inner arrays
+        flat_values: list[int] = []
+        for inner in attr.data:
+            elements = inner.data
+            if not elements:
+                continue
+            flat_values.extend(e.value.data for e in elements)
+        # Check that the flattened list is contiguous
+        for i in range(len(flat_values) - 1):
+            if flat_values[i + 1] != flat_values[i] + 1:
+                raise VerifyException(f"All inner arrays must be contiguous: {attr}")
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> ContiguousArrayOfIntArray:
+        # No type variables to map in this constraint
+        return self
 
 
 @irdl_op_definition
@@ -181,8 +221,9 @@ class EmptyOp(IRDLOperation):
         return empty
 
 
-ReassociationAttr = ArrayAttr[
-    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
+ReassociationAttr = Annotated[
+    ArrayAttr[ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]],
+    ContiguousArrayOfIntArray(),
 ]
 
 
