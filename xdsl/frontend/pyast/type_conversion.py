@@ -57,9 +57,8 @@ class FunctionRegistry:
         function = importlib.import_module(module_name)
         for attr in function_name.split("."):
             function = getattr(function, attr, None)
-        assert function is not None, (
-            f"'{module_name}.{function_name}' must exist to be passed as argument during registration"
-        )
+        if function is None:
+            return None
         assert callable(function), "Guaranteed by type signature of registration method"
         if (operation_type := self.get_operation_type(function)) is not None:
             return operation_type(*args, **kwargs)

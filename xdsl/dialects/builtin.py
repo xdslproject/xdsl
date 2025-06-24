@@ -888,10 +888,37 @@ class IntegerAttr(
         return tuple(IntegerAttr(value, type) for value in type.unpack(buffer, num))
 
     def __add__(self, other: Self) -> Self:
-        """Add two integers."""
-        return type(self)(
-            self.value.data + other.value.data, self.type, truncate_bits=True
-        )
+        raise NotImplementedError()
+
+    def __sub__(self, other: Self) -> Self:
+        raise NotImplementedError()
+
+    def __mul__(self, other: Self) -> Self:
+        raise NotImplementedError()
+
+    def __lshift__(self, other: Self) -> Self:
+        raise NotImplementedError()
+
+    def __rshift__(self, other: Self) -> Self:
+        raise NotImplementedError()
+
+    def __and__(self, other: Self) -> Self:
+        raise NotImplementedError()
+
+    def __ne__(self, other: object) -> bool:
+        raise NotImplementedError()
+
+    def __lt__(self, other: Self) -> bool:
+        raise NotImplementedError()
+
+    def __le__(self, other: Self) -> bool:
+        raise NotImplementedError()
+
+    def __gt__(self, other: Self) -> bool:
+        raise NotImplementedError()
+
+    def __ge__(self, other: Self) -> bool:
+        raise NotImplementedError()
 
 
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
@@ -1101,6 +1128,15 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         Unpack `num` values from the beginning of the buffer.
         """
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
+
+    def __add__(self, other: Self) -> Self:
+        raise NotImplementedError()
+
+    def __sub__(self, other: Self) -> Self:
+        raise NotImplementedError()
+
+    def __mul__(self, other: Self) -> Self:
+        raise NotImplementedError()
 
 
 ComplexElementCovT = TypeVar(
