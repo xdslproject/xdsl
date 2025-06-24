@@ -256,3 +256,15 @@ try:
     p.register_function(int.__add__, AddOp)
 except FrontendProgramException as e:
     print(e.msg)
+
+try:
+    # CHECK-NEXT: Fell back to old implementation and failed
+    with CodeContext(p):
+
+        def foo(a: int, b: int):
+            return a**b
+
+    p.compile(desymref=False)
+    print(p.textual_format())
+except KeyError:
+    print("Fell back to old implementation and failed")

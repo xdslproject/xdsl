@@ -39,19 +39,6 @@ class FunctionRegistry:
             )
         self._mapping[callable] = operation_type
 
-    def get_callable(
-        self, operation_type: type[Operation]
-    ) -> Callable[..., Any] | None:
-        """Get the Python Callable from an IR operation type.
-
-        This supports many-to-one mappings by resolving greedily on the first
-        mapping inserted.
-        """
-        for key, value in self._mapping.items():
-            if value == operation_type:
-                return key
-        return None
-
     def get_operation_type(
         self, callable: Callable[..., Any]
     ) -> type[Operation] | None:
@@ -70,11 +57,10 @@ class FunctionRegistry:
         function = importlib.import_module(module_name)
         for attr in function_name.split("."):
             function = getattr(function, attr, None)
-        if function is None:
-            raise FrontendProgramException(
-                f"Unable to resolve function '{module_name}.{function_name}'"
-            )
-        assert callable(function)  # Guaranteed by types a registration time
+        assert function is not None, (
+            f"'{module_name}.{function_name}' must exist to be passed as argument during registration"
+        )
+        assert callable(function), "Guaranteed by type signature of registration method"
         if (operation_type := self.get_operation_type(function)) is not None:
             return operation_type(*args, **kwargs)
         return None
@@ -112,12 +98,6 @@ class TypeRegistry:
             if value == attribute:
                 return key
         return None
-
-    def get_attribute(
-        self, annotation: type | TypeForm[Attribute]
-    ) -> TypeAttribute | None:
-        """Get the Python type annotation from an IR type attribute."""
-        return self._mapping.get(annotation, None)
 
     def resolve_attribute(
         self, annotation_name: str, globals: dict[str, Any]
