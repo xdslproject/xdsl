@@ -333,7 +333,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
 
 FlatSymbolRefAttrConstr = MessageConstraint(
     ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
-    "Unexpected nested symbols in FlatSymbolRefAttr.",
+    "Expected SymbolRefAttr with no nested symbols.",
 )
 """Constrain SymbolRef to be FlatSymbolRef"""
 
