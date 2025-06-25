@@ -33,13 +33,13 @@
 
 // -----
 
-// CHECK: Half-precision vector load is not implemented yet.
+// CHECK: Half-precision floating point vector load is not implemented yet.
 %ptr2 = "test.op"(): () -> !ptr_xdsl.ptr
 %v2 = ptr_xdsl.load %ptr2 : !ptr_xdsl.ptr -> vector<8xf16>
 
 // -----
 
-// CHECK: Double precision vector load is not implemented yet.
+// CHECK: Double precision floating point vector load is not implemented yet.
 %ptr3 = "test.op"(): () -> !ptr_xdsl.ptr
 %v3 = ptr_xdsl.load %ptr3 : !ptr_xdsl.ptr -> vector<4xf64>
 

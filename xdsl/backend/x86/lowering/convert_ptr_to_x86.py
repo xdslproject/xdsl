@@ -82,7 +82,7 @@ class PtrLoadToX86(RewritePattern):
         # Pointer cast
         x86_reg_type = x86.register.UNALLOCATED_GENERAL
         cast_op, addr_x86 = UnrealizedConversionCastOp.cast_one(op.addr, x86_reg_type)
-        #
+
         value_type = op.res.type
         if isinstance(value_type, VectorType):
             value_type = cast(VectorType, value_type)
@@ -91,13 +91,13 @@ class PtrLoadToX86(RewritePattern):
             match cast(FixedBitwidthType, value_type.get_element_type()).bitwidth:
                 case 16:
                     raise DiagnosticException(
-                        "Half-precision vector load is not implemented yet."
+                        "Half-precision floating point vector load is not implemented yet."
                     )
                 case 32:
                     mov = x86.ops.DM_VmovupsOp
                 case 64:
                     raise DiagnosticException(
-                        "Double precision vector load is not implemented yet."
+                        "Double precision floating point vector load is not implemented yet."
                     )
                 case _:
                     raise DiagnosticException(
