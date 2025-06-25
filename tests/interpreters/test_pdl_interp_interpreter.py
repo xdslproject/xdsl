@@ -302,6 +302,38 @@ def test_check_attribute():
     assert nomatch_result.terminator_value.block is falsedest
 
 
+def test_check_type():
+    interpreter = Interpreter(ModuleOp([]))
+    pdl_interp_functions = PDLInterpFunctions(Context())
+    interpreter.register_implementations(pdl_interp_functions)
+
+    truedest = Block()
+    falsedest = Block()
+
+    # Test matching type
+    check_type_op = pdl_interp.CheckTypeOp(
+        i32,  # Expected type
+        create_ssa_value(pdl.ValueType()),  # Input value
+        truedest,
+        falsedest,
+    )
+
+    match_result = pdl_interp_functions.run_check_type(
+        interpreter, check_type_op, (i32,)
+    )
+
+    assert isinstance(match_result.terminator_value, Successor)
+    assert match_result.terminator_value.block is truedest
+
+    # Test non-matching type
+    nomatch_result = pdl_interp_functions.run_check_type(
+        interpreter, check_type_op, (i64,)
+    )
+
+    assert isinstance(nomatch_result.terminator_value, Successor)
+    assert nomatch_result.terminator_value.block is falsedest
+
+
 def test_is_not_null():
     interpreter = Interpreter(ModuleOp([]))
     pdl_interp_functions = PDLInterpFunctions(Context())
