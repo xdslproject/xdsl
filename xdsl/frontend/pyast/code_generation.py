@@ -200,11 +200,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # Resolve function
         assert isinstance(node.func, ast.Name)
         func_name = node.func.id
-        for key, value in self.type_converter.globals.items():
-            if key == func_name:
-                source_func = value
-                break
-        else:
+        source_func = self.type_converter.globals.get(func_name, None)
+        if source_func is None:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
@@ -229,7 +226,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    "Function arguments must be a declared variable.",
+                    "Function arguments must be declared variables.",
                 )
             args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
             self.inserter.insert_op(arg_op)
