@@ -303,6 +303,41 @@ class PDLInterpFunctions(InterpreterFunctions):
         # Simply return the attribute value
         return (op.value,)
 
+    @impl(pdl_interp.CreateTypeOp)
+    def run_create_type(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CreateTypeOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        # Simply return the type value
+        return (op.value,)
+
+    @impl(pdl_interp.CreateTypesOp)
+    def run_create_types(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CreateTypesOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        # Return the list of types from the array attribute
+        types = list(op.value.data)
+        return (types,)
+
+    @impl_terminator(pdl_interp.SwitchAttributeOp)
+    def run_switch_attribute(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.SwitchAttributeOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        input_attr = args[0]
+        for case_value, block in zip(op.caseValues.data, op.cases):
+            if input_attr == case_value:
+                return Successor(block, ()), ()
+        return Successor(op.defaultDest, ()), ()
+
     @impl(pdl_interp.CreateOperationOp)
     def run_create_operation(
         self,
