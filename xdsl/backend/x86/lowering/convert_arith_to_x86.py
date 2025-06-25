@@ -36,6 +36,25 @@ class ArithAddiToX86(RewritePattern):
         rewriter.replace_matched_op([rhs_copy_op, add_op, result_cast_op])
 
 
+@dataclass
+class ArithMuliToX86(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.MuliOp, rewriter: PatternRewriter):
+        if isinstance(op.lhs.type, builtin.ShapedType):
+            raise DiagnosticException(
+                "Lowering of arith.muli not implemented for ShapedType"
+            )
+        lhs_x86, rhs_x86 = cast_operands_to_regs(rewriter=rewriter)
+        rhs_copy_op = x86.DS_MovOp(
+            source=rhs_x86, destination=x86.register.UNALLOCATED_GENERAL
+        )
+        add_op = x86.RS_ImulOp(source=lhs_x86, register_in=rhs_copy_op.destination)
+        result_cast_op, _ = UnrealizedConversionCastOp.cast_one(
+            add_op.register_in, op.lhs.type
+        )
+        rewriter.replace_matched_op([rhs_copy_op, add_op, result_cast_op])
+
+
 @dataclass(frozen=True)
 class ConvertArithToX86Pass(ModulePass):
     name = "convert-arith-to-x86"
@@ -45,6 +64,7 @@ class ConvertArithToX86Pass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ArithAddiToX86(),
+                    ArithMuliToX86(),
                 ]
             ),
             apply_recursively=False,
