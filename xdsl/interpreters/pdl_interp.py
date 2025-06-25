@@ -235,7 +235,7 @@ class PDLInterpFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         assert len(args) == 1
         value = args[0]
-        cond = value == op.type_
+        cond = value == op.type
 
         successor = op.true_dest if cond else op.false_dest
         return Successor(successor, ()), ()

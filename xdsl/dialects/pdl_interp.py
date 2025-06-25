@@ -376,7 +376,7 @@ class CheckTypeOp(IRDLOperation):
 
     name = "pdl_interp.check_type"
     traits = traits_def(IsTerminator())
-    type_ = prop_def(TypeAttribute, prop_name="type")
+    type = prop_def(TypeAttribute)
     value = operand_def(TypeType)
     true_dest = successor_def()
     false_dest = successor_def()
