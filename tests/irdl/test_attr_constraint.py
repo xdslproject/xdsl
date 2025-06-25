@@ -237,6 +237,28 @@ def test_memref_to_tensor(
         (AnyAttr() & BaseAttr(AttrA), BaseAttr(AttrA)),
         # Note the [Attribute] to provide a supertype of AttrA and Attribute
         (BaseAttr[Attribute](AttrA) & AnyAttr(), BaseAttr(AttrA)),
+        (BaseAttr(AttrA) | BaseAttr(AttrA), BaseAttr(AttrA)),
+        (BaseAttr(AttrA) | BaseAttr(AttrB), AnyOf((BaseAttr(AttrA), BaseAttr(AttrB)))),
+        (
+            ParamAttrConstraint(AttrB, (BaseAttr(AttrA),))
+            | ParamAttrConstraint(AttrB, (BaseAttr(AttrA),)),
+            ParamAttrConstraint(AttrB, (BaseAttr(AttrA),)),
+        ),
+        (
+            ParamAttrConstraint(AttrB, (BaseAttr(AttrA),))
+            | ParamAttrConstraint(AttrB, (BaseAttr(AttrC),)),
+            ParamAttrConstraint(AttrB, (BaseAttr(AttrA) | BaseAttr(AttrC),)),
+        ),
+        (
+            ParamAttrConstraint(AttrB, (BaseAttr(AttrA),))
+            | ParamAttrConstraint(AttrA, (BaseAttr(AttrB),)),
+            AnyOf(
+                (
+                    ParamAttrConstraint(AttrB, (BaseAttr(AttrA),)),
+                    ParamAttrConstraint(AttrA, (BaseAttr(AttrB),)),
+                )
+            ),
+        ),
     ],
 )
 def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):

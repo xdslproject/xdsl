@@ -6,6 +6,7 @@ from collections.abc import Set as AbstractSet
 from dataclasses import KW_ONLY, dataclass, field
 from typing import (
     TYPE_CHECKING,
+    Any,
     Generic,
     TypeAlias,
     TypeGuard,
@@ -156,14 +157,14 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     def __or__(
         self, value: GenericAttrConstraint[_AttributeCovT], /
     ) -> GenericAttrConstraint[AttributeCovT | _AttributeCovT]:
-        if isinstance(value, AnyAttr):
+        if isinstance(value, AnyAttr) or self == value:
             return value  # pyright: ignore[reportReturnType]
         return AnyOf((self, value))
 
     def __and__(
         self, value: GenericAttrConstraint[AttributeCovT], /
     ) -> GenericAttrConstraint[AttributeCovT]:
-        if isinstance(value, AnyAttr):
+        if isinstance(value, AnyAttr) or self == value:
             return self
         return AllOf((self, value))
 
@@ -650,6 +651,20 @@ class ParamAttrConstraint(
         return ParamAttrConstraint(
             self.base_attr,
             tuple(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
+        )
+
+    def __or__(self, value: GenericAttrConstraint[_AttributeCovT], /):
+        if (
+            not isinstance(value, ParamAttrConstraint)
+            or self.base_attr is not cast(ParamAttrConstraint[Any], value).base_attr
+        ):
+            return super().__or__(value)  # pyright: ignore[reportUnknownArgumentType]
+        return ParamAttrConstraint(
+            self.base_attr,
+            tuple(
+                l | r
+                for l, r in zip(self.param_constrs, value.param_constrs, strict=True)
+            ),
         )
 
 
