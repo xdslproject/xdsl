@@ -45,7 +45,9 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
 ^bb16:  // pred: ^bb15
   pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%5, %3, %7, %4, %arg0 : !pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) : benefit(1), generatedOps(["arith.subi", "arith.addi"]), loc([%2, %arg0]), root("arith.subi") -> ^bb1
 ^bb17:
-  pdl_interp.switch_operation_name of %arg0 to ["foo.op", "bar.op"](^bb1, ^bb2) -> ^bb3
+  pdl_interp.switch_operation_name of %arg0 to ["foo.op", "bar.op"](^bb1, ^bb18) -> ^bb3
+^bb18:
+  pdl_interp.check_type %7 is i32 -> ^bb16, ^bb1
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
@@ -107,7 +109,9 @@ module @rewriters {
 // CHECK-NEXT:     ^15:
 // CHECK-NEXT:       pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%5, %3, %7, %4, [[arg0]] : !pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) : benefit(1), generatedOps(["arith.subi", "arith.addi"]), loc([%2, [[arg0]]]), root("arith.subi") -> ^1
 // CHECK-NEXT:     ^16:
-// CHECK-NEXT:       pdl_interp.switch_operation_name of [[arg0]] to ["foo.op", "bar.op"](^1, ^0) -> ^2
+// CHECK-NEXT:       pdl_interp.switch_operation_name of [[arg0]] to ["foo.op", "bar.op"](^1, ^17) -> ^2
+// CHECK-NEXT:     ^17:
+// CHECK-NEXT:       pdl_interp.check_type %7 is i32 -> ^15, ^1
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
 // CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {

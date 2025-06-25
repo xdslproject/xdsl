@@ -226,6 +226,20 @@ class PDLInterpFunctions(InterpreterFunctions):
         successor = op.true_dest if cond else op.false_dest
         return Successor(successor, ()), ()
 
+    @impl_terminator(pdl_interp.CheckTypeOp)
+    def run_check_type(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckTypeOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        value = args[0]
+        cond = value == op.type
+
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
     @impl_terminator(pdl_interp.IsNotNullOp)
     def run_is_not_null(
         self,
