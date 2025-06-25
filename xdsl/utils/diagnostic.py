@@ -33,12 +33,12 @@ class Diagnostic:
         toplevel = ir.get_toplevel_object()
         if isinstance(toplevel, Operation):
             p.print_op(toplevel)
+            p.print_string("\n")
         elif isinstance(toplevel, Block):
             p.print_block(toplevel)
         elif isinstance(toplevel, Region):
             p.print_region(toplevel)
         else:
             assert "xDSL internal error: get_toplevel_object returned unknown construct"
-        p.print_string("\n")
 
         raise exception_type(message + "\n\n" + f.getvalue()) from underlying_error
