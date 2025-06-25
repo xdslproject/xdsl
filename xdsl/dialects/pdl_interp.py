@@ -33,7 +33,15 @@ from xdsl.dialects.pdl import (
     ValueType,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -356,6 +364,31 @@ class CheckAttributeOp(IRDLOperation):
         super().__init__(
             operands=[attribute],
             properties={"constantValue": constantValue},
+            successors=[trueDest, falseDest],
+        )
+
+
+@irdl_op_definition
+class CheckTypeOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_type-pdl_interpchecktypeop).
+    """
+
+    name = "pdl_interp.check_type"
+    traits = traits_def(IsTerminator())
+    type_ = prop_def(TypeAttribute, prop_name="type")
+    value = operand_def(TypeType)
+    true_dest = successor_def()
+    false_dest = successor_def()
+
+    assembly_format = "$value `is` $type attr-dict `->` $true_dest `, ` $false_dest"
+
+    def __init__(
+        self, type: TypeAttribute, value: SSAValue, trueDest: Block, falseDest: Block
+    ) -> None:
+        super().__init__(
+            operands=[value],
+            properties={"type": type},
             successors=[trueDest, falseDest],
         )
 
@@ -866,6 +899,7 @@ PDLInterp = Dialect(
         CheckOperationNameOp,
         CheckOperandCountOp,
         CheckResultCountOp,
+        CheckTypeOp,
         IsNotNullOp,
         GetResultOp,
         GetResultsOp,
