@@ -33,7 +33,7 @@ try:
     with CodeContext(p):
         # CHECK-NEXT: Function arguments must be declared variables.
         def test_args():
-            return add_i32(1, 2)
+            return add_i32(1, 2)  # pyright: ignore[reportArgumentType]
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -44,7 +44,7 @@ try:
     with CodeContext(p):
         # CHECK-NEXT: Function arguments must be declared variables.
         def test_args():
-            return add_i32(operand1=1, operand2=2)
+            return add_i32(operand1=1, operand2=2)  # pyright: ignore[reportArgumentType]
 
     p.compile(desymref=False)
     print(p.textual_format())
