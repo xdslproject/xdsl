@@ -22,19 +22,24 @@
 
 // -----
 
-// CHECK: The lowering of ptr.load is not yet implemented for non-vector types.
 %ptr1 = "test.op"(): () -> !ptr_xdsl.ptr
 %v1 = ptr_xdsl.load %ptr1 : !ptr_xdsl.ptr -> f32
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %ptr1 = "test.op"() : () -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %v1 = builtin.unrealized_conversion_cast %ptr1 : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %v1_1 = x86.dm.mov %v1, 0 : (!x86.reg) -> !x86.reg
+// CHECK-NEXT:   %v1_2 = builtin.unrealized_conversion_cast %v1_1 : !x86.reg to f32
+// CHECK-NEXT: }
 
 // -----
 
-// CHECK: Half-precision vector load is not implemented yet.
+// CHECK: Half-precision floating point vector load is not implemented yet.
 %ptr2 = "test.op"(): () -> !ptr_xdsl.ptr
 %v2 = ptr_xdsl.load %ptr2 : !ptr_xdsl.ptr -> vector<8xf16>
 
 // -----
 
-// CHECK: Double precision vector load is not implemented yet.
+// CHECK: Double precision floating point vector load is not implemented yet.
 %ptr3 = "test.op"(): () -> !ptr_xdsl.ptr
 %v3 = ptr_xdsl.load %ptr3 : !ptr_xdsl.ptr -> vector<4xf64>
 
