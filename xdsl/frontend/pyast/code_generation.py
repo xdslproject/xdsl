@@ -167,7 +167,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         if source_type is not None:  # NOTE: To support old codebase
             method_name = python_AST_operator_to_python_overload[op_name]
             function_name = f"{source_type.__qualname__}.{method_name}"
-            op = self.type_converter.function_registry.resolve_method(
+            op = self.type_converter.function_registry.resolve_operation(
                 module_name=source_type.__module__,
                 method_name=function_name,
                 args=(lhs, rhs),
@@ -317,7 +317,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         if source_type is not None:  # NOTE: To support old codebase
             method_name = python_AST_cmpop_to_python_overload[op_name]
             function_name = f"{source_type.__qualname__}.{method_name}"
-            op = self.type_converter.function_registry.resolve_method(
+            op = self.type_converter.function_registry.resolve_operation(
                 module_name=source_type.__module__,
                 method_name=function_name,
                 args=(lhs, rhs),

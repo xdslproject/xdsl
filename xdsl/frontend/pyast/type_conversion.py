@@ -43,7 +43,7 @@ class FunctionRegistry:
         """Get the IR operation type from a Python callable"""
         return self._mapping.get(callable, None)
 
-    def resolve_method(
+    def resolve_operation(
         self,
         module_name: str,
         method_name: str,
