@@ -1,5 +1,5 @@
 from collections import Counter
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator
 
 from xdsl.backend.utils import cast_to_regs
 from xdsl.dialects import builtin, riscv
@@ -116,35 +116,6 @@ def move_to_unallocated_regs(
             value, value_type, register_type.unallocated()
         )
         new_ops.append(move_op)
-        new_values.append(new_value)
-
-    return new_ops, new_values
-
-
-def cast_ops_for_values(
-    values: Sequence[SSAValue],
-) -> tuple[list[Operation], list[SSAValue]]:
-    """
-    Returns cast operations and new SSA values. The SSA values are guaranteed to be either
-    the original SSA value, if it already had a register type, or the result of a cast
-    operation. The resulting list has the same length and same order as the input.
-    """
-
-    new_ops = list[Operation]()
-    new_values = list[SSAValue]()
-
-    for value in values:
-        if not isinstance(value.type, riscv.IntRegisterType | riscv.FloatRegisterType):
-            new_type = register_type_for_type(value.type)
-            cast_op = builtin.UnrealizedConversionCastOp.get(
-                (value,), (new_type.unallocated(),)
-            )
-            new_ops.append(cast_op)
-            new_value = cast_op.results[0]
-            new_value.name_hint = value.name_hint
-        else:
-            new_value = value
-
         new_values.append(new_value)
 
     return new_ops, new_values
