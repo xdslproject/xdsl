@@ -100,7 +100,7 @@ def check_roundtrip(program: str, ctx: Context):
     printer = Printer(stream=res_io)
     for op in ops[:-1]:
         printer.print_op(op)
-        printer.print("\n")
+        printer.print_string("\n")
     printer.print_op(ops[-1])
 
     assert program == res_io.getvalue()

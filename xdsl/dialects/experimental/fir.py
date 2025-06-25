@@ -119,8 +119,10 @@ class FortranVariableFlagsAttrBase(Data[tuple[FortranVariableFlags, ...]]):
         with printer.in_angle_brackets():
             flags = self.data
             # make sure we emit flags in a consistent order
-            printer.print(
-                ",".join(flag.value for flag in FortranVariableFlags if flag in flags)
+            printer.print_list(
+                tuple(flag.value for flag in FortranVariableFlags if flag in flags),
+                printer.print_string,
+                ",",
             )
 
 
@@ -231,26 +233,25 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer) -> None:
         # We need extra work here as the builtin tuple is not being supported
         # yet, therefore handle this here
-        printer.print("<")
-        if isinstance(self.type2, NoneType):
-            for s in self.shape.data:
-                if isinstance(s, DeferredAttr):
-                    printer.print_string("?")
-                elif isinstance(s, NoneType):
-                    raise Exception(
-                        "Can not have none type as part of sequence shape with only one type"
-                    )
-                else:
-                    printer.print_string(f"{s.value.data}")
-                printer.print_string("x")
-            printer.print(self.type)
-        else:
-            printer.print_string("0xtuple<")
-            printer.print(self.type)
-            printer.print_string(", ")
-            printer.print(self.type2)
-            printer.print_string(">")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            if isinstance(self.type2, NoneType):
+                for s in self.shape.data:
+                    if isinstance(s, DeferredAttr):
+                        printer.print_string("?")
+                    elif isinstance(s, NoneType):
+                        raise Exception(
+                            "Can not have none type as part of sequence shape with only one type"
+                        )
+                    else:
+                        s.print_without_type(printer)
+                    printer.print_string("x")
+                printer.print_attribute(self.type)
+            else:
+                printer.print_string("0xtuple")
+                with printer.in_angle_brackets():
+                    printer.print_attribute(self.type)
+                    printer.print_string(", ")
+                    printer.print_attribute(self.type2)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -308,19 +309,18 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
     to_index: ParameterDef[IntAttr | DeferredAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        if isinstance(self.from_index, DeferredAttr):
-            printer.print_string("?")
-        else:
-            printer.print_string(f"{self.from_index.data}")
+        with printer.in_angle_brackets():
+            if isinstance(self.from_index, DeferredAttr):
+                printer.print_string("?")
+            else:
+                printer.print_int(self.from_index.data)
 
-        printer.print_string(",")
+            printer.print_string(",")
 
-        if isinstance(self.to_index, DeferredAttr):
-            printer.print_string("?")
-        else:
-            printer.print_string(f"{self.to_index.data}")
-        printer.print(">")
+            if isinstance(self.to_index, DeferredAttr):
+                printer.print_string("?")
+            else:
+                printer.print_int(self.to_index.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -353,9 +353,8 @@ class LogicalType(ParametrizedAttribute, TypeAttribute):
     size: ParameterDef[IntAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_string(f"{self.size.data}")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.size.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -378,9 +377,8 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
     width: ParameterDef[IntAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_string(f"{self.width.data}")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.width.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -403,9 +401,8 @@ class ShiftType(ParametrizedAttribute, TypeAttribute):
     indexes: ParameterDef[IntAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_string(f"{self.indexes.data}")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.indexes.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -428,9 +425,8 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
     indexes: ParameterDef[IntAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_string(f"{self.indexes.data}")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.indexes.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -454,9 +450,8 @@ class ShapeShiftType(ParametrizedAttribute, TypeAttribute):
     indexes: ParameterDef[IntAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_string(f"{self.indexes.data}")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.indexes.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -506,9 +501,8 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
     kind: ParameterDef[IntAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_string(f"{self.kind.data}")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.kind.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:

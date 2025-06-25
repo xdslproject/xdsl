@@ -49,7 +49,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyOf,
     BaseAttr,
     IRDLOperation,
     ParameterDef,
@@ -620,7 +619,7 @@ class ConstStructOp(IRDLOperation):
 
 
 ZerosOpAttr: TypeAlias = IntegerType | Float32Type | Float16Type
-ZerosOpAttrConstr: AnyOf[ZerosOpAttr] = (
+ZerosOpAttrConstr = (
     BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
 )
 

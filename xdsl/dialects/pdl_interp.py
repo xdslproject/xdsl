@@ -299,7 +299,7 @@ class GetResultsOp(IRDLOperation):
     def print(self, printer: Printer):
         if self.index is not None:
             printer.print_string(" ", indent=0)
-            printer.print_string(str(self.index.value.data), indent=0)
+            self.index.print_without_type(printer)
         printer.print_string(" of ", indent=0)
         printer.print_operand(self.input_op)
         printer.print_string(" : ", indent=0)

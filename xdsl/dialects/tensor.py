@@ -2,26 +2,30 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import cast
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    I64,
     Annotated,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
     DenseArrayBase,
     IndexType,
     IntegerAttr,
-    IntegerType,
     TensorType,
     UnrankedTensorType,
     i64,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AttrConstraint,
     AttrSizedOperandSegments,
+    ConstraintContext,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     base,
@@ -36,6 +40,37 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import NoMemoryEffect
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
+
+
+@dataclass(frozen=True)
+class ContiguousArrayOfIntArray(AttrConstraint):
+    """
+    Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values across all inner arrays.
+    For example: [[0, 1], [2, 3]] is valid, but [[3, 4], [0, 1]] is not.
+    An empty inner array is considered contiguous.
+    """
+
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
+        if not isa(attr, ArrayAttr[ArrayAttr[IntegerAttr]]):
+            raise VerifyException(
+                f"Expected ArrayAttr but got {getattr(attr, 'name', type(attr))}"
+            )
+
+        # Flatten all integer values from all inner arrays
+        flat_values = [e.value.data for inner in attr.data for e in inner.data]
+        # Check that the flattened list is contiguous
+        for prev, curr in zip(flat_values, flat_values[1:]):
+            if curr != prev + 1:
+                raise VerifyException(f"All inner arrays must be contiguous: {attr}")
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> ContiguousArrayOfIntArray:
+        # No type variables to map in this constraint
+        return self
 
 
 @irdl_op_definition
@@ -180,8 +215,9 @@ class EmptyOp(IRDLOperation):
         return empty
 
 
-ReassociationAttr = ArrayAttr[
-    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
+ReassociationAttr = Annotated[
+    ArrayAttr[ArrayAttr[IntegerAttr[I64]]],
+    ContiguousArrayOfIntArray(),
 ]
 
 
@@ -300,9 +336,9 @@ class ExtractSliceOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -349,9 +385,9 @@ class InsertSliceOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -516,6 +552,17 @@ class InsertOp(IRDLOperation):
         return cls(scalar, dest, indices)
 
 
+@irdl_op_definition
+class FromElementsOp(IRDLOperation):
+    name = "tensor.from_elements"
+
+    ElementType = Annotated[Attribute, ConstraintVar("ElementType")]
+
+    elements = var_operand_def(ElementType)
+    result = result_def(TensorType[ElementType])
+    assembly_format = "$elements attr-dict `:` type($result)"
+
+
 Tensor = Dialect(
     "tensor",
     [
@@ -528,6 +575,7 @@ Tensor = Dialect(
         CollapseShapeOp,
         ExtractOp,
         InsertOp,
+        FromElementsOp,
     ],
     [],
 )

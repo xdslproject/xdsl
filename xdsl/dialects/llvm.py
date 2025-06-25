@@ -12,8 +12,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
-    DenseI32ArrayConstr,
-    DenseI64ArrayConstr,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -122,13 +120,12 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         return LLVMStructType(StringAttr(""), ArrayAttr(types))
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        if self.struct_name.data:
-            printer.print_string_literal(self.struct_name.data)
-            printer.print_string(", ")
-        printer.print("(")
-        printer.print_list(self.types.data, printer.print_attribute)
-        printer.print(")>")
+        with printer.in_angle_brackets():
+            if self.struct_name.data:
+                printer.print_string_literal(self.struct_name.data)
+                printer.print_string(", ")
+            with printer.in_parens():
+                printer.print_list(self.types.data, printer.print_attribute)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> tuple[StringAttr, ArrayAttr]:
@@ -209,12 +206,10 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer) -> None:
         if isinstance(self.size, NoneAttr):
             return
-        printer.print_string("<")
-        printer.print_string(str(self.size.data))
-        if not isinstance(self.type, TypeAttribute):
+        with printer.in_angle_brackets():
+            printer.print_int(self.size.data)
             printer.print_string(" x ")
             printer.print_attribute(self.type)
-        printer.print_string(">")
 
     @classmethod
     def parse_parameters(
@@ -279,20 +274,19 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         return isinstance(self.variadic, UnitAttr)
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<")
-        if isinstance(self.output, LLVMVoidType):
-            printer.print("void")
-        else:
-            printer.print_attribute(self.output)
+        with printer.in_angle_brackets():
+            if isinstance(self.output, LLVMVoidType):
+                printer.print_string("void")
+            else:
+                printer.print_attribute(self.output)
 
-        printer.print(" (")
-        printer.print_list(self.inputs, printer.print_attribute)
-        if self.is_variadic:
-            if self.inputs:
-                printer.print(", ")
-            printer.print("...")
-
-        printer.print_string(")>")
+            printer.print_string(" ")
+            with printer.in_parens():
+                printer.print_list(self.inputs, printer.print_attribute)
+                if self.is_variadic:
+                    if self.inputs:
+                        printer.print_string(", ")
+                    printer.print_string("...")
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -445,7 +439,7 @@ class OverflowAttr(OverflowAttrBase):
 
     def print(self, printer: Printer):
         if self.flags:
-            printer.print(" overflow")
+            printer.print_string(" overflow")
             self.print_parameter(printer)
 
 
@@ -536,7 +530,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 
     def print_exact(self, printer: Printer) -> None:
         if self.is_exact:
-            printer.print(" exact")
+            printer.print_string(" exact")
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -888,7 +882,7 @@ class ICmpOp(IRDLOperation):
         printer.print_ssa_value(self.rhs)
         printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
-        printer.print(self.lhs.type)
+        printer.print_attribute(self.lhs.type)
 
 
 @irdl_op_definition
@@ -1042,7 +1036,7 @@ class GEPOp(IRDLOperation):
         ptr_type = ptr_val.type
 
         props: dict[str, Attribute] = {
-            "rawConstantIndices": DenseArrayBase.create_dense_int(i32, indices),
+            "rawConstantIndices": DenseArrayBase.from_list(i32, indices),
         }
 
         if not ptr_type.is_typed():
@@ -1295,7 +1289,7 @@ class ExtractValueOp(IRDLOperation):
 
     name = "llvm.extractvalue"
 
-    position = prop_def(DenseI64ArrayConstr)
+    position = prop_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
 
     res = result_def(Attribute)
@@ -1325,7 +1319,7 @@ class InsertValueOp(IRDLOperation):
 
     name = "llvm.insertvalue"
 
-    position = prop_def(DenseI64ArrayConstr)
+    position = prop_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
     value = operand_def(Attribute)
 
@@ -1609,12 +1603,12 @@ class ConstantOp(IRDLOperation):
         return cls(value, value_type)
 
     def print(self, printer: Printer) -> None:
-        printer.print("(")
-        if isa(self.value, IntegerAttr) and self.result.type == IntegerType(64):
-            self.value.print_without_type(printer)
-        else:
-            printer.print(self.value)
-        printer.print_string(") : ")
+        with printer.in_parens():
+            if isa(self.value, IntegerAttr) and self.result.type == IntegerType(64):
+                self.value.print_without_type(printer)
+            else:
+                printer.print_attribute(self.value)
+        printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
 
@@ -1633,7 +1627,7 @@ class CallIntrinsicOp(IRDLOperation):
 
     fastmathFlags = opt_prop_def(FastMathAttr)
     intrin = prop_def(StringAttr)
-    op_bundle_sizes = prop_def(DenseI32ArrayConstr)
+    op_bundle_sizes = prop_def(DenseArrayBase.constr(i32))
     args = var_operand_def()
     op_bundle_operands = var_operand_def()
     ress = opt_result_def()
@@ -1695,7 +1689,8 @@ class CallOp(IRDLOperation):
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr("none"))
     CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
     op_bundle_sizes = prop_def(
-        DenseI32ArrayConstr, default_value=DenseArrayBase.create_dense_int(i32, ())
+        DenseArrayBase.constr(i32),
+        default_value=DenseArrayBase.from_list(i32, ()),
     )
     TailCallKind = prop_def(
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
@@ -1708,7 +1703,7 @@ class CallOp(IRDLOperation):
         self,
         callee: str | SymbolRefAttr | StringAttr,
         *args: SSAValue | Operation,
-        op_bundle_sizes: DenseArrayBase = DenseArrayBase.create_dense_int(i32, ()),
+        op_bundle_sizes: DenseArrayBase = DenseArrayBase.from_list(i32, ()),
         op_bundle_operands: tuple[SSAValue, ...] = (),
         return_type: Attribute | None = None,
         calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),

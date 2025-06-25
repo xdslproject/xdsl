@@ -59,10 +59,10 @@ class ParamAttribute(ParametrizedAttribute):
         with printer.in_angle_brackets():
             printer.print_string_literal(self.key.data)
             if not isinstance(self.value, NoneAttr):
-                printer.print(" default=")
+                printer.print_string(" default=")
                 printer.print_attribute(self.value)
             else:
-                printer.print(" : ")
+                printer.print_string(" : ")
                 printer.print_attribute(self.type)
 
     @classmethod

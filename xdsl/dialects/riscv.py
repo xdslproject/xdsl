@@ -166,6 +166,15 @@ class IntRegisterType(RISCVRegisterType):
     def infinite_register_prefix(cls):
         return "j_"
 
+    # This class variable is created and exclusively accessed in `abi_name_by_index`.
+    # _ALLOCATABLE_REGISTERS: ClassVar[tuple[IntRegisterType, ...]]
+
+    @classmethod
+    def allocatable_registers(cls):
+        if not hasattr(cls, "_ALLOCATABLE_REGISTERS"):
+            cls._ALLOCATABLE_REGISTERS = (*Registers.T, *Registers.A)
+        return cls._ALLOCATABLE_REGISTERS
+
 
 _RV32F_ABI_INDEX_BY_NAME = {
     "ft0": 0,
@@ -224,6 +233,15 @@ class FloatRegisterType(RISCVRegisterType):
     @classmethod
     def infinite_register_prefix(cls):
         return "fj_"
+
+    # This class variable is created and exclusively accessed in `abi_name_by_index`.
+    # _ALLOCATABLE_REGISTERS: ClassVar[tuple[FloatRegisterType, ...]]
+
+    @classmethod
+    def allocatable_registers(cls):
+        if not hasattr(cls, "_ALLOCATABLE_REGISTERS"):
+            cls._ALLOCATABLE_REGISTERS = (*Registers.FT, *Registers.FA)
+        return cls._ALLOCATABLE_REGISTERS
 
 
 RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
@@ -409,7 +427,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
 
     def print(self, printer: Printer) -> None:
         if self.operands:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_list(self.operands, printer.print_operand)
         printed_attributes = self.custom_print_attributes(printer)
         unprinted_attributes = {
@@ -429,7 +447,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
         return self.attributes.keys()
 
     def print_op_type(self, printer: Printer) -> None:
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_operation_type(self)
 
 
@@ -638,7 +656,7 @@ class RdRsRsFloatOperationWithFastMath(
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
-            printer.print(" fastmath")
+            printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
         return {"fastmath"}
 
@@ -684,7 +702,7 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(" ")
+        printer.print_string(" ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -737,10 +755,10 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(" ")
+        printer.print_string(" ")
         print_immediate_value(printer, self.immediate)
         if self.rd is not None:
-            printer.print(", ")
+            printer.print_string(", ")
             printer.print_attribute(self.rd)
         return {"immediate", "rd"}
 
@@ -800,7 +818,7 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -857,7 +875,7 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -920,10 +938,10 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         if self.rd is not None:
-            printer.print(", ")
+            printer.print_string(", ")
             printer.print_attribute(self.rd)
         return {"immediate", "rd"}
 
@@ -1029,7 +1047,7 @@ class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.offset)
         return {"offset"}
 
@@ -1079,7 +1097,7 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -1211,10 +1229,10 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
-        printer.print(self.csr.value.data)
+        printer.print_string(", ")
+        self.csr.print_without_type(printer)
         if self.writeonly is not None:
-            printer.print(', "w"')
+            printer.print_string(', "w"')
         return {"csr", "writeonly"}
 
 
@@ -1284,10 +1302,10 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
-        printer.print(self.csr.value.data)
+        printer.print_string(", ")
+        self.csr.print_without_type(printer)
         if self.readonly is not None:
-            printer.print(', "r"')
+            printer.print_string(', "r"')
         return {"csr", "readonly"}
 
 
@@ -1356,12 +1374,12 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(" ")
-        printer.print(self.csr.value.data)
-        printer.print(", ")
+        printer.print_string(" ")
+        self.csr.print_without_type(printer)
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         if self.writeonly is not None:
-            printer.print(', "w"')
+            printer.print_string(', "w"')
         return {"csr", "immediate", "writeonly"}
 
 
@@ -1416,9 +1434,9 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(" ")
-        printer.print(self.csr.value.data)
-        printer.print(", ")
+        printer.print_string(" ")
+        self.csr.print_without_type(printer)
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"csr", "immediate"}
 
@@ -3393,7 +3411,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(" ")
+        printer.print_string(" ")
         print_immediate_value(printer, self.immediate)
         return {"immediate", "fastmath"}
 
@@ -3406,7 +3424,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return (), (res_type,)
 
     def print_op_type(self, printer: Printer) -> None:
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.rd.type)
 
 
@@ -3466,7 +3484,7 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.label.data)
         return {"label"}
 
@@ -3532,10 +3550,10 @@ class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.directive.data)
         if self.value is not None:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_string_literal(self.value.data)
         return {"directive", "value"}
 
@@ -3785,7 +3803,7 @@ class GetAnyRegisterOperation(
         return (), (res_type,)
 
     def print_op_type(self, printer: Printer) -> None:
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.res.type)
 
 
@@ -3892,7 +3910,7 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         if self.fastmath != FastMathFlagsAttr("none"):
-            printer.print(" fastmath")
+            printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
         return {"fastmath"}
 
@@ -3940,7 +3958,7 @@ class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -3990,7 +4008,7 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -4778,7 +4796,7 @@ def parse_immediate_value(
 def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
     match immediate:
         case IntegerAttr():
-            printer.print(immediate.value.data)
+            immediate.print_without_type(printer)
         case LabelAttr():
             printer.print_string_literal(immediate.data)
 

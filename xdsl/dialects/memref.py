@@ -513,7 +513,7 @@ class ExpandShapeOp(AlterShapeOperation):
     src = operand_def(MemRefType)
     output_shape = var_operand_def(IndexType)
 
-    static_output_shape = prop_def(DenseArrayBase)
+    static_output_shape = prop_def(DenseArrayBase.constr(i64))
 
     @classmethod
     def parse(cls, parser: Parser) -> ExpandShapeOp:
@@ -542,7 +542,7 @@ class ExpandShapeOp(AlterShapeOperation):
             operands=[src, output_shape],
             properties={
                 "reassociation": reassociation,
-                "static_output_shape": DenseArrayBase.create_dense_int(
+                "static_output_shape": DenseArrayBase.from_list(
                     IntegerType(64), static_output_shape
                 ),
             },
@@ -563,7 +563,7 @@ class ExpandShapeOp(AlterShapeOperation):
         printer.print_list(t, lambda x: printer.print_string(str(x)))
         printer.print_string("]")
         if self.attributes:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_attr_dict(self.attributes)
         printer.print_string(" : ")
         printer.print_attribute(self.src.type)
@@ -653,9 +653,9 @@ class SubviewOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(MemRefType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -665,9 +665,9 @@ class SubviewOp(IRDLOperation):
     )
 
     def verify_(self) -> None:
-        static_offsets = cast(tuple[int, ...], self.static_offsets.get_values())
-        static_sizes = cast(tuple[int, ...], self.static_sizes.get_values())
-        static_strides = cast(tuple[int, ...], self.static_strides.get_values())
+        static_offsets = self.static_offsets.get_values()
+        static_sizes = self.static_sizes.get_values()
+        static_strides = self.static_strides.get_values()
         verify_dynamic_index_list(
             static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
         )
@@ -690,11 +690,11 @@ class SubviewOp(IRDLOperation):
         result_type: Attribute,
     ):
         if not isinstance(static_offsets, DenseArrayBase):
-            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
+            static_offsets = DenseArrayBase.from_list(i64, static_offsets)
         if not isinstance(static_sizes, DenseArrayBase):
-            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
+            static_sizes = DenseArrayBase.from_list(i64, static_sizes)
         if not isinstance(static_strides, DenseArrayBase):
-            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
+            static_strides = DenseArrayBase.from_list(i64, static_strides)
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],
@@ -804,21 +804,21 @@ class SubviewOp(IRDLOperation):
             printer,
             SubviewOp.DYNAMIC_INDEX,
             self.offsets,
-            (cast(int, offset) for offset in self.static_offsets.get_values()),
+            self.static_offsets.get_values(),
         )
         printer.print_string(" ")
         print_dynamic_index_list(
             printer,
             SubviewOp.DYNAMIC_INDEX,
             self.sizes,
-            (cast(int, size) for size in self.static_sizes.get_values()),
+            self.static_sizes.get_values(),
         )
         printer.print_string(" ")
         print_dynamic_index_list(
             printer,
             SubviewOp.DYNAMIC_INDEX,
             self.strides,
-            (cast(int, stride) for stride in self.static_strides.get_values()),
+            self.static_strides.get_values(),
         )
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_string(" : ")
@@ -945,9 +945,9 @@ class ReinterpretCastOp(IRDLOperation):
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
 
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
 
     result = result_def(MemRefType)
 
@@ -965,11 +965,11 @@ class ReinterpretCastOp(IRDLOperation):
         result_type: Attribute,
     ):
         if not isinstance(static_offsets, DenseArrayBase):
-            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
+            static_offsets = DenseArrayBase.from_list(i64, static_offsets)
         if not isinstance(static_sizes, DenseArrayBase):
-            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
+            static_sizes = DenseArrayBase.from_list(i64, static_sizes)
         if not isinstance(static_strides, DenseArrayBase):
-            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
+            static_strides = DenseArrayBase.from_list(i64, static_strides)
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],
@@ -1020,21 +1020,21 @@ class ReinterpretCastOp(IRDLOperation):
             printer,
             ReinterpretCastOp.DYNAMIC_INDEX,
             self.offsets,
-            (cast(int, offset) for offset in self.static_offsets.get_values()),
+            self.static_offsets.get_values(),
         )
         printer.print_string(", sizes: ")
         print_dynamic_index_list(
             printer,
             ReinterpretCastOp.DYNAMIC_INDEX,
             self.sizes,
-            (cast(int, size) for size in self.static_sizes.get_values()),
+            self.static_sizes.get_values(),
         )
         printer.print_string(", strides: ")
         print_dynamic_index_list(
             printer,
             ReinterpretCastOp.DYNAMIC_INDEX,
             self.strides,
-            (cast(int, stride) for stride in self.static_strides.get_values()),
+            self.static_strides.get_values(),
         )
         printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
@@ -1105,9 +1105,9 @@ class ReinterpretCastOp(IRDLOperation):
         return op
 
     def verify_(self):
-        static_offsets = cast(tuple[int, ...], self.static_offsets.get_values())
-        static_sizes = cast(tuple[int, ...], self.static_sizes.get_values())
-        static_strides = cast(tuple[int, ...], self.static_strides.get_values())
+        static_offsets = self.static_offsets.get_values()
+        static_sizes = self.static_sizes.get_values()
+        static_strides = self.static_strides.get_values()
 
         verify_dynamic_index_list(
             static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
@@ -1131,7 +1131,7 @@ class ReinterpretCastOp(IRDLOperation):
         for dim, (actual, expected) in enumerate(
             zip(
                 self.result.type.get_shape(),
-                cast(tuple[int], self.static_sizes.get_values()),
+                self.static_sizes.get_values(),
                 strict=True,
             )
         ):

@@ -45,20 +45,23 @@ from xdsl.utils.test_value import create_ssa_value
 
 
 def test_stencilboundsattr_verify():
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException,
+        match=(
+            "Incoherent stencil bounds: lower and upper bounds must have the same"
+            " dimensionality."
+        ),
+    ):
         StencilBoundsAttr.new([IndexAttr.get(1), IndexAttr.get(2, 2)])
-    assert (
-        str(e.value)
-        == "Incoherent stencil bounds: lower and upper bounds must have the same"
-        " dimensionality."
-    )
-    with pytest.raises(VerifyException) as e:
+
+    with pytest.raises(
+        VerifyException,
+        match=(
+            "Incoherent stencil bounds: upper bound must be strictly greater than"
+            " lower bound."
+        ),
+    ):
         StencilBoundsAttr.new([IndexAttr.get(2, 2), IndexAttr.get(2, 2)])
-    assert (
-        str(e.value)
-        == "Incoherent stencil bounds: upper bound must be strictly greater than"
-        " lower bound."
-    )
 
 
 def test_stencil_return_single_float():
@@ -215,15 +218,17 @@ def test_create_index_attr_from_int_list(indices: list[int | IntAttr]):
 
 
 def test_create_index_attr_from_list_edge_case1():
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(
+        VerifyException, match="Expected 1 to 3 indexes for stencil.index, got 0."
+    ):
         IndexAttr.get()
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 def test_create_index_attr_from_list_edge_case2():
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(
+        VerifyException, match="Expected 1 to 3 indexes for stencil.index, got 4."
+    ):
         IndexAttr.get(*[1] * 4)
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 4."
 
 
 @pytest.mark.parametrize(
@@ -375,9 +380,10 @@ def test_stencil_fieldtype_constructor(
 def test_stencil_fieldtype_constructor_empty_list(
     attr: IntegerType, bounds: list[tuple[int, int]]
 ):
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(
+        VerifyException, match="Expected 1 to 3 indexes for stencil.index, got 0."
+    ):
         FieldType(bounds, attr)
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 def test_stencil_load():
@@ -466,9 +472,10 @@ def test_stencil_temptype_constructor(
 def test_stencil_temptype_constructor_empty_list(
     attr: IntegerType, dims: list[tuple[int, int]]
 ):
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(
+        VerifyException, match="Expected 1 to 3 indexes for stencil.index, got 0."
+    ):
         TempType(dims, attr)
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 @pytest.mark.parametrize(

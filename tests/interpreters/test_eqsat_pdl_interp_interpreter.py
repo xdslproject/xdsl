@@ -36,8 +36,8 @@ def test_populate_known_ops():
     assert eclass_op in interp_functions.eclass_union_find._index_by_value  # pyright: ignore[reportPrivateUsage]
 
 
-def test_run_getresult():
-    """Test that run_getresult handles EClass operations correctly."""
+def test_run_get_result():
+    """Test that run_get_result handles EClass operations correctly."""
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
 
@@ -62,8 +62,8 @@ def test_run_getresult():
     assert result == (eclass_op2.results[0],)
 
 
-def test_run_getresult_error_case():
-    """Test that run_getresult raises error when result is not used by EClass."""
+def test_run_get_result_error_case():
+    """Test that run_get_result raises error when result is not used by EClass."""
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
 
@@ -85,8 +85,8 @@ def test_run_getresult_error_case():
         )
 
 
-def test_run_getresults():
-    """Test that run_getresults handles EClass operations correctly."""
+def test_run_get_results():
+    """Test that run_get_results handles EClass operations correctly."""
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
 
@@ -111,8 +111,8 @@ def test_run_getresults():
     assert result == (expected_results,)
 
 
-def test_run_getresults_error_case():
-    """Test that run_getresults raises error when result is not used by EClass."""
+def test_run_get_results_error_case():
+    """Test that run_get_results raises error when result is not used by EClass."""
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
 
@@ -139,8 +139,8 @@ def test_run_getresults_error_case():
         )
 
 
-def test_run_getresult_none_case():
-    """Test that run_getresult returns None when result index doesn't exist."""
+def test_run_get_result_none_case():
+    """Test that run_get_result returns None when result index doesn't exist."""
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
 
@@ -155,8 +155,8 @@ def test_run_getresult_none_case():
     assert result == (None,)
 
 
-def test_run_getresults_valuetype_multi_results():
-    """Test that run_getresults returns None for ValueType with multiple results."""
+def test_run_get_results_valuetype_multi_results():
+    """Test that run_get_results returns None for ValueType with multiple results."""
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
 
@@ -176,8 +176,8 @@ def test_run_getresults_valuetype_multi_results():
     assert result == (None,)
 
 
-def test_run_getresults_valuetype_no_results():
-    """Test that run_getresults returns None for ValueType with no results."""
+def test_run_get_results_valuetype_no_results():
+    """Test that run_get_results returns None for ValueType with no results."""
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
 
@@ -197,8 +197,8 @@ def test_run_getresults_valuetype_no_results():
     assert result == (None,)
 
 
-def test_run_getdefiningop():
-    """Test that run_getdefiningop handles regular operations correctly."""
+def test_run_get_defining_op():
+    """Test that run_get_defining_op handles regular operations correctly."""
     interpreter = Interpreter(ModuleOp([]))
     interp_functions = EqsatPDLInterpFunctions(Context())
     interpreter.register_implementations(interp_functions)
@@ -220,8 +220,8 @@ def test_run_getdefiningop():
     assert len(interp_functions.backtrack_stack) == 0
 
 
-def test_run_getdefiningop_eclass_not_visited():
-    """Test that run_getdefiningop handles EClassOp when not visited."""
+def test_run_get_defining_op_eclass_not_visited():
+    """Test that run_get_defining_op handles EClassOp when not visited."""
     interpreter = Interpreter(ModuleOp([]))
     interp_functions = EqsatPDLInterpFunctions(Context())
     interpreter.register_implementations(interp_functions)
@@ -253,8 +253,8 @@ def test_run_getdefiningop_eclass_not_visited():
     assert result == (test_op,)  # Should return the operand at index 0
 
 
-def test_run_getdefiningop_eclass_visited():
-    """Test that run_getdefiningop handles EClassOp when visited."""
+def test_run_get_defining_op_eclass_visited():
+    """Test that run_get_defining_op handles EClassOp when visited."""
     interpreter = Interpreter(ModuleOp([]))
     interp_functions = EqsatPDLInterpFunctions(Context())
     interpreter.register_implementations(interp_functions)
@@ -292,8 +292,8 @@ def test_run_getdefiningop_eclass_visited():
     assert result == (test_op1,)  # Should return the operand at index 0
 
 
-def test_run_getdefiningop_eclass_error_multiple_gdo():
-    """Test that run_getdefiningop raises error for multiple get_defining_op in block."""
+def test_run_get_defining_op_eclass_error_multiple_gdo():
+    """Test that run_get_defining_op raises error for multiple get_defining_op in block."""
     interpreter = Interpreter(ModuleOp([]))
     interp_functions = EqsatPDLInterpFunctions(Context())
     interpreter.register_implementations(interp_functions)

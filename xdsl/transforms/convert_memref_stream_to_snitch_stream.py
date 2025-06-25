@@ -154,6 +154,7 @@ class StreamOpLowering(RewritePattern):
                         pattern.index_map.data, memref_type
                     )
                 ),
+                IntAttr(1),
             ).simplified()
             for pattern, memref_type in zip(op.patterns, operand_types, strict=True)
         )

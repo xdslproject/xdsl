@@ -110,7 +110,7 @@ class IntData(Data[int]):
 
     def print_parameter(self, printer: Printer):
         with printer.in_angle_brackets():
-            printer.print_string(str(self.data))
+            printer.print_int(self.data)
 
 
 @irdl_attr_definition
@@ -152,9 +152,8 @@ class IntListData(Data[tuple[int, ...]]):
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string("[")
-            printer.print_list(self.data, lambda x: printer.print_string(str(x)))
-            printer.print_string("]")
+            with printer.in_square_brackets():
+                printer.print_list(self.data, printer.print_int)
 
 
 def test_non_class_data():
@@ -288,7 +287,10 @@ def test_typed_attribute_parsing_printing():
             return (IntAttr(value), type)
 
         def print_parameters(self, printer: Printer) -> None:
-            printer.print(f"<{self.value.data}> : {self.type}")
+            with printer.in_angle_brackets():
+                printer.print_int(self.value.data)
+            printer.print_string(" : ")
+            printer.print_attribute(self.type)
 
         @classmethod
         def get_type_index(cls) -> int:
@@ -455,9 +457,8 @@ def test_annotated_constraint():
 
 def test_annotated_constraint_fail():
     """Test that the verifier of an annotated constraint can fail."""
-    with pytest.raises(Exception) as e:
+    with pytest.raises(VerifyException, match="Expected positive integer, got -42."):
         PositiveIntAttr(IntData(-42))
-    assert e.value.args[0] == "Expected positive integer, got -42."
 
 
 ################################################################################
@@ -494,9 +495,8 @@ def test_typevar_attribute_bool():
 
 def test_typevar_attribute_fail():
     """Test that the verifier of an generic attribute can fail."""
-    with pytest.raises(Exception) as e:
+    with pytest.raises(VerifyException, match="Unexpected attribute #test.str<foo>"):
         ParamWrapperAttr(StringData("foo"))  # pyright: ignore
-    assert e.value.args[0] == "Unexpected attribute #test.str<foo>"
 
 
 @irdl_attr_definition
@@ -523,9 +523,10 @@ def test_param_attr_constraint_fail():
     Test that the verifier of an attribute with
     a parametric constraint can fail.
     """
-    with pytest.raises(Exception) as e:
+    with pytest.raises(
+        VerifyException, match="#test.bool<True> should be of base attribute test.int"
+    ):
         ParamConstrAttr(ParamWrapperAttr(BoolData(True)))  # pyright: ignore
-    assert e.value.args[0] == "#test.bool<True> should be of base attribute test.int"
 
 
 _U = TypeVar("_U", bound=IntData)
@@ -558,9 +559,10 @@ def test_nested_generic_constraint_fail():
     Test that the verifier of an attribute with
     a parametric constraint can fail.
     """
-    with pytest.raises(Exception) as e:
+    with pytest.raises(
+        VerifyException, match="#test.bool<True> should be of base attribute test.int"
+    ):
         NestedParamWrapperAttr(ParamWrapperAttr(BoolData(True)))  # pyright: ignore
-    assert e.value.args[0] == "#test.bool<True> should be of base attribute test.int"
 
 
 @irdl_attr_definition
@@ -670,13 +672,15 @@ def test_data_with_generic_missing_generic_data_failure():
     Test error message when a generic data is used in constraints
     without implementing GenericData.
     """
-    with pytest.raises(Exception) as e:
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
+            "attribute constraint. Consider making it inherit from `GenericData` "
+            "instead of `Data`."
+        ),
+    ):
         irdl_attr_definition(MissingGenericDataDataWrapper)
-    assert e.value.args[0] == (
-        "Generic `Data` type 'test.missing_genericdata' cannot be converted to "
-        "an attribute constraint. Consider making it inherit from "
-        "`GenericData` instead of `Data`."
-    )
 
 
 @dataclass(frozen=True)
@@ -777,7 +781,7 @@ def test_generic_data_wrapper_verifier_failure():
             "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
         ),
     ):
-        ListDataWrapper(ListData((BoolData(True), ListData((BoolData(False),)))))
+        ListDataWrapper(ListData((BoolData(True), ListData((BoolData(False),)))))  # pyright: ignore[reportArgumentType]
 
 
 @irdl_attr_definition
