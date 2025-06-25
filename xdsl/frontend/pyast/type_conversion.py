@@ -83,7 +83,7 @@ class TypeRegistry:
             )
         if attribute in self._mapping.values():
             raise FrontendProgramException(
-                f"Cannot register multiple source types for IR type '{attribute.__name__}'"
+                f"Cannot register multiple source types for IR type '{attribute}'"
             )
         self._mapping[annotation] = attribute
 
