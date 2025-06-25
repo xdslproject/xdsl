@@ -200,12 +200,10 @@ class LLVMPointerType(
 class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.array"
 
-    size: ParameterDef[IntAttr | NoneAttr]
+    size: ParameterDef[IntAttr]
     type: ParameterDef[Attribute]
 
     def print_parameters(self, printer: Printer) -> None:
-        if isinstance(self.size, NoneAttr):
-            return
         with printer.in_angle_brackets():
             printer.print_int(self.size.data)
             printer.print_string(" x ")
@@ -215,16 +213,10 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(
         cls, parser: AttrParser
     ) -> tuple[IntAttr | NoneAttr, Attribute]:
-        if parser.parse_optional_characters("<") is None:
-            return (NoneAttr(), NoneAttr())
-        size = IntAttr(parser.parse_integer())
-        if parser.parse_optional_characters(">") is not None:
-            return (size, NoneAttr())
-        parser.parse_shape_delimiter()
-        type = parse_optional_llvm_type(parser)
-        if type is None:
-            parser.raise_error("Expected second parameter of llvm.array to be a type!")
-        parser.parse_characters(">", " to end llvm.array parameters")
+        with parser.in_angle_brackets():
+            size = IntAttr(parser.parse_integer())
+            parser.parse_shape_delimiter()
+            type = parse_llvm_type(parser)
         return (size, type)
 
     @staticmethod
