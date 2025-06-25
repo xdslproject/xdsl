@@ -4,6 +4,7 @@ from ctypes import c_float, c_int32, c_int64
 
 from xdsl.dialects import arith, builtin
 from xdsl.frontend.pyast.context import CodeContext
+from xdsl.frontend.pyast.exception import CodeGenerationException
 from xdsl.frontend.pyast.program import FrontendProgram
 
 
@@ -125,26 +126,26 @@ with CodeContext(p):
 p.compile(desymref=False)
 print(p.textual_format())
 
-# try:
-#     with CodeContext(p):
-#         # NO-CHECK: Binary operation 'FloorDiv' is not supported by type '_Float64' which does not overload '__floordiv__'.
-#         def test_missing_floordiv_overload_f64(a: float, b: float) -> float:
-#             # We expect the type error here, since the function doesn't exist on f64
-#             return a // b
+try:
+    with CodeContext(p):
+        # NO-CHECK: Binary operation 'FloorDiv' is not supported by type '_Float64' which does not overload '__floordiv__'.
+        def test_missing_floordiv_overload_f64(a: float, b: float) -> float:
+            # We expect the type error here, since the function doesn't exist on f64
+            return a // b
 
-#     p.compile(desymref=False)
-#     print(p.textual_format())
-# except CodeGenerationException as e:
-#     print(e.msg)
+    p.compile(desymref=False)
+    print(p.textual_format())
+except CodeGenerationException as e:
+    print(e.msg)
 
-# try:
-#     with CodeContext(p):
-#         # NO-CHECK: Comparison operation 'In' is not supported by type '_Float64' which does not overload '__contains__'.
-#         def test_missing_contains_overload_f64(a: float, b: float) -> float:
-#             # We expect the type error here, since the function doesn't exist on f64
-#             return a in b
+try:
+    with CodeContext(p):
+        # NO-CHECK: Comparison operation 'In' is not supported by type '_Float64' which does not overload '__contains__'.
+        def test_missing_contains_overload_f64(a: float, b: float) -> float:
+            # We expect the type error here, since the function doesn't exist on f64
+            return a in b
 
-#     p.compile(desymref=False)
-#     print(p.textual_format())
-# except CodeGenerationException as e:
-#     print(e.msg)
+    p.compile(desymref=False)
+    print(p.textual_format())
+except CodeGenerationException as e:
+    print(e.msg)
