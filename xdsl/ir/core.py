@@ -21,6 +21,7 @@ from typing import (
     Generic,
     NoReturn,
     Protocol,
+    TypeAlias,
     cast,
     get_args,
     get_origin,
@@ -720,20 +721,22 @@ class ErasedSSAValue(SSAValue):
 
 
 @dataclass(init=False)
-class IRNode(ABC):
+class _IRNode(ABC):
     def is_ancestor(self, op: IRNode) -> bool:
         "Returns true if the IRNode is an ancestor of another IRNode."
-        if op is self:
-            return True
-        if (parent := op.parent_node) is None:
-            return False
-        return self.is_ancestor(parent)
+        curr = op
+        while curr is not None:
+            if curr is self:
+                return True
+            curr = curr.parent_node
+        return False
 
     def get_toplevel_object(self) -> IRNode:
         """Get the operation, block, or region ancestor that has no parents."""
-        if (parent := self.parent_node) is None:
-            return self
-        return parent.get_toplevel_object()
+        current = self
+        while (parent := current.parent_node) is not None:
+            current = parent
+        return current  # pyright: ignore[reportReturnType]
 
     def is_structurally_equivalent(
         self,
@@ -833,7 +836,7 @@ class OpTraits(Iterable[OpTrait]):
 
 
 @dataclass(eq=False, unsafe_hash=False)
-class Operation(IRNode):
+class Operation(_IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
     name: ClassVar[str] = field(repr=False)
@@ -1485,7 +1488,7 @@ class BlockOps(Reversible[Operation], Iterable[Operation]):
 
 
 @dataclass(init=False, eq=False, unsafe_hash=False)
-class Block(IRNode, IRWithUses):
+class Block(_IRNode, IRWithUses):
     """A sequence of operations"""
 
     _args: tuple[BlockArgument, ...]
@@ -2061,7 +2064,7 @@ class RegionBlocks(Sequence[Block], Reversible[Block]):
 
 
 @dataclass(init=False, eq=False, unsafe_hash=False)
-class Region(IRNode):
+class Region(_IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
     class DEFAULT:
@@ -2530,3 +2533,6 @@ class Region(IRNode):
         ):
             return False
         return True
+
+
+IRNode: TypeAlias = Operation | Region | Block
