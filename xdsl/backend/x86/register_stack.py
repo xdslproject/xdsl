@@ -1,7 +1,7 @@
 from dataclasses import dataclass
+from typing import override
 
 from xdsl.backend.register_stack import RegisterStack
-from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.x86 import register
 
 
@@ -11,28 +11,11 @@ class X86RegisterStack(RegisterStack):
     Available x86-specific registers.
     """
 
-    DEFAULT_RESERVED_REGISTERS = {
-        register.RAX,
-        register.RDX,
-        register.RSP,
-    }
-
-    DEFAULT_AVAILABLE_REGISTERS = (
+    DEFAULT_ALLOCATABLE_REGISTERS = (
         *reversed(register.AVX2RegisterType.allocatable_registers()),
     )
 
-    def push(self, reg: RegisterType) -> None:
-        if (
-            isinstance(reg, register.GeneralRegisterType)
-            and reg not in self.DEFAULT_RESERVED_REGISTERS
-        ):
-            raise NotImplementedError("x86 general register type not implemented yet.")
-        super().push(reg)
-
     @classmethod
-    def default_reserved_registers(cls):
-        return cls.DEFAULT_RESERVED_REGISTERS
-
-    @classmethod
-    def default_available_registers(cls):
-        return cls.DEFAULT_AVAILABLE_REGISTERS
+    @override
+    def default_allocatable_registers(cls):
+        return cls.DEFAULT_ALLOCATABLE_REGISTERS

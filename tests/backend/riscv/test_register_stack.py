@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import IntAttr
 
 
 def test_default_reserved_registers():
-    register_stack = RiscvRegisterStack.default()
+    register_stack = RiscvRegisterStack.get()
     int_register_set = riscv.IntRegisterType.name
 
     for reg in (
@@ -37,7 +37,7 @@ def test_push_j_register():
 
 
 def test_push_register():
-    register_stack = RiscvRegisterStack()
+    register_stack = RiscvRegisterStack.get()
 
     register_stack.push(riscv.Registers.A0)
     assert register_stack.pop(riscv.IntRegisterType) == riscv.Registers.A0
@@ -47,7 +47,7 @@ def test_push_register():
 
 
 def test_reserve_register():
-    register_stack = RiscvRegisterStack()
+    register_stack = RiscvRegisterStack.get()
 
     j0 = riscv.IntRegisterType.infinite_register(0)
     assert isinstance(j0.index, IntAttr)
