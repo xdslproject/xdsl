@@ -1770,7 +1770,8 @@ Error while applying pattern: Expected operation to not be erroneous!
   | Error while applying pattern: Expected operation to not be erroneous!
   -----------------------------------------------------------------------
   "test.op"() : () -> ()
-}) : () -> ()"""
+}) : () -> ()
+"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
