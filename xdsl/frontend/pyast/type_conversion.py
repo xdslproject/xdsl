@@ -46,20 +46,20 @@ class FunctionRegistry:
     def resolve_operation(
         self,
         module_name: str,
-        function_name: str,
+        method_name: str,
         args: tuple[SSAValue[Attribute], ...] = tuple(),
         kwargs: dict[str, SSAValue[Attribute]] = dict(),
     ) -> Operation | None:
-        """Get a concrete IR operation from a function name and its arguments."""
-        # Start at the module, and walk till a function leaf is found
-        function = importlib.import_module(module_name)
-        for attr in function_name.split("."):
-            function = getattr(function, attr, None)
-        assert function is not None, (
-            f"'{module_name}.{function_name}' must exist to be passed as argument during registration"
+        """Get a concrete IR operation from a method name and its arguments."""
+        # Start at the module, and walk till a method leaf is found
+        method = importlib.import_module(module_name)
+        for attr in method_name.split("."):
+            method = getattr(method, attr, None)
+        assert method is not None, (
+            f"'{module_name}.{method_name}' must exist to be passed as argument during registration"
         )
-        assert callable(function), "Guaranteed by type signature of registration method"
-        if (operation_type := self.get_operation_type(function)) is not None:
+        assert callable(method), "Guaranteed by type signature of registration method"
+        if (operation_type := self.get_operation_type(method)) is not None:
             return operation_type(*args, **kwargs)
         return None
 

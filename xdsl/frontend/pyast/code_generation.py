@@ -169,7 +169,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             function_name = f"{source_type.__qualname__}.{method_name}"
             op = self.type_converter.function_registry.resolve_operation(
                 module_name=source_type.__module__,
-                function_name=function_name,
+                method_name=function_name,
                 args=(lhs, rhs),
             )
             if op is not None:
@@ -195,6 +195,62 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"is not supported by type '{frontend_type.__qualname__}' "
                 f"which does not overload '{overload_name}'.",
             )
+
+    def visit_Call(self, node: ast.Call):
+        # Resolve function
+        assert isinstance(node.func, ast.Name)
+        func_name = node.func.id
+        source_func = self.type_converter.globals.get(func_name, None)
+        if source_func is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Function '{func_name}' is not defined in scope.",
+            )
+        ir_op = self.type_converter.function_registry.get_operation_type(source_func)
+        if ir_op is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Function '{func_name}' is not registered.",
+            )
+
+        # Resolve arguments
+        assert self.symbol_table is not None
+        args: list[symref.FetchOp] = []
+        for arg in node.args:
+            if not isinstance(arg, ast.Name) or arg.id not in self.symbol_table:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Function arguments must be declared variables.",
+                )
+            args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
+            self.inserter.insert_op(arg_op)
+
+        # Resolve keyword arguments
+        kwargs: dict[str, symref.FetchOp] = {}
+        for keyword in node.keywords:
+            if (
+                not isinstance(keyword.value, ast.Name)
+                or keyword.value.id not in self.symbol_table
+            ):
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Function arguments must be declared variables.",
+                )
+            assert keyword.arg is not None
+            kwargs[keyword.arg] = symref.FetchOp(
+                keyword.value.id, self.symbol_table[keyword.value.id]
+            )
+            self.inserter.insert_op(kwargs[keyword.arg])
+
+        self.inserter.insert_op(ir_op(*args, **kwargs))
 
     def visit_Compare(self, node: ast.Compare):
         # Allow a single comparison only.
@@ -260,7 +316,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             function_name = f"{source_type.__qualname__}.{method_name}"
             op = self.type_converter.function_registry.resolve_operation(
                 module_name=source_type.__module__,
-                function_name=function_name,
+                method_name=function_name,
                 args=(lhs, rhs),
             )
             if op is not None:
