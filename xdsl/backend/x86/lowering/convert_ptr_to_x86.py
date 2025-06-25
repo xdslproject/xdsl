@@ -17,6 +17,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.hints import isa
 
 from .helpers import vector_type_to_register_type
 
@@ -84,11 +85,10 @@ class PtrLoadToX86(RewritePattern):
         cast_op, addr_x86 = UnrealizedConversionCastOp.cast_one(op.addr, x86_reg_type)
 
         value_type = op.res.type
-        if isinstance(value_type, VectorType):
-            value_type = cast(VectorType, value_type)
+        if isa(value_type, VectorType[FixedBitwidthType]):
             # Choose the x86 vector instruction according to the
             # abstract vector element size
-            match cast(FixedBitwidthType, value_type.get_element_type()).bitwidth:
+            match value_type.get_element_type().bitwidth:
                 case 16:
                     raise DiagnosticException(
                         "Half-precision floating point vector load is not implemented yet."
