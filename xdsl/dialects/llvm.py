@@ -149,7 +149,7 @@ class LLVMPointerType(
 ):
     name = "llvm.ptr"
 
-    type: ParameterDef[Attribute | NoneAttr]
+    type: ParameterDef[Attribute]
     addr_space: ParameterDef[IntAttr | NoneAttr]
 
     def print_parameters(self, printer: Printer) -> None:
@@ -167,7 +167,7 @@ class LLVMPointerType(
     @classmethod
     def parse_parameters(
         cls, parser: AttrParser
-    ) -> tuple[Attribute | NoneAttr, IntAttr | NoneAttr]:
+    ) -> tuple[Attribute, IntAttr | NoneAttr]:
         if parser.parse_optional_characters("<") is None:
             return (NoneAttr(), NoneAttr())
         type = parse_optional_llvm_type(parser)
@@ -210,9 +210,7 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
             printer.print_attribute(self.type)
 
     @classmethod
-    def parse_parameters(
-        cls, parser: AttrParser
-    ) -> tuple[IntAttr | NoneAttr, Attribute]:
+    def parse_parameters(cls, parser: AttrParser) -> tuple[IntAttr, Attribute]:
         with parser.in_angle_brackets():
             size = IntAttr(parser.parse_integer())
             parser.parse_shape_delimiter()
