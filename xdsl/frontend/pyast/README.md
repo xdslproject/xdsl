@@ -5,48 +5,28 @@ is an ongoing work, and that some things might not work as expected. Please
 reach out if you find any inconsistency between this document and the code, or
 if you spot bugs!
 
-The goal of the front-end framework is to allow users to:
-
-1. Write non-SSA xDSL/MLIR programs in Python (or Pythonic DSL).
-2. Mix-in real Python code (limited functionality is supported).
-3. Compile programs to xDSL (and subsequently to MLIR).
-
-In the future, we plan to add dynamic execution of source programs as well.
-
 ## Your first toy program
 
 To get started, first create a `FrontendProgram`, which you can compile or
 transform later. Each snippet of code is encapsulated in `CodeContext` block.
 Using a separate block for this allows to have a custom type checking for
-Pythonic DSL types.
+Pythonic DSL types. For each type and method used in the program, we must first
+specify a mapping between Python types and functions and MLIR attributes and
+operations, with the `register_type` and `register_function` methods
+respectively. Using this, we can write our first simple program:
 
 ```python
-# toy.py
-
-from xdsl.frontend.program import FrontendProgram
+from xdsl.dialects.arith import AddfOp, MulfOp
+from xdsl.dialects.builtin import f64
+from xdsl.frontend.pyast.program import FrontendProgram
 from xdsl.frontend.pyast.context import CodeContext
 
 p = FrontendProgram()
+p.register_type(float, f64)
+p.register_function(float.__add__, AddfOp)
+p.register_function(float.__mul__, MulfOp)
 with CodeContext(p):
-
-    # all your code will be here
-
-    pass
-```
-
-Now we are ready to write a first simple program.
-
-```python
-from xdsl.frontend.program import FrontendProgram
-from xdsl.frontend.pyast.context import CodeContext
-
-# Pythonic DSL imports
-from xdsl.frontend.pyast.dialects.builtin import i1, i32
-
-p = FrontendProgram()
-with CodeContext(p):
-
-    def foo(x: i32, y: i32, z: i32) -> i32:
+    def foo(x: float, y: float, z: float) -> float:
         return x + y * z
 ```
 
@@ -59,16 +39,43 @@ p.compile()
 print(p.textual_format())
 ```
 
-Finally, everything is set-up and so we can simply run `python toy.py`, which
+Finally, everything is set-up and so we can simply run the above code, which
 should give the following output:
 
 ```mlir
-builtin.module() {
-  func.func() ["sym_name" = "foo", "function_type" = !fun<[!i32, !i32, !i32], [!i32]>, "sym_visibility" = "private"] {
-  ^0(%0 : !i32, %1 : !i32, %2 : !i32):
-    %3 : !i32 = arith.muli(%1 : !i32, %2 : !i32)
-    %4 : !i32 = arith.addi(%0 : !i32, %3 : !i32)
-    func.return(%4 : !i32)
+builtin.module {
+  func.func @foo(%x : f64, %y : f64, %z : f64) -> f64 {
+    %0 = arith.mulf %y, %z : f64
+    %1 = arith.addf %x, %0 : f64
+    func.return %1 : f64
   }
 }
 ```
+
+## Future development
+
+1. Add support for more Python functionality by implementing code generation for
+   each AST node:
+   - [x] `Assert`
+   - [ ] `AnnAssign`/`Assign`
+   - [x] `BinOp`
+   - [ ] `Break`
+   - [x] `Compare`
+   - [ ] `For`
+   - [x] `FunctionDef`
+   - [x] `If`/`IfExp`
+   - [x] `Pass`
+   - [x] `Return`
+   - [ ] `While`
+   - [ ] ...
+2. Add support for more Python builtin data types, including:
+   - [ ] `None`
+   - [ ] `list`
+   - [ ] `tuple`
+   - [ ] `dict`
+   - [ ] `set`
+3. House-keeping tasks including:
+   - [ ] Loosen constraints enforced by `PythonCodeCheck`
+   - [ ] Refactor `CodeContext` to support decorating functions
+   - [ ] Add sensible defaults for registering types and functions
+         (`int`->`bigint` etc.)
