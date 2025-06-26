@@ -4,8 +4,8 @@ from ctypes import c_size_t
 
 from xdsl.dialects import bigint, builtin
 from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.exception import CodeGenerationException
 from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 
 p = FrontendProgram()
 p.register_type(bool, builtin.i1)

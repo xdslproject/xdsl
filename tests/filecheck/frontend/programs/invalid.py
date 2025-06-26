@@ -1,11 +1,11 @@
 # RUN: python %s | filecheck %s
 
 from xdsl.dialects import bigint
-from xdsl.frontend.pyast.block import block
-from xdsl.frontend.pyast.const import Const
 from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.frontend.pyast.utils.block import block
+from xdsl.frontend.pyast.utils.const import Const
+from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 
 p = FrontendProgram()
 p.register_type(int, bigint.bigint)

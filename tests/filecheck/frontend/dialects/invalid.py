@@ -5,11 +5,11 @@ from ctypes import c_int32, c_int64
 
 from xdsl.dialects import builtin
 from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.exception import (
+from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
     FrontendProgramException,
 )
-from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
 p.register_type(bool, builtin.i1)
