@@ -130,10 +130,10 @@ builtin.module {
     }) : () -> ()
     func.return
   }
-  func.func @omp_target(%dep : memref<6xf32>, %dev : index, %host : i32, %if : i1, %p1 : memref<10xi8>, %p2 : f64, %tlimit : i32) {
-    "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, in_reduction_syms = [@rsym1, @rsym2], private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend taskdependinout>]}> ({
+  func.func @omp_target(%dep : memref<6xf32>, %dev : i64, %host : i32, %if : i1, %p1 : memref<10xi8>, %p2 : f64, %tlimit : i32) {
+    "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, in_reduction_syms = [@rsym1, @rsym2], private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend (taskdependinout)>]}> ({
       "omp.terminator"() : () -> ()
-    }) : (memref<6xf32>, index, i32, i1, memref<10xi8>, f64, i32) -> ()
+    }) : (memref<6xf32>, i64, i32, i1, memref<10xi8>, f64, i32) -> ()
     func.return
   }
 }
@@ -268,10 +268,10 @@ builtin.module {
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    func.func @omp_target(%dep : memref<6xf32>, %dev : index, %host : i32, %if : i1, %p1 : memref<10xi8>, %p2 : f64, %tlimit : i32) {
-// CHECK-NEXT:      "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, in_reduction_syms = [@rsym1, @rsym2], private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend taskdependinout>]}> ({
+// CHECK-NEXT:    func.func @omp_target(%dep : memref<6xf32>, %dev : i64, %host : i32, %if : i1, %p1 : memref<10xi8>, %p2 : f64, %tlimit : i32) {
+// CHECK-NEXT:      "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, in_reduction_syms = [@rsym1, @rsym2], private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend (taskdependinout)>]}> ({
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
-// CHECK-NEXT:      }) : (memref<6xf32>, index, i32, i1, memref<10xi8>, f64, i32) -> ()
+// CHECK-NEXT:      }) : (memref<6xf32>, i64, i32, i1, memref<10xi8>, f64, i32) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
