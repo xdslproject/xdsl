@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import override
+
+from typing_extensions import override
 
 from xdsl.backend.register_stack import RegisterStack
 from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType
