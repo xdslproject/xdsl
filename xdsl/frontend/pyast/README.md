@@ -18,8 +18,8 @@ respectively. Using this, we can write our first simple program:
 ```python
 from xdsl.dialects.arith import AddfOp, MulfOp
 from xdsl.dialects.builtin import f64
-from xdsl.frontend.pyast.program import FrontendProgram
 from xdsl.frontend.pyast.context import CodeContext
+from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
 p.register_type(float, f64)
