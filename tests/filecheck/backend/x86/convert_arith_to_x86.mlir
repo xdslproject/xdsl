@@ -50,3 +50,17 @@
 %i0 = "test.op"(): () -> i128
 %i1 = "test.op"(): () -> i128
 %i2 = arith.addi %i0,%i1: i128
+
+// -----
+
+// CHECK: Lowering of arith.constant is only implemented for integers
+%c = arith.constant 1.0: f32
+
+// -----
+
+%c = arith.constant 1: i32
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %c = x86.di.mov 1 : () -> !x86.reg
+// CHECK-NEXT:   %c_1 = builtin.unrealized_conversion_cast %c : !x86.reg to i32
+// CHECK-NEXT: }
