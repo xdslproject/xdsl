@@ -218,7 +218,7 @@ try:
         def foo():  # pyright: ignore[reportRedeclaration]
             @block
             def bb0():
-                # CHECK-NEXT: Constant 'e' is already defined and cannot be assigned to.
+                # CHECK-NEXT: Constant 'd' is already defined and cannot be assigned to.
                 d = 2  # pyright: ignore[reportUnusedVariable]
                 return
 
