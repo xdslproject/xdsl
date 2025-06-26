@@ -61,7 +61,6 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     RangeOf,
-    TypeVarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -168,18 +167,13 @@ class ArrayAttr(
         with printer.in_square_brackets():
             printer.print_list(self.data, printer.print_attribute)
 
-    @classmethod
+    @staticmethod
     @override
-    def generic_constraint(cls) -> AttrConstraint:
-        return ArrayOfConstraint(RangeOf(TypeVarConstraint(AttributeCovT, AnyAttr())))
-
-    @classmethod
     def constr(
-        cls,
-        base_constraint: IRDLGenericAttrConstraint[AttributeCovT]
-        | GenericRangeConstraint[AttributeCovT],
-    ) -> GenericAttrConstraint[ArrayAttr[AttributeCovT]]:
-        return ArrayOfConstraint(base_constraint)
+        constr: IRDLGenericAttrConstraint[AttributeInvT]
+        | GenericRangeConstraint[AttributeInvT],
+    ) -> ArrayOfConstraint[AttributeInvT]:
+        return ArrayOfConstraint(constr)
 
     def __len__(self):
         return len(self.data)

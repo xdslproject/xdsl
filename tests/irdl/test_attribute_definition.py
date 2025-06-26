@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
+    StringAttr,
     i32,
 )
 from xdsl.ir import (
@@ -731,10 +732,10 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
             printer.print_list(self.data, printer.print_attribute)
             printer.print_string("]")
 
-    @classmethod
+    @staticmethod
     @override
-    def generic_constraint(cls) -> AttrConstraint:
-        return DataListAttr(TypeVarConstraint(AttributeInvT, AnyAttr()))
+    def constr(constr: AttrConstraint) -> DataListAttr:
+        return DataListAttr(constr)
 
     @staticmethod
     def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
@@ -742,6 +743,8 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
 
 
 AnyListData: TypeAlias = ListData[Attribute]
+
+bla = ListData[StringAttr].constr(base(IntAttr))
 
 
 class Test_generic_data_verifier:
