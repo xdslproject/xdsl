@@ -128,7 +128,7 @@ print(p.textual_format())
 
 try:
     with CodeContext(p):
-        # NO-CHECK: Binary operation 'FloorDiv' is not supported by type '_Float64' which does not overload '__floordiv__'.
+        # CHECK: Binary operation 'FloorDiv' is not supported by type '_Float64' which does not overload '__floordiv__'.
         def test_missing_floordiv_overload_f64(a: float, b: float) -> float:
             # We expect the type error here, since the function doesn't exist on f64
             return a // b
@@ -140,7 +140,7 @@ except CodeGenerationException as e:
 
 try:
     with CodeContext(p):
-        # NO-CHECK: Comparison operation 'In' is not supported by type '_Float64' which does not overload '__contains__'.
+        # CHECK: Comparison operation 'In' is not supported by type '_Float64' which does not overload '__contains__'.
         def test_missing_contains_overload_f64(a: float, b: float) -> float:
             # We expect the type error here, since the function doesn't exist on f64
             return a in b
