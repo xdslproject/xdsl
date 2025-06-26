@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, Generic, TypeAlias, cast
+from typing import Annotated, Generic, TypeAlias
 
 import pytest
 from typing_extensions import TypeVar, override
@@ -22,7 +22,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
-    StringAttr,
     i32,
 )
 from xdsl.ir import (
@@ -60,6 +59,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
+from xdsl.utils.hints import isa
 
 
 def test_wrong_attribute_type():
@@ -724,8 +724,6 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
 
 AnyListData: TypeAlias = ListData[Attribute]
 
-bla = ListData[StringAttr].constr(base(IntAttr))
-
 
 @dataclass(frozen=True)
 class DataListAttr(GenericAttrConstraint[ListData[AttributeInvT]]):
@@ -741,7 +739,10 @@ class DataListAttr(GenericAttrConstraint[ListData[AttributeInvT]]):
         attr: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        attr = cast(ListData[Attribute], attr)
+        if not isa(attr, ListData):
+            raise VerifyException(
+                f"Expected {attr} to be instance of {ListData.__name__}"
+            )
         for e in attr.data:
             self.elem_constr.verify(e, constraint_context)
 
