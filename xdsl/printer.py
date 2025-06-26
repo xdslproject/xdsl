@@ -7,22 +7,22 @@ from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, cast
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     AnyFloat,
     BuiltinAttribute,
-    ComplexElementCovT,
     ComplexType,
     Float16Type,
     Float32Type,
     Float64Type,
-    FloatAttr,
     FunctionType,
+    IndexType,
     IntegerType,
     UnitAttr,
     UnregisteredOp,
+    i1,
 )
 from xdsl.ir import (
     Attribute,
@@ -85,6 +85,7 @@ class Printer(BasePrinter):
     def block_names(self):
         return self._block_names[-1]
 
+    @deprecated("Please use type-specific print methods")
     def print(self, *argv: Any) -> None:
         for arg in argv:
             if isinstance(arg, str):
@@ -307,41 +308,33 @@ class Printer(BasePrinter):
                     self.print_string(chr(byte))
         self.print_string('"')
 
-    def print_float_attr(self, attribute: FloatAttr):
-        self.print_float(attribute.value.data, attribute.type)
-
     def print_complex_float(
-        self, value: tuple[float, float], type: ComplexType[ComplexElementCovT]
+        self, value: tuple[float, float], type: ComplexType[AnyFloat]
     ):
-        assert isinstance(type.element_type, AnyFloat)
-        real, imag = value[0], value[1]
-        self.print_string("(")
-        self.print_float(real, type.element_type)
-        self.print_string(",")
-        self.print_float(imag, type.element_type)
-        self.print_string(")")
+        real, imag = value
+        with self.in_parens():
+            self.print_float(real, type.element_type)
+            self.print_string(",")
+            self.print_float(imag, type.element_type)
 
-    def print_complex_int(
-        self, value: tuple[int, int], type: ComplexType[ComplexElementCovT]
-    ):
-        assert isinstance(elem_ty := type.element_type, IntegerType)
-        real, imag = value[0], value[1]
-        if elem_ty.width.data == 1:
-            real = "true" if real else "false"
-            imag = "true" if imag else "false"
-        self.print_string(f"({real},{imag})")
+    def print_complex_int(self, value: tuple[int, int], type: ComplexType[IntegerType]):
+        real, imag = value
+        with self.in_parens():
+            self.print_int(real, type.element_type)
+            self.print_string(",")
+            self.print_int(imag, type.element_type)
 
     def print_complex(
         self,
         value: tuple[float, float] | tuple[int, int],
-        type: ComplexType[ComplexElementCovT],
+        type: ComplexType[IntegerType | AnyFloat],
     ):
         if isinstance(type.element_type, IntegerType):
             assert isa(value, tuple[int, int])
-            self.print_complex_int(value, type)
+            self.print_complex_int(value, cast(ComplexType[IntegerType], type))
         else:
             assert isa(value, tuple[float, float])
-            self.print_complex_float(value, type)
+            self.print_complex_float(value, cast(ComplexType[AnyFloat], type))
 
     def print_float(self, value: float, type: AnyFloat):
         if math.isnan(value) or math.isinf(value):
@@ -383,6 +376,19 @@ class Printer(BasePrinter):
                 else:
                     # default to full python precision
                     self.print_string(f"{repr(value)}")
+
+    def print_int(self, value: int, type: IntegerType | IndexType | None = None):
+        """
+        Prints the numeric value of an integer, except when the (optional) specified type
+        is `i1`, in which case a boolean "true" or "false" is printed instead.
+        """
+        if type == i1:
+            if value:
+                self.print_string("true")
+            else:
+                self.print_string("false")
+        else:
+            self.print_string(f"{value:d}")
 
     def print_attribute(self, attribute: Attribute) -> None:
         # Print builtin attributes

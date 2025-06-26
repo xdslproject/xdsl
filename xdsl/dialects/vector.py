@@ -336,7 +336,7 @@ class ExtractOp(IRDLOperation):
         """
         static_positions = self.static_position.get_values()
         return get_dynamic_index_list(
-            cast(tuple[int, ...], static_positions),
+            static_positions,
             self.dynamic_position,
             ExtractOp.DYNAMIC_INDEX,
         )
@@ -344,7 +344,7 @@ class ExtractOp(IRDLOperation):
     def verify_(self):
         # Check that static position attribute and dynamic position operands
         # are compatible.
-        static_values = cast(tuple[int, ...], self.static_position.get_values())
+        static_values = self.static_position.get_values()
         verify_dynamic_index_list(
             static_values,
             self.dynamic_position,
@@ -428,7 +428,12 @@ class ExtractOp(IRDLOperation):
         printer.print_string(" ")
         printer.print_ssa_value(self.vector)
         printer.print_string("[")
-        printer.print_list(self.get_mixed_position(), printer.print)
+        printer.print_list(
+            self.get_mixed_position(),
+            lambda x: printer.print_int(x)
+            if isinstance(x, int)
+            else printer.print_ssa_value(x),
+        )
         printer.print_string("] : ")
         printer.print_attribute(self.result.type)
         printer.print_string(" from ")
@@ -503,7 +508,7 @@ class InsertOp(IRDLOperation):
         """
         static_positions = self.static_position.get_values()
         return get_dynamic_index_list(
-            cast(tuple[int, ...], static_positions),
+            static_positions,
             self.dynamic_position,
             InsertOp.DYNAMIC_INDEX,
         )
@@ -511,7 +516,7 @@ class InsertOp(IRDLOperation):
     def verify_(self):
         # Check that static position attribute and dynamic position operands
         # are compatible.
-        static_values = cast(tuple[int, ...], self.static_position.get_values())
+        static_values = self.static_position.get_values()
         verify_dynamic_index_list(
             static_values,
             self.dynamic_position,
@@ -604,7 +609,12 @@ class InsertOp(IRDLOperation):
         printer.print_string(", ")
         printer.print_ssa_value(self.dest)
         printer.print_string("[")
-        printer.print_list(self.get_mixed_position(), printer.print)
+        printer.print_list(
+            self.get_mixed_position(),
+            lambda x: printer.print_int(x)
+            if isinstance(x, int)
+            else printer.print_ssa_value(x),
+        )
         printer.print_string("] : ")
         printer.print_attribute(self.source.type)
         printer.print_string(" into ")

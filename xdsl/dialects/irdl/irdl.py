@@ -355,7 +355,7 @@ def _print_argument_with_var(
     printer.print_string(": ")
     variadicity = data[1].data
     if variadicity != VariadicityEnum.SINGLE:
-        printer.print_string(str(variadicity))
+        printer.print_string(variadicity)
         printer.print_string(" ")
     printer.print_ssa_value(data[2])
 
@@ -774,7 +774,7 @@ class AllOfOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         with printer.in_parens():
-            printer.print_list(self.args, printer.print)
+            printer.print_list(self.args, printer.print_ssa_value)
 
 
 IRDL = Dialect(

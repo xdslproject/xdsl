@@ -166,6 +166,15 @@ class IntRegisterType(RISCVRegisterType):
     def infinite_register_prefix(cls):
         return "j_"
 
+    # This class variable is created and exclusively accessed in `abi_name_by_index`.
+    # _ALLOCATABLE_REGISTERS: ClassVar[tuple[IntRegisterType, ...]]
+
+    @classmethod
+    def allocatable_registers(cls):
+        if not hasattr(cls, "_ALLOCATABLE_REGISTERS"):
+            cls._ALLOCATABLE_REGISTERS = (*Registers.T, *Registers.A)
+        return cls._ALLOCATABLE_REGISTERS
+
 
 _RV32F_ABI_INDEX_BY_NAME = {
     "ft0": 0,
@@ -224,6 +233,15 @@ class FloatRegisterType(RISCVRegisterType):
     @classmethod
     def infinite_register_prefix(cls):
         return "fj_"
+
+    # This class variable is created and exclusively accessed in `abi_name_by_index`.
+    # _ALLOCATABLE_REGISTERS: ClassVar[tuple[FloatRegisterType, ...]]
+
+    @classmethod
+    def allocatable_registers(cls):
+        if not hasattr(cls, "_ALLOCATABLE_REGISTERS"):
+            cls._ALLOCATABLE_REGISTERS = (*Registers.FT, *Registers.FA)
+        return cls._ALLOCATABLE_REGISTERS
 
 
 RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
@@ -1212,7 +1230,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print_string(", ")
-        printer.print_string(str(self.csr.value.data))
+        self.csr.print_without_type(printer)
         if self.writeonly is not None:
             printer.print_string(', "w"')
         return {"csr", "writeonly"}
@@ -1285,7 +1303,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print_string(", ")
-        printer.print_string(str(self.csr.value.data))
+        self.csr.print_without_type(printer)
         if self.readonly is not None:
             printer.print_string(', "r"')
         return {"csr", "readonly"}
@@ -1357,7 +1375,7 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print_string(" ")
-        printer.print_string(str(self.csr.value.data))
+        self.csr.print_without_type(printer)
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         if self.writeonly is not None:
@@ -1417,7 +1435,7 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print_string(" ")
-        printer.print_string(str(self.csr.value.data))
+        self.csr.print_without_type(printer)
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"csr", "immediate"}
@@ -4778,7 +4796,7 @@ def parse_immediate_value(
 def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
     match immediate:
         case IntegerAttr():
-            printer.print_string(str(immediate.value.data))
+            immediate.print_without_type(printer)
         case LabelAttr():
             printer.print_string_literal(immediate.data)
 

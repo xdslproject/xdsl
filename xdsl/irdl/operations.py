@@ -38,11 +38,7 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
-from xdsl.utils.hints import (
-    PropertyType,
-    get_type_var_mapping,
-    isa,
-)
+from xdsl.utils.hints import PropertyType, get_type_var_mapping
 
 from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
@@ -1356,18 +1352,13 @@ def get_variadic_sizes_from_attr(
             f"Expected {size_attribute_name} {container_name} in {op.name} operation."
         )
     attribute = container[size_attribute_name]
-    if not isa(attribute, DenseArrayBase):
+    if not DenseArrayBase.constr(i32).verifies(attribute):
         raise VerifyException(
             f"{size_attribute_name} {container_name} is expected "
-            "to be a DenseArrayBase."
+            "to be a DenseArrayBase of i32."
         )
 
-    if attribute.elt_type != i32:
-        raise VerifyException(
-            f"{size_attribute_name} {container_name} is expected to "
-            "be a DenseArrayBase of i32"
-        )
-    def_sizes = cast(Sequence[int], attribute.get_values())
+    def_sizes = attribute.get_values()
 
     if len(def_sizes) != len(defs):
         raise VerifyException(
@@ -1532,11 +1523,9 @@ def irdl_op_verify_regions(
             try:
                 region_def.entry_args.verify(entry_args_types, constraint_context)
             except VerifyException as e:
-                op.emit_error(
-                    f"region #{i} entry arguments do not verify:\n{e}",
-                    type(e),
-                    e,
-                )
+                raise VerifyException(
+                    f"region #{i} entry arguments do not verify:\n{e}"
+                ) from e
 
 
 def irdl_op_verify_arg_list(
@@ -1568,12 +1557,10 @@ def irdl_op_verify_arg_list(
                 pos = f"{arg_idx}"
             else:
                 pos = f"{arg_idx} to {arg_idx + len(arg) - 1}"
-            op.emit_error(
+            raise VerifyException(
                 f"{get_construct_name(construct)} at position {pos} does not "
-                f"verify:\n{e}",
-                type(e),
-                e,
-            )
+                f"verify:\n{e}"
+            ) from e
 
     for def_idx, (_, arg_def) in enumerate(args_defs):
         if isinstance(arg_def, VariadicDef):

@@ -25,8 +25,8 @@
 }) : () -> ()
 
 %input = "test.op"() : () -> !transform.any_value
-// CHECK: %tiled_op, %loop_op, %remainder = "transform.structured.tile_using_for"(%input) <{static_sizes = array<i32: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)
-%tiled_op, %loop_op, %remainder = "transform.structured.tile_using_for"(%input) <{static_sizes = array<i32: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+// CHECK: %tiled_op, %loop_op, %remainder = "transform.structured.tile_using_for"(%input) <{static_sizes = array<i64: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+%tiled_op, %loop_op, %remainder = "transform.structured.tile_using_for"(%input) <{static_sizes = array<i64: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 
 %producer = "test.op"() : () -> !transform.any_op
 // CHECK: %consumers = "transform.get_consumers_of_result"(%producer) <{result_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op
@@ -83,8 +83,8 @@
 %split1, %split2 = "transform.split_handle"(%handle_to_split) <{pass_through_empty_handle = true, fail_on_payload_too_small = true, overflow_result = 1 : i64}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
 
 %to_tile = "test.op"() : () -> !transform.any_value
-// CHECK: %tiled, %loop = "transform.structured.tile_using_for"(%to_tile) <{static_sizes = array<i32: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)
-%tiled, %loop = "transform.structured.tile_using_for"(%to_tile) <{static_sizes = array<i32: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)
+// CHECK: %tiled, %loop = "transform.structured.tile_using_for"(%to_tile) <{static_sizes = array<i64: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)
+%tiled, %loop = "transform.structured.tile_using_for"(%to_tile) <{static_sizes = array<i64: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)
 
 %to_match = "test.op"() : () -> !transform.any_op
 // CHECK: %matched = "transform.structured.match"(%to_match) <{ops = [], op_attrs = {}}> : (!transform.any_op) -> !transform.any_op

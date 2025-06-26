@@ -731,7 +731,7 @@ class TransposeOp(IRDLOperation):
 
     operand = operand_def(TensorType[ElementType])
     result = result_def(TensorType[ElementType])
-    permutation = attr_def(DenseArrayBase)
+    permutation = attr_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self, operand: SSAValue, permutation: DenseArrayBase, result_type: Attribute
@@ -743,7 +743,7 @@ class TransposeOp(IRDLOperation):
         )
 
     def get_permutation(self) -> tuple[int, ...]:
-        return cast(tuple[int, ...], self.permutation.get_values())
+        return self.permutation.get_values()
 
     def verify_(self) -> None:
         # Operand and result types are checked before the custom `verify_`

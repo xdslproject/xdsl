@@ -3,7 +3,7 @@ name = "xdsl"
 description = "xDSL"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT License" }
+license = { text = "Apache License v2.0 with LLVM Exceptions" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
@@ -23,7 +23,7 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.2",
     "lit<19.0.0",
-    "marimo==0.14.0",
+    "marimo==0.14.7",
     "pre-commit>=4.0.0,<5.0.0",
     "ruff==0.12.0",
     "nbconvert>=7.7.2,<8.0.0",

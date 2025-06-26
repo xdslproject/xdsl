@@ -110,7 +110,7 @@ class IntData(Data[int]):
 
     def print_parameter(self, printer: Printer):
         with printer.in_angle_brackets():
-            printer.print_string(str(self.data))
+            printer.print_int(self.data)
 
 
 @irdl_attr_definition
@@ -152,9 +152,8 @@ class IntListData(Data[tuple[int, ...]]):
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string("[")
-            printer.print_list(self.data, lambda x: printer.print_string(str(x)))
-            printer.print_string("]")
+            with printer.in_square_brackets():
+                printer.print_list(self.data, printer.print_int)
 
 
 def test_non_class_data():
@@ -288,7 +287,10 @@ def test_typed_attribute_parsing_printing():
             return (IntAttr(value), type)
 
         def print_parameters(self, printer: Printer) -> None:
-            printer.print(f"<{self.value.data}> : {self.type}")
+            with printer.in_angle_brackets():
+                printer.print_int(self.value.data)
+            printer.print_string(" : ")
+            printer.print_attribute(self.type)
 
         @classmethod
         def get_type_index(cls) -> int:

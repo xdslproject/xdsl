@@ -1,6 +1,6 @@
 // RUN: true
 
-// Support file for apply_eqsat_pdl_interp_file.mlir
+// Support file for apply_eqsat_pdl_interp_extra_file.mlir
 
 pdl_interp.func @matcher(%arg0: !pdl.operation) {
   pdl_interp.switch_operation_name of %arg0 to ["arith.muli", "arith.subi"](^bb2, ^bb17) -> ^bb1

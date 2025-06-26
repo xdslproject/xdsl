@@ -3,7 +3,7 @@
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = 0 : index}> : () -> index
   "scf.index_switch"(%0) <{cases = array<i32: 0>}> ({
-  // CHECK: case values should have type i64
+  // CHECK: Expected attribute i64 but got i32
     "scf.yield"() : () -> ()
   }, {
     "scf.yield"() : () -> ()

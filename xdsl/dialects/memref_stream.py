@@ -223,9 +223,12 @@ class StridePattern(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string("ub = [")
-            printer.print_list(self.ub, lambda attr: printer.print(attr.value.data))
-            printer.print_string(f"], index_map = {self.index_map.data}")
+            printer.print_string("ub = ")
+            with printer.in_square_brackets():
+                printer.print_list(
+                    self.ub, lambda attr: attr.print_without_type(printer)
+                )
+            printer.print_string(f", index_map = {self.index_map.data}")
 
     def rank(self):
         return len(self.ub)
@@ -372,7 +375,7 @@ class StreamingRegionOp(IRDLOperation):
             printer.print_string(")")
 
         if self.attributes:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(self.attributes)
 
         printer.print_string(" ")
@@ -661,7 +664,7 @@ class GenericOp(IRDLOperation):
             del extra_attrs["library_call"]
 
         if extra_attrs:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(extra_attrs)
 
         printer.print_string(" ")
