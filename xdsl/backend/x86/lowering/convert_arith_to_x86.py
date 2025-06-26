@@ -4,6 +4,7 @@ from xdsl.backend.x86.lowering.helpers import cast_operands_to_regs
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, x86
 from xdsl.dialects.builtin import (
+    IntegerAttr,
     UnrealizedConversionCastOp,
 )
 from xdsl.passes import ModulePass
@@ -15,6 +16,24 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.hints import isa
+
+
+@dataclass
+class ArithConstantToX86(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter):
+        if not isa(op.value, IntegerAttr):
+            raise DiagnosticException(
+                "Lowering of arith.constant is only implemented for integers"
+            )
+        mov_op = x86.DI_MovOp(
+            immediate=op.value.value.data, destination=x86.register.UNALLOCATED_GENERAL
+        )
+        cast_op, _ = UnrealizedConversionCastOp.cast_one(
+            mov_op.destination, op.result.type
+        )
+        rewriter.replace_matched_op([mov_op, cast_op])
 
 
 @dataclass
@@ -65,6 +84,7 @@ class ConvertArithToX86Pass(ModulePass):
                 [
                     ArithAddiToX86(),
                     ArithMuliToX86(),
+                    ArithConstantToX86(),
                 ]
             ),
             apply_recursively=False,
