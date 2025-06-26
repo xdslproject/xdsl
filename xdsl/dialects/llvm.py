@@ -1704,7 +1704,9 @@ class CallOp(IRDLOperation):
             SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
         ]
         if variadic_args > 0:
-            var_callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
+            var_callee_type = LLVMFunctionType(
+                input_types, return_type, variadic_args > 0
+            )
         else:
             var_callee_type = None
         super().__init__(
