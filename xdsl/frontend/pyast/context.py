@@ -1,3 +1,5 @@
+"""Support ingesting Python source code with a context manager sugar."""
+
 import ast
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
@@ -23,6 +25,7 @@ class CodeContext(AbstractContextManager[Any]):
     """
 
     def __enter__(self) -> None:
+        """Get the AST tree for its context body, and any global state."""
         # First, get the Python AST from the code.
         frame = _getframe(1)
         self.program.file = frame.f_code.co_filename
@@ -44,8 +47,12 @@ class CodeContext(AbstractContextManager[Any]):
                 self.program.stmts = node.body
 
     def __exit__(self, *args: object):
-        # Having proccessed all the code in the context, check it is well-formed
-        # and can be compiled/executed. Additionally, record it for subsequent code generation.
+        """Check the context body is well-formed and extract its functions.
+
+        Having proccessed all the code in the context, check it is well-formed #
+        and can be compiled/executed. Additionally, record it for subsequent
+        code generation.
+        """
         assert self.program.stmts is not None
         self.program.functions_and_blocks = PythonCodeCheck.run(
             self.program.stmts, self.program.file

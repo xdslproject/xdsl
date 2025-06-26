@@ -1,3 +1,5 @@
+"""Utility to support mapping between Python source objects, AST nodes, and xDSL IR."""
+
 import importlib
 from collections.abc import Callable
 from dataclasses import dataclass, field

@@ -1,3 +1,5 @@
+"""Utility to insert operations during code generation walking the AST."""
+
 from dataclasses import dataclass, field
 
 from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
@@ -24,9 +26,7 @@ class OpInserter:
     """
 
     def get_operand(self) -> SSAValue:
-        """
-        Pops the last value from the operand stack and returns it.
-        """
+        """Pops the last value from the operand stack and returns it."""
         if len(self.stack) == 0:
             raise FrontendProgramException(
                 "Trying to get an operand from an empty stack."
