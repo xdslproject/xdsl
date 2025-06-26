@@ -85,12 +85,24 @@ builtin.module {
 
 ## Future development
 
-1. Add support for more Python functionality by implementing code generation for
+1. Widen support for Python control flow structures
+   - [ ] Correctly handle scope, rather than just individually ingesting single
+         functions
+   - [ ] Extend `Call` AST to support invoking `func.FuncOp`s as well as
+         functions registered to map to operations
+   - [ ] Loosen constraints enforced by `PythonCodeCheck` to leverage added
+         functionality
+2. Add sensible defaults for registering types and functions
+   - [ ] `int` -> `bigint.bigint`
+   - [ ] `float` -> `builtin.f64`
+   - [ ] `bool` -> `builtin.i1`
+3. Add support for more Python functionality by implementing code generation for
    each AST node:
    - [x] `Assert`
    - [ ] `AnnAssign`/`Assign`
    - [x] `BinOp`
    - [ ] `Break`
+   - [x] `Call`
    - [x] `Compare`
    - [ ] `For`
    - [x] `FunctionDef`
@@ -99,14 +111,11 @@ builtin.module {
    - [x] `Return`
    - [ ] `While`
    - [ ] ...
-2. Add support for more Python builtin data types, including:
+4. Refactor `CodeContext` to support decorating functions
+5. Add support for more Python builtin data types, including:
    - [ ] `None`
+   - [ ] `string`
    - [ ] `list`
    - [ ] `tuple`
    - [ ] `dict`
    - [ ] `set`
-3. House-keeping tasks including:
-   - [ ] Loosen constraints enforced by `PythonCodeCheck`
-   - [ ] Refactor `CodeContext` to support decorating functions
-   - [ ] Add sensible defaults for registering types and functions
-         (`int`->`bigint` etc.)
