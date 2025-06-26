@@ -27,6 +27,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     BitEnumAttribute,
     BuiltinAttribute,
@@ -45,6 +46,7 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintContext,
     ConstraintVar,
+    GenericAttrConstraint,
     GenericData,
     MessageConstraint,
     ParamAttrConstraint,
@@ -694,30 +696,6 @@ def test_data_with_generic_missing_generic_data_failure():
         irdl_attr_definition(MissingGenericDataDataWrapper)
 
 
-@dataclass(frozen=True)
-class DataListAttr(AttrConstraint):
-    """
-    A constraint that enforces that the elements of a ListData all respect
-    a constraint.
-    """
-
-    elem_constr: AttrConstraint
-
-    def verify(
-        self,
-        attr: Attribute,
-        constraint_context: ConstraintContext,
-    ) -> None:
-        attr = cast(ListData[Attribute], attr)
-        for e in attr.data:
-            self.elem_constr.verify(e, constraint_context)
-
-    def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> DataListAttr:
-        return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
-
-
 @irdl_attr_definition
 class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
     name = "test.list"
@@ -734,7 +712,9 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
 
     @staticmethod
     @override
-    def constr(constr: AttrConstraint) -> DataListAttr:
+    def constr(
+        constr: GenericAttrConstraint[AttributeCovT],
+    ) -> DataListAttr[AttributeCovT]:
         return DataListAttr(constr)
 
     @staticmethod
@@ -745,6 +725,30 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
 AnyListData: TypeAlias = ListData[Attribute]
 
 bla = ListData[StringAttr].constr(base(IntAttr))
+
+
+@dataclass(frozen=True)
+class DataListAttr(GenericAttrConstraint[ListData[AttributeInvT]]):
+    """
+    A constraint that enforces that the elements of a ListData all respect
+    a constraint.
+    """
+
+    elem_constr: GenericAttrConstraint[AttributeInvT]
+
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        attr = cast(ListData[Attribute], attr)
+        for e in attr.data:
+            self.elem_constr.verify(e, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> DataListAttr[AttributeInvT]:
+        return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
 
 
 class Test_generic_data_verifier:
