@@ -197,7 +197,7 @@ class TerminatorOp(IRDLOperation):
 class TargetOp(IRDLOperation):
     """
     Implementation of upstream omp.target
-    https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget-omptargetop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget-omptargetop).
     """
 
     name = "omp.target"
