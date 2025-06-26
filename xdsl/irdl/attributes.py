@@ -392,7 +392,6 @@ def irdl_to_attr_constraint(
         args = get_args(irdl)
         if len(args) != 1:
             raise Exception(f"GenericData args must have length 1, got {args}")
-        origin = cast(type[GenericData[Any]], origin)
         constr = irdl_to_attr_constraint(args[0])
 
         return cast(GenericAttrConstraint[AttributeInvT], origin.constr(constr))
