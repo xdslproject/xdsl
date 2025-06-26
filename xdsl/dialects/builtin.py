@@ -1182,7 +1182,7 @@ class ComplexType(
 
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[immutabledict[str, Attribute]], BuiltinAttribute):
+class DictionaryAttr(Data[immutabledict[str, Attribute]], BuiltinAttribute):
     name = "dictionary"
 
     def __init__(self, value: Mapping[str, Attribute]):
@@ -1199,10 +1199,6 @@ class DictionaryAttr(GenericData[immutabledict[str, Attribute]], BuiltinAttribut
 
     def print_builtin(self, printer: Printer):
         printer.print_attr_dict(self.data)
-
-    @staticmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        raise Exception(f"Unsupported operation on {DictionaryAttr.name}")
 
     def verify(self) -> None:
         return super().verify()
