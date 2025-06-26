@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, Any, Generic, TypeAlias, cast
+from typing import Annotated, Any, Generic, TypeAlias
 
 import pytest
 from typing_extensions import TypeVar
@@ -44,6 +44,7 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintContext,
     ConstraintVar,
+    GenericAttrConstraint,
     GenericData,
     MessageConstraint,
     ParamAttrConstraint,
@@ -58,6 +59,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
+from xdsl.utils.hints import isa
 
 
 def test_wrong_attribute_type():
@@ -694,30 +696,6 @@ def test_data_with_generic_missing_generic_data_failure():
         irdl_attr_definition(MissingGenericDataDataWrapper)
 
 
-@dataclass(frozen=True)
-class DataListAttr(AttrConstraint):
-    """
-    A constraint that enforces that the elements of a ListData all respect
-    a constraint.
-    """
-
-    elem_constr: AttrConstraint
-
-    def verify(
-        self,
-        attr: Attribute,
-        constraint_context: ConstraintContext,
-    ) -> None:
-        attr = cast(ListData[Attribute], attr)
-        for e in attr.data:
-            self.elem_constr.verify(e, constraint_context)
-
-    def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> DataListAttr:
-        return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
-
-
 @irdl_attr_definition
 class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
     name = "test.list"
@@ -743,6 +721,33 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
 
 
 AnyListData: TypeAlias = ListData[Attribute]
+
+
+@dataclass(frozen=True)
+class DataListAttr(GenericAttrConstraint[ListData[AttributeInvT]]):
+    """
+    A constraint that enforces that the elements of a ListData all respect
+    a constraint.
+    """
+
+    elem_constr: GenericAttrConstraint[AttributeInvT]
+
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        if not isa(attr, ListData):
+            raise VerifyException(
+                f"Expected {attr} to be instance of {ListData.__name__}"
+            )
+        for e in attr.data:
+            self.elem_constr.verify(e, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> DataListAttr[AttributeInvT]:
+        return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
 
 
 class Test_generic_data_verifier:
