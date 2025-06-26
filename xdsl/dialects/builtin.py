@@ -11,7 +11,6 @@ from math import prod
 from typing import (
     TYPE_CHECKING,
     Annotated,
-    Any,
     Generic,
     TypeAlias,
     cast,
@@ -19,7 +18,7 @@ from typing import (
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeVar, deprecated
+from typing_extensions import Self, TypeVar, deprecated, override
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.ir import (
@@ -143,7 +142,10 @@ class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
 
 @irdl_attr_definition
 class ArrayAttr(
-    GenericData[tuple[AttributeCovT, ...]], BuiltinAttribute, Iterable[AttributeCovT]
+    Generic[AttributeCovT],
+    GenericData[tuple[AttributeCovT, ...]],
+    BuiltinAttribute,
+    Iterable[AttributeCovT],
 ):
     name = "array"
 
@@ -166,24 +168,18 @@ class ArrayAttr(
             printer.print_list(self.data, printer.print_attribute)
 
     @staticmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        assert len(args) == 1
-        return ArrayOfConstraint(RangeOf(irdl_to_attr_constraint(args[0])))
+    @override
+    def constr(
+        constr: IRDLGenericAttrConstraint[AttributeInvT]
+        | GenericRangeConstraint[AttributeInvT],
+    ) -> ArrayOfConstraint[AttributeInvT]:
+        return ArrayOfConstraint(constr)
 
     def __len__(self):
         return len(self.data)
 
     def __iter__(self) -> Iterator[AttributeCovT]:
         return iter(self.data)
-
-    @staticmethod
-    def constr(
-        constr: (
-            IRDLGenericAttrConstraint[AttributeInvT]
-            | GenericRangeConstraint[AttributeInvT]
-        ),
-    ) -> GenericAttrConstraint[ArrayAttr[AttributeInvT]]:
-        return ArrayOfConstraint(constr)
 
 
 @dataclass(frozen=True)

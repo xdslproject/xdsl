@@ -9,10 +9,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, Any, Generic, TypeAlias
+from typing import Annotated, Generic, TypeAlias
 
 import pytest
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, override
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import (
@@ -26,6 +26,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     BitEnumAttribute,
     BuiltinAttribute,
@@ -54,7 +55,6 @@ from xdsl.irdl import (
     VarConstraint,
     base,
     irdl_attr_definition,
-    irdl_to_attr_constraint,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
@@ -711,9 +711,11 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
             printer.print_string("]")
 
     @staticmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        assert len(args) == 1
-        return DataListAttr(irdl_to_attr_constraint(args[0]))
+    @override
+    def constr(
+        constr: GenericAttrConstraint[AttributeCovT],
+    ) -> DataListAttr[AttributeCovT]:
+        return DataListAttr(constr)
 
     @staticmethod
     def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
