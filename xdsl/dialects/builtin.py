@@ -2247,7 +2247,7 @@ class MemRefType(
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[MemRefLayoutAttr | NoneAttr]
+    layout: ParameterDef[StridedLayoutAttr | AffineMapAttr | NoneAttr]
     memory_space: ParameterDef[Attribute]
 
     def __init__(
