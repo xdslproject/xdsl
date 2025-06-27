@@ -58,7 +58,11 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
+from xdsl.utils.exceptions import (
+    PyRDLAttrDefinitionError,
+    PyRDLTypeError,
+    VerifyException,
+)
 from xdsl.utils.hints import isa
 
 
@@ -686,7 +690,7 @@ def test_data_with_generic_missing_generic_data_failure():
     without implementing GenericData.
     """
     with pytest.raises(
-        ValueError,
+        PyRDLTypeError,
         match=(
             "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
             "attribute constraint. Consider making it inherit from `GenericData` "

@@ -47,15 +47,27 @@ class PassFailedException(DiagnosticException):
 
 
 class PyRDLError(Exception):
-    pass
+    """
+    An error in our Python to IRDL conversion.
+    """
 
 
-class PyRDLOpDefinitionError(Exception):
-    pass
+class PyRDLOpDefinitionError(PyRDLError):
+    """
+    An error in our Python to IRDL Operation definition conversion.
+    """
 
 
-class PyRDLAttrDefinitionError(Exception):
-    pass
+class PyRDLAttrDefinitionError(PyRDLError):
+    """
+    An error in our Python to IRDL Attribute definitnion conversion.
+    """
+
+
+class PyRDLTypeError(TypeError, PyRDLError):
+    """
+    An error in our Python to IRDL conversion indicating an error in types.
+    """
 
 
 class InvalidIRException(Exception):
