@@ -4,7 +4,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from types import EllipsisType
-from typing import ClassVar, assert_never
+from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     I64,

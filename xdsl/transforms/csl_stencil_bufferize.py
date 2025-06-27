@@ -385,7 +385,7 @@ class ArithConstBufferize(RewritePattern):
             return
         assert isa(op.value, DenseIntOrFPElementsAttr)
         assert isa(op.value.type, TensorType[AnyDenseElement])
-        typ = DenseIntOrFPElementsAttr[AnyDenseElement](
+        typ = DenseIntOrFPElementsAttr(
             tensor_to_memref_type(op.value.type), op.value.data
         )
         rewriter.replace_matched_op(

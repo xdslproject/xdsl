@@ -124,10 +124,6 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     name = "mpi.vector"
     wrapped_type: ParameterDef[_VectorT]
 
-    @staticmethod
-    def of(dtype: type[_VectorT]) -> VectorType[_VectorT]:
-        return VectorType(dtype())
-
 
 class StatusTypeField(Enum):
     """
@@ -574,7 +570,7 @@ class WaitallOp(MPIBaseOp):
     statuses = opt_result_def(VectorType[StatusType])
 
     def __init__(self, requests: Operand, count: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[VectorType[StatusType].of(StatusType)]]
+        result_types: list[list[Attribute]] = [[VectorType(StatusType())]]
         if ignore_status:
             result_types = [[]]
 
@@ -735,7 +731,7 @@ class AllocateTypeOp(MPIBaseOp):
         bindc_name: StringAttr | None = None,
     ):
         return super().__init__(
-            result_types=[VectorType[dtype].of(dtype)],
+            result_types=[VectorType(dtype())],
             attributes={
                 "dtype": dtype(),
                 "bindc_name": bindc_name,
