@@ -242,15 +242,6 @@ class TargetOp(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
     traits = traits_def(IsolatedFromAbove())
 
-    def verify_(self) -> None:
-        if (len(self.depend_kinds) if self.depend_kinds else 0) != len(
-            self.depend_vars
-        ):
-            raise VerifyException(
-                "Number of `depend_kinds` must match the number of `depend_vars`"
-            )
-        return super().verify_()
-
 
 OMP = Dialect(
     "omp",
