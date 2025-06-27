@@ -1,5 +1,5 @@
 from enum import auto
-from typing import cast
+from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -22,8 +22,12 @@ from xdsl.ir import (
     StrEnum,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    AnyInt,
     AttrSizedOperandSegments,
+    IntVarConstraint,
     IRDLOperation,
+    RangeOf,
     SameVariadicOperandSize,
     base,
     irdl_attr_definition,
@@ -202,9 +206,16 @@ class TargetOp(IRDLOperation):
 
     name = "omp.target"
 
+    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
-    depend_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    depend_vars = var_operand_def(
+        RangeOf(
+            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
+            length=DEP_COUNT,
+        )
+    )
     device = opt_operand_def(IntegerType)
     has_device_addr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     host_eval_vars = var_operand_def()
@@ -216,7 +227,9 @@ class TargetOp(IRDLOperation):
     thread_limit = opt_operand_def(IntegerType | IndexType)
 
     bare = opt_prop_def(UnitAttr)
-    depend_kinds = opt_prop_def(ArrayAttr[DependKindAttr])
+    depend_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(DependKindAttr), length=DEP_COUNT))
+    )
     in_reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
     in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     nowait = opt_prop_def(UnitAttr)
