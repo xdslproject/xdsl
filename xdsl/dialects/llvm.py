@@ -417,7 +417,7 @@ class OverflowAttrBase(BitEnumAttribute[OverflowFlag]):
     none_value = "none"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class OverflowAttr(OverflowAttrBase):
     name = "llvm.overflow"
 
@@ -1602,7 +1602,7 @@ class ConstantOp(IRDLOperation):
         printer.print_attribute(self.result.type)
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class FastMathAttr(FastMathAttrBase):
     name = "llvm.fastmath"
 

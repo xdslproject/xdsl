@@ -218,7 +218,7 @@ def test_identifier_enum_guard():
             name = "test.non_identifier_enum"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class BitEnumData(BitEnumAttribute[TestEnum]):
     name = "test.bitenum"
     all_value: ClassVar = "all"
