@@ -150,6 +150,7 @@ class DeclareOp(IRDLOperation):
     memref = operand_def()
     shape = opt_operand_def()
     typeparams = var_operand_def()
+    dummy_scope = opt_operand_def()
     uniq_name = opt_prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
     result = result_def()
