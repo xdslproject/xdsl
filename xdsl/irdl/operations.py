@@ -1523,11 +1523,9 @@ def irdl_op_verify_regions(
             try:
                 region_def.entry_args.verify(entry_args_types, constraint_context)
             except VerifyException as e:
-                op.emit_error(
-                    f"region #{i} entry arguments do not verify:\n{e}",
-                    type(e),
-                    e,
-                )
+                raise VerifyException(
+                    f"region #{i} entry arguments do not verify:\n{e}"
+                ) from e
 
 
 def irdl_op_verify_arg_list(
@@ -1559,12 +1557,10 @@ def irdl_op_verify_arg_list(
                 pos = f"{arg_idx}"
             else:
                 pos = f"{arg_idx} to {arg_idx + len(arg) - 1}"
-            op.emit_error(
+            raise VerifyException(
                 f"{get_construct_name(construct)} at position {pos} does not "
-                f"verify:\n{e}",
-                type(e),
-                e,
-            )
+                f"verify:\n{e}"
+            ) from e
 
     for def_idx, (_, arg_def) in enumerate(args_defs):
         if isinstance(arg_def, VariadicDef):

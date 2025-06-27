@@ -33,7 +33,7 @@ class Diagnostic:
         toplevel = ir.get_toplevel_object()
         if isinstance(toplevel, Operation):
             p.print_op(toplevel)
-            print("\n", file=f)
+            p.print_string("\n")
         elif isinstance(toplevel, Block):
             p.print_block(toplevel)
         elif isinstance(toplevel, Region):

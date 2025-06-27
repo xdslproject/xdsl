@@ -4,7 +4,9 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     FunctionType,
+    IntegerAttr,
     ModuleOp,
     StringAttr,
     UnitAttr,
@@ -296,6 +298,38 @@ def test_check_attribute():
     # Test non-matching attribute
     nomatch_result = pdl_interp_functions.run_check_attribute(
         interpreter, check_attr_op, (StringAttr("world"),)
+    )
+
+    assert isinstance(nomatch_result.terminator_value, Successor)
+    assert nomatch_result.terminator_value.block is falsedest
+
+
+def test_check_type():
+    interpreter = Interpreter(ModuleOp([]))
+    pdl_interp_functions = PDLInterpFunctions(Context())
+    interpreter.register_implementations(pdl_interp_functions)
+
+    truedest = Block()
+    falsedest = Block()
+
+    # Test matching type
+    check_type_op = pdl_interp.CheckTypeOp(
+        i32,  # Expected type
+        create_ssa_value(pdl.ValueType()),  # Input value
+        truedest,
+        falsedest,
+    )
+
+    match_result = pdl_interp_functions.run_check_type(
+        interpreter, check_type_op, (i32,)
+    )
+
+    assert isinstance(match_result.terminator_value, Successor)
+    assert match_result.terminator_value.block is truedest
+
+    # Test non-matching type
+    nomatch_result = pdl_interp_functions.run_check_type(
+        interpreter, check_type_op, (i64,)
     )
 
     assert isinstance(nomatch_result.terminator_value, Successor)
@@ -636,6 +670,85 @@ def test_switch_operation_name():
         interpreter,
         switch_op,
         (op,),
+    )
+
+    assert isinstance(switch_result.terminator_value, Successor)
+    assert isinstance(switch_result.terminator_value.block, Block)
+    assert switch_result.terminator_value.block is default
+
+
+def test_create_type():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    # Test create_type operation
+    create_type_op = pdl_interp.CreateTypeOp(i32)
+    result = interpreter.run_op(create_type_op, ())
+
+    assert result == (i32,)
+
+
+def test_create_types():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    # Test create_types operation
+    type_attrs = ArrayAttr([i32, i64])
+    create_types_op = pdl_interp.CreateTypesOp(type_attrs)
+    result = interpreter.run_op(create_types_op, ())
+
+    assert result == ([i32, i64],)
+
+
+def test_switch_attribute():
+    interpreter = Interpreter(ModuleOp([]))
+    pdl_interp_functions = PDLInterpFunctions(Context())
+    interpreter.register_implementations(pdl_interp_functions)
+
+    case1 = Block()
+    case2 = Block()
+    case3 = Block()
+    default = Block()
+
+    # Create test attributes for the switch cases
+    attr1 = StringAttr("first")
+    attr2 = IntegerAttr(42, i32)
+    attr3 = UnitAttr()
+
+    switch_op = pdl_interp.SwitchAttributeOp(
+        create_ssa_value(pdl.AttributeType()),
+        ArrayAttr([attr1, attr2, attr3]),
+        default,
+        [case1, case2, case3],
+    )
+
+    # Test with matching attribute (should go to case3)
+    test_attr = UnitAttr()
+
+    switch_result = pdl_interp_functions.run_switch_attribute(
+        interpreter,
+        switch_op,
+        (test_attr,),
+    )
+
+    assert isinstance(switch_result.terminator_value, Successor)
+    assert isinstance(switch_result.terminator_value.block, Block)
+    assert switch_result.terminator_value.block is case3
+
+    # Test with non-matching attribute (should go to default)
+    switch_op = pdl_interp.SwitchAttributeOp(
+        create_ssa_value(pdl.AttributeType()),
+        ArrayAttr([attr1, attr2]),
+        default,
+        [case1, case2],
+    )
+
+    non_matching_attr = StringAttr("not_found")
+
+    switch_result = pdl_interp_functions.run_switch_attribute(
+        interpreter,
+        switch_op,
+        (non_matching_attr,),
     )
 
     assert isinstance(switch_result.terminator_value, Successor)

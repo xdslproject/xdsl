@@ -315,6 +315,24 @@ class CosOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
+class CoshOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+    """
+    The cosh operation computes the hyperbolic cosine. It takes one
+    operand of floating point type (i.e., scalar, tensor or vector) and returns
+    one result of the same type. It has no standard attributes.
+
+    Example:
+
+    // Scalar hyperbolic cosine value.
+    %a = math.cosh %b : f64
+    """
+
+    name = "math.cosh"
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+
+@irdl_op_definition
 class CountLeadingZerosOp(SignlessIntegerLikeUnaryMathOperation):
     """
     The ctlz operation computes the number of leading zeros of an integer value.
@@ -742,6 +760,24 @@ class SinOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
+class SinhOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+    """
+    The sinh operation computes the hyperbolic sine. It takes one
+    operand of floating point type (i.e., scalar, tensor or vector) and
+    returns one result of the same type. It has no standard attributes.
+
+    Example:
+
+    // Scalar hyperbolic sine value.
+    %a = math.sinh %b : f64
+    """
+
+    name = "math.sinh"
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+
+@irdl_op_definition
 class SqrtOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
     The sqrt operation computes the square root. It takes one operand of
@@ -825,6 +861,7 @@ Math = Dialect(
         CeilOp,
         CopySignOp,
         CosOp,
+        CoshOp,
         CountLeadingZerosOp,
         CountTrailingZerosOp,
         CtPopOp,
@@ -845,6 +882,7 @@ Math = Dialect(
         RoundOp,
         RsqrtOp,
         SinOp,
+        SinhOp,
         SqrtOp,
         TanOp,
         TanhOp,

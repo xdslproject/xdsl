@@ -17,7 +17,9 @@ class X86RegisterStack(RegisterStack):
         register.RSP,
     }
 
-    DEFAULT_AVAILABLE_REGISTERS = (*reversed(register.YMM),)
+    DEFAULT_AVAILABLE_REGISTERS = (
+        *reversed(register.AVX2RegisterType.allocatable_registers()),
+    )
 
     def push(self, reg: RegisterType) -> None:
         if (

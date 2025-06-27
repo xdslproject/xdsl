@@ -36,7 +36,7 @@ builtin.module {
 
 "func.call"() { "callee" = @call::@invalid } : () -> ()
 
-// CHECK:       Operation does not verify: Unexpected nested symbols in FlatSymbolRefAttr
+// CHECK:       Operation does not verify: Expected SymbolRefAttr with no nested symbols.
 // CHECK-NEXT:  Underlying verification failure: expected empty array, but got ["invalid"]
 
 // -----
