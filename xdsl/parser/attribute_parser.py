@@ -823,7 +823,7 @@ class AttrParser(BaseParser):
                 bytes_values *= type_num_values
 
             # Create attribute
-            attr = DenseIntOrFPElementsAttr([type, BytesAttr(bytes_values)])
+            attr = DenseIntOrFPElementsAttr(type, BytesAttr(bytes_values))
             if type_num_values != len(attr):
                 self.raise_error(
                     f"Shape mismatch in dense literal. Expected {type_num_values} "
