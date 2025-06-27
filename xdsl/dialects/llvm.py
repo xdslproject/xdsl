@@ -1847,6 +1847,7 @@ class UnreachableOp(IRDLOperation):
     traits = traits_def(IsTerminator())
     assembly_format = "attr-dict"
 
+
 LLVM = Dialect(
     "llvm",
     [
