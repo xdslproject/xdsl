@@ -266,6 +266,15 @@ class ShapeAttr(ParametrizedAttribute):
     core_lb_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
     core_ub_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
 
+    def __init__(
+        self,
+        buff_lb_: builtin.DenseArrayBase[builtin.I64],
+        buff_ub_: builtin.DenseArrayBase[builtin.I64],
+        core_lb_: builtin.DenseArrayBase[builtin.I64],
+        core_ub_: builtin.DenseArrayBase[builtin.I64],
+    ):
+        super().__init__((buff_lb_, buff_ub_, core_lb_, core_ub_))
+
     @property
     def buff_lb(self) -> tuple[int, ...]:
         data = self.buff_lb_.get_values()
@@ -302,10 +311,10 @@ class ShapeAttr(ParametrizedAttribute):
     ):
         data_type = builtin.i64
         return ShapeAttr(
-            [
+            *(
                 builtin.DenseArrayBase.from_list(data_type, tuple(data))
                 for data in (buff_lb, buff_ub, core_lb, core_ub)
-            ]
+            )
         )
 
     def buffer_start(self, dim: int) -> int:
