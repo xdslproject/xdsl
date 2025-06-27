@@ -475,32 +475,6 @@ class ShapeShiftType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class ShapeShiftType(ParametrizedAttribute, TypeAttribute):
-    """
-    Type of a vector of runtime values that define the shape and the origin of a
-    multidimensional array object. The vector is of pairs, origin offset and
-    extent, of each array dimension. The rank of a ShapeShiftType must be at
-    least 1.
-    """
-
-    name = "fir.shapeshift"
-
-    indexes: ParameterDef[IntAttr]
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_string(f"{self.indexes.data}")
-        printer.print(">")
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
-        return [IntAttr(s)]
-
-
-@irdl_attr_definition
 class HeapType(ParametrizedAttribute, TypeAttribute):
     """
     The type of a heap pointer. Fortran entities with the ALLOCATABLE attribute
