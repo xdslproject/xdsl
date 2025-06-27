@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
+    AnyDenseElement,
     AnyTensorType,
     AnyTensorTypeConstr,
     DenseArrayBase,
@@ -17,6 +18,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.csl import csl_stencil
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     Block,
     BlockArgument,
     Operation,
@@ -38,7 +40,9 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
-def tensor_to_memref_type(t: TensorType[Attribute]) -> memref.MemRefType:
+def tensor_to_memref_type(
+    t: TensorType[AttributeInvT],
+) -> memref.MemRefType[AttributeInvT]:
     """Type conversion from tensor to memref."""
     return memref.MemRefType(t.get_element_type(), t.get_shape())
 
@@ -379,10 +383,10 @@ class ArithConstBufferize(RewritePattern):
     def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter, /):
         if not isa(op.result.type, TensorType[Attribute]):
             return
-        assert isinstance(op.value, DenseIntOrFPElementsAttr)
-        assert isa(op.value.type, TensorType[Attribute])
+        assert isa(op.value, DenseIntOrFPElementsAttr)
+        assert isa(op.value.type, TensorType[AnyDenseElement])
         typ = DenseIntOrFPElementsAttr(
-            [tensor_to_memref_type(op.value.type), op.value.data]
+            tensor_to_memref_type(op.value.type), op.value.data
         )
         rewriter.replace_matched_op(
             [

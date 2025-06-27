@@ -744,19 +744,11 @@ class AttrParser(BaseParser):
 
     def _parse_dense_literal_type(
         self,
-    ) -> (
-        RankedStructure[IntegerType]
-        | RankedStructure[IndexType]
-        | RankedStructure[AnyFloat]
-        | RankedStructure[ComplexType]
-    ):
+    ) -> RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType]:
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
         if not (
-            base(RankedStructure[IntegerType])
-            | base(RankedStructure[IndexType])
-            | base(RankedStructure[AnyFloat])
-            | base(RankedStructure[ComplexType])
+            base(RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType])
         ).verifies(
             type,
         ):
@@ -823,7 +815,7 @@ class AttrParser(BaseParser):
                 bytes_values *= type_num_values
 
             # Create attribute
-            attr = DenseIntOrFPElementsAttr([type, BytesAttr(bytes_values)])
+            attr = DenseIntOrFPElementsAttr(type, BytesAttr(bytes_values))
             if type_num_values != len(attr):
                 self.raise_error(
                     f"Shape mismatch in dense literal. Expected {type_num_values} "
