@@ -48,25 +48,25 @@ class PassFailedException(DiagnosticException):
 
 class PyRDLError(Exception):
     """
-    An error in our Python to IRDL conversion.
+    An error in our IRDL eDSL.
     """
 
 
 class PyRDLOpDefinitionError(PyRDLError):
     """
-    An error in our Python to IRDL Operation definition conversion.
+    An error in the Operation definition eDSL.
     """
 
 
 class PyRDLAttrDefinitionError(PyRDLError):
     """
-    An error in our Python to IRDL Attribute definitnion conversion.
+    An error in the Attribute definition eDSL.
     """
 
 
 class PyRDLTypeError(TypeError, PyRDLError):
     """
-    An error in our Python to IRDL conversion indicating an error in types.
+    A type error in our IRDL eDSL.
     """
 
 
