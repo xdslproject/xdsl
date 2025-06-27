@@ -5,7 +5,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Any
 
-from termcolor import cprint
 from typing_extensions import TypeVar
 
 
@@ -24,6 +23,8 @@ class BasePrinter:
 
     def _print(self, value: object, end: str | None = "\n", color: str | None = None):
         if self.syntax_highlight and color is not None:
+            from termcolor import cprint
+
             cprint(value, color, end=end, file=self.stream)
         else:
             print(value, end=end, file=self.stream)
