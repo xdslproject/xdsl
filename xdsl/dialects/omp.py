@@ -143,7 +143,6 @@ def _print_omp_enum(e: EnumAttribute[OmpEnumType], printer: Printer):
 
 
 def _parse_omp_enum(e: type[EnumAttribute[OmpEnumType]], parser: AttrParser):
-    parser.in_angle_brackets()
     parser.parse_punctuation("(")
     res = parser.parse_str_enum(e.enum_type)
     parser.parse_punctuation(")")
