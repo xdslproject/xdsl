@@ -22,6 +22,7 @@ from xdsl.irdl import (
     VarOperandDef,
     VarResultDef,
 )
+from xdsl.utils.runtime_final import runtime_final
 
 
 def generate_dynamic_attr_class(
@@ -31,10 +32,12 @@ def generate_dynamic_attr_class(
     Dynamically define a type based on ParamAttrDef.
     This is needed to reference dynamically created attributes in operations.
     """
-    return type(
-        class_name,
-        (ParametrizedAttribute,) + ((TypeAttribute,) if is_type else ()),
-        dict(ParametrizedAttribute.__dict__) | {"name": attr.name},
+    return runtime_final(
+        type(
+            class_name,
+            (ParametrizedAttribute,) + ((TypeAttribute,) if is_type else ()),
+            dict(ParametrizedAttribute.__dict__) | {"name": attr.name},
+        )
     )
 
 

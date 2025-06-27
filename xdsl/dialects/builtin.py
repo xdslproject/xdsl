@@ -700,6 +700,9 @@ AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstr
 class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "unit"
 
+    def __init__(self):
+        super().__init__(())
+
     def print_builtin(self, printer: Printer) -> None:
         printer.print_string("unit")
 
@@ -1431,6 +1434,11 @@ class ContainerOf(
             self.elem_constr.verify(attr.element_type, constraint_context)
         else:
             self.elem_constr.verify(attr, constraint_context)
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        bases = self.elem_constr.get_bases()
+        if bases is not None:
+            return {*bases, TensorType, VectorType}
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -2243,7 +2251,7 @@ class MemRefType(
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[MemRefLayoutAttr | NoneAttr]
+    layout: ParameterDef[StridedLayoutAttr | AffineMapAttr | NoneAttr]
     memory_space: ParameterDef[Attribute]
 
     def __init__(
@@ -2458,6 +2466,9 @@ class DenseIntOrFPElementsAttr(
     type: ParameterDef[RankedStructure[DenseElementCovT]]
     data: ParameterDef[BytesAttr]
 
+    def __init__(self, type: RankedStructure[DenseElementCovT], data: BytesAttr):
+        super().__init__((type, data))
+
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...]:
         return self.type.get_shape()
@@ -2585,7 +2596,7 @@ class DenseIntOrFPElementsAttr(
         if len(data) == 1 and (p := prod(type.get_shape())) != 1:
             b *= p
 
-        return DenseIntOrFPElementsAttr((type, BytesAttr(b)))
+        return DenseIntOrFPElementsAttr(type, BytesAttr(b))
 
     def iter_values(
         self,
