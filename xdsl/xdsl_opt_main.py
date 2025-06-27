@@ -13,7 +13,8 @@ from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.transforms import get_all_passes
-from xdsl.utils.exceptions import DiagnosticException, ShrinkException
+from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
+from xdsl.utils.lexer import Span
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 
@@ -126,6 +127,22 @@ class xDSLOptMain(CommandLineTool):
             default=False,
             action="store_true",
             help="Print the IR between each pass",
+        )
+
+        arg_parser.add_argument(
+            "--verify-diagnostics",
+            default=False,
+            action="store_true",
+            help="Prints the content of a triggered "
+            "verifier exception and exits with code 0",
+        )
+
+        arg_parser.add_argument(
+            "--parsing-diagnostics",
+            default=False,
+            action="store_true",
+            help="Prints the content of a triggered "
+            "parsing exception and exits with code 0",
         )
 
         arg_parser.add_argument(
@@ -360,6 +377,24 @@ class xDSLOptMain(CommandLineTool):
             else:
                 raise
         return output.getvalue()
+
+    def parse_chunk(
+        self, chunk: IO[str], file_extension: str, start_offset: int = 0
+    ) -> ModuleOp | None:
+        try:
+            return super().parse_chunk(chunk, file_extension, start_offset)
+        except ParseError as e:
+            s = e.span
+            e.span = Span(s.start, s.end, s.input, start_offset)
+            if self.args.parsing_diagnostics:
+                print(e)
+            else:
+                raise
+        except DiagnosticException as e:
+            if self.args.verify_diagnostics:
+                print(e)
+            else:
+                raise
 
 
 class VersionAction(argparse.Action):

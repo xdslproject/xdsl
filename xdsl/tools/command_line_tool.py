@@ -8,8 +8,6 @@ from xdsl.context import Context
 from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
-from xdsl.utils.exceptions import DiagnosticException, ParseError
-from xdsl.utils.lexer import Span
 
 
 class CommandLineTool:
@@ -43,22 +41,6 @@ class CommandLineTool:
             "is used.",
         )
         arg_parser.add_argument("--disable-verify", default=False, action="store_true")
-
-        arg_parser.add_argument(
-            "--verify-diagnostics",
-            default=False,
-            action="store_true",
-            help="Prints the content of a triggered "
-            "verifier exception and exits with code 0",
-        )
-
-        arg_parser.add_argument(
-            "--parsing-diagnostics",
-            default=False,
-            action="store_true",
-            help="Prints the content of a triggered "
-            "parsing exception and exits with code 0",
-        )
 
         arg_parser.add_argument(
             "--allow-unregistered-dialect",
@@ -126,17 +108,5 @@ class CommandLineTool:
 
         try:
             return self.available_frontends[file_extension](chunk)
-        except ParseError as e:
-            s = e.span
-            e.span = Span(s.start, s.end, s.input, start_offset)
-            if self.args.parsing_diagnostics:
-                print(e)
-            else:
-                raise
-        except DiagnosticException as e:
-            if self.args.verify_diagnostics:
-                print(e)
-            else:
-                raise
         finally:
             chunk.close()
