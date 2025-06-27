@@ -514,6 +514,9 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
 
     ports: ParameterDef[ArrayAttr[ModulePort]]
 
+    def __init__(self, ports: ArrayAttr[ModulePort]):
+        super().__init__((ports,))
+
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         def parse_port() -> ModulePort:
@@ -555,10 +558,13 @@ class ParamDeclAttr(ParametrizedAttribute):
     port_name: ParameterDef[StringAttr]
     type: ParameterDef[TypeAttribute]
 
+    def __init__(self, port_name: StringAttr, type: TypeAttribute):
+        super().__init__((port_name, type))
+
     @classmethod
     def parse_free_standing_parameters(
         cls, parser: AttrParser, only_accept_string_literal_name: bool = False
-    ) -> Sequence[Attribute]:
+    ) -> tuple[StringAttr, TypeAttribute]:
         """
         Parses the parameter declaration without the encompassing angle brackets.
         If only_accept_string_literal_name is True, the parser will not accept
@@ -656,20 +662,18 @@ class ParsedModuleHeader(NamedTuple):
 
     def get_module_type(self) -> ModuleType:
         return ModuleType(
-            [
-                ArrayAttr(
-                    tuple(
-                        ModulePort(
-                            (
-                                StringAttr(arg.port_name),
-                                arg.port_type,
-                                DirectionAttr(arg.port_dir),
-                            )
+            ArrayAttr(
+                tuple(
+                    ModulePort(
+                        (
+                            StringAttr(arg.port_name),
+                            arg.port_type,
+                            DirectionAttr(arg.port_dir),
                         )
-                        for arg in self.args
                     )
+                    for arg in self.args
                 )
-            ]
+            )
         )
 
     @classmethod
@@ -714,7 +718,9 @@ class ParsedModuleHeader(NamedTuple):
         name = parser.parse_symbol_name()
         parameters = parser.parse_optional_comma_separated_list(
             parser.Delimiter.ANGLE,
-            lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
+            lambda: ParamDeclAttr(
+                *ParamDeclAttr.parse_free_standing_parameters(parser)
+            ),
         )
         args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parse_module_arg
