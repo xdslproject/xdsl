@@ -67,7 +67,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -192,7 +191,7 @@ def test_addui_extend(
         if sum_type:
             assert op.sum.type == sum_type
         assert op.overflow.type == AddUIExtendedOp.infer_overflow_type(lhs_type)
-        if isa(container_type := op.overflow.type, VectorType | TensorType):
+        if isinstance(container_type := op.overflow.type, VectorType | TensorType):
             assert container_type.element_type == i1
         else:
             assert op.overflow.type == i1

@@ -31,7 +31,6 @@ from xdsl.ir import (
     OpTraits,
     Region,
     SSAValue,
-    TypeAttribute,
 )
 from xdsl.traits import OpTrait
 from xdsl.utils.exceptions import (
@@ -353,7 +352,7 @@ class VarOperandDef(OperandDef, VariadicDef):
 class VarOperand(tuple[Operand, ...]):
     @property
     def types(self):
-        return tuple(cast(TypeAttribute, o.type) for o in self)
+        return tuple(o.type for o in self)
 
 
 @dataclass(init=False)
@@ -402,7 +401,7 @@ class OptResultDef(VarResultDef, OptionalDef):
 OptOpResult: TypeAlias = OpResult[AttributeInvT] | None
 
 
-@dataclass
+@dataclass(init=True)
 class RegionDef:
     """
     An IRDL region definition.

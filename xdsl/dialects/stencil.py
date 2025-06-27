@@ -1288,9 +1288,7 @@ class LoadOp(IRDLOperation):
         field_type = SSAValue.get(field, type=FieldType).type
 
         if lb is None or ub is None:
-            res_type = TempType(
-                IntAttr(field_type.get_num_dims()), field_type.element_type
-            )
+            res_type = TempType(field_type.get_num_dims(), field_type.element_type)
         else:
             res_type = TempType(zip(lb, ub), field_type.element_type)
 
