@@ -507,6 +507,14 @@ class ModulePort(ParametrizedAttribute):
     type: ParameterDef[TypeAttribute]
     dir: ParameterDef[DirectionAttr]
 
+    def __init__(
+        self,
+        port_name: StringAttr,
+        type: TypeAttribute,
+        dir: DirectionAttr,
+    ):
+        super().__init__((port_name, type, dir))
+
 
 @irdl_attr_definition
 class ModuleType(ParametrizedAttribute, TypeAttribute):
@@ -531,7 +539,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
             parser.parse_punctuation(":")
             typ = parser.parse_type()
 
-            return ModulePort([StringAttr(name), typ, DirectionAttr(direction)])
+            return ModulePort(StringAttr(name), typ, DirectionAttr(direction))
 
         return [
             ArrayAttr(
@@ -665,11 +673,9 @@ class ParsedModuleHeader(NamedTuple):
             ArrayAttr(
                 tuple(
                     ModulePort(
-                        (
-                            StringAttr(arg.port_name),
-                            arg.port_type,
-                            DirectionAttr(arg.port_dir),
-                        )
+                        StringAttr(arg.port_name),
+                        arg.port_type,
+                        DirectionAttr(arg.port_dir),
                     )
                     for arg in self.args
                 )
