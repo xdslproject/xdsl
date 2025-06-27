@@ -116,12 +116,12 @@ class LoopDimMapAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print("processor = ")
-            printer.print(self.processor.data)
-            printer.print(", map = ")
-            printer.print(self.map.data)
-            printer.print(", bound = ")
-            printer.print(self.bound.data)
+            printer.print_string("processor = ")
+            printer.print_string(self.processor.data)
+            printer.print_string(", map = ")
+            printer.print_string(str(self.map.data))
+            printer.print_string(", bound = ")
+            printer.print_string(str(self.bound.data))
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser):
@@ -151,7 +151,7 @@ class AllocOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    result = result_def(memref.MemRefType[Attribute])
+    result = result_def(memref.MemRefType)
     asyncToken = opt_result_def(AsyncTokenType)
 
     def verify_(self) -> None:
@@ -365,8 +365,12 @@ class FuncOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     function_type = prop_def(FunctionType)
     kernel = opt_prop_def(UnitAttr)
-    known_block_size = opt_attr_def(DenseArrayBase, attr_name="gpu.known_block_size")
-    known_grid_size = opt_attr_def(DenseArrayBase, attr_name="gpu.known_grid_size")
+    known_block_size = opt_attr_def(
+        DenseArrayBase.constr(i32), attr_name="gpu.known_block_size"
+    )
+    known_grid_size = opt_attr_def(
+        DenseArrayBase.constr(i32), attr_name="gpu.known_grid_size"
+    )
 
     traits = traits_def(IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface())
 
@@ -389,11 +393,11 @@ class FuncOp(IRDLOperation):
             "function_type": function_type,
         }
         if known_block_size is not None:
-            attributes["gpu.known_block_size"] = DenseArrayBase.create_dense_int(
+            attributes["gpu.known_block_size"] = DenseArrayBase.from_list(
                 i32, known_block_size
             )
         if known_grid_size is not None:
-            attributes["gpu.known_grid_size"] = DenseArrayBase.create_dense_int(
+            attributes["gpu.known_grid_size"] = DenseArrayBase.from_list(
                 i32, known_grid_size
             )
         if kernel:

@@ -85,10 +85,10 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "dmp.exchange"
 
-    offset_: builtin.DenseArrayBase = param_def()
-    size_: builtin.DenseArrayBase = param_def()
-    source_offset_: builtin.DenseArrayBase = param_def()
-    neighbor_: builtin.DenseArrayBase = param_def()
+    offset_: builtin.DenseArrayBase[builtin.I64] = param_def()
+    size_: builtin.DenseArrayBase[builtin.I64] = param_def()
+    source_offset_: builtin.DenseArrayBase[builtin.I64] = param_def()
+    neighbor_: builtin.DenseArrayBase[builtin.I64] = param_def()
 
     def __init__(
         self,
@@ -134,27 +134,19 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def offset(self) -> tuple[int, ...]:
-        data = self.offset_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.offset_.get_values()
 
     @property
     def size(self) -> tuple[int, ...]:
-        data = self.size_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.size_.get_values()
 
     @property
     def source_offset(self) -> tuple[int, ...]:
-        data = self.source_offset_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.source_offset_.get_values()
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.neighbor_.get_values()
 
     @property
     def elem_count(self) -> int:
@@ -184,13 +176,19 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         )
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<at [")
-        printer.print_list(self.offset, lambda x: printer.print_string(str(x)))
-        printer.print_string("] size [")
-        printer.print_list(self.size, lambda x: printer.print_string(str(x)))
-        printer.print_string("] source offset [")
-        printer.print_list(self.source_offset, lambda x: printer.print_string(str(x)))
-        printer.print_string(f"] to {list(self.neighbor)}>")
+        with printer.in_angle_brackets():
+            printer.print_string("at ")
+            with printer.in_square_brackets():
+                printer.print_list(self.offset, printer.print_int)
+            printer.print_string(" size ")
+            with printer.in_square_brackets():
+                printer.print_list(self.size, printer.print_int)
+            printer.print_string(" source offset ")
+            with printer.in_square_brackets():
+                printer.print_list(self.source_offset, printer.print_int)
+            printer.print_string(" to ")
+            with printer.in_square_brackets():
+                printer.print_list(self.neighbor, printer.print_int)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -263,33 +261,29 @@ class ShapeAttr(ParametrizedAttribute):
 
     name = "dmp.shape_with_halo"
 
-    buff_lb_: builtin.DenseArrayBase = param_def()
-    buff_ub_: builtin.DenseArrayBase = param_def()
-    core_lb_: builtin.DenseArrayBase = param_def()
-    core_ub_: builtin.DenseArrayBase = param_def()
+    buff_lb_: builtin.DenseArrayBase[builtin.I64] = param_def()
+    buff_ub_: builtin.DenseArrayBase[builtin.I64] = param_def()
+    core_lb_: builtin.DenseArrayBase[builtin.I64] = param_def()
+    core_ub_: builtin.DenseArrayBase[builtin.I64] = param_def()
 
     @property
     def buff_lb(self) -> tuple[int, ...]:
         data = self.buff_lb_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def buff_ub(self) -> tuple[int, ...]:
         data = self.buff_ub_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def core_lb(self) -> tuple[int, ...]:
         data = self.core_lb_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def core_ub(self) -> tuple[int, ...]:
         data = self.core_ub_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
@@ -405,16 +399,15 @@ class RankTopoAttr(ParametrizedAttribute):
 
     name = "dmp.topo"
 
-    shape: builtin.DenseArrayBase = param_def()
+    shape: builtin.DenseArrayBase[builtin.I64] = param_def()
 
-    def __init__(self, shape: Sequence[int] | Sequence[builtin.IntAttr]):
+    def __init__(self, shape: Sequence[int]):
         if len(shape) < 1:
             raise ValueError("dmp.grid must have at least one dimension!")
         super().__init__([builtin.DenseArrayBase.from_list(builtin.i64, shape)])
 
     def as_tuple(self) -> tuple[int, ...]:
         shape = self.shape.get_values()
-        assert isa(shape, tuple[int, ...])
         return shape
 
     def node_count(self) -> int:

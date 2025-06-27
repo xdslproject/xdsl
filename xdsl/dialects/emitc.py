@@ -8,6 +8,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
 from collections.abc import Iterable
+from typing import cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -20,6 +21,8 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     ShapedType,
+    TensorType,
+    TupleType,
 )
 from xdsl.ir import (
     Attribute,
@@ -28,7 +31,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypeAttribute,
 )
-from xdsl.irdl import irdl_attr_definition, isa, param_def
+from xdsl.irdl import irdl_attr_definition, param_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -111,6 +114,34 @@ class EmitC_ArrayType(
         )
 
 
+@irdl_attr_definition
+class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC lvalue type.
+    Values of this type can be assigned to and their address can be taken.
+    See [tablegen definition](https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/Dialect/EmitC/IR/EmitCTypes.td#L87)
+    """
+
+    name = "emitc.lvalue"
+    value_type: TypeAttribute = param_def()
+
+    def __init__(self, value_type: TypeAttribute):
+        super().__init__([value_type])
+
+    def verify(self) -> None:
+        """
+        Verify the LValueType.
+        See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L1095)
+        """
+        # Check that the wrapped type is valid. This especially forbids nested lvalue types.
+        if not is_supported_emitc_type(self.value_type):
+            raise VerifyException(
+                f"!emitc.lvalue must wrap supported emitc type, but got {self.value_type}"
+            )
+        if isinstance(self.value_type, EmitC_ArrayType):
+            raise VerifyException("!emitc.lvalue cannot wrap !emitc.array type")
+
+
 _SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
 
 
@@ -147,7 +178,38 @@ def is_integer_index_or_opaque_type(
     only for integer and index types.
     See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
     """
-    return _is_supported_integer_type(type_attr) or isa(type_attr, IndexType)
+    return _is_supported_integer_type(type_attr) or isinstance(type_attr, IndexType)
+
+
+def is_supported_emitc_type(type_attr: Attribute) -> bool:
+    """
+    Check if a type is supported by EmitC.
+    See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
+    """
+    match type_attr:
+        case IntegerType():
+            return _is_supported_integer_type(type_attr)
+        case IndexType():
+            return True
+        case EmitC_ArrayType():
+            elem_type = cast(Attribute, type_attr.get_element_type())
+            return not isinstance(
+                elem_type, EmitC_ArrayType
+            ) and is_supported_emitc_type(elem_type)
+        case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
+            return True
+        case TensorType():
+            elem_type = cast(Attribute, type_attr.get_element_type())
+            if isinstance(elem_type, EmitC_ArrayType):
+                return False
+            return is_supported_emitc_type(elem_type)
+        case TupleType():
+            return all(
+                not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
+                for t in type_attr.types
+            )
+        case _:
+            return False
 
 
 EmitC = Dialect(
@@ -155,5 +217,6 @@ EmitC = Dialect(
     [],
     [
         EmitC_ArrayType,
+        EmitC_LValueType,
     ],
 )

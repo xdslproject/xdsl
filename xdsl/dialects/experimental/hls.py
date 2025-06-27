@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ParametrizedAttribute,
     StringAttr,
+    i64,
 )
 from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -140,7 +141,7 @@ class HLSStreamReadOp(IRDLOperation):
 class HLSExtractStencilValueOp(IRDLOperation):
     name = "hls.extract_stencil_value"
 
-    position = attr_def(DenseArrayBase)
+    position = attr_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
 
     res = result_def(Attribute)

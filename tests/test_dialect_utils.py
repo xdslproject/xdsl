@@ -1,3 +1,4 @@
+import re
 from io import StringIO
 
 import pytest
@@ -82,12 +83,14 @@ def test_verify_dynamic_index_list():
 
     # Test case 2: Invalid input (mismatched lengths)
     static_values = [1, 2, DYNAMIC_INDEX]
-    with pytest.raises(VerifyException) as excinfo:
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "The number of dynamic positions passed as values (0) does not match "
+            "the number of dynamic position markers (1)."
+        ),
+    ):
         verify_dynamic_index_list(static_values, [], DYNAMIC_INDEX)
-    assert str(excinfo.value) == (
-        "The number of dynamic positions passed as values (0) does not match "
-        "the number of dynamic position markers (1)."
-    )
 
 
 def test_print_dynamic_index_list():
@@ -240,7 +243,5 @@ def test_split_name(name: str, expected_1: str, expected_2: str):
 
 
 def test_split_name_failure():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="Invalid operation or attribute name test."):
         Dialect.split_name("test")
-
-    assert e.value.args[0] == ("Invalid operation or attribute name test.")

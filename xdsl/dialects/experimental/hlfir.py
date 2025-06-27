@@ -69,20 +69,18 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
     elementType: IntegerType | AnyFloat | ReferenceType = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        for s in self.shape.data:
-            if isinstance(s, DeferredAttr):
-                printer.print_string("?")
-            elif isinstance(s, NoneType):
-                raise Exception(
-                    "Can not have none type as part of sequence shape with only one type"
-                )
-            else:
-                printer.print_string(f"{s.value.data}")
-            printer.print_string("x")
-        printer.print(self.elementType)
-
-        printer.print(">")
+        with printer.in_angle_brackets():
+            for s in self.shape.data:
+                if isinstance(s, DeferredAttr):
+                    printer.print_string("?")
+                elif isinstance(s, NoneType):
+                    raise Exception(
+                        "Can not have none type as part of sequence shape with only one type"
+                    )
+                else:
+                    printer.print_int(s.value.data)
+                printer.print_string("x")
+            printer.print_attribute(self.elementType)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:

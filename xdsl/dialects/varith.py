@@ -151,7 +151,7 @@ class VarithSwitchOp(IRDLOperation):
         parser.parse_punctuation("]")
         attr_dict = parser.parse_optional_attr_dict()
 
-        case_values = DenseIntElementsAttr.create_dense_int(
+        case_values = DenseIntElementsAttr.from_list(
             VectorType(flag_type, (len(values),)), values
         )
 
@@ -182,7 +182,7 @@ class VarithSwitchOp(IRDLOperation):
             cases = [("default", self.default_arg)] + [
                 (str(c), arg)
                 for (c, arg) in zip(
-                    self.case_values.get_int_values(),
+                    self.case_values.get_values(),
                     self.args,
                     strict=True,
                 )

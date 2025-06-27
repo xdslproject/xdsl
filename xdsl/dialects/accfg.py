@@ -70,7 +70,7 @@ class EffectsAttr(Data[EffectsEnum]):
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print(self.data.value)
+            printer.print_string(self.data.value)
 
 
 @irdl_attr_definition
@@ -280,7 +280,7 @@ class SetupOp(IRDLOperation):
             )
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.accelerator.data)
 
         if self.in_state:
@@ -301,9 +301,9 @@ class SetupOp(IRDLOperation):
         printer.print_string(") ")
 
         if self.attributes:
-            printer.print("attrs ")
+            printer.print_string("attrs ")
             printer.print_attr_dict(self.attributes)
-            printer.print(" ")
+            printer.print_string(" ")
 
         printer.print_string(": ")
         printer.print_attribute(self.out_state.type)

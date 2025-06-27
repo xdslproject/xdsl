@@ -11,6 +11,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return ApplyIndividualRewritePass
 
+    def get_apply_eqsat_pdl():
+        from xdsl.transforms import apply_eqsat_pdl
+
+        return apply_eqsat_pdl.ApplyEqsatPDLPass
+
+    def get_apply_eqsat_pdl_interp():
+        from xdsl.transforms import apply_eqsat_pdl_interp
+
+        return apply_eqsat_pdl_interp.ApplyEqsatPDLInterpPass
+
     def get_apply_pdl():
         from xdsl.transforms import apply_pdl
 
@@ -60,6 +70,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import varith_transformations
 
         return varith_transformations.ConvertArithToVarithPass
+
+    def get_convert_arith_to_x86():
+        from xdsl.backend.x86.lowering import convert_arith_to_x86
+
+        return convert_arith_to_x86.ConvertArithToX86Pass
 
     def get_convert_func_to_riscv_func():
         from xdsl.backend.riscv.lowering import convert_func_to_riscv_func
@@ -518,6 +533,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return function_transformations.TestAddBenchTimersToTopLevelFunctions
 
+    def get_test_constant_folding():
+        from xdsl.transforms import test_constant_folding
+
+        return test_constant_folding.TestConstantFoldingPass
+
+    def get_test_specialised_constant_folding():
+        from xdsl.transforms import test_constant_folding
+
+        return test_constant_folding.TestSpecialisedConstantFoldingPass
+
     def get_test_lower_linalg_to_snitch():
         from xdsl.transforms import test_lower_linalg_to_snitch
 
@@ -542,6 +567,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
     return {
         "apply-individual-rewrite": get_apply_individual_rewrite,
+        "apply-eqsat-pdl": get_apply_eqsat_pdl,
+        "apply-eqsat-pdl-interp": get_apply_eqsat_pdl_interp,
         "apply-pdl": get_apply_pdl,
         "apply-pdl-interp": get_apply_pdl_interp,
         "arith-add-fastmath": get_arith_add_fastmath,
@@ -552,6 +579,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-riscv-snitch": get_convert_arith_to_riscv_snitch,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-arith-to-varith": get_convert_arith_to_varith,
+        "convert-arith-to-x86": get_convert_arith_to_x86,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-func-to-x86-func": get_convert_func_to_x86_func,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
@@ -643,6 +671,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
+        "test-constant-folding": get_test_constant_folding,
+        "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,

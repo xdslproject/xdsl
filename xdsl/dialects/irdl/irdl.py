@@ -135,8 +135,10 @@ class DialectOp(IRDLOperation):
         return DialectOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" @", self.sym_name.data, " ")
+        printer.print_string(" ")
+        printer.print_symbol_name(self.sym_name.data)
         if self.body.block.ops:
+            printer.print_string(" ")
             printer.print_region(self.body)
 
 
@@ -165,8 +167,10 @@ class TypeOp(IRDLOperation):
         return TypeOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" @", self.sym_name.data, " ")
+        printer.print_string(" ")
+        printer.print_symbol_name(self.sym_name.data)
         if self.body.block.ops:
+            printer.print_string(" ")
             printer.print_region(self.body)
 
     @property
@@ -220,8 +224,10 @@ class AttributeOp(IRDLOperation):
         return AttributeOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" @", self.sym_name.data, " ")
+        printer.print_string(" ")
+        printer.print_symbol_name(self.sym_name.data)
         if self.body.block.ops:
+            printer.print_string(" ")
             printer.print_region(self.body)
 
     @property
@@ -273,11 +279,10 @@ class ParametersOp(IRDLOperation):
         )
 
     def print(self, printer: Printer) -> None:
-        printer.print("(")
-        printer.print_list(
-            zip(self.names, self.args), lambda x: _print_argument(printer, x)
-        )
-        printer.print(")")
+        with printer.in_parens():
+            printer.print_list(
+                zip(self.names, self.args), lambda x: _print_argument(printer, x)
+            )
 
 
 @irdl_op_definition
@@ -305,8 +310,10 @@ class OperationOp(IRDLOperation):
         return OperationOp(sym_name, region)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" @", self.sym_name.data, " ")
+        printer.print_string(" ")
+        printer.print_symbol_name(self.sym_name.data)
         if self.body.block.ops:
+            printer.print_string(" ")
             printer.print_region(self.body)
 
     @property
@@ -348,8 +355,9 @@ def _print_argument_with_var(
     printer.print_string(": ")
     variadicity = data[1].data
     if variadicity != VariadicityEnum.SINGLE:
-        printer.print(variadicity, " ")
-    printer.print(data[2])
+        printer.print_string(variadicity)
+        printer.print_string(" ")
+    printer.print_ssa_value(data[2])
 
 
 @irdl_op_definition
@@ -390,13 +398,12 @@ class OperandsOp(IRDLOperation):
         )
 
     def print(self, printer: Printer) -> None:
-        printer.print("(")
-        printer.print_list(
-            zip(self.names, self.variadicity.value, self.args),
-            lambda x: _print_argument_with_var(printer, x),
-            ", ",
-        )
-        printer.print(")")
+        with printer.in_parens():
+            printer.print_list(
+                zip(self.names, self.variadicity.value, self.args),
+                lambda x: _print_argument_with_var(printer, x),
+                ", ",
+            )
 
 
 @irdl_op_definition
@@ -437,13 +444,12 @@ class ResultsOp(IRDLOperation):
         )
 
     def print(self, printer: Printer) -> None:
-        printer.print("(")
-        printer.print_list(
-            zip(self.names, self.variadicity.value, self.args),
-            lambda x: _print_argument_with_var(printer, x),
-            ", ",
-        )
-        printer.print(")")
+        with printer.in_parens():
+            printer.print_list(
+                zip(self.names, self.variadicity.value, self.args),
+                lambda x: _print_argument_with_var(printer, x),
+                ", ",
+            )
 
 
 def _parse_attribute(parser: Parser) -> tuple[str, SSAValue]:
@@ -456,7 +462,7 @@ def _parse_attribute(parser: Parser) -> tuple[str, SSAValue]:
 
 def _print_attribute(printer: Printer, item: tuple[StringAttr, SSAValue]):
     printer.print_attribute(item[0])
-    printer.print(" = ")
+    printer.print_string(" = ")
     printer.print_operand(item[1])
 
 
@@ -541,11 +547,10 @@ class RegionsOp(IRDLOperation):
         )
 
     def print(self, printer: Printer) -> None:
-        printer.print("(")
-        printer.print_list(
-            zip(self.names, self.args), lambda x: _print_argument(printer, x)
-        )
-        printer.print(")")
+        with printer.in_parens():
+            printer.print_list(
+                zip(self.names, self.args), lambda x: _print_argument(printer, x)
+            )
 
 
 ################################################################################
@@ -573,7 +578,7 @@ class IsOp(IRDLOperation):
         return IsOp(expected)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_attribute(self.expected)
 
 
@@ -616,10 +621,10 @@ class BaseOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.base_ref is not None:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_attribute(self.base_ref)
         elif self.base_name is not None:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_attribute(self.base_name)
         printer.print_op_attributes(self.attributes)
 
@@ -660,11 +665,10 @@ class ParametricOp(IRDLOperation):
         return ParametricOp(base_type, args)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_attribute(self.base_type)
-        printer.print("<")
-        printer.print_list(self.args, printer.print, ", ")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            printer.print_list(self.args, printer.print_ssa_value)
 
 
 @irdl_op_definition
@@ -745,9 +749,8 @@ class AnyOfOp(IRDLOperation):
         return AnyOfOp(args)
 
     def print(self, printer: Printer) -> None:
-        printer.print("(")
-        printer.print_list(self.args, printer.print, ", ")
-        printer.print(")")
+        with printer.in_parens():
+            printer.print_list(self.args, printer.print_ssa_value)
 
 
 @irdl_op_definition
@@ -770,9 +773,8 @@ class AllOfOp(IRDLOperation):
         return AllOfOp(args)
 
     def print(self, printer: Printer) -> None:
-        printer.print("(")
-        printer.print_list(self.args, printer.print, ", ")
-        printer.print(")")
+        with printer.in_parens():
+            printer.print_list(self.args, printer.print_ssa_value)
 
 
 IRDL = Dialect(

@@ -5,10 +5,26 @@ from xdsl.dialects.smt import (
     AndOp,
     ApplyFuncOp,
     AssertOp,
+    BinaryBVOp,
     BitVectorAttr,
     BitVectorType,
     BoolType,
+    BVAddOp,
+    BVAndOp,
+    BVAShrOp,
     BvConstantOp,
+    BVLShrOp,
+    BVMulOp,
+    BVNegOp,
+    BVNotOp,
+    BVOrOp,
+    BVSDivOp,
+    BVShlOp,
+    BVSModOp,
+    BVSRemOp,
+    BVUDivOp,
+    BVURemOp,
+    BVXOrOp,
     ConstantBoolOp,
     DeclareFunOp,
     DistinctOp,
@@ -21,6 +37,7 @@ from xdsl.dialects.smt import (
     NotOp,
     OrOp,
     QuantifierOp,
+    UnaryBVOp,
     VariadicBoolOp,
     XOrOp,
     YieldOp,
@@ -164,4 +181,47 @@ def test_bv_constant_op():
     bv_attr = BitVectorAttr(42, 32)
     op = BvConstantOp(bv_attr)
     assert op.value == bv_attr
+    assert op.result.type == BitVectorType(32)
+
+    op2 = BvConstantOp.from_value_and_type(42, 32)
+    assert op2.value == bv_attr
+    assert op2.result.type == BitVectorType(32)
+
+    op3 = BvConstantOp.from_value_and_type(42, BitVectorType(32))
+    assert op3.value == bv_attr
+    assert op3.result.type == BitVectorType(32)
+
+
+@pytest.mark.parametrize("op_type", [BVNotOp, BVNegOp])
+def test_bv_unary_op(op_type: type[UnaryBVOp]):
+    arg = create_ssa_value(BitVectorType(32))
+    op = op_type(arg)
+    assert op.input == arg
+    assert op.result.type == arg.type
+
+
+@pytest.mark.parametrize(
+    "op_type",
+    [
+        BVAndOp,
+        BVOrOp,
+        BVXOrOp,
+        BVAddOp,
+        BVMulOp,
+        BVUDivOp,
+        BVSDivOp,
+        BVURemOp,
+        BVSRemOp,
+        BVSModOp,
+        BVShlOp,
+        BVLShrOp,
+        BVAShrOp,
+    ],
+)
+def test_bv_binary_op(op_type: type[BinaryBVOp]):
+    arg1 = create_ssa_value(BitVectorType(32))
+    arg2 = create_ssa_value(BitVectorType(32))
+    op = op_type(arg1, arg2)
+    assert op.lhs == arg1
+    assert op.rhs == arg2
     assert op.result.type == BitVectorType(32)

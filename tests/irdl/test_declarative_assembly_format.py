@@ -100,7 +100,7 @@ def check_roundtrip(program: str, ctx: Context):
     printer = Printer(stream=res_io)
     for op in ops[:-1]:
         printer.print_op(op)
-        printer.print("\n")
+        printer.print_string("\n")
     printer.print_op(ops[-1])
 
     assert program == res_io.getvalue()
@@ -3433,7 +3433,7 @@ def test_int_attr_verify_errors(program: str, error: str):
 class MyAttr(ParametrizedAttribute):
     name = "test.my_attr"
 
-    param: ParameterDef[StringAttr]
+    param: StringAttr = param_def()
 
 
 @irdl_op_definition

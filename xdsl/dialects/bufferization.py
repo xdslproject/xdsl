@@ -48,9 +48,7 @@ class TensorFromMemRefConstraint(
     a tensor instead of a memref.
     """
 
-    memref_constraint: GenericAttrConstraint[
-        MemRefType[Attribute] | UnrankedMemRefType[Attribute]
-    ]
+    memref_constraint: GenericAttrConstraint[MemRefType | UnrankedMemRefType]
 
     @staticmethod
     def tensor_to_memref(
@@ -87,6 +85,9 @@ class TensorFromMemRefConstraint(
                 f"Expected tensor or unranked tensor type, got {attr}"
             )
         return self.memref_constraint.verify(memref_type, constraint_context)
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {TensorType, UnrankedTensorType}
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]

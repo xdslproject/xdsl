@@ -141,6 +141,13 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         raise VerifyException(f"Invalid index {self.index.data} for register {name}.")
 
     @classmethod
+    def allocatable_registers(cls) -> Sequence[Self]:
+        """
+        Registers of this type that can be used for register allocation.
+        """
+        return ()
+
+    @classmethod
     @abstractmethod
     def index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()

@@ -94,15 +94,13 @@ class ConstantOp(IRDLOperation):
 
     @staticmethod
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
-        value = DenseIntOrFPElementsAttr.create_dense_float(
-            TensorType(f64, shape), data
-        )
+        value = DenseIntOrFPElementsAttr.from_list(TensorType(f64, shape), data)
         return ConstantOp(value)
 
     @staticmethod
     def from_value(value: float) -> ConstantOp:
         return ConstantOp(
-            DenseIntOrFPElementsAttr.create_dense_float(TensorType(f64, []), (value,))
+            DenseIntOrFPElementsAttr.from_list(TensorType(f64, []), (value,))
         )
 
     def verify_(self) -> None:
@@ -120,7 +118,7 @@ class ConstantOp(IRDLOperation):
         return list(self.get_type().get_shape())
 
     def get_data(self) -> list[float]:
-        return list(self.value.get_float_values())
+        return list(self.value.get_values())
 
 
 class InferAddOpShapeTrait(ToyShapeInferenceTrait):

@@ -1,15 +1,14 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.dialects.bigint import AddOp, BigIntegerType
+from xdsl.dialects import bigint
 from xdsl.frontend.pyast.block import block
 from xdsl.frontend.pyast.const import Const
 from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.dialects.builtin import i32
 from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
-
+p.register_type(int, bigint.bigint)
 #      CHECK: Cannot compile program without the code context
 # CHECK-NEXT:     p = FrontendProgram()
 # CHECK-NEXT:     with CodeContext(p):
@@ -128,7 +127,7 @@ try:
     with CodeContext(p):
 
         def test():
-            a: Const[i32] = 23
+            a: Const[int] = 23
             # CHECK-NEXT: Constant 'a' is already defined and cannot be assigned to.
             a = 3
             return
@@ -140,11 +139,11 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        a: Const[i32] = 23
+        a: Const[int] = 23
 
         # CHECK-NEXT: Constant 'a' is already defined.
         def test():
-            a: i32 = 3
+            a: int = 3
             return
 
     p.compile(desymref=False)
@@ -154,7 +153,7 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        b: Const[i32] = 23
+        b: Const[int] = 23
 
         def test():
             @block
@@ -172,7 +171,7 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[i32] = 23
+        c: Const[int] = 23
 
         def foo():
             # CHECK-NEXT: Constant 'c' is already defined and cannot be assigned to.
@@ -186,11 +185,11 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[i32] = 23
+        c: Const[int] = 23
 
         def foo():
             # CHECK-NEXT: Constant 'c' is already defined.
-            c: i32 = 2
+            c: int = 2
             return
 
     p.compile(desymref=False)
@@ -200,10 +199,10 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[i32] = 23
+        c: Const[int] = 23
 
         # CHECK-NEXT: Constant 'c' is already defined and cannot be used as a function/block argument name.
-        def foo(c: i32):
+        def foo(c: int):
             return
 
     p.compile(desymref=False)
@@ -213,7 +212,7 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        e: Const[i32] = 23
+        e: Const[int] = 23
 
         def foo():
             @block
@@ -231,7 +230,7 @@ except FrontendProgramException as e:
 
 with CodeContext(p):
     # CHECK-NEXT: Expected non-zero number of return types in function 'foo', but got 0.
-    def foo() -> i32:
+    def foo() -> int:
         return
 
 
@@ -244,29 +243,28 @@ except FrontendProgramException as e:
 
 try:
     # CHECK-NEXT: Cannot re-register type name 'int'
-    p.register_type(int, BigIntegerType)
-    p.register_type(int, BigIntegerType)
+    p.register_type(int, bigint.bigint)
 except FrontendProgramException as e:
     print(e.msg)
 
 
 try:
     # CHECK-NEXT: Cannot re-register function 'int.__add__'
-    p.register_function(int.__add__, AddOp)
-    p.register_function(int.__add__, AddOp)
+    p.register_function(int.__add__, bigint.AddOp)
+    p.register_function(int.__add__, bigint.AddOp)
 except FrontendProgramException as e:
     print(e.msg)
 
 
 try:
-    # CHECK-NEXT: Cannot register multiple source types for IR type 'BigIntegerType'
-    p.register_type(float, BigIntegerType)
+    # CHECK-NEXT: Cannot register multiple source types for IR type '!bigint.bigint'
+    p.register_type(float, bigint.bigint)
 except FrontendProgramException as e:
     print(e.msg)
 
 
 try:
-    # CHECK-NEXT: Cannot register multiple source types for IR type 'BigIntegerType'
-    p.register_type(float, BigIntegerType)
+    # CHECK-NEXT: Cannot register multiple source types for IR type '!bigint.bigint'
+    p.register_type(float, bigint.bigint)
 except FrontendProgramException as e:
     print(e.msg)
