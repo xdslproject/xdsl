@@ -744,19 +744,11 @@ class AttrParser(BaseParser):
 
     def _parse_dense_literal_type(
         self,
-    ) -> (
-        RankedStructure[IntegerType]
-        | RankedStructure[IndexType]
-        | RankedStructure[AnyFloat]
-        | RankedStructure[ComplexType]
-    ):
+    ) -> RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType]:
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
         if not (
-            base(RankedStructure[IntegerType])
-            | base(RankedStructure[IndexType])
-            | base(RankedStructure[AnyFloat])
-            | base(RankedStructure[ComplexType])
+            base(RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType])
         ).verifies(
             type,
         ):
