@@ -13,7 +13,8 @@ from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.transforms import get_all_passes
-from xdsl.utils.exceptions import DiagnosticException, ShrinkException
+from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
+from xdsl.utils.lexer import Span
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 
@@ -73,6 +74,18 @@ class xDSLOptMain(CommandLineTool):
                         if self.apply_passes(module):
                             output_stream.write(self.output_resulting_program(module))
                     output_stream.flush()
+                except ParseError as e:
+                    s = e.span
+                    e.span = Span(s.start, s.end, s.input, offset)
+                    if self.args.parsing_diagnostics:
+                        print(e)
+                    else:
+                        raise
+                except DiagnosticException as e:
+                    if self.args.verify_diagnostics:
+                        print(e)
+                    else:
+                        raise
                 finally:
                     chunk.close()
         except ShrinkException:
@@ -347,19 +360,11 @@ class xDSLOptMain(CommandLineTool):
 
     def apply_passes(self, prog: ModuleOp) -> bool:
         """Apply passes in order."""
-        try:
-            assert isinstance(prog, ModuleOp)
-            if not self.args.disable_verify:
-                prog.verify()
-            self.pipeline.apply(self.ctx, prog)
-            if not self.args.disable_verify:
-                prog.verify()
-        except DiagnosticException as e:
-            if self.args.verify_diagnostics:
-                print(e)
-                return False
-            else:
-                raise
+        if not self.args.disable_verify:
+            prog.verify()
+        self.pipeline.apply(self.ctx, prog)
+        if not self.args.disable_verify:
+            prog.verify()
         return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
@@ -368,13 +373,7 @@ class xDSLOptMain(CommandLineTool):
         if self.args.target not in self.available_targets:
             raise Exception(f"Unknown target {self.args.target}")
 
-        try:
-            self.available_targets[self.args.target](prog, output)
-        except DiagnosticException as e:
-            if self.args.verify_diagnostics:
-                return f"{e}\n"
-            else:
-                raise
+        self.available_targets[self.args.target](prog, output)
         return output.getvalue()
 
 
