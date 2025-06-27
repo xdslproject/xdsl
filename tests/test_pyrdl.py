@@ -18,10 +18,11 @@ from xdsl.irdl import (
     VarConstraint,
     eq,
     irdl_attr_definition,
+    irdl_to_attr_constraint,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import PyRDLTypeError, VerifyException
 
 
 @irdl_attr_definition
@@ -327,3 +328,10 @@ def test_constraint_vars_fail_underlying_constraint():
 
     with pytest.raises(VerifyException):
         constraint.verify(IntData(1), ConstraintContext())
+
+
+def test_irdl_to_attr_constraint():
+    with pytest.raises(
+        PyRDLTypeError, match="Unexpected irdl constraint: <class 'int'>"
+    ):
+        irdl_to_attr_constraint(int)  # pyright: ignore[reportArgumentType]

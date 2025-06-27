@@ -39,7 +39,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypedAttribute,
 )
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError
+from xdsl.utils.exceptions import PyRDLAttrDefinitionError, PyRDLTypeError
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
@@ -376,9 +376,11 @@ def irdl_to_attr_constraint(
     # We take the type variable bound constraint.
     if isinstance(irdl, TypeVar):
         if not allow_type_var:
-            raise ValueError("TypeVar in unexpected context.")
+            raise PyRDLTypeError("TypeVar in unexpected context.")
         if irdl.__bound__ is None:
-            raise ValueError("Type variables used in IRDL are expected to be bound.")
+            raise PyRDLTypeError(
+                "Type variables used in IRDL are expected to be bound."
+            )
         # We do not allow nested type variables.
         constraint = irdl_to_attr_constraint(irdl.__bound__)
         return cast(
@@ -391,7 +393,7 @@ def irdl_to_attr_constraint(
     if isclass(origin) and issubclass(origin, GenericData):
         args = get_args(irdl)
         if len(args) != 1:
-            raise Exception(f"GenericData args must have length 1, got {args}")
+            raise PyRDLTypeError(f"GenericData args must have length 1, got {args}")
         constr = irdl_to_attr_constraint(args[0])
 
         return cast(GenericAttrConstraint[AttributeInvT], origin.constr(constr))
@@ -411,7 +413,7 @@ def irdl_to_attr_constraint(
 
         # Check that we have the right number of parameters
         if len(args) != len(generic_args):
-            raise Exception(
+            raise PyRDLTypeError(
                 f"{origin.name} expects {len(generic_args)}"
                 f" parameters, got {len(args)}."
             )
@@ -454,13 +456,13 @@ def irdl_to_attr_constraint(
 
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):
-        raise ValueError(
+        raise PyRDLTypeError(
             f"Generic `Data` type '{origin.name}' cannot be converted to "
             "an attribute constraint. Consider making it inherit from "
             "`GenericData` instead of `Data`."
         )
 
-    raise ValueError(f"Unexpected irdl constraint: {irdl}")
+    raise PyRDLTypeError(f"Unexpected irdl constraint: {irdl}")
 
 
 def base(irdl: type[AttributeInvT]) -> GenericAttrConstraint[AttributeInvT]:
