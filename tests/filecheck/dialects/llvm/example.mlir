@@ -101,5 +101,5 @@ builtin.module {
 
   "llvm.unreachable"() : () -> ()
 
-// CHECK-NEXT: "llvm.unreachable"() : () -> ()
+// CHECK-NEXT: llvm.unreachable
 }
