@@ -85,6 +85,9 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
     array: ParameterDef[ArrayAttr[IntAttr]]
 
+    def __init__(self, array: ArrayAttr[IntAttr]):
+        super().__init__((array,))
+
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
@@ -92,7 +95,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
             return [cls.parse_indices(parser)]
 
     @classmethod
-    def parse_indices(cls, parser: AttrParser) -> ArrayAttr:
+    def parse_indices(cls, parser: AttrParser) -> ArrayAttr[IntAttr]:
         """
         Parse a comma-separated, square delimited, list of integers into an ArrayAttr of
         IntAttrs.
@@ -121,11 +124,9 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     @staticmethod
     def get(*indices: int | IntAttr):
         return IndexAttr(
-            [
-                ArrayAttr(
-                    [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
-                )
-            ]
+            ArrayAttr(
+                [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
+            )
         )
 
     # TODO : come to an agreement on, do we want to allow that kind of things
@@ -205,9 +206,9 @@ class StencilBoundsAttr(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         with parser.in_angle_brackets():
-            lb = IndexAttr([IndexAttr.parse_indices(parser)])
+            lb = IndexAttr(IndexAttr.parse_indices(parser))
             parser.parse_punctuation(",")
-            ub = IndexAttr([IndexAttr.parse_indices(parser)])
+            ub = IndexAttr(IndexAttr.parse_indices(parser))
             return [lb, ub]
 
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
@@ -1111,9 +1112,7 @@ class AccessOp(IRDLOperation):
 
         attributes: dict[str, Attribute] = {
             "offset": IndexAttr(
-                [
-                    ArrayAttr(IntAttr(value) for value in offset),
-                ]
+                ArrayAttr(IntAttr(value) for value in offset),
             ),
         }
 
