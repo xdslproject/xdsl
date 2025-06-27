@@ -1,13 +1,17 @@
 from enum import auto
+from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
     SymbolRefAttr,
     UnitAttr,
+    i1,
     i32,
+    i64,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
@@ -18,8 +22,12 @@ from xdsl.ir import (
     StrEnum,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    AnyInt,
     AttrSizedOperandSegments,
+    IntVarConstraint,
     IRDLOperation,
+    RangeOf,
     SameVariadicOperandSize,
     base,
     irdl_attr_definition,
@@ -30,7 +38,9 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.traits import IsTerminator, NoTerminator
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
+from xdsl.traits import IsolatedFromAbove, IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -51,6 +61,14 @@ class OrderKind(StrEnum):
     concurrent = auto()
 
 
+class DependKind(StrEnum):
+    taskdependin = auto()
+    taskdependout = auto()
+    taskdependinout = auto()
+    taskdependmutexinoutset = auto()
+    taskdependinoutset = auto()
+
+
 @irdl_attr_definition
 class ScheduleKindAttr(EnumAttribute[ScheduleKind], SpacedOpaqueSyntaxAttribute):
     name = "omp.schedulekind"
@@ -61,6 +79,21 @@ class ScheduleModifierAttr(
     EnumAttribute[ScheduleModifier], SpacedOpaqueSyntaxAttribute
 ):
     name = "omp.sched_mod"
+
+
+@irdl_attr_definition
+class DependKindAttr(EnumAttribute[DependKind], SpacedOpaqueSyntaxAttribute):
+    name = "omp.clause_task_depend"
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string("(" + self.data + ")")
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> DependKind:
+        parser.parse_punctuation("(")
+        res = parser.parse_str_enum(cls.enum_type)
+        parser.parse_punctuation(")")
+        return cast(DependKind, res)
 
 
 @irdl_attr_definition
@@ -164,6 +197,52 @@ class TerminatorOp(IRDLOperation):
     traits = traits_def(IsTerminator())
 
 
+@irdl_op_definition
+class TargetOp(IRDLOperation):
+    """
+    Implementation of upstream omp.target
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget-omptargetop).
+    """
+
+    name = "omp.target"
+
+    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    depend_vars = var_operand_def(
+        RangeOf(
+            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
+            length=DEP_COUNT,
+        )
+    )
+    device = opt_operand_def(IntegerType)
+    has_device_addr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    host_eval_vars = var_operand_def()
+    if_expr = opt_operand_def(i1)
+    in_reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    is_device_ptr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    map_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    private_vars = var_operand_def()
+    thread_limit = opt_operand_def(IntegerType | IndexType)
+
+    bare = opt_prop_def(UnitAttr)
+    depend_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(DependKindAttr), length=DEP_COUNT))
+    )
+    in_reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
+    in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    nowait = opt_prop_def(UnitAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    private_needs_barrier = opt_prop_def(UnitAttr)
+    private_maps = opt_prop_def(DenseIntOrFPElementsAttr[i64])
+
+    region = region_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    traits = traits_def(IsolatedFromAbove())
+
+
 OMP = Dialect(
     "omp",
     [
@@ -172,11 +251,13 @@ OMP = Dialect(
         WsLoopOp,
         LoopNestOp,
         YieldOp,
+        TargetOp,
     ],
     [
         OrderKindAttr,
         ProcBindKindAttr,
         ScheduleKindAttr,
         ScheduleModifierAttr,
+        DependKindAttr,
     ],
 )

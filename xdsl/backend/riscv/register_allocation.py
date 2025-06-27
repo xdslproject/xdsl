@@ -64,7 +64,6 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
         }
 
         for pa_reg in preallocated:
-            self.available_registers.reserve_register(pa_reg)
             self.available_registers.exclude_register(pa_reg)
 
         block = func.body.block
