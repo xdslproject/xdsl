@@ -268,7 +268,6 @@ class BytesAttr(Data[bytes], BuiltinAttribute):
 @irdl_attr_definition
 class SymbolNameAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "symbol_name"
-
     data: StringAttr
 
     def __init__(self, data: str | StringAttr) -> None:

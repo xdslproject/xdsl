@@ -112,7 +112,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     types: ArrayAttr[Attribute]
 
     # TODO: Add this parameter once xDSL supports the necessary capabilities.
-    #  bitmask: StringAttr = param_def(StringAttr)
+    #  bitmask: StringAttr
 
     @staticmethod
     def from_type_list(types: Sequence[Attribute]) -> LLVMStructType:
