@@ -392,6 +392,9 @@ x86.ms.vmovapd %0, %zmm1, 8 : (!x86.reg, !x86.avx512reg) -> ()
 %rm_vmovups_sse = x86.dm.vmovups %1, 8 : (!x86.reg) -> (!x86.ssereg)
 // CHECK-NEXT: %{{.*}} = x86.dm.vmovups %{{.*}}, 8 : (!x86.reg) -> !x86.ssereg
 
+%rm_vmovupd_avx2 = x86.dm.vmovupd %1, 8 : (!x86.reg) -> (!x86.avx2reg)
+// CHECK-NEXT: %{{.*}} = x86.dm.vmovupd %{{.*}}, 8 : (!x86.reg) -> !x86.avx2reg
+
 %rm_vbroadcastss_avx512 = x86.dm.vbroadcastss %1, 8 : (!x86.reg) -> (!x86.avx512reg)
 // CHECK: %{{.*}} = x86.dm.vbroadcastss %{{.*}}, 8 : (!x86.reg) -> !x86.avx512reg
 %rm_vbroadcastss_avx2 = x86.dm.vbroadcastss %1, 8 : (!x86.reg) -> (!x86.avx2reg)
