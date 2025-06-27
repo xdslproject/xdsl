@@ -700,6 +700,9 @@ AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstr
 class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "unit"
 
+    def __init__(self):
+        super().__init__(())
+
     def print_builtin(self, printer: Printer) -> None:
         printer.print_string("unit")
 
