@@ -91,26 +91,20 @@ class GenericData(Data[_DataElement], ABC):
 # |_|   \__,_|_|  \__,_|_| |_| |_/_/   \_\__|\__|_|
 #
 
-_A = TypeVar("_A", bound=Attribute)
-
-
-# Will deprecate soon
-ParameterDef = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
-
 
 # Field definition classes for `@irdl_param_attr_definition`
 class _ParameterDef:
-    param: GenericAttrConstraint[Attribute] | None
+    param: GenericAttrConstraint[Attribute]
 
     def __init__(
         self,
-        param: GenericAttrConstraint[Attribute] | None,
+        param: GenericAttrConstraint[Attribute],
     ):
         self.param = param
 
 
 def param_def(
-    constraint: GenericAttrConstraint[AttributeInvT] | None = None,
+    constraint: GenericAttrConstraint[AttributeInvT],
     *,
     default: None = None,
     resolver: None = None,
@@ -176,9 +170,8 @@ class ParamAttrDef:
             if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS
         }
 
-        # Fields of the class with type annotations
-        # param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
-        param_hints: dict[str, Any] = {}
+        # The resulting parameters
+        parameters: dict[str, AttrConstraint] = {}
 
         for field_name, field_type in get_type_hints(
             pyrdl_def, include_extras=True
@@ -186,21 +179,14 @@ class ParamAttrDef:
             if field_name == "name" or field_name == "parameters":
                 continue
 
-            origin: Any | None = cast(Any | None, get_origin(field_type))
-            args = get_args(field_type)
-            if (
-                origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args
-            ) and field_name not in clsdict:
+            try:
+                constraint = irdl_to_attr_constraint(field_type, allow_type_var=True)
+            except TypeError:
                 raise PyRDLAttrDefinitionError(
-                    f"In attribute {pyrdl_def.__name__} definition: Parameter "
-                    + f"definition {field_name} should be defined with "
-                    + f"type `ParameterDef[<Constraint>]`, got type {field_type}."
+                    f"Invalid field type {field_type} for field name {field_name}."
                 )
 
-            param_hints[field_name] = field_type
-
-        # The resulting parameters
-        parameters = list[tuple[str, AttrConstraint]]()
+            parameters[field_name] = constraint
 
         for field_name, value in clsdict.items():
             if field_name == "name":
@@ -214,20 +200,21 @@ class ParamAttrDef:
 
             # Parameter def must be a field def
             if isinstance(value, _ParameterDef):
-                type_hint = param_hints.get(field_name)
-                if type_hint is None:
+                if field_name not in parameters:
                     raise PyRDLAttrDefinitionError(
-                        f"Missing type hint for parameter name {field_name}"
+                        f"Missing field type for parameter name {field_name}"
                     )
-                # Erase type hint to avoid mixing definitions error below
-                del param_hints[field_name]
 
-                constraint = irdl_to_attr_constraint(type_hint, allow_type_var=True)
+                try:
+                    constraint = irdl_to_attr_constraint(
+                        value.param, allow_type_var=True
+                    )
+                except TypeError:
+                    raise PyRDLAttrDefinitionError(
+                        f"Invalid constraint {value.param} for field name {field_name}."
+                    )
 
-                if value.param is not None:
-                    constraint &= value.param
-
-                parameters.append((field_name, constraint))
+                parameters[field_name] &= constraint
                 continue
 
             # Constraint variables are allowed
@@ -247,26 +234,7 @@ class ParamAttrDef:
 
         name = clsdict["name"]
 
-        if parameters and param_hints:
-            raise ValueError(
-                "ParametrizedAttribute definitions must not mix `param_def` and "
-                "ParamDef declarations."
-            )
-
-        if param_hints:
-            import warnings
-
-            warnings.warn(
-                "ParameterDef[TYPE] syntax is deprecated, please use param_def instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        for param_name, param_type in param_hints.items():
-            constraint = irdl_to_attr_constraint(param_type, allow_type_var=True)
-            parameters.append((param_name, constraint))
-
-        return ParamAttrDef(name, parameters)
+        return ParamAttrDef(name, list(parameters.items()))
 
     def verify(self, attr: ParametrizedAttribute):
         """Verify that `attr` satisfies the invariants."""
@@ -522,7 +490,7 @@ def irdl_to_attr_constraint(
             "`GenericData` instead of `Data`."
         )
 
-    raise ValueError(f"Unexpected irdl constraint: {irdl}")
+    raise TypeError(f"Unexpected irdl constraint: {irdl}")
 
 
 def base(irdl: type[AttributeInvT]) -> GenericAttrConstraint[AttributeInvT]:

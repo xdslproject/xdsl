@@ -64,7 +64,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_prop_def,
-    param_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -269,7 +268,8 @@ class BytesAttr(Data[bytes], BuiltinAttribute):
 @irdl_attr_definition
 class SymbolNameAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "symbol_name"
-    data: StringAttr = param_def()
+
+    data: StringAttr
 
     def __init__(self, data: str | StringAttr) -> None:
         if isinstance(data, str):
@@ -280,8 +280,8 @@ class SymbolNameAttr(ParametrizedAttribute, BuiltinAttribute):
 @irdl_attr_definition
 class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "symbol_ref"
-    root_reference: StringAttr = param_def()
-    nested_references: ArrayAttr[StringAttr] = param_def()
+    root_reference: StringAttr
+    nested_references: ArrayAttr[StringAttr]
 
     def __init__(
         self,
@@ -569,8 +569,8 @@ class IntegerType(
     ParametrizedAttribute, StructPackableType[int], FixedBitwidthType, BuiltinAttribute
 ):
     name = "integer_type"
-    width: IntAttr = param_def()
-    signedness: SignednessAttr = param_def()
+    width: IntAttr
+    signedness: SignednessAttr
 
     def __init__(
         self,
@@ -753,8 +753,8 @@ class IntegerAttr(
     TypedAttribute,
 ):
     name = "integer"
-    value: IntAttr = param_def()
-    type: _IntegerAttrType = param_def()
+    value: IntAttr
+    type: _IntegerAttrType
 
     @overload
     def __init__(
@@ -1018,8 +1018,8 @@ _FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
     name = "float"
 
-    value: FloatData = param_def()
-    type: _FloatAttrType = param_def()
+    value: FloatData
+    type: _FloatAttrType
 
     @overload
     def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None: ...
@@ -1108,7 +1108,7 @@ class ComplexType(
     TypeAttribute,
 ):
     name = "complex"
-    element_type: ComplexElementCovT = param_def()
+    element_type: ComplexElementCovT
 
     def __init__(self, element_type: ComplexElementCovT):
         super().__init__([element_type])
@@ -1204,7 +1204,7 @@ class DictionaryAttr(Data[immutabledict[str, Attribute]], BuiltinAttribute):
 class TupleType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "tuple"
 
-    types: ArrayAttr[TypeAttribute] = param_def()
+    types: ArrayAttr[TypeAttribute]
 
     def __init__(self, types: list[TypeAttribute] | ArrayAttr[TypeAttribute]) -> None:
         if isinstance(types, list):
@@ -1228,9 +1228,9 @@ class VectorType(
 ):
     name = "vector"
 
-    shape: ArrayAttr[IntAttr] = param_def()
-    element_type: AttributeCovT = param_def()
-    scalable_dims: ArrayAttr[BoolAttr] = param_def()
+    shape: ArrayAttr[IntAttr]
+    element_type: AttributeCovT
+    scalable_dims: ArrayAttr[BoolAttr]
 
     def __init__(
         self,
@@ -1331,9 +1331,9 @@ class TensorType(
 ):
     name = "tensor"
 
-    shape: ArrayAttr[IntAttr] = param_def()
-    element_type: AttributeCovT = param_def()
-    encoding: Attribute = param_def()
+    shape: ArrayAttr[IntAttr]
+    element_type: AttributeCovT
+    encoding: Attribute
 
     def __init__(
         self,
@@ -1389,7 +1389,7 @@ class UnrankedTensorType(
 ):
     name = "unranked_tensor"
 
-    element_type: AttributeCovT = param_def()
+    element_type: AttributeCovT
 
     def __init__(self, element_type: AttributeCovT) -> None:
         super().__init__([element_type])
@@ -1525,8 +1525,8 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
     name = "dense_resource"
 
-    resource_handle: StringAttr = param_def()
-    type: ShapedType = param_def()
+    resource_handle: StringAttr
+    type: ShapedType
 
     def print_without_type(self, printer: Printer):
         printer.print_string("dense_resource")
@@ -1568,8 +1568,8 @@ class DenseArrayBase(
 ):
     name = "array"
 
-    elt_type: DenseArrayT = param_def()
-    data: BytesAttr = param_def()
+    elt_type: DenseArrayT
+    data: BytesAttr
 
     def __init__(self, elt_type: DenseArrayT, data: BytesAttr):
         super().__init__((elt_type, data))
@@ -1702,8 +1702,8 @@ class DenseArrayBase(
 class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "fun"
 
-    inputs: ArrayAttr[Attribute] = param_def()
-    outputs: ArrayAttr[Attribute] = param_def()
+    inputs: ArrayAttr[Attribute]
+    outputs: ArrayAttr[Attribute]
 
     def print_builtin(self, printer: Printer):
         with printer.in_parens():
@@ -1733,9 +1733,9 @@ class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
 class OpaqueAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "opaque"
 
-    ident: StringAttr = param_def()
-    value: StringAttr = param_def()
-    type: Attribute = param_def()
+    ident: StringAttr
+    value: StringAttr
+    type: Attribute
 
     def print_builtin(self, printer: Printer):
         printer.print_string("opaque")
@@ -1797,8 +1797,8 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
 
     name = "strided"
 
-    strides: ArrayAttr[IntAttr | NoneAttr] = param_def()
-    offset: IntAttr | NoneAttr = param_def()
+    strides: ArrayAttr[IntAttr | NoneAttr]
+    offset: IntAttr | NoneAttr
 
     def __init__(
         self,
@@ -2075,10 +2075,10 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
 
     name = "builtin.unregistered"
 
-    attr_name: StringAttr = param_def()
-    is_type: IntAttr = param_def()
-    is_opaque: IntAttr = param_def()
-    value: StringAttr = param_def()
+    attr_name: StringAttr
+    is_type: IntAttr
+    is_opaque: IntAttr
+    value: StringAttr
     """
     This parameter is non-null is the attribute is a type, and null otherwise.
     """
@@ -2246,10 +2246,10 @@ class MemRefType(
 ):
     name = "memref"
 
-    shape: ArrayAttr[IntAttr] = param_def()
-    element_type: _MemRefTypeElement = param_def()
-    layout: StridedLayoutAttr | AffineMapAttr | NoneAttr = param_def()
-    memory_space: Attribute = param_def()
+    shape: ArrayAttr[IntAttr]
+    element_type: _MemRefTypeElement
+    layout: StridedLayoutAttr | AffineMapAttr | NoneAttr
+    memory_space: Attribute
 
     def __init__(
         self,
@@ -2416,8 +2416,8 @@ class UnrankedMemRefType(
 ):
     name = "unranked_memref"
 
-    element_type: _UnrankedMemRefTypeElems = param_def()
-    memory_space: Attribute = param_def()
+    element_type: _UnrankedMemRefTypeElems
+    memory_space: Attribute
 
     def print_builtin(self, printer: Printer):
         printer.print_string("memref<*x")
@@ -2460,8 +2460,8 @@ class DenseIntOrFPElementsAttr(
     ContainerType[DenseElementCovT],
 ):
     name = "dense"
-    type: RankedStructure[DenseElementCovT] = param_def()
-    data: BytesAttr = param_def()
+    type: RankedStructure[DenseElementCovT]
+    data: BytesAttr
 
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...]:

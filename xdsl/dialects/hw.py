@@ -40,7 +40,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     lazy_traits_def,
     opt_attr_def,
-    param_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -100,9 +99,9 @@ class InnerRefAttr(ParametrizedAttribute):
     """This works like a symbol reference, but to a name inside a module."""
 
     name = "hw.innerNameRef"
-    module_ref: FlatSymbolRefAttr = param_def()
+    module_ref: FlatSymbolRefAttr
     # NB. upstream defines as “name” which clashes with Attribute.name
-    sym_name: StringAttr = param_def()
+    sym_name: StringAttr
 
     def __init__(self, module: str | StringAttr, name: str | StringAttr) -> None:
         if isinstance(module, str):
@@ -286,9 +285,9 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
     name = "hw.innerSymProps"
 
     # NB. upstream defines as “name” which clashes with Attribute.name
-    sym_name: StringAttr = param_def()
-    field_id: IntAttr = param_def()
-    sym_visibility: StringAttr = param_def()
+    sym_name: StringAttr
+    field_id: IntAttr
+    sym_visibility: StringAttr
 
     def __init__(
         self,
@@ -349,7 +348,7 @@ class InnerSymAttr(
 
     name = "hw.innerSym"
 
-    props: ArrayAttr[InnerSymPropertiesAttr] = param_def()
+    props: ArrayAttr[InnerSymPropertiesAttr]
 
     @overload
     def __init__(self) -> None:
@@ -503,16 +502,16 @@ class ModulePort(ParametrizedAttribute):
 
     name = "hw.modport"
 
-    port_name: StringAttr = param_def()
-    type: TypeAttribute = param_def()
-    dir: DirectionAttr = param_def()
+    port_name: StringAttr
+    type: TypeAttribute
+    dir: DirectionAttr
 
 
 @irdl_attr_definition
 class ModuleType(ParametrizedAttribute, TypeAttribute):
     name = "hw.modty"
 
-    ports: ArrayAttr[ModulePort] = param_def()
+    ports: ArrayAttr[ModulePort]
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -552,8 +551,8 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
 class ParamDeclAttr(ParametrizedAttribute):
     name = "hw.param.decl"
 
-    port_name: StringAttr = param_def()
-    type: TypeAttribute = param_def()
+    port_name: StringAttr
+    type: TypeAttribute
 
     @classmethod
     def parse_free_standing_parameters(

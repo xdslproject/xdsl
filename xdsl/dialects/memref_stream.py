@@ -47,7 +47,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_prop_def,
-    param_def,
     prop_def,
     region_def,
     result_def,
@@ -79,7 +78,7 @@ class ReadableStreamType(
 ):
     name = "memref_stream.readable"
 
-    element_type: _StreamTypeElement = param_def()
+    element_type: _StreamTypeElement
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
@@ -106,7 +105,7 @@ class WritableStreamType(
 ):
     name = "memref_stream.writable"
 
-    element_type: _StreamTypeElement = param_def()
+    element_type: _StreamTypeElement
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
@@ -193,8 +192,8 @@ class StridePattern(ParametrizedAttribute):
 
     name = "memref_stream.stride_pattern"
 
-    ub: ArrayAttr[IntegerAttr[IndexType]] = param_def()
-    index_map: AffineMapAttr = param_def()
+    ub: ArrayAttr[IntegerAttr[IndexType]]
+    index_map: AffineMapAttr
 
     def __init__(
         self,

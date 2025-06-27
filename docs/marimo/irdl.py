@@ -459,7 +459,7 @@ def _(IntAttr, StringAttr, irdl_attr_definition):
 
         # Only parameter of the type, with an `EqAttrConstraint` constraint.
         # Note the use of the attribute constraint coercion.
-        width: IntAttr = param_def()
+        width: IntAttr
 
 
     my_i32 = MyIntegerType([IntAttr(32)])

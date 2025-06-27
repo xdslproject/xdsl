@@ -10,7 +10,6 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
-    param_def,
     prop_def,
     region_def,
 )
@@ -26,7 +25,7 @@ class QubitAttr(StimPrintable, ParametrizedAttribute, TypeAttribute):
 
     name = "stim.qubit"
 
-    qubit: IntAttr = param_def()
+    qubit: IntAttr
 
     def __init__(self, qubit: int | IntAttr) -> None:
         if not isinstance(qubit, IntAttr):
@@ -68,8 +67,8 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
 
     name = "stim.qubit_coord"
 
-    coords: ArrayAttr[FloatData | IntAttr] = param_def()
-    qubit_name: QubitAttr = param_def()
+    coords: ArrayAttr[FloatData | IntAttr]
+    qubit_name: QubitAttr
 
     def __init__(
         self,
