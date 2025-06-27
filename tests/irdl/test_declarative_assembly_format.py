@@ -3435,6 +3435,9 @@ class MyAttr(ParametrizedAttribute):
 
     param: ParameterDef[StringAttr]
 
+    def __init__(self, param: StringAttr):
+        super().__init__((param,))
+
 
 @irdl_op_definition
 class NonQualifiedAttrOp(IRDLOperation):
@@ -3453,7 +3456,7 @@ def test_non_qualified_attr():
     parser = Parser(ctx, 'test.non_qualified_attr <"test">')
     op = parser.parse_operation()
     assert isinstance(op, NonQualifiedAttrOp)
-    assert op.attr == MyAttr([StringAttr("test")])
+    assert op.attr == MyAttr(StringAttr("test"))
 
 
 @irdl_op_definition
@@ -3473,4 +3476,4 @@ def test_qualified_attr():
     parser = Parser(ctx, 'test.qualified_attr #test.my_attr<"test">')
     op = parser.parse_operation()
     assert isinstance(op, QualifiedAttrOp)
-    assert op.attr == MyAttr([StringAttr("test")])
+    assert op.attr == MyAttr(StringAttr("test"))
