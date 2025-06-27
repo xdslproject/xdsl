@@ -441,7 +441,8 @@ class VariableOp(IRDLOperation):
         return self.res.type.get_element_type()
 
     @staticmethod
-    def from_type(child_type: TypeAttribute) -> VariableOp:
+    def from_type(child_type: Attribute) -> VariableOp:
+        assert isinstance(child_type, TypeAttribute)
         return VariableOp(result_types=[VarType(child_type)])
 
     @staticmethod
