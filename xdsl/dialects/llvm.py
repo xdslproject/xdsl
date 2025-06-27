@@ -4,7 +4,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from types import EllipsisType
-from typing import ClassVar
+from typing import ClassVar, assert_never
 
 from xdsl.dialects.builtin import (
     I64,
@@ -77,7 +77,7 @@ should be used for this index.
 """
 
 
-def _parse_llvm_type(parser: AttrParser):
+def _parse_llvm_type(parser: AttrParser) -> Attribute | None:
     if parser.parse_optional_characters("void"):
         return LLVMVoidType()
     if parser.parse_optional_characters("ptr"):
@@ -88,16 +88,16 @@ def _parse_llvm_type(parser: AttrParser):
         return LLVMStructType(*LLVMStructType.parse_parameters(parser))
 
 
-def parse_llvm_type(parser: AttrParser):
+def parse_llvm_type(parser: AttrParser) -> Attribute:
     if (l := _parse_llvm_type(parser)) is not None:
         return l
     return parser.parse_attribute()
 
 
-def parse_optional_llvm_type(parser: AttrParser):
+def parse_optional_llvm_type(parser: AttrParser) -> Attribute | None:
     if (l := _parse_llvm_type(parser)) is not None:
         return l
-    return parser.parse_optional_type()
+    return parser.parse_optional_attribute()
 
 
 @irdl_attr_definition
@@ -149,7 +149,7 @@ class LLVMPointerType(
 ):
     name = "llvm.ptr"
 
-    type: ParameterDef[Attribute | NoneAttr]
+    type: ParameterDef[Attribute]
     addr_space: ParameterDef[IntAttr | NoneAttr]
 
     def print_parameters(self, printer: Printer) -> None:
@@ -167,7 +167,7 @@ class LLVMPointerType(
     @classmethod
     def parse_parameters(
         cls, parser: AttrParser
-    ) -> tuple[Attribute | NoneAttr, IntAttr | NoneAttr]:
+    ) -> tuple[Attribute, IntAttr | NoneAttr]:
         if parser.parse_optional_characters("<") is None:
             return (NoneAttr(), NoneAttr())
         type = parse_optional_llvm_type(parser)
@@ -200,8 +200,8 @@ class LLVMPointerType(
 class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.array"
 
-    size: ParameterDef[IntAttr | NoneAttr]
-    type: ParameterDef[TypeAttribute | NoneAttr]
+    size: ParameterDef[IntAttr]
+    type: ParameterDef[Attribute]
 
     def print_parameters(self, printer: Printer) -> None:
         if isinstance(self.size, NoneAttr):
@@ -212,23 +212,15 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
             printer.print_attribute(self.type)
 
     @classmethod
-    def parse_parameters(
-        cls, parser: AttrParser
-    ) -> tuple[IntAttr | NoneAttr, TypeAttribute | NoneAttr]:
-        if parser.parse_optional_characters("<") is None:
-            return (NoneAttr(), NoneAttr())
-        size = IntAttr(parser.parse_integer())
-        if parser.parse_optional_characters(">") is not None:
-            return (size, NoneAttr())
-        parser.parse_shape_delimiter()
-        type = parse_optional_llvm_type(parser)
-        if type is None:
-            parser.raise_error("Expected second parameter of llvm.array to be a type!")
-        parser.parse_characters(">", " to end llvm.array parameters")
+    def parse_parameters(cls, parser: AttrParser) -> tuple[IntAttr, Attribute]:
+        with parser.in_angle_brackets():
+            size = IntAttr(parser.parse_integer())
+            parser.parse_shape_delimiter()
+            type = parse_llvm_type(parser)
         return (size, type)
 
     @staticmethod
-    def from_size_and_type(size: int | IntAttr, type: TypeAttribute):
+    def from_size_and_type(size: int | IntAttr, type: Attribute):
         if isinstance(size, int):
             size = IntAttr(size)
         return LLVMArrayType(size, type)
@@ -1718,7 +1710,12 @@ class CallOp(IRDLOperation):
         input_types = [
             SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
         ]
-        var_callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
+        if variadic_args:
+            var_callee_type = LLVMFunctionType(
+                input_types, return_type, bool(variadic_args)
+            )
+        else:
+            var_callee_type = None
         super().__init__(
             operands=[args, op_bundle_operands],
             properties={

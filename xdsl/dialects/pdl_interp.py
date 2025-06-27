@@ -33,7 +33,15 @@ from xdsl.dialects.pdl import (
     ValueType,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -356,6 +364,31 @@ class CheckAttributeOp(IRDLOperation):
         super().__init__(
             operands=[attribute],
             properties={"constantValue": constantValue},
+            successors=[trueDest, falseDest],
+        )
+
+
+@irdl_op_definition
+class CheckTypeOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_type-pdl_interpchecktypeop).
+    """
+
+    name = "pdl_interp.check_type"
+    traits = traits_def(IsTerminator())
+    type = prop_def(TypeAttribute)
+    value = operand_def(TypeType)
+    true_dest = successor_def()
+    false_dest = successor_def()
+
+    assembly_format = "$value `is` $type attr-dict `->` $true_dest `, ` $false_dest"
+
+    def __init__(
+        self, type: TypeAttribute, value: SSAValue, trueDest: Block, falseDest: Block
+    ) -> None:
+        super().__init__(
+            operands=[value],
+            properties={"type": type},
             successors=[trueDest, falseDest],
         )
 
@@ -858,6 +891,79 @@ class FuncOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class SwitchAttributeOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpswitch_attribute-pdl_interpswitchattributeop).
+    """
+
+    name = "pdl_interp.switch_attribute"
+
+    attribute = operand_def(AttributeType)
+    caseValues = prop_def(ArrayAttr)
+    defaultDest = successor_def()
+    cases = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+
+    assembly_format = (
+        "$attribute `to` $caseValues `(` $cases `)` attr-dict `->` $defaultDest"
+    )
+
+    def __init__(
+        self,
+        attribute: SSAValue,
+        case_values: ArrayAttr,
+        default_dest: Block,
+        cases: list[Block],
+    ) -> None:
+        super().__init__(
+            operands=[attribute],
+            properties={"caseValues": case_values},
+            successors=[default_dest, cases],
+        )
+
+
+@irdl_op_definition
+class CreateTypeOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_type-pdl_interpcreatetypeop).
+    """
+
+    name = "pdl_interp.create_type"
+
+    value = prop_def(TypeAttribute)
+    result = result_def(TypeType)
+
+    assembly_format = "$value attr-dict"
+
+    def __init__(self, value: TypeAttribute) -> None:
+        super().__init__(
+            properties={"value": value},
+            result_types=[TypeType()],
+        )
+
+
+@irdl_op_definition
+class CreateTypesOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_types-pdl_interpcreatetypesop).
+    """
+
+    name = "pdl_interp.create_types"
+
+    value = prop_def(ArrayAttr)
+    result = result_def(RangeType[TypeType])
+
+    assembly_format = "$value attr-dict"
+
+    def __init__(self, value: ArrayAttr) -> None:
+        super().__init__(
+            properties={"value": value},
+            result_types=[RangeType(TypeType())],
+        )
+
+
 PDLInterp = Dialect(
     "pdl_interp",
     [
@@ -866,6 +972,7 @@ PDLInterp = Dialect(
         CheckOperationNameOp,
         CheckOperandCountOp,
         CheckResultCountOp,
+        CheckTypeOp,
         IsNotNullOp,
         GetResultOp,
         GetResultsOp,
@@ -878,6 +985,9 @@ PDLInterp = Dialect(
         CreateAttributeOp,
         CreateOperationOp,
         SwitchOperationNameOp,
+        SwitchAttributeOp,
+        CreateTypeOp,
+        CreateTypesOp,
         FuncOp,
         GetDefiningOpOp,
     ],

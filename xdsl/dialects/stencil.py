@@ -426,7 +426,7 @@ class TempType(
         super().__init__(bounds, element_type)
 
 
-StencilTypeConstr = StencilType[Attribute].constr()
+StencilTypeConstr = FieldType.constr() | TempType.constr()
 FieldTypeConstr = FieldType[Attribute].constr()
 TempTypeConstr = TempType[Attribute].constr()
 
@@ -1261,8 +1261,7 @@ class LoadOp(IRDLOperation):
         FieldType[Attribute].constr(
             bounds=base(StencilBoundsAttr),
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",
             ),
         )
@@ -1270,8 +1269,7 @@ class LoadOp(IRDLOperation):
     res = result_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",
             )
         )
@@ -1417,8 +1415,7 @@ class StoreOp(IRDLOperation):
     temp = operand_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Input and output fields must have the same element types",
             ),
         )
@@ -1429,8 +1426,7 @@ class StoreOp(IRDLOperation):
                 StencilBoundsAttr, "Output type's size must be explicit"
             ),
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Input and output fields must have the same element types",
             ),
         )

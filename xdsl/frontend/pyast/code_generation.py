@@ -11,10 +11,8 @@ import xdsl.dialects.scf as scf
 import xdsl.frontend.pyast.symref as symref
 from xdsl.frontend.pyast.exception import (
     CodeGenerationException,
-    FrontendProgramException,
 )
 from xdsl.frontend.pyast.op_inserter import OpInserter
-from xdsl.frontend.pyast.op_resolver import OpResolver
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, SSAValue, TypeAttribute
@@ -163,38 +161,91 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
 
         ir_type = cast(TypeAttribute, lhs.type)
-        source_type = self.type_converter.get_source_type(ir_type)
-        if source_type is not None:  # NOTE: To support old codebase
-            method_name = python_AST_operator_to_python_overload[op_name]
-            function_name = f"{source_type.__qualname__}.{method_name}"
-            op = self.type_converter.function_registry.resolve_operation(
-                module_name=source_type.__module__,
-                function_name=function_name,
-                args=(lhs, rhs),
-            )
-            if op is not None:
-                self.inserter.insert_op(op)
-                return
-
-        # Look-up what is the frontend type we deal with to resolve the binary
-        # operation.
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
-            lhs.type.__class__
-        ]
-
-        overload_name = python_AST_operator_to_python_overload[op_name]
-        try:
-            op = OpResolver.resolve_op_overload(overload_name, frontend_type)(lhs, rhs)
-            self.inserter.insert_op(op)
-        except FrontendProgramException:
+        source_type = self.type_converter.type_registry.get_annotation(ir_type)
+        if source_type is None:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Binary operation '{op_name}' "
-                f"is not supported by type '{frontend_type.__qualname__}' "
-                f"which does not overload '{overload_name}'.",
+                f"IR type '{ir_type}' is not registered with a source type.",
             )
+
+        method_name = python_AST_operator_to_python_overload[op_name]
+        function_name = f"{source_type.__qualname__}.{method_name}"
+        op = self.type_converter.function_registry.resolve_operation(
+            module_name=source_type.__module__,
+            method_name=function_name,
+            args=(lhs, rhs),
+        )
+        if op is not None:
+            self.inserter.insert_op(op)
+            return
+
+        overload_name = python_AST_operator_to_python_overload[op_name]
+        raise CodeGenerationException(
+            self.file,
+            node.lineno,
+            node.col_offset,
+            f"Binary operation '{op_name}' "
+            f"is not supported by type '{source_type.__qualname__}' "
+            f"which does not overload '{overload_name}'.",
+        )
+
+    def visit_Call(self, node: ast.Call):
+        # Resolve function
+        assert isinstance(node.func, ast.Name)
+        func_name = node.func.id
+        source_func = self.type_converter.globals.get(func_name, None)
+        if source_func is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Function '{func_name}' is not defined in scope.",
+            )
+        ir_op = self.type_converter.function_registry.get_operation_type(source_func)
+        if ir_op is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Function '{func_name}' is not registered.",
+            )
+
+        # Resolve arguments
+        assert self.symbol_table is not None
+        args: list[symref.FetchOp] = []
+        for arg in node.args:
+            if not isinstance(arg, ast.Name) or arg.id not in self.symbol_table:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Function arguments must be declared variables.",
+                )
+            args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
+            self.inserter.insert_op(arg_op)
+
+        # Resolve keyword arguments
+        kwargs: dict[str, symref.FetchOp] = {}
+        for keyword in node.keywords:
+            if (
+                not isinstance(keyword.value, ast.Name)
+                or keyword.value.id not in self.symbol_table
+            ):
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Function arguments must be declared variables.",
+                )
+            assert keyword.arg is not None
+            kwargs[keyword.arg] = symref.FetchOp(
+                keyword.value.id, self.symbol_table[keyword.value.id]
+            )
+            self.inserter.insert_op(kwargs[keyword.arg])
+
+        self.inserter.insert_op(ir_op(*args, **kwargs))
 
     def visit_Compare(self, node: ast.Compare):
         # Allow a single comparison only.
@@ -254,55 +305,35 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             )
 
         ir_type = cast(TypeAttribute, lhs.type)
-        source_type = self.type_converter.get_source_type(ir_type)
-        if source_type is not None:  # NOTE: To support old codebase
-            method_name = python_AST_cmpop_to_python_overload[op_name]
-            function_name = f"{source_type.__qualname__}.{method_name}"
-            op = self.type_converter.function_registry.resolve_operation(
-                module_name=source_type.__module__,
-                function_name=function_name,
-                args=(lhs, rhs),
-            )
-            if op is not None:
-                self.inserter.insert_op(op)
-                return
-
-        # Resolve the comparison operation to an xdsl operation class
-        python_op = python_AST_cmpop_to_python_overload[op_name]
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
-            lhs.type.__class__
-        ]
-
-        try:
-            op = OpResolver.resolve_op_overload(python_op, frontend_type)
-        except FrontendProgramException:
+        source_type = self.type_converter.type_registry.get_annotation(ir_type)
+        if source_type is None:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Comparison operation '{op_name}' "
-                f"is not supported by type '{frontend_type.__qualname__}' "
-                f"which does not overload '{python_op}'.",
+                f"IR type '{ir_type}' is not registered with a source type.",
             )
 
-        # Create the comparison operation (including any potential negations)
-        if op_name == "In":
-            # "in" does not take a mnemonic.
-            op = op(lhs, rhs)
-        else:
-            # Table with mappings of Python AST cmpop to xDSL mnemonics.
-            python_AST_cmpop_to_mnemonic = {
-                "Eq": "eq",
-                "Gt": "sgt",
-                "GtE": "sge",
-                "Lt": "slt",
-                "LtE": "sle",
-                "NotEq": "ne",
-            }
-            mnemonic = python_AST_cmpop_to_mnemonic[op_name]
-            op = op(lhs, rhs, mnemonic)
+        method_name = python_AST_cmpop_to_python_overload[op_name]
+        function_name = f"{source_type.__qualname__}.{method_name}"
+        op = self.type_converter.function_registry.resolve_operation(
+            module_name=source_type.__module__,
+            method_name=function_name,
+            args=(lhs, rhs),
+        )
+        if op is not None:
+            self.inserter.insert_op(op)
+            return
 
-        self.inserter.insert_op(op)
+        python_op = python_AST_cmpop_to_python_overload[op_name]
+        raise CodeGenerationException(
+            self.file,
+            node.lineno,
+            node.col_offset,
+            f"Comparison operation '{op_name}' "
+            f"is not supported by type '{ir_type.name}' "
+            f"which does not overload '{python_op}'.",
+        )
 
     def _generate_affine_loop_bounds(
         self, args: list[ast.expr]
@@ -501,30 +532,30 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     arg.col_offset,
                     "Function arguments must be type hinted",
                 )
-            if not isinstance(arg.annotation, ast.Name):
+            xdsl_type = self.type_converter.type_registry.resolve_attribute(
+                ast.unparse(arg.annotation), self.type_converter.globals
+            )
+            if xdsl_type is None:
                 raise CodeGenerationException(
                     self.file,
                     arg.lineno,
                     arg.col_offset,
                     f"Unsupported function argument type: '{ast.unparse(arg.annotation)}'",
                 )
-            xdsl_type = self.type_converter.get_ir_type(arg.annotation.id)
-            if xdsl_type is None:
-                xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
             argument_types.append(xdsl_type)
 
         return_types: list[Attribute] = []
         if node.returns is not None:
-            if not isinstance(node.returns, ast.Name):
+            xdsl_type = self.type_converter.type_registry.resolve_attribute(
+                ast.unparse(node.returns), self.type_converter.globals
+            )
+            if xdsl_type is None:
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
                     node.col_offset,
                     f"Unsupported function return type: '{ast.unparse(node.returns)}'",
                 )
-            xdsl_type = self.type_converter.get_ir_type(node.returns.id)
-            if xdsl_type is None:
-                xdsl_type = self.type_converter.convert_type_hint(node.returns)
             return_types.append(xdsl_type)
 
         # Create a function operation.
