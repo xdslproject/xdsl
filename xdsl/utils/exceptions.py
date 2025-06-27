@@ -47,15 +47,27 @@ class PassFailedException(DiagnosticException):
 
 
 class PyRDLError(Exception):
-    pass
+    """
+    An error in our IRDL eDSL.
+    """
 
 
-class PyRDLOpDefinitionError(Exception):
-    pass
+class PyRDLOpDefinitionError(PyRDLError):
+    """
+    An error in the Operation definition eDSL.
+    """
 
 
-class PyRDLAttrDefinitionError(Exception):
-    pass
+class PyRDLAttrDefinitionError(PyRDLError):
+    """
+    An error in the Attribute definition eDSL.
+    """
+
+
+class PyRDLTypeError(TypeError, PyRDLError):
+    """
+    A type error in our IRDL eDSL.
+    """
 
 
 class InvalidIRException(Exception):

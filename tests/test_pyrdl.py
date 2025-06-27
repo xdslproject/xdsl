@@ -17,10 +17,11 @@ from xdsl.irdl import (
     VarConstraint,
     eq,
     irdl_attr_definition,
+    irdl_to_attr_constraint,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import PyRDLTypeError, VerifyException
 
 
 @irdl_attr_definition
@@ -326,3 +327,49 @@ def test_constraint_vars_fail_underlying_constraint():
 
     with pytest.raises(VerifyException):
         constraint.verify(IntData(1), ConstraintContext())
+
+
+# region: irdl_to_attr_constraint
+
+_MissingGenericDataData = TypeVar("_MissingGenericDataData")
+
+
+@irdl_attr_definition
+class MissingGenericDataData(Data[_MissingGenericDataData]):
+    name = "test.missing_genericdata"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> _MissingGenericDataData:
+        raise NotImplementedError()
+
+    def print_parameter(self, printer: Printer) -> None:
+        raise NotImplementedError()
+
+    def verify(self) -> None:
+        return
+
+
+def test_data_with_generic_missing_generic_data_failure():
+    """
+    Test error message when a generic data is used in constraints
+    without implementing GenericData.
+    """
+    with pytest.raises(
+        PyRDLTypeError,
+        match=(
+            "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
+            "attribute constraint. Consider making it inherit from `GenericData` "
+            "instead of `Data`."
+        ),
+    ):
+        irdl_to_attr_constraint(MissingGenericDataData[int])
+
+
+def test_irdl_to_attr_constraint():
+    with pytest.raises(
+        PyRDLTypeError, match="Unexpected irdl constraint: <class 'int'>"
+    ):
+        irdl_to_attr_constraint(int)  # pyright: ignore[reportArgumentType]
+
+
+# endregion

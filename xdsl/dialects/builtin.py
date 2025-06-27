@@ -699,6 +699,9 @@ AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstr
 class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "unit"
 
+    def __init__(self):
+        super().__init__(())
+
     def print_builtin(self, printer: Printer) -> None:
         printer.print_string("unit")
 
@@ -2462,6 +2465,9 @@ class DenseIntOrFPElementsAttr(
     type: RankedStructure[DenseElementCovT]
     data: BytesAttr
 
+    def __init__(self, type: RankedStructure[DenseElementCovT], data: BytesAttr):
+        super().__init__((type, data))
+
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...]:
         return self.type.get_shape()
@@ -2589,7 +2595,7 @@ class DenseIntOrFPElementsAttr(
         if len(data) == 1 and (p := prod(type.get_shape())) != 1:
             b *= p
 
-        return DenseIntOrFPElementsAttr((type, BytesAttr(b)))
+        return DenseIntOrFPElementsAttr(type, BytesAttr(b))
 
     def iter_values(
         self,

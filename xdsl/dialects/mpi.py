@@ -56,26 +56,29 @@ class OperationType(ParametrizedAttribute, TypeAttribute):
 
     op_str: StringAttr
 
+    def __init__(self, op_str: StringAttr):
+        super().__init__((op_str,))
+
 
 class MpiOp:
     """
     A collection of MPI_Op types used for
     """
 
-    MPI_MAX = OperationType([StringAttr("MPI_MAX")])
-    MPI_MIN = OperationType([StringAttr("MPI_MIN")])
-    MPI_SUM = OperationType([StringAttr("MPI_SUM")])
-    MPI_PROD = OperationType([StringAttr("MPI_PROD")])
-    MPI_LAND = OperationType([StringAttr("MPI_LAND")])
-    MPI_BAND = OperationType([StringAttr("MPI_BAND")])
-    MPI_LOR = OperationType([StringAttr("MPI_LOR")])
-    MPI_BOR = OperationType([StringAttr("MPI_BOR")])
-    MPI_LXOR = OperationType([StringAttr("MPI_LXOR")])
-    MPI_BXOR = OperationType([StringAttr("MPI_BXOR")])
-    MPI_MINLOC = OperationType([StringAttr("MPI_MINLOC")])
-    MPI_MAXLOC = OperationType([StringAttr("MPI_MAXLOC")])
-    MPI_REPLACE = OperationType([StringAttr("MPI_REPLACE")])
-    MPI_NO_OP = OperationType([StringAttr("MPI_NO_OP")])
+    MPI_MAX = OperationType(StringAttr("MPI_MAX"))
+    MPI_MIN = OperationType(StringAttr("MPI_MIN"))
+    MPI_SUM = OperationType(StringAttr("MPI_SUM"))
+    MPI_PROD = OperationType(StringAttr("MPI_PROD"))
+    MPI_LAND = OperationType(StringAttr("MPI_LAND"))
+    MPI_BAND = OperationType(StringAttr("MPI_BAND"))
+    MPI_LOR = OperationType(StringAttr("MPI_LOR"))
+    MPI_BOR = OperationType(StringAttr("MPI_BOR"))
+    MPI_LXOR = OperationType(StringAttr("MPI_LXOR"))
+    MPI_BXOR = OperationType(StringAttr("MPI_BXOR"))
+    MPI_MINLOC = OperationType(StringAttr("MPI_MINLOC"))
+    MPI_MAXLOC = OperationType(StringAttr("MPI_MAXLOC"))
+    MPI_REPLACE = OperationType(StringAttr("MPI_REPLACE"))
+    MPI_NO_OP = OperationType(StringAttr("MPI_NO_OP"))
 
 
 @irdl_attr_definition
@@ -123,9 +126,8 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     name = "mpi.vector"
     wrapped_type: _VectorT
 
-    @staticmethod
-    def of(dtype: type[_VectorT]) -> VectorType[_VectorT]:
-        return VectorType([dtype([])])
+    def __init__(self, wrapped_type: _VectorT) -> None:
+        super().__init__((wrapped_type,))
 
 
 class StatusTypeField(Enum):
@@ -573,7 +575,7 @@ class WaitallOp(MPIBaseOp):
     statuses = opt_result_def(VectorType[StatusType])
 
     def __init__(self, requests: Operand, count: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[VectorType[StatusType].of(StatusType)]]
+        result_types: list[list[Attribute]] = [[VectorType(StatusType())]]
         if ignore_status:
             result_types = [[]]
 
@@ -734,7 +736,7 @@ class AllocateTypeOp(MPIBaseOp):
         bindc_name: StringAttr | None = None,
     ):
         return super().__init__(
-            result_types=[VectorType[dtype].of(dtype)],
+            result_types=[VectorType(dtype())],
             attributes={
                 "dtype": dtype(),
                 "bindc_name": bindc_name,

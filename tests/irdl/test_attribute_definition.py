@@ -653,45 +653,6 @@ def test_informative_constraint():
 # GenericData definition
 ################################################################################
 
-_MissingGenericDataData = TypeVar("_MissingGenericDataData")
-
-
-@irdl_attr_definition
-class MissingGenericDataData(Data[_MissingGenericDataData]):
-    name = "test.missing_genericdata"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> _MissingGenericDataData:
-        raise NotImplementedError()
-
-    def print_parameter(self, printer: Printer) -> None:
-        raise NotImplementedError()
-
-    def verify(self) -> None:
-        return
-
-
-class MissingGenericDataDataWrapper(ParametrizedAttribute):
-    name = "test.missing_genericdata_wrapper"
-
-    param: MissingGenericDataData[int]
-
-
-def test_data_with_generic_missing_generic_data_failure():
-    """
-    Test error message when a generic data is used in constraints
-    without implementing GenericData.
-    """
-    with pytest.raises(
-        ValueError,
-        match=(
-            "Generic `Data` type 'test.missing_genericdata' cannot be converted to an "
-            "attribute constraint. Consider making it inherit from `GenericData` "
-            "instead of `Data`."
-        ),
-    ):
-        irdl_attr_definition(MissingGenericDataDataWrapper)
-
 
 @irdl_attr_definition
 class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):

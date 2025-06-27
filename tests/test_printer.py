@@ -93,7 +93,7 @@ def test_unit_attr():
 "unit_attr_op"() {parallelize} : () -> ()
 """
 
-    unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr([])})
+    unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr()})
 
     assert_print_op(unit_op, expected)
 
@@ -105,7 +105,7 @@ def test_added_unit_attr():
 "unit_attr_op"() {parallelize, vectorize} : () -> ()
 """
     unitop = UnitAttrOp.build(
-        attributes={"parallelize": UnitAttr([]), "vectorize": UnitAttr([])}
+        attributes={"parallelize": UnitAttr(), "vectorize": UnitAttr()}
     )
 
     assert_print_op(unitop, expected)
