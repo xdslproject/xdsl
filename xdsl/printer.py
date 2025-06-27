@@ -169,7 +169,7 @@ class Printer(BasePrinter):
             name = self._get_new_valid_name_id()
             self._ssa_values[value] = name
 
-        self.print_string(f"%{name}")
+        self.print_string(f"%{name}", color="cyan")
         return name
 
     def print_operand(self, operand: SSAValue) -> None:
