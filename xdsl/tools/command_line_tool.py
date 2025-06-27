@@ -105,8 +105,4 @@ class CommandLineTool:
         argument. If not set, the parser registered for this file extension
         is used.
         """
-
-        try:
-            return self.available_frontends[file_extension](chunk)
-        finally:
-            chunk.close()
+        return self.available_frontends[file_extension](chunk)

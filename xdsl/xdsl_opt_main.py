@@ -74,6 +74,18 @@ class xDSLOptMain(CommandLineTool):
                         if self.apply_passes(module):
                             output_stream.write(self.output_resulting_program(module))
                     output_stream.flush()
+                except ParseError as e:
+                    s = e.span
+                    e.span = Span(s.start, s.end, s.input, offset)
+                    if self.args.parsing_diagnostics:
+                        print(e)
+                    else:
+                        raise
+                except DiagnosticException as e:
+                    if self.args.verify_diagnostics:
+                        print(e)
+                    else:
+                        raise
                 finally:
                     chunk.close()
         except ShrinkException:
@@ -348,19 +360,11 @@ class xDSLOptMain(CommandLineTool):
 
     def apply_passes(self, prog: ModuleOp) -> bool:
         """Apply passes in order."""
-        try:
-            assert isinstance(prog, ModuleOp)
-            if not self.args.disable_verify:
-                prog.verify()
-            self.pipeline.apply(self.ctx, prog)
-            if not self.args.disable_verify:
-                prog.verify()
-        except DiagnosticException as e:
-            if self.args.verify_diagnostics:
-                print(e)
-                return False
-            else:
-                raise
+        if not self.args.disable_verify:
+            prog.verify()
+        self.pipeline.apply(self.ctx, prog)
+        if not self.args.disable_verify:
+            prog.verify()
         return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
@@ -369,32 +373,8 @@ class xDSLOptMain(CommandLineTool):
         if self.args.target not in self.available_targets:
             raise Exception(f"Unknown target {self.args.target}")
 
-        try:
-            self.available_targets[self.args.target](prog, output)
-        except DiagnosticException as e:
-            if self.args.verify_diagnostics:
-                return f"{e}\n"
-            else:
-                raise
+        self.available_targets[self.args.target](prog, output)
         return output.getvalue()
-
-    def parse_chunk(
-        self, chunk: IO[str], file_extension: str, start_offset: int = 0
-    ) -> ModuleOp | None:
-        try:
-            return super().parse_chunk(chunk, file_extension, start_offset)
-        except ParseError as e:
-            s = e.span
-            e.span = Span(s.start, s.end, s.input, start_offset)
-            if self.args.parsing_diagnostics:
-                print(e)
-            else:
-                raise
-        except DiagnosticException as e:
-            if self.args.verify_diagnostics:
-                print(e)
-            else:
-                raise
 
 
 class VersionAction(argparse.Action):
