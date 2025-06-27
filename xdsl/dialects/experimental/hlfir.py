@@ -41,7 +41,7 @@ from xdsl.irdl import (
     opt_operand_def,
     opt_prop_def,
     prop_def,
-    region_def,
+    region_def,    
     result_def,
     traits_def,
     var_operand_def,
