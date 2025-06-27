@@ -1,4 +1,5 @@
-from collections.abc import Sequence, Set
+from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
@@ -59,8 +60,9 @@ class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
         )
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(" ", self.format_str)
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
+        printer.print_attribute(self.format_str)
         return {"format_str"}
 
     def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg, ...]:

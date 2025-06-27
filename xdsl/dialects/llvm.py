@@ -12,8 +12,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
-    DenseI64ArrayConstr,
-    IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -38,6 +36,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     BaseAttr,
     IRDLOperation,
     ParameterDef,
@@ -67,7 +66,6 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
 
 GEP_USE_SSA_VAL = -2147483648
@@ -105,7 +103,7 @@ def parse_optional_llvm_type(parser: AttrParser):
 @irdl_attr_definition
 class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#structure-types
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#structure-types).
     """
 
     name = "llvm.struct"
@@ -122,16 +120,15 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         return LLVMStructType([StringAttr(""), ArrayAttr(types)])
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        if self.struct_name.data:
-            printer.print_string_literal(self.struct_name.data)
-            printer.print_string(", ")
-        printer.print("(")
-        printer.print_list(self.types.data, printer.print_attribute)
-        printer.print(")>")
+        with printer.in_angle_brackets():
+            if self.struct_name.data:
+                printer.print_string_literal(self.struct_name.data)
+                printer.print_string(", ")
+            with printer.in_parens():
+                printer.print_list(self.types.data, printer.print_attribute)
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(cls, parser: AttrParser) -> tuple[StringAttr, ArrayAttr]:
         parser.parse_characters("<", " in LLVM struct")
         struct_name = parser.parse_optional_str_literal()
         if struct_name is None:
@@ -143,7 +140,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
             parser.Delimiter.PAREN, lambda: parse_llvm_type(parser)
         )
         parser.parse_characters(">", " to close LLVM struct parameters")
-        return [StringAttr(struct_name), ArrayAttr(params)]
+        return (StringAttr(struct_name), ArrayAttr(params))
 
 
 @irdl_attr_definition
@@ -152,7 +149,7 @@ class LLVMPointerType(
 ):
     name = "llvm.ptr"
 
-    type: ParameterDef[Attribute | NoneAttr]
+    type: ParameterDef[Attribute]
     addr_space: ParameterDef[IntAttr | NoneAttr]
 
     def print_parameters(self, printer: Printer) -> None:
@@ -168,19 +165,21 @@ class LLVMPointerType(
         printer.print_string(">")
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(
+        cls, parser: AttrParser
+    ) -> tuple[Attribute, IntAttr | NoneAttr]:
         if parser.parse_optional_characters("<") is None:
-            return [NoneAttr(), NoneAttr()]
+            return (NoneAttr(), NoneAttr())
         type = parse_optional_llvm_type(parser)
         if type is None:
             parser.raise_error("Expected first parameter of llvm.ptr to be a type!")
         if parser.parse_optional_characters(",") is None:
             parser.parse_characters(">", " for llvm.ptr parameters")
-            return [type, NoneAttr()]
+            return (type, NoneAttr())
         parser.parse_characters(",", " between llvm.ptr args")
         addr_space = parser.parse_integer()
         parser.parse_characters(">", " to end llvm.ptr parameters")
-        return [type, IntegerAttr(addr_space, IndexType())]
+        return (type, IntAttr(addr_space))
 
     @staticmethod
     def opaque():
@@ -205,25 +204,18 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     type: ParameterDef[Attribute]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<")
-        printer.print_string(str(self.size.data))
-        printer.print_string(" x ")
-        printer.print_attribute(self.type)
-        printer.print_string(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.size.data)
+            printer.print_string(" x ")
+            printer.print_attribute(self.type)
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        if parser.parse_optional_characters("<") is None:
-            return [NoneAttr(), NoneAttr()]
-        size = IntAttr(parser.parse_integer())
-        if parser.parse_optional_characters(">") is not None:
-            return [size, NoneAttr()]
-        parser.parse_shape_delimiter()
-        type = parse_optional_llvm_type(parser)
-        if type is None:
-            parser.raise_error("Expected second parameter of llvm.array to be a type!")
-        parser.parse_characters(">", " to end llvm.array parameters")
-        return [size, type]
+    def parse_parameters(cls, parser: AttrParser) -> tuple[IntAttr, Attribute]:
+        with parser.in_angle_brackets():
+            size = IntAttr(parser.parse_integer())
+            parser.parse_shape_delimiter()
+            type = parse_llvm_type(parser)
+        return (size, type)
 
     @staticmethod
     def from_size_and_type(size: int | IntAttr, type: Attribute):
@@ -242,7 +234,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     """
     Currently does not support variadics.
 
-    https://mlir.llvm.org/docs/Dialects/LLVM/#function-types
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#function-types).
     """
 
     name = "llvm.func"
@@ -269,20 +261,19 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         return isinstance(self.variadic, UnitAttr)
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<")
-        if isinstance(self.output, LLVMVoidType):
-            printer.print("void")
-        else:
-            printer.print_attribute(self.output)
+        with printer.in_angle_brackets():
+            if isinstance(self.output, LLVMVoidType):
+                printer.print_string("void")
+            else:
+                printer.print_attribute(self.output)
 
-        printer.print(" (")
-        printer.print_list(self.inputs, printer.print_attribute)
-        if self.is_variadic:
-            if self.inputs:
-                printer.print(", ")
-            printer.print("...")
-
-        printer.print_string(")>")
+            printer.print_string(" ")
+            with printer.in_parens():
+                printer.print_list(self.inputs, printer.print_attribute)
+                if self.is_variadic:
+                    if self.inputs:
+                        printer.print_string(", ")
+                    printer.print_string("...")
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -403,10 +394,13 @@ class ArithmeticBinOperation(IRDLOperation, ABC):
         return cls(operands[0], operands[1], attributes)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.lhs.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 class OverflowFlag(StrEnum):
@@ -431,7 +425,7 @@ class OverflowAttr(OverflowAttrBase):
 
     def print(self, printer: Printer):
         if self.flags:
-            printer.print(" overflow")
+            printer.print_string(" overflow")
             self.print_parameter(printer)
 
 
@@ -476,12 +470,15 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         return cls(operands[0], operands[1], attributes, overflowFlags)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         if self.overflowFlags:
             self.overflowFlags.print(printer)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.lhs.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 class ArithmeticBinOpExact(IRDLOperation, ABC):
@@ -519,7 +516,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 
     def print_exact(self, printer: Printer) -> None:
         if self.is_exact:
-            printer.print(" exact")
+            printer.print_string(" exact")
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -535,10 +532,13 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 
     def print(self, printer: Printer) -> None:
         self.print_exact(printer)
-        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.lhs.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
@@ -601,10 +601,13 @@ class IntegerConversionOp(IRDLOperation, ABC):
         return cls(operands[0], res_type, attributes)
 
     def print(self, printer: Printer):
-        printer.print(" ", self.arg)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.arg)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.arg.type, " to ", self.res.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.arg.type)
+        printer.print_string(" to ")
+        printer.print_attribute(self.res.type)
 
 
 class IntegerConversionOpNNeg(IRDLOperation, ABC):
@@ -667,12 +670,15 @@ class IntegerConversionOpOverflow(IRDLOperation, ABC):
         return cls(operands[0], res_type, attributes, overflowFlags)
 
     def print(self, printer: Printer):
-        printer.print(" ", self.arg)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.arg)
         if self.overflowFlags:
             self.overflowFlags.print(printer)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.arg.type, " to ", self.res.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.arg.type)
+        printer.print_string(" to ")
+        printer.print_attribute(self.res.type)
 
 
 @irdl_op_definition
@@ -856,10 +862,13 @@ class ICmpOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(' "')
         self.print_predicate(printer)
-        printer.print('" ', self.lhs, ", ", self.rhs)
+        printer.print_string('" ')
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
-        printer.print(self.lhs.type)
+        printer.print_attribute(self.lhs.type)
 
 
 @irdl_op_definition
@@ -868,11 +877,12 @@ class GEPOp(IRDLOperation):
     llvm.getelementptr is an instruction to do pointer arithmetic by
     adding/subtracting offsets from a pointer.
 
-    The llvm.getelementptr is documented in various places online:
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmgetelementptr-mlirllvmgepop).
 
-    LLVM documentation: https://www.llvm.org/docs/GetElementPtr.html
-    A good blogpost: https://blog.yossarian.net/2020/09/19/LLVMs-getelementptr-by-example
-    MLIR documentation: https://mlir.llvm.org/docs/Dialects/LLVM/#llvmgetelementptr-mlirllvmgepop
+    GetElementPtr is documented in various places online:
+
+    See the LLVM [documentation](https://www.llvm.org/docs/GetElementPtr.html).
+    A good [blogpost](https://blog.yossarian.net/2020/09/19/LLVMs-getelementptr-by-example).
 
     Note that the first two discuss *LLVM IRs* GEP operation, not the MLIR one.
     The semantics are the same, but the structure used by MLIR is not well
@@ -1008,14 +1018,11 @@ class GEPOp(IRDLOperation):
             ssa_indices = []
 
         # convert a potential Operation into an SSAValue
-        ptr_val = SSAValue.get(ptr)
+        ptr_val = SSAValue.get(ptr, type=LLVMPointerType)
         ptr_type = ptr_val.type
 
-        if not isinstance(ptr_type, LLVMPointerType):
-            raise ValueError("Input must be a pointer")
-
         props: dict[str, Attribute] = {
-            "rawConstantIndices": DenseArrayBase.create_dense_int(i32, indices),
+            "rawConstantIndices": DenseArrayBase.from_list(i32, indices),
         }
 
         if not ptr_type.is_typed():
@@ -1116,10 +1123,9 @@ class IntToPtrOp(IRDLOperation):
 @irdl_op_definition
 class InlineAsmOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop).
 
-    To see what each field means, have a look at:
-    https://llvm.org/docs/LangRef.html#inline-assembler-expressions
+    To see what each field means, have a look [here](https://llvm.org/docs/LangRef.html#inline-assembler-expressions).
     """
 
     name = "llvm.inline_asm"
@@ -1195,8 +1201,7 @@ class LoadOp(IRDLOperation):
 
     def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
-            ptr = SSAValue.get(ptr)
-            assert isinstance(ptr.type, LLVMPointerType)
+            ptr = SSAValue.get(ptr, type=LLVMPointerType)
 
             if isinstance(ptr.type.type, NoneAttr):
                 raise ValueError(
@@ -1265,12 +1270,12 @@ class NullOp(IRDLOperation):
 @irdl_op_definition
 class ExtractValueOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmextractvalue-mlirllvmextractvalueop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmextractvalue-mlirllvmextractvalueop).
     """
 
     name = "llvm.extractvalue"
 
-    position = prop_def(DenseI64ArrayConstr)
+    position = prop_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
 
     res = result_def(Attribute)
@@ -1295,12 +1300,12 @@ class ExtractValueOp(IRDLOperation):
 @irdl_op_definition
 class InsertValueOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertvalue-mlirllvminsertvalueop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertvalue-mlirllvminsertvalueop).
     """
 
     name = "llvm.insertvalue"
 
-    position = prop_def(DenseI64ArrayConstr)
+    position = prop_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
     value = operand_def(Attribute)
 
@@ -1326,7 +1331,7 @@ class InsertValueOp(IRDLOperation):
 @irdl_op_definition
 class UndefOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop).
     """
 
     name = "llvm.mlir.undef"
@@ -1453,9 +1458,8 @@ LLVM_CALLING_CONVS: set[str] = {
     "cfguard_checkcc",
 }
 """
-A list of all valid calling conventions understood by LLVM, see
-https://llvm.org/docs/LangRef.html#calling-conventions
-for more info.
+A list of all valid calling conventions understood by LLVM, see external documentation
+[here](https://llvm.org/docs/LangRef.html#calling-conventions) for more info.
 """
 
 
@@ -1540,7 +1544,7 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class ReturnOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmreturn-mlirllvmreturnop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmreturn-mlirllvmreturnop).
     """
 
     name = "llvm.return"
@@ -1584,12 +1588,13 @@ class ConstantOp(IRDLOperation):
         return cls(value, value_type)
 
     def print(self, printer: Printer) -> None:
-        printer.print("(")
-        if isattr(self.value, IntegerAttr) and self.result.type == IntegerType(64):
-            self.value.print_without_type(printer)
-        else:
-            printer.print(self.value)
-        printer.print(") : ", self.result.type)
+        with printer.in_parens():
+            if isa(self.value, IntegerAttr) and self.result.type == IntegerType(64):
+                self.value.print_without_type(printer)
+            else:
+                printer.print_attribute(self.value)
+        printer.print_string(" : ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_attr_definition
@@ -1600,29 +1605,37 @@ class FastMathAttr(FastMathAttrBase):
 @irdl_op_definition
 class CallIntrinsicOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop).
     """
 
     name = "llvm.call_intrinsic"
 
     fastmathFlags = opt_prop_def(FastMathAttr)
     intrin = prop_def(StringAttr)
+    op_bundle_sizes = prop_def(DenseArrayBase.constr(i32))
     args = var_operand_def()
+    op_bundle_operands = var_operand_def()
     ress = opt_result_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
         intrin: StringAttr | str,
         args: Sequence[SSAValue],
         result_types: Sequence[Attribute],
+        *,
+        op_bundle_sizes: DenseArrayBase,
+        op_bundle_operands: Sequence[SSAValue] = (),
     ):
         if isinstance(intrin, str):
             intrin = StringAttr(intrin)
         super().__init__(
-            operands=args,
+            operands=[args, op_bundle_operands],
             result_types=(result_types,),
             properties={
                 "intrin": intrin,
+                "op_bundle_sizes": op_bundle_sizes,
             },
         )
 
@@ -1654,20 +1667,29 @@ class CallOp(IRDLOperation):
     name = "llvm.call"
 
     args = var_operand_def()
+    op_bundle_operands = var_operand_def()
 
     callee = opt_prop_def(SymbolRefAttr)
     var_callee_type = opt_prop_def(LLVMFunctionType)
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr("none"))
     CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
+    op_bundle_sizes = prop_def(
+        DenseArrayBase.constr(i32),
+        default_value=DenseArrayBase.from_list(i32, ()),
+    )
     TailCallKind = prop_def(
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
     )
     returned = opt_result_def()
 
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
     def __init__(
         self,
         callee: str | SymbolRefAttr | StringAttr,
         *args: SSAValue | Operation,
+        op_bundle_sizes: DenseArrayBase = DenseArrayBase.from_list(i32, ()),
+        op_bundle_operands: tuple[SSAValue, ...] = (),
         return_type: Attribute | None = None,
         calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
         fastmath: FastMathAttr = FastMathAttr(None),
@@ -1681,14 +1703,20 @@ class CallOp(IRDLOperation):
         input_types = [
             SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
         ]
-        var_callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
+        if variadic_args:
+            var_callee_type = LLVMFunctionType(
+                input_types, return_type, bool(variadic_args)
+            )
+        else:
+            var_callee_type = None
         super().__init__(
-            operands=[args],
+            operands=[args, op_bundle_operands],
             properties={
                 "callee": callee,
                 "var_callee_type": var_callee_type,
                 "fastmathFlags": fastmath,
                 "CConv": calling_convention,
+                "op_bundle_sizes": op_bundle_sizes,
             },
             result_types=op_result_type,
         )

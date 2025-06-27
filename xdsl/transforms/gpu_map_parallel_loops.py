@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, ModuleOp
 from xdsl.dialects.gpu import LoopDimMapAttr, ProcessorAttr, ProcessorEnum
 from xdsl.dialects.scf import ParallelOp
@@ -78,11 +78,9 @@ def mapParallelOp(parallelOp: ParallelOp, mappingLevel: int = MapGrid):
     attrs = ArrayAttr(
         [
             LoopDimMapAttr(
-                [
-                    ProcessorAttr(attr),
-                    AffineMapAttr(AffineMap.identity(1)),
-                    AffineMapAttr(AffineMap.identity(1)),
-                ]
+                ProcessorAttr(attr),
+                AffineMapAttr(AffineMap.identity(1)),
+                AffineMapAttr(AffineMap.identity(1)),
             )
             for attr in reversed(attrs)
         ]
@@ -103,7 +101,7 @@ class GpuMapParallelLoopsPattern(RewritePattern):
 class GpuMapParallelLoopsPass(ModulePass):
     name = "gpu-map-parallel-loops"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier([GpuMapParallelLoopsPattern()])
         )

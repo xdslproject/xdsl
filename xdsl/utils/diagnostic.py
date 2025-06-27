@@ -10,7 +10,9 @@ from xdsl.utils.exceptions import DiagnosticException
 
 @dataclass
 class Diagnostic:
-    op_messages: dict[Operation, list[str]] = field(default_factory=dict)
+    op_messages: dict[Operation, list[str]] = field(
+        default_factory=dict[Operation, list[str]]
+    )
 
     def add_message(self, op: Operation, message: str) -> None:
         """Add a message to an operation."""
@@ -31,7 +33,7 @@ class Diagnostic:
         toplevel = ir.get_toplevel_object()
         if isinstance(toplevel, Operation):
             p.print_op(toplevel)
-            print("\n", file=f)
+            p.print_string("\n")
         elif isinstance(toplevel, Block):
             p.print_block(toplevel)
         elif isinstance(toplevel, Region):

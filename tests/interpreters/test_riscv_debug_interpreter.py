@@ -5,13 +5,11 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_debug import RiscvDebugFunctions
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_riscv_interpreter():
     module_op = ModuleOp([])
-    register = riscv.IntRegisterType.unallocated()
-    fregister = riscv.FloatRegisterType.unallocated()
 
     riscv_functions = RiscvFunctions()
     riscv_debug_functions = RiscvDebugFunctions()
@@ -25,10 +23,10 @@ def test_riscv_interpreter():
             riscv_debug.PrintfOp(
                 "{} {} {} {}",
                 (
-                    TestSSAValue(register),
-                    TestSSAValue(register),
-                    TestSSAValue(fregister),
-                    TestSSAValue(fregister),
+                    create_ssa_value(riscv.Registers.UNALLOCATED_INT),
+                    create_ssa_value(riscv.Registers.UNALLOCATED_INT),
+                    create_ssa_value(riscv.Registers.UNALLOCATED_FLOAT),
+                    create_ssa_value(riscv.Registers.UNALLOCATED_FLOAT),
                 ),
             ),
             (1, -1, 2.0, -2.0),

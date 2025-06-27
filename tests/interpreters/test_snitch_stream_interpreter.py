@@ -9,7 +9,7 @@ from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
 from xdsl.interpreters.snitch_stream import SnitchStreamFunctions
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 @pytest.mark.parametrize(
@@ -57,7 +57,7 @@ def test_simplify_stride_pattern(
 
 
 def test_snitch_stream_interpreter():
-    register = riscv.IntRegisterType.unallocated()
+    register = riscv.Registers.UNALLOCATED_INT
 
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(RiscvFunctions())
@@ -94,8 +94,8 @@ def test_snitch_stream_interpreter():
     assert (
         interpreter.run_op(
             snitch_stream.StreamingRegionOp(
-                (TestSSAValue(register), TestSSAValue(register)),
-                (TestSSAValue(register),),
+                (create_ssa_value(register), create_ssa_value(register)),
+                (create_ssa_value(register),),
                 ArrayAttr(
                     (
                         snitch_stream.StridePattern.from_bounds_and_strides(

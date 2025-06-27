@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-next-line MD041 -->
 [![Build Status for the Core backend](https://github.com/xdslproject/xdsl/actions/workflows/ci-core.yml/badge.svg)](https://github.com/xdslproject/xdsl/actions/workflows/ci-core.yml?query=workflow%3A%22CI+-+Python+application%22++)
 [![PyPI version](https://badge.fury.io/py/xdsl.svg)](https://badge.fury.io/py/xdsl)
 [![Downloads](https://static.pepy.tech/badge/xdsl)](https://www.pepy.tech/projects/xdsl)
@@ -30,7 +31,7 @@ optimization capabilities.
 - [Getting Started](#getting-started)
 - [xDSL Developer Setup](#xdsl-developer-setup)
   - [Developer Installation](#developer-installation)
-  - [Testing](#testing)
+  - [Testing and benchmarking](#testing-and-benchmarking)
   - [Formatting and Typechecking](#formatting-and-typechecking)
 
 ## Installation
@@ -44,7 +45,7 @@ pip install xdsl
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions may result in problems. The supported
-MLIR version is commit `d401987fe349a87c53fe25829215b080b70c0c1a`.
+MLIR version is 20.1.7.
 
 ### Subprojects With Extra Dependencies
 

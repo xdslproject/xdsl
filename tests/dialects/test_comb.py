@@ -13,24 +13,23 @@ from xdsl.dialects.comb import (
 )
 from xdsl.dialects.test import TestOp, TestType
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_icmp_incorrect_comparison():
-    a = TestSSAValue(i32)
-    b = TestSSAValue(i32)
+    a = create_ssa_value(i32)
+    b = create_ssa_value(i32)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unknown comparison mnemonic: slet"):
         # 'slet' is an invalid comparison operation
         _icmp_op = ICmpOp(a, b, "slet")
-    assert e.value.args[0] == "Unknown comparison mnemonic: slet"
 
 
 def test_comb_concat_builder():
-    a = TestSSAValue(IntegerType(5))
-    b = TestSSAValue(IntegerType(3))
-    c = TestSSAValue(IntegerType(1))
-    foo = TestSSAValue(TestType("foo"))
+    a = create_ssa_value(IntegerType(5))
+    b = create_ssa_value(IntegerType(3))
+    c = create_ssa_value(IntegerType(1))
+    foo = create_ssa_value(TestType("foo"))
 
     concat = ConcatOp.from_int_values([a, b, c])
     assert concat is not None
@@ -63,8 +62,8 @@ def test_comb_concat_verifier():
     ],
 )
 def test_comb_variadic_builder_verifier(ctor: type[VariadicCombOperation]):
-    a = TestSSAValue(IntegerType(5))
-    b = TestSSAValue(IntegerType(6))
+    a = create_ssa_value(IntegerType(5))
+    b = create_ssa_value(IntegerType(6))
 
     ctor([a]).verify()
     ctor([a, a]).verify()

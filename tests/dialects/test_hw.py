@@ -6,7 +6,7 @@ from unittest.mock import ANY, patch
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr, i32, i64
 from xdsl.dialects.hw import (
     HW,
@@ -46,7 +46,7 @@ from xdsl.traits import (
     ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_inner_sym_target():
@@ -343,7 +343,7 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
 }
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(HW)
 
     module_op = Parser(ctx, MODULE_CTX).parse_module()
@@ -352,7 +352,7 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
         inst_op := InstanceOp(
             "test",
             SymbolRefAttr("module"),
-            (("foo", TestSSAValue(i32)), ("bar", TestSSAValue(i64))),
+            (("foo", create_ssa_value(i32)), ("bar", create_ssa_value(i64))),
             (("baz", i32), ("qux", i64)),
         )
     )

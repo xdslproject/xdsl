@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.frontend.pyast import symref
 from xdsl.frontend.pyast.exception import FrontendProgramException
@@ -371,5 +371,5 @@ class Desymrefier:
 class FrontendDesymrefyPass(ModulePass):
     name = "frontend-desymrefy"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp):
+    def apply(self, ctx: Context, op: builtin.ModuleOp):
         Desymrefier().desymrefy(op)

@@ -4,7 +4,7 @@ from io import StringIO
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import riscv, riscv_debug, riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import BlockArgument
@@ -14,7 +14,7 @@ pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 
 from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv  # noqa: E402
 
-ctx = MLContext()
+ctx = Context()
 ctx.load_dialect(riscv.RISCV)
 
 
@@ -22,19 +22,15 @@ def test_simple():
     @ModuleOp
     @Builder.implicit_region
     def module():
-        riscv.DirectiveOp(".globl", "main")
-
         @Builder.implicit_region
         def body():
             six = riscv.LiOp(6).rd
             seven = riscv.LiOp(7).rd
-            forty_two = riscv.MulOp(
-                six, seven, rd=riscv.IntRegisterType.unallocated()
-            ).rd
+            forty_two = riscv.MulOp(six, seven).rd
             riscv_debug.PrintfOp("{}", (forty_two,))
             riscv.ReturnOp()
 
-        riscv_func.FuncOp("main", body, ((), ()))
+        riscv_func.FuncOp("main", body, ((), ()), visibility="public")
 
     RISCVRegisterAllocation().apply(ctx, module)
 
@@ -54,8 +50,6 @@ def test_multiply_add():
     @ModuleOp
     @Builder.implicit_region
     def module():
-        riscv.DirectiveOp(".globl", "main")
-
         @Builder.implicit_region
         def main():
             riscv.LiOp(3, rd=riscv.Registers.A0)
@@ -69,7 +63,7 @@ def test_multiply_add():
             riscv.LiOp(93, rd=riscv.Registers.A7)
             riscv.EcallOp()
 
-        riscv_func.FuncOp("main", main, ((), ()))
+        riscv_func.FuncOp("main", main, ((), ()), visibility="public")
 
         @Builder.implicit_region((riscv.Registers.A0, riscv.Registers.A1))
         def multiply(args: tuple[BlockArgument, ...]):

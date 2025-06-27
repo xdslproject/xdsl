@@ -3,29 +3,33 @@ from __future__ import annotations
 from io import StringIO
 
 import pytest
-from conftest import assert_print_op
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
     AnyFloat,
     Builtin,
+    ComplexType,
     FloatAttr,
     FunctionType,
+    IndexType,
     IntAttr,
     IntegerType,
     ModuleOp,
+    Signedness,
     SymbolRefAttr,
     UnitAttr,
     f32,
+    i1,
     i32,
 )
 from xdsl.dialects.func import Func
 from xdsl.ir import (
     Attribute,
     Block,
+    Operation,
     ParametrizedAttribute,
     Region,
 )
@@ -44,12 +48,12 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_simple_forgotten_op():
     """Test that the parsing of an undefined operand gives it a name."""
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
 
     lit = ConstantOp.from_int_and_width(42, 32)
@@ -59,12 +63,12 @@ def test_simple_forgotten_op():
 
     expected = """%0 = "arith.addi"(%1, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32"""
 
-    assert_print_op(add, expected, None)
+    assert_print_op(add, expected)
 
 
 def test_print_op_location():
     """Test that an op can be printed with its location."""
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(test.Test)
 
     add = test.TestOp(result_types=[i32])
@@ -73,7 +77,7 @@ def test_print_op_location():
 
     expected = """%0 = "test.op"() : () -> i32 loc(unknown)"""
 
-    assert_print_op(add, expected, None, print_debuginfo=True)
+    assert_print_op(add, expected, print_debuginfo=True)
 
 
 @irdl_op_definition
@@ -90,9 +94,9 @@ def test_unit_attr():
 "unit_attr_op"() {parallelize} : () -> ()
 """
 
-    unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr([])})
+    unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr()})
 
-    assert_print_op(unit_op, expected, None)
+    assert_print_op(unit_op, expected)
 
 
 def test_added_unit_attr():
@@ -102,10 +106,10 @@ def test_added_unit_attr():
 "unit_attr_op"() {parallelize, vectorize} : () -> ()
 """
     unitop = UnitAttrOp.build(
-        attributes={"parallelize": UnitAttr([]), "vectorize": UnitAttr([])}
+        attributes={"parallelize": UnitAttr(), "vectorize": UnitAttr()}
     )
 
-    assert_print_op(unitop, expected, None)
+    assert_print_op(unitop, expected)
 
 
 #  ____  _                             _   _
@@ -136,7 +140,7 @@ def test_op_message():
 }) : () -> ()
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -148,7 +152,7 @@ def test_op_message():
     assert first_op is not None
     diagnostic.add_message(first_op, "Test message")
 
-    assert_print_op(module, expected, diagnostic)
+    assert_print_op(module, expected, diagnostic=diagnostic)
 
 
 def test_two_different_op_messages():
@@ -171,7 +175,7 @@ def test_two_different_op_messages():
   -----------------
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -183,7 +187,7 @@ def test_two_different_op_messages():
     diagnostic.add_message(first_op, "Test message 1")
     diagnostic.add_message(second_op, "Test message 2")
 
-    assert_print_op(module, expected, diagnostic)
+    assert_print_op(module, expected, diagnostic=diagnostic)
 
 
 def test_two_same_op_messages():
@@ -206,7 +210,7 @@ def test_two_same_op_messages():
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -219,7 +223,7 @@ def test_two_same_op_messages():
     diagnostic.add_message(first_op, "Test message 1")
     diagnostic.add_message(first_op, "Test message 2")
 
-    assert_print_op(module, expected, diagnostic)
+    assert_print_op(module, expected, diagnostic=diagnostic)
 
 
 def test_op_message_with_region():
@@ -239,7 +243,7 @@ def test_op_message_with_region():
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -249,7 +253,7 @@ def test_op_message_with_region():
     diagnostic = Diagnostic()
     diagnostic.add_message(module, "Test")
 
-    assert_print_op(module, expected, diagnostic)
+    assert_print_op(module, expected, diagnostic=diagnostic)
 
 
 def test_op_message_with_region_and_overflow():
@@ -272,7 +276,7 @@ def test_op_message_with_region_and_overflow():
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -281,7 +285,7 @@ def test_op_message_with_region_and_overflow():
 
     diagnostic = Diagnostic()
     diagnostic.add_message(module, "Test long message")
-    assert_print_op(module, expected, diagnostic)
+    assert_print_op(module, expected, diagnostic=diagnostic)
 
 
 def test_diagnostic():
@@ -295,7 +299,7 @@ def test_diagnostic():
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -334,14 +338,14 @@ def test_print_custom_name():
 }) : () -> ()
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None)
+    assert_print_op(module, expected)
 
 
 def test_print_clashing_names():
@@ -361,7 +365,7 @@ def test_print_clashing_names():
 }) : () -> ()
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -373,7 +377,7 @@ def test_print_clashing_names():
         k = test.TestOp.create(result_types=[i32])
         k.results[0].name_hint = "i_1"
 
-    assert_print_op(module, expected, None)
+    assert_print_op(module, expected)
 
 
 def test_print_custom_block_arg_name():
@@ -394,7 +398,7 @@ def test_print_block_argument():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block_argument(block.args[0])
-    p.print(", ")
+    p.print_string(", ")
     p.print_block_argument(block.args[1], print_type=False)
     assert io.getvalue() == """%0 : i32, %1"""
 
@@ -406,7 +410,7 @@ def test_print_block_argument_location():
     io = StringIO()
     p = Printer(stream=io, print_debuginfo=True)
     p.print_block_argument(block.args[0])
-    p.print(", ")
+    p.print_string(", ")
     p.print_block_argument(block.args[1])
     assert io.getvalue() == """%0 : i32 loc(unknown), %1 : i32 loc(unknown)"""
 
@@ -434,7 +438,7 @@ def test_print_block_without_arguments():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block_argument(block.args[0])
-    p.print(", ")
+    p.print_string(", ")
     p.print_block_argument(block.args[1])
     p.print_block(block, print_block_args=False)
     assert io.getvalue() == """%0 : i32, %1 : i32\n  "test.op"(%1) : (i32) -> ()"""
@@ -498,9 +502,9 @@ def test_print_region_without_arguments():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block_argument(block.args[0])
-    p.print(", ")
+    p.print_string(", ")
     p.print_block_argument(block.args[1])
-    p.print(" ")
+    p.print_string(" ")
     p.print_region(region, print_entry_block_args=False)
     assert io.getvalue() == """%0 : i32, %1 : i32 {\n  "test.op"(%1) : (i32) -> ()\n}"""
 
@@ -559,7 +563,12 @@ class PlusCustomFormatOp(IRDLOperation):
         return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=[type])
 
     def print(self, printer: Printer):
-        printer.print(" ", self.lhs, " + ", self.rhs, " : ", self.res.type)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(" + ")
+        printer.print_ssa_value(self.rhs)
+        printer.print_string(" : ")
+        printer.print_attribute(self.res.type)
 
 
 def test_generic_format():
@@ -579,7 +588,7 @@ builtin.module {
 }
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     ctx.load_op(PlusCustomFormatOp)
@@ -587,7 +596,7 @@ builtin.module {
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, False)
+    assert_print_op(module, expected, print_generic_format=False)
 
 
 def test_custom_format():
@@ -608,7 +617,7 @@ builtin.module {
 }
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     ctx.load_op(PlusCustomFormatOp)
@@ -616,7 +625,7 @@ builtin.module {
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, False)
+    assert_print_op(module, expected, print_generic_format=False)
 
 
 def test_custom_format_II():
@@ -637,7 +646,7 @@ def test_custom_format_II():
 }) : () -> ()
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     ctx.load_op(PlusCustomFormatOp)
@@ -645,7 +654,7 @@ def test_custom_format_II():
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, print_generic_format=True)
+    assert_print_op(module, expected, print_generic_format=True)
 
 
 @irdl_op_definition
@@ -667,7 +676,7 @@ def test_missing_custom_format():
 }) : () -> ()
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     ctx.load_op(NoCustomFormatOp)
@@ -696,7 +705,8 @@ class CustomFormatAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         assert 0 <= self.attr.data <= 1
-        printer.print("<", "zero" if self.attr.data == 0 else "one", ">")
+        with printer.in_angle_brackets():
+            printer.print_string("zero" if self.attr.data == 0 else "one")
 
 
 @irdl_op_definition
@@ -719,49 +729,49 @@ def test_custom_format_attr():
   "test.any"() {attr = #test.custom<zero>} : () -> ()
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_op(AnyOp)
-    ctx.load_attr(CustomFormatAttr)
+    ctx.load_attr_or_type(CustomFormatAttr)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None)
+    assert_print_op(module, expected)
 
 
 def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}} : () -> ()
+"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr, arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}}> : () -> ()
     """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
 
     parser = Parser(ctx, prog)
     parsed = parser.parse_op()
 
-    assert_print_op(parsed, prog, None)
+    assert_print_op(parsed, prog)
 
 
 def test_densearray_attr():
     """Test that a DenseArrayAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {bool_attrs = array<i1: false, true>, int_attr = array<i32: 19, 23, 55>, float_attr = array<f32: 0.3400000035762787>} : () -> ()
+"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {bool_attrs = array<i1: false, true>, int_attr = array<i32: 19, 23, 55>, float_attr = array<f32: 3.400000e-01>} : () -> ()
     """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
 
     parser = Parser(ctx, prog)
     parsed = parser.parse_op()
 
-    assert_print_op(parsed, prog, None)
+    assert_print_op(parsed, prog)
 
 
 def test_float():
@@ -784,6 +794,116 @@ def test_float():
     _test_float_print("-3.14285707", -22 / 7, f32)
 
 
+@pytest.mark.parametrize(
+    "expected, value, type",
+    [
+        ("true", -1, IntegerType(1)),
+        ("false", 0, IntegerType(1)),
+        ("true", True, IntegerType(1)),
+        ("false", False, IntegerType(1)),
+        ("-1", -1, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("0", 0, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("1", True, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("0", False, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("-1", -1, IntegerType(32)),
+        ("0", 0, IntegerType(32)),
+        ("1", True, IntegerType(32)),
+        ("0", False, IntegerType(32)),
+        ("-1", -1, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("0", 0, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("1", True, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("0", False, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("-1", -1, IndexType),
+        ("0", 0, IndexType),
+        ("1", True, IndexType),
+        ("0", False, IndexType),
+        ("-1", -1, None),
+        ("0", 0, None),
+        ("1", True, None),
+        ("0", False, None),
+    ],
+)
+def test_int(expected: str, value: int, type: IntegerType | IndexType | None):
+    printer = Printer()
+    printer.stream = StringIO()
+
+    printer.print_int(value, type)
+
+    assert printer.stream.getvalue() == expected
+
+
+@pytest.mark.parametrize(
+    "expected, value",
+    [
+        ("(-3.000000e+00,-3.000000e+00)", (-3.0, -3.0)),
+        ("(3.000000e+00,3.000000e+00)", (3.0, 3.0)),
+    ],
+)
+def test_complex_float(expected: str, value: tuple[float, float]):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    type = ComplexType(f32)
+    printer.print_complex_float(value, type)
+    assert io.getvalue() == expected
+
+
+@pytest.mark.parametrize(
+    "expected, value",
+    [
+        ("(-3,-3)", (-3, -3)),
+        ("(3,3)", (3, 3)),
+    ],
+)
+def test_complex_int(expected: str, value: tuple[int, int]):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    type = ComplexType(i32)
+    printer.print_complex_int(value, type)
+    assert io.getvalue() == expected
+
+
+@pytest.mark.parametrize(
+    "expected, value",
+    [
+        ("(true,true)", (1, 1)),
+        ("(false,false)", (0, 0)),
+    ],
+)
+def test_complex_bool(expected: str, value: tuple[int, int]):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    type = ComplexType(i1)
+    printer.print_complex_int(value, type)
+    assert io.getvalue() == expected
+
+
+@pytest.mark.parametrize(
+    "expected, value, is_int",
+    [
+        ("(-3,-3)", (-3, -3), True),
+        ("(3,3)", (3, 3), True),
+        ("(-3.000000e+00,-3.000000e+00)", (-3.0, -3.0), False),
+        ("(3.000000e+00,3.000000e+00)", (3.0, 3.0), False),
+    ],
+)
+def test_complex(
+    expected: str, value: tuple[int, int] | tuple[float, float], is_int: bool
+):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    if is_int:
+        type = ComplexType(i32)
+        printer.print_complex(value, type)
+    else:
+        type = ComplexType(f32)
+        printer.print_complex(value, type)
+    assert io.getvalue() == expected
+
+
 def test_float_attr():
     printer = Printer()
 
@@ -795,7 +915,7 @@ def test_float_attr():
 
         io_attr = StringIO()
         printer.stream = io_attr
-        printer.print_float_attr(FloatAttr(value, type))
+        FloatAttr(value, type).print_without_type(printer)
 
         assert io_float.getvalue() == io_attr.getvalue()
 
@@ -875,14 +995,14 @@ def test_print_properties_as_attributes():
 "func.func"() {extra_attr, sym_name = "test", function_type = i64, sym_visibility = "private"} : () -> ()
     """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
 
     parser = Parser(ctx, prog)
     parsed = parser.parse_op()
 
-    assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)
+    assert_print_op(parsed, retro_prog, print_properties_as_attributes=True)
 
 
 def test_print_properties_as_attributes_safeguard():
@@ -896,7 +1016,7 @@ def test_print_properties_as_attributes_safeguard():
 "func.func"() {extra_attr, sym_name = "test", function_type = i64, sym_visibility = "private"} : () -> ()
     """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
 
@@ -906,7 +1026,7 @@ def test_print_properties_as_attributes_safeguard():
         ValueError,
         match="Properties sym_name would overwrite the attributes of the same names.",
     ):
-        assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)
+        assert_print_op(parsed, retro_prog, print_properties_as_attributes=True)
 
 
 @pytest.mark.parametrize(
@@ -921,7 +1041,7 @@ def test_print_properties_as_attributes_safeguard():
     ],
 )
 def test_symbol_ref(attr: SymbolRefAttr, expected: str):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
 
     printed = StringIO()
@@ -930,11 +1050,11 @@ def test_symbol_ref(attr: SymbolRefAttr, expected: str):
 
 
 def test_get_printed_name():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
 
     printer = Printer()
-    val = TestSSAValue(i32)
+    val = create_ssa_value(i32)
 
     # Test printing without constraints
     stream = StringIO()
@@ -949,8 +1069,112 @@ def test_get_printed_name():
     assert f"%{picked_name}" == printer.stream.getvalue()
 
     # Test printing with name hint
-    val = TestSSAValue(i32)
+    val = create_ssa_value(i32)
     val.name_hint = "foo"
     printed = StringIO()
     picked_name = Printer(printed).print_ssa_value(val)
     assert f"%{picked_name}" == printed.getvalue()
+
+
+def test_delimiters():
+    printer = Printer()
+
+    printer.stream = StringIO()
+    with printer.in_angle_brackets():
+        printer.print_string("testing")
+    assert "<testing>" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_square_brackets():
+        printer.print_string("testing")
+    assert "[testing]" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_braces():
+        printer.print_string("testing")
+    assert "{testing}" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_parens():
+        printer.print_string("testing")
+    assert "(testing)" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.delimited("test<", ">"):
+        printer.print_string("testing")
+    assert "test<testing>" == printer.stream.getvalue()
+
+
+def test_symbol_printing():
+    printer = Printer()
+
+    printer.stream = StringIO()
+    printer.print_symbol_name("symbol")
+    assert "@symbol" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    printer.print_symbol_name("@symbol")
+    assert '@"@symbol"' == printer.stream.getvalue()
+
+
+def assert_print_op(
+    operation: Operation,
+    expected: str,
+    *,
+    diagnostic: Diagnostic | None = None,
+    print_generic_format: bool = True,
+    print_debuginfo: bool = False,
+    print_properties_as_attributes: bool = False,
+    indent_num_spaces: int = 2,
+):
+    """
+    Utility function that helps to check the printing of an operation compared to
+    some string.
+
+    ### Example:
+
+    To check that an operation, e.g. `arith.addi` prints as expected:
+
+    .. code-block:: py
+        expected = \"\"\"
+
+        builtin.module() {
+        %0 : !i32 = arith.addi(%<UNKNOWN> : !i32, %<UNKNOWN> : !i32)
+        -----------------------^^^^^^^^^^----------------------------------------------------------------
+        | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+        -------------------------------------------------------------------------------------------------
+        ------------------------------------------^^^^^^^^^^---------------------------------------------
+        | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+        -------------------------------------------------------------------------------------------------
+        %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+        }\"\"\"
+
+
+    we call:
+
+    .. code-block:: python
+
+        assert_print_op(add, expected)
+
+    Additional options can be passed to the printer using keyword arguments:
+
+    .. code-block:: python
+
+        assert_print_op(add, expected, indent_num_spaces=4)
+
+    """
+
+    file = StringIO("")
+    if diagnostic is None:
+        diagnostic = Diagnostic()
+    printer = Printer(
+        stream=file,
+        print_generic_format=print_generic_format,
+        print_properties_as_attributes=print_properties_as_attributes,
+        print_debuginfo=print_debuginfo,
+        diagnostic=diagnostic,
+        indent_num_spaces=indent_num_spaces,
+    )
+
+    printer.print_op(operation)
+    assert file.getvalue().strip() == expected.strip()

@@ -1,14 +1,18 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
 
+from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
+    I8,
     FunctionType,
     IntegerAttr,
     IntegerType,
     StringAttr,
     SymbolRefAttr,
+    i8,
 )
 from xdsl.dialects.utils import (
     parse_func_op_like,
@@ -35,7 +39,7 @@ from xdsl.traits import (
     IsTerminator,
     SymbolOpInterface,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
 @irdl_op_definition
@@ -56,7 +60,7 @@ class SyscallOp(IRDLOperation):
         super().__init__(
             operands=[operands],
             attributes={"syscall_num": num},
-            result_types=[riscv.IntRegisterType.unallocated() if has_result else None],
+            result_types=[riscv.Registers.UNALLOCATED_INT if has_result else None],
         )
 
     def verify_(self):
@@ -116,6 +120,15 @@ class CallOp(riscv.RISCVInstruction):
     def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
         return (self.callee.string_value(),)
 
+    def iter_used_registers(self) -> Generator[RegisterType, None, None]:
+        # These registers are not guaranteed to hold the same values when the callee
+        # returns, according to the RISC-V calling convention.
+        # https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf
+        yield from riscv.Registers.A
+        yield from riscv.Registers.T
+        yield from riscv.Registers.FA
+        yield from riscv.Registers.FT
+
 
 class FuncOpCallableInterface(CallableOpInterface):
     @classmethod
@@ -135,7 +148,7 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(riscv.RISCVAsmOperation):
+class FuncOp(IRDLOperation, AssemblyPrintable):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
@@ -143,6 +156,7 @@ class FuncOp(riscv.RISCVAsmOperation):
     body = region_def()
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
+    p2align = opt_attr_def(IntegerAttr[I8])
 
     traits = traits_def(
         SymbolOpInterface(),
@@ -156,16 +170,20 @@ class FuncOp(riscv.RISCVAsmOperation):
         region: Region,
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
         visibility: StringAttr | str | None = None,
+        p2align: int | IntegerAttr[I8] | None = None,
     ):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
         if isinstance(visibility, str):
             visibility = StringAttr(visibility)
+        if isinstance(p2align, int):
+            p2align = IntegerAttr(p2align, i8)
         attributes: dict[str, Attribute | None] = {
             "sym_name": StringAttr(name),
             "function_type": function_type,
             "sym_visibility": visibility,
+            "p2align": p2align,
         }
 
         super().__init__(attributes=attributes, regions=[region])
@@ -191,7 +209,8 @@ class FuncOp(riscv.RISCVAsmOperation):
     def print(self, printer: Printer):
         if self.sym_visibility:
             visibility = self.sym_visibility.data
-            printer.print(f" {visibility}")
+            printer.print_string(" ")
+            printer.print_string(visibility)
 
         print_func_op_like(
             printer,
@@ -202,11 +221,27 @@ class FuncOp(riscv.RISCVAsmOperation):
             reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
 
-    def assembly_line(self) -> str | None:
-        if self.body.blocks:
-            return f"{self.sym_name.data}:"
-        else:
-            return None
+    def print_assembly(self, printer: AssemblyPrinter) -> None:
+        if not self.body.blocks:
+            # Print nothing for function declaration
+            return
+
+        printer.emit_section(".text")
+
+        if self.sym_visibility is not None:
+            match self.sym_visibility.data:
+                case "public":
+                    printer.print_string(f".globl {self.sym_name.data}\n", indent=0)
+                case "private":
+                    printer.print_string(f".local {self.sym_name.data}\n", indent=0)
+                case _:
+                    raise DiagnosticException(
+                        f"Unexpected visibility {self.sym_visibility.data} for function {self.sym_name}"
+                    )
+
+        if self.p2align is not None:
+            printer.print_string(f".p2align {self.p2align.value.data}\n", indent=0)
+        printer.print_string(f"{self.sym_name.data}:\n")
 
 
 @irdl_op_definition

@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import (
     builtin,
     riscv,
@@ -82,17 +82,13 @@ def insert_stride_pattern_ops(
         *interleaved_b_set_bound_ops,
         *s_ops,
         snitch.SsrSetDimensionStrideOp(s_ops[0], dm, ints[0]),
-        a_op := riscv.LiOp(0, rd=riscv.IntRegisterType.unallocated()),
+        a_op := riscv.LiOp(0),
     ]
 
     for i in range(1, rank):
-        a_inc_op = riscv.MulOp(
-            new_b_ops[i - 1], s_ops[i - 1], rd=riscv.IntRegisterType.unallocated()
-        )
-        new_a_op = riscv.AddOp(a_op, a_inc_op, rd=riscv.IntRegisterType.unallocated())
-        stride_op = riscv.SubOp(
-            s_ops[i], new_a_op, rd=riscv.IntRegisterType.unallocated()
-        )
+        a_inc_op = riscv.MulOp(new_b_ops[i - 1], s_ops[i - 1])
+        new_a_op = riscv.AddOp(a_op, a_inc_op)
+        stride_op = riscv.SubOp(s_ops[i], new_a_op)
         set_stride_op = snitch.SsrSetDimensionStrideOp(stride_op.rd, dm, ints[i])
         new_ops.extend((a_inc_op, new_a_op, stride_op, set_stride_op))
         a_op = new_a_op
@@ -195,7 +191,7 @@ class LowerStreamingRegionOp(RewritePattern):
 class ConvertSnitchStreamToSnitch(ModulePass):
     name = "convert-snitch-stream-to-snitch"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         # StridedWrite and StridePattern ops are rewritten to remove their results, so we
         # have to first lower the ops that use the results in `stream`, and then the ops
         # themselves.

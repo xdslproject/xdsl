@@ -38,6 +38,16 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return ARM_FUNC
 
+    def get_arm_neon():
+        from xdsl.dialects.arm_neon import ARM_NEON
+
+        return ARM_NEON
+
+    def get_bigint():
+        from xdsl.dialects.bigint import BigInt
+
+        return BigInt
+
     def get_bufferization():
         from xdsl.dialects.bufferization import Bufferization
 
@@ -82,6 +92,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.experimental.dmp import DMP
 
         return DMP
+
+    def get_emitc():
+        from xdsl.dialects.emitc import EmitC
+
+        return EmitC
 
     def get_eqsat():
         from xdsl.dialects.eqsat import EqSat
@@ -148,6 +163,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Math
 
+    def get_math_xdsl():
+        from xdsl.dialects.math_xdsl import MathXDSL
+
+        return MathXDSL
+
     def get_memref():
         from xdsl.dialects.memref import MemRef
 
@@ -183,6 +203,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return PDL
 
+    def get_pdl_interp():
+        from xdsl.dialects.pdl_interp import PDLInterp
+
+        return PDLInterp
+
     def get_printf():
         from xdsl.dialects.printf import Printf
 
@@ -192,21 +217,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.ptr import Ptr
 
         return Ptr
-
-    def get_quantum():
-        from xdsl.dialects.quantum import QUANTUM
-
-        return QUANTUM
-
-    def get_qref():
-        from xdsl.dialects.qref import QREF
-
-        return QREF
-
-    def get_qssa():
-        from xdsl.dialects.qssa import QSSA
-
-        return QSSA
 
     def get_riscv_debug():
         from xdsl.dialects.riscv_debug import RISCV_Debug
@@ -247,6 +257,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.seq import Seq
 
         return Seq
+
+    def get_smt():
+        from xdsl.dialects.smt import SMT
+
+        return SMT
 
     def get_snitch():
         from xdsl.dialects.snitch import Snitch
@@ -335,6 +350,8 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "arith": get_arith,
         "arm": get_arm,
         "arm_func": get_arm_func,
+        "arm_neon": get_arm_neon,
+        "bigint": get_bigint,
         "bufferization": get_bufferization,
         "builtin": get_builtin,
         "cf": get_cf,
@@ -344,6 +361,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
         "dmp": get_dmp,
+        "emitc": get_emitc,
         "eqsat": get_eqsat,
         "fir": get_fir,
         "fsm": get_fsm,
@@ -357,6 +375,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "llvm": get_llvm,
         "ltl": get_ltl,
         "math": get_math,
+        "math_xdsl": get_math_xdsl,
         "memref": get_memref,
         "memref_stream": get_memref_stream,
         "ml_program": get_ml_program,
@@ -364,11 +383,9 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "mpi": get_mpi,
         "omp": get_omp,
         "pdl": get_pdl,
+        "pdl_interp": get_pdl_interp,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
-        "quantum": get_quantum,
-        "qref": get_qref,
-        "qssa": get_qssa,
         "riscv": get_riscv,
         "riscv_debug": get_riscv_debug,
         "riscv_func": get_riscv_func,
@@ -377,6 +394,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "riscv_snitch": get_riscv_snitch,
         "scf": get_scf,
         "seq": get_seq,
+        "smt": get_smt,
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,
         "snitch_stream": get_snitch_stream,

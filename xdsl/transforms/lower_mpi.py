@@ -2,9 +2,9 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from math import prod
-from typing import TypeVar, cast
+from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, mpi
 from xdsl.dialects.builtin import (
     IndexType,
@@ -25,7 +25,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 @dataclass(frozen=True)
@@ -107,9 +106,6 @@ class MpiLibraryInfo:
 
     # In place MPI All reduce
     MPI_IN_PLACE: int = -1
-
-
-_RewriteT = TypeVar("_RewriteT", bound=mpi.MPIBaseOp)
 
 
 @dataclass
@@ -683,7 +679,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
         location before going back to a pointer and setting this as the result
         """
 
-        assert isattr(op.result.type, mpi.VectorWrappableConstr)
+        assert mpi.VectorWrappableConstr.verifies(op.result.type)
         assert isa(op.vect.type, llvm.LLVMPointerType)
         datatype_size = self._get_mpi_dtype_size(op.result.type)
 
@@ -837,7 +833,7 @@ class LowerMpiGatherOp(_MPIToLLVMRewriteBase):
 class LowerMPIPass(ModulePass):
     name = "lower-mpi"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         # TODO: how to get the lib info in here?
         lib_info = MpiLibraryInfo()
         walker1 = PatternRewriteWalker(

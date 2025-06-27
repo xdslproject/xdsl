@@ -2,8 +2,7 @@
 The math dialect is intended to hold mathematical operations on integer and floating
 types beyond simple arithmetics.
 
-
-See https://mlir.llvm.org/docs/Dialects/MathOps/
+See external [documentation](https://mlir.llvm.org/docs/Dialects/MathOps/).
 """
 
 from __future__ import annotations
@@ -209,7 +208,7 @@ class Atan2Op(FloatingPointLikeBinaryMathOperationWithFastMath):
     (x, y).  It is a generalization of the 1-argument arcus tangent which
     returns the angle on the basis of the ratio y/x.
 
-    See also https://en.wikipedia.org/wiki/Atan2
+    See also [wikipedia](https://en.wikipedia.org/wiki/Atan2).
 
     Example:
 
@@ -311,6 +310,24 @@ class CosOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
 
     name = "math.cos"
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+
+@irdl_op_definition
+class CoshOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+    """
+    The cosh operation computes the hyperbolic cosine. It takes one
+    operand of floating point type (i.e., scalar, tensor or vector) and returns
+    one result of the same type. It has no standard attributes.
+
+    Example:
+
+    // Scalar hyperbolic cosine value.
+    %a = math.cosh %b : f64
+    """
+
+    name = "math.cosh"
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
@@ -743,6 +760,24 @@ class SinOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
+class SinhOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+    """
+    The sinh operation computes the hyperbolic sine. It takes one
+    operand of floating point type (i.e., scalar, tensor or vector) and
+    returns one result of the same type. It has no standard attributes.
+
+    Example:
+
+    // Scalar hyperbolic sine value.
+    %a = math.sinh %b : f64
+    """
+
+    name = "math.sinh"
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+
+@irdl_op_definition
 class SqrtOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
     The sqrt operation computes the square root. It takes one operand of
@@ -826,6 +861,7 @@ Math = Dialect(
         CeilOp,
         CopySignOp,
         CosOp,
+        CoshOp,
         CountLeadingZerosOp,
         CountTrailingZerosOp,
         CtPopOp,
@@ -846,6 +882,7 @@ Math = Dialect(
         RoundOp,
         RsqrtOp,
         SinOp,
+        SinhOp,
         SqrtOp,
         TanOp,
         TanhOp,

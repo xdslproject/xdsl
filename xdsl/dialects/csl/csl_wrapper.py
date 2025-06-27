@@ -59,10 +59,10 @@ class ParamAttribute(ParametrizedAttribute):
         with printer.in_angle_brackets():
             printer.print_string_literal(self.key.data)
             if not isinstance(self.value, NoneAttr):
-                printer.print(" default=")
+                printer.print_string(" default=")
                 printer.print_attribute(self.value)
             else:
-                printer.print(" : ")
+                printer.print_string(" : ")
                 printer.print_attribute(self.type)
 
     @classmethod
@@ -162,6 +162,7 @@ class ModuleOp(IRDLOperation):
     width = prop_def(IntegerAttr[IntegerType])
     height = prop_def(IntegerAttr[IntegerType])
     program_name = opt_prop_def(StringAttr)
+    target = prop_def(StringAttr)
     params = prop_def(ArrayAttr[ParamAttribute])
 
     layout_module = region_def("single_block")
@@ -171,6 +172,7 @@ class ModuleOp(IRDLOperation):
         self,
         width: int | IntegerAttr[IntegerType],
         height: int | IntegerAttr[IntegerType],
+        target: csl.Target | StringAttr,
         params: (
             dict[str, IntegerAttr[IntegerType]] | Sequence[ParamAttribute] | None
         ) = None,
@@ -179,6 +181,8 @@ class ModuleOp(IRDLOperation):
             width = IntegerAttr(width, i16)
         if not isinstance(height, IntegerAttr):
             height = IntegerAttr(height, i16)
+        if not isinstance(target, StringAttr):
+            target = StringAttr(target)
         if params is None:
             params = []
         elif isinstance(params, dict):
@@ -193,6 +197,7 @@ class ModuleOp(IRDLOperation):
                 "width": width,
                 "height": height,
                 "params": params_attr,
+                "target": target,
             },
             regions=[
                 Region(

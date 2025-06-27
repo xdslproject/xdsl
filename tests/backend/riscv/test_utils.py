@@ -9,10 +9,10 @@ from xdsl.builder import Builder
 from xdsl.dialects import builtin, memref, riscv, test
 from xdsl.ir import BlockArgument
 from xdsl.pattern_rewriter import PatternRewriter
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 INDEX_TYPE = builtin.IndexType()
-REGISTER_TYPE = riscv.IntRegisterType.unallocated()
+REGISTER_TYPE = riscv.Registers.UNALLOCATED_INT
 
 
 def test_register_type_for_type():
@@ -158,9 +158,9 @@ def test_a_regs():
     assert list(
         a_regs(
             (
-                TestSSAValue(riscv.Registers.FT0),
-                TestSSAValue(riscv.Registers.FT0),
-                TestSSAValue(riscv.Registers.T0),
+                create_ssa_value(riscv.Registers.FT0),
+                create_ssa_value(riscv.Registers.FT0),
+                create_ssa_value(riscv.Registers.T0),
             )
         )
     ) == [riscv.Registers.FA0, riscv.Registers.FA1, riscv.Registers.A0]

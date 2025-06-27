@@ -10,9 +10,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.irdl import base
 from xdsl.utils.exceptions import InterpretationError
-from xdsl.utils.isattr import isattr
 
 
 @register_impls
@@ -21,9 +19,8 @@ class ArithFunctions(InterpreterFunctions):
     def run_constant(
         self, interpreter: Interpreter, op: arith.ConstantOp, args: PythonValues
     ) -> PythonValues:
-        value = op.value
         interpreter.interpreter_assert(
-            isattr(op.value, base(IntegerAttr) | base(FloatAttr)),
+            isinstance(op.value, IntegerAttr | FloatAttr),
             f"arith.constant not implemented for {type(op.value)}",
         )
         value = cast(IntegerAttr, op.value)
@@ -106,3 +103,57 @@ class ArithFunctions(InterpreterFunctions):
                 raise InterpretationError(
                     f"arith.cmpi predicate {op.predicate} mot implemented yet."
                 )
+
+    @impl(arith.ShLIOp)
+    def run_shlsi(self, interpreter: Interpreter, op: arith.ShLIOp, args: PythonValues):
+        lhs: int
+        rhs: int
+        (lhs, rhs) = args
+        assert rhs >= 0
+        return (lhs << rhs,)
+
+    @impl(arith.ShRSIOp)
+    def run_shrsi(
+        self, interpreter: Interpreter, op: arith.ShRSIOp, args: PythonValues
+    ):
+        lhs: int
+        rhs: int
+        (lhs, rhs) = args
+        assert rhs >= 0
+        return (lhs >> rhs,)
+
+    @impl(arith.DivSIOp)
+    def run_divsi(
+        self, interpreter: Interpreter, op: arith.DivSIOp, args: PythonValues
+    ):
+        lhs: int
+        rhs: int
+        (lhs, rhs) = args
+        assert rhs != 0
+        div = abs(lhs) // abs(rhs)
+        if (lhs > 0) != (rhs > 0):
+            div = -div
+        return (div,)
+
+    @impl(arith.RemSIOp)
+    def run_remsi(
+        self, interpreter: Interpreter, op: arith.RemSIOp, args: PythonValues
+    ):
+        lhs: int
+        rhs: int
+        (lhs, rhs) = args
+        assert rhs != 0
+        div = abs(lhs) // abs(rhs)
+        if (lhs > 0) != (rhs > 0):
+            div = -div
+        return (lhs - div * rhs,)
+
+    @impl(arith.FloorDivSIOp)
+    def run_floordivsi(
+        self, interpreter: Interpreter, op: arith.FloorDivSIOp, args: PythonValues
+    ):
+        lhs: int
+        rhs: int
+        (lhs, rhs) = args
+        assert rhs != 0
+        return (lhs // rhs,)

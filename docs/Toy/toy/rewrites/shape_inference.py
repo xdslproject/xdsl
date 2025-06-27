@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
@@ -36,7 +36,7 @@ class RemoveCastOps(RewritePattern):
 class ShapeInferencePass(ModulePass):
     name = "toy-infer-shapes"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(InferShapes()).rewrite_module(op)
         PatternRewriteWalker(RemoveCastOps()).rewrite_module(op)
         dce(op)

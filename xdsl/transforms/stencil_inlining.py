@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, scf
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -173,8 +173,8 @@ class StencilReroutingPattern(RewritePattern):
         )
 
         # Update the bounds if needed
-        producer_bounds = cast(TempType[Attribute], producer.res[0].type).bounds
-        consumer_bounds = cast(TempType[Attribute], consumer.res[0].type).bounds
+        producer_bounds = producer.res[0].type.bounds
+        consumer_bounds = consumer.res[0].type.bounds
         if isinstance(producer_bounds, StencilBoundsAttr):
             new_bounds = producer_bounds | consumer_bounds
         elif isinstance(consumer_bounds, StencilBoundsAttr):
@@ -351,7 +351,7 @@ class StencilInliningPattern(RewritePattern):
 class StencilInliningPass(ModulePass):
     name = "stencil-inlining"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

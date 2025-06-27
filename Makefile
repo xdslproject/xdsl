@@ -11,7 +11,7 @@ VENV_DIR ?= .venv
 export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
-VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs
+VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs --extra bench
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -39,7 +39,7 @@ venv: ${VENV_DIR}/
 
 # remove all caches
 .PHONY: clean-caches
-clean-caches: coverage-clean
+clean-caches: coverage-clean asv-clean
 	rm -rf .pytest_cache *.egg-info
 
 # remove all caches and the venv
@@ -56,14 +56,6 @@ filecheck: uv-installed
 .PHONY: pytest
 pytest: uv-installed
 	uv run pytest tests -W error -vv
-
-# run pytest on notebooks
-.PHONY: pytest-nb
-pytest-nb: uv-installed
-	uv run pytest -W error --nbval -vv docs \
-		--ignore=docs/mlir_interoperation.ipynb \
-		--ignore=docs/Toy \
-		--nbval-current-env
 
 # run tests for Toy tutorial
 .PHONY: filecheck-toy
@@ -85,22 +77,40 @@ pytest-toy-nb:
 .PHONY: tests-toy
 tests-toy: filecheck-toy pytest-toy pytest-toy-nb
 
+
 .PHONY: tests-marimo
 tests-marimo: uv-installed
-	@for file in docs/marimo/*.py; do \
-		echo "Running $$file"; \
-		error_message=$$(uv run python3 "$$file" 2>&1) || { \
-			echo "Error running $$file"; \
-			echo "$$error_message"; \
+	@bash -c '\
+		error_log="/tmp/marimo_test_$$$$.log"; \
+		failed_tests=""; \
+		files_requiring_mlir_opt=("docs/marimo/mlir_interoperation.py"); \
+		for file in docs/marimo/*.py; do \
+			if [[ " $${files_requiring_mlir_opt[@]} " =~ " $$file " ]]; then \
+				if ! command -v mlir-opt &> /dev/null; then \
+					echo "Skipping $$file (mlir-opt is not available)"; \
+					continue; \
+			  fi; \
+			fi; \
+			echo "Running $$file"; \
+			if ! output=$$(uv run python3 "$$file" 2>&1); then \
+				echo "$$output" >> "$$error_log"; \
+				failed_tests="$$failed_tests $$file"; \
+			fi; \
+		done; \
+		if [ ! -z "$$failed_tests" ]; then \
+			cat "$$error_log"; \
+			echo -e "\n\nThe following marimo tests failed: $$failed_tests"; \
+			rm -f "$$error_log"; \
 			exit 1; \
-		}; \
-	done
-	@echo "All marimo tests passed successfully."
+		else \
+			rm -f "$$error_log"; \
+			echo -e "\n\nAll marimo tests passed successfully."; \
+		fi'
 
 
 # run all tests
 .PHONY: tests-functional
-tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo
+tests-functional: pytest tests-toy filecheck tests-marimo
 	@echo All functional tests done.
 
 # run all tests
@@ -142,7 +152,7 @@ coverage: coverage-tests coverage-filecheck-tests
 # use different coverage data file per coverage run, otherwise combine complains
 .PHONY: coverage-tests
 coverage-tests: uv-installed
-	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov --cov-config=.coveragerc
+	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov
 
 # run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
@@ -163,8 +173,24 @@ coverage-report: uv-installed
 coverage-clean: uv-installed
 	uv run coverage erase
 
-# docs
+# generate asv benchmark regression website
+.PHONY: asv
+asv: uv-installed
+	uv run asv run
 
+.PHONY: asv-html
+asv-html: uv-installed
+	uv run asv publish
+
+.PHONY: asv-preview
+asv-preview: uv-installed .asv/html
+	uv run asv preview
+
+.PHONY: asv-clean
+asv-clean:
+	rm -rf .asv/
+
+# docs
 .PHONY: docs-serve
 docs-serve: uv-installed
 	uv run mkdocs serve

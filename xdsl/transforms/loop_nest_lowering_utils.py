@@ -44,11 +44,15 @@ def indices_for_map(
             )
             if len(used_dims) != affine_map.num_dims:
                 # Remove unused dims
-                selectors = tuple(
+                # used_dims = affine_map.used_dims_bit_vector()
+                used_dims_vector = tuple(
                     dim in used_dims for dim in range(affine_map.num_dims)
                 )
-                new_index_vals = tuple(compress(new_index_vals, selectors))
-                new_affine_map = new_affine_map.compress_dims(selectors)
+                unused_dims_vector = tuple(
+                    not used_dim for used_dim in used_dims_vector
+                )
+                new_index_vals = tuple(compress(new_index_vals, used_dims_vector))
+                new_affine_map = new_affine_map.drop_dims(unused_dims_vector)
 
             rewriter.insert_op(
                 apply_op := affine.ApplyOp(

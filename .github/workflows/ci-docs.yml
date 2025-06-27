@@ -1,0 +1,40 @@
+# This workflow will install Python dependencies, and build the website
+
+name: CI - Documentation Website
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the master branch
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.13']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install the project
+      run: VENV_EXTRAS="--all-extras" make venv
+
+    - name: Build documentation
+      run: uv run mkdocs build --strict
+      # The --strict flag ensures the build fails on warnings

@@ -1,6 +1,6 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, scf
-from xdsl.ir import BlockArgument, OpResult, SSAValue
+from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -11,13 +11,7 @@ from xdsl.pattern_rewriter import (
 
 
 def is_foldable(val: SSAValue, for_op: scf.ForOp):
-    if isinstance(val, BlockArgument):
-        return True
-
-    if not isinstance(val, OpResult):
-        return False
-
-    return not for_op.is_ancestor(val.op)
+    return not for_op.is_ancestor(val.owner)
 
 
 class ScfForLoopRangeFolding(RewritePattern):
@@ -77,8 +71,7 @@ class ScfForLoopRangeFoldingPass(ModulePass):
 
     name = "scf-for-loop-range-folding"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            ScfForLoopRangeFolding(),
-            apply_recursively=True,
+            ScfForLoopRangeFolding(), apply_recursively=False, walk_regions_first=True
         ).rewrite_module(op)

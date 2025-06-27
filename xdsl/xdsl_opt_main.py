@@ -5,9 +5,9 @@ from contextlib import redirect_stdout
 from importlib.metadata import version
 from io import StringIO
 from itertools import accumulate
-from typing import IO
+from typing import IO, Any
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
@@ -41,7 +41,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_passes = {}
         self.available_targets = {}
 
-        self.ctx = MLContext()
+        self.ctx = Context()
         self.register_all_dialects()
         self.register_all_frontends()
         self.register_all_passes()
@@ -160,8 +160,7 @@ class xDSLOptMain(CommandLineTool):
         arg_parser.add_argument(
             "-v",
             "--version",
-            action="version",
-            version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
+            action=VersionAction,
         )
 
         arg_parser.add_argument(
@@ -205,6 +204,7 @@ class xDSLOptMain(CommandLineTool):
                 print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
+            printer.print_metadata(self.ctx.loaded_dialects)
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
@@ -284,8 +284,7 @@ class xDSLOptMain(CommandLineTool):
 
         self.pipeline = PipelinePass(
             tuple(
-                pass_type.from_pass_spec(spec)
-                for pass_type, spec in PipelinePass.build_pipeline_tuples(
+                PipelinePass.iter_passes(
                     self.available_passes, parse_pipeline(self.args.passes)
                 )
             ),
@@ -344,7 +343,7 @@ class xDSLOptMain(CommandLineTool):
                 print(e)
                 return False
             else:
-                raise e
+                raise
         return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
@@ -353,5 +352,26 @@ class xDSLOptMain(CommandLineTool):
         if self.args.target not in self.available_targets:
             raise Exception(f"Unknown target {self.args.target}")
 
-        self.available_targets[self.args.target](prog, output)
+        try:
+            self.available_targets[self.args.target](prog, output)
+        except DiagnosticException as e:
+            if self.args.verify_diagnostics:
+                return f"{e}\n"
+            else:
+                raise
         return output.getvalue()
+
+
+class VersionAction(argparse.Action):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(nargs=0, *args, **kwargs)
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        print(f"xdsl-opt built from xdsl version {version('xdsl')}\n")
+        parser.exit()

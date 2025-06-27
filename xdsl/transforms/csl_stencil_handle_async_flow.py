@@ -1,21 +1,19 @@
 from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, scf
 from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerAttr,
-    IntegerType,
     MemRefType,
     ModuleOp,
-    Signedness,
     SymbolRefAttr,
+    i32,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
-    Attribute,
     Block,
     Operation,
     OpResult,
@@ -30,9 +28,8 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
-
-u32 = IntegerType(32, Signedness.UNSIGNED)
 
 
 @dataclass()
@@ -106,6 +103,8 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
     counter: int
 
+    task_ids: list[int]
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter, /):
         if not self._is_inside_wrapper_outside_apply(op):
@@ -136,16 +135,21 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         assert isa(op.step.op.value, IntegerAttr[IndexType])
 
         # limitation: all iter_args must be memrefs (stencil buffers) and have the same data type
-        assert isa(op.iter_args[0].type, MemRefType[Attribute])
-        element_type = op.iter_args[0].type.get_element_type()
-        assert all(
-            isa(a.type, MemRefType[Attribute])
-            and element_type == a.type.get_element_type()
-            for a in op.iter_args
-        )
+        if op.iter_args:
+            assert isa(op.iter_args[0].type, MemRefType)
+            element_type = op.iter_args[0].type.get_element_type()
+            assert all(
+                isa(a.type, MemRefType) and element_type == a.type.get_element_type()
+                for a in op.iter_args
+            )
 
         no_params = FunctionType.from_lists([], [])
-        cond_task_id = self.counter + 1
+        if self.task_ids:
+            cond_task_id = self.task_ids.pop(0)
+        else:
+            raise PassFailedException(
+                "Insufficient number of task IDs supplied, please provide further IDs to be used."
+            )
 
         pre_block = op.parent_block()
         if pre_block is None:
@@ -166,7 +170,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # create csl.vars for loop var and iter_args outside the parent func
         rewriter.insert_op(
-            iv := csl.VariableOp.from_value(IntegerAttr(op.lb.op.value.value, u32)),
+            iv := csl.VariableOp.from_value(IntegerAttr(op.lb.op.value.value, i32)),
             InsertPoint.before(parent_func),
         )
         iter_vars = [csl.VariableOp.from_type(arg_t) for arg_t in op.iter_args.types]
@@ -185,7 +189,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # for-loop condition func
         with ImplicitBuilder(cond_func.body.block):
-            ub = arith.ConstantOp.from_int_and_width(op.ub.op.value.value, u32)
+            ub = arith.ConstantOp.from_int_and_width(op.ub.op.value.value, i32)
             iv_load = csl.LoadVarOp(iv)
             iv_load.res.name_hint = f"{iv.res.name_hint}_cond"
             cond = arith.CmpiOp(iv_load, ub, "slt")
@@ -200,7 +204,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # for-loop inc func
         with ImplicitBuilder(inc_func.body.block):
-            step = arith.ConstantOp.from_int_and_width(op.step.op.value.value, u32)
+            step = arith.ConstantOp.from_int_and_width(op.step.op.value.value, i32)
             iv_load = csl.LoadVarOp(iv)
             iv_load.res.name_hint = f"{iv.res.name_hint}_inc"
             stepped = arith.AddiOp(iv_load, step)
@@ -294,11 +298,16 @@ class CslStencilHandleAsyncControlFlow(ModulePass):
 
     name = "csl-stencil-handle-async-flow"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    task_ids: tuple[int, ...]
+    """
+    Available task IDs that this pass is free to allocate.
+    """
+
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertForLoopToCallGraphPass(0),
+                    ConvertForLoopToCallGraphPass(0, list(self.task_ids)),
                     HandleCslStencilApplyAsyncCF(0),
                 ]
             ),

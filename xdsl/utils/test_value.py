@@ -1,9 +1,7 @@
-import pytest
+from xdsl.dialects.test import TestOp
+from xdsl.ir import AttributeCovT, OpResult
 
-from xdsl.ir import Block, Operation, SSAValue
 
-
-class TestSSAValue(SSAValue):
-    @property
-    def owner(self) -> Operation | Block:
-        pytest.fail("Attempting to get the owner of a `TestSSAValue`")
+def create_ssa_value(t: AttributeCovT) -> OpResult[AttributeCovT]:
+    op = TestOp(result_types=(t,))
+    return op.results[0]  # pyright: ignore[reportReturnType]

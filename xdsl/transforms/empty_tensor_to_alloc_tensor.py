@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import bufferization, builtin, tensor
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -29,7 +29,7 @@ class EmptyTensorToAllocTensorPass(ModulePass):
 
     name = "empty-tensor-to-alloc-tensor"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             EmptyTensorLoweringPattern(),
             apply_recursively=False,

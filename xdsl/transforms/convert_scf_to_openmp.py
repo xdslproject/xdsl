@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, memref, omp, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp
 from xdsl.ir import Block, Region
@@ -58,12 +58,15 @@ class ConvertParallel(RewritePattern):
                     [],
                     [],
                     [],
+                    [],
+                    [],
+                    [],
                     chunk_op,
                 ],
                 regions=[Region(Block())],
             )
             if self.schedule is not None:
-                wsloop.schedule_val = omp.ScheduleKindAttr(
+                wsloop.schedule_kind = omp.ScheduleKindAttr(
                     omp.ScheduleKind(self.schedule)
                 )
             omp.TerminatorOp()
@@ -78,7 +81,6 @@ class ConvertParallel(RewritePattern):
                 ],
                 regions=[Region(Block(arg_types=[IndexType()] * collapse))],
             )
-            omp.TerminatorOp()
 
         rewriter.insertion_point = InsertPoint.at_end(loop_nest.body.block)
         with ImplicitBuilder(rewriter):
@@ -145,7 +147,7 @@ class ConvertScfToOpenMPPass(ModulePass):
     schedule: Literal["static", "dynamic", "auto"] | None = None
     chunk: int | None = None
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 from itertools import product
 from math import prod
-from typing import TypeVar, cast
+from typing import cast
 from warnings import warn
 
-from xdsl.context import MLContext
+from typing_extensions import TypeVar
+
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, memref, scf
 from xdsl.dialects.builtin import (
     MemRefType,
@@ -49,13 +51,13 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
     TypeConversionPattern,
+    attr_constr_rewrite_pattern,
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -309,7 +311,7 @@ class BufferOpToMemRef(RewritePattern):
             temp_t.get_element_type(), shape=temp_t.get_shape(), layout=layout
         )
         alloc_type = alloc.memref.type
-        assert isa(alloc_type, MemRefType[Attribute])
+        assert isa(alloc_type, MemRefType)
 
         rewriter.insert_op(alloc, InsertPoint.before(first_op))
 
@@ -460,7 +462,7 @@ class AccessOpToMemRef(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
-        assert isattr(temp, StencilTypeConstr)
+        assert StencilTypeConstr.verifies(temp)
         assert isinstance(temp.bounds, StencilBoundsAttr)
 
         memref_offset = op.offset
@@ -498,7 +500,9 @@ class AccessOpToMemRef(RewritePattern):
             else:
                 memref_load_args.append(arg.idx)
 
-        load = memref.LoadOp.get(op.temp, memref_load_args)
+        load = memref.LoadOp(
+            operands=[op.temp, memref_load_args], result_types=[temp.element_type]
+        )
 
         rewriter.insert_op_before_matched_op(args)
         rewriter.replace_matched_op([*off_const_ops, load], [load.res])
@@ -553,7 +557,9 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
         assert isa(op.result.type, FieldType[Attribute])
-        op.result.type = StencilToMemRefType(op.result.type)
+        rewriter.replace_value_with_new_type(
+            op.result, StencilToMemRefType(op.result.type)
+        )
 
         if op.field.type == op.result.type:
             rewriter.replace_matched_op([], [op.field])
@@ -653,8 +659,8 @@ def return_target_analysis(module: builtin.ModuleOp):
 
 
 class StencilTypeConversion(TypeConversionPattern):
-    @attr_type_rewrite_pattern
-    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
+    @attr_constr_rewrite_pattern(StencilTypeConstr)
+    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType:
         return StencilToMemRefType(typ)
 
 
@@ -668,7 +674,7 @@ class ResultTypeConversion(TypeConversionPattern):
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         return_targets: dict[ApplyOp, list[SSAValue | None]] = return_target_analysis(
             op
         )

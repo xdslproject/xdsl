@@ -1,12 +1,12 @@
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.builtin import IntAttr
 from xdsl.ir import Block, Region
 
 
 def test_preorder_walk():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(test.Test)
 
     # Create a region with multiple blocks

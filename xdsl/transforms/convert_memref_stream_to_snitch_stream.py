@@ -4,7 +4,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     move_to_unallocated_regs,
 )
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import (
     builtin,
     memref,
@@ -141,7 +141,7 @@ class StreamOpLowering(RewritePattern):
         self, op: memref_stream.StreamingRegionOp, rewriter: PatternRewriter
     ) -> None:
         operand_types = tuple(
-            cast(memref.MemRefType[Attribute], value_type)
+            cast(memref.MemRefType, value_type)
             for value in op.operands
             if isinstance(value_type := value.type, memref.MemRefType)
         )
@@ -162,7 +162,7 @@ class StreamOpLowering(RewritePattern):
         new_operands = cast_operands_to_regs(rewriter)
         new_inputs = new_operands[: len(op.inputs)]
         new_outputs = new_operands[len(op.inputs) :]
-        freg = riscv.FloatRegisterType.unallocated()
+        freg = riscv.Registers.UNALLOCATED_FLOAT
 
         rewriter.replace_matched_op(
             new_op := snitch_stream.StreamingRegionOp(
@@ -188,7 +188,7 @@ class StreamOpLowering(RewritePattern):
             arg.replace_by_if(
                 cast_op.results[0], lambda use: use.operation is not cast_op
             )
-            rewriter.modify_value_type(arg, stream_type)
+            rewriter.replace_value_with_new_type(arg, stream_type)
 
 
 def strides_for_affine_map(
@@ -245,7 +245,7 @@ class ConvertMemRefStreamToSnitchStreamPass(ModulePass):
 
     name = "convert-memref-stream-to-snitch-stream"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

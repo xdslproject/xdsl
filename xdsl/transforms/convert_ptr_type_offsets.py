@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, ptr
 from xdsl.dialects.builtin import FixedBitwidthType, IndexType, ModuleOp
 from xdsl.passes import ModulePass
@@ -31,7 +31,7 @@ class ConvertTypeOffsetOp(RewritePattern):
 class ConvertPtrTypeOffsetsPass(ModulePass):
     name = "convert-ptr-type-offsets"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             ConvertTypeOffsetOp(),
         ).rewrite_module(op)

@@ -7,11 +7,12 @@ from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Generic, NoReturn, TypeVar, overload
+from typing import Generic, NoReturn, overload
+
+from typing_extensions import TypeVar
 
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, Token, TokenKindT
-from xdsl.utils.str_enum import StrEnum
 
 
 @dataclass(init=False)
@@ -37,7 +38,6 @@ class ParserState(Generic[TokenKindT]):
 
 
 _AnyInvT = TypeVar("_AnyInvT")
-_EnumType = TypeVar("_EnumType", bound=StrEnum)
 
 
 @dataclass
@@ -190,6 +190,7 @@ class GenericParser(Generic[TokenKindT]):
         ANGLE = ("<", ">")
         SQUARE = ("[", "]")
         BRACES = ("{", "}")
+        METADATA_TOKEN = ("{-#", "#-}")
         NONE = None
 
     def parse_comma_separated_list(

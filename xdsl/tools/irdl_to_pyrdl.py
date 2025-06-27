@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import get_all_dialects
 from xdsl.dialects.irdl import DialectOp
 from xdsl.dialects.irdl.irdl_to_pyrdl import convert_dialect
@@ -21,7 +21,7 @@ def main():
     arg_parser.add_argument("input_file", type=str, help="path to input file")
     args = arg_parser.parse_args()
 
-    ctx = MLContext()
+    ctx = Context()
     for dialect_factory in get_all_dialects().values():
         ctx.load_dialect(dialect_factory())
 

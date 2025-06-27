@@ -3,52 +3,25 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 
+from typing_extensions import TypeVar, deprecated
+
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    AffineSetAttr,
     AnyFloat,
-    AnyUnrankedMemRefType,
-    AnyUnrankedTensorType,
-    AnyVectorType,
-    ArrayAttr,
-    BFloat16Type,
-    BytesAttr,
+    BuiltinAttribute,
     ComplexType,
-    DenseArrayBase,
-    DenseResourceAttr,
-    DictionaryAttr,
     Float16Type,
     Float32Type,
     Float64Type,
-    Float80Type,
-    Float128Type,
-    FloatAttr,
     FunctionType,
     IndexType,
-    IntAttr,
-    IntegerAttr,
     IntegerType,
-    LocationAttr,
-    MemRefType,
-    NoneAttr,
-    NoneType,
-    OpaqueAttr,
-    Signedness,
-    StridedLayoutAttr,
-    StringAttr,
-    SymbolRefAttr,
-    TensorType,
     UnitAttr,
-    UnrankedMemRefType,
-    UnrankedTensorType,
-    UnregisteredAttr,
     UnregisteredOp,
-    VectorType,
     i1,
 )
 from xdsl.ir import (
@@ -56,6 +29,7 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Data,
+    Dialect,
     OpaqueSyntaxAttribute,
     Operation,
     ParametrizedAttribute,
@@ -63,7 +37,6 @@ from xdsl.ir import (
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
-    TypedAttribute,
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.base_printer import BasePrinter
@@ -73,6 +46,7 @@ from xdsl.utils.bitwise_casts import (
     convert_f64_to_u64,
 )
 from xdsl.utils.diagnostic import Diagnostic
+from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import MLIRLexer
 
 
@@ -83,18 +57,25 @@ class Printer(BasePrinter):
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
-    _ssa_values: dict[SSAValue, str] = field(default_factory=dict, init=False)
+    _ssa_values: dict[SSAValue, str] = field(
+        default_factory=dict[SSAValue, str], init=False
+    )
     """
     maps SSA Values to their "allocated" names
     """
     _ssa_names: list[dict[str, int]] = field(
-        default_factory=lambda: [dict()], init=False
+        default_factory=lambda: [dict[str, int]()], init=False
     )
     _block_names: list[dict[Block, int]] = field(
-        default_factory=lambda: [dict()], init=False
+        default_factory=lambda: [dict[Block, int]()], init=False
     )
     _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
     _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
+
+    _dialect_resources: dict[str, set[str]] = field(default_factory=dict[str, set[str]])
+    """
+    resources that were referenced in the ir
+    """
 
     @property
     def ssa_names(self):
@@ -104,20 +85,14 @@ class Printer(BasePrinter):
     def block_names(self):
         return self._block_names[-1]
 
-    @contextmanager
-    def in_angle_brackets(self):
-        self.print_string("<")
-        try:
-            yield
-        finally:
-            self.print_string(">")
-
+    @deprecated("Please use type-specific print methods")
     def print(self, *argv: Any) -> None:
         for arg in argv:
             if isinstance(arg, str):
                 self.print_string(arg)
                 continue
             if isinstance(arg, SSAValue):
+                arg = cast(SSAValue[Attribute], arg)
                 self.print_ssa_value(arg)
                 continue
             if isinstance(arg, Attribute):
@@ -170,7 +145,7 @@ class Printer(BasePrinter):
             return
 
         # Multiple results
-        self.print_list(op.results, self.print)
+        self.print_list(op.results, self.print_ssa_value)
         self.print_string(" = ")
 
     def print_ssa_value(self, value: SSAValue) -> str:
@@ -333,8 +308,33 @@ class Printer(BasePrinter):
                     self.print_string(chr(byte))
         self.print_string('"')
 
-    def print_float_attr(self, attribute: FloatAttr):
-        self.print_float(attribute.value.data, attribute.type)
+    def print_complex_float(
+        self, value: tuple[float, float], type: ComplexType[AnyFloat]
+    ):
+        real, imag = value
+        with self.in_parens():
+            self.print_float(real, type.element_type)
+            self.print_string(",")
+            self.print_float(imag, type.element_type)
+
+    def print_complex_int(self, value: tuple[int, int], type: ComplexType[IntegerType]):
+        real, imag = value
+        with self.in_parens():
+            self.print_int(real, type.element_type)
+            self.print_string(",")
+            self.print_int(imag, type.element_type)
+
+    def print_complex(
+        self,
+        value: tuple[float, float] | tuple[int, int],
+        type: ComplexType[IntegerType | AnyFloat],
+    ):
+        if isinstance(type.element_type, IntegerType):
+            assert isa(value, tuple[int, int])
+            self.print_complex_int(value, cast(ComplexType[IntegerType], type))
+        else:
+            assert isa(value, tuple[float, float])
+            self.print_complex_float(value, cast(ComplexType[AnyFloat], type))
 
     def print_float(self, value: float, type: AnyFloat):
         if math.isnan(value) or math.isinf(value):
@@ -377,286 +377,23 @@ class Printer(BasePrinter):
                     # default to full python precision
                     self.print_string(f"{repr(value)}")
 
+    def print_int(self, value: int, type: IntegerType | IndexType | None = None):
+        """
+        Prints the numeric value of an integer, except when the (optional) specified type
+        is `i1`, in which case a boolean "true" or "false" is printed instead.
+        """
+        if type == i1:
+            if value:
+                self.print_string("true")
+            else:
+                self.print_string("false")
+        else:
+            self.print_string(f"{value:d}")
+
     def print_attribute(self, attribute: Attribute) -> None:
-        if isinstance(attribute, UnitAttr):
-            self.print_string("unit")
-            return
-
-        if isinstance(attribute, LocationAttr):
-            self.print_string("loc(unknown)")
-            return
-
-        if isinstance(attribute, IntegerType):
-            if attribute.signedness.data == Signedness.SIGNLESS:
-                self.print_string("i")
-            elif attribute.signedness.data == Signedness.SIGNED:
-                self.print_string("si")
-            elif attribute.signedness.data == Signedness.UNSIGNED:
-                self.print_string("ui")
-            self.print_string(str(attribute.width.data))
-            return
-
-        if isinstance(attribute, BFloat16Type):
-            self.print_string("bf16")
-            return
-        if isinstance(attribute, Float16Type):
-            self.print_string("f16")
-            return
-        if isinstance(attribute, Float32Type):
-            self.print_string("f32")
-            return
-        if isinstance(attribute, Float64Type):
-            self.print_string("f64")
-            return
-        if isinstance(attribute, Float80Type):
-            self.print_string("f80")
-            return
-        if isinstance(attribute, Float128Type):
-            self.print_string("f128")
-            return
-
-        if isinstance(attribute, IntegerAttr):
-            # boolean shorthands
-            if (
-                isinstance(
-                    (ty := attribute.get_type()),
-                    IntegerType,
-                )
-                and ty.width.data == 1
-            ):
-                self.print_string("true" if attribute.value.data else "false")
-                return
-            # Otherwise we fall through to TypedAttribute case
-
-        if isinstance(attribute, TypedAttribute):
-            attribute.print_without_type(self)
-            self.print_string(" : ")
-            self.print_attribute(attribute.get_type())
-            return
-
-        if isinstance(attribute, StringAttr):
-            self.print_string_literal(attribute.data)
-            return
-
-        if isinstance(attribute, BytesAttr):
-            self.print_bytes_literal(attribute.data)
-            return
-
-        if isinstance(attribute, SymbolRefAttr):
-            self.print_string("@")
-            self.print_identifier_or_string_literal(attribute.root_reference.data)
-            for ref in attribute.nested_references.data:
-                self.print_string("::@")
-                self.print_identifier_or_string_literal(ref.data)
-            return
-
-        # Complex types have MLIR shorthands but XDSL does not.
-        if isinstance(attribute, ComplexType):
-            self.print_string("complex<")
-            self.print_attribute(attribute.element_type)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, ArrayAttr):
-            attribute = cast(ArrayAttr[Attribute], attribute)
-            self.print_string("[")
-            self.print_list(attribute.data, self.print_attribute)
-            self.print_string("]")
-            return
-
-        if isinstance(attribute, DenseArrayBase):
-            self.print_string("array<")
-            self.print_attribute(attribute.elt_type)
-            if len(attribute) == 0:
-                self.print_string(">")
-                return
-            data = attribute.iter_values()
-            self.print_string(": ")
-            # There is a bug in MLIR which will segfault when parsing DenseArrayBase type i1 as 0 or 1,
-            # therefore we need to print these as false and true
-            if attribute.elt_type == i1:
-                self.print_list(
-                    data,
-                    lambda x: self.print_string("true" if x else "false"),
-                )
-            else:
-                self.print_list(data, lambda x: self.print_string(f"{x}"))
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, DictionaryAttr):
-            self.print_attr_dict(attribute.data)
-            return
-
-        if isinstance(attribute, FunctionType):
-            self.print_string("(")
-            self.print_list(attribute.inputs.data, self.print_attribute)
-            self.print_string(") -> ")
-            outputs = attribute.outputs.data
-            if len(outputs) == 1 and not isinstance(outputs[0], FunctionType):
-                self.print_attribute(outputs[0])
-            else:
-                self.print_string("(")
-                self.print_list(outputs, self.print_attribute)
-                self.print_string(")")
-            return
-
-        if isinstance(attribute, DenseResourceAttr):
-            handle = attribute.resource_handle.data
-            self.print_string(f"dense_resource<{handle}> : ")
-            self.print_attribute(attribute.type)
-            return
-
-        if isinstance(attribute, TensorType):
-            attribute = cast(AnyVectorType, attribute)
-            self.print_string("tensor<")
-            self.print_list(
-                attribute.shape.data,
-                lambda x: (
-                    self.print_string(f"{x.data}")
-                    if x.data != -1
-                    else self.print_string("?")
-                ),
-                "x",
-            )
-            if len(attribute.shape.data) != 0:
-                self.print_string("x")
-            self.print_attribute(attribute.element_type)
-            if isinstance(attribute, TensorType) and attribute.encoding != NoneAttr():
-                self.print_string(", ")
-                self.print_attribute(attribute.encoding)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, VectorType):
-            attribute = cast(AnyVectorType, attribute)
-            shape = attribute.get_shape()
-
-            # Separate the dimensions between the static and the scalable ones
-            if attribute.get_num_scalable_dims() == 0:
-                static_dimensions = shape
-                scalable_dimensions = ()
-            else:
-                static_dimensions = shape[: -attribute.get_num_scalable_dims()]
-                scalable_dimensions = shape[-attribute.get_num_scalable_dims() :]
-
-            self.print_string("vector<")
-            if len(static_dimensions) != 0:
-                self.print_list(
-                    static_dimensions, lambda x: self.print_string(f"{x}"), "x"
-                )
-                self.print_string("x")
-
-            if len(scalable_dimensions) != 0:
-                self.print_string("[")
-                self.print_list(
-                    scalable_dimensions, lambda x: self.print_string(f"{x}"), "x"
-                )
-                self.print_string("]")
-                self.print_string("x")
-
-            self.print_attribute(attribute.element_type)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, UnrankedTensorType):
-            attribute = cast(AnyUnrankedTensorType, attribute)
-            self.print_string("tensor<*x")
-            self.print_attribute(attribute.element_type)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, StridedLayoutAttr):
-            self.print_string("strided<[")
-
-            def print_int_or_question(value: IntAttr | NoneAttr) -> None:
-                self.print_string(
-                    f"{value.data}" if isinstance(value, IntAttr) else "?"
-                )
-
-            self.print_list(attribute.strides.data, print_int_or_question, ", ")
-            self.print_string("]")
-            if attribute.offset == IntAttr(0):
-                self.print_string(">")
-                return
-            self.print_string(", offset: ")
-            print_int_or_question(attribute.offset)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, MemRefType):
-            attribute = cast(MemRefType[Attribute], attribute)
-            self.print_string("memref<")
-            if attribute.shape.data:
-                self.print_list(
-                    attribute.shape.data,
-                    lambda x: (
-                        self.print_string(f"{x.data}")
-                        if x.data != -1
-                        else self.print_string("?")
-                    ),
-                    "x",
-                )
-                self.print_string("x")
-            self.print_attribute(attribute.element_type)
-            if not isinstance(attribute.layout, NoneAttr):
-                self.print_string(", ")
-                self.print_attribute(attribute.layout)
-            if not isinstance(attribute.memory_space, NoneAttr):
-                self.print_string(", ")
-                self.print_attribute(attribute.memory_space)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, UnrankedMemRefType):
-            attribute = cast(AnyUnrankedMemRefType, attribute)
-            self.print_string("memref<*x")
-            self.print_attribute(attribute.element_type)
-            if not isinstance(attribute.memory_space, NoneAttr):
-                self.print_string(", ")
-                self.print_attribute(attribute.memory_space)
-            self.print_string(">")
-            return
-
-        if isinstance(attribute, IndexType):
-            self.print_string("index")
-            return
-
-        if isinstance(attribute, NoneType):
-            self.print_string("none")
-            return
-
-        if isinstance(attribute, OpaqueAttr):
-            self.print_string("opaque<")
-            self.print_attribute(attribute.ident)
-            self.print_string(", ")
-            self.print_attribute(attribute.value)
-            self.print_string(">")
-
-            if not isinstance(attribute.type, NoneAttr):
-                self.print_string(" : ")
-                self.print_attribute(attribute.type)
-            return
-
-        if isinstance(attribute, AffineMapAttr):
-            self.print_string(f"affine_map<{attribute.data}>")
-            return
-
-        if isinstance(attribute, AffineSetAttr):
-            self.print_string(f"affine_set<{attribute.data}>")
-            return
-
-        if isinstance(attribute, UnregisteredAttr):
-            # Do not print `!` or `#` for unregistered builtin attributes
-            self.print_string("!" if attribute.is_type.data else "#")
-            if attribute.is_opaque.data:
-                self.print_string(
-                    f"{attribute.attr_name.data.replace('.', '<', 1)}{attribute.value.data}>"
-                )
-            else:
-                self.print_string(attribute.attr_name.data)
-                if attribute.value.data:
-                    self.print_string(f"<{attribute.value.data}>")
+        # Print builtin attributes
+        if isinstance(attribute, BuiltinAttribute):
+            attribute.print_builtin(self)
             return
 
         # Print dialect attributes
@@ -677,8 +414,6 @@ class Printer(BasePrinter):
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print_string(">")
-
-        return
 
     def print_successors(self, successors: Sequence[Block]):
         if len(successors) == 0:
@@ -717,9 +452,16 @@ class Printer(BasePrinter):
         *,
         reserved_attr_names: Iterable[str] = (),
         print_keyword: bool = False,
-    ) -> None:
+    ) -> bool:
+        """
+        Prints the attribute dictionary of an operation, with an optional `attributes`
+        keyword.
+        Values for `reserved_attr_names` are not printed even if present.
+        If the printed dictionary would be empty, then nothing is printed, and this
+        function returns False.
+        """
         if not attributes:
-            return
+            return False
 
         if reserved_attr_names:
             attributes = {
@@ -729,13 +471,14 @@ class Printer(BasePrinter):
             }
 
         if not attributes:
-            return
+            return False
 
         if print_keyword:
             self.print_string(" attributes")
 
         self.print_string(" ")
         self.print_attr_dict(attributes)
+        return True
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)
@@ -855,3 +598,57 @@ class Printer(BasePrinter):
             self.print_op_with_default_format(op)
         if scope:
             self.exit_scope()
+
+    def print_resource_handle(self, dialect: str, handle: str) -> None:
+        if dialect not in self._dialect_resources:
+            self._dialect_resources[dialect] = set()
+        self._dialect_resources[dialect].add(handle)
+        self.print_string(handle)
+
+    def print_metadata(self, dialects: Iterable[Dialect]) -> None:
+        if not self._dialect_resources:
+            return
+
+        # Prepare data
+        resources_for_printing: dict[str, dict[str, str]] = {}
+        resource_dialects = {
+            d.name: d.get_interface(OpAsmDialectInterface)
+            for d in dialects
+            if d.has_interface(OpAsmDialectInterface)
+        }
+
+        for dialect_name, resource_keys in self._dialect_resources.items():
+            interface = resource_dialects.get(dialect_name)
+            assert interface
+            resources = interface.build_resources(resource_keys)
+            if resources:
+                resources_for_printing[dialect_name] = resources
+
+        if not resources_for_printing:
+            # None of the referenced resources actually exist
+            return
+
+        # Printing
+        self.print_string("\n\n{-#\n")
+        self.print_string("  dialect_resources: {\n")
+
+        for dialect_name, resources in resources_for_printing.items():
+            self.print_string("    " + dialect_name + ": {\n")
+            sorted_elements = sorted(resources.items(), key=lambda x: x[0])
+            for key, resource in sorted_elements[:-1]:
+                self.print_string(f'      {key}: "{resource}",')
+            self.print_string(
+                f'      {sorted_elements[-1][0]}: "{sorted_elements[-1][1]}"'
+            )
+            self.print_string("\n    }\n")
+
+        self.print_string("  }\n")
+        self.print_string("#-}")
+
+    def print_symbol_name(self, sym_name: str):
+        """
+        Prints a string attribute as a symbol name, prepending it with an '@',
+        and printing it as a string literal if it is not an identifier.
+        """
+        self.print_string("@")
+        self.print_identifier_or_string_literal(sym_name)

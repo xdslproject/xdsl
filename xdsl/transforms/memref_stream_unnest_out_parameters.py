@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -40,13 +40,13 @@ class UnnestOutParametersPattern(RewritePattern):
         if num_parallel == len(op.iterator_types):
             return
 
-        parallel_dims = (True,) * num_parallel + (False,) * num_reduction
+        reduction_dims = (False,) * num_parallel + (True,) * num_reduction
 
         maps = op.indexing_maps.data[num_inputs:]
         new_maps = ArrayAttr(
             (
                 *op.indexing_maps.data[:num_inputs],
-                *(AffineMapAttr(m.data.compress_dims(parallel_dims)) for m in maps),
+                *(AffineMapAttr(m.data.drop_dims(reduction_dims)) for m in maps),
             )
         )
 
@@ -62,7 +62,7 @@ class MemRefStreamUnnestOutParametersPass(ModulePass):
 
     name = "memref-stream-unnest-out-parameters"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             UnnestOutParametersPattern(),
             apply_recursively=False,

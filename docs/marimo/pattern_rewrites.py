@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.13.6"
 app = marimo.App()
 
 
@@ -18,12 +18,15 @@ def _():
     from xdsl.utils import marimo as xmo
 
     from xdsl.parser import Parser
-    from xdsl.context import MLContext
+    from xdsl.context import Context
 
     from xdsl.dialects.builtin import Builtin
     from xdsl.dialects.arith import Arith
     from xdsl.dialects.func import Func
 
+    from xdsl.ir import Operation
+
+    from xdsl.rewriter import Rewriter
     from xdsl.pattern_rewriter import (
         PatternRewriter,
         RewritePattern,
@@ -33,22 +36,21 @@ def _():
     from xdsl.dialects.arith import AddiOp, ConstantOp, MuliOp
     from xdsl.dialects.builtin import ModuleOp
     from xdsl.dialects.func import FuncOp
-
     return (
         AddiOp,
         Arith,
         Builtin,
         ConstantOp,
+        Context,
         Func,
-        FuncOp,
         GreedyRewritePatternApplier,
-        MLContext,
         ModuleOp,
         MuliOp,
+        Operation,
         Parser,
         PatternRewriteWalker,
-        PatternRewriter,
         RewritePattern,
+        Rewriter,
         mo,
         xmo,
     )
@@ -113,20 +115,20 @@ def _(after_module, before_module, mo, xmo):
 def _(mo):
     mo.md(
         r"""
-        ## Rationale
+    ## Rationale
 
-        A pattern rewrite is a compiler transformation that matches a DAG in the IR, and replace it with another DAG. For instance, simplifying `x + 0` to `x` is a common optimization that is represented as a pattern rewrite.
+    A pattern rewrite is a compiler transformation that matches a DAG in the IR, and replace it with another DAG. For instance, simplifying `x + 0` to `x` is a common optimization that is represented as a pattern rewrite.
 
-        As xDSL and MLIR allow the definition of higher-level dialects, pattern rewrites are very common, and can be used to both write high-level optimizations, and lowerings from a high-level dialect to a lower-level one. A general rationale for pattern rewrites in MLIR can be found [here](https://mlir.llvm.org/docs/Rationale/RationaleGenericDAGRewriter/).
+    As xDSL and MLIR allow the definition of higher-level dialects, pattern rewrites are very common, and can be used to both write high-level optimizations, and lowerings from a high-level dialect to a lower-level one. A general rationale for pattern rewrites in MLIR can be found [here](https://mlir.llvm.org/docs/Rationale/RationaleGenericDAGRewriter/).
 
-        Pattern rewrites are applied step by step on the IR. For instance, using the rewrite `x + 0 -> x`, the IR `x + 0 + 0` will be progressively transformed to `x + 0`, then `x using this single rewrite. Different application ordering and variations exist for rewrite patterns, which will be covered by Matthias Springer at 4pm on day 3 of the winter school.
+    Pattern rewrites are applied step by step on the IR. For instance, using the rewrite `x + 0 -> x`, the IR `x + 0 + 0` will be progressively transformed to `x + 0`, then `x using this single rewrite. Different application ordering and variations exist for rewrite patterns, which will be covered by Matthias Springer at 4pm on day 3 of the winter school.
 
-        ## Defining a pattern rewrite
+    ## Defining a pattern rewrite
 
-        Each Pattern rewrite is a class that inherit from `PatternRewrite`. It defines a single `match_and_rewrite` method, that is called to apply a pattern on an operation. The method will either return without any modification of the IR, or will modify the IR using the `Rewriter`. The most common operation to call on the `Rewriter` is `replace_matched_op`, which will replace the matched operation with a sequence of other operations, and replace the result values of the matched operation with new values.
+    Each Pattern rewrite is a class that inherit from `PatternRewrite`. It defines a single `match_and_rewrite` method, that is called to apply a pattern on an operation. The method will either return without any modification of the IR, or will modify the IR using the `Rewriter`. The most common operation to call on the `Rewriter` is `replace_matched_op`, which will replace the matched operation with a sequence of other operations, and replace the result values of the matched operation with new values.
 
-        Here are two examples of pattern for `x + 0 -> x` and `x * 2 -> x + x`:
-        """
+    Here are two examples of pattern for `x + 0 -> x` and `x * 2 -> x + x`:
+    """
     )
     return
 
@@ -184,7 +186,6 @@ def _(
             # last operation added, so here the `arith.addi`
             add = AddiOp(x, x)
             rewriter.replace_matched_op([add])
-
     return AddZeroPattern, MulTwoPattern
 
 
@@ -192,15 +193,15 @@ def _(
 def _(mo):
     mo.md(
         r"""
-        ## Applying rewrite patterns
+    ## Applying rewrite patterns
 
-        There are two steps to apply rewrite patterns in xDSL.
+    There are two steps to apply rewrite patterns in xDSL.
 
-        * First, combining multiple rewrite patterns in a single one, giving priorities between patterns.
-        * Then, walking the IR and applying the pattern recursively on all operations until no more pattern can be applied on any operation:
+    * First, combining multiple rewrite patterns in a single one, giving priorities between patterns.
+    * Then, walking the IR and applying the pattern recursively on all operations until no more pattern can be applied on any operation:
 
-        Here is an example on how to apply rewrites on all operations in a module:
-        """
+    Here is an example on how to apply rewrites on all operations in a module:
+    """
     )
     return
 
@@ -218,13 +219,12 @@ def _(
         merged_pattern = GreedyRewritePatternApplier(AddZeroPattern(), MulTwoPattern())
         walker = PatternRewriteWalker(merged_pattern)
         walker.rewrite_module(module)
-
-    return (apply_all_rewrites,)
+    return
 
 
 @app.cell(hide_code=True)
-def _(Arith, Builtin, Func, MLContext):
-    ctx = MLContext()
+def _(Arith, Builtin, Context, Func):
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(Func)

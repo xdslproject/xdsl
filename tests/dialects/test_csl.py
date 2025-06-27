@@ -3,10 +3,10 @@ import pytest
 from xdsl.dialects.builtin import Float32Type, IntegerType, Signedness, TensorType
 from xdsl.dialects.csl import Add16Op, DsdKind, DsdType, GetMemDsdOp
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
-tensor = TestSSAValue(TensorType(Float32Type(), [4]))
-size_i32 = TestSSAValue(IntegerType(32, Signedness.SIGNED))
+tensor = create_ssa_value(TensorType(Float32Type(), [4]))
+size_i32 = create_ssa_value(IntegerType(32, Signedness.SIGNED))
 dest_dsd = GetMemDsdOp(
     operands=[tensor, size_i32], result_types=[DsdType(DsdKind.mem1d_dsd)]
 )
@@ -16,8 +16,8 @@ src_dsd1 = GetMemDsdOp(
 src_dsd2 = GetMemDsdOp(
     operands=[tensor, size_i32], result_types=[DsdType(DsdKind.mem1d_dsd)]
 )
-i16_value = TestSSAValue(IntegerType(16, Signedness.SIGNED))
-u16_value = TestSSAValue(IntegerType(16, Signedness.UNSIGNED))
+i16_value = create_ssa_value(IntegerType(16, Signedness.SIGNED))
+u16_value = create_ssa_value(IntegerType(16, Signedness.UNSIGNED))
 
 
 def test_verify_valid_builtin_signature():

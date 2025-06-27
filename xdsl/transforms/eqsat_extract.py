@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat
 from xdsl.ir import Block, Operation, OpResult
 from xdsl.passes import ModulePass
@@ -47,7 +47,7 @@ class EqsatExtractPass(ModulePass):
 
     name = "eqsat-extract"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         eclass_parent_blocks = set(
             o.parent
             for o in op.walk()

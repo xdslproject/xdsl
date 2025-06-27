@@ -5,7 +5,7 @@ from typing import Literal
 
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.utils import FastMathFlag
-from xdsl.passes import MLContext, ModulePass
+from xdsl.passes import Context, ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriter,
@@ -33,14 +33,7 @@ class AddArithFastMathFlags(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
-        op: (
-            arith.AddfOp
-            | arith.SubfOp
-            | arith.MulfOp
-            | arith.DivfOp
-            | arith.MinimumfOp
-            | arith.MaximumfOp
-        ),
+        op: arith.FloatingPointLikeBinaryOperation | arith.CmpfOp,
         rewriter: PatternRewriter,
     ) -> None:
         op.fastmath = self.fastmath_op_attr
@@ -63,9 +56,7 @@ class AddArithFastMathFlagsPass(ModulePass):
 
     flags: Literal["fast", "none"] | tuple[str, ...] = "fast"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        fm_flags = arith.FastMathFlagsAttr("fast")
-
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if isinstance(self.flags, str):
             fm_flags = arith.FastMathFlagsAttr(self.flags)
         else:

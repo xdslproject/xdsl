@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, Region, SSAValue
 from xdsl.ir.post_order import PostOrderIterator
@@ -90,7 +90,7 @@ def dce(op: ModuleOp):
 @dataclass
 class LiveSet:
     changed: bool = field(default=True)  # Force first iteration to happen
-    _live_ops: set[Operation] = field(default_factory=set)
+    _live_ops: set[Operation] = field(default_factory=set[Operation])
 
     def is_live(self, op: Operation) -> bool:
         return op in self._live_ops
@@ -162,5 +162,5 @@ def region_dce(region: Region, listener: PatternRewriterListener | None = None) 
 class DeadCodeElimination(ModulePass):
     name = "dce"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         region_dce(op.body)

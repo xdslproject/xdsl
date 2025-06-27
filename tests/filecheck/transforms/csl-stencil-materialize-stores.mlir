@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -p csl-stencil-materialize-stores %s | filecheck %s
 
 builtin.module {
-  "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel", "width" = 1024 : i16}> ({
+  "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel", "width" = 1024 : i16, target = "wse2"}> ({
   ^0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
     %0 = arith.constant 0 : i16
     %1 = "csl.get_color"(%0) : (i16) -> !csl.color
@@ -34,7 +34,7 @@ builtin.module {
     "csl.export"() <{"type" = () -> (), "var_name" = @gauss_seidel}> : () -> ()
     csl.func @gauss_seidel() {
       %23 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
-      csl_stencil.apply(%19 : memref<512xf32>, %23 : memref<510xf32>) outs (%20 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 1 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
+      csl_stencil.apply(%19 : memref<512xf32>, %23 : memref<510xf32>) outs (%20 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 1 : i64, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
       ^2(%arg10 : memref<4x510xf32>, %arg11 : index, %arg12 : memref<510xf32>):
         %24 = csl_stencil.access %arg10[1, 0] : memref<4x510xf32>
         %25 = csl_stencil.access %arg10[-1, 0] : memref<4x510xf32>
@@ -65,7 +65,7 @@ builtin.module {
 }
 
 // CHECK-NEXT: builtin.module {
-// CHECK-NEXT:   "csl_wrapper.module"() <{height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "gauss_seidel", width = 1024 : i16}> ({
+// CHECK-NEXT:   "csl_wrapper.module"() <{height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "gauss_seidel", width = 1024 : i16, target = "wse2"}> ({
 // CHECK-NEXT:   ^0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
 // CHECK-NEXT:     %0 = arith.constant 0 : i16
 // CHECK-NEXT:     %1 = "csl.get_color"(%0) : (i16) -> !csl.color

@@ -1,5 +1,7 @@
 site_name: xDSL
 
+strict: true
+
 theme:
   name: "material"
   features:
@@ -8,6 +10,9 @@ theme:
     - navigation.tabs
     - navigation.sections
     - navigation.expand
+
+markdown_extensions:
+- docs.blocks:MarimoBlocksExtension # the marimo mkdocs extension is out of date, this is what they use internally
 
 plugins:
 - search
@@ -37,6 +42,19 @@ nav:
       - Block: api/ir/block.md
       - Region: api/ir/region.md
       - Dialect: api/ir/dialect.md
+  - Notebooks:
+    - Overview: marimo/index.md
+    - Manipulating IR:
+      - MLIR IR: marimo/mlir_ir.md
+      - Traversing IR: marimo/traversing_ir.md
+      - Builders: marimo/builders.md
+      - IR Generation: marimo/ir_gen.md
+      - Rewrites: marimo/pattern_rewrites.md
+      - Rewrite Exercises: marimo/rewrite_exercises.md
+      - Defining Dialects: marimo/defining_dialects.md
+    - RISC-V Dialects:
+      - RISC-V Dialects: marimo/riscv_dialects.md
+      - Compiling Linalg to Snitch: marimo/linalg_snitch.md
   - Code Reference: reference/index.md
   - Guides:
     - MLIR Interoperation: guides/mlir_interoperation.md

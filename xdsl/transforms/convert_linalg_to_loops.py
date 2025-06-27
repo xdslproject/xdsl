@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import linalg, memref
 from xdsl.dialects.builtin import MemRefType, ModuleOp
 from xdsl.ir import SSAValue
@@ -87,7 +87,7 @@ class ConvertLinalgToLoopsPass(ModulePass):
 
     name = "convert-linalg-to-loops"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier([LowerGenericOpPattern()]),
             apply_recursively=False,

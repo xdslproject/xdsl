@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     DenseArrayBase,
-    DenseIntOrFPElementsAttr,
+    DenseIntElementsAttr,
     IndexType,
     IndexTypeConstr,
     IntegerType,
     SignlessIntegerConstraint,
     StringAttr,
+    VectorType,
     i32,
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, SSAValue
@@ -21,7 +21,6 @@ from xdsl.irdl import (
     IRDLOperation,
     Successor,
     VarOperand,
-    attr_constr_coercion,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -180,7 +179,7 @@ class SwitchOp(IRDLOperation):
 
     name = "cf.switch"
 
-    case_values = opt_prop_def(DenseIntOrFPElementsAttr)
+    case_values = opt_prop_def(DenseIntElementsAttr)
 
     flag = operand_def(IndexTypeConstr | SignlessIntegerConstraint)
 
@@ -189,7 +188,7 @@ class SwitchOp(IRDLOperation):
     case_operands = var_operand_def()
 
     # Copied from AttrSizedSegments
-    case_operand_segments = prop_def(attr_constr_coercion(DenseArrayBase))
+    case_operand_segments = prop_def(DenseArrayBase.constr(i32))
 
     default_block = successor_def()
 
@@ -204,7 +203,7 @@ class SwitchOp(IRDLOperation):
         flag: Operation | SSAValue,
         default_block: Successor,
         default_operands: Sequence[Operation | SSAValue],
-        case_values: DenseIntOrFPElementsAttr | None = None,
+        case_values: DenseIntElementsAttr | None = None,
         case_blocks: Sequence[Successor] = [],
         case_operands: Sequence[Sequence[Operation | SSAValue]] = [],
         attr_dict: dict[str, Attribute] | None = None,
@@ -237,10 +236,7 @@ class SwitchOp(IRDLOperation):
                 "case_operand_segments is expected to be a DenseArrayBase of i32"
             )
 
-        def_sizes = cast(
-            tuple[int, ...],
-            self.case_operand_segments.get_values(),
-        )
+        def_sizes = self.case_operand_segments.get_values()
 
         if sum(def_sizes) != len(self.case_operands):
             raise VerifyException(
@@ -359,7 +355,7 @@ class SwitchOp(IRDLOperation):
         parser.parse_punctuation("[")
         parser.parse_keyword("default")
         (default_block, default_args) = cls._parse_case_body(parser)
-        case_values: DenseIntOrFPElementsAttr | None = None
+        case_values: DenseIntElementsAttr | None = None
         case_blocks: tuple[Block, ...] = ()
         case_operands: tuple[tuple[SSAValue, ...], ...] = ()
         if parser.parse_optional_punctuation(","):
@@ -367,8 +363,9 @@ class SwitchOp(IRDLOperation):
                 Parser.Delimiter.NONE, lambda: cls._parse_case(parser)
             )
             assert isinstance(flag_type, IntegerType | IndexType)
-            case_values = DenseIntOrFPElementsAttr.vector_from_list(
-                [x for (x, _, _) in cases], flag_type
+            data = tuple(x for (x, _, _) in cases)
+            case_values = DenseIntElementsAttr.from_list(
+                VectorType(flag_type, (len(data),)), data
             )
             case_blocks = tuple(x for (_, x, _) in cases)
             case_operands = tuple(tuple(x) for (_, _, x) in cases)
