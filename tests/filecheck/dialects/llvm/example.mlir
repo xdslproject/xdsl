@@ -99,7 +99,7 @@ builtin.module {
 
 // CHECK-NEXT: %fval3 = llvm.fpext %fval : f32 to f64
 
-  "llvm.unreachable"() : () -> ()
+  llvm.unreachable {my_attr}
 
-// CHECK-NEXT: llvm.unreachable
+// CHECK-NEXT: llvm.unreachable {my_attr}
 }
