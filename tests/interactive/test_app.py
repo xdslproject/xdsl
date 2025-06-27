@@ -189,9 +189,9 @@ builtin.module {
     %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
     %res_2 = riscv.mul %res, %res_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg to index
-    %1 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg
-    %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
-    riscv_func.return %2 : !riscv.reg<a0>
+    %res_4 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg
+    %1 = riscv.mv %res_4 : (!riscv.reg) -> !riscv.reg<a0>
+    riscv_func.return %1 : !riscv.reg<a0>
   }
 }
 """
@@ -222,9 +222,9 @@ builtin.module {
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
     %two = arith.constant 2 : index
     %res = arith.muli %n_1, %two : index
-    %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
-    %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
-    riscv_func.return %2 : !riscv.reg<a0>
+    %res_1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
+    %1 = riscv.mv %res_1 : (!riscv.reg) -> !riscv.reg<a0>
+    riscv_func.return %1 : !riscv.reg<a0>
   }
 }
 """
@@ -405,9 +405,9 @@ async def test_passes():
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
     %two = arith.constant 2 : index
     %res = arith.muli %n_1, %two : index
-    %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
-    %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
-    riscv_func.return %2 : !riscv.reg<a0>
+    %res_1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
+    %1 = riscv.mv %res_1 : (!riscv.reg) -> !riscv.reg<a0>
+    riscv_func.return %1 : !riscv.reg<a0>
   }
 }
 """

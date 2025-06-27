@@ -45,11 +45,18 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
 ^bb16:  // pred: ^bb15
   pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%5, %3, %7, %4, %arg0 : !pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) : benefit(1), generatedOps(["arith.subi", "arith.addi"]), loc([%2, %arg0]), root("arith.subi") -> ^bb1
 ^bb17:
-  pdl_interp.switch_operation_name of %arg0 to ["foo.op", "bar.op"](^bb1, ^bb2) -> ^bb3
+  pdl_interp.switch_operation_name of %arg0 to ["foo.op", "bar.op"](^bb1, ^bb18) -> ^bb3
+^bb18:
+  pdl_interp.check_type %7 is i32 -> ^bb16, ^bb1
+^bb19:
+  %attr_val = pdl_interp.get_attribute "test_attr" of %arg0
+  pdl_interp.switch_attribute %attr_val to [42 : i32, true](^bb16, ^bb1) -> ^bb1
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
     %attr = pdl_interp.create_attribute 10 : i64 
+    %type_i64 = pdl_interp.create_type i64
+    %types_range = pdl_interp.create_types [i32, i64]
     %0 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value) {"attrA" = %attr}  -> (%arg2 : !pdl.type)
     %nooperands = pdl_interp.create_operation "test.testop" {"attrA" = %attr} -> (%arg2 : !pdl.type)
     %1 = pdl_interp.get_result 0 of %0
@@ -107,19 +114,26 @@ module @rewriters {
 // CHECK-NEXT:     ^15:
 // CHECK-NEXT:       pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%5, %3, %7, %4, [[arg0]] : !pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) : benefit(1), generatedOps(["arith.subi", "arith.addi"]), loc([%2, [[arg0]]]), root("arith.subi") -> ^1
 // CHECK-NEXT:     ^16:
-// CHECK-NEXT:       pdl_interp.switch_operation_name of [[arg0]] to ["foo.op", "bar.op"](^1, ^0) -> ^2
+// CHECK-NEXT:       pdl_interp.switch_operation_name of [[arg0]] to ["foo.op", "bar.op"](^1, ^17) -> ^2
+// CHECK-NEXT:     ^17:
+// CHECK-NEXT:       pdl_interp.check_type %7 is i32 -> ^15, ^1
+// CHECK-NEXT:     ^18:
+// CHECK-NEXT:       %9 = pdl_interp.get_attribute "test_attr" of [[arg0]]
+// CHECK-NEXT:       pdl_interp.switch_attribute %9 to [42 : i32, true](^15, ^1) -> ^1
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
 // CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {
 // CHECK-NEXT:         %0 = pdl_interp.create_attribute 10 : i64
-// CHECK-NEXT:         %1 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value) {"attrA" = %0} -> (%arg2 : !pdl.type)
-// CHECK-NEXT:         %2 = pdl_interp.create_operation "test.testop" {"attrA" = %0}  -> (%arg2 : !pdl.type)
-// CHECK-NEXT:         %3 = pdl_interp.get_result 0 of %1
-// CHECK-NEXT:         %4 = pdl_interp.create_operation "arith.addi"(%arg3, %3 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
-// CHECK-NEXT:         %5 = pdl_interp.get_result 0 of %4
-// CHECK-NEXT:         %6 = pdl_interp.get_results of %4 : !pdl.range<value>
-// CHECK-NEXT:         %7 = pdl_interp.get_results 0 of %4 : !pdl.range<value>
-// CHECK-NEXT:         pdl_interp.replace %arg4 with (%6 : !pdl.range<value>)
+// CHECK-NEXT:         %1 = pdl_interp.create_type i64
+// CHECK-NEXT:         %2 = pdl_interp.create_types [i32, i64]
+// CHECK-NEXT:         %3 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value) {"attrA" = %0} -> (%arg2 : !pdl.type)
+// CHECK-NEXT:         %4 = pdl_interp.create_operation "test.testop" {"attrA" = %0} -> (%arg2 : !pdl.type)
+// CHECK-NEXT:         %5 = pdl_interp.get_result 0 of %3
+// CHECK-NEXT:         %6 = pdl_interp.create_operation "arith.addi"(%arg3, %5 : !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
+// CHECK-NEXT:         %7 = pdl_interp.get_result 0 of %6
+// CHECK-NEXT:         %8 = pdl_interp.get_results of %6 : !pdl.range<value>
+// CHECK-NEXT:         %9 = pdl_interp.get_results 0 of %6 : !pdl.range<value>
+// CHECK-NEXT:         pdl_interp.replace %arg4 with (%8 : !pdl.range<value>)
 // CHECK-NEXT:         pdl_interp.finalize
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }

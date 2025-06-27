@@ -17,7 +17,15 @@ from xdsl.dialects.utils import (
     parse_for_op_like,
     print_for_op_like,
 )
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -89,18 +97,24 @@ class WhileOp(IRDLOperation):
                     f"got {self.after_region.block.args[idx].type}"
                 )
 
+    @staticmethod
+    def _print_pair(printer: Printer, pair: tuple[SSAValue, SSAValue]):
+        printer.print_ssa_value(pair[0])
+        printer.print_string(" = ")
+        printer.print_ssa_value(pair[1])
+
     def print(self, printer: Printer):
         printer.print_string(" (")
         block_args = self.before_region.block.args
         printer.print_list(
             zip(block_args, self.arguments, strict=True),
-            lambda pair: printer.print(pair[0], " = ", pair[1]),
+            lambda pair: self._print_pair(printer, pair),
         )
         printer.print_string(") : ")
         printer.print_operation_type(self)
         printer.print_string(" ")
         printer.print_region(self.before_region, print_entry_block_args=False)
-        printer.print(" do ")
+        printer.print_string(" do ")
         printer.print_region(self.after_region)
         if self.attributes:
             printer.print_op_attributes(self.attributes, print_keyword=True)
@@ -596,7 +610,7 @@ class IndexSwitchOp(IRDLOperation):
     name = "scf.index_switch"
 
     arg = operand_def(IndexType)
-    cases = prop_def(DenseArrayBase)
+    cases = prop_def(DenseArrayBase.constr(i64))
 
     output = var_result_def()
 
@@ -637,9 +651,6 @@ class IndexSwitchOp(IRDLOperation):
             )
 
     def verify_(self) -> None:
-        if self.cases.elt_type != i64:
-            raise VerifyException("case values should have type i64")
-
         if len(self.cases) != len(self.case_regions):
             raise VerifyException(
                 f"has {len(self.case_regions)} case regions but {len(self.cases)} case values"
@@ -678,7 +689,7 @@ class IndexSwitchOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         arg = parser.parse_operand()
         attr_dict = parser.parse_optional_attr_dict()
-        result_types: list[Attribute] = []
+        result_types: list[TypeAttribute] = []
         if parser.parse_optional_punctuation("->"):
             types = parser.parse_optional_undelimited_comma_separated_list(
                 parser.parse_optional_type, parser.parse_type

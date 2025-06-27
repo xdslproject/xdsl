@@ -17,7 +17,7 @@
     %x6 = "arith.constant"() {"value" = 0 : i64, "test" = false} : () -> i64
     // CHECK:  test = array<i32: 2, 3, 4>
     %x7 = "arith.constant"() {"value" = 0 : i64, "test" = array<i32: 2, 3, 4>} : () -> i64
-    // CHECK:  test = array<f32: 2.0999999046325684, 3.200000047683716, 4.300000190734863>
+    // CHECK:  test = array<f32: 2.100000e+00, 3.200000e+00, 4.300000e+00>
     %x8 = "arith.constant"() {"value" = 0 : i64, "test" = array<f32: 2.1, 3.2, 4.3>} : () -> i64
     // CHECK:  test = #builtin.signedness<signless>
     %x9 = "arith.constant"() {"value" = 0 : i64, "test" = #builtin.signedness<signless>} : () -> i64
@@ -45,6 +45,16 @@
     %x20 = "arith.constant"() {"value" = 0 : i64, "test" = dense<true> : tensor<1xi1>} : () -> i64
     // CHECK: test = dense<false>
     %x21 = "arith.constant"() {"value" = 0 : i64, "test" = dense<false> : tensor<1xi1>} : () -> i64
+    // CHECK: test = dense<(1.200000e+00,3.400000e+00)>
+    %x22 = arith.constant {"test" = dense<(1.2,3.4)> : tensor<1xcomplex<f32>>} 0 : i64
+    // CHECK: test = dense<(1.200000e+00,3.400000e+00)>
+    %x23 = arith.constant {"test" = dense<[(1.2,3.4)]> : tensor<1xcomplex<f32>>} 0 : i64
+    // CHECK: test = dense<(1,2)>
+    %x24 = arith.constant {"test" = dense<(1,2)> : tensor<1xcomplex<i32>>} 0 : i64
+    // CHECK: test = dense<(1,2)>
+    %x25 = arith.constant {"test" = dense<[(1,2)]> : tensor<1xcomplex<i32>>} 0 : i64
+    // CHECK: test = dense<(true,false)>
+    %x26 = arith.constant {"test" = dense<[(true,false)]> : tensor<1xcomplex<i1>>} 0 : i64
     "func.return"() : () -> ()
   }) {"function_type" = () -> (), "sym_name" = "builtin"} : () -> ()
   "test.op"() {"value"= {"one"=1 : i64, "two"=2 : i64, "three"="three"}} : () -> ()

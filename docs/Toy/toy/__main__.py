@@ -94,7 +94,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
 
     if ir:
         printer = Printer(print_generic_format=print_generic)
-        printer.print(module_op)
+        printer.print_op(module_op)
         return
 
     interpreter = Interpreter(module_op)

@@ -29,6 +29,7 @@ from typing import (
 
 from typing_extensions import Self, TypeVar
 
+from xdsl.dialect_interfaces import DialectInterface
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.mlir_lexer import MLIRLexer
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
+DialectInterfaceT = TypeVar("DialectInterfaceT", bound=DialectInterface)
 
 
 @dataclass
@@ -56,6 +58,9 @@ class Dialect:
     )
     _attributes: list[type[Attribute]] = field(
         default_factory=list[type["Attribute"]], init=True, repr=True
+    )
+    _interfaces: list[DialectInterface] = field(
+        default_factory=list[DialectInterface], init=True, repr=True
     )
 
     @property
@@ -78,6 +83,20 @@ class Dialect:
             return (first, second)
         except ValueError as e:
             raise ValueError(f"Invalid operation or attribute name {name}.") from e
+
+    def get_interface(
+        self, interface: type[DialectInterfaceT]
+    ) -> DialectInterfaceT | None:
+        """
+        Return a class that implements the 'interface' if it exists.
+        """
+        for i in self._interfaces:
+            if isinstance(i, interface):
+                return i
+        return None
+
+    def has_interface(self, interface: type[DialectInterfaceT]) -> bool:
+        return self.get_interface(interface) is not None
 
 
 A = TypeVar("A", bound="Attribute")
@@ -121,12 +140,21 @@ class Attribute(ABC):
 class BuiltinAttribute(Attribute, ABC):
     """
     This class is used to mark builtin attributes.
-    Unlike other attributes in MLIR, printing and parsing of *Builtin*
-    attributes is handled directly by the parser.
+    Unlike other attributes in MLIR, parsing of *Builtin* attributes
+    is handled directly by the parser.
+    Printing of these attributes is handled by the `print_builtin` function, which must
+    be implemented by all *Builtin* attributes.
     Attributes outside of the `builtin` dialect should not inherit from `BuiltinAttribute`.
     """
 
-    pass
+    @abstractmethod
+    def print_builtin(self, printer: Printer) -> None:
+        """
+        Prints the attribute using the supplied printer.
+        `BuiltinAttribute`s need not follow the same rules as other attributes, for example
+        they do not need to be prefixed by `!` or `#` and do not need to print their name.
+        """
+        ...
 
 
 class TypeAttribute(Attribute):
@@ -271,7 +299,7 @@ class EnumAttribute(Data[EnumType]):
         _check_enum_constraints(cls)
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print(self.data.value)
+        printer.print_string(self.data.value)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
@@ -379,13 +407,15 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
         with printer.in_angle_brackets():
             flags = self.data
             if len(flags) == 0 and self.none_value is not None:
-                printer.print(self.none_value)
+                printer.print_string(self.none_value)
             elif len(flags) == len(self.enum_type) and self.all_value is not None:
-                printer.print(self.all_value)
+                printer.print_string(self.all_value)
             else:
                 # make sure we emit flags in a consistent order
-                printer.print(
-                    ",".join(flag.value for flag in self.enum_type if flag in flags)
+                printer.print_list(
+                    tuple(flag.value for flag in self.enum_type if flag in flags),
+                    printer.print_string,
+                    ",",
                 )
 
 

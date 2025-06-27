@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     AnyFloatConstr,
     ContainerOf,
     DenseIntOrFPElementsAttr,
+    DenseResourceAttr,
     FixedBitwidthType,
     Float16Type,
     Float32Type,
@@ -135,7 +136,8 @@ class ConstantOp(IRDLOperation):
         TypedAttributeConstraint(
             IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
             | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
-            | BaseAttr(DenseIntOrFPElementsAttr),
+            | BaseAttr(DenseIntOrFPElementsAttr)
+            | BaseAttr(DenseResourceAttr),
             _T,
         )
     )
@@ -146,7 +148,10 @@ class ConstantOp(IRDLOperation):
 
     def __init__(
         self,
-        value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value: IntegerAttr
+        | FloatAttr[AnyFloat]
+        | DenseIntOrFPElementsAttr
+        | DenseResourceAttr,
         value_type: Attribute | None = None,
     ):
         if value_type is None:
@@ -878,14 +883,14 @@ class CmpiOp(ComparisonOperation):
         return cls(operand1, operand2, arg)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
 
         printer.print_string(CMPI_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -986,16 +991,16 @@ class CmpfOp(ComparisonOperation):
         return cls(operand1, operand2, arg, fastmath)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string(CMPF_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
         if self.fastmath != FastMathFlagsAttr("none"):
             printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -1167,13 +1172,15 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        signlessIntegerLike
-        | floatingPointLike
+        ContainerOf(
+            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
+        )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        signlessIntegerLike
-        | floatingPointLike
+        ContainerOf(
+            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
+        )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 

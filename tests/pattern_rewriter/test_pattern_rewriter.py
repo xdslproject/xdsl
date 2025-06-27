@@ -95,7 +95,7 @@ def rewrite_and_compare(
 
     file = StringIO()
     printer = Printer(stream=file, print_generic_format=True)
-    printer.print(module)
+    printer.print_op(module)
 
     assert file.getvalue().strip() == expected_prog.strip()
 
@@ -1771,7 +1771,6 @@ Error while applying pattern: Expected operation to not be erroneous!
   -----------------------------------------------------------------------
   "test.op"() : () -> ()
 }) : () -> ()
-
 """
 
     class Rewrite(RewritePattern):
