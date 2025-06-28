@@ -307,25 +307,21 @@ class GenericParser(Generic[TokenKindT]):
         self.raise_error(f"'{text}' expected" + context_msg)
 
     @contextmanager
-    def delimited(self, delimiter: Delimiter):
-        if delimiter.value is None:
+    def delimited(self, start: str, end: str):
+        self.parse_characters(start)
+        try:
             yield
-        else:
-            l, r = delimiter.value
-            self.parse_characters(l)
-            try:
-                yield
-            finally:
-                self.parse_characters(r)
+        finally:
+            self.parse_characters(end)
 
     def in_angle_brackets(self):
-        return self.delimited(self.Delimiter.ANGLE)
+        return self.delimited("<", ">")
 
     def in_square_brackets(self):
-        return self.delimited(self.Delimiter.SQUARE)
+        return self.delimited("[", "]")
 
     def in_parens(self):
-        return self.delimited(self.Delimiter.PAREN)
+        return self.delimited("(", ")")
 
     def in_braces(self):
-        return self.delimited(self.Delimiter.BRACES)
+        return self.delimited("{", "}")

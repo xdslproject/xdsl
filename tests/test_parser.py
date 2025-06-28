@@ -1051,19 +1051,18 @@ def test_parse_optional_complex_success(
 
 
 @pytest.mark.parametrize(
-    "delimiter, text",
+    "start, end, text",
     [
-        (Parser.Delimiter.ANGLE, "<1>"),
-        (Parser.Delimiter.SQUARE, "[1]"),
-        (Parser.Delimiter.BRACES, "{1}"),
-        (Parser.Delimiter.PAREN, "(1)"),
-        (Parser.Delimiter.METADATA_TOKEN, "{-# 1 #-}"),
-        (Parser.Delimiter.NONE, "1"),
+        ("<", ">", "<1>"),
+        ("[", "]", "[1]"),
+        ("{", "}", "{1}"),
+        ("(", ")", "(1)"),
+        ("{-#", "#-}", "{-# 1 #-}"),
     ],
 )
-def test_delimiters(delimiter: Parser.Delimiter, text: str):
+def test_delimiters(start: str, end: str, text: str):
     parser = Parser(Context(), text)
-    with parser.delimited(delimiter):
+    with parser.delimited(start, end):
         value = parser.parse_integer()
 
     assert value == 1
