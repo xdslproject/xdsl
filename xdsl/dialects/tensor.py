@@ -351,7 +351,7 @@ class ExpandShapeOp(IRDLOperation):
 
     reassociation = prop_def(ReassociationAttr)
 
-    output_shape = prop_def(DenseArrayBase.constr(i64))
+    static_output_shape = prop_def(DenseArrayBase.constr(i64))
 
     result = result_def(AnyAttr())
 
@@ -362,7 +362,7 @@ class ExpandShapeOp(IRDLOperation):
         reassociation: ReassociationAttr,
         static_output_shape: Sequence[int] | DenseArrayBase,
         result_type: TensorType[Attribute],
-        attribrutes: dict[str, Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
     ):
         if not isinstance(static_output_shape, DenseArrayBase):
             static_output_shape = DenseArrayBase.from_list(i64, static_output_shape)
@@ -372,9 +372,9 @@ class ExpandShapeOp(IRDLOperation):
             result_types=[result_type],
             properties={
                 "reassociation": reassociation,
-                "output_shape": static_output_shape,
+                "static_output_shape": static_output_shape,
             },
-            attributes=attribrutes,
+            attributes=attributes,
         )
 
     @classmethod
@@ -414,12 +414,12 @@ class ExpandShapeOp(IRDLOperation):
         printer.print_ssa_value(self.src)
         printer.print_string(" ")
         printer.print_attribute(self.reassociation)
-        printer.print_string(" output_shape ")
+        printer.print_string(" static_output_shape ")
         print_dynamic_index_list(
             printer,
             self.DYNAMIC_INDEX,
             self.dynamic_output_shape,
-            self.output_shape.get_values(),
+            self.static_output_shape.get_values(),
         )
 
         printer.print_op_attributes(attributes=self.attributes)
