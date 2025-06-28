@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     IndexType,
+    IntAttrConstraint,
     IntegerAttr,
     TensorType,
     UnrankedTensorType,
@@ -22,6 +23,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AtLeast,
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
@@ -71,25 +73,6 @@ class ContiguousArrayOfIntArray(AttrConstraint):
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> ContiguousArrayOfIntArray:
         # No type variables to map in this constraint
-        return self
-
-
-class PositiveIntConstr(AttrConstraint):
-    """
-    Enforce that an IntegerAttr is positive (> 0).
-    """
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, IntegerAttr):
-            raise VerifyException(
-                f"Expected {IntegerAttr.name} attribute, but got {attr.name}."
-            )
-        if attr.value.data < 0:
-            raise VerifyException(f"Expected positive integer, got {attr.value.data}.")
-
-    def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> PositiveIntConstr:
         return self
 
 
@@ -236,7 +219,14 @@ class EmptyOp(IRDLOperation):
 
 
 ReassociationAttr = Annotated[
-    ArrayAttr[ArrayAttr[Annotated[IntegerAttr[I64], PositiveIntConstr()]]],
+    ArrayAttr[
+        ArrayAttr[
+            Annotated[
+                IntegerAttr[I64],
+                IntegerAttr.constr(value=IntAttrConstraint(AtLeast(0))),
+            ]
+        ]
+    ],
     ContiguousArrayOfIntArray(),
 ]
 
