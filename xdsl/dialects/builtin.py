@@ -13,6 +13,7 @@ from typing import (
     Annotated,
     Generic,
     TypeAlias,
+    cast,
     overload,
 )
 
@@ -46,12 +47,14 @@ from xdsl.ir.affine import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AnyInt,
     AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
     GenericData,
     IntConstraint,
+    IntTypeVarConstraint,
     IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
@@ -351,16 +354,18 @@ FlatSymbolRefAttrConstr = MessageConstraint(
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstr]
 """SymbolRef constrained to have an empty `nested_references` property."""
 
+IntCovT = TypeVar("IntCovT", bound=int, default=int, covariant=True)
+
 
 @irdl_attr_definition
-class IntAttr(Data[int]):
+class IntAttr(Generic[IntCovT], GenericData[IntCovT]):
     name = "builtin.int"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> int:
+    def parse_parameter(cls, parser: AttrParser) -> IntCovT:
         with parser.in_angle_brackets():
             data = parser.parse_integer()
-            return data
+            return cast(IntCovT, data)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -369,6 +374,12 @@ class IntAttr(Data[int]):
     def __bool__(self) -> bool:
         """Returns True if value is non-zero."""
         return bool(self.data)
+
+    @staticmethod
+    def constr(constr: IntConstraint | None = None) -> AttrConstraint:
+        return IntAttrConstraint(
+            IntTypeVarConstraint(IntCovT, AnyInt()) if constr is None else constr
+        )
 
 
 @dataclass(frozen=True)
@@ -380,7 +391,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     int_constraint: IntConstraint
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, IntAttr):
+        if not isa(attr, IntAttr):
             raise VerifyException(f"attribute {attr} expected to be an IntAttr")
         self.int_constraint.verify(attr.data, constraint_context)
 
@@ -852,7 +863,7 @@ class IntegerAttr(
     ) -> None:
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
-        if isinstance(value, IntAttr):
+        if not isinstance(value, int):
             value = value.data
         if not isinstance(value_type, IndexType):
             normalized_value = value_type.normalized_value(
