@@ -48,7 +48,8 @@ class ContiguousArrayOfIntArray(AttrConstraint):
     """
     Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values across all inner arrays.
     For example: [[0, 1], [2, 3]] is valid, but [[3, 4], [0, 1]] is not.
-    An empty inner array is considered contiguous.
+    An empty inner array is considered contiguous. Incidentally, this also
+    verifies that all integers across all inner arrays are unique.
     """
 
     def verify(
@@ -70,6 +71,25 @@ class ContiguousArrayOfIntArray(AttrConstraint):
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> ContiguousArrayOfIntArray:
         # No type variables to map in this constraint
+        return self
+
+
+class PositiveIntConstr(AttrConstraint):
+    """
+    Enforce that an IntegerAttr is positive (> 0).
+    """
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if not isinstance(attr, IntegerAttr):
+            raise VerifyException(
+                f"Expected {IntegerAttr.name} attribute, but got {attr.name}."
+            )
+        if attr.value.data < 0:
+            raise VerifyException(f"Expected positive integer, got {attr.value.data}.")
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> PositiveIntConstr:
         return self
 
 
@@ -216,7 +236,7 @@ class EmptyOp(IRDLOperation):
 
 
 ReassociationAttr = Annotated[
-    ArrayAttr[ArrayAttr[IntegerAttr[I64]]],
+    ArrayAttr[ArrayAttr[Annotated[IntegerAttr[I64], PositiveIntConstr()]]],
     ContiguousArrayOfIntArray(),
 ]
 
