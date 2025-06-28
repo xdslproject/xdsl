@@ -13,12 +13,16 @@ from typing import (
     Annotated,
     Any,
     Generic,
+    Literal,
     TypeAlias,
+    cast,
+    get_args,
+    get_origin,
     overload,
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeVar, deprecated
+from typing_extensions import Self, TypeForm, TypeVar, deprecated
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.ir import (
@@ -51,6 +55,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    EqAttrConstraint,
     GenericData,
     IntConstraint,
     IRDLAttrConstraint,
@@ -84,7 +89,7 @@ from xdsl.utils.comparisons import (
     unsigned_upper_bound,
     unsigned_value_range,
 )
-from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.exceptions import DiagnosticException, PyRDLTypeError, VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
@@ -353,16 +358,18 @@ FlatSymbolRefAttrConstr = MessageConstraint(
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstr]
 """SymbolRef constrained to have an empty `nested_references` property."""
 
+_IntT = TypeVar("_IntT", bound=int, default=int)
+
 
 @irdl_attr_definition
-class IntAttr(Data[int]):
+class IntAttr(Generic[_IntT], GenericData[_IntT]):
     name = "builtin.int"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> int:
+    def parse_parameter(cls, parser: AttrParser) -> _IntT:
         with parser.in_angle_brackets():
             data = parser.parse_integer()
-            return data
+            return cast(_IntT, data)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -371,6 +378,31 @@ class IntAttr(Data[int]):
     def __bool__(self) -> bool:
         """Returns True if value is non-zero."""
         return bool(self.data)
+
+    @classmethod
+    def generic_args_constraint(cls, *args: Any) -> AttrConstraint[IntAttr[_IntT]]:
+        """
+        Given the generic parameters passed to the generic attribute type,
+        return the corresponding attribute constraint.
+        ...
+        """
+        assert len(args) == 1
+        arg = cast(TypeForm[_IntT], args[0])
+
+        if arg is int:
+            return cast(AttrConstraint[IntAttr[_IntT]], BaseAttr[IntAttr](IntAttr))
+        else:
+            if get_origin(arg) is Literal:
+                literal_args = get_args(arg)
+                assert len(literal_args) == 1
+                assert isinstance(value := literal_args[0], int)
+            elif isinstance(arg, int):
+                value = arg
+            else:
+                raise PyRDLTypeError(f"Invalid IntAttr generic argument {arg}")
+            return cast(
+                AttrConstraint[IntAttr[_IntT]], EqAttrConstraint(IntAttr(value))
+            )
 
 
 @dataclass(frozen=True)
@@ -382,7 +414,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     int_constraint: IntConstraint
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, IntAttr):
+        if not isa(attr, IntAttr):
             raise VerifyException(f"attribute {attr} expected to be an IntAttr")
         self.int_constraint.verify(attr.data, constraint_context)
 
@@ -854,7 +886,7 @@ class IntegerAttr(
     ) -> None:
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
-        if isinstance(value, IntAttr):
+        if not isinstance(value, int):
             value = value.data
         if not isinstance(value_type, IndexType):
             normalized_value = value_type.normalized_value(
