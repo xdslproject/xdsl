@@ -1,10 +1,12 @@
 """Unit tests for IRDL."""
 
 from dataclasses import dataclass
+from typing import Literal
 
 import pytest
 from typing_extensions import Self, TypeVar
 
+from xdsl.dialects.builtin import IntAttr
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
@@ -383,5 +385,6 @@ def test_irdl_to_attr_constraint():
     ):
         irdl_to_attr_constraint(int)  # pyright: ignore[reportArgumentType]
 
-
-# endregion
+    assert irdl_to_attr_constraint(IntAttr) == BaseAttr(IntAttr)
+    assert irdl_to_attr_constraint(IntAttr[Literal[1]]) == EqAttrConstraint(IntAttr(1))
+    assert irdl_to_attr_constraint(IntAttr[2]) == EqAttrConstraint(IntAttr(2))
