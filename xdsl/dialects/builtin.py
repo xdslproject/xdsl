@@ -1532,6 +1532,9 @@ class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
     resource_handle: StringAttr
     type: ShapedType
 
+    def __init__(self, resource_handle: StringAttr, type: ShapedType) -> None:
+        return super().__init__((resource_handle, type))
+
     def print_without_type(self, printer: Printer):
         printer.print_string("dense_resource")
         with printer.in_angle_brackets():
@@ -1546,7 +1549,7 @@ class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
     def from_params(handle: str | StringAttr, type: ShapedType) -> DenseResourceAttr:
         if isinstance(handle, str):
             handle = StringAttr(handle)
-        return DenseResourceAttr([handle, type])
+        return DenseResourceAttr(handle, type)
 
 
 DenseArrayT = TypeVar(
@@ -1709,6 +1712,13 @@ class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     inputs: ArrayAttr[Attribute]
     outputs: ArrayAttr[Attribute]
 
+    def __init__(
+        self,
+        inputs: ArrayAttr[Attribute],
+        outputs: ArrayAttr[Attribute],
+    ):
+        super().__init__((inputs, outputs))
+
     def print_builtin(self, printer: Printer):
         with printer.in_parens():
             printer.print_list(self.inputs.data, printer.print_attribute)
@@ -1724,13 +1734,13 @@ class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     def from_lists(
         inputs: Sequence[Attribute], outputs: Sequence[Attribute]
     ) -> FunctionType:
-        return FunctionType([ArrayAttr(inputs), ArrayAttr(outputs)])
+        return FunctionType(ArrayAttr(inputs), ArrayAttr(outputs))
 
     @staticmethod
     def from_attrs(
         inputs: ArrayAttr[Attribute], outputs: ArrayAttr[Attribute]
     ) -> FunctionType:
-        return FunctionType([inputs, outputs])
+        return FunctionType(inputs, outputs)
 
 
 @irdl_attr_definition
@@ -1740,6 +1750,9 @@ class OpaqueAttr(ParametrizedAttribute, BuiltinAttribute):
     ident: StringAttr
     value: StringAttr
     type: Attribute
+
+    def __init__(self, ident: StringAttr, value: StringAttr, type: Attribute) -> None:
+        return super().__init__((ident, value, type))
 
     def print_builtin(self, printer: Printer):
         printer.print_string("opaque")
@@ -1754,7 +1767,7 @@ class OpaqueAttr(ParametrizedAttribute, BuiltinAttribute):
 
     @staticmethod
     def from_strings(name: str, value: str, type: Attribute = NoneAttr()) -> OpaqueAttr:
-        return OpaqueAttr([StringAttr(name), StringAttr(value), type])
+        return OpaqueAttr(StringAttr(name), StringAttr(value), type)
 
 
 class MemRefLayoutAttr(Attribute, ABC):
@@ -2423,6 +2436,11 @@ class UnrankedMemRefType(
     element_type: _UnrankedMemRefTypeElems
     memory_space: Attribute
 
+    def __init__(
+        self, element_type: _UnrankedMemRefTypeElems, memory_space: Attribute
+    ) -> None:
+        return super().__init__((element_type, memory_space))
+
     def print_builtin(self, printer: Printer):
         printer.print_string("memref<*x")
         printer.print_attribute(self.element_type)
@@ -2436,7 +2454,7 @@ class UnrankedMemRefType(
         referenced_type: _UnrankedMemRefTypeElemsInit,
         memory_space: Attribute = NoneAttr(),
     ) -> UnrankedMemRefType[_UnrankedMemRefTypeElemsInit]:
-        return UnrankedMemRefType([referenced_type, memory_space])
+        return UnrankedMemRefType(referenced_type, memory_space)
 
     def get_element_type(self) -> _UnrankedMemRefTypeElems:
         return self.element_type
