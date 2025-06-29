@@ -317,7 +317,7 @@ class LoadOp(IRDLOperation):
                 raise ValueError(
                     "affine.store memref operand must be of type ShapedType"
                 )
-            memref_type = cast(MemRefType, memref.type)
+            memref_type = memref.type
             rank = memref_type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
         if result_type is None:

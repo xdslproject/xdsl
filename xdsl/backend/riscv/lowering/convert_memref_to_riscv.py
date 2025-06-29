@@ -37,6 +37,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.hints import isa
 
 
 class ConvertMemRefAllocOp(RewritePattern):
@@ -322,8 +323,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
         source = op.source
         result = op.result
         source_type = source.type
-        assert isinstance(source_type, MemRefType)
-        source_type = cast(MemRefType, source_type)
+        assert isa(source_type, MemRefType)
         result_type = result.type
 
         result_layout_attr = result_type.layout
