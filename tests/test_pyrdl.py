@@ -63,6 +63,9 @@ class DoubleParamAttr(ParametrizedAttribute):
     param1: Attribute
     param2: Attribute
 
+    def __init__(self, param1: Attribute, param2: Attribute):
+        super().__init__((param1, param2))
+
 
 def test_eq_attr_verify():
     """Check that an EqAttrConstraint verifies the expected attribute"""
@@ -246,8 +249,8 @@ def test_param_attr_verify():
     constraint = ParamAttrConstraint(
         DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
     )
-    constraint.verify(DoubleParamAttr([bool_true, IntData(0)]), ConstraintContext())
-    constraint.verify(DoubleParamAttr([bool_true, IntData(42)]), ConstraintContext())
+    constraint.verify(DoubleParamAttr(bool_true, IntData(0)), ConstraintContext())
+    constraint.verify(DoubleParamAttr(bool_true, IntData(42)), ConstraintContext())
 
 
 def test_param_attr_verify_base_fail():
@@ -265,7 +268,7 @@ def test_param_attr_verify_base_fail():
 def test_param_attr_verify_params_num_params_fail():
     bool_true = BoolData(True)
     constraint = ParamAttrConstraint(DoubleParamAttr, [EqAttrConstraint(bool_true)])
-    attr = DoubleParamAttr([bool_true, IntData(0)])
+    attr = DoubleParamAttr(bool_true, IntData(0))
     with pytest.raises(VerifyException, match="1 parameters expected, but got 2"):
         constraint.verify(attr, ConstraintContext())
 
@@ -281,14 +284,12 @@ def test_param_attr_verify_params_fail():
         VerifyException,
         match=f"{bool_false} should be of base attribute {IntData.name}",
     ):
-        constraint.verify(DoubleParamAttr([bool_true, bool_false]), ConstraintContext())
+        constraint.verify(DoubleParamAttr(bool_true, bool_false), ConstraintContext())
 
     with pytest.raises(
         VerifyException, match=f"Expected attribute {bool_true} but got {bool_false}"
     ):
-        constraint.verify(
-            DoubleParamAttr([bool_false, IntData(0)]), ConstraintContext()
-        )
+        constraint.verify(DoubleParamAttr(bool_false, IntData(0)), ConstraintContext())
 
 
 def test_constraint_vars_success():

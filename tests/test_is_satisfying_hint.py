@@ -360,9 +360,12 @@ class MyParamAttr(Generic[_T], ParametrizedAttribute):
 
     v: _T
 
+    def __init__(self, v: _T):
+        super().__init__((v,))
+
 
 def test_parametrized_attribute():
-    attr = MyParamAttr[IntAttr]([IntAttr(0)])
+    attr = MyParamAttr[IntAttr](IntAttr(0))
 
     # `assert isa(attr, MyParamAttr)` not supported: use isinstance instead
     assert isa(attr, MyParamAttr[IntAttr])

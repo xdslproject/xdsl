@@ -280,6 +280,9 @@ def test_typed_attribute_parsing_printing():
         value: IntAttr
         type: IntegerType
 
+        def __init__(self, value: IntAttr, type: IntegerType):
+            super().__init__((value, type))
+
         @classmethod
         def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
             with parser.in_angle_brackets():
@@ -311,7 +314,7 @@ def test_typed_attribute_parsing_printing():
     ctx = Context()
     ctx.load_attr_or_type(TypedAttr)
     attr = Parser(ctx, "#test.typed<42> : i32").parse_attribute()
-    assert attr == TypedAttr([IntAttr(42), i32])
+    assert attr == TypedAttr(IntAttr(42), i32)
 
     assert str(attr) == "#test.typed<42> : i32"
 
@@ -367,10 +370,13 @@ class BoolWrapperAttr(ParametrizedAttribute):
 
     param: BoolData
 
+    def __init__(self, param: BoolData):
+        super().__init__((param,))
+
 
 def test_bose_constraint():
     """Test the verifier of a base attribute type constraint."""
-    attr = BoolWrapperAttr((BoolData(True),))
+    attr = BoolWrapperAttr(BoolData(True))
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -382,7 +388,7 @@ def test_base_constraint_fail():
     with pytest.raises(
         VerifyException, match="#test.str<foo> should be of base attribute test.bool"
     ):
-        BoolWrapperAttr((StringData("foo"),))
+        BoolWrapperAttr(StringData("foo"))  # pyright: ignore[reportArgumentType]
 
 
 ################################################################################
@@ -396,10 +402,13 @@ class BoolOrIntParamAttr(ParametrizedAttribute):
 
     param: BoolData | IntData
 
+    def __init__(self, param: BoolData | IntData):
+        super().__init__((param,))
+
 
 def test_union_constraint_left():
     """Test the verifier of a union constraint."""
-    attr = BoolOrIntParamAttr((BoolData(True),))
+    attr = BoolOrIntParamAttr(BoolData(True))
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -408,7 +417,7 @@ def test_union_constraint_left():
 
 def test_union_constraint_right():
     """Test the verifier of a union constraint."""
-    attr = BoolOrIntParamAttr((IntData(42),))
+    attr = BoolOrIntParamAttr(IntData(42))
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -418,7 +427,7 @@ def test_union_constraint_right():
 def test_union_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(VerifyException, match="Unexpected attribute #test.str<foo>"):
-        BoolOrIntParamAttr((StringData("foo"),))
+        BoolOrIntParamAttr(StringData("foo"))  # pyright: ignore[reportArgumentType]
 
 
 ################################################################################
@@ -447,10 +456,13 @@ class PositiveIntAttr(ParametrizedAttribute):
 
     param: Attribute = param_def(PositiveIntConstr())
 
+    def __init__(self, param: IntData):
+        super().__init__((param,))
+
 
 def test_annotated_constraint():
     """Test the verifier of an annotated constraint."""
-    attr = PositiveIntAttr((IntData(42),))
+    attr = PositiveIntAttr(IntData(42))
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -460,7 +472,7 @@ def test_annotated_constraint():
 def test_annotated_constraint_fail():
     """Test that the verifier of an annotated constraint can fail."""
     with pytest.raises(VerifyException, match="Expected positive integer, got -42."):
-        PositiveIntAttr((IntData(-42),))
+        PositiveIntAttr(IntData(-42))
 
 
 ################################################################################
@@ -582,14 +594,15 @@ class NestedParamConstrAttr(ParametrizedAttribute):
 
     param: NestedParamWrapperAttr[Annotated[IntData, PositiveIntConstr()]]
 
+    def __init__(self, param: NestedParamWrapperAttr[IntData]):
+        super().__init__((param,))
+
 
 def test_nested_param_attr_constraint():
     """
     Test the verifier of a nested parametric constraint.
     """
-    attr = NestedParamConstrAttr(
-        (NestedParamWrapperAttr(ParamWrapperAttr(IntData(42))),)
-    )
+    attr = NestedParamConstrAttr(NestedParamWrapperAttr(ParamWrapperAttr(IntData(42))))
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -604,7 +617,7 @@ def test_nested_param_attr_constraint_fail():
     Test that the verifier of a nested parametric constraint can fail.
     """
     with pytest.raises(VerifyException, match="Expected positive integer, got -42."):
-        NestedParamConstrAttr((NestedParamWrapperAttr(ParamWrapperAttr(IntData(-42))),))
+        NestedParamConstrAttr(NestedParamWrapperAttr(ParamWrapperAttr(IntData(-42))))
 
 
 ################################################################################
@@ -623,16 +636,19 @@ class InformativeAttr(ParametrizedAttribute):
         )
     )
 
+    def __init__(self, param: Attribute):
+        super().__init__((param,))
+
 
 def test_informative_attribute():
-    okay = InformativeAttr((NoneAttr(),))
+    okay = InformativeAttr(NoneAttr())
     okay.verify()
 
     with pytest.raises(
         VerifyException,
         match="Dear user, here's what this constraint means in your abstraction.\nUnderlying verification failure: #test.int<42> should be of base attribute none",
     ):
-        InformativeAttr((IntData(42),))
+        InformativeAttr(IntData(42))
 
 
 def test_informative_constraint():
@@ -731,12 +747,15 @@ class ListDataWrapper(ParametrizedAttribute):
 
     val: ListData[BoolData]
 
+    def __init__(self, val: ListData[BoolData]):
+        super().__init__((val,))
+
 
 def test_generic_data_wrapper_verifier():
     """
     Test that a GenericData used in constraints pass the verifier when correct.
     """
-    attr = ListDataWrapper((ListData((BoolData(True), BoolData(False))),))
+    attr = ListDataWrapper(ListData((BoolData(True), BoolData(False))))
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -757,7 +776,7 @@ def test_generic_data_wrapper_verifier_failure():
             "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
         ),
     ):
-        ListDataWrapper((ListData((BoolData(True), ListData((BoolData(False),)))),))
+        ListDataWrapper(ListData((BoolData(True), ListData((BoolData(False),)))))  # pyright: ignore[reportArgumentType]
 
 
 @irdl_attr_definition
@@ -766,13 +785,16 @@ class ListDataNoGenericsWrapper(ParametrizedAttribute):
 
     val: AnyListData
 
+    def __init__(self, val: AnyListData):
+        super().__init__((val,))
+
 
 def test_generic_data_no_generics_wrapper_verifier():
     """
     Test that GenericType can be used in constraints without a parameter.
     """
     attr = ListDataNoGenericsWrapper(
-        (ListData((BoolData(True), ListData((BoolData(False),)))),)
+        ListData((BoolData(True), ListData((BoolData(False),))))
     )
     stream = StringIO()
     p = Printer(stream=stream)

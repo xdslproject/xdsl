@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | filecheck %s
+// RUN: xdsl-opt %s --split-input-file | filecheck %s
 
 builtin.module {
     func.func @constant_dense_resource() {
