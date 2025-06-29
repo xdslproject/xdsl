@@ -89,6 +89,7 @@ class StridePattern(ParametrizedAttribute):
         object.__setattr__(self, "ub", ub)
         object.__setattr__(self, "strides", strides)
         object.__setattr__(self, "repeat", repeat)
+        self.__post_init__()
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
