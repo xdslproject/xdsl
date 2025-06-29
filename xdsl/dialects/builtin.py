@@ -2070,7 +2070,7 @@ class UnregisteredOp(Operation, ABC):
         return value_if_unregistered
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
     """
     An unregistered attribute or type.
@@ -2137,7 +2137,7 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
         `Context` to get an `UnregisteredAttr` type.
         """
 
-        @irdl_attr_definition
+        @irdl_attr_definition(init=False)
         class UnregisteredAttrWithName(UnregisteredAttr):
             def verify(self):
                 if self.attr_name.data != name:
@@ -2145,7 +2145,7 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
                 if self.is_type.data != int(is_type):
                     raise VerifyException("Unregistered attribute is_type mismatch")
 
-        @irdl_attr_definition
+        @irdl_attr_definition(init=False)
         class UnregisteredAttrTypeWithName(UnregisteredAttr, TypeAttribute):
             def verify(self):
                 if self.attr_name.data != name:
