@@ -59,7 +59,6 @@ def _():
         irdl_attr_definition,
         operand_def,
         result_def,
-        ParameterDef,
         traits_def,
     )
     from xdsl.dialects.builtin import (

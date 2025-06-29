@@ -39,7 +39,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     BaseAttr,
     IRDLOperation,
-    ParameterDef,
     ParsePropInAttrDict,
     VarConstraint,
     base,
@@ -112,11 +111,11 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.struct"
 
     # An empty string refers to a struct without a name.
-    struct_name: ParameterDef[StringAttr]
-    types: ParameterDef[ArrayAttr]
+    struct_name: StringAttr
+    types: ArrayAttr[Attribute]
 
     # TODO: Add this parameter once xDSL supports the necessary capabilities.
-    #  bitmask = ParameterDef(StringAttr)
+    #  bitmask: StringAttr
 
     def __init__(self, struct_name: StringAttr, type: ArrayAttr):
         super().__init__((struct_name, type))
@@ -155,8 +154,8 @@ class LLVMPointerType(
 ):
     name = "llvm.ptr"
 
-    type: ParameterDef[Attribute]
-    addr_space: ParameterDef[IntAttr | NoneAttr]
+    type: Attribute
+    addr_space: IntAttr | NoneAttr
 
     def __init__(self, type: Attribute, addr_space: IntAttr | NoneAttr):
         super().__init__((type, addr_space))
@@ -209,8 +208,8 @@ class LLVMPointerType(
 class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.array"
 
-    size: ParameterDef[IntAttr]
-    type: ParameterDef[Attribute]
+    size: IntAttr
+    type: Attribute
 
     def __init__(self, size: IntAttr, type: Attribute):
         super().__init__((size, type))
@@ -251,9 +250,9 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 
     name = "llvm.func"
 
-    inputs: ParameterDef[ArrayAttr[Attribute]]
-    output: ParameterDef[Attribute]
-    variadic: ParameterDef[UnitAttr | NoneAttr]
+    inputs: ArrayAttr[Attribute]
+    output: Attribute
+    variadic: UnitAttr | NoneAttr
 
     def __init__(
         self,
@@ -328,7 +327,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 class LinkageAttr(ParametrizedAttribute):
     name = "llvm.linkage"
 
-    linkage: ParameterDef[StringAttr]
+    linkage: StringAttr
 
     def __init__(self, linkage: str | StringAttr) -> None:
         if isinstance(linkage, str):
@@ -1483,7 +1482,7 @@ class CallingConventionAttr(ParametrizedAttribute):
 
     name = "llvm.cconv"
 
-    convention: ParameterDef[StringAttr]
+    convention: StringAttr
 
     @property
     def cconv_name(self) -> str:

@@ -32,7 +32,6 @@ from xdsl.irdl import (
     AnyOf,
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -110,9 +109,9 @@ class ProcessorAttr(EnumAttribute[ProcessorEnum], SpacedOpaqueSyntaxAttribute):
 class LoopDimMapAttr(ParametrizedAttribute):
     name = "gpu.loop_dim_map"
 
-    processor: ParameterDef[ProcessorAttr]
-    map: ParameterDef[AffineMapAttr]
-    bound: ParameterDef[AffineMapAttr]
+    processor: ProcessorAttr
+    map: AffineMapAttr
+    bound: AffineMapAttr
 
     def __init__(
         self, processor: ProcessorAttr, map: AffineMapAttr, bound: AffineMapAttr

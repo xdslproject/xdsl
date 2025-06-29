@@ -27,7 +27,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    ParameterDef,
     attr_def,
     base,
     irdl_attr_definition,
@@ -55,7 +54,7 @@ class OperationType(ParametrizedAttribute, TypeAttribute):
 
     name = "mpi.operation"
 
-    op_str: ParameterDef[StringAttr]
+    op_str: StringAttr
 
     def __init__(self, op_str: StringAttr):
         super().__init__((op_str,))
@@ -125,7 +124,7 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     """
 
     name = "mpi.vector"
-    wrapped_type: ParameterDef[_VectorT]
+    wrapped_type: _VectorT
 
     def __init__(self, wrapped_type: _VectorT) -> None:
         super().__init__((wrapped_type,))

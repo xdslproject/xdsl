@@ -51,7 +51,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     BaseAttr,
     IRDLOperation,
-    ParameterDef,
     ParametrizedAttribute,
     VarConstraint,
     attr_def,
@@ -311,9 +310,9 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
     name = "csl.ptr"
 
-    type: ParameterDef[TypeAttribute]
-    kind: ParameterDef[PtrKindAttr]
-    constness: ParameterDef[PtrConstAttr]
+    type: TypeAttribute
+    kind: PtrKindAttr
+    constness: PtrConstAttr
 
     def __init__(self, type: TypeAttribute, kind: PtrKindAttr, constness: PtrConstAttr):
         super().__init__((type, kind, constness))
@@ -405,7 +404,7 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
 class VarType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     name = "csl.var"
 
-    child_type: ParameterDef[TypeAttribute]
+    child_type: TypeAttribute
 
     def __init__(self, child_type: TypeAttribute):
         super().__init__((child_type,))

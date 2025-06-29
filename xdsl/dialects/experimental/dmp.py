@@ -25,7 +25,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -85,10 +84,10 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "dmp.exchange"
 
-    offset_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
-    size_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
-    source_offset_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
-    neighbor_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
+    offset_: builtin.DenseArrayBase[builtin.I64]
+    size_: builtin.DenseArrayBase[builtin.I64]
+    source_offset_: builtin.DenseArrayBase[builtin.I64]
+    neighbor_: builtin.DenseArrayBase[builtin.I64]
 
     def __init__(
         self,
@@ -261,10 +260,10 @@ class ShapeAttr(ParametrizedAttribute):
 
     name = "dmp.shape_with_halo"
 
-    buff_lb_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
-    buff_ub_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
-    core_lb_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
-    core_ub_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
+    buff_lb_: builtin.DenseArrayBase[builtin.I64]
+    buff_ub_: builtin.DenseArrayBase[builtin.I64]
+    core_lb_: builtin.DenseArrayBase[builtin.I64]
+    core_ub_: builtin.DenseArrayBase[builtin.I64]
 
     def __init__(
         self,
@@ -408,7 +407,7 @@ class RankTopoAttr(ParametrizedAttribute):
 
     name = "dmp.topo"
 
-    shape: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
+    shape: builtin.DenseArrayBase[builtin.I64]
 
     def __init__(self, shape: Sequence[int]):
         if len(shape) < 1:
@@ -463,9 +462,9 @@ class GridSlice2dAttr(DomainDecompositionStrategy):
 
     name = "dmp.grid_slice_2d"
 
-    topology: ParameterDef[RankTopoAttr]
+    topology: RankTopoAttr
 
-    diagonals: ParameterDef[builtin.BoolAttr]
+    diagonals: builtin.BoolAttr
 
     def __init__(self, topo: tuple[int, ...]):
         super().__init__(
@@ -511,9 +510,9 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
 
     name = "dmp.grid_slice_3d"
 
-    topology: ParameterDef[RankTopoAttr]
+    topology: RankTopoAttr
 
-    diagonals: ParameterDef[builtin.BoolAttr]
+    diagonals: builtin.BoolAttr
 
     def __init__(self, topo: tuple[int, ...]):
         super().__init__(

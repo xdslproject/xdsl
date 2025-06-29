@@ -15,6 +15,7 @@ from typing import (
     Annotated,
     Any,
     Generic,
+    Literal,
     TypeAlias,
     Union,
     cast,
@@ -90,9 +91,27 @@ class GenericData(Data[_DataElement], ABC):
 # |_|   \__,_|_|  \__,_|_| |_| |_/_/   \_\__|\__|_|
 #
 
-_A = TypeVar("_A", bound=Attribute)
 
-ParameterDef = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
+# Field definition classes for `@irdl_param_attr_definition`
+class _ParameterDef:
+    param: GenericAttrConstraint[Attribute]
+
+    def __init__(
+        self,
+        param: GenericAttrConstraint[Attribute],
+    ):
+        self.param = param
+
+
+def param_def(
+    constraint: GenericAttrConstraint[AttributeInvT],
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT:
+    """Defines a property of an operation."""
+    return cast(AttributeInvT, _ParameterDef(constraint))
 
 
 def check_attr_name(cls: type):
@@ -119,26 +138,6 @@ def check_attr_name(cls: type):
             f"Name '{name}' is not a valid attribute name. It should be of the form "
             "'<dialect>.<name>'."
         )
-
-
-def irdl_param_attr_get_param_type_hints(cls: type[_A]) -> list[tuple[str, Any]]:
-    """Get the type hints of an IRDL parameter definitions."""
-    res = list[tuple[str, Any]]()
-    for field_name, field_type in get_type_hints(cls, include_extras=True).items():
-        if field_name == "name" or field_name == "parameters":
-            continue
-
-        origin: Any | None = cast(Any | None, get_origin(field_type))
-        args = get_args(field_type)
-        if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
-            raise PyRDLAttrDefinitionError(
-                f"In attribute {cls.__name__} definition: Parameter "
-                + f"definition {field_name} should be defined with "
-                + f"type `ParameterDef[<Constraint>]`, got type {field_type}."
-            )
-
-        res.append((field_name, field_type))
-    return res
 
 
 _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
@@ -171,15 +170,53 @@ class ParamAttrDef:
             if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS
         }
 
-        # Check that all fields of the attribute definition are either already
-        # in ParametrizedAttribute, or are class functions or methods.
+        # The resulting parameters
+        parameters: dict[str, AttrConstraint] = {}
+
+        for field_name, field_type in get_type_hints(
+            pyrdl_def, include_extras=True
+        ).items():
+            if field_name == "name" or field_name == "parameters":
+                continue
+
+            try:
+                constraint = irdl_to_attr_constraint(field_type, allow_type_var=True)
+            except TypeError:
+                raise PyRDLAttrDefinitionError(
+                    f"Invalid field type {field_type} for field name {field_name}."
+                )
+
+            parameters[field_name] = constraint
+
         for field_name, value in clsdict.items():
             if field_name == "name":
+                # Ignore name field
                 continue
             if isinstance(
                 value, FunctionType | PropertyType | classmethod | staticmethod
             ):
+                # Ignore functions
                 continue
+
+            # Parameter def must be a field def
+            if isinstance(value, _ParameterDef):
+                if field_name not in parameters:
+                    raise PyRDLAttrDefinitionError(
+                        f"Missing field type for parameter name {field_name}"
+                    )
+
+                try:
+                    constraint = irdl_to_attr_constraint(
+                        value.param, allow_type_var=True
+                    )
+                except TypeError:
+                    raise PyRDLAttrDefinitionError(
+                        f"Invalid constraint {value.param} for field name {field_name}."
+                    )
+
+                parameters[field_name] &= constraint
+                continue
+
             # Constraint variables are allowed
             if get_origin(value) is Annotated:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
@@ -197,14 +234,7 @@ class ParamAttrDef:
 
         name = clsdict["name"]
 
-        param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
-
-        parameters = list[tuple[str, AttrConstraint]]()
-        for param_name, param_type in param_hints:
-            constraint = irdl_to_attr_constraint(param_type, allow_type_var=True)
-            parameters.append((param_name, constraint))
-
-        return ParamAttrDef(name, parameters)
+        return ParamAttrDef(name, list(parameters.items()))
 
     def verify(self, attr: ParametrizedAttribute):
         """Verify that `attr` satisfies the invariants."""

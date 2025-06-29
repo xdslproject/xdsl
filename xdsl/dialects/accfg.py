@@ -25,7 +25,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     VerifyException,
     irdl_attr_definition,
     irdl_op_definition,
@@ -81,7 +80,7 @@ class TokenType(ParametrizedAttribute, TypeAttribute):
 
     name = "accfg.token"
 
-    accelerator: ParameterDef[StringAttr]
+    accelerator: StringAttr
 
     def __init__(self, accelerator: str | StringAttr):
         if not isinstance(accelerator, StringAttr):
@@ -97,7 +96,7 @@ class StateType(ParametrizedAttribute, TypeAttribute):
 
     name = "accfg.state"
 
-    accelerator: ParameterDef[StringAttr]
+    accelerator: StringAttr
 
     def __init__(self, accelerator: str | StringAttr):
         if not isinstance(accelerator, StringAttr):

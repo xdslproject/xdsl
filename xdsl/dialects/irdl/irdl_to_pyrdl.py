@@ -38,7 +38,7 @@ class {op.sym_name.data}(ParametrizedAttribute{type_addition}):
         if not isinstance(sub_op, ParametersOp):
             continue
         for name in sub_op.names:
-            res += f"    {python_name(name.data)}: ParameterDef[Attribute]\n"
+            res += f"    {python_name(name.data)}: Attribute\n"
     return res
 
 

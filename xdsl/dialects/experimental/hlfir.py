@@ -34,7 +34,6 @@ from xdsl.ir import Dialect, TypeAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -63,8 +62,8 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "hlfir.expr"
-    shape: ParameterDef[ArrayAttr[IntegerAttr | DeferredAttr | NoneType]]
-    elementType: ParameterDef[Attribute]
+    shape: ArrayAttr[IntegerAttr | DeferredAttr | NoneType]
+    elementType: Attribute
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():

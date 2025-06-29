@@ -40,7 +40,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     prop_def,
@@ -73,9 +72,9 @@ class StridePattern(ParametrizedAttribute):
 
     name = "snitch_stream.stride_pattern"
 
-    ub: ParameterDef[ArrayAttr[IntAttr]]
-    strides: ParameterDef[ArrayAttr[IntAttr]]
-    repeat: ParameterDef[IntAttr]
+    ub: ArrayAttr[IntAttr]
+    strides: ArrayAttr[IntAttr]
+    repeat: IntAttr
     """
     Number of times an element will be repeated when loaded, default is 1.
     """
