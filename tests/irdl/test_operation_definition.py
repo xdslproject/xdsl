@@ -748,8 +748,8 @@ BarType = Annotated[TestType, TestType("bar")]
 
 
 _Attr = TypeVar("_Attr", bound=StringAttr | IntAttr)
-_Operand = TypeVar("_Operand", bound=FooType | BarType)
-_Result = TypeVar("_Result", bound=FooType | BarType)
+_Operand = TypeVar("_Operand", bound=TestType)
+_Result = TypeVar("_Result", bound=TestType)
 
 
 class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):

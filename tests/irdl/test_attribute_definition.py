@@ -1055,6 +1055,11 @@ class B(Data[int]):
     name = "test.b"
 
 
+@irdl_attr_definition
+class C(Data[int]):
+    name = "test.c"
+
+
 _A = TypeVar("_A", bound=Attribute)
 
 
@@ -1092,14 +1097,14 @@ def test_message_constraint():
 def test_anyof_constraint():
     anyof_constraint = AnyOf((TypeVarConstraint(_A, BaseAttr(A)), BaseAttr(B)))
 
-    assert anyof_constraint.mapping_type_vars({_A: BaseAttr(B)}) == AnyOf(
-        (BaseAttr(B), BaseAttr(B))
+    assert anyof_constraint.mapping_type_vars({_A: BaseAttr(C)}) == AnyOf(
+        (BaseAttr(C), BaseAttr(B))
     )
 
 
 def test_allof_constraint():
     allof_constraint = AllOf((TypeVarConstraint(_A, BaseAttr(A)), BaseAttr(B)))
 
-    assert allof_constraint.mapping_type_vars({_A: BaseAttr(B)}) == AllOf(
-        (BaseAttr(B), BaseAttr(B))
+    assert allof_constraint.mapping_type_vars({_A: BaseAttr(C)}) == AllOf(
+        (BaseAttr(C), BaseAttr(B))
     )
