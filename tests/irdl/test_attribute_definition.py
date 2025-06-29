@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, ClassVar, Generic, TypeAlias
+from typing import Annotated, Generic, TypeAlias
 
 import pytest
 from typing_extensions import TypeVar, override
@@ -225,8 +225,8 @@ def test_identifier_enum_guard():
 @irdl_attr_definition(init=False)
 class BitEnumData(BitEnumAttribute[TestEnum]):
     name = "test.bitenum"
-    all_value: ClassVar = "all"
-    none_value: ClassVar = "none"
+    all_value = "all"
+    none_value = "none"
 
 
 @pytest.mark.parametrize(
