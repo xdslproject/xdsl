@@ -137,6 +137,13 @@ builtin.module {
     }) : (memref<6xf32>, i64, i32, i1, memref<10xi8>, f64, i32) -> ()
     func.return
   }
+  func.func @omp_map_info_bounds(%lb : index, %ub : index, %ptr : memref<1xf32>, %ptr_ptr : memref<1xmemref<1xf32>>) {
+    %bounds = "omp.map.bounds"(%lb, %ub) <{operandSegmentSizes = array<i32: 1, 1, 0, 0, 0>}> : (index, index) -> !omp.map_bounds_ty
+    %ptr_info = "omp.map.info"(%ptr, %ptr_ptr, %bounds) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>, var_type = memref<1xf32>, map_type = 1 : ui64, name = "ptr_info"}> : (memref<1xf32>, memref<1xmemref<1xf32>>, !omp.map_bounds_ty) -> memref<1xf32>
+    %ptr_ptr_info = "omp.map.info"(%ptr_ptr, %ptr_info, %bounds) <{operandSegmentSizes = array<i32: 1, 0, 1, 1>, map_capture_type =
+    #omp<variable_capture_kind(ByCopy)>, var_type = memref<1xmemref<1xf32>>, partial_map = true}> : (memref<1xmemref<1xf32>>, memref<1xf32>, !omp.map_bounds_ty) -> memref<1xmemref<1xf32>>
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -274,6 +281,12 @@ builtin.module {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : i32, %{{.*}} : memref<10xi8>, %{{.*}} : f64):
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<6xf32>, i64, i32, i1, memref<10xi8>, f64, i32) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_map_info_bounds(%{{.*}} : index, %{{.*}} : index, %{{.*}} : memref<1xf32>, %{{.*}} : memref<1xmemref<1xf32>>) {
+// CHECK-NEXT:      %{{.*}} = "omp.map.bounds"(%{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 1, 1, 0, 0, 0>, stride_in_bytes = false}> : (index, index) -> !omp.map_bounds_ty
+// CHECK-NEXT:      %{{.*}} = "omp.map.info"(%{{.*}}, %{{.*}}, %{{.*}}) <{map_type = 1 : ui64, name = "ptr_info", operandSegmentSizes = array<i32: 1, 1, 0, 1>, partial_map = false, var_type = memref<1xf32>}> : (memref<1xf32>, memref<1xmemref<1xf32>>, !omp.map_bounds_ty) -> memref<1xf32>
+// CHECK-NEXT:      %{{.*}} = "omp.map.info"(%{{.*}}, %{{.*}}, %{{.*}}) <{map_capture_type = #omp<variable_capture_kind (ByCopy)>, operandSegmentSizes = array<i32: 1, 0, 1, 1>, partial_map = true, var_type = memref<1xmemref<1xf32>>}> : (memref<1xmemref<1xf32>>, memref<1xf32>, !omp.map_bounds_ty) -> memref<1xmemref<1xf32>>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
