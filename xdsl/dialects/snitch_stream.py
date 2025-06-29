@@ -80,6 +80,16 @@ class StridePattern(ParametrizedAttribute):
     Number of times an element will be repeated when loaded, default is 1.
     """
 
+    def __init__(
+        self,
+        ub: ArrayAttr[IntAttr],
+        strides: ArrayAttr[IntAttr],
+        repeat: IntAttr = IntAttr(1),
+    ):
+        object.__setattr__(self, "ub", ub)
+        object.__setattr__(self, "strides", strides)
+        object.__setattr__(self, "repeat", repeat)
+
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():

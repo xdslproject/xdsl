@@ -381,7 +381,7 @@ class ArithConstBufferize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter, /):
-        if not isa(op.result.type, TensorType):
+        if not isa(op.result.type, TensorType[Attribute]):
             return
         assert isa(op.value, DenseIntOrFPElementsAttr)
         assert isa(op.value.type, TensorType[AnyDenseElement])
