@@ -86,7 +86,7 @@ class xDSLOptMain(CommandLineTool):
                         print(e)
                         # __notes__ only in Python 3.11 and above
                         if hasattr(e, "__notes__"):
-                            for e in e.__notes__:
+                            for e in getattr(e, "__notes__"):
                                 print(e)
                     else:
                         raise

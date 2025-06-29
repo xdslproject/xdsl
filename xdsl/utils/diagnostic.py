@@ -37,11 +37,14 @@ class Diagnostic:
         # __notes__ only in 3.11 and above
         if hasattr(underlying_error, "add_note"):
             # Use official API if present
-            underlying_error.add_note(f.getvalue())
+            getattr(underlying_error, "add_note")(f.getvalue())
         else:
             # Add our own __notes__ if not
             if not hasattr(underlying_error, "__notes__"):
-                underlying_error.__notes__ = []
-            underlying_error.__notes__.append(f.getvalue())
+                notes: list[str] = []
+                setattr(underlying_error, "__notes__", notes)
+            else:
+                notes = getattr(underlying_error, "__notes__")
+            notes.append(f.getvalue())
 
         raise underlying_error
