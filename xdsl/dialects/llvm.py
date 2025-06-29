@@ -77,7 +77,10 @@ should be used for this index.
 """
 
 
-def _parse_llvm_type(parser: AttrParser) -> Attribute | None:
+def _parse_optional_llvm_type(parser: AttrParser) -> Attribute | None:
+    """
+    Used to parse llvm types without the `llvm.` prefix.
+    """
     if parser.parse_optional_characters("void"):
         return LLVMVoidType()
     if parser.parse_optional_characters("ptr"):
@@ -89,13 +92,13 @@ def _parse_llvm_type(parser: AttrParser) -> Attribute | None:
 
 
 def parse_llvm_type(parser: AttrParser) -> Attribute:
-    if (l := _parse_llvm_type(parser)) is not None:
+    if (l := _parse_optional_llvm_type(parser)) is not None:
         return l
     return parser.parse_attribute()
 
 
 def parse_optional_llvm_type(parser: AttrParser) -> Attribute | None:
-    if (l := _parse_llvm_type(parser)) is not None:
+    if (l := _parse_optional_llvm_type(parser)) is not None:
         return l
     return parser.parse_optional_attribute()
 
