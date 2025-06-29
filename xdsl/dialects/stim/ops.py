@@ -31,8 +31,7 @@ class QubitAttr(StimPrintable, ParametrizedAttribute, TypeAttribute):
     def __init__(self, qubit: int | IntAttr) -> None:
         if not isinstance(qubit, IntAttr):
             qubit = IntAttr(qubit)
-        object.__setattr__(self, "qubit", qubit)
-        self.__post_init__()
+        super().__init__(parameters=[qubit])
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[IntAttr]:
@@ -84,9 +83,7 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
                 (IntAttr(int(arg))) if (type(arg) is int) else (FloatData(arg))
                 for arg in coords
             )
-        object.__setattr__(self, "coords", coords)
-        object.__setattr__(self, "qubit_name", qubit_name)
-        self.__post_init__()
+        super().__init__(parameters=[coords, qubit_name])
 
     @classmethod
     def parse_parameters(

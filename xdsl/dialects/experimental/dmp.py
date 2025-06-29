@@ -98,22 +98,14 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         neighbor: Sequence[int],
     ):
         data_type = builtin.i64
-        object.__setattr__(
-            self, "offset_", builtin.DenseArrayBase.from_list(data_type, offset)
+        super().__init__(
+            [
+                builtin.DenseArrayBase.from_list(data_type, offset),
+                builtin.DenseArrayBase.from_list(data_type, size),
+                builtin.DenseArrayBase.from_list(data_type, source_offset),
+                builtin.DenseArrayBase.from_list(data_type, neighbor),
+            ]
         )
-        object.__setattr__(
-            self, "size_", builtin.DenseArrayBase.from_list(data_type, size)
-        )
-        object.__setattr__(
-            self,
-            "source_offset_",
-            builtin.DenseArrayBase.from_list(data_type, source_offset),
-        )
-        object.__setattr__(
-            self, "neighbor_", builtin.DenseArrayBase.from_list(data_type, neighbor)
-        )
-
-        self.__post_init__()
 
     @classmethod
     def from_points(
@@ -412,10 +404,7 @@ class RankTopoAttr(ParametrizedAttribute):
     def __init__(self, shape: Sequence[int]):
         if len(shape) < 1:
             raise ValueError("dmp.grid must have at least one dimension!")
-        object.__setattr__(
-            self, "shape", builtin.DenseArrayBase.from_list(builtin.i64, shape)
-        )
-        self.__post_init__()
+        super().__init__([builtin.DenseArrayBase.from_list(builtin.i64, shape)])
 
     def as_tuple(self) -> tuple[int, ...]:
         shape = self.shape.get_values()
@@ -470,9 +459,9 @@ class GridSlice2dAttr(DomainDecompositionStrategy):
     diagonals: ParameterDef[builtin.BoolAttr]
 
     def __init__(self, topo: tuple[int, ...]):
-        object.__setattr__(self, "topology", RankTopoAttr(topo))
-        object.__setattr__(self, "diagonals", builtin.BoolAttr.from_int_and_width(0, 1))
-        self.__post_init__()
+        super().__init__(
+            [RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1)]
+        )
 
     def _verify(self):
         assert len(self.topology.as_tuple()) >= 2, (
@@ -518,9 +507,9 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
     diagonals: ParameterDef[builtin.BoolAttr]
 
     def __init__(self, topo: tuple[int, ...]):
-        object.__setattr__(self, "topology", RankTopoAttr(topo))
-        object.__setattr__(self, "diagonals", builtin.BoolAttr.from_int_and_width(0, 1))
-        self.__post_init__()
+        super().__init__(
+            [RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1)]
+        )
 
     def _verify(self):
         assert len(self.topology.as_tuple()) >= 3, (

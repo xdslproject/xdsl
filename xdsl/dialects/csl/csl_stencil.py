@@ -84,13 +84,15 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         neighbor: Sequence[int] | DenseArrayBase,
     ):
         data_type = builtin.i64
-        neighbor_param = (
-            neighbor
-            if isinstance(neighbor, DenseArrayBase)
-            else DenseArrayBase.from_list(data_type, neighbor)
+        super().__init__(
+            [
+                (
+                    neighbor
+                    if isinstance(neighbor, DenseArrayBase)
+                    else DenseArrayBase.from_list(data_type, neighbor)
+                ),
+            ]
         )
-        object.__setattr__(self, "neighbor_param", neighbor_param)
-        self.__post_init__()
 
     @classmethod
     def from_dmp_exch_decl_attr(cls, src: dmp.ExchangeDeclarationAttr):

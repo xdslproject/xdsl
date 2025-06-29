@@ -421,9 +421,16 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
                 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
+
+    def __init__(self, parameters: Sequence[Attribute] = ()):
+        for (f, _), param in zip(
+            self.get_irdl_definition().parameters, parameters, strict=True
+        ):
+            object.__setattr__(self, f, param)
+        super().__init__()
 
     @property
     def parameters(self) -> tuple[Attribute, ...]:

@@ -257,10 +257,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         if output is None:
             output = LLVMVoidType()
         variad_attr = UnitAttr() if is_variadic else NoneAttr()
-        object.__setattr__(self, "inputs", inputs)
-        object.__setattr__(self, "output", output)
-        object.__setattr__(self, "variadic", variad_attr)
-        self.__post_init__()
+        super().__init__([inputs, output, variad_attr])
 
     @property
     def is_variadic(self) -> bool:
@@ -327,8 +324,7 @@ class LinkageAttr(ParametrizedAttribute):
     def __init__(self, linkage: str | StringAttr) -> None:
         if isinstance(linkage, str):
             linkage = StringAttr(linkage)
-        object.__setattr__(self, "linkage", linkage)
-        self.__post_init__()
+        super().__init__([linkage])
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -1485,8 +1481,7 @@ class CallingConventionAttr(ParametrizedAttribute):
         return self.convention.data
 
     def __init__(self, conv: str):
-        object.__setattr__(self, "convention", StringAttr(conv))
-        self.__post_init__()
+        super().__init__([StringAttr(conv)])
 
     def _verify(self):
         if self.cconv_name not in LLVM_CALLING_CONVS:

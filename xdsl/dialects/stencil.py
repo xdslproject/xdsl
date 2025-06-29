@@ -187,9 +187,12 @@ class StencilBoundsAttr(ParametrizedAttribute):
             lb, ub = zip(*bounds)
         else:
             lb, ub = (), ()
-        object.__setattr__(self, "lb", IndexAttr.get(*lb))
-        object.__setattr__(self, "ub", IndexAttr.get(*ub))
-        self.__post_init__()
+        super().__init__(
+            [
+                IndexAttr.get(*lb),
+                IndexAttr.get(*ub),
+            ]
+        )
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -351,9 +354,7 @@ class StencilType(
             nbounds = IntAttr(bounds)
         else:
             nbounds = bounds
-        object.__setattr__(self, "bounds", nbounds)
-        object.__setattr__(self, "element_type", element_type)
-        self.__post_init__()
+        return super().__init__([nbounds, element_type])
 
     @classmethod
     def constr(

@@ -116,8 +116,7 @@ class OperationType(TransformOpHandleType):
     operation: ParameterDef[StringAttr]
 
     def __init__(self, operation: str):
-        object.__setattr__(self, "operation", StringAttr(operation))
-        self.__post_init__()
+        super().__init__(parameters=[StringAttr(operation)])
 
 
 @irdl_attr_definition
