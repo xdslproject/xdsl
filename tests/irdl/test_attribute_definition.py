@@ -876,9 +876,9 @@ class OveriddenInitAttr(ParametrizedAttribute):
     def __init__(self, param: int | str):
         match param:
             case int():
-                super().__init__((IntData(param),))
+                super().__init__(IntData(param))
             case str():
-                super().__init__((StringData(param),))
+                super().__init__(StringData(param))
 
 
 def test_generic_constructor():
