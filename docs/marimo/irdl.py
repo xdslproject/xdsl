@@ -476,7 +476,7 @@ def _(EqAttrConstraint, IntAttr, StringAttr, irdl_attr_definition):
     except Exception as e:
         print(e)
 
-    # This will trigger an exception, since the attribute is not an IntAttr
+    # This will trigger an exception, since the attribute is not equal to the expected value
     try:
         MyIntegerType([StringAttr(64)])
     except Exception as e:
