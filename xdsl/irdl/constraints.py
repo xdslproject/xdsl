@@ -308,7 +308,7 @@ class TypeVarConstraint(AttrConstraint):
         return res
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=True)
 class ConstraintVar:
     """
     Annotation used in PyRDL to define a constraint variable.
