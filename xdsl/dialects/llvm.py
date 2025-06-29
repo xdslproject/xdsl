@@ -118,9 +118,6 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     # TODO: Add this parameter once xDSL supports the necessary capabilities.
     #  bitmask = ParameterDef(StringAttr)
 
-    def __init__(self, struct_name: StringAttr, type: ArrayAttr):
-        super().__init__((struct_name, type))
-
     @staticmethod
     def from_type_list(types: Sequence[Attribute]) -> LLVMStructType:
         return LLVMStructType(StringAttr(""), ArrayAttr(types))
@@ -157,9 +154,6 @@ class LLVMPointerType(
 
     type: ParameterDef[Attribute]
     addr_space: ParameterDef[IntAttr | NoneAttr]
-
-    def __init__(self, type: Attribute, addr_space: IntAttr | NoneAttr):
-        super().__init__((type, addr_space))
 
     def print_parameters(self, printer: Printer) -> None:
         if isinstance(self.type, NoneAttr):
@@ -211,9 +205,6 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
 
     size: ParameterDef[IntAttr]
     type: ParameterDef[Attribute]
-
-    def __init__(self, size: IntAttr, type: Attribute):
-        super().__init__((size, type))
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -425,7 +416,7 @@ class OverflowAttrBase(BitEnumAttribute[OverflowFlag]):
     none_value = "none"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class OverflowAttr(OverflowAttrBase):
     name = "llvm.overflow"
 
@@ -1609,7 +1600,7 @@ class ConstantOp(IRDLOperation):
         printer.print_attribute(self.result.type)
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class FastMathAttr(FastMathAttrBase):
     name = "llvm.fastmath"
 

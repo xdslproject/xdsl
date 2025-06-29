@@ -3428,9 +3428,6 @@ class MyAttr(ParametrizedAttribute):
 
     param: ParameterDef[StringAttr]
 
-    def __init__(self, param: StringAttr):
-        super().__init__((param,))
-
 
 @irdl_op_definition
 class NonQualifiedAttrOp(IRDLOperation):

@@ -6,7 +6,7 @@
 #
 
 from abc import ABC, abstractmethod
-from collections.abc import Hashable, Sequence
+from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
 from inspect import isclass
 from types import FunctionType, GenericAlias, UnionType
@@ -21,9 +21,10 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
+    overload,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, dataclass_transform
 
 from xdsl.ir import AttributeCovT
 
@@ -225,7 +226,7 @@ def get_accessors_from_param_attr_def(attr_def: ParamAttrDef) -> dict[str, Any]:
     return {"get_irdl_definition": get_irdl_definition}
 
 
-def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
+def irdl_param_attr_definition(cls: _PAttrTT, init: bool = True) -> _PAttrTT:
     """Decorator used on classes to define a new attribute definition."""
 
     attr_def = ParamAttrDef.from_pyrdl(cls)
@@ -248,7 +249,7 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
         new_fields["get_type_index"] = get_type_index
 
     return runtime_final(
-        dataclass(frozen=True, init=False)(
+        dataclass(frozen=True, init=init)(
             type.__new__(
                 type(cls),
                 cls.__name__,
@@ -262,19 +263,39 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
 TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
 
 
-def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
-    check_attr_name(cls)
-    if issubclass(cls, ParametrizedAttribute):
-        return irdl_param_attr_definition(cls)
-    if issubclass(cls, Data):
-        # This used to be convoluted
-        # But Data is already frozen itself, so any child Attribute still throws on
-        # .data!
-        return runtime_final(cast(TypeAttributeInvT, cls))
-    raise TypeError(
-        f"Class {cls.__name__} should either be a subclass of 'Data' or "
-        "'ParametrizedAttribute'"
-    )
+@overload
+def irdl_attr_definition(
+    cls: TypeAttributeInvT, *, init: bool = True
+) -> TypeAttributeInvT: ...
+
+
+@overload
+def irdl_attr_definition(
+    *, init: bool = True
+) -> Callable[[TypeAttributeInvT], TypeAttributeInvT]: ...
+
+
+@dataclass_transform(frozen_default=True)
+def irdl_attr_definition(
+    cls: TypeAttributeInvT | None = None, *, init: bool = True
+) -> TypeAttributeInvT | Callable[[TypeAttributeInvT], TypeAttributeInvT]:
+    def decorator(cls: TypeAttributeInvT) -> TypeAttributeInvT:
+        check_attr_name(cls)
+        if issubclass(cls, ParametrizedAttribute):
+            return irdl_param_attr_definition(cls, init=init)
+        if issubclass(cls, Data):
+            # This used to be convoluted
+            # But Data is already frozen itself, so any child Attribute still throws on
+            # .data!
+            return runtime_final(cast(TypeAttributeInvT, cls))
+        raise TypeError(
+            f"Class {cls.__name__} should either be a subclass of 'Data' or "
+            "'ParametrizedAttribute'"
+        )
+
+    if cls is None:
+        return decorator
+    return decorator(cls)
 
 
 IRDLGenericAttrConstraint: TypeAlias = (

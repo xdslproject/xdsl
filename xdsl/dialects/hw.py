@@ -507,23 +507,12 @@ class ModulePort(ParametrizedAttribute):
     type: ParameterDef[TypeAttribute]
     dir: ParameterDef[DirectionAttr]
 
-    def __init__(
-        self,
-        port_name: StringAttr,
-        type: TypeAttribute,
-        dir: DirectionAttr,
-    ):
-        super().__init__((port_name, type, dir))
-
 
 @irdl_attr_definition
 class ModuleType(ParametrizedAttribute, TypeAttribute):
     name = "hw.modty"
 
     ports: ParameterDef[ArrayAttr[ModulePort]]
-
-    def __init__(self, ports: ArrayAttr[ModulePort]):
-        super().__init__((ports,))
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -565,9 +554,6 @@ class ParamDeclAttr(ParametrizedAttribute):
 
     port_name: ParameterDef[StringAttr]
     type: ParameterDef[TypeAttribute]
-
-    def __init__(self, port_name: StringAttr, type: TypeAttribute):
-        super().__init__((port_name, type))
 
     @classmethod
     def parse_free_standing_parameters(

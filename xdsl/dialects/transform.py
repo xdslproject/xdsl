@@ -128,9 +128,6 @@ class ParamType(TransformParamHandleType):
     name = "transform.param"
     type: ParameterDef[TypeAttribute]
 
-    def __init__(self, type: TypeAttribute):
-        super().__init__(parameters=[type])
-
 
 @irdl_attr_definition
 class TypeParamType(TransformParamHandleType):

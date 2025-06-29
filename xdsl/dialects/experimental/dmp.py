@@ -266,15 +266,6 @@ class ShapeAttr(ParametrizedAttribute):
     core_lb_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
     core_ub_: ParameterDef[builtin.DenseArrayBase[builtin.I64]]
 
-    def __init__(
-        self,
-        buff_lb_: builtin.DenseArrayBase[builtin.I64],
-        buff_ub_: builtin.DenseArrayBase[builtin.I64],
-        core_lb_: builtin.DenseArrayBase[builtin.I64],
-        core_ub_: builtin.DenseArrayBase[builtin.I64],
-    ):
-        super().__init__((buff_lb_, buff_ub_, core_lb_, core_ub_))
-
     @property
     def buff_lb(self) -> tuple[int, ...]:
         data = self.buff_lb_.get_values()

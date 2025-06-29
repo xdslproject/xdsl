@@ -125,9 +125,6 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
     name = "emitc.lvalue"
     value_type: ParameterDef[TypeAttribute]
 
-    def __init__(self, value_type: TypeAttribute):
-        super().__init__([value_type])
-
     def verify(self) -> None:
         """
         Verify the LValueType.

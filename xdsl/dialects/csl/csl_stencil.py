@@ -169,9 +169,6 @@ class CoeffAttr(ParametrizedAttribute):
     offset: ParameterDef[stencil.IndexAttr]
     coeff: ParameterDef[FloatAttr[AnyFloat]]
 
-    def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
-        super().__init__([offset, coeff])
-
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod

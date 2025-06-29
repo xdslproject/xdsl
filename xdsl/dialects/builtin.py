@@ -689,9 +689,6 @@ AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstr
 class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "unit"
 
-    def __init__(self):
-        super().__init__(())
-
     def print_builtin(self, printer: Printer) -> None:
         printer.print_string("unit")
 
@@ -1104,9 +1101,6 @@ class ComplexType(
     name = "complex"
     element_type: ParameterDef[ComplexElementCovT]
 
-    def __init__(self, element_type: ComplexElementCovT):
-        super().__init__([element_type])
-
     def print_builtin(self, printer: Printer):
         printer.print_string("complex")
         with printer.in_angle_brackets():
@@ -1385,9 +1379,6 @@ class UnrankedTensorType(
 
     element_type: ParameterDef[AttributeCovT]
 
-    def __init__(self, element_type: AttributeCovT) -> None:
-        super().__init__([element_type])
-
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
@@ -1522,9 +1513,6 @@ class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
     resource_handle: ParameterDef[StringAttr]
     type: ParameterDef[ShapedType]
 
-    def __init__(self, resource_handle: StringAttr, type: ShapedType) -> None:
-        return super().__init__((resource_handle, type))
-
     def print_without_type(self, printer: Printer):
         printer.print_string("dense_resource")
         with printer.in_angle_brackets():
@@ -1567,9 +1555,6 @@ class DenseArrayBase(
 
     elt_type: ParameterDef[DenseArrayT]
     data: ParameterDef[BytesAttr]
-
-    def __init__(self, elt_type: DenseArrayT, data: BytesAttr):
-        super().__init__((elt_type, data))
 
     def print_builtin(self, printer: Printer):
         printer.print_string("array")
@@ -1702,13 +1687,6 @@ class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     inputs: ParameterDef[ArrayAttr[Attribute]]
     outputs: ParameterDef[ArrayAttr[Attribute]]
 
-    def __init__(
-        self,
-        inputs: ArrayAttr[Attribute],
-        outputs: ArrayAttr[Attribute],
-    ):
-        super().__init__((inputs, outputs))
-
     def print_builtin(self, printer: Printer):
         with printer.in_parens():
             printer.print_list(self.inputs.data, printer.print_attribute)
@@ -1740,9 +1718,6 @@ class OpaqueAttr(ParametrizedAttribute, BuiltinAttribute):
     ident: ParameterDef[StringAttr]
     value: ParameterDef[StringAttr]
     type: ParameterDef[Attribute]
-
-    def __init__(self, ident: StringAttr, value: StringAttr, type: Attribute) -> None:
-        return super().__init__((ident, value, type))
 
     def print_builtin(self, printer: Printer):
         printer.print_string("opaque")
@@ -2066,6 +2041,7 @@ class UnregisteredOp(Operation, ABC):
         return value_if_unregistered
 
 
+@dataclass(frozen=True, init=False)
 class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
     """
     An unregistered attribute or type.
@@ -2128,7 +2104,7 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
         `Context` to get an `UnregisteredAttr` type.
         """
 
-        @irdl_attr_definition
+        @irdl_attr_definition(init=False)
         class UnregisteredAttrWithName(UnregisteredAttr):
             def verify(self):
                 if self.attr_name.data != name:
@@ -2136,7 +2112,7 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
                 if self.is_type.data != int(is_type):
                     raise VerifyException("Unregistered attribute is_type mismatch")
 
-        @irdl_attr_definition
+        @irdl_attr_definition(init=False)
         class UnregisteredAttrTypeWithName(UnregisteredAttr, TypeAttribute):
             def verify(self):
                 if self.attr_name.data != name:
@@ -2426,11 +2402,6 @@ class UnrankedMemRefType(
     element_type: ParameterDef[_UnrankedMemRefTypeElems]
     memory_space: ParameterDef[Attribute]
 
-    def __init__(
-        self, element_type: _UnrankedMemRefTypeElems, memory_space: Attribute
-    ) -> None:
-        return super().__init__((element_type, memory_space))
-
     def print_builtin(self, printer: Printer):
         printer.print_string("memref<*x")
         printer.print_attribute(self.element_type)
@@ -2474,9 +2445,6 @@ class DenseIntOrFPElementsAttr(
     name = "dense"
     type: ParameterDef[RankedStructure[DenseElementCovT]]
     data: ParameterDef[BytesAttr]
-
-    def __init__(self, type: RankedStructure[DenseElementCovT], data: BytesAttr):
-        super().__init__((type, data))
 
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...]:

@@ -80,9 +80,6 @@ class VariadicityArrayAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
 
     value: ParameterDef[ArrayAttr[VariadicityAttr]]
 
-    def __init__(self, variadicities: ArrayAttr[VariadicityAttr]) -> None:
-        super().__init__((variadicities,))
-
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> tuple[ArrayAttr[VariadicityAttr]]:
         data = parser.parse_comma_separated_list(
