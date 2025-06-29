@@ -437,7 +437,7 @@ def _(mo):
         r"""
     #### Parametrized Attributes
 
-    `ParametrizedAttribute` attribute types are defined using the `irdl_attr_definition` decorator on a class. Such class should contain a `name` field specifying the attribute name. Parameters are added to attribute definitions by defining fields with a type, and a `param_def`. The field names correspond to the parameter names, and `param_def` contains an optional constraint that should be respected by this parameter. The order of the fields correspond to the order of the parameters when using the attribute. Upon construction of an attribute, all constraints will be checked, and an exception will be raised if the invariants are not satisfied.
+    `ParametrizedAttribute` attribute types are defined using the `irdl_attr_definition` decorator on a class. Such class should contain a `name` field specifying the attribute name. Parameters are added to attribute definitions by defining fields with a type, and optionally with a `param_def`. The field names correspond to the parameter names, and `param_def` contains an optional constraint that should be respected by this parameter. The order of the fields correspond to the order of the parameters when using the attribute. Upon construction of an attribute, all constraints will be checked, and an exception will be raised if the invariants are not satisfied.
 
     Here is an example of an integer type definition:
     """
@@ -446,7 +446,7 @@ def _(mo):
 
 
 @app.cell
-def _(IntAttr, StringAttr, irdl_attr_definition):
+def _(EqAttrConstraint, IntAttr, StringAttr, irdl_attr_definition):
     from xdsl.ir import ParametrizedAttribute
     from xdsl.irdl import param_def
 
@@ -459,14 +459,14 @@ def _(IntAttr, StringAttr, irdl_attr_definition):
 
         # Only parameter of the type, with an `EqAttrConstraint` constraint.
         # Note the use of the attribute constraint coercion.
-        width: IntAttr
+        width: IntAttr = param_def(constraint=EqAttrConstraint(IntAttr(32)))
 
 
     my_i32 = MyIntegerType([IntAttr(32)])
 
     # This will trigger an exception, since the attribute only expect a single attribute
     try:
-        MyIntegerType([IntAttr(32), IntAttr(64)])
+        MyIntegerType.new([IntAttr(32), IntAttr(64)])
     except Exception as e:
         print(e)
 
@@ -475,6 +475,15 @@ def _(IntAttr, StringAttr, irdl_attr_definition):
         MyIntegerType([StringAttr("ga")])
     except Exception as e:
         print(e)
+
+    # This will trigger an exception, since the attribute is not an IntAttr
+    try:
+        MyIntegerType([StringAttr(64)])
+    except Exception as e:
+        print(e)
+
+    # This will trigger an exception, since the attribute is not an IntAttr
+    print(MyIntegerType([IntAttr(32)]))
     return (my_i32,)
 
 
