@@ -317,6 +317,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
     @staticmethod
     def get(typ: Attribute, is_single: bool, is_const: bool):
+        assert isinstance(typ, TypeAttribute)
         return PtrType(
             typ,
             PtrKindAttr(PtrKind.SINGLE if is_single else PtrKind.MANY),

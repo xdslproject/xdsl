@@ -1845,6 +1845,14 @@ class FPExtOp(GenericCastOp):
     name = "llvm.fpext"
 
 
+@irdl_op_definition
+class UnreachableOp(IRDLOperation):
+    name = "llvm.unreachable"
+
+    traits = traits_def(IsTerminator())
+    assembly_format = "attr-dict"
+
+
 LLVM = Dialect(
     "llvm",
     [
@@ -1888,6 +1896,7 @@ LLVM = Dialect(
         UDivOp,
         URemOp,
         UndefOp,
+        UnreachableOp,
         XOrOp,
         ZExtOp,
         ZeroOp,

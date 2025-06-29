@@ -310,10 +310,10 @@ class ShapeAttr(ParametrizedAttribute):
     ):
         data_type = builtin.i64
         return ShapeAttr(
-            *[
+            *(
                 builtin.DenseArrayBase.from_list(data_type, tuple(data))
                 for data in (buff_lb, buff_ub, core_lb, core_ub)
-            ]
+            )
         )
 
     def buffer_start(self, dim: int) -> int:

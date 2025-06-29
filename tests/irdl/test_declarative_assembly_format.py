@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
     Float64Type,
     FloatAttr,
     IndexType,
-    IntAttrConstraint,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -3322,9 +3321,7 @@ class IntAttrExtractOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(
-        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-    )
+    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
     outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
 
@@ -3369,13 +3366,9 @@ class IntAttrVerifyOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(
-        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-    )
+    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
-    prop2 = opt_prop_def(
-        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-    )
+    prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
     ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
 

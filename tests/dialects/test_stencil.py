@@ -596,7 +596,7 @@ def test_store_result():
 
 
 def test_external_load():
-    memref = create_ssa_value(MemRefType(f32, ([5])))
+    memref = create_ssa_value(MemRefType(f32, [5]))
     field_type = FieldType((5), f32)
 
     external_load = ExternalLoadOp.get(memref, field_type)
@@ -608,7 +608,7 @@ def test_external_load():
 
 def test_external_store():
     field = create_ssa_value(FieldType(5, f32))
-    memref = create_ssa_value(MemRefType(f32, ([5])))
+    memref = create_ssa_value(MemRefType(f32, [5]))
 
     external_store = ExternalStoreOp.build(operands=[field, memref])
 

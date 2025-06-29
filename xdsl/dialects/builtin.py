@@ -851,11 +851,13 @@ class IntegerAttr(
     def constr(
         cls,
         *,
-        value: AttrConstraint | None = None,
+        value: AttrConstraint | IntConstraint | None = None,
         type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
     ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
         if value is None and type == AnyAttr():
             return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
+        if isinstance(value, IntConstraint):
+            value = IntAttrConstraint(value)
         return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
             IntegerAttr,
             (
