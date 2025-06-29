@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import builtin
-from xdsl.frontend.pyast import symref
-from xdsl.frontend.pyast.exception import FrontendProgramException
+from xdsl.dialects import builtin, symref
+from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 from xdsl.ir import Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
