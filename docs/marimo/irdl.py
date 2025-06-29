@@ -462,7 +462,7 @@ def _(IntAttr, StringAttr, irdl_attr_definition):
         width: ParameterDef[IntAttr]
 
 
-    my_i32 = MyIntegerType([IntAttr(32)])
+    my_i32 = MyIntegerType(IntAttr(32))
 
     # This will trigger an exception, since the attribute only expect a single attribute
     try:
