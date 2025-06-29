@@ -116,7 +116,7 @@ class OperationType(TransformOpHandleType):
     operation: ParameterDef[StringAttr]
 
     def __init__(self, operation: str):
-        super().__init__(parameters=[StringAttr(operation)])
+        super().__init__(StringAttr(operation))
 
 
 @irdl_attr_definition
