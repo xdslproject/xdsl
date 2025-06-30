@@ -108,7 +108,7 @@
 
 %coshf0 = math.cosh %valf32 : f32
 %coshf1 = math.cosh %valf64 : f64
-%coshf1 = math.cosh %valf64 fastmath<fast> : f64
+%coshf2 = math.cosh %valf64 fastmath<fast> : f64
 %vcoshf1 = math.cosh %vec_valf64 : vector<4xf64>
 
 // CHECK-NEXT: {{%.*}} = math.cosh [[VALF32]] : f32
@@ -234,10 +234,12 @@
 
 %log1p0 = math.log1p %valf32 : f32
 %log1p1 = math.log1p %valf64 : f64
+%log1p2 = math.log1p %valf64 fastmath<fast> : f64
 %vlog1p1 = math.log1p %vec_valf64 : vector<4xf64>
 
 // CHECK-NEXT: {{%.*}} = math.log1p [[VALF32]] : f32
 // CHECK-NEXT: {{%.*}} = math.log1p [[VALF64]] : f64
+// CHECK-NEXT: {{%.*}} = math.log1p [[VALF64]] fastmath<fast> : f64
 // CHECK-NEXT: {{%.*}} = math.log1p [[VEC_VALF64]] : vector<4xf64>
 
 %log20 = math.log2 %valf32 : f32
