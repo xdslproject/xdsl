@@ -32,6 +32,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IntVarConstraint,
     IRDLOperation,
+    Operation,
     RangeOf,
     SameVariadicOperandSize,
     base,
@@ -48,8 +49,15 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import IsolatedFromAbove, IsTerminator, NoMemoryEffect, NoTerminator
+from xdsl.traits import (
+    IsolatedFromAbove,
+    IsTerminator,
+    NoMemoryEffect,
+    NoTerminator,
+    OpTrait,
+)
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 class OpenMPOffloadMappingFlags(IntFlag):
@@ -139,6 +147,34 @@ class VariableCaptureKind(StrEnum):
     ByRef = "ByRef"
     ByCopy = "ByCopy"
     VLAType = "VLAType"
+
+
+class LoopWrapper(OpTrait):
+    """
+    Check that the omp operation is a loop wrapper as defined upstream.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/#loop-associated-directives)
+    """
+
+    def verify(self, op: Operation) -> None:
+        if not op.has_trait(NoTerminator()):
+            raise VerifyException(
+                f"{op.name} is not a LoopWrapper: does not have NoTerminator trait"
+            )
+        if (num_regions := len(op.regions)) != 1:
+            raise VerifyException(
+                f"{op.name} is not a LoopWrapper: has {num_regions} region, expected 1"
+            )
+        if (num_ops := len(op.regions[0].block.ops)) != 1:
+            raise VerifyException(
+                f"{op.name} is not a LoopWrapper: has {num_ops} ops, expected 1"
+            )
+        assert (inner := op.regions[0].block.first_op), "Expected exactly 1 op"
+        if not (inner.has_trait(LoopWrapper()) or isa(inner, LoopNestOp)):
+            raise VerifyException(
+                f"{op.name} is not a LoopWrapper: "
+                f"should have a single operation which is either another LoopWrapper or {LoopNestOp.name}"
+            )
 
 
 _ui64 = IntegerType(64, Signedness.UNSIGNED)
@@ -236,13 +272,7 @@ class WsLoopOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(NoTerminator())
-
-    def verify_(self) -> None:
-        if len(self.body.blocks) == 1 and len(self.body.block.ops) != 1:
-            raise VerifyException(
-                f"Body of {self.name} operation body must consist of one loop nest"
-            )
+    traits = traits_def(NoTerminator(), LoopWrapper())
 
 
 class ProcBindKindEnum(StrEnum):
