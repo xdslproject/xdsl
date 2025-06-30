@@ -118,60 +118,60 @@ class OpenMPOffloadMappingFlags(IntFlag):
 
 
 class ScheduleKind(StrEnum):
-    static = auto()
-    dynamic = auto()
-    auto = auto()
+    STATIC = auto()
+    DYNAMIC = auto()
+    AUTO = auto()
 
 
 class ScheduleModifier(StrEnum):
-    none = auto()
-    monotonic = auto()
-    nonmonotonic = auto()
-    simd = auto()
+    NONE = auto()
+    MONOTONIC = auto()
+    NONMONOTONIC = auto()
+    SIMD = auto()
 
 
 class OrderKind(StrEnum):
-    concurrent = auto()
+    CONCURRENT = auto()
 
 
 class DependKind(StrEnum):
-    taskdependin = auto()
-    taskdependout = auto()
-    taskdependinout = auto()
-    taskdependmutexinoutset = auto()
-    taskdependinoutset = auto()
+    TASKDEPENDIN = auto()
+    TASKDEPENDOUT = auto()
+    TASKDEPENDINOUT = auto()
+    TASKDEPENDMUTEXINOUTSET = auto()
+    TASKDEPENDINOUTSET = auto()
 
 
 class VariableCaptureKind(StrEnum):
-    This = "This"
-    ByRef = "ByRef"
-    ByCopy = "ByCopy"
-    VLAType = "VLAType"
+    THIS = "This"
+    BY_REF = "ByRef"
+    BY_COPY = "ByCopy"
+    VLA_TYPE = "VLAType"
 
 
 class DataSharingClauseKind(StrEnum):
-    private = auto()
-    firstprivate = auto()
+    PRIVATE = auto()
+    FIRSTPRIVATE = auto()
 
 
 class ClauseRequiresKind(StrEnum):
-    none = auto()
-    reverse_offload = auto()
-    unified_address = auto()
-    unified_shared_memory = auto()
-    dynamic_allocators = auto()
+    NONE = auto()
+    REVERSE_OFFLOAD = auto()
+    UNIFIED_ADDRESS = auto()
+    UNIFIED_SHARED_MEMORY = auto()
+    DYNAMIC_ALLOCATORS = auto()
 
 
 class DeclareTargetDeviceTypeKind(StrEnum):
-    any = auto()
-    host = auto()
-    nohost = auto()
+    ANY = auto()
+    HOST = auto()
+    NOHOST = auto()
 
 
 class DeclareTargetCaptureClauseKind(StrEnum):
-    to = auto()
-    link = auto()
-    enter = auto()
+    TO = auto()
+    LINK = auto()
+    ENTER = auto()
 
 
 class LoopWrapper(NoTerminator):
@@ -441,10 +441,10 @@ class WsLoopOp(IRDLOperation):
 
 
 class ProcBindKindEnum(StrEnum):
-    Primary = auto()
-    Master = auto()
-    Close = auto()
-    Spread = auto()
+    PRIMARY = auto()
+    MASTER = auto()
+    CLOSE = auto()
+    SPREAD = auto()
 
 
 class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], SpacedOpaqueSyntaxAttribute):
