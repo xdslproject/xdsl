@@ -1,5 +1,5 @@
 from enum import IntFlag, auto
-from typing import ClassVar, cast
+from typing import ClassVar
 
 from typing_extensions import TypeVar
 
@@ -143,10 +143,8 @@ def _print_omp_enum(e: EnumAttribute[OmpEnumType], printer: Printer):
 
 
 def _parse_omp_enum(e: type[EnumAttribute[OmpEnumType]], parser: AttrParser):
-    parser.parse_punctuation("(")
-    res = parser.parse_str_enum(e.enum_type)
-    parser.parse_punctuation(")")
-    return cast(OmpEnumType, res)
+    with parser.in_parens():
+        return parser.parse_str_enum(e.enum_type)
 
 
 @irdl_attr_definition
