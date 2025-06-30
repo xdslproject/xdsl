@@ -159,6 +159,10 @@ class LoopWrapper(NoTerminator):
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: has {num_regions} region, expected 1"
             )
+        if (num_blocks := len(op.regions[0].blocks)) != 1:
+            raise VerifyException(
+                f"{op.name} is not a LoopWrapper: has {num_blocks} blocks, expected 1"
+            )
         if (num_ops := len(op.regions[0].block.ops)) != 1:
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: has {num_ops} ops, expected 1"
