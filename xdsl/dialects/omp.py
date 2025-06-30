@@ -1,5 +1,5 @@
 from enum import IntFlag, auto
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from typing_extensions import TypeVar
 
@@ -155,7 +155,7 @@ def _print_omp_enum(e: EnumAttribute[OmpEnumType], printer: Printer):
 
 def _parse_omp_enum(e: type[EnumAttribute[OmpEnumType]], parser: AttrParser):
     with parser.in_parens():
-        return parser.parse_str_enum(e.enum_type)
+        return cast(OmpEnumType, parser.parse_str_enum(e.enum_type))
 
 
 @irdl_attr_definition
