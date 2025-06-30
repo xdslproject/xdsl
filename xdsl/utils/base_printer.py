@@ -7,6 +7,8 @@ from typing import IO, Any
 
 from typing_extensions import TypeVar
 
+from xdsl.utils.colors import RESET, Colors
+
 
 @dataclass(eq=False, repr=False)
 class BasePrinter:
@@ -21,16 +23,16 @@ class BasePrinter:
         default_factory=list[Callable[[], None]], init=False
     )
 
-    def _print(self, value: object, end: str | None = "\n", color: str | None = None):
+    def _print(
+        self, value: object, end: str | None = "\n", color: Colors | None = None
+    ):
         if self.syntax_highlight and color is not None:
-            from termcolor import cprint
-
-            cprint(value, color, end=end, file=self.stream)
+            print(color.value, value, RESET, sep="", end=end, file=self.stream)
         else:
             print(value, end=end, file=self.stream)
 
     def print_string(
-        self, text: str, *, indent: int | None = None, color: str | None = None
+        self, text: str, *, indent: int | None = None, color: Colors | None = None
     ) -> None:
         """
         Prints a string to the printer's output.

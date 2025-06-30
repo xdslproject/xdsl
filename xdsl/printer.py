@@ -45,6 +45,7 @@ from xdsl.utils.bitwise_casts import (
     convert_f32_to_u32,
     convert_f64_to_u64,
 )
+from xdsl.utils.colors import Colors
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import MLIRLexer
@@ -169,7 +170,7 @@ class Printer(BasePrinter):
             name = self._get_new_valid_name_id()
             self._ssa_values[value] = name
 
-        self.print_string(f"%{name}", color="cyan")
+        self.print_string(f"%{name}", color=Colors.CYAN)
         return name
 
     def print_operand(self, operand: SSAValue) -> None:
