@@ -780,8 +780,7 @@ class PatternRewriteWalker:
                 self.pattern.match_and_rewrite(op, rewriter)
             except Exception as err:
                 op.emit_error(
-                    f"Error while applying pattern: {str(err)}",
-                    exception_type=type(err),
+                    f"Error while applying pattern: {err}",
                     underlying_error=err,
                 )
             rewriter_has_done_action |= rewriter.has_done_action
