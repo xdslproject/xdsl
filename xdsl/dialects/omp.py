@@ -1,8 +1,6 @@
 from enum import IntFlag, auto
 from typing import ClassVar, cast
 
-from typing_extensions import TypeVar
-
 from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
@@ -145,18 +143,6 @@ class VariableCaptureKind(StrEnum):
 
 _ui64 = IntegerType(64, Signedness.UNSIGNED)
 
-OmpEnumType = TypeVar("OmpEnumType", bound=StrEnum)
-
-
-def _print_omp_enum(e: EnumAttribute[OmpEnumType], printer: Printer):
-    with printer.in_parens():
-        printer.print_string(e.data)
-
-
-def _parse_omp_enum(e: type[EnumAttribute[OmpEnumType]], parser: AttrParser):
-    with parser.in_parens():
-        return cast(OmpEnumType, parser.parse_str_enum(e.enum_type))
-
 
 @irdl_attr_definition
 class ScheduleKindAttr(EnumAttribute[ScheduleKind], SpacedOpaqueSyntaxAttribute):
@@ -175,11 +161,13 @@ class DependKindAttr(EnumAttribute[DependKind], SpacedOpaqueSyntaxAttribute):
     name = "omp.clause_task_depend"
 
     def print_parameter(self, printer: Printer) -> None:
-        _print_omp_enum(self, printer)
+        with printer.in_parens():
+            printer.print_string(self.data)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> DependKind:
-        return _parse_omp_enum(cls, parser)
+        with parser.in_parens():
+            return cast(DependKind, parser.parse_str_enum(cls.enum_type))
 
 
 @irdl_attr_definition
@@ -194,11 +182,13 @@ class VariableCaptureKindAttr(
     name = "omp.variable_capture_kind"
 
     def print_parameter(self, printer: Printer) -> None:
-        _print_omp_enum(self, printer)
+        with printer.in_parens():
+            printer.print_string(self.data)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> VariableCaptureKind:
-        return _parse_omp_enum(cls, parser)
+        with parser.in_parens():
+            return cast(VariableCaptureKind, parser.parse_str_enum(cls.enum_type))
 
 
 @irdl_attr_definition
