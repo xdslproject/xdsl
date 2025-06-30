@@ -226,7 +226,7 @@ def get_accessors_from_param_attr_def(attr_def: ParamAttrDef) -> dict[str, Any]:
     return {"get_irdl_definition": get_irdl_definition}
 
 
-def irdl_param_attr_definition(cls: _PAttrTT, init: bool = True) -> _PAttrTT:
+def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
     """Decorator used on classes to define a new attribute definition."""
 
     attr_def = ParamAttrDef.from_pyrdl(cls)
@@ -249,7 +249,7 @@ def irdl_param_attr_definition(cls: _PAttrTT, init: bool = True) -> _PAttrTT:
         new_fields["get_type_index"] = get_type_index
 
     return runtime_final(
-        dataclass(frozen=True, init=init)(
+        dataclass(frozen=True, init=False)(
             type.__new__(
                 type(cls),
                 cls.__name__,
@@ -282,7 +282,7 @@ def irdl_attr_definition(
     def decorator(cls: TypeAttributeInvT) -> TypeAttributeInvT:
         check_attr_name(cls)
         if issubclass(cls, ParametrizedAttribute):
-            return irdl_param_attr_definition(cls, init=init)
+            return irdl_param_attr_definition(cls)
         if issubclass(cls, Data):
             # This used to be convoluted
             # But Data is already frozen itself, so any child Attribute still throws on
