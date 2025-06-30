@@ -267,9 +267,7 @@ class DeclareTargetDeviceTypeAttr(
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> DeclareTargetDeviceTypeKind:
         with parser.in_parens():
-            return cast(
-                DeclareTargetDeviceTypeKind, parser.parse_str_enum(cls.enum_type)
-            )
+            return parser.parse_str_enum(DeclareTargetDeviceTypeKind)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_parens():
