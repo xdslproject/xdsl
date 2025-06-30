@@ -78,11 +78,9 @@ def mapParallelOp(parallelOp: ParallelOp, mappingLevel: int = MapGrid):
     attrs = ArrayAttr(
         [
             LoopDimMapAttr(
-                [
-                    ProcessorAttr(attr),
-                    AffineMapAttr(AffineMap.identity(1)),
-                    AffineMapAttr(AffineMap.identity(1)),
-                ]
+                ProcessorAttr(attr),
+                AffineMapAttr(AffineMap.identity(1)),
+                AffineMapAttr(AffineMap.identity(1)),
             )
             for attr in reversed(attrs)
         ]

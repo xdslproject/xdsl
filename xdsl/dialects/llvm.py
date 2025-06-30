@@ -77,25 +77,28 @@ should be used for this index.
 """
 
 
-def _parse_llvm_type(parser: AttrParser):
+def _parse_optional_llvm_type(parser: AttrParser) -> Attribute | None:
+    """
+    Used to parse llvm types without the `llvm.` prefix.
+    """
     if parser.parse_optional_characters("void"):
         return LLVMVoidType()
     if parser.parse_optional_characters("ptr"):
-        return LLVMPointerType(LLVMPointerType.parse_parameters(parser))
+        return LLVMPointerType(*LLVMPointerType.parse_parameters(parser))
     if parser.parse_optional_characters("array"):
-        return LLVMArrayType(LLVMArrayType.parse_parameters(parser))
+        return LLVMArrayType(*LLVMArrayType.parse_parameters(parser))
     if parser.parse_optional_characters("struct"):
-        return LLVMStructType(LLVMStructType.parse_parameters(parser))
+        return LLVMStructType(*LLVMStructType.parse_parameters(parser))
 
 
-def parse_llvm_type(parser: AttrParser):
-    if (l := _parse_llvm_type(parser)) is not None:
+def parse_llvm_type(parser: AttrParser) -> Attribute:
+    if (l := _parse_optional_llvm_type(parser)) is not None:
         return l
     return parser.parse_attribute()
 
 
-def parse_optional_llvm_type(parser: AttrParser):
-    if (l := _parse_llvm_type(parser)) is not None:
+def parse_optional_llvm_type(parser: AttrParser) -> Attribute | None:
+    if (l := _parse_optional_llvm_type(parser)) is not None:
         return l
     return parser.parse_optional_attribute()
 
@@ -110,14 +113,14 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
 
     # An empty string refers to a struct without a name.
     struct_name: ParameterDef[StringAttr]
-    types: ParameterDef[ArrayAttr[Attribute]]
+    types: ParameterDef[ArrayAttr]
 
     # TODO: Add this parameter once xDSL supports the necessary capabilities.
     #  bitmask = ParameterDef(StringAttr)
 
     @staticmethod
     def from_type_list(types: Sequence[Attribute]) -> LLVMStructType:
-        return LLVMStructType([StringAttr(""), ArrayAttr(types)])
+        return LLVMStructType(StringAttr(""), ArrayAttr(types))
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -183,11 +186,11 @@ class LLVMPointerType(
 
     @staticmethod
     def opaque():
-        return LLVMPointerType([NoneAttr(), NoneAttr()])
+        return LLVMPointerType(NoneAttr(), NoneAttr())
 
     @staticmethod
     def typed(type: Attribute):
-        return LLVMPointerType([type, NoneAttr()])
+        return LLVMPointerType(type, NoneAttr())
 
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
@@ -221,7 +224,7 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     def from_size_and_type(size: int | IntAttr, type: Attribute):
         if isinstance(size, int):
             size = IntAttr(size)
-        return LLVMArrayType([size, type])
+        return LLVMArrayType(size, type)
 
 
 @irdl_attr_definition
@@ -254,7 +257,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         if output is None:
             output = LLVMVoidType()
         variad_attr = UnitAttr() if is_variadic else NoneAttr()
-        super().__init__([inputs, output, variad_attr])
+        super().__init__(inputs, output, variad_attr)
 
     @property
     def is_variadic(self) -> bool:
@@ -321,7 +324,7 @@ class LinkageAttr(ParametrizedAttribute):
     def __init__(self, linkage: str | StringAttr) -> None:
         if isinstance(linkage, str):
             linkage = StringAttr(linkage)
-        super().__init__([linkage])
+        super().__init__(linkage)
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -413,7 +416,7 @@ class OverflowAttrBase(BitEnumAttribute[OverflowFlag]):
     none_value = "none"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class OverflowAttr(OverflowAttrBase):
     name = "llvm.overflow"
 
@@ -1379,6 +1382,7 @@ class GlobalOp(IRDLOperation):
         alignment: int | None = None,
         unnamed_addr: int | None = None,
         section: str | StringAttr | None = None,
+        body: Region | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -1416,7 +1420,10 @@ class GlobalOp(IRDLOperation):
                 section = StringAttr(section)
             props["section"] = section
 
-        super().__init__(properties=props, regions=[Region([])])
+        if body is None:
+            body = Region()
+
+        super().__init__(properties=props, regions=(body,))
 
 
 @irdl_op_definition
@@ -1478,7 +1485,7 @@ class CallingConventionAttr(ParametrizedAttribute):
         return self.convention.data
 
     def __init__(self, conv: str):
-        super().__init__([StringAttr(conv)])
+        super().__init__(StringAttr(conv))
 
     def _verify(self):
         if self.cconv_name not in LLVM_CALLING_CONVS:
@@ -1597,7 +1604,7 @@ class ConstantOp(IRDLOperation):
         printer.print_attribute(self.result.type)
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class FastMathAttr(FastMathAttrBase):
     name = "llvm.fastmath"
 
@@ -1840,6 +1847,14 @@ class FPExtOp(GenericCastOp):
     name = "llvm.fpext"
 
 
+@irdl_op_definition
+class UnreachableOp(IRDLOperation):
+    name = "llvm.unreachable"
+
+    traits = traits_def(IsTerminator())
+    assembly_format = "attr-dict"
+
+
 LLVM = Dialect(
     "llvm",
     [
@@ -1883,6 +1898,7 @@ LLVM = Dialect(
         UDivOp,
         URemOp,
         UndefOp,
+        UnreachableOp,
         XOrOp,
         ZExtOp,
         ZeroOp,

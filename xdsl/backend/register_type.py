@@ -22,7 +22,7 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
-@dataclass(frozen=True, init=False)
+@dataclass(frozen=True)
 class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
     An abstract register type for target ISA-specific dialects.
@@ -30,9 +30,6 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
 
     index: ParameterDef[IntAttr | NoneAttr]
     register_name: ParameterDef[StringAttr]
-
-    def __init__(self, index: IntAttr | NoneAttr, register_name: StringAttr):
-        super().__init__((index, register_name))
 
     @classmethod
     def unallocated(cls) -> Self:

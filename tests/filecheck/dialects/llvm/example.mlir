@@ -98,4 +98,8 @@ builtin.module {
   %fval3 = llvm.fpext %fval : f32 to f64
 
 // CHECK-NEXT: %fval3 = llvm.fpext %fval : f32 to f64
+
+  llvm.unreachable {my_attr}
+
+// CHECK-NEXT: llvm.unreachable {my_attr}
 }

@@ -47,7 +47,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.exceptions import DiagnosticException, ParseError
+from xdsl.utils.exceptions import ParseError
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -94,7 +94,7 @@ def test_unit_attr():
 "unit_attr_op"() {parallelize} : () -> ()
 """
 
-    unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr([])})
+    unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr()})
 
     assert_print_op(unit_op, expected)
 
@@ -106,7 +106,7 @@ def test_added_unit_attr():
 "unit_attr_op"() {parallelize, vectorize} : () -> ()
 """
     unitop = UnitAttrOp.build(
-        attributes={"parallelize": UnitAttr([]), "vectorize": UnitAttr([])}
+        attributes={"parallelize": UnitAttr(), "vectorize": UnitAttr()}
     )
 
     assert_print_op(unitop, expected)
@@ -306,10 +306,12 @@ def test_diagnostic():
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
+    class MyException(Exception): ...
+
     diag = Diagnostic()
     diag.add_message(module, "Test")
-    with pytest.raises(DiagnosticException):
-        diag.raise_exception("test message", module)
+    with pytest.raises(MyException, match="Test"):
+        diag.raise_exception(module, MyException("hello"))
 
 
 #  ____ ____    _    _   _

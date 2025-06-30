@@ -21,7 +21,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypedAttribute,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import PyRDLError, VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
 if TYPE_CHECKING:
@@ -439,6 +439,11 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     attr_constrs: tuple[GenericAttrConstraint[AttributeCovT], ...]
     """The list of constraints that are checked."""
 
+    _eq_constrs: set[Attribute] = field(hash=False, repr=False)
+    _based_constrs: dict[type[Attribute], GenericAttrConstraint[AttributeCovT]] = field(
+        hash=False, repr=False
+    )
+
     def __init__(
         self,
         attr_constrs: Sequence[
@@ -450,26 +455,61 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         constrs: tuple[GenericAttrConstraint[AttributeCovT], ...] = tuple(
             irdl_to_attr_constraint(constr) for constr in attr_constrs
         )
+
+        eq_constrs = set[Attribute]()
+        based_constrs = dict[type[Attribute], GenericAttrConstraint[AttributeCovT]]()
+
+        bases = set[Attribute]()
+        eq_bases = set[Attribute]()
+        for i, c in enumerate(constrs):
+            b = c.get_bases()
+            if b is None:
+                raise PyRDLError(
+                    f"Constraint {c} cannot appear in an `AnyOf` constraint as its bases aren't known."
+                )
+
+            if not b.isdisjoint(bases):
+                raise PyRDLError(
+                    f"Constraint {c} shares a base with a non-equality constraint "
+                    f"in {set(constrs[0:i])} in `AnyOf` constraint."
+                )
+
+            if isinstance(c, EqAttrConstraint):
+                eq_constrs.add(c.attr)
+                eq_bases |= b
+            else:
+                if not b.isdisjoint(eq_bases):
+                    raise PyRDLError(
+                        f"Non-equality constraint {c} shares a base with a constraint "
+                        f"in {set(constrs[0:i])} in `AnyOf` constraint."
+                    )
+                for base in b:
+                    based_constrs[base] = c
+                bases |= b
+
         object.__setattr__(
             self,
             "attr_constrs",
             constrs,
         )
+        object.__setattr__(
+            self,
+            "_eq_constrs",
+            eq_constrs,
+        )
+        object.__setattr__(
+            self,
+            "_based_constrs",
+            based_constrs,
+        )
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        constraint_context = constraint_context or ConstraintContext()
-        for attr_constr in self.attr_constrs:
-            # Copy the constraint to ensure that if the constraint fails, the
-            # constraint context is not modified.
-            constraint_context_copy = constraint_context.copy()
-            try:
-                attr_constr.verify(attr, constraint_context_copy)
-                # If the constraint succeeds, we update back the constraint variables
-                constraint_context.update(constraint_context_copy)
-                return
-            except VerifyException:
-                pass
-        raise VerifyException(f"Unexpected attribute {attr}")
+        if attr in self._eq_constrs:
+            return
+        constr = self._based_constrs.get(attr.__class__)
+        if constr is None:
+            raise VerifyException(f"Unexpected attribute {attr}")
+        constr.verify(attr, constraint_context)
 
     def __or__(
         self, value: GenericAttrConstraint[_AttributeCovT], /

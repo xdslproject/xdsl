@@ -98,9 +98,7 @@ class PtrLoadToX86(RewritePattern):
                 case 32:
                     mov = x86.ops.DM_VmovupsOp
                 case 64:
-                    raise DiagnosticException(
-                        "Double precision floating point vector load is not implemented yet."
-                    )
+                    mov = x86.ops.DM_VmovupdOp
                 case _:
                     raise DiagnosticException(
                         "Float precision must be half, single or double."

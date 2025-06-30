@@ -137,6 +137,7 @@ class Attribute(ABC):
         return res.getvalue()
 
 
+@dataclass(frozen=True, init=False)
 class BuiltinAttribute(Attribute, ABC):
     """
     This class is used to mark builtin attributes.
@@ -306,6 +307,7 @@ class EnumAttribute(Data[EnumType]):
         return cast(EnumType, parser.parse_str_enum(cls.enum_type))
 
 
+@dataclass(frozen=True, init=False)
 class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
     """
     Core helper for BitEnumAttributes. Takes a StrEnum type parameter, and
@@ -423,7 +425,18 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
-    def __init__(self, parameters: Sequence[Attribute] = ()):
+    def __init__(self, *parameters: Attribute):
+        if len(parameters) == 1 and isinstance(parameters[0], tuple):
+            import warnings
+
+            warnings.warn(
+                "Passing a tuple as a single argument to ParametrizedAttribute.__init__ is deprecated. "
+                "Pass the tuple elements as separate arguments instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            parameters = parameters[0]
+
         for (f, _), param in zip(
             self.get_irdl_definition().parameters, parameters, strict=True
         ):
@@ -452,9 +465,13 @@ class ParametrizedAttribute(Attribute):
         # We do this to allow users to redefine their own __init__.
         attr = cls.__new__(cls)
 
-        # Call the __init__ of ParametrizedAttribute, which will set the
-        # parameters field.
-        ParametrizedAttribute.__init__(attr, tuple(params))
+        # Set the parameters based on the definition
+        for (f, _), param in zip(
+            cls.get_irdl_definition().parameters, params, strict=True
+        ):
+            object.__setattr__(attr, f, param)
+        attr.__post_init__()
+
         return attr
 
     @classmethod
@@ -1162,7 +1179,8 @@ class Operation(IRNode):
             self.verify_()
         except VerifyException as err:
             self.emit_error(
-                "Operation does not verify: " + str(err), underlying_error=err
+                f"Operation does not verify: {err}",
+                err,
             )
 
     def verify_(self) -> None:
@@ -1352,15 +1370,14 @@ class Operation(IRNode):
     def emit_error(
         self,
         message: str,
-        exception_type: type[Exception] = VerifyException,
-        underlying_error: Exception | None = None,
+        underlying_error: Exception,
     ) -> NoReturn:
         """Emit an error with the given message."""
         from xdsl.utils.diagnostic import Diagnostic
 
         diagnostic = Diagnostic()
         diagnostic.add_message(self, message)
-        diagnostic.raise_exception(message, self, exception_type, underlying_error)
+        diagnostic.raise_exception(self, underlying_error)
 
     @classmethod
     def dialect_name(cls) -> str:

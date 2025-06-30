@@ -396,11 +396,9 @@ class LowerTimerFuncCall(RewritePattern):
         time_lib = wrapper.get_program_import("<time>")
 
         three_elem_ptr_type = csl.PtrType(
-            [
-                memref.MemRefType(op.ptr.type.get_element_type(), (3,)),
-                csl.PtrKindAttr(csl.PtrKind.SINGLE),
-                csl.PtrConstAttr(csl.PtrConst.VAR),
-            ]
+            memref.MemRefType(op.ptr.type.get_element_type(), (3,)),
+            csl.PtrKindAttr(csl.PtrKind.SINGLE),
+            csl.PtrConstAttr(csl.PtrConst.VAR),
         )
 
         rewriter.insert_op(

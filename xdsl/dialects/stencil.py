@@ -92,7 +92,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
             return [cls.parse_indices(parser)]
 
     @classmethod
-    def parse_indices(cls, parser: AttrParser) -> ArrayAttr:
+    def parse_indices(cls, parser: AttrParser) -> ArrayAttr[IntAttr]:
         """
         Parse a comma-separated, square delimited, list of integers into an ArrayAttr of
         IntAttrs.
@@ -121,11 +121,9 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     @staticmethod
     def get(*indices: int | IntAttr):
         return IndexAttr(
-            [
-                ArrayAttr(
-                    [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
-                )
-            ]
+            ArrayAttr(
+                [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
+            )
         )
 
     # TODO : come to an agreement on, do we want to allow that kind of things
@@ -190,10 +188,8 @@ class StencilBoundsAttr(ParametrizedAttribute):
         else:
             lb, ub = (), ()
         super().__init__(
-            [
-                IndexAttr.get(*lb),
-                IndexAttr.get(*ub),
-            ]
+            IndexAttr.get(*lb),
+            IndexAttr.get(*ub),
         )
 
     def print_parameters(self, printer: Printer) -> None:
@@ -205,9 +201,9 @@ class StencilBoundsAttr(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         with parser.in_angle_brackets():
-            lb = IndexAttr([IndexAttr.parse_indices(parser)])
+            lb = IndexAttr(IndexAttr.parse_indices(parser))
             parser.parse_punctuation(",")
-            ub = IndexAttr([IndexAttr.parse_indices(parser)])
+            ub = IndexAttr(IndexAttr.parse_indices(parser))
             return [lb, ub]
 
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
@@ -356,7 +352,7 @@ class StencilType(
             nbounds = IntAttr(bounds)
         else:
             nbounds = bounds
-        return super().__init__([nbounds, element_type])
+        return super().__init__(nbounds, element_type)
 
     @classmethod
     def constr(
@@ -373,7 +369,7 @@ class StencilType(
         return ParamAttrConstraint(cls, (bounds, element_type))
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class FieldType(
     Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
@@ -390,7 +386,7 @@ class FieldType(
     name = "stencil.field"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class TempType(
     Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
@@ -416,9 +412,6 @@ AnyTempType: TypeAlias = TempType[Attribute]
 class ResultType(ParametrizedAttribute, TypeAttribute):
     name = "stencil.result"
     elem: ParameterDef[Attribute]
-
-    def __init__(self, type: Attribute) -> None:
-        super().__init__([type])
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -1111,9 +1104,7 @@ class AccessOp(IRDLOperation):
 
         attributes: dict[str, Attribute] = {
             "offset": IndexAttr(
-                [
-                    ArrayAttr(IntAttr(value) for value in offset),
-                ]
+                ArrayAttr(IntAttr(value) for value in offset),
             ),
         }
 

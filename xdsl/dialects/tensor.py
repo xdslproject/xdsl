@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AtLeast,
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
@@ -216,7 +217,14 @@ class EmptyOp(IRDLOperation):
 
 
 ReassociationAttr = Annotated[
-    ArrayAttr[ArrayAttr[IntegerAttr[I64]]],
+    ArrayAttr[
+        ArrayAttr[
+            Annotated[
+                IntegerAttr[I64],
+                IntegerAttr.constr(value=AtLeast(0)),
+            ]
+        ]
+    ],
     ContiguousArrayOfIntArray(),
 ]
 

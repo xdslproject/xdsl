@@ -109,7 +109,7 @@ class InnerRefAttr(ParametrizedAttribute):
             module = StringAttr(module)
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__((SymbolRefAttr(module), name))
+        super().__init__(SymbolRefAttr(module), name)
 
     @classmethod
     def get_from_operation(
@@ -302,7 +302,7 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
             field_id = IntAttr(field_id)
         if isinstance(sym_visibility, str):
             sym_visibility = StringAttr(sym_visibility)
-        super().__init__([sym, field_id, sym_visibility])
+        super().__init__(sym, field_id, sym_visibility)
 
     @classmethod
     def parse_parameters(
@@ -377,7 +377,7 @@ class InnerSymAttr(
             syms = [InnerSymPropertiesAttr(syms)]
         if not isinstance(syms, ArrayAttr):
             syms = ArrayAttr(syms)
-        super().__init__([syms])
+        super().__init__(syms)
 
     def get_sym_if_exists(self, field_id: IntAttr | int) -> StringAttr | None:
         """Get the inner sym name for field_id, if it exists."""
@@ -528,7 +528,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
             parser.parse_punctuation(":")
             typ = parser.parse_type()
 
-            return ModulePort([StringAttr(name), typ, DirectionAttr(direction)])
+            return ModulePort(StringAttr(name), typ, DirectionAttr(direction))
 
         return [
             ArrayAttr(
@@ -558,7 +558,7 @@ class ParamDeclAttr(ParametrizedAttribute):
     @classmethod
     def parse_free_standing_parameters(
         cls, parser: AttrParser, only_accept_string_literal_name: bool = False
-    ) -> Sequence[Attribute]:
+    ) -> tuple[StringAttr, TypeAttribute]:
         """
         Parses the parameter declaration without the encompassing angle brackets.
         If only_accept_string_literal_name is True, the parser will not accept
@@ -656,20 +656,16 @@ class ParsedModuleHeader(NamedTuple):
 
     def get_module_type(self) -> ModuleType:
         return ModuleType(
-            [
-                ArrayAttr(
-                    tuple(
-                        ModulePort(
-                            (
-                                StringAttr(arg.port_name),
-                                arg.port_type,
-                                DirectionAttr(arg.port_dir),
-                            )
-                        )
-                        for arg in self.args
+            ArrayAttr(
+                tuple(
+                    ModulePort(
+                        StringAttr(arg.port_name),
+                        arg.port_type,
+                        DirectionAttr(arg.port_dir),
                     )
+                    for arg in self.args
                 )
-            ]
+            )
         )
 
     @classmethod
@@ -714,7 +710,9 @@ class ParsedModuleHeader(NamedTuple):
         name = parser.parse_symbol_name()
         parameters = parser.parse_optional_comma_separated_list(
             parser.Delimiter.ANGLE,
-            lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
+            lambda: ParamDeclAttr(
+                *ParamDeclAttr.parse_free_standing_parameters(parser)
+            ),
         )
         args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parse_module_arg

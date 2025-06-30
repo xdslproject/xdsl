@@ -39,9 +39,15 @@
 
 // -----
 
-// CHECK: Double precision floating point vector load is not implemented yet.
 %ptr3 = "test.op"(): () -> !ptr_xdsl.ptr
 %v3 = ptr_xdsl.load %ptr3 : !ptr_xdsl.ptr -> vector<4xf64>
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %ptr3 = "test.op"() : () -> !ptr_xdsl.ptr
+// CHECK-NEXT:   %v3 = builtin.unrealized_conversion_cast %ptr3 : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %v3_1 = x86.dm.vmovupd %v3, 0 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT:   %v3_2 = builtin.unrealized_conversion_cast %v3_1 : !x86.avx2reg to vector<4xf64>
+// CHECK-NEXT: }
 
 // -----
 

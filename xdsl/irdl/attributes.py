@@ -6,7 +6,7 @@
 #
 
 from abc import ABC, abstractmethod
-from collections.abc import Hashable, Sequence
+from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
 from inspect import isclass
 from types import FunctionType, GenericAlias, UnionType
@@ -22,9 +22,10 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
+    overload,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, dataclass_transform
 
 from xdsl.ir import AttributeCovT
 
@@ -40,7 +41,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypedAttribute,
 )
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError
+from xdsl.utils.exceptions import PyRDLAttrDefinitionError, PyRDLTypeError
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
@@ -315,19 +316,39 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
 TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
 
 
-def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
-    check_attr_name(cls)
-    if issubclass(cls, ParametrizedAttribute):
-        return irdl_param_attr_definition(cls)
-    if issubclass(cls, Data):
-        # This used to be convoluted
-        # But Data is already frozen itself, so any child Attribute still throws on
-        # .data!
-        return runtime_final(cast(TypeAttributeInvT, cls))
-    raise TypeError(
-        f"Class {cls.__name__} should either be a subclass of 'Data' or "
-        "'ParametrizedAttribute'"
-    )
+@overload
+def irdl_attr_definition(
+    cls: TypeAttributeInvT, *, init: bool = True
+) -> TypeAttributeInvT: ...
+
+
+@overload
+def irdl_attr_definition(
+    *, init: bool = True
+) -> Callable[[TypeAttributeInvT], TypeAttributeInvT]: ...
+
+
+@dataclass_transform(frozen_default=True)
+def irdl_attr_definition(
+    cls: TypeAttributeInvT | None = None, *, init: bool = True
+) -> TypeAttributeInvT | Callable[[TypeAttributeInvT], TypeAttributeInvT]:
+    def decorator(cls: TypeAttributeInvT) -> TypeAttributeInvT:
+        check_attr_name(cls)
+        if issubclass(cls, ParametrizedAttribute):
+            return irdl_param_attr_definition(cls)
+        if issubclass(cls, Data):
+            # This used to be convoluted
+            # But Data is already frozen itself, so any child Attribute still throws on
+            # .data!
+            return runtime_final(cast(TypeAttributeInvT, cls))
+        raise TypeError(
+            f"Class {cls.__name__} should either be a subclass of 'Data' or "
+            "'ParametrizedAttribute'"
+        )
+
+    if cls is None:
+        return decorator
+    return decorator(cls)
 
 
 IRDLGenericAttrConstraint: TypeAlias = (
@@ -429,9 +450,11 @@ def irdl_to_attr_constraint(
     # We take the type variable bound constraint.
     if isinstance(irdl, TypeVar):
         if not allow_type_var:
-            raise ValueError("TypeVar in unexpected context.")
+            raise PyRDLTypeError("TypeVar in unexpected context.")
         if irdl.__bound__ is None:
-            raise ValueError("Type variables used in IRDL are expected to be bound.")
+            raise PyRDLTypeError(
+                "Type variables used in IRDL are expected to be bound."
+            )
         # We do not allow nested type variables.
         constraint = irdl_to_attr_constraint(irdl.__bound__)
         return cast(
@@ -444,7 +467,7 @@ def irdl_to_attr_constraint(
     if isclass(origin) and issubclass(origin, GenericData):
         args = get_args(irdl)
         if len(args) != 1:
-            raise Exception(f"GenericData args must have length 1, got {args}")
+            raise PyRDLTypeError(f"GenericData args must have length 1, got {args}")
         constr = irdl_to_attr_constraint(args[0])
 
         return cast(GenericAttrConstraint[AttributeInvT], origin.constr(constr))
@@ -464,7 +487,7 @@ def irdl_to_attr_constraint(
 
         # Check that we have the right number of parameters
         if len(args) != len(generic_args):
-            raise Exception(
+            raise PyRDLTypeError(
                 f"{origin.name} expects {len(generic_args)}"
                 f" parameters, got {len(args)}."
             )
@@ -507,13 +530,13 @@ def irdl_to_attr_constraint(
 
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):
-        raise ValueError(
+        raise PyRDLTypeError(
             f"Generic `Data` type '{origin.name}' cannot be converted to "
             "an attribute constraint. Consider making it inherit from "
             "`GenericData` instead of `Data`."
         )
 
-    raise ValueError(f"Unexpected irdl constraint: {irdl}")
+    raise PyRDLTypeError(f"Unexpected irdl constraint: {irdl}")
 
 
 def base(irdl: type[AttributeInvT]) -> GenericAttrConstraint[AttributeInvT]:

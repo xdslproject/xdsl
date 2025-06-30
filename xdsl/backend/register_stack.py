@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing_extensions import TypeVar
 
 from xdsl.backend.register_type import RegisterType
-from xdsl.dialects.builtin import IntAttr
+from xdsl.dialects.builtin import IntAttr, NoneAttr
 
 _T = TypeVar("_T", bound=RegisterType)
 
@@ -15,6 +15,13 @@ _T = TypeVar("_T", bound=RegisterType)
 class RegisterStack:
     """
     LIFO stack of registers available for allocation.
+    """
+
+    allocatable_registers: defaultdict[str, set[int]] = field(
+        default_factory=lambda: defaultdict(lambda: set[int]())
+    )
+    """
+    Registers that can be used by the register allocator for a given register set.
     """
 
     next_infinite_indices: defaultdict[str, int] = field(
@@ -38,34 +45,19 @@ class RegisterStack:
     """
 
     @classmethod
-    def default_reserved_registers(cls) -> Iterable[RegisterType]:
-        """
-        The default registers to be made unavailable when instantiating the stack.
-        """
-        return ()
-
-    @classmethod
-    def default_available_registers(cls) -> Iterable[RegisterType]:
+    def default_allocatable_registers(cls) -> Iterable[RegisterType]:
         """
         The default registers to be made available when instantiating the stack.
         """
         return ()
 
     @classmethod
-    def default(
-        cls,
-        reserved_registers: Iterable[RegisterType] | None = None,
-        available_registers: Iterable[RegisterType] | None = None,
-    ):
-        if reserved_registers is None:
-            reserved_registers = cls.default_reserved_registers()
-        if available_registers is None:
-            available_registers = cls.default_available_registers()
+    def get(cls, allocatable_registers: Iterable[RegisterType] | None = None):
+        if allocatable_registers is None:
+            allocatable_registers = cls.default_allocatable_registers()
         res = cls()
-        for reg in reserved_registers:
-            res.reserve_register(reg)
-        for reg in available_registers:
-            res.push(reg)
+        for reg in allocatable_registers:
+            res.include_register(reg)
         return res
 
     def push(self, reg: RegisterType) -> None:
@@ -75,11 +67,15 @@ class RegisterStack:
         if not isinstance(reg.index, IntAttr):
             raise ValueError("Cannot push an unallocated register")
 
+        index = reg.index.data
         register_set = reg.name
-        if reg.index.data in self.reserved_registers[register_set]:
+        if (
+            index in self.reserved_registers[register_set]
+            or index not in self.allocatable_registers[register_set]
+        ) and 0 <= index:
             return
 
-        self.available_registers[register_set].append(reg.index.data)
+        self.available_registers[register_set].append(index)
 
     def pop(self, reg_type: type[_T]) -> _T:
         """
@@ -136,11 +132,23 @@ class RegisterStack:
         if not reserved_registers[reg.index.data]:
             del reserved_registers[reg.index.data]
 
+    def include_register(self, reg: RegisterType) -> None:
+        """
+        Makes register available for allocation.
+        """
+        assert not isinstance(reg.index, NoneAttr)
+        self.allocatable_registers[reg.name].add(reg.index.data)
+        self.push(reg)
+
     def exclude_register(self, reg: RegisterType) -> None:
         """
         Removes register from available set, if present.
         """
         assert isinstance(reg.index, IntAttr)
+        index = reg.index.data
         available_registers = self.available_registers[reg.name]
-        if reg.index.data in available_registers:
-            available_registers.remove(reg.index.data)
+        allocatable_registers = self.allocatable_registers[reg.name]
+        if index in available_registers:
+            available_registers.remove(index)
+        if index in allocatable_registers:
+            allocatable_registers.remove(reg.index.data)

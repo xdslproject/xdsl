@@ -187,7 +187,7 @@ class ModuleOp(IRDLOperation):
             params = []
         elif isinstance(params, dict):
             params = [
-                ParamAttribute([StringAttr(name), val, val.type])
+                ParamAttribute(StringAttr(name), val, val.type)
                 for name, val in params.items()
             ]
         params_attr = ArrayAttr(params)
