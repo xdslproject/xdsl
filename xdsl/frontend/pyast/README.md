@@ -92,11 +92,7 @@ builtin.module {
          functions registered to map to operations
    - [ ] Loosen constraints enforced by `PythonCodeCheck` to leverage added
          functionality
-2. Add sensible defaults for registering types and functions
-   - [ ] `int` -> `bigint.bigint`
-   - [ ] `float` -> `builtin.f64`
-   - [ ] `bool` -> `builtin.i1`
-3. Add support for more Python functionality by implementing code generation for
+2. Add support for more Python functionality by implementing code generation for
    each AST node:
    - [x] `Assert`
    - [ ] `AnnAssign`/`Assign`
@@ -111,8 +107,8 @@ builtin.module {
    - [x] `Return`
    - [ ] `While`
    - [ ] ...
-4. Refactor `CodeContext` to support decorating functions
-5. Add support for more Python builtin data types, including:
+3. Refactor `CodeContext` to support decorating functions
+4. Add support for more Python builtin data types, for example:
    - [ ] `None`
    - [ ] `string`
    - [ ] `list`
