@@ -1391,7 +1391,7 @@ class GlobalOp(IRDLOperation):
         alignment: int | None = None,
         unnamed_addr: int | None = None,
         section: str | StringAttr | None = None,
-        body: Region = None,
+        body: Region | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
