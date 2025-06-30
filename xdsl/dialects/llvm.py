@@ -1430,7 +1430,7 @@ class GlobalOp(IRDLOperation):
             props["section"] = section
 
         if body is None:
-            body = Region([])
+            body = Region()
 
         super().__init__(properties=props, regions=[body])
 
