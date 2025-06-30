@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
     Float64Type,
     FloatAttr,
     IndexType,
-    IntAttrConstraint,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -3322,9 +3321,7 @@ class IntAttrExtractOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(
-        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-    )
+    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
     outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
 
@@ -3369,13 +3366,9 @@ class IntAttrVerifyOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(
-        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-    )
+    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
-    prop2 = opt_prop_def(
-        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-    )
+    prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
     ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
 
@@ -3435,6 +3428,9 @@ class MyAttr(ParametrizedAttribute):
 
     param: ParameterDef[StringAttr]
 
+    def __init__(self, param: StringAttr):
+        super().__init__((param,))
+
 
 @irdl_op_definition
 class NonQualifiedAttrOp(IRDLOperation):
@@ -3453,7 +3449,7 @@ def test_non_qualified_attr():
     parser = Parser(ctx, 'test.non_qualified_attr <"test">')
     op = parser.parse_operation()
     assert isinstance(op, NonQualifiedAttrOp)
-    assert op.attr == MyAttr([StringAttr("test")])
+    assert op.attr == MyAttr(StringAttr("test"))
 
 
 @irdl_op_definition
@@ -3473,4 +3469,4 @@ def test_qualified_attr():
     parser = Parser(ctx, 'test.qualified_attr #test.my_attr<"test">')
     op = parser.parse_operation()
     assert isinstance(op, QualifiedAttrOp)
-    assert op.attr == MyAttr([StringAttr("test")])
+    assert op.attr == MyAttr(StringAttr("test"))

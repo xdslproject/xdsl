@@ -154,6 +154,18 @@ class DeferredAttr(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
+class DummyScopeType(ParametrizedAttribute, TypeAttribute):
+    """
+    fir.dscope is a type returned by fir.dummy_scope operation.
+    It defines a unique identifier for a runtime instance of a subroutine
+    that is used by the [hl]fir.declare operations representing
+    the dummy arguments' declarations.
+    """
+
+    name = "fir.dscope"
+
+
+@irdl_attr_definition
 class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
     """
     A pointer type that does not have any of the constraints and semantics
@@ -1079,6 +1091,29 @@ class BoxIsptrOp(IRDLOperation):
 
 
 @irdl_op_definition
+class BoxOffsetOp(IRDLOperation):
+    """
+    Given the address of a fir.box, compute the address of a field inside
+    the fir.box.
+    This allows keeping the actual runtime descriptor layout abstract in
+    FIR while providing access to the pointer addresses in the runtime
+    descriptor for OpenMP/OpenACC target mapping.
+
+    To avoid requiring too much information about the fields that the runtime
+    descriptor implementation must have, only the base_addr and derived_type
+    descriptor fields can be addressed.
+
+    %addr = fir.box_offset %box base_addr : (!fir.ref<!fir.box<!fir.array<?xi32>>>) -> !fir.llvm_ptr<!fir.ref<!fir.array<?xi32>>>
+    %tdesc = fir.box_offset %box derived_type : (!fir.ref<!fir.box<!fir.type<t>>>) -> !fir.llvm_ptr<!fir.tdesc<!fir.type<t>>>
+    """
+
+    name = "fir.box_offset"
+    field = prop_def(Attribute)
+    val = operand_def()
+    result_0 = result_def()
+
+
+@irdl_op_definition
 class BoxprocHostOp(IRDLOperation):
     """
     Extract the host context pointer from a boxproc value.
@@ -1396,10 +1431,92 @@ class DoLoopOp(IRDLOperation):
     lowerBound = operand_def()
     upperBound = operand_def()
     step = operand_def()
+    reduceOperands = var_operand_def()
+    initArgs = var_operand_def()
     finalValue = opt_prop_def(Attribute)
     initArgs = opt_operand_def()
     _results = var_result_def()
     regs = var_region_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
+@irdl_op_definition
+class DummyScopeOp(IRDLOperation):
+    """
+    An abstract handle to be used to associate dummy arguments of the same
+    subroutine between each other. By lowering, all [hl]fir.declare
+    operations representing declarations of dummy arguments of a subroutine
+    use the result of this operation. This allows recognizing the references
+    of these dummy arguments as belonging to the same runtime instance
+    of the subroutine even after MLIR inlining. Thus, the Fortran aliasing
+    rules might be applied to those references based on the original
+    declarations of the dummy arguments.
+    For example:
+      subroutine test(x, y)
+        real, target :: x, y
+        x = y ! may alias
+        call inner(x, y)
+      contains
+        subroutine inner(x, y)
+          real :: x, y
+          x = y ! may not alias
+        end subroutine inner
+      end subroutine test
+
+    After MLIR inlining this may look like this:
+
+      func.func @_QPtest(
+          %arg0: !fir.ref<f32> {fir.target},
+          %arg1: !fir.ref<f32> {fir.target}) {
+        %0 = fir.declare %arg0 {fortran_attrs = #fir.var_attrs<target>} :
+            (!fir.ref<f32>) -> !fir.ref<f32>
+        %1 = fir.declare %arg1 {fortran_attrs = #fir.var_attrs<target>} :
+            (!fir.ref<f32>) -> !fir.ref<f32>
+        %2 = fir.load %1 : !fir.ref<f32>
+        fir.store %2 to %0 : !fir.ref<f32>
+        %3 = fir.declare %0 : (!fir.ref<f32>) -> !fir.ref<f32>
+        %4 = fir.declare %1 : (!fir.ref<f32>) -> !fir.ref<f32>
+        %5 = fir.load %4 : !fir.ref<f32>
+        fir.store %5 to %3 : !fir.ref<f32>
+        return
+      }
+
+    Without marking %3 and %4 as declaring the dummy arguments
+    of the same runtime instance of `inner` subroutine the FIR
+    AliasAnalysis cannot deduce non-aliasing for the second load/store pair.
+    This information may be preserved by using fir.dummy_scope operation:
+
+      func.func @_QPtest(
+          %arg0: !fir.ref<f32> {fir.target},
+          %arg1: !fir.ref<f32> {fir.target}) {
+        %h1 = fir.dummy_scope : i1
+        %0 = fir.declare %arg0 dummy_scope(%h1)
+            {fortran_attrs = #fir.var_attrs<target>} :
+            (!fir.ref<f32>) -> !fir.ref<f32>
+        %1 = fir.declare %arg1 dummy_scope(%h1)
+            {fortran_attrs = #fir.var_attrs<target>} :
+            (!fir.ref<f32>) -> !fir.ref<f32>
+        %2 = fir.load %1 : !fir.ref<f32>
+        fir.store %2 to %0 : !fir.ref<f32>
+        %h2 = fir.dummy_scope : i1
+        %3 = fir.declare %0 dummy_scope(%h2) : (!fir.ref<f32>) -> !fir.ref<f32>
+        %4 = fir.declare %1 dummy_scope(%h2) : (!fir.ref<f32>) -> !fir.ref<f32>
+        %5 = fir.load %4 : !fir.ref<f32>
+        fir.store %5 to %3 : !fir.ref<f32>
+        return
+      }
+
+    Note that even if `inner` is called and inlined twice inside
+    `test`, the two inlined instances of `inner` must use two different
+    fir.dummy_scope operations for their fir.declare ops. This
+    two distinct fir.dummy_scope must remain distinct during the optimizations.
+    This is guaranteed by the write memory effect on the DebuggingResource.
+    """
+
+    name = "fir.dummy_scope"
+
+    result = result_def()
 
 
 @irdl_op_definition
@@ -2304,6 +2421,7 @@ FIR = Dialect(
         BoxIsallocOp,
         BoxIsarrayOp,
         BoxIsptrOp,
+        BoxOffsetOp,
         BoxprocHostOp,
         BoxRankOp,
         BoxTdescOp,
@@ -2319,6 +2437,7 @@ FIR = Dialect(
         DispatchTableOp,
         DivcOp,
         DoLoopOp,
+        DummyScopeOp,
         EmboxcharOp,
         EmboxOp,
         EmboxprocOp,
@@ -2364,6 +2483,7 @@ FIR = Dialect(
         FortranVariableFlagsAttr,
         ReferenceType,
         DeferredAttr,
+        DummyScopeType,
         LLVMPointerType,
         PointerType,
         LogicalType,
