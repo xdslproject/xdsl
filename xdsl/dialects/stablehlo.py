@@ -324,10 +324,9 @@ class DotAttr(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             with printer.indented():
-                if (
-                    not isinstance(self.lhs_batching_dimensions, NoneAttr)
-                    and not isinstance(self.rhs_batching_dimensions, NoneAttr)
-                ):
+                if not isinstance(
+                    self.lhs_batching_dimensions, NoneAttr
+                ) and not isinstance(self.rhs_batching_dimensions, NoneAttr):
                     DotAttr._print_parameter(
                         "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
                     )
