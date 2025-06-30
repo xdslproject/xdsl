@@ -169,7 +169,7 @@ class LoopWrapper(OpTrait):
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: has {num_ops} ops, expected 1"
             )
-        assert (inner := op.regions[0].block.first_op), "Expected exactly 1 op"
+        assert (inner := op.regions[0].block.first_op) is not None
         if not (inner.has_trait(LoopWrapper()) or isinstance(inner, LoopNestOp)):
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: "
