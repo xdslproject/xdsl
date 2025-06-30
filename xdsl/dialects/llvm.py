@@ -1391,6 +1391,7 @@ class GlobalOp(IRDLOperation):
         alignment: int | None = None,
         unnamed_addr: int | None = None,
         section: str | StringAttr | None = None,
+        body: Region = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -1428,7 +1429,10 @@ class GlobalOp(IRDLOperation):
                 section = StringAttr(section)
             props["section"] = section
 
-        super().__init__(properties=props, regions=[Region([])])
+        if body is None:
+            body = Region([])
+
+        super().__init__(properties=props, regions=[body])
 
 
 @irdl_op_definition
