@@ -57,7 +57,6 @@ from xdsl.traits import (
     OpTrait,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 
 class OpenMPOffloadMappingFlags(IntFlag):
