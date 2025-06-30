@@ -369,7 +369,7 @@ class StencilType(
         return ParamAttrConstraint(cls, (bounds, element_type))
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class FieldType(
     Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
@@ -385,20 +385,8 @@ class FieldType(
 
     name = "stencil.field"
 
-    def __init__(
-        self,
-        bounds: (
-            Iterable[tuple[int | IntAttr, int | IntAttr]]
-            | int
-            | IntAttr
-            | StencilBoundsAttr
-        ),
-        element_type: _FieldTypeElement,
-    ) -> None:
-        super().__init__(bounds, element_type)
 
-
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class TempType(
     Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
@@ -411,18 +399,6 @@ class TempType(
     """
 
     name = "stencil.temp"
-
-    def __init__(
-        self,
-        bounds: (
-            Iterable[tuple[int | IntAttr, int | IntAttr]]
-            | int
-            | IntAttr
-            | StencilBoundsAttr
-        ),
-        element_type: _FieldTypeElement,
-    ) -> None:
-        super().__init__(bounds, element_type)
 
 
 StencilTypeConstr = FieldType.constr() | TempType.constr()
