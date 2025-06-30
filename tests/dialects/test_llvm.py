@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.dialects import arith, builtin, llvm, test
 from xdsl.dialects.builtin import UnitAttr, i32
-from xdsl.ir import Attribute, Region, Block
+from xdsl.ir import Attribute, Block, Region
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
