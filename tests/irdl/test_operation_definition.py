@@ -748,8 +748,8 @@ BarType = Annotated[TestType, TestType("bar")]
 
 
 _Attr = TypeVar("_Attr", bound=StringAttr | IntAttr)
-_Operand = TypeVar("_Operand", bound=FooType | BarType)
-_Result = TypeVar("_Result", bound=FooType | BarType)
+_Operand = TypeVar("_Operand", bound=TestType)
+_Result = TypeVar("_Result", bound=TestType)
 
 
 class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
@@ -872,19 +872,19 @@ def test_entry_args_op():
 
     op = EntryArgsOp.create(regions=[Region(Block(arg_types=[i64]))])
     with pytest.raises(
-        DiagnosticException,
+        VerifyException,
         match="""\
 Operation does not verify: region #0 entry arguments do not verify:
-Expected attribute i32 but got i64""",
+.*Expected attribute i32 but got i64""",
     ):
         op.verify()
 
     op = EntryArgsOp.create(regions=[Region(Block(arg_types=[i64, i32]))])
     with pytest.raises(
-        DiagnosticException,
+        VerifyException,
         match="""\
 Operation does not verify: region #0 entry arguments do not verify:
-Expected attribute i32 but got i64""",
+.*Expected attribute i32 but got i64""",
     ):
         op.verify()
 
