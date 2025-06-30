@@ -85,9 +85,6 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
     array: ParameterDef[ArrayAttr[IntAttr]]
 
-    def __init__(self, array: ArrayAttr[IntAttr]):
-        super().__init__((array,))
-
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
@@ -191,10 +188,8 @@ class StencilBoundsAttr(ParametrizedAttribute):
         else:
             lb, ub = (), ()
         super().__init__(
-            [
-                IndexAttr.get(*lb),
-                IndexAttr.get(*ub),
-            ]
+            IndexAttr.get(*lb),
+            IndexAttr.get(*ub),
         )
 
     def print_parameters(self, printer: Printer) -> None:
@@ -357,7 +352,7 @@ class StencilType(
             nbounds = IntAttr(bounds)
         else:
             nbounds = bounds
-        return super().__init__([nbounds, element_type])
+        return super().__init__(nbounds, element_type)
 
     @classmethod
     def constr(
@@ -374,7 +369,7 @@ class StencilType(
         return ParamAttrConstraint(cls, (bounds, element_type))
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class FieldType(
     Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
@@ -391,7 +386,7 @@ class FieldType(
     name = "stencil.field"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class TempType(
     Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
@@ -417,9 +412,6 @@ AnyTempType: TypeAlias = TempType[Attribute]
 class ResultType(ParametrizedAttribute, TypeAttribute):
     name = "stencil.result"
     elem: ParameterDef[Attribute]
-
-    def __init__(self, type: Attribute) -> None:
-        super().__init__([type])
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):

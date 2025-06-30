@@ -80,9 +80,6 @@ class DoubleParamAttr(ParametrizedAttribute):
     param1: ParameterDef[Attribute]
     param2: ParameterDef[Attribute]
 
-    def __init__(self, param1: Attribute, param2: Attribute):
-        super().__init__((param1, param2))
-
 
 def test_eq_attr_verify():
     """Check that an EqAttrConstraint verifies the expected attribute"""

@@ -147,9 +147,6 @@ class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     name = "pdl.range"
     element_type: ParameterDef[_RangeT]
 
-    def __init__(self, element_type: _RangeT):
-        super().__init__([element_type])
-
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         parser.parse_punctuation("<")

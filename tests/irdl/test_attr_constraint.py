@@ -57,9 +57,6 @@ class Base(ParametrizedAttribute, ABC):
 class AttrA(Base):
     name = "test.attr_a"
 
-    def __init__(self):
-        super().__init__(())
-
 
 @irdl_attr_definition
 class AttrB(Base):
@@ -67,16 +64,10 @@ class AttrB(Base):
 
     param: ParameterDef[AttrA]
 
-    def __init__(self, param: AttrA):
-        super().__init__((param,))
-
 
 @irdl_attr_definition
 class AttrC(Base):
     name = "test.attr_c"
-
-    def __init__(self):
-        super().__init__(())
 
 
 @irdl_attr_definition
@@ -84,9 +75,6 @@ class AttrD(Base):
     name = "test.attr_d"
 
     param: ParameterDef[AttrA | AttrC]
-
-    def __init__(self, param: AttrA | AttrC):
-        super().__init__((param,))
 
 
 @pytest.mark.parametrize(
