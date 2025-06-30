@@ -58,46 +58,57 @@ class OpenMPOffloadMappingFlags(IntFlag):
     """
     Copied from [OMPConstants.h](https://github.com/llvm/llvm-project/blob/daa2a587cc01c5656deecda7f768fed0afc1e515/llvm/include/llvm/Frontend/OpenMP/OMPConstants.h#L198)
 
-    To be used as `map_type` value of `omp.map.info`
+
+    `map_type` attribute of `omp.map.info` is a 64 bit integer, with each bit specifying the flags described below.
+    Flags can be combined with `|` (bitwise or) operator.
     """
 
-    # No flags
     NONE = 0x0
-    # Allocate memory on the device and move data from host to device.
+    """ No flags """
     TO = 0x01
-    # Allocate memory on the device and move data from device to host.
+    """ Allocate memory on the device and move data from host to device. """
     FROM = 0x02
-    # Always perform the requested mapping action on the element, even if it was already mapped before.
+    """ Allocate memory on the device and move data from device to host. """
     ALWAYS = 0x04
-    # Delete the element from the device environment, ignoring the current reference count associated with the element.
+    """ Always perform the requested mapping action on the element, even if it was already mapped before. """
     DELETE = 0x08
-    # The element being mapped is a pointer-pointee pair; both the pointer and the pointee should be mapped.
+    """ Delete the element from the device environment, ignoring the current reference count associated with the element. """
     PTR_AND_OBJ = 0x10
-    # This flags signals that the base address of an entry should be passed to the target kernel as an argument.
+    """ The element being mapped is a pointer-pointee pair; both the pointer and the pointee should be mapped. """
     TARGET_PARAM = 0x20
-    # Signal that the runtime library has to return the device pointer in the current position for the data being mapped.
-    # Used when we have the use_device_ptr or use_device_addr clause.
+    """ This flags signals that the base address of an entry should be passed to the target kernel as an argument. """
     RETURN_PARAM = 0x40
-    # This flag signals that the reference being passed is a pointer to private data.
+    """
+    Signal that the runtime library has to return the device pointer in the current position for the data being mapped.
+    Used when we have the use_device_ptr or use_device_addr clause.
+    """
     PRIVATE = 0x80
-    # Pass the element to the device by value.
+    """ This flag signals that the reference being passed is a pointer to private data. """
     LITERAL = 0x100
-    # Implicit map
+    """ Pass the element to the device by value. """
     IMPLICIT = 0x200
-    # Close is a hint to the runtime to allocate memory close to the target device.
+    """ Implicit map """
     CLOSE = 0x400
-    # 0x800 is reserved for compatibility with XLC. Produce a runtime error if the data is not already allocated.
+    """ Close is a hint to the runtime to allocate memory close to the target device. """
+
+    # 0x800 is reserved for compatibility with XLC.
+
     PRESENT = 0x1000
-    # Increment and decrement a separate reference counter so that the data cannot be unmapped within the associated region.
-    # Thus, this flag is intended to be used on 'target' and 'target data' directives because they are inherently structured.
-    # It is not intended to be used on 'target enter data' and 'target exit data' directives because they are inherently dynamic.
-    # This is an OpenMP extension for the sake of OpenACC support.
+    """ Produce a runtime error if the data is not already allocated. """
     OMPX_HOLD = 0x2000
-    # Signal that the runtime library should use args as an array of descriptor_dim pointers and use args_size as dims. Used when
-    # we have non-contiguous list items in target update directive
+    """
+    Increment and decrement a separate reference counter so that the data cannot be unmapped within the associated region.
+    Thus, this flag is intended to be used on 'target' and 'target data' directives because they are inherently structured.
+    It is not intended to be used on 'target enter data' and 'target exit data' directives because they are inherently dynamic.
+    This is an OpenMP extension for the sake of OpenACC support.
+    """
     NON_CONTIG = 0x100000000000
-    # The 16 MSBs of the flags indicate whether the entry is member of some struct/class.
+    """
+    Signal that the runtime library should use args as an array of descriptor_dim pointers and use args_size as dims.
+    Used when we have non-contiguous list items in target update directive
+    """
     MEMBER_OF = 0xFFFF000000000000
+    """ The 16 MSBs of the flags indicate whether the entry is member of some struct/class. """
 
 
 class ScheduleKind(StrEnum):
@@ -376,6 +387,9 @@ class MapInfoOp(IRDLOperation):
 
     var_type = prop_def(TypeAttribute)
     map_type = opt_prop_def(IntegerAttr[_ui64])
+    """
+    To set or test flags in `map_type` use the bits defined in `OpenMPOffloadMappingFlags`
+    """
     map_capture_type = opt_prop_def(VariableCaptureKindAttr)
     members_index = opt_prop_def(ArrayAttr[i64])
     var_name = opt_prop_def(StringAttr, prop_name="name")
