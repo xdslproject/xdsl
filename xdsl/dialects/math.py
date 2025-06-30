@@ -53,29 +53,14 @@ class SignlessIntegerLikeUnaryMathOperation(IRDLOperation, abc.ABC):
 
 
 class FloatingPointLikeUnaryMathOperation(IRDLOperation, abc.ABC):
-    """A generic floating-point-like unary math operation."""
+    """A generic floating-point-like unary math operation with fastmath flags."""
 
     T: ClassVar = VarConstraint("T", floatingPointLike)
 
     operand = operand_def(T)
     result = result_def(T)
 
-    assembly_format = "$operand attr-dict `:` type($result)"
-
-    def __init__(self, operand: Operation | SSAValue):
-        operand = SSAValue.get(operand)
-        super().__init__(
-            operands=[operand],
-            result_types=[operand.type],
-        )
-
-
-class FloatingPointLikeUnaryMathOperationWithFastMath(
-    FloatingPointLikeUnaryMathOperation, abc.ABC
-):
-    """A generic floating-point-like unary math operation with fastmath flags."""
-
-    fastmath = opt_prop_def(FastMathFlagsAttr)
+    fastmath = opt_prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     assembly_format = "$operand (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
@@ -83,9 +68,8 @@ class FloatingPointLikeUnaryMathOperationWithFastMath(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
         operand = SSAValue.get(operand)
-        IRDLOperation.__init__(
-            self,
-            attributes={"fastmath": fastmath},
+        super().__init__(
+            properties={"fastmath": fastmath},
             operands=[operand],
             result_types=[operand.type],
         )
@@ -122,25 +106,7 @@ class FloatingPointLikeBinaryMathOperation(IRDLOperation, abc.ABC):
     rhs = operand_def(T)
     result = result_def(T)
 
-    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
-
-    def __init__(
-        self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
-    ):
-        super().__init__(
-            operands=[lhs, rhs],
-            result_types=[SSAValue.get(lhs).type],
-        )
-
-
-class FloatingPointLikeBinaryMathOperationWithFastMath(
-    FloatingPointLikeBinaryMathOperation, abc.ABC
-):
-    """A generic floating-point-like binary math operation with fastmath flags."""
-
-    fastmath = opt_prop_def(FastMathFlagsAttr)
+    fastmath = opt_prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     assembly_format = (
         "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
@@ -152,9 +118,8 @@ class FloatingPointLikeBinaryMathOperationWithFastMath(
         rhs: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
     ):
-        IRDLOperation.__init__(
-            self,
-            attributes={"fastmath": fastmath},
+        super().__init__(
+            properties={"fastmath": fastmath},
             operands=[lhs, rhs],
             result_types=[SSAValue.get(lhs).type],
         )
@@ -197,7 +162,7 @@ class AbsIOp(SignlessIntegerLikeUnaryMathOperation):
 
 
 @irdl_op_definition
-class Atan2Op(FloatingPointLikeBinaryMathOperationWithFastMath):
+class Atan2Op(FloatingPointLikeBinaryMathOperation):
     """
     The atan2 operation takes two operands and returns one result, all of
     which must be of the same type.  The operands must be of floating point type
@@ -222,7 +187,7 @@ class Atan2Op(FloatingPointLikeBinaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class AtanOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class AtanOp(FloatingPointLikeUnaryMathOperation):
     """
     The atan operation computes the arcus tangent of a given value.  It takes
     one operand of floating point type (i.e., scalar, tensor or vector) and returns
@@ -240,7 +205,7 @@ class AtanOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class CbrtOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class CbrtOp(FloatingPointLikeUnaryMathOperation):
     """
     The cbrt operation computes the cube root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result
@@ -260,7 +225,7 @@ class CbrtOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class CeilOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class CeilOp(FloatingPointLikeUnaryMathOperation):
     """
     The ceil operation computes the ceiling of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -278,7 +243,7 @@ class CeilOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class CopySignOp(FloatingPointLikeBinaryMathOperationWithFastMath):
+class CopySignOp(FloatingPointLikeBinaryMathOperation):
     """
     The copysign returns a value with the magnitude of the first operand and
     the sign of the second operand. It takes two operands and returns one result of
@@ -297,7 +262,7 @@ class CopySignOp(FloatingPointLikeBinaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class CosOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class CosOp(FloatingPointLikeUnaryMathOperation):
     """
     The `cos` operation computes the cosine of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -315,7 +280,7 @@ class CosOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class CoshOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class CoshOp(FloatingPointLikeUnaryMathOperation):
     """
     The cosh operation computes the hyperbolic cosine. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns
@@ -384,7 +349,7 @@ class CtPopOp(SignlessIntegerLikeUnaryMathOperation):
 
 
 @irdl_op_definition
-class ErfOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class ErfOp(FloatingPointLikeUnaryMathOperation):
     """
     The erf operation computes the error function. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -402,7 +367,7 @@ class ErfOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class Exp2Op(FloatingPointLikeUnaryMathOperationWithFastMath):
+class Exp2Op(FloatingPointLikeUnaryMathOperation):
     """
     The exp operation takes one operand of floating point type (i.e., scalar,
     tensor or vector) and returns one result of the same type. It has no standard
@@ -420,7 +385,7 @@ class Exp2Op(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class ExpM1Op(FloatingPointLikeUnaryMathOperationWithFastMath):
+class ExpM1Op(FloatingPointLikeUnaryMathOperation):
     """
     expm1(x) := exp(x) - 1
 
@@ -440,7 +405,7 @@ class ExpM1Op(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class ExpOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class ExpOp(FloatingPointLikeUnaryMathOperation):
     """
     The exp operation takes one operand of floating point type (i.e., scalar,
     tensor or vector) and returns one result of the same type. It has no standard
@@ -506,7 +471,7 @@ class FPowIOp(IRDLOperation):
 
 
 @irdl_op_definition
-class FloorOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class FloorOp(FloatingPointLikeUnaryMathOperation):
     """
     The floor operation computes the floor of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -591,7 +556,7 @@ class IPowIOp(SignlessIntegerLikeBinaryMathOperation):
 
 
 @irdl_op_definition
-class Log10Op(FloatingPointLikeUnaryMathOperationWithFastMath):
+class Log10Op(FloatingPointLikeUnaryMathOperation):
     """
     Computes the base-10 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -609,7 +574,7 @@ class Log10Op(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class Log1pOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class Log1pOp(FloatingPointLikeUnaryMathOperation):
     """
     Computes the base-e logarithm of one plus the given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -629,7 +594,7 @@ class Log1pOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class Log2Op(FloatingPointLikeUnaryMathOperationWithFastMath):
+class Log2Op(FloatingPointLikeUnaryMathOperation):
     """
     Computes the base-2 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -647,7 +612,7 @@ class Log2Op(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class LogOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class LogOp(FloatingPointLikeUnaryMathOperation):
     """
     Computes the base-e logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -665,7 +630,7 @@ class LogOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class PowFOp(FloatingPointLikeBinaryMathOperationWithFastMath):
+class PowFOp(FloatingPointLikeBinaryMathOperation):
     """
     The powf operation takes two operands of floating point type (i.e.,
     scalar, tensor or vector) and returns one result of the same type. Operands
@@ -683,7 +648,7 @@ class PowFOp(FloatingPointLikeBinaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class RoundEvenOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class RoundEvenOp(FloatingPointLikeUnaryMathOperation):
     """
     The roundeven operation returns the operand rounded to the nearest integer
     value in floating-point format. It takes one operand of floating point type
@@ -704,7 +669,7 @@ class RoundEvenOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class RoundOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class RoundOp(FloatingPointLikeUnaryMathOperation):
     """
     The round operation returns the operand rounded to the nearest integer
     value in floating-point format. It takes one operand of floating point type
@@ -725,7 +690,7 @@ class RoundOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class RsqrtOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class RsqrtOp(FloatingPointLikeUnaryMathOperation):
     """
     The rsqrt operation computes the reciprocal of the square root. It takes
     one operand of floating point type (i.e., scalar, tensor or vector) and returns
@@ -742,7 +707,7 @@ class RsqrtOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class SinOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class SinOp(FloatingPointLikeUnaryMathOperation):
     """
     The sin operation computes the sine of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -760,7 +725,7 @@ class SinOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class SinhOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class SinhOp(FloatingPointLikeUnaryMathOperation):
     """
     The sinh operation computes the hyperbolic sine. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and
@@ -778,7 +743,7 @@ class SinhOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class SqrtOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class SqrtOp(FloatingPointLikeUnaryMathOperation):
     """
     The sqrt operation computes the square root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -813,7 +778,7 @@ class TanOp(FloatingPointLikeUnaryMathOperation):
 
 
 @irdl_op_definition
-class TanhOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class TanhOp(FloatingPointLikeUnaryMathOperation):
     """
     The tanh operation computes the hyperbolic tangent. It takes one operand
     of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -831,7 +796,7 @@ class TanhOp(FloatingPointLikeUnaryMathOperationWithFastMath):
 
 
 @irdl_op_definition
-class TruncOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+class TruncOp(FloatingPointLikeUnaryMathOperation):
     """
     The trunc operation returns the operand rounded to the nearest integer
     value in floating-point format. It takes one operand of floating point type
