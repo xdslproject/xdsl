@@ -1,5 +1,5 @@
 from enum import IntFlag, auto
-from typing import ClassVar, cast
+from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -229,7 +229,7 @@ class DependKindAttr(EnumAttribute[DependKind], SpacedOpaqueSyntaxAttribute):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> DependKind:
         with parser.in_parens():
-            return cast(DependKind, parser.parse_str_enum(cls.enum_type))
+            return parser.parse_str_enum(DependKind)
 
 
 @irdl_attr_definition
@@ -250,7 +250,7 @@ class VariableCaptureKindAttr(
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> VariableCaptureKind:
         with parser.in_parens():
-            return cast(VariableCaptureKind, parser.parse_str_enum(cls.enum_type))
+            return parser.parse_str_enum(VariableCaptureKind)
 
 
 @irdl_attr_definition
@@ -288,9 +288,7 @@ class DeclareTargetCaptureClauseAttr(
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> DeclareTargetCaptureClauseKind:
         with parser.in_parens():
-            return cast(
-                DeclareTargetCaptureClauseKind, parser.parse_str_enum(cls.enum_type)
-            )
+            return parser.parse_str_enum(DeclareTargetCaptureClauseKind)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_parens():
@@ -361,7 +359,7 @@ class DataSharingClauseAttr(
         with parser.in_braces():
             parser.parse_keyword("type")
             parser.parse_punctuation("=")
-            return cast(DataSharingClauseKind, parser.parse_str_enum(cls.enum_type))
+            return parser.parse_str_enum(DataSharingClauseKind)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_braces():
