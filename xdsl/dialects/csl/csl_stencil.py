@@ -85,13 +85,9 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
     ):
         data_type = builtin.i64
         super().__init__(
-            [
-                (
-                    neighbor
-                    if isinstance(neighbor, DenseArrayBase)
-                    else DenseArrayBase.from_list(data_type, neighbor)
-                ),
-            ]
+            neighbor
+            if isinstance(neighbor, DenseArrayBase)
+            else DenseArrayBase.from_list(data_type, neighbor)
         )
 
     @classmethod

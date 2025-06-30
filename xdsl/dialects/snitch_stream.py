@@ -86,7 +86,7 @@ class StridePattern(ParametrizedAttribute):
         strides: ArrayAttr[IntAttr],
         repeat: IntAttr = IntAttr(1),
     ):
-        super().__init__((ub, strides, repeat))
+        super().__init__(ub, strides, repeat)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
