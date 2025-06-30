@@ -76,9 +76,6 @@ class AttrD(Base):
 
     param: ParameterDef[AttrA | AttrC]
 
-    def __init__(self, param: AttrA | AttrC):
-        super().__init__((param,))
-
 
 @pytest.mark.parametrize(
     "constraint, expected",
