@@ -46,8 +46,44 @@
                 #omp<procbindkind spread>,
                 // CHECK-SAME: #omp<procbindkind spread>
                 
-                #omp<orderkind concurrent>
+                #omp<orderkind concurrent>,
                 // CHECK-SAME: #omp<orderkind concurrent>
+
+                #omp<device_type (any)>,
+                // CHECK-SAME: #omp<device_type (any)>
+                #omp<device_type (host)>,
+                // CHECK-SAME: #omp<device_type (host)>
+                #omp<device_type (nohost)>,
+                // CHECK-SAME: #omp<device_type (nohost)>
+
+                #omp<clause_requires none>,
+                // CHECK-SAME: #omp<clause_requires none>
+                #omp<clause_requires reverse_offload>,
+                // CHECK-SAME: #omp<clause_requires reverse_offload>
+                #omp<clause_requires unified_address>,
+                // CHECK-SAME: #omp<clause_requires unified_address>
+                #omp<clause_requires unified_shared_memory>,
+                // CHECK-SAME: #omp<clause_requires unified_shared_memory>
+                #omp<clause_requires dynamic_allocators>,
+                // CHECK-SAME: #omp<clause_requires dynamic_allocators>
+
+                #omp<capture_clause (to)>,
+                // CHECK-SAME: #omp<capture_clause (to)>
+                #omp<capture_clause (link)>,
+                // CHECK-SAME: #omp<capture_clause (link)>
+                #omp<capture_clause (enter)>,
+                // CHECK-SAME: #omp<capture_clause (enter)>
+
+                #omp.version<version = 11>,
+                // CHECK-SAME: #omp<version <version = 11>>
+
+                #omp.declaretarget <device_type = (any), capture_clause = (link)>,
+                // CHECK-SAME: #omp<declaretarget <device_type = (any), capture_clause = (link)>>
+
+                #omp.data_sharing_type {type = private},
+                // CHECK-SAME: #omp<data_sharing_type {type = private}>
+                #omp.data_sharing_type {type = firstprivate}
+                // CHECK-SAME: #omp<data_sharing_type {type = firstprivate}>
 
             ]}: () -> !omp.map_bounds_ty
                 // CHECK-SAME: !omp.map_bounds_ty
