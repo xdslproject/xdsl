@@ -1432,7 +1432,7 @@ class GlobalOp(IRDLOperation):
         if body is None:
             body = Region()
 
-        super().__init__(properties=props, regions=[body])
+        super().__init__(properties=props, regions=(body,))
 
 
 @irdl_op_definition
