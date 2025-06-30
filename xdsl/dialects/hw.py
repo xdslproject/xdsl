@@ -109,7 +109,7 @@ class InnerRefAttr(ParametrizedAttribute):
             module = StringAttr(module)
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__((SymbolRefAttr(module), name))
+        super().__init__(SymbolRefAttr(module), name)
 
     @classmethod
     def get_from_operation(
@@ -302,7 +302,7 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
             field_id = IntAttr(field_id)
         if isinstance(sym_visibility, str):
             sym_visibility = StringAttr(sym_visibility)
-        super().__init__([sym, field_id, sym_visibility])
+        super().__init__(sym, field_id, sym_visibility)
 
     @classmethod
     def parse_parameters(
@@ -377,7 +377,7 @@ class InnerSymAttr(
             syms = [InnerSymPropertiesAttr(syms)]
         if not isinstance(syms, ArrayAttr):
             syms = ArrayAttr(syms)
-        super().__init__([syms])
+        super().__init__(syms)
 
     def get_sym_if_exists(self, field_id: IntAttr | int) -> StringAttr | None:
         """Get the inner sym name for field_id, if it exists."""
@@ -513,7 +513,7 @@ class ModulePort(ParametrizedAttribute):
         type: TypeAttribute,
         dir: DirectionAttr,
     ):
-        super().__init__((port_name, type, dir))
+        super().__init__(port_name, type, dir)
 
 
 @irdl_attr_definition
@@ -523,7 +523,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
     ports: ParameterDef[ArrayAttr[ModulePort]]
 
     def __init__(self, ports: ArrayAttr[ModulePort]):
-        super().__init__((ports,))
+        super().__init__(ports)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -567,7 +567,7 @@ class ParamDeclAttr(ParametrizedAttribute):
     type: ParameterDef[TypeAttribute]
 
     def __init__(self, port_name: StringAttr, type: TypeAttribute):
-        super().__init__((port_name, type))
+        super().__init__(port_name, type)
 
     @classmethod
     def parse_free_standing_parameters(

@@ -148,7 +148,7 @@ class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     element_type: ParameterDef[_RangeT]
 
     def __init__(self, element_type: _RangeT):
-        super().__init__([element_type])
+        super().__init__(element_type)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:

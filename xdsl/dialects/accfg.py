@@ -86,7 +86,7 @@ class TokenType(ParametrizedAttribute, TypeAttribute):
     def __init__(self, accelerator: str | StringAttr):
         if not isinstance(accelerator, StringAttr):
             accelerator = StringAttr(accelerator)
-        super().__init__([accelerator])
+        super().__init__(accelerator)
 
 
 @irdl_attr_definition
@@ -102,7 +102,7 @@ class StateType(ParametrizedAttribute, TypeAttribute):
     def __init__(self, accelerator: str | StringAttr):
         if not isinstance(accelerator, StringAttr):
             accelerator = StringAttr(accelerator)
-        return super().__init__([accelerator])
+        return super().__init__(accelerator)
 
 
 @irdl_op_definition

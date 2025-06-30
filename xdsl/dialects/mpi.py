@@ -58,7 +58,7 @@ class OperationType(ParametrizedAttribute, TypeAttribute):
     op_str: ParameterDef[StringAttr]
 
     def __init__(self, op_str: StringAttr):
-        super().__init__((op_str,))
+        super().__init__(op_str)
 
 
 class MpiOp:
@@ -128,7 +128,7 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     wrapped_type: ParameterDef[_VectorT]
 
     def __init__(self, wrapped_type: _VectorT) -> None:
-        super().__init__((wrapped_type,))
+        super().__init__(wrapped_type)
 
 
 class StatusTypeField(Enum):

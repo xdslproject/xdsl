@@ -85,7 +85,7 @@ class ReadableStreamType(
         return self.element_type
 
     def __init__(self, element_type: _StreamTypeElement):
-        super().__init__([element_type])
+        super().__init__(element_type)
 
     @classmethod
     def constr(
@@ -112,7 +112,7 @@ class WritableStreamType(
         return self.element_type
 
     def __init__(self, element_type: _StreamTypeElement):
-        super().__init__([element_type])
+        super().__init__(element_type)
 
     @classmethod
     def constr(
@@ -201,7 +201,7 @@ class StridePattern(ParametrizedAttribute):
         ub: ArrayAttr[IntegerAttr[IndexType]],
         index_map: ParameterDef[AffineMapAttr],
     ):
-        super().__init__((ub, index_map))
+        super().__init__(ub, index_map)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:

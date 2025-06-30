@@ -61,7 +61,7 @@ class ParamAttribute(ParametrizedAttribute):
         value: IntegerAttr[IntegerType] | NoneAttr,
         type: IntegerType,
     ):
-        super().__init__((key, value, type))
+        super().__init__(key, value, type)
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():

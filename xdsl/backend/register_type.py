@@ -32,7 +32,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     register_name: ParameterDef[StringAttr]
 
     def __init__(self, index: IntAttr | NoneAttr, register_name: StringAttr):
-        super().__init__((index, register_name))
+        super().__init__(index, register_name)
 
     @classmethod
     def unallocated(cls) -> Self:

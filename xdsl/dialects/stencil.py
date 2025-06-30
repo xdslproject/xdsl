@@ -86,7 +86,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     array: ParameterDef[ArrayAttr[IntAttr]]
 
     def __init__(self, array: ArrayAttr[IntAttr]):
-        super().__init__((array,))
+        super().__init__(array)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -191,10 +191,8 @@ class StencilBoundsAttr(ParametrizedAttribute):
         else:
             lb, ub = (), ()
         super().__init__(
-            [
-                IndexAttr.get(*lb),
-                IndexAttr.get(*ub),
-            ]
+            IndexAttr.get(*lb),
+            IndexAttr.get(*ub),
         )
 
     def print_parameters(self, printer: Printer) -> None:
@@ -357,7 +355,7 @@ class StencilType(
             nbounds = IntAttr(bounds)
         else:
             nbounds = bounds
-        return super().__init__([nbounds, element_type])
+        return super().__init__(nbounds, element_type)
 
     @classmethod
     def constr(
@@ -419,7 +417,7 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
     elem: ParameterDef[Attribute]
 
     def __init__(self, type: Attribute) -> None:
-        super().__init__([type])
+        super().__init__(type)
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):

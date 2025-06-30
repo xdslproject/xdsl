@@ -117,7 +117,7 @@ class LoopDimMapAttr(ParametrizedAttribute):
     def __init__(
         self, processor: ProcessorAttr, map: AffineMapAttr, bound: AffineMapAttr
     ):
-        super().__init__((processor, map, bound))
+        super().__init__(processor, map, bound)
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():

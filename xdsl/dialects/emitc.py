@@ -56,7 +56,7 @@ class EmitC_ArrayType(
         shape = ArrayAttr(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
         )
-        super().__init__([shape, element_type])
+        super().__init__(shape, element_type)
 
     def verify(self) -> None:
         if not self.shape.data:
@@ -126,7 +126,7 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
     value_type: ParameterDef[TypeAttribute]
 
     def __init__(self, value_type: TypeAttribute):
-        super().__init__([value_type])
+        super().__init__(value_type)
 
     def verify(self) -> None:
         """

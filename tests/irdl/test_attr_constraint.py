@@ -58,7 +58,7 @@ class AttrA(Base):
     name = "test.attr_a"
 
     def __init__(self):
-        super().__init__(())
+        super().__init__()
 
 
 @irdl_attr_definition
@@ -68,7 +68,7 @@ class AttrB(Base):
     param: ParameterDef[AttrA]
 
     def __init__(self, param: AttrA):
-        super().__init__((param,))
+        super().__init__(param)
 
 
 @irdl_attr_definition
@@ -76,7 +76,7 @@ class AttrC(Base):
     name = "test.attr_c"
 
     def __init__(self):
-        super().__init__(())
+        super().__init__()
 
 
 @irdl_attr_definition
@@ -86,7 +86,7 @@ class AttrD(Base):
     param: ParameterDef[AttrA | AttrC]
 
     def __init__(self, param: AttrA | AttrC):
-        super().__init__((param,))
+        super().__init__(param)
 
 
 @pytest.mark.parametrize(

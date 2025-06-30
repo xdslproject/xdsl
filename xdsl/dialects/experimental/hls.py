@@ -95,7 +95,7 @@ class HLSStreamType(ParametrizedAttribute, TypeAttribute):
     element_type: ParameterDef[Attribute]
 
     def __init__(self, element_type: Attribute):
-        super().__init__((element_type,))
+        super().__init__(element_type)
 
 
 @irdl_op_definition
