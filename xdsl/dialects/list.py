@@ -28,10 +28,10 @@ from xdsl.traits import Pure
 @irdl_attr_definition
 class List(ParametrizedAttribute, TypeAttribute):
     """
-    The `ltl.list` type represents a linked list of elements of type T.
+    The `list.list` type represents a linked list of elements of type T.
     """
 
-    name = "ltl.list"
+    name = "list.list"
 
     element_type: ParameterDef[TypeAttribute]
 
