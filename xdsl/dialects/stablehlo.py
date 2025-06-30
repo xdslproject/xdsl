@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     IntegerAttr,
     IntegerType,
+    NoneAttr,
     TensorType,
     i64,
 )
@@ -288,8 +289,8 @@ class DotAttr(ParametrizedAttribute):
 
     name = "stablehlo.dot"
 
-    lhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
-    rhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+    lhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]] | NoneAttr]
+    rhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]] | NoneAttr]
     lhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
     rhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
 
@@ -305,8 +306,14 @@ class DotAttr(ParametrizedAttribute):
         printer.print_string("]")
 
     @staticmethod
-    def _parse_parameter(name: str, parser: AttrParser) -> ArrayAttr[IntegerAttr[I64]]:
-        parser.parse_characters(name)
+    def _parse_parameter(
+        name: str, parser: AttrParser, optional: bool = False
+    ) -> ArrayAttr[IntegerAttr[I64]] | NoneAttr:
+        if optional:
+            if parser.parse_optional_characters(name) is None:
+                return NoneAttr()
+        else:
+            parser.parse_characters(name)
         parser.parse_punctuation("=")
         value = parser.parse_comma_separated_list(
             AttrParser.Delimiter.SQUARE,
@@ -317,14 +324,19 @@ class DotAttr(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             with printer.indented():
-                DotAttr._print_parameter(
-                    "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
-                )
-                printer.print_string(",")
-                DotAttr._print_parameter(
-                    "rhs_batching_dimensions", self.rhs_batching_dimensions, printer
-                )
-                printer.print_string(",")
+                if (
+                    not isinstance(self.lhs_batching_dimensions, NoneAttr)
+                    and not isinstance(self.rhs_batching_dimensions, NoneAttr)
+                ):
+                    DotAttr._print_parameter(
+                        "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
+                    )
+                    printer.print_string(",")
+                    DotAttr._print_parameter(
+                        "rhs_batching_dimensions", self.rhs_batching_dimensions, printer
+                    )
+                    printer.print_string(",")
+
                 DotAttr._print_parameter(
                     "lhs_contracting_dimensions",
                     self.lhs_contracting_dimensions,
@@ -342,13 +354,17 @@ class DotAttr(ParametrizedAttribute):
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
             lhs_batching_dimensions = DotAttr._parse_parameter(
-                "lhs_batching_dimensions", parser
+                "lhs_batching_dimensions", parser, optional=True
             )
-            parser.parse_punctuation(",")
-            rhs_batching_dimensions = DotAttr._parse_parameter(
-                "rhs_batching_dimensions", parser
-            )
-            parser.parse_punctuation(",")
+            if not isinstance(lhs_batching_dimensions, NoneAttr):
+                parser.parse_punctuation(",")
+                rhs_batching_dimensions = DotAttr._parse_parameter(
+                    "rhs_batching_dimensions", parser
+                )
+                parser.parse_punctuation(",")
+            else:
+                rhs_batching_dimensions = NoneAttr()
+
             lhs_contracting_dimensions = DotAttr._parse_parameter(
                 "lhs_contracting_dimensions", parser
             )
