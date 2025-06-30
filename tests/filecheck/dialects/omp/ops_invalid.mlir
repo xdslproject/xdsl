@@ -11,7 +11,6 @@ func.func @omp_ordered(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4
     return
 }
 
-
 // CHECK: Operation does not verify: omp.wsloop is not a LoopWrapper: has 2 ops, expected 1
 
 // -----
