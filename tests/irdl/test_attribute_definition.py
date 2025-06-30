@@ -843,6 +843,13 @@ def test_irdl_definition():
     )
 
 
+def test_deprecated_tuple_init():
+    with pytest.deprecated_call():
+        assert ParamAttrDefAttr(StringData(""), BoolData(True)) == ParamAttrDefAttr(
+            (StringData(""), BoolData(True))  # pyright: ignore[reportCallIssue]
+        )
+
+
 class InvalidTypedFieldTestAttr(ParametrizedAttribute):
     name = "test.invalid_typed_field"
 
