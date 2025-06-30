@@ -26,7 +26,7 @@ except FrontendProgramException as e:
 # CHECK-NEXT:     p.compile()
 with CodeContext(p):
 
-    def foo():  # pyright: ignore[reportRedeclaration]
+    def foo():
         return
 
 
@@ -38,11 +38,11 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        def foo():  # pyright: ignore[reportRedeclaration]
+        def foo():
             return
 
         # CHECK: Function 'foo' is already defined
-        def foo():  # pyright: ignore[reportRedeclaration]
+        def foo():
             return
 
     p.compile(desymref=False)
@@ -53,9 +53,9 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        def foo():  # pyright: ignore[reportRedeclaration]
+        def foo():
             # CHECK-NEXT: Cannot have an inner function 'bar' inside the function 'foo'.
-            def bar():  # pyright: ignore[reportUnusedFunction]
+            def bar():
                 return
 
             return
@@ -68,11 +68,11 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        def foo():  # pyright: ignore[reportRedeclaration]
+        def foo():
             @block
             def bb1():
                 # CHECK-NEXT: Cannot have a nested function 'foo' inside the block 'bb1'.
-                def foo():  # pyright: ignore[reportUnusedFunction]
+                def foo():
                     return
 
                 return
@@ -87,7 +87,7 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        def foo():  # pyright: ignore[reportRedeclaration]
+        def foo():
             @block
             def bb0():
                 # CHECK-NEXT: Cannot have a nested block 'bb1' inside the block 'bb0'.
@@ -107,9 +107,9 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        def foo():  # pyright: ignore[reportRedeclaration]
+        def foo():
             @block
-            def bb0():  # pyright: ignore[reportRedeclaration]
+            def bb0():
                 return bb0()
 
             # CHECK-NEXT: Block 'bb0' is already defined
@@ -128,9 +128,9 @@ try:
     with CodeContext(p):
 
         def test():
-            a: Const[int] = 23  # pyright: ignore[reportUnusedVariable, reportAssignmentType]
+            a: Const[int] = 23
             # CHECK-NEXT: Constant 'a' is already defined and cannot be assigned to.
-            a = 3  # pyright: ignore[reportUnusedVariable, reportAssignmentType]
+            a = 3
             return
 
     p.compile(desymref=False)
@@ -140,11 +140,11 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        a: Const[int] = 23  # pyright: ignore[reportAssignmentType]
+        a: Const[int] = 23
 
         # CHECK-NEXT: Constant 'a' is already defined.
         def test():
-            a: int = 3  # pyright: ignore[reportUnusedVariable]
+            a: int = 3
             return
 
     p.compile(desymref=False)
@@ -154,13 +154,13 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        b: Const[int] = 23  # pyright: ignore[reportAssignmentType]
+        b: Const[int] = 23
 
         def test():
             @block
             def bb0():
                 # CHECK-NEXT: Constant 'b' is already defined and cannot be assigned to.
-                b = 3  # pyright: ignore[reportUnusedVariable]
+                b = 3
                 return
 
             return bb0()
@@ -172,11 +172,11 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[int] = 23  # pyright: ignore[reportAssignmentType]
+        c: Const[int] = 23
 
-        def foo():  # pyright: ignore[reportRedeclaration]
+        def foo():
             # CHECK-NEXT: Constant 'c' is already defined and cannot be assigned to.
-            c = 2  # pyright: ignore[reportUnusedVariable]
+            c = 2
             return
 
     p.compile(desymref=False)
@@ -186,11 +186,11 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[int] = 23  # pyright: ignore[reportAssignmentType]
+        c: Const[int] = 23
 
-        def foo():  # pyright: ignore[reportRedeclaration]
+        def foo():
             # CHECK-NEXT: Constant 'c' is already defined.
-            c: int = 2  # pyright: ignore[reportUnusedVariable]
+            c: int = 2
             return
 
     p.compile(desymref=False)
@@ -200,10 +200,10 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[int] = 23  # pyright: ignore[reportAssignmentType]
+        c: Const[int] = 23
 
         # CHECK-NEXT: Constant 'c' is already defined and cannot be used as a function/block argument name.
-        def foo(c: int):  # pyright: ignore[reportRedeclaration]
+        def foo(c: int):
             return
 
     p.compile(desymref=False)
@@ -213,13 +213,13 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        d: Const[int] = 23  # pyright: ignore[reportAssignmentType]
+        d: Const[int] = 23
 
-        def foo():  # pyright: ignore[reportRedeclaration]
+        def foo():
             @block
             def bb0():
                 # CHECK-NEXT: Constant 'd' is already defined and cannot be assigned to.
-                d = 2  # pyright: ignore[reportUnusedVariable]
+                d = 2
                 return
 
             return bb0()
@@ -232,7 +232,7 @@ except FrontendProgramException as e:
 with CodeContext(p):
     # CHECK-NEXT: Expected non-zero number of return types in function 'foo', but got 0.
     def foo() -> int:
-        return  # pyright: ignore[reportReturnType]
+        return
 
 
 try:
@@ -274,7 +274,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected non-zero number of return types in function 'test_no_return_type', but got 0.
         def test_no_return_type(a: int) -> int:
-            return  # pyright: ignore[reportReturnType]
+            return
 
     p.compile(desymref=False)
     exit(1)
@@ -284,8 +284,8 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
         # CHECK: Type signature and the type of the return value do not match at position 0: expected i1, got !bigint.bigint.
-        def test_wrong_return_type(a: bool, b: int) -> bool:  # pyright: ignore[reportRedeclaration]
-            return b  # pyright: ignore[reportReturnType]
+        def test_wrong_return_type(a: bool, b: int) -> bool:
+            return b
 
     p.compile(desymref=False)
     exit(1)
