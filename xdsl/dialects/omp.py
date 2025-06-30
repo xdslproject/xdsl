@@ -54,7 +54,6 @@ from xdsl.traits import (
     IsTerminator,
     NoMemoryEffect,
     NoTerminator,
-    OpTrait,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -148,7 +147,7 @@ class VariableCaptureKind(StrEnum):
     VLAType = "VLAType"
 
 
-class LoopWrapper(OpTrait):
+class LoopWrapper(NoTerminator):
     """
     Check that the omp operation is a loop wrapper as defined upstream.
 
@@ -156,10 +155,6 @@ class LoopWrapper(OpTrait):
     """
 
     def verify(self, op: Operation) -> None:
-        if not op.has_trait(NoTerminator()):
-            raise VerifyException(
-                f"{op.name} is not a LoopWrapper: does not have NoTerminator trait"
-            )
         if (num_regions := len(op.regions)) != 1:
             raise VerifyException(
                 f"{op.name} is not a LoopWrapper: has {num_regions} region, expected 1"
@@ -174,6 +169,7 @@ class LoopWrapper(OpTrait):
                 f"{op.name} is not a LoopWrapper: "
                 f"should have a single operation which is either another LoopWrapper or {LoopNestOp.name}"
             )
+        return super().verify(op)
 
 
 _ui64 = IntegerType(64, Signedness.UNSIGNED)
@@ -271,7 +267,7 @@ class WsLoopOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(NoTerminator(), LoopWrapper())
+    traits = traits_def(LoopWrapper())
 
 
 class ProcBindKindEnum(StrEnum):
