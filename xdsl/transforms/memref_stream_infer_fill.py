@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref, memref_stream
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -40,7 +39,7 @@ class InferFillPattern(RewritePattern):
         if not isinstance(output_type := output.type, memref.MemRefType):
             return
 
-        output_type = cast(memref.MemRefType[Attribute], output.type)
+        output_type = cast(memref.MemRefType, output.type)
 
         type_shape = output_type.get_shape()
         bounds = tuple(attr.value.data for attr in op.bounds)
@@ -78,7 +77,7 @@ class MemRefStreamInferFillPass(ModulePass):
 
     name = "memref-stream-infer-fill"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             InferFillPattern(),
             apply_recursively=False,

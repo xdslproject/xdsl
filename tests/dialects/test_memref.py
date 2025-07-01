@@ -31,11 +31,11 @@ from xdsl.dialects.memref import (
     StoreOp,
     SubviewOp,
 )
-from xdsl.ir import Attribute, BlockArgument, OpResult
+from xdsl.ir import BlockArgument, OpResult
 from xdsl.ir.affine import AffineMap
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_memreftype():
@@ -54,7 +54,7 @@ def test_memreftype():
 
 def test_memref_load_i32():
     i32_memref_type = MemRefType(i32, [1])
-    memref_ssa_value = TestSSAValue(i32_memref_type)
+    memref_ssa_value = create_ssa_value(i32_memref_type)
     load = LoadOp.get(memref_ssa_value, [])
 
     assert load.memref is memref_ssa_value
@@ -64,9 +64,9 @@ def test_memref_load_i32():
 
 def test_memref_load_i32_with_dimensions():
     i32_memref_type = MemRefType(i32, [2, 3])
-    memref_ssa_value = TestSSAValue(i32_memref_type)
-    index1 = TestSSAValue(IndexType())
-    index2 = TestSSAValue(IndexType())
+    memref_ssa_value = create_ssa_value(i32_memref_type)
+    index1 = create_ssa_value(IndexType())
+    index2 = create_ssa_value(IndexType())
     load = LoadOp.get(memref_ssa_value, [index1, index2])
 
     assert load.memref is memref_ssa_value
@@ -77,8 +77,8 @@ def test_memref_load_i32_with_dimensions():
 
 def test_memref_store_i32():
     i32_memref_type = MemRefType(i32, [1])
-    memref_ssa_value = TestSSAValue(i32_memref_type)
-    i32_ssa_value = TestSSAValue(i32)
+    memref_ssa_value = create_ssa_value(i32_memref_type)
+    i32_ssa_value = create_ssa_value(i32)
     store = StoreOp.get(i32_ssa_value, memref_ssa_value, [])
 
     assert store.memref is memref_ssa_value
@@ -88,10 +88,10 @@ def test_memref_store_i32():
 
 def test_memref_store_i32_with_dimensions():
     i32_memref_type = MemRefType(i32, [2, 3])
-    memref_ssa_value = TestSSAValue(i32_memref_type)
-    i32_ssa_value = TestSSAValue(i32)
-    index1 = TestSSAValue(IndexType())
-    index2 = TestSSAValue(IndexType())
+    memref_ssa_value = create_ssa_value(i32_memref_type)
+    i32_ssa_value = create_ssa_value(i32)
+    index1 = create_ssa_value(IndexType())
+    index2 = create_ssa_value(IndexType())
     store = StoreOp.get(i32_ssa_value, memref_ssa_value, [index1, index2])
 
     assert store.memref is memref_ssa_value
@@ -123,8 +123,8 @@ def test_memref_alloc():
     assert alloc2.results[0].type.layout == my_layout
     assert alloc2.results[0].type.memory_space == my_memspace
 
-    dynamic_sizes_1 = [TestSSAValue(builtin.IndexType()) for _ in range(1)]
-    dynamic_sizes_3 = [TestSSAValue(builtin.IndexType()) for _ in range(3)]
+    dynamic_sizes_1 = [create_ssa_value(builtin.IndexType()) for _ in range(1)]
+    dynamic_sizes_3 = [create_ssa_value(builtin.IndexType()) for _ in range(3)]
 
     alloc4 = AllocOp.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
     alloc5 = AllocOp.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
@@ -166,8 +166,8 @@ def test_memref_alloca():
     assert alloc2.results[0].type.layout == my_layout
     assert alloc2.results[0].type.memory_space == my_memspace
 
-    dynamic_sizes_1 = [TestSSAValue(builtin.IndexType()) for _ in range(1)]
-    dynamic_sizes_3 = [TestSSAValue(builtin.IndexType()) for _ in range(3)]
+    dynamic_sizes_1 = [create_ssa_value(builtin.IndexType()) for _ in range(1)]
+    dynamic_sizes_3 = [create_ssa_value(builtin.IndexType()) for _ in range(3)]
 
     alloc4 = AllocaOp.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
     alloc5 = AllocaOp.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
@@ -297,7 +297,7 @@ def test_memref_extract_strided_metadata():
     alloc = AllocOp.get(
         el_type, alignment, shape, layout=layout, memory_space=memory_space
     )
-    assert isa(alloc.memref.type, MemRefType[Attribute])
+    assert isa(alloc.memref.type, MemRefType)
 
     extract_op = ExtractStridedMetaDataOp(alloc)
     # output type is expected to have no layout information, and no shape
@@ -307,7 +307,7 @@ def test_memref_extract_strided_metadata():
 
 def test_memref_subview_constant_parameters():
     alloc = AllocOp.get(i32, 8, [10, 10, 10])
-    assert isa(alloc.memref.type, MemRefType[Attribute])
+    assert isa(alloc.memref.type, MemRefType)
 
     subview = SubviewOp.from_static_parameters(
         alloc, alloc.memref.type, [2, 2, 2], [2, 2, 2], [3, 3, 3]
@@ -325,7 +325,7 @@ def test_memref_subview_constant_parameters():
 
 def test_memref_cast():
     i32_memref_type = MemRefType(i32, [10, 2])
-    memref_ssa_value = TestSSAValue(i32_memref_type)
+    memref_ssa_value = create_ssa_value(i32_memref_type)
 
     res_type = UnrankedMemRefType.from_type(i32)
 
@@ -337,7 +337,7 @@ def test_memref_cast():
 
 def test_memref_memory_space_cast():
     i32_memref_type = MemRefType(i32, [10, 2], memory_space=builtin.IntegerAttr(1, i32))
-    memref_ssa_value = TestSSAValue(i32_memref_type)
+    memref_ssa_value = create_ssa_value(i32_memref_type)
 
     res_type = MemRefType(i32, [10, 2], memory_space=builtin.IntegerAttr(2, i32))
     res_type_wrong_type = MemRefType(
@@ -380,12 +380,12 @@ def test_dma_start():
 
     tag_type = MemRefType(i32, [4])
 
-    src = TestSSAValue(src_type)
-    dest = TestSSAValue(dest_type)
-    tag = TestSSAValue(tag_type)
+    src = create_ssa_value(src_type)
+    dest = create_ssa_value(dest_type)
+    tag = create_ssa_value(tag_type)
 
-    index = TestSSAValue(IndexType())
-    num_elements = TestSSAValue(IndexType())
+    index = create_ssa_value(IndexType())
+    num_elements = create_ssa_value(IndexType())
 
     dma_start = DmaStartOp.get(
         src, [index, index], dest, [index], num_elements, tag, [index]
@@ -419,7 +419,7 @@ def test_dma_start():
 
     # check that tag element type is verified
     with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
-        new_tag = TestSSAValue(src_type)
+        new_tag = create_ssa_value(src_type)
 
         DmaStartOp.get(
             src,
@@ -434,9 +434,9 @@ def test_dma_start():
 
 def test_memref_dma_wait():
     tag_type = MemRefType(i32, [4])
-    tag = TestSSAValue(tag_type)
-    index = TestSSAValue(IndexType())
-    num_elements = TestSSAValue(IndexType())
+    tag = create_ssa_value(tag_type)
+    index = create_ssa_value(IndexType())
+    num_elements = create_ssa_value(IndexType())
 
     dma_wait = DmaWaitOp.get(tag, [index], num_elements)
 
@@ -451,7 +451,7 @@ def test_memref_dma_wait():
     # check that tag element type is verified
     with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
         wrong_tag_type = MemRefType(i64, [4])
-        wrong_tag = TestSSAValue(wrong_tag_type)
+        wrong_tag = create_ssa_value(wrong_tag_type)
 
         DmaWaitOp.get(wrong_tag, [index], num_elements).verify()
 
@@ -460,8 +460,8 @@ def test_memref_copy():
     i32type4 = MemRefType(i32, [4])
     i32type3 = MemRefType(i32, [3])
     i64type4 = MemRefType(i64, [4])
-    source = TestSSAValue(i32type4)
-    destination = TestSSAValue(i32type4)
+    source = create_ssa_value(i32type4)
+    destination = create_ssa_value(i32type4)
 
     copy = CopyOp(source, destination)
 
@@ -470,7 +470,7 @@ def test_memref_copy():
     assert copy.source.type == i32type4
     assert copy.destination.type == i32type4
 
-    destination = TestSSAValue(i32type3)
+    destination = create_ssa_value(i32type3)
 
     copy = CopyOp(source, destination)
 
@@ -479,7 +479,7 @@ def test_memref_copy():
     ):
         copy.verify()
 
-    destination = TestSSAValue(i64type4)
+    destination = create_ssa_value(i64type4)
 
     copy = CopyOp(source, destination)
 

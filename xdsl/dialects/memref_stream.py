@@ -84,9 +84,6 @@ class ReadableStreamType(
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
-    def __init__(self, element_type: _StreamTypeElement):
-        super().__init__([element_type])
-
     @classmethod
     def constr(
         cls,
@@ -110,9 +107,6 @@ class WritableStreamType(
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
-
-    def __init__(self, element_type: _StreamTypeElement):
-        super().__init__([element_type])
 
     @classmethod
     def constr(
@@ -196,13 +190,6 @@ class StridePattern(ParametrizedAttribute):
     ub: ParameterDef[ArrayAttr[IntegerAttr[IndexType]]]
     index_map: ParameterDef[AffineMapAttr]
 
-    def __init__(
-        self,
-        ub: ArrayAttr[IntegerAttr[IndexType]],
-        index_map: ParameterDef[AffineMapAttr],
-    ):
-        super().__init__((ub, index_map))
-
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
@@ -223,9 +210,12 @@ class StridePattern(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string("ub = [")
-            printer.print_list(self.ub, lambda attr: printer.print(attr.value.data))
-            printer.print_string(f"], index_map = {self.index_map.data}")
+            printer.print_string("ub = ")
+            with printer.in_square_brackets():
+                printer.print_list(
+                    self.ub, lambda attr: attr.print_without_type(printer)
+                )
+            printer.print_string(f", index_map = {self.index_map.data}")
 
     def rank(self):
         return len(self.ub)
@@ -345,11 +335,13 @@ class StreamingRegionOp(IRDLOperation):
             if self.patterns.data:
                 printer.print_string("\npatterns = [")
                 with printer.indented():
-                    printer.print_list(
-                        self.patterns.data,
-                        lambda attr: printer.print("\n", attr),
-                        delimiter=",",
-                    )
+                    if self.patterns.data:
+                        printer.print_string("\n")
+                        printer.print_list(
+                            self.patterns.data,
+                            printer.print_attribute,
+                            delimiter=",\n",
+                        )
                 printer.print_string("\n]")
             else:
                 printer.print_string("\npatterns = []")
@@ -370,7 +362,7 @@ class StreamingRegionOp(IRDLOperation):
             printer.print_string(")")
 
         if self.attributes:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(self.attributes)
 
         printer.print_string(" ")
@@ -659,7 +651,7 @@ class GenericOp(IRDLOperation):
             del extra_attrs["library_call"]
 
         if extra_attrs:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(extra_attrs)
 
         printer.print_string(" ")

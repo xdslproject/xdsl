@@ -3,9 +3,10 @@ from dataclasses import dataclass, field
 from ordered_set import OrderedSet
 
 from xdsl.builder import Builder, InsertPoint
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_func
 from xdsl.dialects.riscv import (
+    FloatRegisterType,
     IntRegisterType,
     Registers,
     RISCVRegisterType,
@@ -39,6 +40,7 @@ class PrologueEpilogueInsertion(ModulePass):
             for op in func.walk()
             if not isinstance(op, riscv.GetRegisterOp | riscv.GetFloatRegisterOp)
             for res in op.results
+            if isinstance(res.type, IntRegisterType | FloatRegisterType)
             if res.type in Registers.S or res.type in Registers.FS
         )
 
@@ -85,7 +87,7 @@ class PrologueEpilogueInsertion(ModulePass):
 
             builder.insert(riscv.AddiOp(sp_register, stack_size, rd=Registers.SP))
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for func in op.walk():
             if not isinstance(func, riscv_func.FuncOp):
                 continue

@@ -3,7 +3,7 @@ import subprocess
 from dataclasses import dataclass, field
 from io import StringIO
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
@@ -25,13 +25,13 @@ class MLIROptPass(ModulePass):
     generic: bool = field(default=True)
     arguments: tuple[str, ...] = field(default=())
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         if not shutil.which(self.executable):
             raise ValueError(f"{self.executable} is not available")
 
         stream = StringIO()
         printer = Printer(print_generic_format=self.generic, stream=stream)
-        printer.print(op)
+        printer.print_op(op)
 
         my_string = stream.getvalue()
 

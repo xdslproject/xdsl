@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import riscv, riscv_snitch, snitch, snitch_stream
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
@@ -12,19 +12,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
-
-def get_snitch_reserved() -> set[riscv.FloatRegisterType]:
-    """
-    Utility method to make explicit the Snitch ISA assumptions wrt the
-    floating-point registers that are considered reserved.
-    Currently, the first 3 floating-point registers are reserved.
-    """
-
-    num_reserved = 3
-    assert len(riscv.Registers.FT) >= num_reserved
-
-    return {riscv.Registers.FT[i] for i in range(0, num_reserved)}
 
 
 class AllocateSnitchStreamingRegionRegisters(RewritePattern):
@@ -40,13 +27,16 @@ class AllocateSnitchStreamingRegionRegisters(RewritePattern):
         block = op.body.block
 
         for index, input_stream in enumerate(block.args):
-            input_stream.type = snitch.ReadableStreamType(riscv.Registers.FT[index])
+            rewriter.replace_value_with_new_type(
+                input_stream, snitch.ReadableStreamType(riscv.Registers.FT[index])
+            )
 
         input_count = len(op.inputs)
 
         for index, output_stream in enumerate(block.args[input_count:]):
-            output_stream.type = snitch.WritableStreamType(
-                riscv.Registers.FT[index + input_count]
+            rewriter.replace_value_with_new_type(
+                output_stream,
+                snitch.WritableStreamType(riscv.Registers.FT[index + input_count]),
             )
 
 
@@ -61,7 +51,7 @@ class AllocateRiscvSnitchReadRegisters(RewritePattern):
         stream_type = cast(
             snitch.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
         )
-        op.res.type = stream_type.element_type
+        rewriter.replace_value_with_new_type(op.res, stream_type.element_type)
 
 
 class AllocateRiscvSnitchWriteRegisters(RewritePattern):
@@ -75,7 +65,7 @@ class AllocateRiscvSnitchWriteRegisters(RewritePattern):
         stream_type = cast(
             snitch.WritableStreamType[riscv.FloatRegisterType], op.stream.type
         )
-        op.value.type = stream_type.element_type
+        rewriter.replace_value_with_new_type(op.value, stream_type.element_type)
 
 
 @dataclass(frozen=True)
@@ -86,7 +76,7 @@ class SnitchRegisterAllocation(ModulePass):
 
     name = "snitch-allocate-registers"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             AllocateSnitchStreamingRegionRegisters(),
             apply_recursively=False,

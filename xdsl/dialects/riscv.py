@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence, Set
+from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 from io import StringIO
 from itertools import chain
-from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
+from typing import IO, Annotated, Generic, Literal, TypeAlias
 
-from typing_extensions import Self, assert_never
+from typing_extensions import Self, TypeVar, assert_never
 
-from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
+from xdsl.backend.assembly_printer import (
+    AssemblyPrintable,
+    AssemblyPrinter,
+    OneLineAssemblyPrintable,
+)
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
@@ -19,6 +24,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ModuleOp,
+    NoneAttr,
     Signedness,
     StringAttr,
     UnitAttr,
@@ -67,6 +73,15 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
+def is_non_zero(reg: IntRegisterType) -> bool:
+    """
+    Returns True if the register is allocated, and is not the x0/ZERO register.
+    """
+    return (
+        reg.is_allocated and not isinstance(reg.index, NoneAttr) and reg.index.data != 0
+    )
+
+
 @irdl_attr_definition
 class FastMathFlagsAttr(FastMathAttrBase):
     """
@@ -87,30 +102,12 @@ class RISCVRegisterType(RegisterType):
     """
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        if parser.parse_optional_punctuation("<") is not None:
-            name = parser.parse_identifier()
-            parser.parse_punctuation(">")
-            if not name.startswith("j"):
-                assert name in cls.abi_index_by_name(), f"{name}"
-        else:
-            name = ""
-        return cls._parameters_from_spelling(name)
-
-    def verify(self) -> None:
-        name = self.spelling.data
-        if not self.is_allocated or name.startswith("j") or name.startswith("fj"):
-            return
-        if name not in type(self).abi_index_by_name():
-            raise VerifyException(f"{name} not in {self.instruction_set_name()}")
-
-    @classmethod
     @abstractmethod
     def a_register(cls, index: int) -> Self:
         raise NotImplementedError()
 
 
-RV32I_INDEX_BY_NAME = {
+_RV32I_ABI_INDEX_BY_NAME = {
     "zero": 0,
     "ra": 1,
     "sp": 2,
@@ -145,6 +142,8 @@ RV32I_INDEX_BY_NAME = {
     "t5": 30,
     "t6": 31,
 }
+_RV32I_X_INDEX_BY_NAME = {f"x{i}": i for i in range(32)}
+RV32I_INDEX_BY_NAME = _RV32I_X_INDEX_BY_NAME | _RV32I_ABI_INDEX_BY_NAME
 
 
 @irdl_attr_definition
@@ -156,23 +155,28 @@ class IntRegisterType(RISCVRegisterType):
     name = "riscv.reg"
 
     @classmethod
-    def unallocated(cls) -> IntRegisterType:
-        return Registers.UNALLOCATED_INT
-
-    @classmethod
-    def instruction_set_name(cls) -> str:
-        return "RV32I"
-
-    @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return RV32I_INDEX_BY_NAME
 
     @classmethod
     def a_register(cls, index: int) -> IntRegisterType:
         return Registers.A[index]
 
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "j_"
 
-RV32F_INDEX_BY_NAME = {
+    # This class variable is created and exclusively accessed in `abi_name_by_index`.
+    # _ALLOCATABLE_REGISTERS: ClassVar[tuple[IntRegisterType, ...]]
+
+    @classmethod
+    def allocatable_registers(cls):
+        if not hasattr(cls, "_ALLOCATABLE_REGISTERS"):
+            cls._ALLOCATABLE_REGISTERS = (*Registers.T, *Registers.A)
+        return cls._ALLOCATABLE_REGISTERS
+
+
+_RV32F_ABI_INDEX_BY_NAME = {
     "ft0": 0,
     "ft1": 1,
     "ft2": 2,
@@ -206,6 +210,8 @@ RV32F_INDEX_BY_NAME = {
     "ft10": 30,
     "ft11": 31,
 }
+_RV32F_F_INDEX_BY_NAME = {f"f{i}": i for i in range(32)}
+RV32F_INDEX_BY_NAME = _RV32F_F_INDEX_BY_NAME | _RV32F_ABI_INDEX_BY_NAME
 
 
 @irdl_attr_definition
@@ -217,20 +223,25 @@ class FloatRegisterType(RISCVRegisterType):
     name = "riscv.freg"
 
     @classmethod
-    def unallocated(cls) -> FloatRegisterType:
-        return Registers.UNALLOCATED_FLOAT
-
-    @classmethod
-    def instruction_set_name(cls) -> str:
-        return "RV32F"
-
-    @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return RV32F_INDEX_BY_NAME
 
     @classmethod
     def a_register(cls, index: int) -> FloatRegisterType:
         return Registers.FA[index]
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "fj_"
+
+    # This class variable is created and exclusively accessed in `abi_name_by_index`.
+    # _ALLOCATABLE_REGISTERS: ClassVar[tuple[FloatRegisterType, ...]]
+
+    @classmethod
+    def allocatable_registers(cls):
+        if not hasattr(cls, "_ALLOCATABLE_REGISTERS"):
+            cls._ALLOCATABLE_REGISTERS = (*Registers.FT, *Registers.FA)
+        return cls._ALLOCATABLE_REGISTERS
 
 
 RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
@@ -242,74 +253,74 @@ RS2InvT = TypeVar("RS2InvT", bound=RISCVRegisterType)
 class Registers(ABC):
     """Namespace for named register constants."""
 
-    UNALLOCATED_INT = IntRegisterType("")
-    ZERO = IntRegisterType("zero")
-    RA = IntRegisterType("ra")
-    SP = IntRegisterType("sp")
-    GP = IntRegisterType("gp")
-    TP = IntRegisterType("tp")
-    T0 = IntRegisterType("t0")
-    T1 = IntRegisterType("t1")
-    T2 = IntRegisterType("t2")
-    FP = IntRegisterType("fp")
-    S0 = IntRegisterType("s0")
-    S1 = IntRegisterType("s1")
-    A0 = IntRegisterType("a0")
-    A1 = IntRegisterType("a1")
-    A2 = IntRegisterType("a2")
-    A3 = IntRegisterType("a3")
-    A4 = IntRegisterType("a4")
-    A5 = IntRegisterType("a5")
-    A6 = IntRegisterType("a6")
-    A7 = IntRegisterType("a7")
-    S2 = IntRegisterType("s2")
-    S3 = IntRegisterType("s3")
-    S4 = IntRegisterType("s4")
-    S5 = IntRegisterType("s5")
-    S6 = IntRegisterType("s6")
-    S7 = IntRegisterType("s7")
-    S8 = IntRegisterType("s8")
-    S9 = IntRegisterType("s9")
-    S10 = IntRegisterType("s10")
-    S11 = IntRegisterType("s11")
-    T3 = IntRegisterType("t3")
-    T4 = IntRegisterType("t4")
-    T5 = IntRegisterType("t5")
-    T6 = IntRegisterType("t6")
+    UNALLOCATED_INT = IntRegisterType.unallocated()
+    ZERO = IntRegisterType.from_name("zero")
+    RA = IntRegisterType.from_name("ra")
+    SP = IntRegisterType.from_name("sp")
+    GP = IntRegisterType.from_name("gp")
+    TP = IntRegisterType.from_name("tp")
+    T0 = IntRegisterType.from_name("t0")
+    T1 = IntRegisterType.from_name("t1")
+    T2 = IntRegisterType.from_name("t2")
+    FP = IntRegisterType.from_name("fp")
+    S0 = IntRegisterType.from_name("s0")
+    S1 = IntRegisterType.from_name("s1")
+    A0 = IntRegisterType.from_name("a0")
+    A1 = IntRegisterType.from_name("a1")
+    A2 = IntRegisterType.from_name("a2")
+    A3 = IntRegisterType.from_name("a3")
+    A4 = IntRegisterType.from_name("a4")
+    A5 = IntRegisterType.from_name("a5")
+    A6 = IntRegisterType.from_name("a6")
+    A7 = IntRegisterType.from_name("a7")
+    S2 = IntRegisterType.from_name("s2")
+    S3 = IntRegisterType.from_name("s3")
+    S4 = IntRegisterType.from_name("s4")
+    S5 = IntRegisterType.from_name("s5")
+    S6 = IntRegisterType.from_name("s6")
+    S7 = IntRegisterType.from_name("s7")
+    S8 = IntRegisterType.from_name("s8")
+    S9 = IntRegisterType.from_name("s9")
+    S10 = IntRegisterType.from_name("s10")
+    S11 = IntRegisterType.from_name("s11")
+    T3 = IntRegisterType.from_name("t3")
+    T4 = IntRegisterType.from_name("t4")
+    T5 = IntRegisterType.from_name("t5")
+    T6 = IntRegisterType.from_name("t6")
 
-    UNALLOCATED_FLOAT = FloatRegisterType("")
-    FT0 = FloatRegisterType("ft0")
-    FT1 = FloatRegisterType("ft1")
-    FT2 = FloatRegisterType("ft2")
-    FT3 = FloatRegisterType("ft3")
-    FT4 = FloatRegisterType("ft4")
-    FT5 = FloatRegisterType("ft5")
-    FT6 = FloatRegisterType("ft6")
-    FT7 = FloatRegisterType("ft7")
-    FS0 = FloatRegisterType("fs0")
-    FS1 = FloatRegisterType("fs1")
-    FA0 = FloatRegisterType("fa0")
-    FA1 = FloatRegisterType("fa1")
-    FA2 = FloatRegisterType("fa2")
-    FA3 = FloatRegisterType("fa3")
-    FA4 = FloatRegisterType("fa4")
-    FA5 = FloatRegisterType("fa5")
-    FA6 = FloatRegisterType("fa6")
-    FA7 = FloatRegisterType("fa7")
-    FS2 = FloatRegisterType("fs2")
-    FS3 = FloatRegisterType("fs3")
-    FS4 = FloatRegisterType("fs4")
-    FS5 = FloatRegisterType("fs5")
-    FS6 = FloatRegisterType("fs6")
-    FS7 = FloatRegisterType("fs7")
-    FS8 = FloatRegisterType("fs8")
-    FS9 = FloatRegisterType("fs9")
-    FS10 = FloatRegisterType("fs10")
-    FS11 = FloatRegisterType("fs11")
-    FT8 = FloatRegisterType("ft8")
-    FT9 = FloatRegisterType("ft9")
-    FT10 = FloatRegisterType("ft10")
-    FT11 = FloatRegisterType("ft11")
+    UNALLOCATED_FLOAT = FloatRegisterType.unallocated()
+    FT0 = FloatRegisterType.from_name("ft0")
+    FT1 = FloatRegisterType.from_name("ft1")
+    FT2 = FloatRegisterType.from_name("ft2")
+    FT3 = FloatRegisterType.from_name("ft3")
+    FT4 = FloatRegisterType.from_name("ft4")
+    FT5 = FloatRegisterType.from_name("ft5")
+    FT6 = FloatRegisterType.from_name("ft6")
+    FT7 = FloatRegisterType.from_name("ft7")
+    FS0 = FloatRegisterType.from_name("fs0")
+    FS1 = FloatRegisterType.from_name("fs1")
+    FA0 = FloatRegisterType.from_name("fa0")
+    FA1 = FloatRegisterType.from_name("fa1")
+    FA2 = FloatRegisterType.from_name("fa2")
+    FA3 = FloatRegisterType.from_name("fa3")
+    FA4 = FloatRegisterType.from_name("fa4")
+    FA5 = FloatRegisterType.from_name("fa5")
+    FA6 = FloatRegisterType.from_name("fa6")
+    FA7 = FloatRegisterType.from_name("fa7")
+    FS2 = FloatRegisterType.from_name("fs2")
+    FS3 = FloatRegisterType.from_name("fs3")
+    FS4 = FloatRegisterType.from_name("fs4")
+    FS5 = FloatRegisterType.from_name("fs5")
+    FS6 = FloatRegisterType.from_name("fs6")
+    FS7 = FloatRegisterType.from_name("fs7")
+    FS8 = FloatRegisterType.from_name("fs8")
+    FS9 = FloatRegisterType.from_name("fs9")
+    FS10 = FloatRegisterType.from_name("fs10")
+    FS11 = FloatRegisterType.from_name("fs11")
+    FT8 = FloatRegisterType.from_name("ft8")
+    FT9 = FloatRegisterType.from_name("ft9")
+    FT10 = FloatRegisterType.from_name("ft10")
+    FT11 = FloatRegisterType.from_name("ft11")
 
     # register classes:
 
@@ -416,7 +427,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
 
     def print(self, printer: Printer) -> None:
         if self.operands:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_list(self.operands, printer.print_operand)
         printed_attributes = self.custom_print_attributes(printer)
         unprinted_attributes = {
@@ -428,7 +439,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
         printer.print_regions(self.regions)
         self.print_op_type(printer)
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         """
         Print attributes with custom syntax. Return the names of the attributes printed. Subclasses may override this method.
         """
@@ -436,7 +447,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
         return self.attributes.keys()
 
     def print_op_type(self, printer: Printer) -> None:
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_operation_type(self)
 
 
@@ -499,15 +510,15 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     elif isinstance(arg, str):
         return arg
     elif isinstance(arg, IntRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     elif isinstance(arg, FloatRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     else:
         if isinstance(arg.type, IntRegisterType):
-            reg = arg.type.register_name
+            reg = arg.type.register_name.data
             return reg
         elif isinstance(arg.type, FloatRegisterType):
-            reg = arg.type.register_name
+            reg = arg.type.register_name.data
             return reg
         else:
             raise ValueError(f"Unexpected register type {arg.type}")
@@ -549,7 +560,7 @@ class RdRsRsOperation(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: RDInvT,
+        rd: RDInvT = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -565,6 +576,34 @@ class RdRsRsOperation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
+
+
+class RdRsRsIntegerOperation(
+    Generic[RS1InvT, RS2InvT], RdRsRsOperation[IntRegisterType, RS1InvT, RS2InvT], ABC
+):
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        super().__init__(rs1, rs2, rd=rd, comment=comment)
+
+
+class RdRsRsFloatOperation(
+    Generic[RS1InvT, RS2InvT], RdRsRsOperation[FloatRegisterType, RS1InvT, RS2InvT], ABC
+):
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        *,
+        rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
+        comment: str | StringAttr | None = None,
+    ):
+        super().__init__(rs1, rs2, rd=rd, comment=comment)
 
 
 class RdRsRsFloatOperationWithFastMath(
@@ -587,7 +626,7 @@ class RdRsRsFloatOperationWithFastMath(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: FloatRegisterType,
+        rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         fastmath: FastMathFlagsAttr | None = None,
         comment: str | StringAttr | None = None,
     ):
@@ -615,9 +654,9 @@ class RdRsRsFloatOperationWithFastMath(
         attributes["fastmath"] = flags
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
-            printer.print(" fastmath")
+            printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
         return {"fastmath"}
 
@@ -635,17 +674,13 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         self,
         immediate: int | IntegerAttr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -666,8 +701,8 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, i20)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(" ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -691,15 +726,13 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         self,
         immediate: int | SImm20Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, si20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-        if isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -721,11 +754,11 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             attributes["rd"] = parser.parse_attribute()
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(" ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
         print_immediate_value(printer, self.immediate)
         if self.rd is not None:
-            printer.print(", ")
+            printer.print_string(", ")
             printer.print_attribute(self.rd)
         return {"immediate", "rd"}
 
@@ -756,7 +789,7 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         rs1: Operation | SSAValue,
         immediate: int | SImm12Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -764,10 +797,6 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -788,8 +817,8 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         attributes["immediate"] = parse_immediate_value(parser, si12)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -817,7 +846,7 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         immediate: int | UImm5Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -825,10 +854,6 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -849,8 +874,8 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, ui5)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -881,16 +906,13 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         immediate: int | SImm12Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-
-        if isinstance(rd, str):
-            rd = IntRegisterType(rd)
 
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -915,11 +937,11 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             attributes["rd"] = parser.parse_attribute()
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         if self.rd is not None:
-            printer.print(", ")
+            printer.print_string(", ")
             printer.print_attribute(self.rd)
         return {"immediate", "rd"}
 
@@ -952,6 +974,32 @@ class RdRsOperation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs
+
+
+class RdRsIntegerOperation(
+    Generic[RSInvT], RdRsOperation[IntRegisterType, RSInvT], ABC
+):
+    def __init__(
+        self,
+        rs: Operation | SSAValue,
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        super().__init__(rs, rd=rd, comment=comment)
+
+
+class RdRsFloatOperation(
+    Generic[RSInvT], RdRsOperation[FloatRegisterType, RSInvT], ABC
+):
+    def __init__(
+        self,
+        rs: Operation | SSAValue,
+        *,
+        rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
+        comment: str | StringAttr | None = None,
+    ):
+        super().__init__(rs, rd=rd, comment=comment)
 
 
 class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -998,8 +1046,8 @@ class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         attributes["offset"] = parse_immediate_value(parser, si12)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
         print_immediate_value(printer, self.offset)
         return {"offset"}
 
@@ -1048,8 +1096,8 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         attributes["immediate"] = parse_immediate_value(parser, si12)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -1140,13 +1188,9 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         csr: IntegerAttr,
         *,
         writeonly: bool = False,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1162,12 +1206,10 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.writeonly:
             return
-        if not isinstance(self.rd.type, IntRegisterType):
-            return
-        if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
+        if is_non_zero(self.rd.type):
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.spelling.data}'"
+                f"not '{self.rd.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1186,11 +1228,11 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             attributes["writeonly"] = UnitAttr()
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        printer.print(self.csr.value.data)
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
+        self.csr.print_without_type(printer)
         if self.writeonly is not None:
-            printer.print(', "w"')
+            printer.print_string(', "w"')
         return {"csr", "writeonly"}
 
 
@@ -1218,13 +1260,9 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         csr: IntegerAttr,
         *,
         readonly: bool = False,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1240,12 +1278,11 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.readonly:
             return
-        if not isinstance(self.rs1.type, IntRegisterType):
-            return
-        if self.rs1.type.is_allocated and self.rs1.type != Registers.ZERO:
+        assert isinstance(self.rs1.type, IntRegisterType)
+        if is_non_zero(self.rs1.type):
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.type.spelling.data}'"
+                f"not '{self.rs1.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1264,11 +1301,11 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             attributes["readonly"] = UnitAttr()
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
-        printer.print(self.csr.value.data)
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
+        self.csr.print_without_type(printer)
         if self.readonly is not None:
-            printer.print(', "r"')
+            printer.print_string(', "r"')
         return {"csr", "readonly"}
 
 
@@ -1294,13 +1331,9 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         immediate: IntegerAttr,
         *,
         writeonly: bool = False,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1316,12 +1349,10 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     def verify_(self) -> None:
         if self.writeonly is None:
             return
-        if not isinstance(self.rd.type, IntRegisterType):
-            return
-        if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
+        if is_non_zero(self.rd.type):
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.spelling.data}'"
+                f"not '{self.rd.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -1342,13 +1373,13 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
             attributes["writeonly"] = UnitAttr()
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(" ")
-        printer.print(self.csr.value.data)
-        printer.print(", ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
+        self.csr.print_without_type(printer)
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         if self.writeonly is not None:
-            printer.print(', "w"')
+            printer.print_string(', "w"')
         return {"csr", "immediate", "writeonly"}
 
 
@@ -1374,13 +1405,9 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         csr: IntegerAttr,
         immediate: IntegerAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1406,10 +1433,10 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, IntegerType(32))
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(" ")
-        printer.print(self.csr.value.data)
-        printer.print(", ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
+        self.csr.print_without_type(printer)
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"csr", "immediate"}
 
@@ -1443,7 +1470,7 @@ class AddiOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] + sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#addi
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#addi).
     """
 
     name = "riscv.addi"
@@ -1459,7 +1486,7 @@ class SltiOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] <s sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slti
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slti).
     """
 
     name = "riscv.slti"
@@ -1473,7 +1500,7 @@ class SltiuOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] <u sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltiu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltiu).
     """
 
     name = "riscv.sltiu"
@@ -1487,7 +1514,7 @@ class AndiOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] & sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#andi
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#andi).
     """
 
     name = "riscv.andi"
@@ -1501,7 +1528,7 @@ class OriOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] | sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#ori
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#ori).
     """
 
     name = "riscv.ori"
@@ -1515,7 +1542,7 @@ class XoriOp(RdRsImmIntegerOperation):
 
     x[rd] = x[rs1] ^ sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xori
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xori).
     """
 
     name = "riscv.xori"
@@ -1524,9 +1551,12 @@ class XoriOp(RdRsImmIntegerOperation):
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import ShiftLeftImmediate
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftLeftbyZero,
+            ShiftLeftImmediate,
+        )
 
-        return (ShiftLeftImmediate(),)
+        return (ShiftLeftImmediate(), ShiftLeftbyZero())
 
 
 @irdl_op_definition
@@ -1537,12 +1567,20 @@ class SlliOp(RdRsImmShiftOperation):
 
     x[rd] = x[rs1] << shamt
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slli
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slli).
     """
 
     name = "riscv.slli"
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
+
+
+class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import ShiftRightbyZero
+
+        return (ShiftRightbyZero(),)
 
 
 @irdl_op_definition
@@ -1553,10 +1591,12 @@ class SrliOp(RdRsImmShiftOperation):
 
     x[rd] = x[rs1] >>u shamt
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srli
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srli).
     """
 
     name = "riscv.srli"
+
+    traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1567,10 +1607,165 @@ class SraiOp(RdRsImmShiftOperation):
 
     x[rd] = x[rs1] >>s shamt
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srai
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srai).
     """
 
     name = "riscv.srai"
+
+
+@irdl_op_definition
+class AddiwOp(RdRsImmIntegerOperation):
+    """
+    Adds the sign-extended 12-bit immediate to register rs1 and produces the proper sign-extension of a 32-bit result in rd.
+    Overflows are ignored and the result is the low 32 bits of the result sign-extended to 64 bits.
+    ```
+    x[rd] = sext((x[rs1] + sext(immediate))[31:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64i.html#addiw).
+    """
+
+    name = "riscv.addiw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SlliwOp(RdRsImmShiftOperation):
+    """
+    Performs logical left shift on the 32-bit of value in register rs1 by the
+    shift amount held in the lower 5 bits of the immediate.
+    ```
+    x[rd] = sext((x[rs1] << shamt)[31:0])
+    ```
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slliw).
+    """
+
+    name = "riscv.slliw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SrliwOp(RdRsImmShiftOperation):
+    """
+    Performs logical right shift on the 32-bit of value in register rs1 by the shift amount held in the
+    lower 5 bits of the immediate.
+    ```
+    x[rd] = sext(x[rs1][31:0] >>u shamt)
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srliw).
+    """
+
+    name = "riscv.srliw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SraiwOp(RdRsImmIntegerOperation):
+    """
+    Performs arithmetic right shift on the 32-bit of value in register rs1 by the shift amount held
+    in the lower 5 bits of the immediate.
+    ```
+    x[rd] = sext(x[rs1][31:0] >>s shamt)
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sraiw).
+    """
+
+    name = "riscv.sraiw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class AddwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Adds the 32-bit of registers rs1 and 32-bit of register rs2 and stores the result in rd.
+    Arithmetic overflow is ignored and the low 32-bits of the result is sign-extended to 64-bits and
+    written to the destination register.
+    ```
+    x[rd] = sext((x[rs1] + x[rs2])[31:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#addw).
+    """
+
+    name = "riscv.addw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SubwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Subtract the 32-bit of registers rs1 and 32-bit of register rs2 and stores the result in rd.
+    Arithmetic overflow is ignored and the low 32-bits of the result is sign-extended to 64-bits
+    and written to the destination register.
+    ```
+    x[rd] = sext((x[rs1] - x[rs2])[31:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#subw).
+    """
+
+    name = "riscv.subw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SllwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Performs logical left shift on the low 32-bits value in register rs1 by the shift amount held
+    in the lower 5 bits of register rs2 and produce 32-bit results and written to the destination register rd.
+    ```
+    x[rd] = sext((x[rs1] << x[rs2][4:0])[31:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sllw).
+    """
+
+    name = "riscv.sllw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SrlwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Performs logical right shift on the low 32-bits value in register rs1 by the shift amount held
+    in the lower 5 bits of register rs2 and produce 32-bit results and written to the destination
+    register rd.
+    ```
+    x[rd] = sext(x[rs1][31:0] >>u x[rs2][4:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srlw).
+    """
+
+    name = "riscv.srlw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SrawOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Performs arithmetic right shift on the low 32-bits value in register rs1 by the shift amount held in the lower
+    5 bits of register rs2 and produce 32-bit results and written to the destination register rd.
+    ```
+    x[rd] = sext(x[rs1][31:0] >>s x[rs2][4:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sraw).
+    """
+
+    name = "riscv.sraw"
+
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -1581,7 +1776,7 @@ class LuiOp(RdImmIntegerOperation):
 
     x[rd] = sext(immediate[31:12] << 12)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lui
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lui).
     """
 
     name = "riscv.lui"
@@ -1596,7 +1791,7 @@ class AuipcOp(RdImmIntegerOperation):
 
     x[rd] = pc + sext(immediate[31:12] << 12)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#auipc
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#auipc).
     """
 
     name = "riscv.auipc"
@@ -1613,7 +1808,7 @@ class MVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
+class MVOp(RdRsIntegerOperation[IntRegisterType]):
     """
     A pseudo instruction to copy contents of one int register to another.
 
@@ -1637,7 +1832,7 @@ class FMVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+class FMVOp(RdRsFloatOperation[FloatRegisterType]):
     """
     A pseudo instruction to copy contents of one float register to another.
 
@@ -1671,7 +1866,7 @@ class AddOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class AddOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class AddOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Adds the registers rs1 and rs2 and stores the result in rd.
     Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
@@ -1680,7 +1875,7 @@ class AddOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     x[rd] = x[rs1] + x[rs2]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add).
     """
 
     name = "riscv.add"
@@ -1692,28 +1887,28 @@ class AddOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class SltOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SltOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Place the value 1 in register rd if register rs1 is less than register rs2 when both
     are treated as signed numbers, else 0 is written to rd.
 
     x[rd] = x[rs1] <s x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slt
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slt).
     """
 
     name = "riscv.slt"
 
 
 @irdl_op_definition
-class SltuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SltuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Place the value 1 in register rd if register rs1 is less than register rs2 when both
     are treated as unsigned numbers, else 0 is written to rd.
 
     x[rd] = x[rs1] <u x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltu).
     """
 
     name = "riscv.sltu"
@@ -1728,13 +1923,13 @@ class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
 
 
 @irdl_op_definition
-class AndOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class AndOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise AND on registers rs1 and rs2 and place the result in rd.
 
     x[rd] = x[rs1] & x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#and
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#and).
     """
 
     name = "riscv.and"
@@ -1751,13 +1946,13 @@ class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait
 
 
 @irdl_op_definition
-class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class OrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise OR on registers rs1 and rs2 and place the result in rd.
 
     x[rd] = x[rs1] | x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#or
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#or).
     """
 
     name = "riscv.or"
@@ -1777,13 +1972,13 @@ class BitwiseXorHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
 
 
 @irdl_op_definition
-class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class XorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
 
     x[rd] = x[rs1] ^ x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xor
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xor).
     """
 
     name = "riscv.xor"
@@ -1792,28 +1987,28 @@ class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class SllOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SllOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of register rs2.
 
     x[rd] = x[rs1] << x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sll
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sll).
     """
 
     name = "riscv.sll"
 
 
 @irdl_op_definition
-class SrlOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SrlOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Logical right shift on the value in register rs1 by the shift amount held
     in the lower 5 bits of register rs2.
 
     x[rd] = x[rs1] >>u x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srl
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srl).
     """
 
     name = "riscv.srl"
@@ -1831,14 +2026,14 @@ class SubOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class SubOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SubOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Subtracts the registers rs1 and rs2 and stores the result in rd.
     Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
 
     x[rd] = x[rs1] - x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub).
     """
 
     name = "riscv.sub"
@@ -1847,14 +2042,14 @@ class SubOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class SraOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SraOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount held
     in the lower 5 bits of register rs2.
 
     x[rd] = x[rs1] >>s x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub).
     """
 
     name = "riscv.sra"
@@ -1886,7 +2081,7 @@ class JalOp(RdImmJumpOperation):
 
     x[rd] = pc+4; pc += sext(offset)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jal
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jal).
     """
 
     name = "riscv.jal"
@@ -1926,7 +2121,7 @@ class JalrOp(RdRsImmJumpOperation):
     x[rd] = t
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jalr
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jalr).
     """
 
     name = "riscv.jalr"
@@ -1957,7 +2152,7 @@ class BeqOp(RsRsOffIntegerOperation):
     if (x[rs1] == x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq).
     """
 
     name = "riscv.beq"
@@ -1972,7 +2167,7 @@ class BneOp(RsRsOffIntegerOperation):
     if (x[rs1] != x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bne
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bne).
     """
 
     name = "riscv.bne"
@@ -1987,7 +2182,7 @@ class BltOp(RsRsOffIntegerOperation):
     if (x[rs1] <s x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#blt
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#blt).
     """
 
     name = "riscv.blt"
@@ -2002,7 +2197,7 @@ class BgeOp(RsRsOffIntegerOperation):
     if (x[rs1] >=s x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bge
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bge).
     """
 
     name = "riscv.bge"
@@ -2017,7 +2212,7 @@ class BltuOp(RsRsOffIntegerOperation):
     if (x[rs1] <u x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bltu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bltu).
     """
 
     name = "riscv.bltu"
@@ -2032,7 +2227,7 @@ class BgeuOp(RsRsOffIntegerOperation):
     if (x[rs1] >=u x[rs2]) pc += sext(offset)
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bgeu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bgeu).
     """
 
     name = "riscv.bgeu"
@@ -2053,7 +2248,7 @@ class LbOp(RdRsImmIntegerOperation):
     x[rd] = sext(M[x[rs1] + sext(offset)][7:0])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lb
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lb).
     """
 
     name = "riscv.lb"
@@ -2069,7 +2264,7 @@ class LbuOp(RdRsImmIntegerOperation):
     x[rd] = M[x[rs1] + sext(offset)][7:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lbu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lbu).
     """
 
     name = "riscv.lbu"
@@ -2085,7 +2280,7 @@ class LhOp(RdRsImmIntegerOperation):
     x[rd] = sext(M[x[rs1] + sext(offset)][15:0])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lh
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lh).
     """
 
     name = "riscv.lh"
@@ -2101,7 +2296,7 @@ class LhuOp(RdRsImmIntegerOperation):
     x[rd] = M[x[rs1] + sext(offset)][15:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lhu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lhu).
     """
 
     name = "riscv.lhu"
@@ -2127,7 +2322,7 @@ class LwOp(RdRsImmIntegerOperation):
     x[rd] = sext(M[x[rs1] + sext(offset)][31:0])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lw).
     """
 
     name = "riscv.lw"
@@ -2153,7 +2348,7 @@ class SbOp(RsRsImmIntegerOperation):
     M[x[rs1] + sext(offset)] = x[rs2][7:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sb
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sb).
     """
 
     name = "riscv.sb"
@@ -2168,7 +2363,7 @@ class ShOp(RsRsImmIntegerOperation):
     M[x[rs1] + sext(offset)] = x[rs2][15:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sh
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sh).
 
     """
 
@@ -2194,7 +2389,7 @@ class SwOp(RsRsImmIntegerOperation):
     M[x[rs1] + sext(offset)] = x[rs2][31:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sw).
     """
 
     name = "riscv.sw"
@@ -2228,7 +2423,7 @@ class CsrrwOp(CsrReadWriteOperation):
 
     t = CSRs[csr]; CSRs[csr] = x[rs1]; x[rd] = t
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrw).
     """
 
     name = "riscv.csrrw"
@@ -2253,7 +2448,7 @@ class CsrrsOp(CsrBitwiseOperation):
 
     t = CSRs[csr]; CSRs[csr] = t | x[rs1]; x[rd] = t
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrs
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrs).
     """
 
     name = "riscv.csrrs"
@@ -2278,7 +2473,7 @@ class CsrrcOp(CsrBitwiseOperation):
 
     t = CSRs[csr]; CSRs[csr] = t &~x[rs1]; x[rd] = t
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrc
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrc).
     """
 
     name = "riscv.csrrc"
@@ -2295,7 +2490,7 @@ class CsrrwiOp(CsrReadWriteImmOperation):
 
     x[rd] = CSRs[csr]; CSRs[csr] = zimm
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrwi
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrwi).
     """
 
     name = "riscv.csrrwi"
@@ -2318,7 +2513,7 @@ class CsrrsiOp(CsrBitwiseImmOperation):
 
     t = CSRs[csr]; CSRs[csr] = t | zimm; x[rd] = t
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrsi
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrsi).
     """
 
     name = "riscv.csrrsi"
@@ -2341,7 +2536,7 @@ class CsrrciOp(CsrBitwiseImmOperation):
 
     t = CSRs[csr]; CSRs[csr] = t &~zimm; x[rd] = t
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrci
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrci).
     """
 
     name = "riscv.csrrci"
@@ -2359,20 +2554,19 @@ class MulOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             MultiplyImmediates,
-            MultiplyImmediateZero,
         )
 
-        return (MultiplyImmediates(), MultiplyImmediateZero())
+        return (MultiplyImmediates(),)
 
 
 @irdl_op_definition
-class MulOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class MulOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
     and places the lower XLEN bits in the destination register.
     x[rd] = x[rs1] * x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add).
     """
 
     name = "riscv.mul"
@@ -2381,99 +2575,781 @@ class MulOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class MulhOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class MulhOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
     and places the upper XLEN bits in the destination register.
     x[rd] = (x[rs1] s×s x[rs2]) >>s XLEN
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulh
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulh).
     """
 
     name = "riscv.mulh"
 
 
 @irdl_op_definition
-class MulhsuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class MulhsuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by unsigned rs2
     and places the upper XLEN bits in the destination register.
     x[rd] = (x[rs1] s × x[rs2]) >>s XLEN
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhsu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhsu).
     """
 
     name = "riscv.mulhsu"
 
 
 @irdl_op_definition
-class MulhuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of unsigned rs1 by unsigned rs2
     and places the upper XLEN bits in the destination register.
     x[rd] = (x[rs1] u × x[rs2]) >>u XLEN
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhu).
     """
 
     name = "riscv.mulhu"
 
 
+@irdl_op_definition
+class MulwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Performs an 32-bit × 32-bit multiplication of signed rs1 by signed rs2.
+    ```
+    x[rd] = (x[rs1] s × x[rs2]) >>s XLEN
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulw).
+    """
+
+    name = "riscv.mulw"
+
+
+class DivOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            DivideByOneIdentity,
+        )
+
+        return (DivideByOneIdentity(),)
+
+
 ## Division Operations
 @irdl_op_definition
-class DivOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class DivOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits signed integer division of rs1 by rs2,
     rounding towards zero.
     x[rd] = x[rs1] /s x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#div
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#div).
     """
 
     name = "riscv.div"
+    traits = traits_def(DivOpHasCanonicalizationPatternsTrait(), Pure())
 
 
 @irdl_op_definition
-class DivuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class DivuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits unsigned integer division of rs1 by rs2,
     rounding towards zero.
     x[rd] = x[rs1] /u x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#divu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#divu).
     """
 
     name = "riscv.divu"
 
 
 @irdl_op_definition
-class RemOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class DivuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Perform an 32 bits by 32 bits unsigned integer division of rs1 by rs2.
+    ```
+    x[rd] = sext(x[rs1][31:0] /u x[rs2][31:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64m.html#divuw).
+    """
+
+    name = "riscv.divuw"
+
+
+@irdl_op_definition
+class DivwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Perform an 32 bits by 32 bits signed integer division of rs1 by rs2.
+    ```
+    x[rd] = sext(x[rs1][31:0] /s x[rs2][31:0]
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#divw).
+    """
+
+    name = "riscv.divw"
+
+
+@irdl_op_definition
+class RemOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits signed integer reminder of rs1 by rs2.
     x[rd] = x[rs1] %s x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#rem
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#rem).
     """
 
     name = "riscv.rem"
 
 
 @irdl_op_definition
-class RemuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits unsigned integer reminder of rs1 by rs2.
     x[rd] = x[rs1] %u x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#remu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#remu).
     """
 
     name = "riscv.remu"
 
 
+@irdl_op_definition
+class RemuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Perform an 32 bits by 32 bits unsigned integer reminder of rs1 by rs2.
+    ```
+    x[rd] = sext(x[rs1][31:0] %u x[rs2][31:0])
+    ```
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64m.html#remuw).
+    """
+
+    name = "riscv.remuw"
+
+
+@irdl_op_definition
+class RemwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Perform an 32 bits by 32 bits signed integer reminder of rs1 by rs2.
+    ```
+    x[rd] = sext(x[rs1][31:0] %s x[rs2][31:0])
+    ```
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64m.html#remw).
+    """
+
+    name = "riscv.remw"
+
+
+# endregion
+
+# region RV32B/RV64B: "B" Extension for Bit Manipulation, Version 1.0.0
+
+## ZBB extension for Basic Bit-Manipulation. (not complete: population count missing)
+
+
+@irdl_op_definition
+class RolOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Performs a rotate left of rs1 by the amount in least-significant log2(XLEN) bits of rs2.
+    ```
+    let shamt = if   xlen == 32
+                    then x[rs2][4..0]
+                    else x[rs2][5..0];
+    let result = (x[rs1] << shamt) | (x[rs2] >> (xlen - shamt));
+    x[rd] = result;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rol).
+    """
+
+    name = "riscv.rol"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class RorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Performs a rotate right of rs1 by the amount in least-significant log2(XLEN) bits of rs2.
+    ```
+    let shamt = if   xlen == 32
+                then x[rs2][4..0]
+                else x[rs2][5..0];
+    let result = (x[rs1] >> shamt) | (x[rs2] << (xlen - shamt));
+    x[rd] = result;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-ror).
+    """
+
+    name = "riscv.ror"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SextHOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instruction sign-extends the least-significant halfword in rs to XLEN by copying the
+    most-significant bit in the halfword (i.e., bit 15) to all of the more-significant bits.
+    ```
+    x[rd] = EXTS(x[rs][15..0]);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_h).
+    """
+
+    name = "riscv.sext.h"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class ZextHOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instruction zero-extends the least-significant halfword of the source to XLEN by inserting
+    0’s into all of the bits more significant than 15.
+    ```
+    x[rd] = EXTZ(x[rs][15..0]);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-zext_h).
+    """
+
+    name = "riscv.zext.h"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SextBOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instruction sign-extends the least-significant byte in the source to XLEN by copying
+    the most-significant bit in the byte (i.e., bit 7) to all of the more-significant bits.
+    ```
+    X[rd] = EXTS(X[rs][7..0]);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_b).
+    """
+
+    name = "riscv.sext.b"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns rs1 with a single bit cleared at the index specified in rs2.
+    The index is read from the lower log2(XLEN) bits of rs2.
+    ```
+    let index = X(rs2) & (XLEN - 1);
+    X(rd) = X(rs1) & ~(1 << index)
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclr).
+    """
+
+    name = "riscv.bclr"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class BclrIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit cleared at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+    ```
+    let index = shamt & (XLEN - 1);
+    X(rd) = X(rs1) & ~(1 << index)
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri).
+    """
+
+    name = "riscv.bclri"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns a single bit extracted from rs1 at the index specified in rs2.
+    The index is read from the lower log2(XLEN) bits of rs2.
+    ```
+    let index = X(rs2) & (XLEN - 1);
+    X(rd) = (X(rs1) >> index) & 1;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bext).
+    """
+
+    name = "riscv.bext"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class BextIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns a single bit extracted from rs1 at the index specified in rs2.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+    ```
+    let index = shamt & (XLEN - 1);
+    X(rd) = (X(rs1) >> index) & 1;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti).
+    """
+
+    name = "riscv.bexti"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns rs1 with a single bit inverted at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings
+    corresponding to shamt[5]=1 are reserved.
+    ```
+    let index = shamt & (XLEN - 1);
+    X(rd) = X(rs1) ^ (1 << index)
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
+    """
+
+    name = "riscv.binv"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class BinvIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
+    is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+    ```
+    let index = shamt & (XLEN - 1);
+    x[rd] = x[rs1] & ~(1 << index)
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
+    """
+
+    name = "riscv.binvi"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns rs1 with a single bit set at the index specified in rs2.
+    The index is read from the lower log2(XLEN) bits of rs2.
+    ```
+    let index = X(rs2) & (XLEN - 1);
+    X(rd) = X(rs1) | (1 << index)
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bset).
+    """
+
+    name = "riscv.bset"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class BsetIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
+    from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+    ```
+    let index = shamt & (XLEN - 1);
+    x[rd] = x[rs1] | (1 << index)
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bseti).
+    """
+
+    name = "riscv.bseti"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class RolwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs a rotate left on the least-significant word of rs1 by the amount in
+    least-significant 5 bits of rs2. The resulting word value is sign-extended by copying bit 31
+    to all of the more-significant bits.
+    ```
+    let rs1 = EXTZ(X(rs1)[31..0])
+    let shamt = X(rs2)[4..0];
+    let result = (rs1 << shamt) | (rs1 >> (32 - shamt));
+    X(rd) = EXTS(result);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rolw).
+    """
+
+    name = "riscv.rolw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs a rotate right on the least-significant word of rs1 by the amount in
+    least-significant 5 bits of rs2. The resultant word is sign-extended by copying bit 31 to all of
+    the more-significant bits.
+    ```
+    let rs1 = EXTZ(X(rs1)[31..0])
+    let shamt = X(rs2)[4..0];
+    let result = (rs1 >> shamt) | (rs1 << (32 - shamt));
+    X(rd) = EXTS(result);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rorw).
+    """
+
+    name = "riscv.rorw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class RoriOp(RdRsImmShiftOperation):
+    """
+    This instruction performs a rotate right of rs1 by the amount in the least-significant
+    log2(XLEN) bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
+    ```
+    let shamt = if   xlen == 32
+                    then shamt[4..0]
+                    else shamt[5..0];
+    let result = (X(rs1) >> shamt) | (X(rs2) << (xlen - shamt));
+    X(rd) = result;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rori).
+    """
+
+    name = "riscv.rori"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class RoriwOp(RdRsImmShiftOperation):
+    """
+    This instruction performs a rotate right on the least-significant word of rs1 by the amount in
+    the least-significant log2(XLEN) bits of shamt. The resulting word value is sign-extended by
+    copying bit 31 to all of the more-significant bits.
+    ```
+    let rs1 = EXTZ(X(rs1)[31..0];
+    let result = (rs1 >> shamt[4..0]) | (X(rs1) << (32 - shamt[4..0]));
+    X(rd) = EXTS(result[31..0]);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-roriw).
+    """
+
+    name = "riscv.roriw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class AddUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs an XLEN-wide addition between rs2 and the zero-extended least-significant
+    word of rs1.
+    ```
+    let base = X(rs2);
+    let index = EXTZ(X(rs1)[31..0]);
+    X(rd) = base + index;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-add_uw).
+    """
+
+    name = "riscv.add.uw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class Sh1addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction shifts rs1 to the left by 1 bit and adds it to rs2.
+    ```
+    X(rd) = X(rs2) + (X(rs1) << 1);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh1add).
+    """
+
+    name = "riscv.sh1add"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class Sh2addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction shifts rs1 to the left by 2 places and adds it to rs2.
+    ```
+    X(rd) = X(rs2) + (X(rs1) << 2);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh2add).
+    """
+
+    name = "riscv.sh2add"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class Sh3addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction shifts rs1 to the left by 2 places and adds it to rs2.
+    ```
+    X(rd) = X(rs2) + (X(rs1) << 3);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh3add).
+    """
+
+    name = "riscv.sh3add"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class Sh1addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs an XLEN-wide addition of two addends. The first addend is rs2.
+    The second addend is the unsigned value formed by extracting the least-significant word of
+    rs1 and shifting it left by 1 place.
+
+    ```
+    let base = x[rs2];
+    let index = EXTZ(x[rs1][31..0]);
+    x[rd] = base + (index << 1);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh1add_uw).
+    """
+
+    name = "riscv.sh1add.uw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class Sh2addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs an XLEN-wide addition of two addends. The first addend is rs2.
+    The second addend is the unsigned value formed by extracting the least-significant word of rs1
+    and shifting it left by 2 places.
+    ```
+    let base = x[rs2];
+    let index = EXTZ(x[rs1][31..0]);
+    x[rd] = base + (index << 2);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh2add_uw).
+    """
+
+    name = "riscv.sh2add.uw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class Sh3addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs an XLEN-wide addition of two addends. The first addend is rs2.
+    The second addend is the unsigned value formed by extracting the least-significant word of rs1
+    and shifting it left by 3 places.
+
+    ```
+    let base = x[rs2];
+    let index = EXTZ(x[rs1][31..0]);
+    x[rd] = base + (index << 3);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh3add_uw).
+    """
+
+    name = "riscv.sh3add.uw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SlliUwOp(RdRsImmShiftOperation):
+    """
+    This instruction takes the least-significant word of rs1, zero-extends it,
+    and shifts it left by the immediate.
+    ```
+    x[rd] = (EXTZ(x[rs][31..0]) << shamt);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-slli_uw).
+    """
+
+    name = "riscv.slli.uw"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class AndnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs the bitwise logical AND operation between rs1 and the bitwise inversion of rs2.
+    ```
+    X(rd) = X(rs1) & ~X(rs2);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-andn).
+    """
+
+    name = "riscv.andn"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class OrnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs the bitwise logical OR operation between rs1 and the bitwise inversion of rs2.
+    ```
+    X(rd) = X(rs1) | ~X(rs2);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-orn).
+    """
+
+    name = "riscv.orn"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class XnorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction performs the bit-wise exclusive-NOR operation on rs1 and rs2.
+    ```
+    X(rd) = ~(X(rs1) ^ X(rs2));
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-xnor).
+    """
+
+    name = "riscv.xnor"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class MaxOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns the larger of two signed integers.
+    ```
+    let rs1_val = X(rs1);
+    let rs2_val = X(rs2);
+
+    let result = if   rs1_val <_s rs2_val
+                    then rs2_val
+                    else rs1_val;
+    X(rd) = result;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-max).
+    """
+
+    name = "riscv.max"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class MaxUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns the larger of two unsigned integers.
+    ```
+    let rs1_val = X(rs1);
+    let rs2_val = X(rs2);
+    let result = if   rs1_val <_u rs2_val
+                 then rs2_val
+             else rs1_val;
+    X(rd) = result;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-maxu).
+    """
+
+    name = "riscv.maxu"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class MinOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns the smaller of two signed integers.
+    ```
+    let rs1_val = X(rs1);
+    let rs2_val = X(rs2);
+    let result = if   rs1_val <_s rs2_val
+                 then rs1_val
+             else rs2_val;
+    X(rd) = result;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-min).
+    """
+
+    name = "riscv.min"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class MinUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    This instruction returns the smaller of two unsigned integers.
+    ```
+    let rs1_val = X(rs1);
+    let rs2_val = X(rs2);
+    let result = if   rs1_val <_u rs2_val
+                    then rs1_val
+                    else rs2_val;
+    X(rd) = result;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-minu).
+    """
+
+    name = "riscv.minu"
+
+    traits = traits_def(Pure())
+
+
+# endregion
+
+
+# region "ZiCond" Conditional" operations extension
+@irdl_op_definition
+class CZeroEqzOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Moves zero to a register rd, if the condition rs2 is equal to zero, otherwise moves rs1 to rd.
+
+    See external [documentation](https://github.com/riscvarchive/riscv-zicond/blob/main/zicondops.adoc).
+    """
+
+    name = "riscv.czero.eqz"
+
+
+@irdl_op_definition
+class CZeroNezOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
+    """
+    Moves zero to a register rd, if the condition rs2 is nonzero, otherwise moves rs1 to rd.
+
+    See external [documentation](https://github.com/riscvarchive/riscv-zicond/blob/main/zicondops.adoc).
+    """
+
+    name = "riscv.czero.nez"
+
+
 # endregion
 
 # region Assembler pseudo-instructions
-# https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
+# See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md).
 
 
 class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
@@ -2493,7 +3369,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     This is an assembler pseudo-instruction.
 
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate).
     """
 
     name = "riscv.li"
@@ -2507,17 +3383,13 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         self,
         immediate: int | Imm32Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i32)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2538,8 +3410,8 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, i32)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(" ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
         print_immediate_value(printer, self.immediate)
         return {"immediate", "fastmath"}
 
@@ -2552,7 +3424,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return (), (res_type,)
 
     def print_op_type(self, printer: Printer) -> None:
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.rd.type)
 
 
@@ -2565,7 +3437,7 @@ class EcallOp(NullaryOperation):
     request are passed, but usually these will be in defined locations in the
     integer register file.
 
-    https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
+    See external [documentation](https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf).
     """
 
     name = "riscv.ecall"
@@ -2577,7 +3449,7 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
 
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels).
     """
 
     name = "riscv.label"
@@ -2611,8 +3483,8 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
         attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(" ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
         printer.print_string_literal(self.label.data)
         return {"label"}
 
@@ -2633,7 +3505,7 @@ class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     without any associated region of assembly code.
     A more complete list of directives can be found here:
 
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops).
     """
 
     name = "riscv.directive"
@@ -2677,11 +3549,11 @@ class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
             attributes["value"] = StringAttr(value)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(" ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
         printer.print_string_literal(self.directive.data)
         if self.value is not None:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_string_literal(self.value.data)
         return {"directive", "value"}
 
@@ -2696,14 +3568,14 @@ class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
 
 
 @irdl_op_definition
-class AssemblySectionOp(RISCVAsmOperation):
+class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
     """
     The directive operation is used to emit assembler directives (e.g. .text; .data; etc.)
     with the scope of a section.
 
     A more complete list of directives can be found here:
 
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops).
 
     This operation can have nested operations, corresponding to a section of the assembly.
     """
@@ -2755,8 +3627,8 @@ class AssemblySectionOp(RISCVAsmOperation):
         if self.data.block.ops:
             printer.print_region(self.data)
 
-    def assembly_line(self) -> str | None:
-        return AssemblyPrinter.assembly_line(self.directive.data, "", is_indented=False)
+    def print_assembly(self, printer: AssemblyPrinter) -> None:
+        printer.emit_section(self.directive.data)
 
 
 @irdl_op_definition
@@ -2838,7 +3710,7 @@ class EbreakOp(NullaryOperation):
     The EBREAK instruction is used by debuggers to cause control to be
     transferred back to a debugging environment.
 
-    https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
+    See external [documentation](https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf).
     """
 
     name = "riscv.ebreak"
@@ -2851,7 +3723,7 @@ class WfiOp(NullaryOperation):
     implementation that the current hart can be stalled until an
     interrupt might need servicing.
 
-    https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf
+    See external [documentation](https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf).
     """
 
     name = "riscv.wfi"
@@ -2931,7 +3803,7 @@ class GetAnyRegisterOperation(
         return (), (res_type,)
 
     def print_op_type(self, printer: Printer) -> None:
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.res.type)
 
 
@@ -2970,13 +3842,9 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         rs2: Operation | SSAValue,
         rs3: Operation | SSAValue,
         *,
-        rd: FloatRegisterType | str | None = None,
+        rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = FloatRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2990,45 +3858,6 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2, self.rs3
-
-
-class RdRsRsFloatFloatIntegerOperation(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC
-):
-    """
-    A base class for RV32F operations that take
-    two floating-point input registers and an integer destination register.
-    """
-
-    rd = result_def(IntRegisterType)
-    rs1 = operand_def(FloatRegisterType)
-    rs2 = operand_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
-        *,
-        rd: IntRegisterType | str | None = None,
-        comment: str | StringAttr | None = None,
-    ):
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[rs1, rs2],
-            attributes={
-                "comment": comment,
-            },
-            result_types=[rd],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.rs1, self.rs2
 
 
 class RdRsRsFloatFloatIntegerOperationWithFastMath(
@@ -3051,14 +3880,10 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -3083,9 +3908,9 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
         attributes["fastmath"] = fast
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
-            printer.print(" fastmath")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        if self.fastmath != FastMathFlagsAttr("none"):
+            printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
         return {"fastmath"}
 
@@ -3132,8 +3957,8 @@ class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, i12)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -3154,7 +3979,7 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         immediate: int | Imm12Attr | str | LabelAttr,
         *,
-        rd: FloatRegisterType | str | None = None,
+        rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -3162,10 +3987,6 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
-        if rd is None:
-            rd = FloatRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -3186,8 +4007,8 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         attributes["immediate"] = parse_immediate_value(parser, i12)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> Set[str]:
-        printer.print(", ")
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -3201,7 +4022,7 @@ class FMAddSOp(RdRsRsRsFloatOperation):
     f[rd] = f[rs1]×f[rs2]+f[rs3]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-s).
     """
 
     name = "riscv.fmadd.s"
@@ -3216,7 +4037,7 @@ class FMSubSOp(RdRsRsRsFloatOperation):
     f[rd] = f[rs1]×f[rs2]+f[rs3]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-s).
     """
 
     name = "riscv.fmsub.s"
@@ -3231,7 +4052,7 @@ class FNMSubSOp(RdRsRsRsFloatOperation):
     f[rd] = -f[rs1]×f[rs2]+f[rs3]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fnmsub-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fnmsub-s).
     """
 
     name = "riscv.fnmsub.s"
@@ -3246,7 +4067,7 @@ class FNMAddSOp(RdRsRsRsFloatOperation):
     f[rd] = -f[rs1]×f[rs2]-f[rs3]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fnmadd-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fnmadd-s).
     """
 
     name = "riscv.fnmadd.s"
@@ -3261,7 +4082,7 @@ class FAddSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = f[rs1]+f[rs2]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fadd-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fadd-s).
     """
 
     name = "riscv.fadd.s"
@@ -3278,7 +4099,7 @@ class FSubSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = f[rs1]-f[rs2]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsub-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsub-s).
     """
 
     name = "riscv.fsub.s"
@@ -3293,7 +4114,7 @@ class FMulSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = f[rs1]×f[rs2]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-s).
     """
 
     name = "riscv.fmul.s"
@@ -3308,14 +4129,14 @@ class FDivSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = f[rs1] / f[rs2]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fdiv-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fdiv-s).
     """
 
     name = "riscv.fdiv.s"
 
 
 @irdl_op_definition
-class FSqrtSOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+class FSqrtSOp(RdRsFloatOperation[FloatRegisterType]):
     """
     Perform single-precision floating-point square root.
 
@@ -3323,16 +4144,14 @@ class FSqrtSOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
     f[rd] = sqrt(f[rs1])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsqrt-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsqrt-s).
     """
 
     name = "riscv.fsqrt.s"
 
 
 @irdl_op_definition
-class FSgnJSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class FSgnJSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is rs2’s sign bit.
@@ -3341,16 +4160,14 @@ class FSgnJSOp(
     f[rd] = {f[rs2][31], f[rs1][30:0]}
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnj.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnj.s).
     """
 
     name = "riscv.fsgnj.s"
 
 
 @irdl_op_definition
-class FSgnJNSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class FSgnJNSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is opposite of rs2’s sign bit.
@@ -3359,16 +4176,14 @@ class FSgnJNSOp(
     f[rd] = {~f[rs2][31], f[rs1][30:0]}
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnjn.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnjn.s).
     """
 
     name = "riscv.fsgnjn.s"
 
 
 @irdl_op_definition
-class FSgnJXSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class FSgnJXSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is XOR of sign bit of rs1 and rs2.
@@ -3377,7 +4192,7 @@ class FSgnJXSOp(
     f[rd] = {f[rs1][31] ^ f[rs2][31], f[rs1][30:0]}
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnjx.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsgnjx.s).
     """
 
     name = "riscv.fsgnjx.s"
@@ -3392,7 +4207,7 @@ class FMinSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = min(f[rs1], f[rs2])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmin-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmin-s).
     """
 
     name = "riscv.fmin.s"
@@ -3407,14 +4222,14 @@ class FMaxSOp(RdRsRsFloatOperationWithFastMath):
     f[rd] = max(f[rs1], f[rs2])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmax-s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmax-s).
     """
 
     name = "riscv.fmax.s"
 
 
 @irdl_op_definition
-class FCvtWSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
+class FCvtWSOp(RdRsIntegerOperation[FloatRegisterType]):
     """
     Convert a floating-point number in floating-point register rs1 to a signed 32-bit in integer register rd.
 
@@ -3422,14 +4237,14 @@ class FCvtWSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     x[rd] = sext(s32_{f32}(f[rs1]))
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.w.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.w.s).
     """
 
     name = "riscv.fcvt.w.s"
 
 
 @irdl_op_definition
-class FCvtWuSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
+class FCvtWuSOp(RdRsIntegerOperation[FloatRegisterType]):
     """
     Convert a floating-point number in floating-point register rs1 to a signed 32-bit in unsigned integer register rd.
 
@@ -3437,14 +4252,14 @@ class FCvtWuSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     x[rd] = sext(u32_{f32}(f[rs1]))
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.wu.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.wu.s).
     """
 
     name = "riscv.fcvt.wu.s"
 
 
 @irdl_op_definition
-class FMvXWOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
+class FMvXWOp(RdRsIntegerOperation[FloatRegisterType]):
     """
     Move the single-precision value in floating-point register rs1 represented in IEEE
     754-2008 encoding to the lower 32 bits of integer register rd.
@@ -3453,7 +4268,7 @@ class FMvXWOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     x[rd] = sext(f[rs1][31:0])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmv.x.w
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmv.x.w).
     """
 
     name = "riscv.fmv.x.w"
@@ -3469,7 +4284,7 @@ class FeqSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 
     x[rd] = f[rs1] == f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#feq.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#feq.s).
     """
 
     name = "riscv.feq.s"
@@ -3485,7 +4300,7 @@ class FltSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 
     x[rd] = f[rs1] < f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#flt.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#flt.s).
     """
 
     name = "riscv.flt.s"
@@ -3501,14 +4316,14 @@ class FleSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 
     x[rd] = f[rs1] <= f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fle.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fle.s).
     """
 
     name = "riscv.fle.s"
 
 
 @irdl_op_definition
-class FClassSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
+class FClassSOp(RdRsIntegerOperation[FloatRegisterType]):
     """
     Examines the value in floating-point register rs1 and writes to integer register rd
     a 10-bit mask that indicates the class of the floating-point number.
@@ -3518,14 +4333,14 @@ class FClassSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
 
     x[rd] = classifys(f[rs1])
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fclass.s
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fclass.s).
     """
 
     name = "riscv.fclass.s"
 
 
 @irdl_op_definition
-class FCvtSWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+class FCvtSWOp(RdRsFloatOperation[IntRegisterType]):
     """
     Converts a 32-bit signed integer, in integer register rs1 into a floating-point number in floating-point register rd.
 
@@ -3533,14 +4348,14 @@ class FCvtSWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     f[rd] = f32_{s32}(x[rs1])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.s.w
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.s.w).
     """
 
     name = "riscv.fcvt.s.w"
 
 
 @irdl_op_definition
-class FCvtSWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+class FCvtSWuOp(RdRsFloatOperation[IntRegisterType]):
     """
     Converts a 32-bit unsigned integer, in integer register rs1 into a floating-point
     number in floating-point register rd.
@@ -3549,14 +4364,14 @@ class FCvtSWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     f[rd] = f32_{u32}(x[rs1])
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.s.wu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.s.wu).
     """
 
     name = "riscv.fcvt.s.wu"
 
 
 @irdl_op_definition
-class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+class FMvWXOp(RdRsFloatOperation[IntRegisterType]):
     """
     Move the single-precision value encoded in IEEE 754-2008 standard encoding from the
     lower 32 bits of integer register rs1 to the floating-point register rd.
@@ -3566,7 +4381,7 @@ class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     ```
 
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmv.w.x
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmv.w.x).
     """
 
     name = "riscv.fmv.w.x"
@@ -3591,7 +4406,7 @@ class FLwOp(RdRsImmFloatOperation):
     f[rd] = M[x[rs1] + sext(offset)][31:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#flw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#flw).
     """
 
     name = "riscv.flw"
@@ -3625,7 +4440,7 @@ class FSwOp(RsRsImmFloatOperation):
 
     M[x[rs1] + offset] = f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw).
     """
 
     name = "riscv.fsw"
@@ -3654,7 +4469,7 @@ class FMAddDOp(RdRsRsRsFloatOperation):
 
     f[rd] = f[rs1]×f[rs2]+f[rs3]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-d).
     """
 
     name = "riscv.fmadd.d"
@@ -3669,7 +4484,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 
     f[rd] = f[rs1]×f[rs2]+f[rs3]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-d).
     """
 
     name = "riscv.fmsub.d"
@@ -3694,7 +4509,7 @@ class FAddDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = f[rs1]+f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fadd-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fadd-d).
     """
 
     name = "riscv.fadd.d"
@@ -3712,7 +4527,7 @@ class FSubDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = f[rs1]-f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsub-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsub-d).
     """
 
     name = "riscv.fsub.d"
@@ -3727,7 +4542,7 @@ class FMulDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = f[rs1]×f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-d).
     """
 
     name = "riscv.fmul.d"
@@ -3742,7 +4557,7 @@ class FDivDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = f[rs1] / f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fdiv-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fdiv-d).
     """
 
     name = "riscv.fdiv.d"
@@ -3765,7 +4580,7 @@ class FMinDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = min(f[rs1], f[rs2])
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmin-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmin-d).
     """
 
     name = "riscv.fmin.d"
@@ -3780,7 +4595,7 @@ class FMaxDOp(RdRsRsFloatOperationWithFastMath):
 
     f[rd] = max(f[rs1], f[rs2])
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmax-d
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmax-d).
     """
 
     name = "riscv.fmax.d"
@@ -3789,14 +4604,14 @@ class FMaxDOp(RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
-class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+class FCvtDWOp(RdRsFloatOperation[IntRegisterType]):
     """
     Converts a 32-bit signed integer, in integer register rs1 into a double-precision
     floating-point number in floating-point register rd.
 
     x[rd] = sext(s32_{f64}(f[rs1]))
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-w
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-w).
     """
 
     name = "riscv.fcvt.d.w"
@@ -3805,14 +4620,14 @@ class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class FCvtDWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+class FCvtDWuOp(RdRsFloatOperation[IntRegisterType]):
     """
     Converts a 32-bit unsigned integer, in integer register rs1 into a double-precision
     floating-point number in floating-point register rd.
 
     f[rd] = f64_{u32}(x[rs1])
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-wu
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-wu).
     """
 
     name = "riscv.fcvt.d.wu"
@@ -3829,7 +4644,7 @@ class FLdOp(RdRsImmFloatOperation):
     f[rd] = M[x[rs1] + sext(offset)][63:0]
     ```
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fld
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fld).
     """
 
     name = "riscv.fld"
@@ -3868,7 +4683,7 @@ class FSdOp(RsRsImmFloatOperation):
 
     M[x[rs1] + offset] = f[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw).
     """
 
     name = "riscv.fsd"
@@ -3894,7 +4709,7 @@ class FMvDHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+class FMvDOp(RdRsFloatOperation[FloatRegisterType]):
     """
     A pseudo instruction to copy 64 bits of one float register to another.
 
@@ -3913,7 +4728,7 @@ class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
 # region 17 "V" Standard Extension for Vector Operations
 
-# https://riscv.org/wp-content/uploads/2018/05/15.20-15.55-18.05.06.VEXT-bcn-v1.pdf
+# See external documentation https://riscv.org/wp-content/uploads/2018/05/15.20-15.55-18.05.06.VEXT-bcn-v1.pdf
 
 # Vector operations that use standard RISC-V registers are using a non-standard Xfvec
 # extension.
@@ -3923,9 +4738,7 @@ class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
 
 @irdl_op_definition
-class VFAddSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class VFAddSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Perform a pointwise single-precision floating-point addition over vectors.
 
@@ -3939,9 +4752,7 @@ class VFAddSOp(
 
 
 @irdl_op_definition
-class VFMulSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class VFMulSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Perform a pointwise single-precision floating-point multiplication over vectors.
 
@@ -3985,7 +4796,7 @@ def parse_immediate_value(
 def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
     match immediate:
         case IntegerAttr():
-            printer.print(immediate.value.data)
+            immediate.print_without_type(printer)
         case LabelAttr():
             printer.print_string_literal(immediate.data)
 
@@ -4049,6 +4860,52 @@ RISCV = Dialect(
         RemOp,
         RemuOp,
         LiOp,
+        RolOp,
+        RorOp,
+        RemuwOp,
+        SrliwOp,
+        SraiwOp,
+        AddwOp,
+        SubwOp,
+        SllwOp,
+        SrlwOp,
+        SrawOp,
+        RemwOp,
+        MulwOp,
+        DivwOp,
+        DivuwOp,
+        CZeroEqzOp,
+        CZeroNezOp,
+        BclrOp,
+        BextOp,
+        BinvOp,
+        BsetOp,
+        RolwOp,
+        RorwOp,
+        AddUwOp,
+        Sh1addOp,
+        Sh2addOp,
+        Sh3addOp,
+        Sh1addUwOp,
+        Sh2addUwOp,
+        Sh3addUwOp,
+        SextBOp,
+        SextHOp,
+        ZextHOp,
+        AndnOp,
+        OrnOp,
+        XnorOp,
+        MaxOp,
+        MaxUOp,
+        MinOp,
+        MinUOp,
+        BclrIOp,
+        BextIOp,
+        BsetIOp,
+        BinvIOp,
+        RoriOp,
+        RoriwOp,
+        SlliUwOp,
         EcallOp,
         LabelOp,
         DirectiveOp,

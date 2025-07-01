@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.test import Test, TestOp
 from xdsl.ir import Use
@@ -13,7 +13,7 @@ test_prog = """
 
 
 def test_main():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Test)
 
@@ -44,7 +44,7 @@ test_prog_blocks = """
 
 
 def test_predecessor():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Test)
 

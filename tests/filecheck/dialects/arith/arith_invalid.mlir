@@ -15,3 +15,13 @@
 %i32 = "test.op"() : () -> i32
 %res = "arith.index_cast"(%i32) : (i32) -> i32
 // CHECK: 'arith.index_cast' op operand type 'i32' and result type 'i32' are cast incompatible
+
+// -----
+
+%c = arith.constant 1 : si32
+// CHECK: Expected attribute #builtin.signedness<signless> but got #builtin.signedness<signed>
+
+// -----
+
+%c = arith.constant 1 : ui32
+// CHECK: Expected attribute #builtin.signedness<signless> but got #builtin.signedness<unsigned>

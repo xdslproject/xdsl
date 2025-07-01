@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ParametrizedAttribute,
     StringAttr,
+    i64,
 )
 from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -93,10 +94,6 @@ class HLSStreamType(ParametrizedAttribute, TypeAttribute):
 
     element_type: ParameterDef[Attribute]
 
-    @staticmethod
-    def get(element_type: Attribute):
-        return HLSStreamType([element_type])
-
 
 @irdl_op_definition
 class HLSStreamOp(IRDLOperation):
@@ -110,7 +107,7 @@ class HLSStreamOp(IRDLOperation):
 
         attrs["elem_type"] = elem_type
 
-        stream_type = HLSStreamType([elem_type])
+        stream_type = HLSStreamType(elem_type)
         return HLSStreamOp.build(result_types=[stream_type], attributes=attrs)
 
 
@@ -140,7 +137,7 @@ class HLSStreamReadOp(IRDLOperation):
 class HLSExtractStencilValueOp(IRDLOperation):
     name = "hls.extract_stencil_value"
 
-    position = attr_def(DenseArrayBase)
+    position = attr_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
 
     res = result_def(Attribute)

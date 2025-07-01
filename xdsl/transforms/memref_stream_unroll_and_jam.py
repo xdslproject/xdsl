@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from itertools import repeat
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, IntegerAttr, ModuleOp
 from xdsl.ir import Block, Region, SSAValue
@@ -145,7 +145,7 @@ class MemrefStreamUnrollAndJamPass(ModulePass):
     iterator_index: int
     unroll_factor: int
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         msg_ops = (
             child for child in op.walk() if isinstance(child, memref_stream.GenericOp)
         )

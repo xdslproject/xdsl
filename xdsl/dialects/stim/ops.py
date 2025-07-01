@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from io import StringIO
 
-from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
+from xdsl.dialects.builtin import ArrayAttr, Float64Type, FloatData, IntAttr
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
 from xdsl.ir import ParametrizedAttribute, Region, TypeAttribute
 from xdsl.irdl import (
@@ -31,7 +31,7 @@ class QubitAttr(StimPrintable, ParametrizedAttribute, TypeAttribute):
     def __init__(self, qubit: int | IntAttr) -> None:
         if not isinstance(qubit, IntAttr):
             qubit = IntAttr(qubit)
-        super().__init__(parameters=[qubit])
+        super().__init__(qubit)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[IntAttr]:
@@ -41,7 +41,7 @@ class QubitAttr(StimPrintable, ParametrizedAttribute, TypeAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print(self.qubit.data)
+            printer.print_int(self.qubit.data)
 
     def print_stim(self, printer: StimPrinter):
         printer.print_string(f"{self.qubit.data}")
@@ -83,7 +83,7 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
                 (IntAttr(int(arg))) if (type(arg) is int) else (FloatData(arg))
                 for arg in coords
             )
-        super().__init__(parameters=[coords, qubit_name])
+        super().__init__(coords, qubit_name)
 
     @classmethod
     def parse_parameters(
@@ -105,13 +105,15 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print("(")
-            for i, elem in enumerate(self.coords):
-                if i:
-                    printer.print_string(", ")
-                printer.print(elem.data)
-            printer.print("), ")
-            printer.print(self.qubit_name)
+            with printer.in_parens():
+                printer.print_list(
+                    self.coords,
+                    lambda c: printer.print_int(c.data)
+                    if isinstance(c, IntAttr)
+                    else printer.print_float(c.data, Float64Type()),
+                )
+            printer.print_string(", ")
+            printer.print_attribute(self.qubit_name)
 
     def print_stim(self, printer: StimPrinter):
         printer.print_attribute(self.coords)
@@ -173,8 +175,6 @@ class AnnotationOp(StimPrintable, IRDLOperation, ABC):
     these do not have operational semantics,
     so this will be used during transforms to ignore these operations.
     """
-
-    ...
 
 
 @irdl_op_definition

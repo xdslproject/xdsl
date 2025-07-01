@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import affine, arith, memref, memref_stream, scf
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -14,7 +14,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     StridedLayoutAttr,
 )
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -70,7 +70,7 @@ def insert_subview(
     source_type = memref_val.type
     if not isinstance(source_type, memref.MemRefType):
         raise DiagnosticException("Cannot create subview from non-memref type")
-    source_type = cast(MemRefType[Attribute], source_type)
+    source_type = cast(MemRefType, source_type)
     layout_attr = source_type.layout
     assert (strides := source_type.get_strides())
     strides = tuple(strides)
@@ -230,7 +230,7 @@ class MemRefStreamTileOuterLoopsPass(ModulePass):
 
     target_rank: int = field()
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             TileGenericPattern(self.target_rank),
         ).rewrite_module(op)

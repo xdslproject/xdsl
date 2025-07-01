@@ -1,6 +1,6 @@
 from typing import Any, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import bufferization, memref, ml_program
 from xdsl.dialects.builtin import (
     ModuleOp,
@@ -68,7 +68,7 @@ class ConvertMlProgramToMemRefPass(ModulePass):
 
     name = "convert-ml-program-to-memref"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

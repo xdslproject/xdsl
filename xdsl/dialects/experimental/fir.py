@@ -6,7 +6,7 @@ FIR+HLFIR is the first MLIR representation of a Fortran code in the
 compilation pipeline. Secondly, the HLFIR+FIR is then lowered to FIR
 only, before this is then lowered to LLVM IR.
 
-For more details see https://flang.llvm.org/docs/FortranIR.html
+See external [documentation](https://flang.llvm.org/docs/FortranIR.html).
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     StringAttr,
     SymbolRefAttr,
-    TupleType,
     UnitAttr,
 )
 from xdsl.ir import (
@@ -120,8 +119,10 @@ class FortranVariableFlagsAttrBase(Data[tuple[FortranVariableFlags, ...]]):
         with printer.in_angle_brackets():
             flags = self.data
             # make sure we emit flags in a consistent order
-            printer.print(
-                ",".join(flag.value for flag in FortranVariableFlags if flag in flags)
+            printer.print_list(
+                tuple(flag.value for flag in FortranVariableFlags if flag in flags),
+                printer.print_string,
+                ",",
             )
 
 
@@ -139,44 +140,6 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
     name = "fir.ref"
     type: ParameterDef[Attribute]
 
-    def print_parameters(self, printer: Printer) -> None:
-        # We need this to pretty print a tuple and its members if
-        # this is referencing one, otherwise just let the type
-        # handle its own printing
-        printer.print("<")
-        if isinstance(self.type, TupleType):
-            printer.print("tuple<")
-            for idx, t in enumerate(self.type.types.data):
-                if idx > 0:
-                    printer.print(", ")
-                printer.print(t)
-            printer.print(">")
-        else:
-            printer.print(self.type)
-        printer.print(">")
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        # This is complicated by the fact we need to parse tuple
-        # here also as the buildin dialect does not support this
-        # yet
-        parser.parse_characters("<")
-        has_tuple = parser.parse_optional_keyword("tuple")
-        if has_tuple is None:
-            param_type = parser.parse_type()
-            parser.parse_characters(">")
-            return [param_type]
-        else:
-            # If its a tuple then there are any number of types
-            def parse_types():
-                return parser.parse_type()
-
-            param_types = parser.parse_comma_separated_list(
-                parser.Delimiter.ANGLE, parse_types
-            )
-            parser.parse_characters(">")
-            return [TupleType(param_types)]
-
 
 @irdl_attr_definition
 class DeferredAttr(ParametrizedAttribute, TypeAttribute):
@@ -191,6 +154,18 @@ class DeferredAttr(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
+class DummyScopeType(ParametrizedAttribute, TypeAttribute):
+    """
+    fir.dscope is a type returned by fir.dummy_scope operation.
+    It defines a unique identifier for a runtime instance of a subroutine
+    that is used by the [hl]fir.declare operations representing
+    the dummy arguments' declarations.
+    """
+
+    name = "fir.dscope"
+
+
+@irdl_attr_definition
 class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
     """
     A pointer type that does not have any of the constraints and semantics
@@ -202,7 +177,20 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.llvm_ptr"
 
-    type: ParameterDef[IntegerAttr | AnyFloat]
+    type: ParameterDef[Attribute]
+
+
+@irdl_attr_definition
+class PointerType(ParametrizedAttribute, TypeAttribute):
+    """
+    The type of entities with the POINTER attribute.  These pointers are
+    explicitly distinguished to disallow the composition of multiple levels of
+    indirection. For example, an ALLOCATABLE POINTER is invalid.
+    """
+
+    name = "fir.ptr"
+
+    type: ParameterDef[Attribute]
 
 
 @irdl_attr_definition
@@ -227,8 +215,8 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.array"
     shape: ParameterDef[ArrayAttr[IntegerAttr | DeferredAttr | NoneType]]
-    type: ParameterDef[IntegerType | AnyFloat | ReferenceType]
-    type2: ParameterDef[IntegerType | AnyFloat | ReferenceType | NoneType]
+    type: ParameterDef[Attribute]
+    type2: ParameterDef[Attribute]
 
     def __init__(
         self,
@@ -237,7 +225,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
         type2: ParameterDef[IntegerType | AnyFloat | ReferenceType] | None = None,
     ):
         if type2 is not None:
-            super().__init__([ArrayAttr([NoneType()]), type1, type2])
+            super().__init__(ArrayAttr([NoneType()]), type1, type2)
         else:
             if shape is None:
                 shape = [1]
@@ -248,36 +236,33 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
                 ]
             )
             super().__init__(
-                [
-                    shape_array_attr,
-                    type1,
-                    NoneType(),
-                ]
+                shape_array_attr,
+                type1,
+                NoneType(),
             )
 
     def print_parameters(self, printer: Printer) -> None:
         # We need extra work here as the builtin tuple is not being supported
         # yet, therefore handle this here
-        printer.print("<")
-        if isinstance(self.type2, NoneType):
-            for s in self.shape.data:
-                if isinstance(s, DeferredAttr):
-                    printer.print_string("?")
-                elif isinstance(s, NoneType):
-                    raise Exception(
-                        "Can not have none type as part of sequence shape with only one type"
-                    )
-                else:
-                    printer.print_string(f"{s.value.data}")
-                printer.print_string("x")
-            printer.print(self.type)
-        else:
-            printer.print_string("0xtuple<")
-            printer.print(self.type)
-            printer.print_string(", ")
-            printer.print(self.type2)
-            printer.print_string(">")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            if isinstance(self.type2, NoneType):
+                for s in self.shape.data:
+                    if isinstance(s, DeferredAttr):
+                        printer.print_string("?")
+                    elif isinstance(s, NoneType):
+                        raise Exception(
+                            "Can not have none type as part of sequence shape with only one type"
+                        )
+                    else:
+                        s.print_without_type(printer)
+                    printer.print_string("x")
+                printer.print_attribute(self.type)
+            else:
+                printer.print_string("0xtuple")
+                with printer.in_angle_brackets():
+                    printer.print_attribute(self.type)
+                    printer.print_string(", ")
+                    printer.print_attribute(self.type2)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -335,19 +320,18 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
     to_index: ParameterDef[IntAttr | DeferredAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        if isinstance(self.from_index, DeferredAttr):
-            printer.print_string("?")
-        else:
-            printer.print_string(f"{self.from_index.data}")
+        with printer.in_angle_brackets():
+            if isinstance(self.from_index, DeferredAttr):
+                printer.print_string("?")
+            else:
+                printer.print_int(self.from_index.data)
 
-        printer.print_string(",")
+            printer.print_string(",")
 
-        if isinstance(self.to_index, DeferredAttr):
-            printer.print_string("?")
-        else:
-            printer.print_string(f"{self.to_index.data}")
-        printer.print(">")
+            if isinstance(self.to_index, DeferredAttr):
+                printer.print_string("?")
+            else:
+                printer.print_int(self.to_index.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -359,10 +343,84 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
 
         parser.parse_characters("<")
         lower = parse_value()
-        parser.parse_characters(",")
-        upper = parse_value()
+        has_upper = parser.parse_optional_characters(",")
+        if has_upper:
+            upper = parse_value()
+        else:
+            upper = IntAttr(1)
         parser.parse_characters(">")
         return [lower, upper]
+
+
+@irdl_attr_definition
+class LogicalType(ParametrizedAttribute, TypeAttribute):
+    """
+    Model of a Fortran LOGICAL intrinsic type, including the KIND type
+    parameter
+    """
+
+    name = "fir.logical"
+
+    size: ParameterDef[IntAttr]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_int(self.size.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_characters("<")
+        s = parser.parse_integer(allow_boolean=False)
+        parser.parse_characters(">")
+        return [IntAttr(s)]
+
+
+@irdl_attr_definition
+class ComplexType(ParametrizedAttribute, TypeAttribute):
+    """
+    Model of a Fortran COMPLEX intrinsic type, including the KIND type
+    parameter. COMPLEX is a floating point type with a real and imaginary
+    member.
+    """
+
+    name = "fir.complex"
+
+    width: ParameterDef[IntAttr]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_int(self.width.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_characters("<")
+        s = parser.parse_integer(allow_boolean=False)
+        parser.parse_characters(">")
+        return [IntAttr(s)]
+
+
+@irdl_attr_definition
+class ShiftType(ParametrizedAttribute, TypeAttribute):
+    """
+    Type of a vector of runtime values that define the lower bounds of a
+    multidimensional array object. The vector is the lower bounds of each array
+    dimension. The rank of a ShiftType must be at least 1.
+    """
+
+    name = "fir.shift"
+
+    indexes: ParameterDef[IntAttr]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_int(self.indexes.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_characters("<")
+        s = parser.parse_integer(allow_boolean=False)
+        parser.parse_characters(">")
+        return [IntAttr(s)]
 
 
 @irdl_attr_definition
@@ -378,9 +436,33 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
     indexes: ParameterDef[IntAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_string(f"{self.indexes.data}")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.indexes.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_characters("<")
+        s = parser.parse_integer(allow_boolean=False)
+        parser.parse_characters(">")
+        return [IntAttr(s)]
+
+
+@irdl_attr_definition
+class ShapeShiftType(ParametrizedAttribute, TypeAttribute):
+    """
+    Type of a vector of runtime values that define the shape and the origin of a
+    multidimensional array object. The vector is of pairs, origin offset and
+    extent, of each array dimension. The rank of a ShapeShiftType must be at
+    least 1.
+    """
+
+    name = "fir.shapeshift"
+
+    indexes: ParameterDef[IntAttr]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_int(self.indexes.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -401,7 +483,7 @@ class HeapType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.heap"
 
-    type: ParameterDef[SequenceType]
+    type: ParameterDef[SequenceType | CharacterType]
 
 
 @irdl_attr_definition
@@ -414,7 +496,7 @@ class BoxType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.box"
 
-    type: ParameterDef[HeapType | SequenceType]
+    type: ParameterDef[Attribute]
 
 
 @irdl_attr_definition
@@ -430,9 +512,8 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
     kind: ParameterDef[IntAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_string(f"{self.kind.data}")
-        printer.print(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.kind.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -503,6 +584,7 @@ class AllocmemOp(IRDLOperation):
     name = "fir.allocmem"
     in_type = prop_def(Attribute)
     uniq_name = opt_prop_def(StringAttr)
+    bindc_name = opt_prop_def(StringAttr)
     typeparams = var_operand_def()
     shape = var_operand_def()
 
@@ -584,6 +666,7 @@ class AllocaOp(IRDLOperation):
     result_0 = result_def()
     regs = var_region_def()
     valuebyref = opt_prop_def(UnitAttr)
+    pinned = opt_prop_def(UnitAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -1006,6 +1089,29 @@ class BoxIsptrOp(IRDLOperation):
 
 
 @irdl_op_definition
+class BoxOffsetOp(IRDLOperation):
+    """
+    Given the address of a fir.box, compute the address of a field inside
+    the fir.box.
+    This allows keeping the actual runtime descriptor layout abstract in
+    FIR while providing access to the pointer addresses in the runtime
+    descriptor for OpenMP/OpenACC target mapping.
+
+    To avoid requiring too much information about the fields that the runtime
+    descriptor implementation must have, only the base_addr and derived_type
+    descriptor fields can be addressed.
+
+    %addr = fir.box_offset %box base_addr : (!fir.ref<!fir.box<!fir.array<?xi32>>>) -> !fir.llvm_ptr<!fir.ref<!fir.array<?xi32>>>
+    %tdesc = fir.box_offset %box derived_type : (!fir.ref<!fir.box<!fir.type<t>>>) -> !fir.llvm_ptr<!fir.tdesc<!fir.type<t>>>
+    """
+
+    name = "fir.box_offset"
+    field = prop_def(Attribute)
+    val = operand_def()
+    result_0 = result_def()
+
+
+@irdl_op_definition
 class BoxprocHostOp(IRDLOperation):
     """
     Extract the host context pointer from a boxproc value.
@@ -1323,10 +1429,92 @@ class DoLoopOp(IRDLOperation):
     lowerBound = operand_def()
     upperBound = operand_def()
     step = operand_def()
+    reduceOperands = var_operand_def()
+    initArgs = var_operand_def()
     finalValue = opt_prop_def(Attribute)
-    initArgs = operand_def()
+    initArgs = opt_operand_def()
     _results = var_result_def()
     regs = var_region_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
+@irdl_op_definition
+class DummyScopeOp(IRDLOperation):
+    """
+    An abstract handle to be used to associate dummy arguments of the same
+    subroutine between each other. By lowering, all [hl]fir.declare
+    operations representing declarations of dummy arguments of a subroutine
+    use the result of this operation. This allows recognizing the references
+    of these dummy arguments as belonging to the same runtime instance
+    of the subroutine even after MLIR inlining. Thus, the Fortran aliasing
+    rules might be applied to those references based on the original
+    declarations of the dummy arguments.
+    For example:
+      subroutine test(x, y)
+        real, target :: x, y
+        x = y ! may alias
+        call inner(x, y)
+      contains
+        subroutine inner(x, y)
+          real :: x, y
+          x = y ! may not alias
+        end subroutine inner
+      end subroutine test
+
+    After MLIR inlining this may look like this:
+
+      func.func @_QPtest(
+          %arg0: !fir.ref<f32> {fir.target},
+          %arg1: !fir.ref<f32> {fir.target}) {
+        %0 = fir.declare %arg0 {fortran_attrs = #fir.var_attrs<target>} :
+            (!fir.ref<f32>) -> !fir.ref<f32>
+        %1 = fir.declare %arg1 {fortran_attrs = #fir.var_attrs<target>} :
+            (!fir.ref<f32>) -> !fir.ref<f32>
+        %2 = fir.load %1 : !fir.ref<f32>
+        fir.store %2 to %0 : !fir.ref<f32>
+        %3 = fir.declare %0 : (!fir.ref<f32>) -> !fir.ref<f32>
+        %4 = fir.declare %1 : (!fir.ref<f32>) -> !fir.ref<f32>
+        %5 = fir.load %4 : !fir.ref<f32>
+        fir.store %5 to %3 : !fir.ref<f32>
+        return
+      }
+
+    Without marking %3 and %4 as declaring the dummy arguments
+    of the same runtime instance of `inner` subroutine the FIR
+    AliasAnalysis cannot deduce non-aliasing for the second load/store pair.
+    This information may be preserved by using fir.dummy_scope operation:
+
+      func.func @_QPtest(
+          %arg0: !fir.ref<f32> {fir.target},
+          %arg1: !fir.ref<f32> {fir.target}) {
+        %h1 = fir.dummy_scope : i1
+        %0 = fir.declare %arg0 dummy_scope(%h1)
+            {fortran_attrs = #fir.var_attrs<target>} :
+            (!fir.ref<f32>) -> !fir.ref<f32>
+        %1 = fir.declare %arg1 dummy_scope(%h1)
+            {fortran_attrs = #fir.var_attrs<target>} :
+            (!fir.ref<f32>) -> !fir.ref<f32>
+        %2 = fir.load %1 : !fir.ref<f32>
+        fir.store %2 to %0 : !fir.ref<f32>
+        %h2 = fir.dummy_scope : i1
+        %3 = fir.declare %0 dummy_scope(%h2) : (!fir.ref<f32>) -> !fir.ref<f32>
+        %4 = fir.declare %1 dummy_scope(%h2) : (!fir.ref<f32>) -> !fir.ref<f32>
+        %5 = fir.load %4 : !fir.ref<f32>
+        fir.store %5 to %3 : !fir.ref<f32>
+        return
+      }
+
+    Note that even if `inner` is called and inlined twice inside
+    `test`, the two inlined instances of `inner` must use two different
+    fir.dummy_scope operations for their fir.declare ops. This
+    two distinct fir.dummy_scope must remain distinct during the optimizations.
+    This is guaranteed by the write memory effect on the DebuggingResource.
+    """
+
+    name = "fir.dummy_scope"
+
+    result = result_def()
 
 
 @irdl_op_definition
@@ -1379,7 +1567,7 @@ class EmboxOp(IRDLOperation):
 
     name = "fir.embox"
     memref = operand_def()
-    shape = operand_def()
+    shape = var_operand_def()
     slice = var_operand_def()
     typeparams = var_operand_def()
     sourceBox = var_operand_def()
@@ -1437,6 +1625,7 @@ class ExtractValueOp(IRDLOperation):
 
     name = "fir.extract_value"
     adt = operand_def()
+    coor = opt_prop_def(Attribute)
     res = result_def()
     regs = var_region_def()
 
@@ -1471,6 +1660,8 @@ class EndOp(IRDLOperation):
 
     name = "fir.end"
     regs = var_region_def()
+
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -1649,6 +1840,7 @@ class InsertValueOp(IRDLOperation):
     name = "fir.insert_value"
     adt = operand_def()
     val = operand_def()
+    coor = opt_prop_def(Attribute)
     result_0 = result_def()
     regs = var_region_def()
 
@@ -1703,7 +1895,7 @@ class IterateWhileOp(IRDLOperation):
     step = operand_def()
     iterateIn = operand_def()
     initArgs = operand_def()
-    _results = result_def()
+    _results = var_result_def()
     regs = var_region_def()
 
 
@@ -1819,11 +2011,13 @@ class ReboxOp(IRDLOperation):
     """
 
     name = "fir.rebox"
-    box = operand_def()
-    shape = operand_def()
-    slice = operand_def()
+    box = opt_operand_def()
+    shape = opt_operand_def()
+    slice = opt_operand_def()
     result_0 = result_def()
     regs = var_region_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
 
 @irdl_op_definition
@@ -2006,7 +2200,7 @@ class ShapeShiftOp(IRDLOperation):
     """
 
     name = "fir.shape_shift"
-    pairs = operand_def()
+    pairs = var_operand_def()
     result_0 = result_def()
     regs = var_region_def()
 
@@ -2024,7 +2218,7 @@ class ShiftOp(IRDLOperation):
     """
 
     name = "fir.shift"
-    origins = operand_def()
+    origins = var_operand_def()
     result_0 = result_def()
     regs = var_region_def()
 
@@ -2094,8 +2288,10 @@ class StringLitOp(IRDLOperation):
     to Fortran's CHARACTER type, including a LEN.  We support CHARACTER values
     of different KINDs (different constant sizes).
 
+    ```mlir
     %1 = fir.string_lit "Hello, World!"(13) : !fir.char<1> // ASCII
     %2 = fir.string_lit [158, 2345](2) : !fir.char<2>      // Wide chars
+    ```
     """
 
     name = "fir.string_lit"
@@ -2181,6 +2377,8 @@ class UnreachableOp(IRDLOperation):
     name = "fir.unreachable"
     regs = var_region_def()
 
+    traits = traits_def(IsTerminator())
+
 
 @irdl_op_definition
 class ZeroBitsOp(IRDLOperation):
@@ -2221,6 +2419,7 @@ FIR = Dialect(
         BoxIsallocOp,
         BoxIsarrayOp,
         BoxIsptrOp,
+        BoxOffsetOp,
         BoxprocHostOp,
         BoxRankOp,
         BoxTdescOp,
@@ -2236,6 +2435,7 @@ FIR = Dialect(
         DispatchTableOp,
         DivcOp,
         DoLoopOp,
+        DummyScopeOp,
         EmboxcharOp,
         EmboxOp,
         EmboxprocOp,
@@ -2281,13 +2481,19 @@ FIR = Dialect(
         FortranVariableFlagsAttr,
         ReferenceType,
         DeferredAttr,
+        DummyScopeType,
         LLVMPointerType,
+        PointerType,
+        LogicalType,
         NoneType,
         SequenceType,
         CharacterType,
         ShapeType,
+        ShapeShiftType,
         HeapType,
         BoxType,
         BoxCharType,
+        ShiftType,
+        ComplexType,
     ],
 )

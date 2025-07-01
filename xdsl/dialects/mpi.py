@@ -63,20 +63,20 @@ class MpiOp:
     A collection of MPI_Op types used for
     """
 
-    MPI_MAX = OperationType([StringAttr("MPI_MAX")])
-    MPI_MIN = OperationType([StringAttr("MPI_MIN")])
-    MPI_SUM = OperationType([StringAttr("MPI_SUM")])
-    MPI_PROD = OperationType([StringAttr("MPI_PROD")])
-    MPI_LAND = OperationType([StringAttr("MPI_LAND")])
-    MPI_BAND = OperationType([StringAttr("MPI_BAND")])
-    MPI_LOR = OperationType([StringAttr("MPI_LOR")])
-    MPI_BOR = OperationType([StringAttr("MPI_BOR")])
-    MPI_LXOR = OperationType([StringAttr("MPI_LXOR")])
-    MPI_BXOR = OperationType([StringAttr("MPI_BXOR")])
-    MPI_MINLOC = OperationType([StringAttr("MPI_MINLOC")])
-    MPI_MAXLOC = OperationType([StringAttr("MPI_MAXLOC")])
-    MPI_REPLACE = OperationType([StringAttr("MPI_REPLACE")])
-    MPI_NO_OP = OperationType([StringAttr("MPI_NO_OP")])
+    MPI_MAX = OperationType(StringAttr("MPI_MAX"))
+    MPI_MIN = OperationType(StringAttr("MPI_MIN"))
+    MPI_SUM = OperationType(StringAttr("MPI_SUM"))
+    MPI_PROD = OperationType(StringAttr("MPI_PROD"))
+    MPI_LAND = OperationType(StringAttr("MPI_LAND"))
+    MPI_BAND = OperationType(StringAttr("MPI_BAND"))
+    MPI_LOR = OperationType(StringAttr("MPI_LOR"))
+    MPI_BOR = OperationType(StringAttr("MPI_BOR"))
+    MPI_LXOR = OperationType(StringAttr("MPI_LXOR"))
+    MPI_BXOR = OperationType(StringAttr("MPI_BXOR"))
+    MPI_MINLOC = OperationType(StringAttr("MPI_MINLOC"))
+    MPI_MAXLOC = OperationType(StringAttr("MPI_MAXLOC"))
+    MPI_REPLACE = OperationType(StringAttr("MPI_REPLACE"))
+    MPI_NO_OP = OperationType(StringAttr("MPI_NO_OP"))
 
 
 @irdl_attr_definition
@@ -124,10 +124,6 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     name = "mpi.vector"
     wrapped_type: ParameterDef[_VectorT]
 
-    @staticmethod
-    def of(dtype: type[_VectorT]) -> VectorType[_VectorT]:
-        return VectorType([dtype([])])
-
 
 class StatusTypeField(Enum):
     """
@@ -151,7 +147,8 @@ class MPIBaseOp(IRDLOperation, ABC):
 class ReduceOp(MPIBaseOp):
     """
     This wraps the MPI_Reduce function (blocking reduction)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Reduce.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Reduce.html).
 
     ## The MPI_Reduce Function Docs:
 
@@ -201,7 +198,8 @@ class ReduceOp(MPIBaseOp):
 class AllreduceOp(MPIBaseOp):
     """
     This wraps the MPI_Allreduce function (blocking all reduction)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Allreduce.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Allreduce.html).
 
     ## The MPI_Allreduce Function Docs:
 
@@ -257,7 +255,8 @@ class AllreduceOp(MPIBaseOp):
 class BcastOp(MPIBaseOp):
     """
     This wraps the MPI_Bcast function (blocking broadcast)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Bcast.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Bcast.html).
 
     ## The MPI_Bcast Function Docs:
 
@@ -300,7 +299,8 @@ class BcastOp(MPIBaseOp):
 class IsendOp(MPIBaseOp):
     """
     This wraps the MPI_Isend function (nonblocking send)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Isend.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Isend.html).
 
     ## The MPI_Isend Function Docs:
 
@@ -348,7 +348,8 @@ class IsendOp(MPIBaseOp):
 class SendOp(MPIBaseOp):
     """
     This wraps the MPI_Send function (blocking send)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Send.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Send.html).
 
     ## The MPI_Send Function Docs:
 
@@ -393,7 +394,8 @@ class SendOp(MPIBaseOp):
 class IrecvOp(MPIBaseOp):
     """
     This wraps the MPI_Irecv function (nonblocking receive).
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Irecv.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Irecv.html).
 
     ## The MPI_Irecv Function Docs:
 
@@ -442,7 +444,8 @@ class IrecvOp(MPIBaseOp):
 class RecvOp(MPIBaseOp):
     """
     This wraps the MPI_Recv function (blocking receive).
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Recv.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Recv.html).
 
     ## The MPI_Recv Function Docs:
 
@@ -492,7 +495,8 @@ class RecvOp(MPIBaseOp):
 class TestOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Test function (test for completion of request)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Test.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Test.html).
 
     ## The MPI_Test Function Docs:
 
@@ -518,7 +522,8 @@ class TestOp(MPIBaseOp):
 class WaitOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Wait function (blocking wait for request)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Wait.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Wait.html).
 
     ## The MPI_Test Function Docs:
 
@@ -545,7 +550,8 @@ class WaitOp(MPIBaseOp):
 class WaitallOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Waitall function (blocking wait for requests)
-    https://www.mpich.org/static/docs/v4.1/www3/MPI_Waitall.html
+
+    See external [documentation](https://www.mpich.org/static/docs/v4.1/www3/MPI_Waitall.html).
 
     ## The MPI_Test Function Docs:
 
@@ -564,7 +570,7 @@ class WaitallOp(MPIBaseOp):
     statuses = opt_result_def(VectorType[StatusType])
 
     def __init__(self, requests: Operand, count: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[VectorType[StatusType].of(StatusType)]]
+        result_types: list[list[Attribute]] = [[VectorType(StatusType())]]
         if ignore_status:
             result_types = [[]]
 
@@ -725,7 +731,7 @@ class AllocateTypeOp(MPIBaseOp):
         bindc_name: StringAttr | None = None,
     ):
         return super().__init__(
-            result_types=[VectorType[dtype].of(dtype)],
+            result_types=[VectorType(dtype())],
             attributes={
                 "dtype": dtype(),
                 "bindc_name": bindc_name,

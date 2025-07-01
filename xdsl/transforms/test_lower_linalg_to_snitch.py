@@ -9,7 +9,7 @@ from xdsl.backend.riscv.lowering import (
     convert_scf_to_riscv_scf,
     convert_snitch_stream_to_snitch,
 )
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.passes import ModulePass
 from xdsl.transforms import (
@@ -95,6 +95,6 @@ class TestLowerLinalgToSnitchPass(ModulePass):
 
     name = "test-lower-linalg-to-snitch"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for p in TEST_LOWER_LINALG_TO_SNITCH_PASSES:
             p.apply(ctx, op)

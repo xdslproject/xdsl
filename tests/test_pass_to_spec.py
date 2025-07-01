@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.passes import ModulePass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
@@ -22,7 +22,7 @@ class CustomPass(ModulePass):
 
     optional_bool: bool = False
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
@@ -30,7 +30,7 @@ class CustomPass(ModulePass):
 class EmptyPass(ModulePass):
     name = "empty"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
@@ -41,7 +41,7 @@ class SimplePass(ModulePass):
     a: tuple[float, ...]
     b: int
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 

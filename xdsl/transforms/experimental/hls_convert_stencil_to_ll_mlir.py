@@ -2,7 +2,7 @@ import typing
 from dataclasses import dataclass, field
 
 from xdsl.builder import Builder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, scf, stencil
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
@@ -549,7 +549,7 @@ class ApplyOpToHLS(RewritePattern):
 
                 if n_dims == 3:
                     stream = self.shift_streams[current_stream][k]
-                    rewriter.modify_value_type(
+                    rewriter.replace_value_with_new_type(
                         apply_clone.region.block.args[i], stream.results[0].type
                     )
 
@@ -665,7 +665,7 @@ class ApplyOpToHLS(RewritePattern):
         self.module.body.block.add_op(get_number_chunks)
         self.module.body.block.add_op(get_chunk_size)
 
-        ndims: int = typing.cast(TempType[Attribute], op.res[0].type).get_num_dims()
+        ndims: int = op.res[0].type.get_num_dims()
 
         rewriter.erase_op(return_op)
         for new_return_component in new_return_component_lst:
@@ -720,7 +720,7 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
     module: builtin.ModuleOp
     out_data_streams: list[HLSStreamType]
     write_data_declaration: bool = False
-    func_args_lst: list[BlockArgument] = field(default_factory=list)
+    func_args_lst: list[BlockArgument] = field(default_factory=list[BlockArgument])
     n_args: int = 0
     total_args: int | None = None
 
@@ -838,7 +838,7 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
             for idx in op.offset.array.data:
                 access_idx.append(idx.data + 1)
 
-            access_idx_array = DenseArrayBase.create_dense_int(i64, [0] + access_idx)
+            access_idx_array = DenseArrayBase.from_list(i64, [0] + access_idx)
 
             assert isinstance(result_hls_read, OpResult)
             stencil_value = HLSExtractStencilValueOp(
@@ -942,13 +942,13 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
     module: builtin.ModuleOp
     first_load: CallOp | None = None
     # sizes: IntegerType | None = None
-    sizes: list[OpResult | SSAValue] = field(default_factory=list)
+    sizes: list[OpResult | SSAValue] = field(default_factory=list[OpResult | SSAValue])
     in_module_load_all_data_func: FuncOp | None = None
     n_current_load: int = 0
     n_input: int = -1
 
-    data_arrays: list[BlockArgument] = field(default_factory=list)
-    data_streams: list[OpResult] = field(default_factory=list)
+    data_arrays: list[BlockArgument] = field(default_factory=list[BlockArgument])
+    data_streams: list[OpResult] = field(default_factory=list[OpResult])
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CallOp, rewriter: PatternRewriter, /):
@@ -1061,7 +1061,7 @@ class PackData(RewritePattern):
                     [LLVMArrayType.from_size_and_type(8, f64)]
                 )
             )
-            parent_func.replace_argument_type(arg_idx, packed_type)
+            parent_func.replace_argument_type(arg_idx, packed_type, rewriter)
 
             for use in func_arg.uses:
                 if isinstance(use.operation, InsertValueOp):
@@ -1087,15 +1087,21 @@ class PackData(RewritePattern):
                         struct_new_type = LLVMStructType.from_type_list(new_type)
 
                         current_insertvalue = insertvalue
-                        current_insertvalue.res.type = struct_new_type
-                        update_types_insertvalue(current_insertvalue, struct_new_type)
+                        rewriter.replace_value_with_new_type(
+                            current_insertvalue.res, struct_new_type
+                        )
+                        update_types_insertvalue(
+                            current_insertvalue, struct_new_type, rewriter
+                        )
 
 
-def update_types_insertvalue(op: InsertValueOp, new_type: llvm.LLVMStructType):
+def update_types_insertvalue(
+    op: InsertValueOp, new_type: llvm.LLVMStructType, rewriter: PatternRewriter
+):
     for use in op.res.uses:
         if isinstance(use.operation, InsertValueOp):
-            use.operation.res.type = new_type
-            update_types_insertvalue(use.operation, new_type)
+            rewriter.replace_value_with_new_type(use.operation.res, new_type)
+            update_types_insertvalue(use.operation, new_type, rewriter)
 
 
 @dataclass
@@ -1271,7 +1277,7 @@ class QualifyInterfacesPass(RewritePattern):
 class HLSConvertStencilToLLMLIRPass(ModulePass):
     name = "hls-convert-stencil-to-ll-mlir"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         module: builtin.ModuleOp = op
         shift_streams: list[list[HLSStreamOp]] = []
         out_data_streams: list[HLSStreamOp] = []

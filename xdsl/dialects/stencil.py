@@ -73,7 +73,6 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 _FieldTypeElement = TypeVar(
     "_FieldTypeElement", bound=Attribute, covariant=True, default=Attribute
@@ -89,26 +88,28 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
-        parser.parse_characters("<")
-        result = cls.parse_nested_parameters(parser)
-        parser.parse_characters(">")
-        return result
+        with parser.in_angle_brackets():
+            return [cls.parse_indices(parser)]
 
     @classmethod
-    def parse_nested_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        """Parse only the attribute parameters without enclosing angle brackets."""
+    def parse_indices(cls, parser: AttrParser) -> ArrayAttr[IntAttr]:
+        """
+        Parse a comma-separated, square delimited, list of integers into an ArrayAttr of
+        IntAttrs.
+
+        e.g.: `[1, 2, 3]`
+        """
         ints = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, lambda: parser.parse_integer(allow_boolean=False)
         )
-        return [ArrayAttr(IntAttr(i) for i in ints)]
+        return ArrayAttr(IntAttr(i) for i in ints)
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        self.print_nested_parameters(printer)
-        printer.print(">")
+        with printer.in_angle_brackets():
+            self.print_indices(printer)
 
-    def print_nested_parameters(self, printer: Printer) -> None:
-        printer.print(f"[{', '.join(str(e) for e in self)}]")
+    def print_indices(self, printer: Printer) -> None:
+        printer.print_string(f"[{', '.join(str(e) for e in self)}]")
 
     def verify(self) -> None:
         l = len(self)
@@ -120,11 +121,9 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     @staticmethod
     def get(*indices: int | IntAttr):
         return IndexAttr(
-            [
-                ArrayAttr(
-                    [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
-                )
-            ]
+            ArrayAttr(
+                [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
+            )
         )
 
     # TODO : come to an agreement on, do we want to allow that kind of things
@@ -189,27 +188,23 @@ class StencilBoundsAttr(ParametrizedAttribute):
         else:
             lb, ub = (), ()
         super().__init__(
-            [
-                IndexAttr.get(*lb),
-                IndexAttr.get(*ub),
-            ]
+            IndexAttr.get(*lb),
+            IndexAttr.get(*ub),
         )
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        self.lb.print_nested_parameters(printer)
-        printer.print(", ")
-        self.ub.print_nested_parameters(printer)
-        printer.print(">")
+        with printer.in_angle_brackets():
+            self.lb.print_indices(printer)
+            printer.print_string(", ")
+            self.ub.print_indices(printer)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_punctuation("<")
-        lb = IndexAttr(IndexAttr.parse_nested_parameters(parser))
-        parser.parse_punctuation(",")
-        ub = IndexAttr(IndexAttr.parse_nested_parameters(parser))
-        parser.parse_punctuation(">")
-        return [lb, ub]
+        with parser.in_angle_brackets():
+            lb = IndexAttr(IndexAttr.parse_indices(parser))
+            parser.parse_punctuation(",")
+            ub = IndexAttr(IndexAttr.parse_indices(parser))
+            return [lb, ub]
 
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
         if isinstance(other, IntAttr):
@@ -255,6 +250,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
         return self + o
 
 
+@dataclass(frozen=True, init=False)
 class StencilType(
     Generic[_FieldTypeElement],
     ParametrizedAttribute,
@@ -318,19 +314,18 @@ class StencilType(
         return [bounds, opt_type]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        if isinstance(self.bounds, StencilBoundsAttr):
-            printer.print_list(
-                zip(self.bounds.lb, self.bounds.ub),
-                lambda b: printer.print(f"[{b[0]},{b[1]}]"),
-                "x",
-            )
-            printer.print("x")
-        else:
-            for _ in range(self.bounds.data):
-                printer.print("?x")
-        printer.print_attribute(self.element_type)
-        printer.print(">")
+        with printer.in_angle_brackets():
+            if isinstance(self.bounds, StencilBoundsAttr):
+                printer.print_list(
+                    zip(self.bounds.lb, self.bounds.ub),
+                    lambda b: printer.print_string(f"[{b[0]},{b[1]}]"),
+                    "x",
+                )
+                printer.print_string("x")
+            else:
+                for _ in range(self.bounds.data):
+                    printer.print_string("?x")
+            printer.print_attribute(self.element_type)
 
     def __init__(
         self,
@@ -357,7 +352,7 @@ class StencilType(
             nbounds = IntAttr(bounds)
         else:
             nbounds = bounds
-        return super().__init__([nbounds, element_type])
+        return super().__init__(nbounds, element_type)
 
     @classmethod
     def constr(
@@ -374,7 +369,7 @@ class StencilType(
         return ParamAttrConstraint(cls, (bounds, element_type))
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class FieldType(
     Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
@@ -391,7 +386,7 @@ class FieldType(
     name = "stencil.field"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class TempType(
     Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
@@ -406,7 +401,7 @@ class TempType(
     name = "stencil.temp"
 
 
-StencilTypeConstr = StencilType[Attribute].constr()
+StencilTypeConstr = FieldType.constr() | TempType.constr()
 FieldTypeConstr = FieldType[Attribute].constr()
 TempTypeConstr = TempType[Attribute].constr()
 
@@ -417,9 +412,6 @@ AnyTempType: TypeAlias = TempType[Attribute]
 class ResultType(ParametrizedAttribute, TypeAttribute):
     name = "stencil.result"
     elem: ParameterDef[Attribute]
-
-    def __init__(self, type: Attribute) -> None:
-        super().__init__([type])
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -497,33 +489,35 @@ class ApplyOp(IRDLOperation):
 
     def print(self, printer: Printer):
         def print_assign_argument(args: tuple[BlockArgument, SSAValue, Attribute]):
-            printer.print(args[0])
-            printer.print(" = ")
-            printer.print(args[1])
-            printer.print(" : ")
-            printer.print(args[2])
+            printer.print_ssa_value(args[0])
+            printer.print_string(" = ")
+            printer.print_ssa_value(args[1])
+            printer.print_string(" : ")
+            printer.print_attribute(args[2])
 
         def print_destination_operand(dest: SSAValue):
-            printer.print(dest)
-            printer.print(" : ")
-            printer.print(dest.type)
+            printer.print_ssa_value(dest)
+            printer.print_string(" : ")
+            printer.print_attribute(dest.type)
 
-        printer.print("(")
-        printer.print_list(
-            zip(self.region.block.args, self.args, self.args.types),
-            print_assign_argument,
-        )
+        with printer.in_parens():
+            printer.print_list(
+                zip(self.region.block.args, self.args, self.args.types),
+                print_assign_argument,
+            )
         if self.dest:
-            printer.print(") outs (")
-            printer.print_list(self.dest, print_destination_operand)
+            printer.print_string(" outs ")
+            with printer.in_parens():
+                printer.print_list(self.dest, print_destination_operand)
         else:
-            printer.print(") -> (")
-            printer.print_list(self.res.types, printer.print_attribute)
-        printer.print(") ")
+            printer.print_string(" -> ")
+            with printer.in_parens():
+                printer.print_list(self.res.types, printer.print_attribute)
+        printer.print_string(" ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_region(self.region, print_entry_block_args=False)
         if self.bounds is not None:
-            printer.print(" to ")
+            printer.print_string(" to ")
             self.bounds.print_parameters(printer)
 
     @classmethod
@@ -615,9 +609,9 @@ class ApplyOp(IRDLOperation):
                 "buffer-semantic destination operands."
             )
         if len(self.res) > 0:
-            res_type = cast(TempType[Attribute], self.res[0].type)
+            res_type = self.res[0].type
             for other in self.res[1:]:
-                other = cast(TempType[Attribute], other.type)
+                other = other.type
                 if res_type.bounds != other.bounds:
                     raise VerifyException(
                         "Expected all output types bounds to be equals."
@@ -664,7 +658,10 @@ class ApplyOp(IRDLOperation):
                 # grab the offsets as a tuple[int, ...]
                 offsets = tuple(access.offset)
                 # account for offset_mappings:
-                if access.offset_mapping is not None:
+                if (
+                    access.offset_mapping is not None
+                    and len(offsets) == self.get_rank()
+                ):
                     offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield AccessPattern(tuple(accesses))
@@ -674,7 +671,7 @@ class ApplyOp(IRDLOperation):
             return self.bounds
         else:
             assert self.res
-            res_type = cast(TempType[Attribute], self.res[0].type)
+            res_type = self.res[0].type
             return res_type.bounds
 
 
@@ -746,8 +743,7 @@ class CastOp(IRDLOperation):
         res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
     ) -> CastOp:
         """ """
-        field_ssa = SSAValue.get(field)
-        assert isa(field_ssa.type, FieldType[Attribute])
+        field_ssa = SSAValue.get(field, type=FieldType)
         if res_type is None:
             res_type = FieldType(
                 bounds,
@@ -896,8 +892,7 @@ class DynAccessOp(IRDLOperation):
         lb: IndexAttr,
         ub: IndexAttr,
     ):
-        temp_type = SSAValue.get(temp).type
-        assert isa(temp_type, TempType[Attribute])
+        temp_type = SSAValue.get(temp, type=TempType).type
         super().__init__(
             operands=[temp, list(offset)],
             attributes={"lb": lb, "ub": ub},
@@ -925,7 +920,7 @@ class ExternalLoadOp(IRDLOperation):
     @staticmethod
     def get(
         arg: SSAValue | Operation,
-        res_type: FieldType[Attribute] | memref.MemRefType[Attribute],
+        res_type: FieldType[Attribute] | memref.MemRefType,
     ):
         return ExternalLoadOp.build(operands=[arg], result_types=[res_type])
 
@@ -1030,7 +1025,7 @@ class AccessOp(IRDLOperation):
     )
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.temp)
         printer.print_op_attributes(
             self.attributes,
@@ -1048,17 +1043,16 @@ class AccessOp(IRDLOperation):
             mapping = range(apply.get_rank())
         offset = list(self.offset)
 
-        printer.print("[")
-        index = 0
-        for i in range(apply.get_rank()):
-            if i in mapping:
-                printer.print(offset[index])
-                index += 1
-            else:
-                printer.print("_")
-            if i != apply.get_rank() - 1:
-                printer.print(", ")
-        printer.print("]")
+        with printer.in_square_brackets():
+            index = 0
+            for i in range(apply.get_rank()):
+                if i in mapping:
+                    printer.print_int(offset[index])
+                    index += 1
+                else:
+                    printer.print_string("_")
+                if i != apply.get_rank() - 1:
+                    printer.print_string(", ")
 
         printer.print_string(" : ")
         printer.print_attribute(self.temp.type)
@@ -1092,7 +1086,7 @@ class AccessOp(IRDLOperation):
             attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isattr(res_type, StencilTypeConstr):
+        if not isa(res_type, StencilType):
             parser.raise_error(
                 "Expected return type to be a stencil.temp or stencil.field"
             )
@@ -1106,15 +1100,11 @@ class AccessOp(IRDLOperation):
         offset: Sequence[int],
         offset_mapping: Sequence[int] | IndexAttr | None = None,
     ):
-        temp_type = SSAValue.get(temp).type
-        assert isinstance(temp_type, StencilType)
-        temp_type = cast(StencilType[Attribute], temp_type)
+        temp_type = SSAValue.get(temp, type=StencilType).type
 
         attributes: dict[str, Attribute] = {
             "offset": IndexAttr(
-                [
-                    ArrayAttr(IntAttr(value) for value in offset),
-                ]
+                ArrayAttr(IntAttr(value) for value in offset),
             ),
         }
 
@@ -1140,7 +1130,7 @@ class AccessOp(IRDLOperation):
         apply.verify_()
 
         temp_type = self.temp.type
-        assert isattr(temp_type, StencilTypeConstr)
+        assert isa(temp_type, StencilType)
         if temp_type.get_num_dims() != apply.get_rank():
             if self.offset_mapping is None:
                 raise VerifyException(
@@ -1212,9 +1202,9 @@ class LoadOpMemoryEffect(MemoryEffect):
 
 class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     @staticmethod
-    def matches(attr: TensorType[Attribute], other: Attribute) -> bool:
+    def ranks_and_element_types_match(attr: TensorType, other: Attribute) -> bool:
         return (
-            isa(other, TensorType[Attribute])
+            isa(other, TensorType)
             and len(attr.get_shape()) == len(other.get_shape())
             and attr.get_element_type() == other.get_element_type()
         )
@@ -1222,7 +1212,9 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         ctx_attr = constraint_context.get_variable(self.name)
         if ctx_attr is not None:
-            if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
+            if isa(
+                attr, TensorType[Attribute]
+            ) and TensorIgnoreSizeConstraint.ranks_and_element_types_match(
                 attr, ctx_attr
             ):
                 return
@@ -1244,8 +1236,7 @@ class LoadOp(IRDLOperation):
         FieldType[Attribute].constr(
             bounds=base(StencilBoundsAttr),
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",
             ),
         )
@@ -1253,8 +1244,7 @@ class LoadOp(IRDLOperation):
     res = result_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",
             )
         )
@@ -1270,8 +1260,7 @@ class LoadOp(IRDLOperation):
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
     ):
-        field_type = SSAValue.get(field).type
-        assert isa(field_type, FieldType[Attribute])
+        field_type = SSAValue.get(field, type=FieldType).type
 
         if lb is None or ub is None:
             res_type = TempType(field_type.get_num_dims(), field_type.element_type)
@@ -1399,8 +1388,7 @@ class StoreOp(IRDLOperation):
     temp = operand_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Input and output fields must have the same element types",
             ),
         )
@@ -1411,8 +1399,7 @@ class StoreOp(IRDLOperation):
                 StencilBoundsAttr, "Output type's size must be explicit"
             ),
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Input and output fields must have the same element types",
             ),
         )
@@ -1506,9 +1493,7 @@ class ReturnOp(IRDLOperation):
         types = [ot.elem if isinstance(ot, ResultType) else ot for ot in self.arg.types]
         apply = cast(ApplyOp, self.parent_op())
         if len(apply.res) > 0:
-            res_types = [
-                cast(TempType[Attribute], r.type).element_type for r in apply.res
-            ]
+            res_types = [r.type.element_type for r in apply.res]
         else:
             res_types = [
                 cast(FieldType[Attribute], o.type).element_type for o in apply.dest
@@ -1524,8 +1509,10 @@ class ReturnOp(IRDLOperation):
             for j in range(unroll_factor * i, unroll_factor * (i + 1)):
                 op_type = types[j]
                 if op_type != res_type and not (
-                    isa(op_type, TensorType[Attribute])
-                    and TensorIgnoreSizeConstraint.matches(op_type, res_type)
+                    isa(op_type, TensorType)
+                    and TensorIgnoreSizeConstraint.ranks_and_element_types_match(
+                        op_type, res_type
+                    )
                 ):
                     raise VerifyException(
                         "stencil.return expected operand types to match the parent "

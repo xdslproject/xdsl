@@ -2,6 +2,7 @@ from typing import cast
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.irdl import irdl
+from xdsl.dialects.irdl.irdl_to_pyrdl import python_name
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -173,7 +174,7 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).operands = list(
-            (f"o{i}", OperandDef(a)) for i, a in enumerate(args)
+            (python_name(name.data), OperandDef(a)) for name, a in zip(op.names, args)
         )
         return ()
 
@@ -184,7 +185,7 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).results = list(
-            (f"r{i}", ResultDef(a)) for i, a in enumerate(args)
+            (python_name(name.data), ResultDef(a)) for name, a in zip(op.names, args)
         )
         return ()
 
@@ -210,7 +211,7 @@ class IRDLFunctions(InterpreterFunctions):
         attr_op = cast(irdl.AttributeOp | irdl.TypeOp, op.parent_op())
         attr_name = attr_op.qualified_name
         self._get_attr_def(interpreter, attr_name).parameters = list(
-            (f"p{i}", a) for i, a in enumerate(args)
+            (python_name(name.data), a) for name, a in zip(op.names, args)
         )
         return ()
 

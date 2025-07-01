@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from enum import auto
-from typing import TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
@@ -37,7 +36,6 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    lazy_traits_def,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -55,7 +53,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
-    SingleBlockImplicitTerminator,
+    NoTerminator,
     SymbolOpInterface,
     SymbolTable,
 )
@@ -118,12 +116,12 @@ class LoopDimMapAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print("processor = ")
-            printer.print(self.processor.data)
-            printer.print(", map = ")
-            printer.print(self.map.data)
-            printer.print(", bound = ")
-            printer.print(self.bound.data)
+            printer.print_string("processor = ")
+            printer.print_string(self.processor.data)
+            printer.print_string(", map = ")
+            printer.print_string(str(self.map.data))
+            printer.print_string(", bound = ")
+            printer.print_string(str(self.bound.data))
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser):
@@ -143,9 +141,6 @@ class LoopDimMapAttr(ParametrizedAttribute):
         return [processor, map, bound]
 
 
-_Element = TypeVar("_Element", bound=Attribute, covariant=True)
-
-
 @irdl_op_definition
 class AllocOp(IRDLOperation):
     name = "gpu.alloc"
@@ -156,7 +151,7 @@ class AllocOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    result = result_def(memref.MemRefType[Attribute])
+    result = result_def(memref.MemRefType)
     asyncToken = opt_result_def(AsyncTokenType)
 
     def verify_(self) -> None:
@@ -171,7 +166,7 @@ class AllocOp(IRDLOperation):
 
     def __init__(
         self,
-        return_type: memref.MemRefType[_Element],
+        return_type: memref.MemRefType,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         host_shared: bool = False,
         async_dependencies: Sequence[SSAValue | Operation] | None = None,
@@ -345,16 +340,6 @@ class MemcpyOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ModuleEndOp(IRDLOperation):
-    name = "gpu.module_end"
-
-    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(ModuleOp)))
-
-    def __init__(self):
-        super().__init__()
-
-
-@irdl_op_definition
 class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
@@ -363,13 +348,13 @@ class ModuleOp(IRDLOperation):
 
     traits = traits_def(
         IsolatedFromAbove(),
-        SingleBlockImplicitTerminator(ModuleEndOp),
+        NoTerminator(),
         SymbolOpInterface(),
         SymbolTable(),
     )
 
-    def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
-        super().__init__(properties={"sym_name": name}, regions=[ops])
+    def __init__(self, name: SymbolRefAttr, body: Region):
+        super().__init__(properties={"sym_name": name}, regions=[body])
 
 
 @irdl_op_definition
@@ -380,8 +365,12 @@ class FuncOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     function_type = prop_def(FunctionType)
     kernel = opt_prop_def(UnitAttr)
-    known_block_size = opt_attr_def(DenseArrayBase, attr_name="gpu.known_block_size")
-    known_grid_size = opt_attr_def(DenseArrayBase, attr_name="gpu.known_grid_size")
+    known_block_size = opt_attr_def(
+        DenseArrayBase.constr(i32), attr_name="gpu.known_block_size"
+    )
+    known_grid_size = opt_attr_def(
+        DenseArrayBase.constr(i32), attr_name="gpu.known_grid_size"
+    )
 
     traits = traits_def(IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface())
 
@@ -404,11 +393,11 @@ class FuncOp(IRDLOperation):
             "function_type": function_type,
         }
         if known_block_size is not None:
-            attributes["gpu.known_block_size"] = DenseArrayBase.create_dense_int(
+            attributes["gpu.known_block_size"] = DenseArrayBase.from_list(
                 i32, known_block_size
             )
         if known_grid_size is not None:
-            attributes["gpu.known_grid_size"] = DenseArrayBase.create_dense_int(
+            attributes["gpu.known_grid_size"] = DenseArrayBase.from_list(
                 i32, known_grid_size
             )
         if kernel:
@@ -785,7 +774,6 @@ GPU = Dialect(
         LaunchFuncOp,
         MemcpyOp,
         ModuleOp,
-        ModuleEndOp,
         NumSubgroupsOp,
         ReturnOp,
         SetDefaultDeviceOp,

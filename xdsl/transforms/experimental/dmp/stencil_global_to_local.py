@@ -2,9 +2,9 @@ from abc import ABC
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from math import prod
-from typing import ClassVar, TypeVar, cast
+from typing import ClassVar, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
 from xdsl.dialects.builtin import ContainerType
 from xdsl.dialects.experimental import dmp
@@ -19,8 +19,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import StencilToMemRefType
-
-_T = TypeVar("_T", bound=Attribute)
 
 _rank_dtype = builtin.i32
 
@@ -618,7 +616,7 @@ class DistributeStencilPass(DmpDecompositionPass):
     local domain. If false, it assumes that the generated code is already local)
     """
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if self.strategy not in self.STRATEGIES:
             raise ValueError(f"Unknown strategy: {self.strategy}")
         strategy = self.STRATEGIES[self.strategy](self.slices)
@@ -644,7 +642,7 @@ class DmpToMpiPass(ModulePass):
 
     generate_debug_prints: bool = False
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

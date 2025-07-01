@@ -1,5 +1,3 @@
-from typing import TypeVar
-
 import pytest
 
 from xdsl.dialects.arith import (
@@ -23,6 +21,7 @@ from xdsl.dialects.arith import (
     FloatingPointLikeBinaryOperation,
     FloorDivSIOp,
     FPToSIOp,
+    FPToUIOp,
     IndexCastOp,
     MaximumfOp,
     MaxSIOp,
@@ -47,11 +46,11 @@ from xdsl.dialects.arith import (
     SubiOp,
     TruncFOp,
     TruncIOp,
+    UIToFPOp,
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
-    AnyTensorType,
-    AnyVectorType,
+    DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
     IntegerAttr,
@@ -67,12 +66,8 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
-from xdsl.irdl import base
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.isattr import isattr
-from xdsl.utils.test_value import TestSSAValue
-
-_BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
+from xdsl.utils.test_value import create_ssa_value
 
 
 class Test_integer_arith_construction:
@@ -128,6 +123,18 @@ class Test_integer_arith_construction:
         _ = CmpiOp(self.a, self.b, input)
 
 
+def test_constant_construction():
+    c1 = ConstantOp(IntegerAttr(1, i32))
+    assert c1.value.type == i32
+
+    c3 = ConstantOp(FloatAttr(1.0, f32))
+    assert c3.value.type == f32
+
+    value_type = TensorType(i32, [2, 2])
+    c5 = ConstantOp(DenseIntOrFPElementsAttr.from_list(value_type, [1, 2, 3, 4]))
+    assert c5.value.type == value_type
+
+
 @pytest.mark.parametrize(
     "value, truncated",
     [
@@ -170,8 +177,8 @@ def test_addui_extend(
     sum_type: Attribute | None,
     is_correct: bool,
 ):
-    lhs = TestSSAValue(lhs_type)
-    rhs = TestSSAValue(rhs_type)
+    lhs = create_ssa_value(lhs_type)
+    rhs = create_ssa_value(rhs_type)
 
     attributes = {"foo": i32}
 
@@ -184,10 +191,7 @@ def test_addui_extend(
         if sum_type:
             assert op.sum.type == sum_type
         assert op.overflow.type == AddUIExtendedOp.infer_overflow_type(lhs_type)
-        if isattr(
-            container_type := op.overflow.type,
-            base(AnyVectorType) | base(AnyTensorType),
-        ):
+        if isinstance(container_type := op.overflow.type, VectorType | TensorType):
             assert container_type.element_type == i1
         else:
             assert op.overflow.type == i1
@@ -199,8 +203,8 @@ def test_addui_extend(
 
 @pytest.mark.parametrize("op_type", [MulSIExtendedOp, MulUIExtendedOp])
 def test_mul_extended(op_type: type[MulSIExtendedOp | MulUIExtendedOp]):
-    lhs = TestSSAValue(i32)
-    rhs = TestSSAValue(i32)
+    lhs = create_ssa_value(i32)
+    rhs = create_ssa_value(i32)
 
     op = op_type(lhs, rhs)
 
@@ -236,7 +240,7 @@ class Test_float_arith_construction:
         op = func(self.a, self.b, flags)
         assert op.operands[0].owner is self.a
         assert op.operands[1].owner is self.b
-        assert op.fastmath == flags
+        assert op.fastmath == (flags or FastMathFlagsAttr("none"))
 
 
 def test_select_op():
@@ -269,7 +273,7 @@ def test_select_op():
     ],
 )
 def test_bitcast_op(in_type: Attribute, out_type: Attribute):
-    in_arg = TestSSAValue(in_type)
+    in_arg = create_ssa_value(in_type)
     cast = BitcastOp(in_arg, out_type)
 
     cast.verify_()
@@ -297,7 +301,7 @@ BITWIDTH_MISMATCH = "operand and result types must have equal bitwidths or be In
     ],
 )
 def test_bitcast_incorrect(in_type: Attribute, out_type: Attribute, err_msg: str):
-    in_arg = TestSSAValue(in_type)
+    in_arg = create_ssa_value(in_type)
     cast = BitcastOp(in_arg, out_type)
 
     with pytest.raises(VerifyException, match=err_msg):
@@ -321,6 +325,17 @@ def test_cast_fp_and_si_ops():
     assert fp.input == a.result
     assert fp.result == si.input
     assert isinstance(si.result.type, IntegerType)
+    assert fp.result.type == f32
+
+
+def test_cast_fp_and_ui_ops():
+    a = ConstantOp.from_int_and_width(0, 32)
+    fp = UIToFPOp(a, f32)
+    ui = FPToUIOp(fp, i32)
+
+    assert fp.input == a.result
+    assert fp.result == ui.input
+    assert isinstance(ui.result.type, IntegerType)
     assert fp.result.type == f32
 
 
@@ -415,20 +430,18 @@ def test_cmpf_incorrect_comparison():
     a = ConstantOp(FloatAttr(1.0, f32))
     b = ConstantOp(FloatAttr(2.0, f32))
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unknown comparison mnemonic: eq"):
         # 'eq' is a comparison op for cmpi but not cmpf
         _cmpf_op = CmpfOp(a, b, "eq")
-    assert e.value.args[0] == "Unknown comparison mnemonic: eq"
 
 
 def test_cmpi_incorrect_comparison():
     a = ConstantOp.from_int_and_width(1, i32)
     b = ConstantOp.from_int_and_width(2, i32)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unknown comparison mnemonic: oeq"):
         # 'oeq' is a comparison op for cmpf but not cmpi
         _cmpi_op = CmpiOp(a, b, "oeq")
-    assert e.value.args[0] == "Unknown comparison mnemonic: oeq"
 
 
 def test_cmpi_index_type():

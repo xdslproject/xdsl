@@ -178,23 +178,20 @@ async def test_buttons():
         await pilot.pause()
         assert (
             app.output_text_area.text
-            == """builtin.module {
-  riscv.assembly_section ".text" {
-    riscv.directive ".globl" "hello"
-    riscv.directive ".p2align" "2"
-    riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
-      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
-      %two = riscv.li 2 : !riscv.reg
-      %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index
-      %res = builtin.unrealized_conversion_cast %n_1 : index to !riscv.reg
-      %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
-      %res_2 = riscv.mul %res, %res_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
-      %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg to index
-      %1 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg
-      %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
-      riscv_func.return %2 : !riscv.reg<a0>
-    }
+            == """\
+builtin.module {
+  riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+    %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
+    %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
+    %two = riscv.li 2 : !riscv.reg
+    %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index
+    %res = builtin.unrealized_conversion_cast %n_1 : index to !riscv.reg
+    %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
+    %res_2 = riscv.mul %res, %res_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg to index
+    %res_4 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg
+    %1 = riscv.mv %res_4 : (!riscv.reg) -> !riscv.reg<a0>
+    riscv_func.return %1 : !riscv.reg<a0>
   }
 }
 """
@@ -218,19 +215,16 @@ async def test_buttons():
 
         assert (
             app.output_text_area.text
-            == """builtin.module {
-  riscv.assembly_section ".text" {
-    riscv.directive ".globl" "hello"
-    riscv.directive ".p2align" "2"
-    riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
-      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
-      %two = arith.constant 2 : index
-      %res = arith.muli %n_1, %two : index
-      %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
-      %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
-      riscv_func.return %2 : !riscv.reg<a0>
-    }
+            == """\
+builtin.module {
+  riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+    %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
+    %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
+    %two = arith.constant 2 : index
+    %res = arith.muli %n_1, %two : index
+    %res_1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
+    %1 = riscv.mv %res_1 : (!riscv.reg) -> !riscv.reg<a0>
+    riscv_func.return %1 : !riscv.reg<a0>
   }
 }
 """
@@ -406,18 +400,14 @@ async def test_passes():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  riscv.assembly_section ".text" {
-    riscv.directive ".globl" "hello"
-    riscv.directive ".p2align" "2"
-    riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
-      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
-      %two = arith.constant 2 : index
-      %res = arith.muli %n_1, %two : index
-      %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
-      %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
-      riscv_func.return %2 : !riscv.reg<a0>
-    }
+  riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+    %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
+    %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
+    %two = arith.constant 2 : index
+    %res = arith.muli %n_1, %two : index
+    %res_1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
+    %1 = riscv.mv %res_1 : (!riscv.reg) -> !riscv.reg<a0>
+    riscv_func.return %1 : !riscv.reg<a0>
   }
 }
 """
@@ -426,25 +416,23 @@ async def test_passes():
         index = IndexType()
         expected_module = ModuleOp(Region([Block()]))
         with ImplicitBuilder(expected_module.body):
-            section = riscv.AssemblySectionOp(".text")
-            with ImplicitBuilder(section.data):
-                riscv.DirectiveOp(".globl", "hello")
-                riscv.DirectiveOp(".p2align", "2")
-                function = riscv_func.FuncOp(
-                    "hello",
-                    Region([Block(arg_types=[riscv.Registers.A0])]),
-                    ((riscv.Registers.A0,), (riscv.Registers.A0,)),
+            function = riscv_func.FuncOp(
+                "hello",
+                Region([Block(arg_types=[riscv.Registers.A0])]),
+                ((riscv.Registers.A0,), (riscv.Registers.A0,)),
+                "public",
+                p2align=2,
+            )
+            with ImplicitBuilder(function.body) as (n,):
+                zero = riscv.MVOp(n)
+                n_one = UnrealizedConversionCastOp.get([zero.rd], [index])
+                two = arith.ConstantOp(IntegerAttr(2, index)).result
+                res = arith.MuliOp(n_one, two)
+                one = UnrealizedConversionCastOp.get(
+                    [res.result], [riscv.Registers.UNALLOCATED_INT]
                 )
-                with ImplicitBuilder(function.body) as (n,):
-                    zero = riscv.MVOp(n, rd=riscv.IntRegisterType(""))
-                    n_one = UnrealizedConversionCastOp.get([zero.rd], [index])
-                    two = arith.ConstantOp(IntegerAttr(2, index)).result
-                    res = arith.MuliOp(n_one, two)
-                    one = UnrealizedConversionCastOp.get(
-                        [res.result], [riscv.IntRegisterType("")]
-                    )
-                    two_two = riscv.MVOp(one, rd=riscv.Registers.A0)
-                    riscv_func.ReturnOp(two_two)
+                two_two = riscv.MVOp(one, rd=riscv.Registers.A0)
+                riscv_func.ReturnOp(two_two)
 
         assert isinstance(app.current_module, ModuleOp)
         # Assert that the current module has been changed accordingly

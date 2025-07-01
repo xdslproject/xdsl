@@ -1,10 +1,9 @@
 import typing
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
 from xdsl.builder import Builder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, func, llvm
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IndexType, f64, i32
@@ -38,7 +37,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -239,12 +237,14 @@ class LowerHLSStreamToAlloca(RewritePattern):
         rewriter.replace_matched_op([size, alloca])
 
         for use in uses:
-            use.operation.operands[use.index].type = alloca.res.type
+            rewriter.replace_value_with_new_type(
+                use.operation.operands[use.index], alloca.res.type
+            )
 
             # This is specially important when the stream is an argument of ApplyOp
             if use.operation.regions:
                 block_arg = use.operation.regions[0].block.args[use.index]
-                block_arg.type = alloca.res.type
+                rewriter.replace_value_with_new_type(block_arg, alloca.res.type)
 
 
 @dataclass
@@ -434,7 +434,6 @@ class LowerHLSExtractStencilValue(RewritePattern):
         self, op: HLSExtractStencilValueOp, rewriter: PatternRewriter, /
     ):
         indices = op.position.get_values()
-        assert isa(indices, Sequence[int])
 
         assert isinstance(op.container, OpResult)
         assert isinstance(op.container.op, llvm.LoadOp)
@@ -494,7 +493,7 @@ class GetHLSStreamInDataflow(RewritePattern):
 class LowerHLSPass(ModulePass):
     name = "lower-hls"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         def gen_greedy_walkers(
             passes: list[RewritePattern],
         ) -> list[PatternRewriteWalker]:

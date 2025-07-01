@@ -1,11 +1,11 @@
 import re
 from collections.abc import Sequence
+from io import StringIO
 
 import pytest
-from conftest import assert_print_op
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, MuliOp
 from xdsl.dialects.builtin import (
@@ -33,6 +33,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.printer import Printer
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
@@ -48,7 +49,7 @@ def rewrite_and_compare(
     block_created: int = 0,
     expect_rewrite: bool = True,
 ):
-    ctx = MLContext(allow_unregistered=True)
+    ctx = Context(allow_unregistered=True)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)
@@ -92,7 +93,11 @@ def rewrite_and_compare(
     walker.listener = listener
     did_rewrite = walker.rewrite_module(module)
 
-    assert_print_op(module, expected_prog, None)
+    file = StringIO()
+    printer = Printer(stream=file, print_generic_format=True)
+    printer.print_op(module)
+
+    assert file.getvalue().strip() == expected_prog.strip()
 
     assert num_op_inserted == op_inserted
     assert num_op_removed == op_removed
@@ -577,7 +582,7 @@ def test_operation_deletion_reversed():
 def test_operation_deletion_failure():
     """Test rewrites where SSA values are deleted with still uses."""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
 
@@ -692,7 +697,9 @@ def test_block_argument_type_change():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.modify_value_type(matched_op.regs[0].blocks[0].args[0], i64)
+                rewriter.replace_value_with_new_type(
+                    matched_op.regs[0].blocks[0].args[0], i64
+                )
 
     rewrite_and_compare(
         prog,
@@ -1753,8 +1760,6 @@ builtin.module {
 }
 """
     expected = """\
-Error while applying pattern: Expected operation to not be erroneous!
-
 "builtin.module"() ({
   "test.op"() {erroneous = false} : () -> ()
   "test.op"() : () -> ()
@@ -1764,7 +1769,6 @@ Error while applying pattern: Expected operation to not be erroneous!
   -----------------------------------------------------------------------
   "test.op"() : () -> ()
 }) : () -> ()
-
 """
 
     class Rewrite(RewritePattern):
@@ -1776,7 +1780,7 @@ Error while applying pattern: Expected operation to not be erroneous!
                 raise ValueError("Expected operation to not be erroneous!")
             return
 
-    ctx = MLContext(allow_unregistered=True)
+    ctx = Context(allow_unregistered=True)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)
@@ -1849,4 +1853,35 @@ def test_pattern_rewriter_erase_op_with_region():
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
         op_removed=1,
+    )
+
+
+def test_pattern_rewriter_notify_op_modified():
+    """Test that notifying on op modifications works correctly."""
+    prog = """
+"builtin.module"() ({
+  "test.op"() : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() : () -> ()
+}) : () -> ()"""
+    expected = """
+"builtin.module"() ({
+  "test.op"() {modified} : () -> ()
+  "test.op"() {modified} : () -> ()
+  "test.op"() {modified} : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "modified" in op.attributes:
+                return
+            op.attributes["modified"] = UnitAttr()
+            rewriter.notify_op_modified(op)
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_modified=3,
     )

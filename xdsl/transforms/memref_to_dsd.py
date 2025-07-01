@@ -1,9 +1,7 @@
 import collections
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl, memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -12,16 +10,16 @@ from xdsl.dialects.builtin import (
     Float32Type,
     IntAttr,
     IntegerAttr,
-    IntegerType,
     MemRefType,
     ModuleOp,
     NoneAttr,
-    Signedness,
     StridedLayoutAttr,
     UnrealizedConversionCastOp,
+    i8,
+    i16,
 )
 from xdsl.dialects.csl.csl import ZerosOpAttr
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue
+from xdsl.ir import Operation, OpResult, SSAValue
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -32,7 +30,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 class LowerAllocOpPass(RewritePattern):
@@ -40,9 +37,10 @@ class LowerAllocOpPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
-        assert isattr(
-            memref_type := op.memref.type,
-            MemRefType[ZerosOpAttr].constr(element_type=csl.ZerosOpAttrConstr),
+        assert (
+            MemRefType[ZerosOpAttr]
+            .constr(element_type=csl.ZerosOpAttrConstr)
+            .verifies(memref_type := op.memref.type)
         )
         zeros_op = csl.ZerosOp(memref_type)
 
@@ -135,7 +133,6 @@ class LowerSubviewOpPass(RewritePattern):
                 "1d access into nd memref must specify one size > 1"
             )
             size, size_count = counter_sizes.most_common()[0]
-            size = cast(int, size)
 
             assert size_count == 1, (
                 "1d access into nd memref can only specify one size > 1, which can occur only once"
@@ -145,9 +142,7 @@ class LowerSubviewOpPass(RewritePattern):
             )
 
             amap: list[AffineExpr] = [
-                AffineConstantExpr(
-                    cast(int, o) if o != memref.SubviewOp.DYNAMIC_INDEX else 0
-                )
+                AffineConstantExpr(o if o != memref.SubviewOp.DYNAMIC_INDEX else 0)
                 for o in op.static_offsets.get_values()
             ]
             amap[sizes.index(size)] += AffineDimExpr(0)
@@ -188,13 +183,13 @@ class LowerSubviewOpPass(RewritePattern):
     def _update_sizes(
         subview: memref.SubviewOp, curr_op: SSAValue | Operation
     ) -> list[Operation]:
-        assert isa(subview.source.type, MemRefType[Attribute])
+        assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
 
-        static_sizes = cast(Sequence[int], subview.static_sizes.get_values())
+        static_sizes = subview.static_sizes.get_values()
 
         if static_sizes[0] == memref.SubviewOp.DYNAMIC_INDEX:
-            ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], csl.u16_value))
+            ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], i16))
             ops.append(
                 curr_op := csl.SetDsdLengthOp.build(
                     operands=[curr_op, cast_op], result_types=[subview.source.type]
@@ -206,7 +201,7 @@ class LowerSubviewOpPass(RewritePattern):
                 len_op := arith.ConstantOp(
                     IntegerAttr(
                         static_sizes[0],
-                        csl.u16_value,
+                        i16,
                     )
                 )
             )
@@ -221,17 +216,13 @@ class LowerSubviewOpPass(RewritePattern):
     def _update_strides(
         subview: memref.SubviewOp, curr_op: SSAValue | Operation
     ) -> list[Operation]:
-        assert isa(subview.source.type, MemRefType[Attribute])
+        assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
 
-        static_strides = cast(Sequence[int], subview.static_strides.get_values())
+        static_strides = subview.static_strides.get_values()
 
         if static_strides[0] == memref.SubviewOp.DYNAMIC_INDEX:
-            ops.append(
-                cast_op := arith.IndexCastOp(
-                    subview.strides[0], IntegerType(8, Signedness.SIGNED)
-                )
-            )
+            ops.append(cast_op := arith.IndexCastOp(subview.strides[0], i8))
             ops.append(
                 csl.SetDsdStrideOp.build(
                     operands=[curr_op, cast_op], result_types=[subview.source.type]
@@ -243,7 +234,7 @@ class LowerSubviewOpPass(RewritePattern):
                 stride_op := arith.ConstantOp(
                     IntegerAttr(
                         static_strides[0],
-                        IntegerType(8, Signedness.SIGNED),
+                        i8,
                     )
                 )
             )
@@ -258,13 +249,13 @@ class LowerSubviewOpPass(RewritePattern):
     def _update_offsets(
         subview: memref.SubviewOp, curr_op: SSAValue | Operation
     ) -> list[Operation]:
-        assert isa(subview.source.type, MemRefType[Attribute])
+        assert isa(subview.source.type, MemRefType)
         ops = list[Operation]()
 
-        static_offsets = cast(Sequence[int], subview.static_offsets.get_values())
+        static_offsets = subview.static_offsets.get_values()
 
         if subview.offsets:
-            ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], csl.i16_value))
+            ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], i16))
             ops.append(
                 csl.IncrementDsdOffsetOp.build(
                     operands=[curr_op, cast_op],
@@ -283,7 +274,7 @@ class LowerSubviewOpPass(RewritePattern):
                 offset_op := arith.ConstantOp(
                     IntegerAttr(
                         static_offsets[0],
-                        csl.i16_value,
+                        i16,
                     )
                 )
             )
@@ -302,7 +293,7 @@ class LowerCopyOpPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.CopyOp, rewriter: PatternRewriter, /):
-        assert isa(op.source.type, MemRefType[Attribute])
+        assert isa(op.source.type, MemRefType)
 
         match op.source.type.get_element_type():
             case Float16Type():
@@ -329,7 +320,7 @@ class LowerUnrealizedConversionCastOpPass(RewritePattern):
         self, op: UnrealizedConversionCastOp, rewriter: PatternRewriter, /
     ):
         if all(isa(t, csl.DsdType) for t in op.inputs.types) and all(
-            isa(t, MemRefType[Attribute]) for t in op.outputs.types
+            isa(t, MemRefType) for t in op.outputs.types
         ):
             rewriter.replace_matched_op([], new_results=op.inputs)
 
@@ -374,11 +365,7 @@ class CslVarUpdate(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.VariableOp, rewriter: PatternRewriter, /):
-        if (
-            not isinstance(op.res.type, csl.VarType)
-            or not isa(elem_t := op.res.type.get_element_type(), MemRefType[Attribute])
-            or op.default
-        ):
+        if not isa(elem_t := op.res.type.get_element_type(), MemRefType) or op.default:
             return
         dsd_t = csl.DsdType(
             csl.DsdKind.mem1d_dsd if len(elem_t.shape) == 1 else csl.DsdKind.mem4d_dsd
@@ -392,7 +379,7 @@ class CslVarLoad(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.LoadVarOp, rewriter: PatternRewriter, /):
         if (
-            not isa(op.res.type, MemRefType[Attribute])
+            not isa(op.res.type, MemRefType)
             or not isinstance(op.var.type, csl.VarType)
             or not isa(op.var.type.get_element_type(), csl.DsdType)
         ):
@@ -413,7 +400,7 @@ class MemRefToDsdPass(ModulePass):
 
     name = "memref-to-dsd"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

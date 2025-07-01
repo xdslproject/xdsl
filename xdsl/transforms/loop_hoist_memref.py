@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from xdsl.dialects import builtin, memref, scf
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.irdl import Operand
-from xdsl.passes import MLContext, ModulePass
+from xdsl.passes import Context, ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriter,
@@ -193,7 +193,7 @@ class LoopHoistMemRef(RewritePattern):
 class LoopHoistMemRefPass(ModulePass):
     name = "loop-hoist-memref"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

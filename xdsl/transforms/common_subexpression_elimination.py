@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from typing import TypeVar
 
-from xdsl.context import MLContext
+from typing_extensions import TypeVar
+
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
 from xdsl.ir import Block, Operation, Region, Use
 from xdsl.passes import ModulePass
@@ -70,7 +71,7 @@ _D = TypeVar("_D")
 class KnownOps:
     """
     Cache dictionary for known operations used in CSE.
-    It quacks like a dict[Operation, Operation], but uses OperationInfo of an Opetration
+    It quacks like a dict[Operation, Operation], but uses OperationInfo of an Operation
     as the actual key.
     """
 
@@ -123,7 +124,7 @@ class CSEDriver:
     """
 
     _rewriter: Rewriter | PatternRewriter = field(default_factory=Rewriter)
-    _to_erase: set[Operation] = field(default_factory=set)
+    _to_erase: set[Operation] = field(default_factory=set[Operation])
     _known_ops: KnownOps = field(default_factory=KnownOps)
 
     def _mark_erasure(self, op: Operation):
@@ -260,5 +261,5 @@ def cse(
 class CommonSubexpressionElimination(ModulePass):
     name = "cse"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         cse(op)

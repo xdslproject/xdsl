@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from math import prod
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     AnyTensorType,
@@ -45,7 +45,6 @@ from xdsl.transforms.varith_transformations import (
     ConvertVarithToArithPass,
 )
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 def get_stencil_access_operands(op: Operand) -> set[Operand]:
@@ -175,9 +174,8 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             "all swaps need to be of uniform size"
         )
 
-        assert isattr(
-            op.input_stencil.type,
-            MemRefType.constr() | stencil.StencilTypeConstr,
+        assert (MemRefType.constr() | stencil.StencilTypeConstr).verifies(
+            op.input_stencil.type
         )
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
@@ -302,7 +300,9 @@ def split_ops(
                         rem.remove(use.operation)
 
     # find constants in `a` needed outside of `a`
-    cnst_exports = [cnst for cnst in a_exports if isinstance(cnst, arith.ConstantOp)]
+    cnst_exports = tuple(
+        cnst for cnst in a_exports if isinstance(cnst, arith.ConstantOp)
+    )
 
     # `a` exports one value plus any number of constants - duplicate exported constants and return op split
     if len(a_exports) == 1 + len(cnst_exports):
@@ -311,6 +311,7 @@ def split_ops(
             if op in a:
                 recv_chunk_ops.append(op)
                 if op in cnst_exports:
+                    assert isinstance(op, arith.ConstantOp)
                     # create a copy of the constant in the second region
                     done_exch_ops.append(cln := op.clone())
                     # rewire ops of the second region to use the copied constant
@@ -579,7 +580,7 @@ class PromoteCoefficients(RewritePattern):
             return
 
         val = dense.get_attrs()[0]
-        assert isattr(val, FloatAttr)
+        assert isinstance(val, FloatAttr)
         apply.add_coeff(op.offset, val)
         rewriter.replace_op(mulf, [], new_results=[op.result])
 
@@ -650,7 +651,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
     # chunks into which to slice communication
     num_chunks: int = 1
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         ConvertArithToVarithPass().apply(ctx, op)
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(

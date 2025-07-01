@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.2"
+__generated_with = "0.14.8"
 app = marimo.App(width="full")
 
 
@@ -23,7 +23,7 @@ def _(mo):
     m = mo.ui.slider(min_val, max_val, value=2, label="M")
     n = mo.ui.slider(min_val, max_val, value=2, label="N")
     k = mo.ui.slider(min_val, max_val, value=2, label="K")
-    return k, m, max_val, min_val, n
+    return k, m, n
 
 
 @app.cell(hide_code=True)
@@ -33,21 +33,21 @@ def _(a_shape, b_shape, c_shape):
     a_len = prod(a_shape)
     b_len = prod(b_shape)
     c_len = prod(c_shape)
-    return a_len, b_len, c_len, prod
+    return a_len, b_len, c_len
 
 
 @app.cell(hide_code=True)
 def _(k, m, mo, n):
     mo.md(
         f"""
-        We can parametrize the shapes of the matrices operated on:
+    We can parametrize the shapes of the matrices operated on:
 
-        {m}{m.value}
+    {m}{m.value}
 
-        {n}{n.value}
+    {n}{n.value}
 
-        {k}{k.value}
-        """
+    {k}{k.value}
+    """
     )
     return
 
@@ -71,13 +71,13 @@ def _(k, m, mo, n):
 
 @app.cell
 def _():
-    from xdsl.dialects.builtin import MemRefType
+    from xdsl.dialects.builtin import MemRefType, ModuleOp
     from xdsl.dialects import arith, func, linalg
-    return MemRefType, arith, func, linalg
+    return MemRefType, ModuleOp, arith, func, linalg
 
 
 @app.cell(hide_code=True)
-def _(MemRefType, arith, func, linalg):
+def _(MemRefType, ModuleOp, arith, func, linalg):
     def build_matmul(_a_type: MemRefType, _b_type: MemRefType, _c_type: MemRefType) -> ModuleOp:
         from xdsl.builder import ImplicitBuilder
         from xdsl.dialects.builtin import (
@@ -144,7 +144,7 @@ def _(MemRefType, a_shape, b_shape, build_matmul, c_shape, mo, xmo):
 
     {xmo.module_html(linalg_module)}
     """)
-    return a_type, b_type, c_type, f64, linalg_module
+    return f64, linalg_module
 
 
 @app.cell(hide_code=True)
@@ -156,13 +156,7 @@ def _():
 
     for dialect_name, dialect_factory in get_all_dialects().items():
         linalg_ctx.register_dialect(dialect_name, dialect_factory)
-    return (
-        MLContext,
-        dialect_factory,
-        dialect_name,
-        get_all_dialects,
-        linalg_ctx,
-    )
+    return MLContext, linalg_ctx
 
 
 @app.cell(hide_code=True)
@@ -186,10 +180,7 @@ def _(linalg_ctx, linalg_module, xmo):
     memref_stream_html
     return (
         PipelinePass,
-        arith_add_fastmath,
-        convert_linalg_to_memref_stream,
         memref_stream_ctx,
-        memref_stream_html,
         memref_stream_module,
         memref_stream_passes,
     )
@@ -222,15 +213,7 @@ def _(PipelinePass, memref_stream_ctx, memref_stream_module, mo, xmo):
 
     {riscv_html}
     """)
-    return (
-        LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
-        LOWER_SNITCH_STREAM_TO_ASM_PASSES,
-        convert_memref_stream_to_loops,
-        riscv_ctx,
-        riscv_html,
-        riscv_module,
-        riscv_passes,
-    )
+    return riscv_ctx, riscv_module, riscv_passes
 
 
 @app.cell(hide_code=True)
@@ -246,9 +229,10 @@ def _():
 
 
 @app.cell
-def _(Operation, PythonValues, dataclass, field):
+def _(dataclass, field):
     from xdsl.dialects import riscv, riscv_cf, riscv_func
-    from xdsl.interpreter import Interpreter
+    from xdsl.interpreter import Interpreter, PythonValues
+    from xdsl.ir import Operation
 
     SKIPPED_OPS = {
         riscv.GetRegisterOp,
@@ -281,15 +265,7 @@ def _(Operation, PythonValues, dataclass, field):
             if type(op) in SKIPPED_OPS:
                 return
             self.cycles += CYCLES_PER_OP[type(op)]
-    return (
-        CYCLES_PER_OP,
-        Interpreter,
-        SKIPPED_OPS,
-        SnitchCycleEstimator,
-        riscv,
-        riscv_cf,
-        riscv_func,
-    )
+    return Interpreter, SnitchCycleEstimator
 
 
 @app.cell(hide_code=True)
@@ -336,16 +312,10 @@ def _(CostModel, MLContext, ModuleOp):
 
 
 @app.cell
-def _(
-    Attribute,
-    CostModel,
-    Interpreter,
-    MLContext,
-    ModuleOp,
-    SnitchCycleEstimator,
-):
+def _(CostModel, Interpreter, MLContext, ModuleOp, SnitchCycleEstimator):
     from xdsl.interpreters import register_implementations
     from xdsl.traits import CallableOpInterface
+    from xdsl.ir import Attribute
 
     class SnitchCycleCostModel(CostModel):
         func_name: str
@@ -373,27 +343,37 @@ def _(
             interpreter.call_op(op, args)
 
             return snitch_cycle_estimator.cycles
-    return (
-        CallableOpInterface,
-        SnitchCycleCostModel,
-        register_implementations,
-    )
+    return Attribute, SnitchCycleCostModel
 
 
 @app.cell
-def _(a_len, a_shape, b_len, b_shape, c_len, c_shape, f64):
+def _():
     from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
+    return (DenseIntOrFPElementsAttr,)
 
-    a_attr = DenseIntOrFPElementsAttr.tensor_from_list(
-        [i + 1 for i in range(a_len)], f64, a_shape
+
+@app.cell
+def _(
+    DenseIntOrFPElementsAttr,
+    TensorType,
+    a_len,
+    a_shape,
+    b_len,
+    b_shape,
+    c_len,
+    c_shape,
+    f64,
+):
+    a_attr = DenseIntOrFPElementsAttr.from_list(
+        TensorType(f64, a_shape), [i + 1 for i in range(a_len)]
     )
-    b_attr = DenseIntOrFPElementsAttr.tensor_from_list(
-        [(i + 1) / 100 for i in range(b_len)], f64, b_shape
+    b_attr = DenseIntOrFPElementsAttr.from_list(
+        TensorType(f64, b_shape), [(i + 1) / 100 for i in range(b_len)]
     )
-    c_attr = DenseIntOrFPElementsAttr.tensor_from_list([0.0] * c_len, f64, c_shape)
+    c_attr = DenseIntOrFPElementsAttr.from_list(TensorType(f64, c_shape), [0.0] * c_len)
 
     a_attr, b_attr, c_attr
-    return DenseIntOrFPElementsAttr, a_attr, b_attr, c_attr
+    return a_attr, b_attr, c_attr
 
 
 @app.cell
@@ -413,7 +393,7 @@ def _(
     mo.md(f"""
     The cost of running our assembly-level code without unroll-and-jam is {cycles}.
     """)
-    return cycles, snitch_cost_model
+    return
 
 
 @app.cell
@@ -439,7 +419,7 @@ def _(
     mo.md(f"""
     The cost of running our memref_stream-level code without unroll-and-jam is also {memref_stream_cost}.
     """)
-    return memref_stream_cost, memref_stream_cost_model
+    return (memref_stream_cost_model,)
 
 
 @app.cell
@@ -466,12 +446,7 @@ def _(
 
     {xmo.module_html(interleaved_module)}
     """)
-    return (
-        interleaved_cost,
-        interleaved_ctx,
-        interleaved_module,
-        memref_stream_interleave,
-    )
+    return interleaved_cost, memref_stream_interleave
 
 
 @app.cell
@@ -488,12 +463,7 @@ def _(memref_stream_module, mo):
 
     {msg_factors}
     """)
-    return (
-        memref_stream,
-        msg_factors,
-        msg_op,
-        unroll_and_jam_bound_indices_and_factors,
-    )
+    return memref_stream, msg_factors
 
 
 @app.cell
@@ -546,7 +516,7 @@ def _(
 
     {scores}
     """)
-    return (scores,)
+    return
 
 
 @app.cell
@@ -556,15 +526,14 @@ def _():
 
 
 @app.cell
-def _(
-    Float32Type,
-    Float64Type,
-    IntAttr,
-    IntegerType,
-    PackableType,
-    np,
-    ptr,
-):
+def _():
+    import numpy as np
+    return (np,)
+
+
+@app.cell
+def _(Float32Type, Float64Type, IntAttr, IntegerType, np, ptr):
+    from xdsl.dialects.builtin import PackableType
 
     def to_dtype(
         xtype: PackableType[int] | PackableType[float],
@@ -595,7 +564,7 @@ def _(
             return ptr.int64
         else:
             raise NotImplementedError()
-    return from_dtype, to_dtype
+    return
 
 
 @app.cell
@@ -614,13 +583,7 @@ def _(Attribute, DenseIntOrFPElementsAttr, Random, f64):
 
     _rng = Random("autotune")
     random_attr_of_type(f64, _rng), random_attr_of_type(TensorType(f64, (2, 3)), _rng)
-    return (
-        ContainerType,
-        FloatAttr,
-        ShapedType,
-        TensorType,
-        random_attr_of_type,
-    )
+    return TensorType, random_attr_of_type
 
 
 @app.cell
@@ -691,14 +654,14 @@ def _(
 def _(k, m, mo, n):
     mo.md(
         f"""
-        Here are the sliders again:
+    Here are the sliders again:
 
-        {m}{m.value}
+    {m}{m.value}
 
-        {n}{n.value}
+    {n}{n.value}
 
-        {k}{k.value}
-        """
+    {k}{k.value}
+    """
     )
     return
 
@@ -723,7 +686,7 @@ def _(
 
     {xmo.module_html(automated_module)}
     """)
-    return automated_cost, automated_ctx, automated_module
+    return
 
 
 @app.cell

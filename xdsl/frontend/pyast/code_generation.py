@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import xdsl.dialects.affine as affine
 import xdsl.dialects.arith as arith
@@ -11,13 +11,11 @@ import xdsl.dialects.scf as scf
 import xdsl.frontend.pyast.symref as symref
 from xdsl.frontend.pyast.exception import (
     CodeGenerationException,
-    FrontendProgramException,
 )
 from xdsl.frontend.pyast.op_inserter import OpInserter
-from xdsl.frontend.pyast.op_resolver import OpResolver
 from xdsl.frontend.pyast.python_code_check import FunctionMap
 from xdsl.frontend.pyast.type_conversion import TypeConverter
-from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.ir import Attribute, Block, Region, SSAValue, TypeAttribute
 
 
 @dataclass
@@ -44,12 +42,6 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     type_converter: TypeConverter
     """Used for type conversion during code generation."""
 
-    globals: dict[str, Any]
-    """
-    Imports and other global information from the module, useful for looking
-    up classes, etc.
-    """
-
     inserter: OpInserter
     """Used for inserting newly generated operations to the right block."""
 
@@ -63,10 +55,12 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     """Path of the file containing the program being processed."""
 
     def __init__(
-        self, type_converter: TypeConverter, module: builtin.ModuleOp, file: str | None
+        self,
+        type_converter: TypeConverter,
+        module: builtin.ModuleOp,
+        file: str | None,
     ) -> None:
         self.type_converter = type_converter
-        self.globals = type_converter.globals
         self.file = file
 
         assert len(module.body.blocks) == 1
@@ -111,7 +105,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.lineno,
                     node.col_offset,
                     "Expected a string constant for assertion message, found "
-                    f"'ast.{type(node.msg).__name__}'",
+                    f"'ast.{type(node.msg).__qualname__}'",
                 )
             msg = str(node.msg.value)
         op = cf.AssertOp(self.inserter.get_operand(), msg)
@@ -122,7 +116,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         pass
 
     def visit_BinOp(self, node: ast.BinOp):
-        op_name: str = node.op.__class__.__name__
+        op_name: str = node.op.__class__.__qualname__
 
         # Table with mappings of Python AST operator to Python methods.
         python_AST_operator_to_python_overload = {
@@ -166,25 +160,92 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"but got {lhs.type} and {rhs.type}.",
             )
 
-        # Look-up what is the frontend type we deal with to resolve the binary
-        # operation.
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
-            lhs.type.__class__
-        ]
-
-        overload_name = python_AST_operator_to_python_overload[op_name]
-        try:
-            op = OpResolver.resolve_op_overload(overload_name, frontend_type)(lhs, rhs)
-            self.inserter.insert_op(op)
-        except FrontendProgramException:
+        ir_type = cast(TypeAttribute, lhs.type)
+        source_type = self.type_converter.type_registry.get_annotation(ir_type)
+        if source_type is None:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Binary operation '{op_name}' "
-                f"is not supported by type '{frontend_type.__name__}' "
-                f"which does not overload '{overload_name}'.",
+                f"IR type '{ir_type}' is not registered with a source type.",
             )
+
+        method_name = python_AST_operator_to_python_overload[op_name]
+        function_name = f"{source_type.__qualname__}.{method_name}"
+        op = self.type_converter.function_registry.resolve_operation(
+            module_name=source_type.__module__,
+            method_name=function_name,
+            args=(lhs, rhs),
+        )
+        if op is not None:
+            self.inserter.insert_op(op)
+            return
+
+        overload_name = python_AST_operator_to_python_overload[op_name]
+        raise CodeGenerationException(
+            self.file,
+            node.lineno,
+            node.col_offset,
+            f"Binary operation '{op_name}' "
+            f"is not supported by type '{source_type.__qualname__}' "
+            f"which does not overload '{overload_name}'.",
+        )
+
+    def visit_Call(self, node: ast.Call):
+        # Resolve function
+        assert isinstance(node.func, ast.Name)
+        func_name = node.func.id
+        source_func = self.type_converter.globals.get(func_name, None)
+        if source_func is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Function '{func_name}' is not defined in scope.",
+            )
+        ir_op = self.type_converter.function_registry.get_operation_type(source_func)
+        if ir_op is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Function '{func_name}' is not registered.",
+            )
+
+        # Resolve arguments
+        assert self.symbol_table is not None
+        args: list[symref.FetchOp] = []
+        for arg in node.args:
+            if not isinstance(arg, ast.Name) or arg.id not in self.symbol_table:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Function arguments must be declared variables.",
+                )
+            args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
+            self.inserter.insert_op(arg_op)
+
+        # Resolve keyword arguments
+        kwargs: dict[str, symref.FetchOp] = {}
+        for keyword in node.keywords:
+            if (
+                not isinstance(keyword.value, ast.Name)
+                or keyword.value.id not in self.symbol_table
+            ):
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Function arguments must be declared variables.",
+                )
+            assert keyword.arg is not None
+            kwargs[keyword.arg] = symref.FetchOp(
+                keyword.value.id, self.symbol_table[keyword.value.id]
+            )
+            self.inserter.insert_op(kwargs[keyword.arg])
+
+        self.inserter.insert_op(ir_op(*args, **kwargs))
 
     def visit_Compare(self, node: ast.Compare):
         # Allow a single comparison only.
@@ -196,7 +257,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"Expected a single comparator, but found {len(node.comparators)}.",
             )
         comp = node.comparators[0]
-        op_name: str = node.ops[0].__class__.__name__
+        op_name: str = node.ops[0].__class__.__qualname__
 
         # Table with mappings of Python AST cmpop to Python method.
         python_AST_cmpop_to_python_overload = {
@@ -243,42 +304,36 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f" but got {lhs.type} and {rhs.type}.",
             )
 
-        # Resolve the comparison operation to an xdsl operation class
-        python_op = python_AST_cmpop_to_python_overload[op_name]
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
-            lhs.type.__class__
-        ]
-
-        try:
-            op = OpResolver.resolve_op_overload(python_op, frontend_type)
-        except FrontendProgramException:
+        ir_type = cast(TypeAttribute, lhs.type)
+        source_type = self.type_converter.type_registry.get_annotation(ir_type)
+        if source_type is None:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Comparison operation '{op_name}' "
-                f"is not supported by type '{frontend_type.__name__}' "
-                f"which does not overload '{python_op}'.",
+                f"IR type '{ir_type}' is not registered with a source type.",
             )
 
-        # Create the comparison operation (including any potential negations)
-        if op_name == "In":
-            # "in" does not take a mnemonic.
-            op = op(lhs, rhs)
-        else:
-            # Table with mappings of Python AST cmpop to xDSL mnemonics.
-            python_AST_cmpop_to_mnemonic = {
-                "Eq": "eq",
-                "Gt": "sgt",
-                "GtE": "sge",
-                "Lt": "slt",
-                "LtE": "sle",
-                "NotEq": "ne",
-            }
-            mnemonic = python_AST_cmpop_to_mnemonic[op_name]
-            op = op(lhs, rhs, mnemonic)
+        method_name = python_AST_cmpop_to_python_overload[op_name]
+        function_name = f"{source_type.__qualname__}.{method_name}"
+        op = self.type_converter.function_registry.resolve_operation(
+            module_name=source_type.__module__,
+            method_name=function_name,
+            args=(lhs, rhs),
+        )
+        if op is not None:
+            self.inserter.insert_op(op)
+            return
 
-        self.inserter.insert_op(op)
+        python_op = python_AST_cmpop_to_python_overload[op_name]
+        raise CodeGenerationException(
+            self.file,
+            node.lineno,
+            node.col_offset,
+            f"Comparison operation '{op_name}' "
+            f"is not supported by type '{ir_type.name}' "
+            f"which does not overload '{python_op}'.",
+        )
 
     def _generate_affine_loop_bounds(
         self, args: list[ast.expr]
@@ -293,7 +348,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     args[0].lineno,
                     args[0].col_offset,
-                    f"Expected integer constant for loop start, got '{type(args[0].value).__name__}'.",
+                    f"Expected integer constant for loop start, got '{type(args[0].value).__qualname__}'.",
                 )
             start = int(args[0].value)
 
@@ -308,7 +363,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 arg.lineno,
                 arg.col_offset,
-                f"Expected integer constant for loop end, got '{type(arg.value).__name__}'.",
+                f"Expected integer constant for loop end, got '{type(arg.value).__qualname__}'.",
             )
         end = int(arg.value)
 
@@ -320,7 +375,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     args[2].lineno,
                     args[2].col_offset,
-                    f"Expected integer constant for loop step, got '{type(args[2].value).__name__}'.",
+                    f"Expected integer constant for loop step, got '{type(args[2].value).__qualname__}'.",
                 )
             step = int(args[2].value)
         else:
@@ -471,13 +526,36 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         argument_types: list[Attribute] = []
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None:
-                raise CodeGenerationException(self.file, arg.lineno, arg.col_offset, "")
-            xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
+                raise CodeGenerationException(
+                    self.file,
+                    arg.lineno,
+                    arg.col_offset,
+                    "Function arguments must be type hinted",
+                )
+            xdsl_type = self.type_converter.type_registry.resolve_attribute(
+                ast.unparse(arg.annotation), self.type_converter.globals
+            )
+            if xdsl_type is None:
+                raise CodeGenerationException(
+                    self.file,
+                    arg.lineno,
+                    arg.col_offset,
+                    f"Unsupported function argument type: '{ast.unparse(arg.annotation)}'",
+                )
             argument_types.append(xdsl_type)
 
         return_types: list[Attribute] = []
         if node.returns is not None:
-            xdsl_type = self.type_converter.convert_type_hint(node.returns)
+            xdsl_type = self.type_converter.type_registry.resolve_attribute(
+                ast.unparse(node.returns), self.type_converter.globals
+            )
+            if xdsl_type is None:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    f"Unsupported function return type: '{ast.unparse(node.returns)}'",
+                )
             return_types.append(xdsl_type)
 
         # Create a function operation.
@@ -494,6 +572,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         for i, arg in enumerate(node.args.args):
             symbol_name = str(arg.arg)
             block_arg = entry_block.insert_arg(argument_types[i], i)
+            block_arg.name_hint = symbol_name
             self.symbol_table[symbol_name] = argument_types[i]
             entry_block.add_op(symref.DeclareOp(symbol_name))
             entry_block.add_op(symref.UpdateOp(symbol_name, block_arg))

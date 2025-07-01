@@ -1,5 +1,5 @@
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, pdl, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -14,20 +14,20 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.pdl import PDLMatcher, PDLRewriteFunctions, PDLRewritePattern
 from xdsl.ir import Attribute, Block
 from xdsl.pattern_rewriter import PatternRewriteWalker
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_interpreter_functions():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(PDLRewriteFunctions(MLContext()))
+    interpreter.register_implementations(PDLRewriteFunctions(Context()))
 
-    c0 = TestSSAValue(i32)
-    c1 = TestSSAValue(i32)
+    c0 = create_ssa_value(i32)
+    c1 = create_ssa_value(i32)
     add = arith.AddiOp(c0, c1)
     add_res = add.result
 
     assert interpreter.run_op(
-        pdl.ResultOp(0, TestSSAValue(pdl.OperationType())), (add,)
+        pdl.ResultOp(0, create_ssa_value(pdl.OperationType())), (add,)
     ) == (add_res,)
 
 
@@ -63,7 +63,7 @@ def test_native_constraint():
     def even_length_string(attr: Attribute) -> bool:
         return isinstance(attr, StringAttr) and len(attr.data) == 4
 
-    ctx = MLContext()
+    ctx = Context()
     PDLMatcher.native_constraints["even_length_string"] = even_length_string
 
     pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
@@ -187,7 +187,7 @@ def test_match_operand():
 
     pdl_op = pdl.OperandOp()
     ssa_value = pdl_op.value
-    xdsl_value = TestSSAValue(i32)
+    xdsl_value = create_ssa_value(i32)
 
     # New value
     assert matcher.match_operand(ssa_value, pdl_op, xdsl_value)
@@ -198,14 +198,14 @@ def test_match_operand():
     assert matcher.matching_context == {ssa_value: xdsl_value}
 
     # Other value
-    other_value = TestSSAValue(i32)
+    other_value = create_ssa_value(i32)
     assert not matcher.match_operand(ssa_value, pdl_op, other_value)
     assert matcher.matching_context == {ssa_value: xdsl_value}
 
     # Wrong type
     type_op = pdl.TypeOp(i64)
     new_pdl_op = pdl.OperandOp(type_op.result)
-    new_value = TestSSAValue(i32)
+    new_value = create_ssa_value(i32)
     assert not matcher.match_operand(new_pdl_op.value, new_pdl_op, new_value)
     assert matcher.matching_context == {ssa_value: xdsl_value}
 
@@ -361,8 +361,8 @@ def test_match_operation_with_multiple_constraints():
     matcher = PDLMatcher()
 
     # Create test operation with 2 operands, 2 results, and 2 attributes
-    operand1 = TestSSAValue(i32)
-    operand2 = TestSSAValue(i64)
+    operand1 = create_ssa_value(i32)
+    operand2 = create_ssa_value(i64)
     test_op = test.TestOp(
         operands=[operand1, operand2],
         result_types=[i32, i64],
@@ -501,7 +501,7 @@ def test_native_constraint_constant_parameter():
             and len(attr.data) == size.value.data
         )
 
-    ctx = MLContext()
+    ctx = Context()
     PDLMatcher.native_constraints["length_string"] = length_string
 
     pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
@@ -514,3 +514,43 @@ def test_native_constraint_constant_parameter():
 
     assert new_input_module_false.is_structurally_equivalent(ModuleOp([]))
     assert new_input_module_true.is_structurally_equivalent(input_module_true)
+
+
+def test_insert_operation_without_replace():
+    """Test that operations created in a rewrite region are inserted by default."""
+
+    @ModuleOp
+    @Builder.implicit_region
+    def input_module():
+        test.TestOp.create(properties={"attr": StringAttr("original")})
+
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(1, None).body):
+            attr = pdl.AttributeOp(StringAttr("original")).output
+            op = pdl.OperationOp(
+                op_name="test.op",
+                attribute_value_names=ArrayAttr([StringAttr("attr")]),
+                attribute_values=[attr],
+            ).op
+            with ImplicitBuilder(pdl.RewriteOp(op).body):
+                # Create a new operation but don't use it in a replace
+                pdl.OperationOp(op_name="test.op", type_values=())
+                pdl.EraseOp(op)
+
+    pdl_rewrite_op = next(
+        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
+
+    # Apply the pattern
+    new_module = input_module.clone()
+    pattern_walker.rewrite_module(new_module)
+
+    # The original op should be erased and the new op should be inserted
+    expected_module = ModuleOp([test.TestOp()])
+    assert new_module.is_structurally_equivalent(expected_module)

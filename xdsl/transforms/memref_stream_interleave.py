@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
@@ -90,7 +90,7 @@ class MemRefStreamInterleavePass(ModulePass):
 
     pipeline_depth: int = field(default=4)
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             PipelineGenericPattern(self.pipeline_depth),
             apply_recursively=False,
