@@ -1192,7 +1192,7 @@ class OpDef:
                 if isinstance(attr_def, OptPropertyDef):
                     continue
                 raise VerifyException(
-                    f"property {prop_name} expected in operation '{op.name}'"
+                    f"property '{prop_name}' expected in operation '{op.name}'"
                 )
             attr_def.constr.verify(op.properties[prop_name], constraint_context)
 
@@ -1210,7 +1210,7 @@ class OpDef:
                 if isinstance(attr_def, OptAttributeDef):
                     continue
                 raise VerifyException(
-                    f"attribute {attr_name} expected in operation '{op.name}'"
+                    f"attribute '{attr_name}' expected in operation '{op.name}'"
                 )
             attr_def.constr.verify(op.attributes[attr_name], constraint_context)
 
