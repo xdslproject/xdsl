@@ -121,7 +121,7 @@ class LowerFuncOp(RewritePattern):
 class LowerReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
-        if len(op.arguments) == 0:
+        if not op.arguments:
             rewriter.replace_matched_op([x86_func.RetOp()])
             return
         elif len(op.arguments) > 1:
