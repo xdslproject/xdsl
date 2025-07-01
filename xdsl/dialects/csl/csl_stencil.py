@@ -5,7 +5,6 @@ from typing import TypeAlias, cast
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
     I64,
-    AnyFloat,
     AnyTensorTypeConstr,
     DenseArrayBase,
     Float16Type,
@@ -163,7 +162,7 @@ CslFloat: TypeAlias = Float16Type | Float32Type
 class CoeffAttr(ParametrizedAttribute):
     name = "csl_stencil.coeff"
     offset: ParameterDef[stencil.IndexAttr]
-    coeff: ParameterDef[FloatAttr[AnyFloat]]
+    coeff: ParameterDef[FloatAttr]
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -429,7 +428,7 @@ class ApplyOp(IRDLOperation):
                 accesses.append(offsets)
             yield stencil.AccessPattern(tuple(accesses))
 
-    def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+    def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr):
         self.coeffs = builtin.ArrayAttr(
             list(self.coeffs or []) + [CoeffAttr(offset, coeff)]
         )
