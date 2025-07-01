@@ -182,10 +182,10 @@ class ParamAttrDef:
 
             try:
                 constraint = irdl_to_attr_constraint(field_type, allow_type_var=True)
-            except TypeError:
+            except TypeError as e:
                 raise PyRDLAttrDefinitionError(
                     f"Invalid field type {field_type} for field name {field_name}."
-                )
+                ) from e
 
             parameters[field_name] = constraint
 
