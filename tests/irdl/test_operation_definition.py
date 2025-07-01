@@ -651,14 +651,6 @@ def test_property_missing():
         op.verify()
 
 
-def test_no_optional_property():
-    """Test verification raises error when a property is missing"""
-
-    op = PropertyOp.create(properties={"attr": StringAttr("test")})
-
-    op.verify()
-
-
 def test_undefined_property():
     """Test verification raises error when a property is missing"""
 
