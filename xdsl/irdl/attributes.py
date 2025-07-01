@@ -189,6 +189,8 @@ class ParamAttrDef:
 
             parameters[field_name] = constraint
 
+        param_def_names = set[str]()
+
         for field_name, value in clsdict.items():
             if field_name == "name":
                 # Ignore name field
@@ -201,6 +203,8 @@ class ParamAttrDef:
 
             # Parameter def must be a field def
             if isinstance(value, _ParameterDef):
+                param_def_names.add(field_name)
+
                 if field_name not in parameters:
                     raise PyRDLAttrDefinitionError(
                         f"Missing field type for parameter name {field_name}"
@@ -235,6 +239,12 @@ class ParamAttrDef:
             )
 
         name = clsdict["name"]
+
+        if sym_diff := param_def_names.symmetric_difference(parameters):
+            raise PyRDLAttrDefinitionError(
+                "All ParametrizedAttribute parameters must have param_def(), missing "
+                f"fields: {sorted(sym_diff)}."
+            )
 
         return ParamAttrDef(name, list(parameters.items()))
 
