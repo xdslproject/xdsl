@@ -24,7 +24,8 @@ from xdsl.irdl import (
     VarConstraint,
     irdl_op_definition,
     operand_def,
-    opt_prop_def,
+    prop_def,
+    prop_def,
     result_def,
     traits_def,
 )
@@ -447,7 +448,7 @@ class FPowIOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T1", floatingPointLike)
 
-    fastmath = opt_prop_def(FastMathFlagsAttr)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
     lhs = operand_def(T)
     rhs = operand_def(signlessIntegerLike)
     result = result_def(T)
@@ -510,7 +511,7 @@ class FmaOp(IRDLOperation):
 
     name = "math.fma"
 
-    fastmath = opt_prop_def(FastMathFlagsAttr)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
     a = operand_def(T)
     b = operand_def(T)
     c = operand_def(T)
