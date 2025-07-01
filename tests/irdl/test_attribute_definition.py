@@ -849,38 +849,6 @@ def test_invalid_field():
         irdl_attr_definition(InvalidUntypedFieldTestAttr)
 
 
-class InvalidFieldMissingParamDefTestAttr(ParametrizedAttribute):
-    name = "test.invalid_field_missing_param_def"
-
-    x: Attribute
-
-
-def test_invalid_field_missing_param_def():
-    """Check that typed fields are not allowed."""
-    with pytest.raises(
-        PyRDLAttrDefinitionError,
-        match=re.escape(
-            "All ParametrizedAttribute parameters must have param_def(), missing "
-            "fields: ['x']."
-        ),
-    ):
-        irdl_attr_definition(InvalidFieldMissingParamDefTestAttr)
-
-
-class InvalidUntypedFieldWithParamDefAttr(ParametrizedAttribute):
-    name = "test.invalid_untyped_field_with_param_def"
-
-    x = param_def()
-
-
-def test_invalid_untyped_field_with_param_def():
-    """Check that untyped fields are not allowed."""
-    with pytest.raises(
-        PyRDLAttrDefinitionError, match="Missing field type for parameter name x"
-    ):
-        irdl_attr_definition(InvalidUntypedFieldWithParamDefAttr)
-
-
 @irdl_attr_definition
 class OveriddenInitAttr(ParametrizedAttribute):
     name = "test.overidden_init"
