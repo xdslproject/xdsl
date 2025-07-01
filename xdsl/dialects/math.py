@@ -25,7 +25,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     prop_def,
-    prop_def,
     result_def,
     traits_def,
 )
