@@ -60,7 +60,7 @@ class FloatingPointLikeUnaryMathOperation(IRDLOperation, abc.ABC):
     operand = operand_def(T)
     result = result_def(T)
 
-    fastmath = opt_prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     assembly_format = "$operand (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
