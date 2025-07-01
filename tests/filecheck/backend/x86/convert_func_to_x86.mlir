@@ -1,5 +1,16 @@
 // RUN: xdsl-opt -p convert-func-to-x86-func --split-input-file  %s | filecheck %s
 
+func.func @foo_const() {
+  func.return
+}
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    x86_func.func @foo_const(%0 : !x86.reg<rsp>) {
+// CHECK-NEXT:      x86_func.ret
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
+
+// -----
 
 func.func @foo_const() -> i32 {
   %0 = "test.op"(): () -> i32
