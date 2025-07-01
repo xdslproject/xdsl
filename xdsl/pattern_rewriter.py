@@ -142,12 +142,13 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self, from_: SSAValue, to: SSAValue | None, safe_erase: bool = True
     ):
         """Replace all uses of an SSA value with another SSA value."""
-        for use in from_.uses:
-            self.handle_operation_modification(use.operation)
+        modified_ops = [use.operation for use in from_.uses]
         if to is None:
             from_.erase(safe_erase=safe_erase)
         else:
             from_.replace_by(to)
+        for op in modified_ops:
+            self.handle_operation_modification(op)
 
     def replace_matched_op(
         self,
