@@ -15,7 +15,6 @@ from typing import (
     Annotated,
     Any,
     Generic,
-    Literal,
     TypeAlias,
     Union,
     cast,
@@ -106,10 +105,6 @@ class _ParameterDef:
 
 def param_def(
     constraint: GenericAttrConstraint[AttributeInvT] | None = None,
-    *,
-    default: None = None,
-    resolver: None = None,
-    init: Literal[False] = False,
 ) -> AttributeInvT:
     """Defines a property of an operation."""
     return cast(AttributeInvT, _ParameterDef(constraint))
