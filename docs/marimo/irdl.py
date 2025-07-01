@@ -458,30 +458,23 @@ def _(EqAttrConstraint, IntAttr, StringAttr, irdl_attr_definition):
         name = "test.integer_type"
 
         # Only parameter of the type, with an `EqAttrConstraint` constraint.
-        width: IntAttr = param_def(constraint=EqAttrConstraint(IntAttr(32)))
+        width: IntAttr = param_def(EqAttrConstraint(IntAttr(32)))
 
 
     my_i32 = MyIntegerType(IntAttr(32))
 
-    # This will trigger an exception, since the attribute only expect a single attribute
-    try:
-        MyIntegerType.new([IntAttr(32), IntAttr(64)])
-    except Exception as e:
-        print(e)
-
     # This will trigger an exception, since the attribute is not an IntAttr
     try:
-        MyIntegerType([StringAttr("ga")])
+        MyIntegerType(StringAttr("not an int"))
     except Exception as e:
         print(e)
 
     # This will trigger an exception, since the attribute is not equal to the expected value
     try:
-        MyIntegerType([StringAttr(64)])
+        MyIntegerType(IntAttr(64))
     except Exception as e:
         print(e)
 
-    # This will trigger an exception, since the attribute is not an IntAttr
     print(MyIntegerType(IntAttr(32)))
     return (my_i32,)
 
