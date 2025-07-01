@@ -14,7 +14,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.ir import Attribute, ParametrizedAttribute, SSAValue
-from xdsl.irdl import BaseAttr, EqAttrConstraint, irdl_attr_definition
+from xdsl.irdl import BaseAttr, EqAttrConstraint, irdl_attr_definition, param_def
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr  # pyright: ignore[reportDeprecated]
 from xdsl.utils.test_value import create_ssa_value
@@ -358,7 +358,7 @@ _T = TypeVar("_T", bound=Attribute)
 class MyParamAttr(Generic[_T], ParametrizedAttribute):
     name = "test.param"
 
-    v: _T
+    v: _T = param_def()
 
 
 def test_parametrized_attribute():

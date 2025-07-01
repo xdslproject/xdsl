@@ -16,6 +16,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    param_def,
     region_def,
     result_def,
     traits_def,
@@ -91,7 +92,7 @@ class PragmaArrayPartitionOp(IRDLOperation):
 class HLSStreamType(ParametrizedAttribute, TypeAttribute):
     name = "hls.streamtype"
 
-    element_type: Attribute
+    element_type: Attribute = param_def()
 
 
 @irdl_op_definition

@@ -16,6 +16,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypeAttribute,
 )
+from xdsl.irdl import param_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -27,8 +28,8 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     An abstract register type for target ISA-specific dialects.
     """
 
-    index: IntAttr | NoneAttr
-    register_name: StringAttr
+    index: IntAttr | NoneAttr = param_def()
+    register_name: StringAttr = param_def()
 
     @classmethod
     def unallocated(cls) -> Self:

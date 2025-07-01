@@ -29,6 +29,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     lazy_traits_def,
     opt_prop_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -51,9 +52,9 @@ class ParamAttribute(ParametrizedAttribute):
 
     name = "csl_wrapper.param"
 
-    key: StringAttr
-    value: IntegerAttr[IntegerType] | NoneAttr
-    type: IntegerType
+    key: StringAttr = param_def()
+    value: IntegerAttr[IntegerType] | NoneAttr = param_def()
+    type: IntegerType = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():

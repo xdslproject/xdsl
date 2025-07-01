@@ -44,6 +44,7 @@ from xdsl.irdl import (
     opt_operand_def,
     opt_prop_def,
     opt_result_def,
+    param_def,
     prop_def,
     result_def,
     traits_def,
@@ -137,7 +138,7 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "fir.ref"
-    type: Attribute
+    type: Attribute = param_def()
 
 
 @irdl_attr_definition
@@ -176,7 +177,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.llvm_ptr"
 
-    type: Attribute
+    type: Attribute = param_def()
 
 
 @irdl_attr_definition
@@ -189,7 +190,7 @@ class PointerType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.ptr"
 
-    type: Attribute
+    type: Attribute = param_def()
 
 
 @irdl_attr_definition
@@ -213,9 +214,9 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "fir.array"
-    shape: ArrayAttr[IntegerAttr | DeferredAttr | NoneType]
-    type: Attribute
-    type2: Attribute
+    shape: ArrayAttr[IntegerAttr | DeferredAttr | NoneType] = param_def()
+    type: Attribute = param_def()
+    type2: Attribute = param_def()
 
     def __init__(
         self,
@@ -315,8 +316,8 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.char"
 
-    from_index: IntAttr | DeferredAttr
-    to_index: IntAttr | DeferredAttr
+    from_index: IntAttr | DeferredAttr = param_def()
+    to_index: IntAttr | DeferredAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -360,7 +361,7 @@ class LogicalType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.logical"
 
-    size: IntAttr
+    size: IntAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -384,7 +385,7 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.complex"
 
-    width: IntAttr
+    width: IntAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -408,7 +409,7 @@ class ShiftType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.shift"
 
-    indexes: IntAttr
+    indexes: IntAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -432,7 +433,7 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.shape"
 
-    indexes: IntAttr
+    indexes: IntAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -457,7 +458,7 @@ class ShapeShiftType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.shapeshift"
 
-    indexes: IntAttr
+    indexes: IntAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -482,7 +483,7 @@ class HeapType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.heap"
 
-    type: SequenceType | CharacterType
+    type: SequenceType | CharacterType = param_def()
 
 
 @irdl_attr_definition
@@ -495,7 +496,7 @@ class BoxType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.box"
 
-    type: Attribute
+    type: Attribute = param_def()
 
 
 @irdl_attr_definition
@@ -508,7 +509,7 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.boxchar"
 
-    kind: IntAttr
+    kind: IntAttr = param_def()
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
