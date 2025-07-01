@@ -34,7 +34,6 @@ from xdsl.irdl import (
     IntVarConstraint,
     IRDLOperation,
     Operation,
-    ParameterDef,
     RangeOf,
     SameVariadicOperandSize,
     base,
@@ -304,8 +303,8 @@ class DeclareTargetAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
 
     name = "omp.declaretarget"
 
-    device_type: ParameterDef[DeclareTargetDeviceTypeAttr]
-    capture_clause: ParameterDef[DeclareTargetCaptureClauseAttr]
+    device_type: DeclareTargetDeviceTypeAttr
+    capture_clause: DeclareTargetCaptureClauseAttr
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -376,7 +375,7 @@ class VersionAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
 
     name = "omp.version"
 
-    version: ParameterDef[IntAttr]
+    version: IntAttr
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
