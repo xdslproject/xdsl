@@ -709,7 +709,10 @@ def test_renamed_attributes_verify():
             "accessor": StringAttr("test"),
         }
     )
-    with pytest.raises(VerifyException, match="attribute attr_name expected"):
+    with pytest.raises(
+        VerifyException,
+        match="attribute 'attr_name' expected in operation 'test.renamed_attribute_op'",
+    ):
         op.verify()
 
     op = RenamedAttributeOp.create(
@@ -761,7 +764,10 @@ def test_renamed_properties_verify():
             "accessor": StringAttr("test"),
         }
     )
-    with pytest.raises(VerifyException, match="property prop_name expected"):
+    with pytest.raises(
+        VerifyException,
+        match="property 'prop_name' expected in operation 'test.renamed_property_op'",
+    ):
         op.verify()
 
     op = RenamedPropertyOp.create(
