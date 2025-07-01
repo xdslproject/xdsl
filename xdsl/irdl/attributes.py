@@ -301,7 +301,7 @@ def irdl_attr_definition(
 ) -> Callable[[TypeAttributeInvT], TypeAttributeInvT]: ...
 
 
-@dataclass_transform(frozen_default=True)
+@dataclass_transform(frozen_default=True, field_specifiers=(param_def,))
 def irdl_attr_definition(
     cls: TypeAttributeInvT | None = None, *, init: bool = True
 ) -> TypeAttributeInvT | Callable[[TypeAttributeInvT], TypeAttributeInvT]:

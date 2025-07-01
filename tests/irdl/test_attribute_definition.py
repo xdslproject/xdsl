@@ -808,7 +808,7 @@ class ParamAttrDefAttr2(ParametrizedAttribute):
     name = "test.param_attr_def_attr"
 
     arg1: Attribute = param_def(base(IntAttr))
-    arg2: BoolData = param_def()
+    arg2: BoolData
 
     # Check that we can define methods in attribute definition
     def test(self):
