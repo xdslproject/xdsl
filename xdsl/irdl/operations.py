@@ -1191,13 +1191,15 @@ class OpDef:
             if prop_name not in op.properties:
                 if isinstance(attr_def, OptPropertyDef):
                     continue
-                raise VerifyException(f"property {prop_name} expected")
+                raise VerifyException(
+                    f"property {prop_name} expected in operation '{op.name}'"
+                )
             attr_def.constr.verify(op.properties[prop_name], constraint_context)
 
         for prop_name in op.properties.keys():
             if prop_name not in self.properties:
                 raise VerifyException(
-                    f"property '{prop_name}' is not defined by the operation. "
+                    f"property '{prop_name}' is not defined by the operation '{op.name}'. "
                     "Use the dictionary attribute to add arbitrary information "
                     "to the operation."
                 )
@@ -1207,7 +1209,9 @@ class OpDef:
             if attr_name not in op.attributes:
                 if isinstance(attr_def, OptAttributeDef):
                     continue
-                raise VerifyException(f"attribute {attr_name} expected")
+                raise VerifyException(
+                    f"attribute {attr_name} expected in operation '{op.name}'"
+                )
             attr_def.constr.verify(op.attributes[attr_name], constraint_context)
 
         # Verify traits.
@@ -2028,9 +2032,9 @@ def get_accessors_from_op_def(
 def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     """Decorator used on classes to define a new operation definition."""
 
-    assert issubclass(cls, IRDLOperation), (
-        f"class {cls.__name__} should be a subclass of IRDLOperation"
-    )
+    assert issubclass(
+        cls, IRDLOperation
+    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
 
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = get_accessors_from_op_def(op_def, getattr(cls, "verify_", None))
