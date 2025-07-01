@@ -135,7 +135,7 @@ class ConstantOp(IRDLOperation):
     value = prop_def(
         TypedAttributeConstraint(
             IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
-            | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
+            | BaseAttr(FloatAttr)
             | BaseAttr(DenseIntOrFPElementsAttr)
             | BaseAttr(DenseResourceAttr),
             _T,
@@ -148,10 +148,7 @@ class ConstantOp(IRDLOperation):
 
     def __init__(
         self,
-        value: IntegerAttr
-        | FloatAttr[AnyFloat]
-        | DenseIntOrFPElementsAttr
-        | DenseResourceAttr,
+        value: IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr | DenseResourceAttr,
         value_type: Attribute | None = None,
     ):
         if value_type is None:
