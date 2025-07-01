@@ -458,7 +458,6 @@ def _(EqAttrConstraint, IntAttr, StringAttr, irdl_attr_definition):
         name = "test.integer_type"
 
         # Only parameter of the type, with an `EqAttrConstraint` constraint.
-        # Note the use of the attribute constraint coercion.
         width: IntAttr = param_def(constraint=EqAttrConstraint(IntAttr(32)))
 
 
@@ -566,7 +565,6 @@ def _(IRDLOperation, IntegerAttr, i32, irdl_op_definition, printer):
         name = "arith.addi32"
 
         # Definition of operands and results.
-        # Note the use of the attribute constraint coercion.
         input1 = operand_def(i32)
         input2 = operand_def(i32)
         output = result_def(i32)
