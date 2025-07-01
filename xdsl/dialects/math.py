@@ -106,7 +106,7 @@ class FloatingPointLikeBinaryMathOperation(IRDLOperation, abc.ABC):
     rhs = operand_def(T)
     result = result_def(T)
 
-    fastmath = opt_prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     assembly_format = (
         "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
