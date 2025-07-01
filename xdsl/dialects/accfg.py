@@ -30,7 +30,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_operand_def,
-    param_def,
     prop_def,
     result_def,
     traits_def,
@@ -81,7 +80,7 @@ class TokenType(ParametrizedAttribute, TypeAttribute):
 
     name = "accfg.token"
 
-    accelerator: StringAttr = param_def()
+    accelerator: StringAttr
 
     def __init__(self, accelerator: str | StringAttr):
         if not isinstance(accelerator, StringAttr):
@@ -97,7 +96,7 @@ class StateType(ParametrizedAttribute, TypeAttribute):
 
     name = "accfg.state"
 
-    accelerator: StringAttr = param_def()
+    accelerator: StringAttr
 
     def __init__(self, accelerator: str | StringAttr):
         if not isinstance(accelerator, StringAttr):

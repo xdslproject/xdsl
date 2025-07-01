@@ -35,7 +35,6 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_operand_def,
     opt_result_def,
-    param_def,
     result_def,
 )
 from xdsl.utils.hints import isa
@@ -55,7 +54,7 @@ class OperationType(ParametrizedAttribute, TypeAttribute):
 
     name = "mpi.operation"
 
-    op_str: StringAttr = param_def()
+    op_str: StringAttr
 
 
 class MpiOp:
@@ -122,7 +121,7 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     """
 
     name = "mpi.vector"
-    wrapped_type: _VectorT = param_def()
+    wrapped_type: _VectorT
 
 
 class StatusTypeField(Enum):

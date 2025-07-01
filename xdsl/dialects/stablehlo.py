@@ -45,7 +45,6 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    param_def,
     result_def,
     traits_def,
     var_operand_def,
@@ -288,10 +287,10 @@ class DotAttr(ParametrizedAttribute):
 
     name = "stablehlo.dot"
 
-    lhs_batching_dimensions: ArrayAttr[IntegerAttr[I64]] = param_def()
-    rhs_batching_dimensions: ArrayAttr[IntegerAttr[I64]] = param_def()
-    lhs_contracting_dimensions: ArrayAttr[IntegerAttr[I64]] = param_def()
-    rhs_contracting_dimensions: ArrayAttr[IntegerAttr[I64]] = param_def()
+    lhs_batching_dimensions: ArrayAttr[IntegerAttr[I64]]
+    rhs_batching_dimensions: ArrayAttr[IntegerAttr[I64]]
+    lhs_contracting_dimensions: ArrayAttr[IntegerAttr[I64]]
+    rhs_contracting_dimensions: ArrayAttr[IntegerAttr[I64]]
 
     @staticmethod
     def _print_parameter(

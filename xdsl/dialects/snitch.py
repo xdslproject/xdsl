@@ -36,7 +36,6 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    param_def,
     var_result_def,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -55,7 +54,7 @@ class ReadableStreamType(
 ):
     name = "snitch.readable"
 
-    element_type: _StreamTypeElement = param_def()
+    element_type: _StreamTypeElement
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
@@ -79,7 +78,7 @@ class WritableStreamType(
 ):
     name = "snitch.writable"
 
-    element_type: _StreamTypeElement = param_def()
+    element_type: _StreamTypeElement
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type

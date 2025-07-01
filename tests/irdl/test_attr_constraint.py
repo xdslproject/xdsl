@@ -29,7 +29,6 @@ from xdsl.irdl import (
     base,
     eq,
     irdl_attr_definition,
-    param_def,
 )
 from xdsl.utils.exceptions import PyRDLError
 
@@ -62,7 +61,7 @@ class AttrA(Base):
 class AttrB(Base):
     name = "test.attr_b"
 
-    param: AttrA = param_def()
+    param: AttrA
 
 
 @irdl_attr_definition
@@ -74,7 +73,7 @@ class AttrC(Base):
 class AttrD(Base):
     name = "test.attr_d"
 
-    param: AttrA | AttrC = param_def()
+    param: AttrA | AttrC
 
 
 @pytest.mark.parametrize(
@@ -114,7 +113,7 @@ def test_param_attr_constraint_inference():
     class BaseWrapAttr(ParametrizedAttribute):
         name = "test.wrap"
 
-        inner: Attribute = param_def()
+        inner: Attribute
 
     @irdl_attr_definition
     class WrapAttr(BaseWrapAttr): ...
@@ -167,7 +166,7 @@ def test_base_attr_constraint_inference():
     class WithParamAttr(ParametrizedAttribute):
         name = "test.with_param"
 
-        inner: Attribute = param_def()
+        inner: Attribute
 
     @irdl_attr_definition
     class DataAttr(Data[int]):

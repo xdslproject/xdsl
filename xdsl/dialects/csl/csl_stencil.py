@@ -34,7 +34,6 @@ from xdsl.irdl import (
     lazy_traits_def,
     operand_def,
     opt_prop_def,
-    param_def,
     prop_def,
     region_def,
     result_def,
@@ -76,7 +75,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "csl_stencil.exchange"
 
-    neighbor_param: DenseArrayBase[I64] = param_def()
+    neighbor_param: DenseArrayBase[I64]
 
     def __init__(
         self,
@@ -161,8 +160,8 @@ CslFloat: TypeAlias = Float16Type | Float32Type
 @irdl_attr_definition
 class CoeffAttr(ParametrizedAttribute):
     name = "csl_stencil.coeff"
-    offset: stencil.IndexAttr = param_def()
-    coeff: FloatAttr = param_def()
+    offset: stencil.IndexAttr
+    coeff: FloatAttr
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):

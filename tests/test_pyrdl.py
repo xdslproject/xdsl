@@ -18,7 +18,6 @@ from xdsl.irdl import (
     eq,
     irdl_attr_definition,
     irdl_to_attr_constraint,
-    param_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -77,8 +76,8 @@ class DoubleParamAttr(ParametrizedAttribute):
 
     name = "test.param"
 
-    param1: Attribute = param_def()
-    param2: Attribute = param_def()
+    param1: Attribute
+    param2: Attribute
 
 
 def test_eq_attr_verify():

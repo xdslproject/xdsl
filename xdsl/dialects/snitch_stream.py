@@ -42,7 +42,6 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
-    param_def,
     prop_def,
     region_def,
     traits_def,
@@ -73,9 +72,9 @@ class StridePattern(ParametrizedAttribute):
 
     name = "snitch_stream.stride_pattern"
 
-    ub: ArrayAttr[IntAttr] = param_def()
-    strides: ArrayAttr[IntAttr] = param_def()
-    repeat: IntAttr = param_def()
+    ub: ArrayAttr[IntAttr]
+    strides: ArrayAttr[IntAttr]
+    repeat: IntAttr
     """
     Number of times an element will be repeated when loaded, default is 1.
     """
