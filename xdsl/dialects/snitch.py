@@ -59,9 +59,6 @@ class ReadableStreamType(
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
-    def __init__(self, element_type: _StreamTypeElement):
-        super().__init__([element_type])
-
     @classmethod
     def constr(
         cls,
@@ -85,9 +82,6 @@ class WritableStreamType(
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
-
-    def __init__(self, element_type: _StreamTypeElement):
-        super().__init__([element_type])
 
     @classmethod
     def constr(

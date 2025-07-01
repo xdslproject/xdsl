@@ -314,9 +314,6 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     kind: PtrKindAttr
     constness: PtrConstAttr
 
-    def __init__(self, type: TypeAttribute, kind: PtrKindAttr, constness: PtrConstAttr):
-        super().__init__((type, kind, constness))
-
     @staticmethod
     def get(typ: Attribute, is_single: bool, is_const: bool):
         assert isinstance(typ, TypeAttribute)
@@ -405,9 +402,6 @@ class VarType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     name = "csl.var"
 
     child_type: TypeAttribute
-
-    def __init__(self, child_type: TypeAttribute):
-        super().__init__((child_type,))
 
     def get_element_type(self) -> TypeAttribute:
         return self.child_type

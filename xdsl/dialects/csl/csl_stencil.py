@@ -84,13 +84,9 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
     ):
         data_type = builtin.i64
         super().__init__(
-            [
-                (
-                    neighbor
-                    if isinstance(neighbor, DenseArrayBase)
-                    else DenseArrayBase.from_list(data_type, neighbor)
-                ),
-            ]
+            neighbor
+            if isinstance(neighbor, DenseArrayBase)
+            else DenseArrayBase.from_list(data_type, neighbor)
         )
 
     @classmethod
@@ -167,9 +163,6 @@ class CoeffAttr(ParametrizedAttribute):
     name = "csl_stencil.coeff"
     offset: stencil.IndexAttr
     coeff: FloatAttr[AnyFloat]
-
-    def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
-        super().__init__([offset, coeff])
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):

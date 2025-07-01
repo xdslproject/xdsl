@@ -117,9 +117,6 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     # TODO: Add this parameter once xDSL supports the necessary capabilities.
     #  bitmask: StringAttr
 
-    def __init__(self, struct_name: StringAttr, type: ArrayAttr):
-        super().__init__((struct_name, type))
-
     @staticmethod
     def from_type_list(types: Sequence[Attribute]) -> LLVMStructType:
         return LLVMStructType(StringAttr(""), ArrayAttr(types))
@@ -156,9 +153,6 @@ class LLVMPointerType(
 
     type: Attribute
     addr_space: IntAttr | NoneAttr
-
-    def __init__(self, type: Attribute, addr_space: IntAttr | NoneAttr):
-        super().__init__((type, addr_space))
 
     def print_parameters(self, printer: Printer) -> None:
         if isinstance(self.type, NoneAttr):
@@ -211,9 +205,6 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     size: IntAttr
     type: Attribute
 
-    def __init__(self, size: IntAttr, type: Attribute):
-        super().__init__((size, type))
-
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print_int(self.size.data)
@@ -265,7 +256,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         if output is None:
             output = LLVMVoidType()
         variad_attr = UnitAttr() if is_variadic else NoneAttr()
-        super().__init__([inputs, output, variad_attr])
+        super().__init__(inputs, output, variad_attr)
 
     @property
     def is_variadic(self) -> bool:
@@ -332,7 +323,7 @@ class LinkageAttr(ParametrizedAttribute):
     def __init__(self, linkage: str | StringAttr) -> None:
         if isinstance(linkage, str):
             linkage = StringAttr(linkage)
-        super().__init__([linkage])
+        super().__init__(linkage)
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -424,7 +415,7 @@ class OverflowAttrBase(BitEnumAttribute[OverflowFlag]):
     none_value = "none"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class OverflowAttr(OverflowAttrBase):
     name = "llvm.overflow"
 
@@ -1390,6 +1381,7 @@ class GlobalOp(IRDLOperation):
         alignment: int | None = None,
         unnamed_addr: int | None = None,
         section: str | StringAttr | None = None,
+        body: Region | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -1427,7 +1419,10 @@ class GlobalOp(IRDLOperation):
                 section = StringAttr(section)
             props["section"] = section
 
-        super().__init__(properties=props, regions=[Region([])])
+        if body is None:
+            body = Region()
+
+        super().__init__(properties=props, regions=(body,))
 
 
 @irdl_op_definition
@@ -1489,7 +1484,7 @@ class CallingConventionAttr(ParametrizedAttribute):
         return self.convention.data
 
     def __init__(self, conv: str):
-        super().__init__([StringAttr(conv)])
+        super().__init__(StringAttr(conv))
 
     def _verify(self):
         if self.cconv_name not in LLVM_CALLING_CONVS:
@@ -1608,7 +1603,7 @@ class ConstantOp(IRDLOperation):
         printer.print_attribute(self.result.type)
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class FastMathAttr(FastMathAttrBase):
     name = "llvm.fastmath"
 

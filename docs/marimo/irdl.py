@@ -462,7 +462,7 @@ def _(EqAttrConstraint, IntAttr, StringAttr, irdl_attr_definition):
         width: IntAttr = param_def(constraint=EqAttrConstraint(IntAttr(32)))
 
 
-    my_i32 = MyIntegerType([IntAttr(32)])
+    my_i32 = MyIntegerType(IntAttr(32))
 
     # This will trigger an exception, since the attribute only expect a single attribute
     try:
@@ -483,7 +483,7 @@ def _(EqAttrConstraint, IntAttr, StringAttr, irdl_attr_definition):
         print(e)
 
     # This will trigger an exception, since the attribute is not an IntAttr
-    print(MyIntegerType([IntAttr(32)]))
+    print(MyIntegerType(IntAttr(32)))
     return (my_i32,)
 
 

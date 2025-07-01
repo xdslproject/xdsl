@@ -55,6 +55,22 @@ class IntData(Data[int]):
 
 
 @irdl_attr_definition
+class FloatData(Data[float]):
+    """An attribute holding a float value."""
+
+    name = "test.float"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> float:
+        with parser.in_angle_brackets():
+            return parser.parse_float()
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string(str(self.data))
+
+
+@irdl_attr_definition
 class DoubleParamAttr(ParametrizedAttribute):
     """An attribute with two unbounded attribute parameters."""
 
@@ -62,9 +78,6 @@ class DoubleParamAttr(ParametrizedAttribute):
 
     param1: Attribute
     param2: Attribute
-
-    def __init__(self, param1: Attribute, param2: Attribute):
-        super().__init__((param1, param2))
 
 
 def test_eq_attr_verify():
@@ -176,11 +189,11 @@ def test_anyof_verify():
     Check that an AnyOf constraint verifies if one of the constraints
     verify.
     """
-    constraint = LessThan(0) | GreaterThan(10)
-    constraint.verify(IntData(-1), ConstraintContext())
+    constraint = BaseAttr(BoolData) | BaseAttr(IntData)
+    constraint.verify(IntData(1), ConstraintContext())
     constraint.verify(IntData(-10), ConstraintContext())
-    constraint.verify(IntData(11), ConstraintContext())
-    constraint.verify(IntData(100), ConstraintContext())
+    constraint.verify(BoolData(True), ConstraintContext())
+    constraint.verify(BoolData(False), ConstraintContext())
 
 
 def test_anyof_verify_fail():
@@ -188,16 +201,14 @@ def test_anyof_verify_fail():
     Check that an AnyOf constraint fails to verify if none of the constraints
     verify.
     """
-    constraint = LessThan(0) | GreaterThan(10)
+    constraint = BaseAttr(BoolData) | BaseAttr(IntData)
 
-    zero = IntData(0)
-    ten = IntData(10)
+    f = FloatData(10.0)
 
-    with pytest.raises(VerifyException, match=f"Unexpected attribute {zero}"):
-        constraint.verify(zero, ConstraintContext())
-
-    with pytest.raises(VerifyException, match=f"Unexpected attribute {ten}"):
-        constraint.verify(ten, ConstraintContext())
+    with pytest.raises(
+        VerifyException, match=r"Unexpected attribute #test.float<10.0>"
+    ):
+        constraint.verify(f, ConstraintContext())
 
 
 def test_allof_verify():

@@ -360,9 +360,6 @@ class MyParamAttr(Generic[_T], ParametrizedAttribute):
 
     v: _T
 
-    def __init__(self, v: _T):
-        super().__init__((v,))
-
 
 def test_parametrized_attribute():
     attr = MyParamAttr[IntAttr](IntAttr(0))

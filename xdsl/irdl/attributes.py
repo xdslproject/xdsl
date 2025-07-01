@@ -6,7 +6,7 @@
 #
 
 from abc import ABC, abstractmethod
-from collections.abc import Hashable, Sequence
+from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
 from inspect import isclass
 from types import FunctionType, GenericAlias, UnionType
@@ -22,9 +22,10 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
+    overload,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, dataclass_transform
 
 from xdsl.ir import AttributeCovT
 
@@ -94,17 +95,17 @@ class GenericData(Data[_DataElement], ABC):
 
 # Field definition classes for `@irdl_param_attr_definition`
 class _ParameterDef:
-    param: GenericAttrConstraint[Attribute]
+    param: GenericAttrConstraint[Attribute] | None
 
     def __init__(
         self,
-        param: GenericAttrConstraint[Attribute],
+        param: GenericAttrConstraint[Attribute] | None,
     ):
         self.param = param
 
 
 def param_def(
-    constraint: GenericAttrConstraint[AttributeInvT],
+    constraint: GenericAttrConstraint[AttributeInvT] | None = None,
     *,
     default: None = None,
     resolver: None = None,
@@ -206,15 +207,16 @@ class ParamAttrDef:
                     )
 
                 try:
-                    constraint = irdl_to_attr_constraint(
-                        value.param, allow_type_var=True
-                    )
+                    if value.param is not None:
+                        constraint = irdl_to_attr_constraint(
+                            value.param, allow_type_var=True
+                        )
+                        parameters[field_name] &= constraint
                 except TypeError:
                     raise PyRDLAttrDefinitionError(
                         f"Invalid constraint {value.param} for field name {field_name}."
                     )
 
-                parameters[field_name] &= constraint
                 continue
 
             # Constraint variables are allowed
@@ -292,19 +294,39 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
 TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
 
 
-def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
-    check_attr_name(cls)
-    if issubclass(cls, ParametrizedAttribute):
-        return irdl_param_attr_definition(cls)
-    if issubclass(cls, Data):
-        # This used to be convoluted
-        # But Data is already frozen itself, so any child Attribute still throws on
-        # .data!
-        return runtime_final(cast(TypeAttributeInvT, cls))
-    raise TypeError(
-        f"Class {cls.__name__} should either be a subclass of 'Data' or "
-        "'ParametrizedAttribute'"
-    )
+@overload
+def irdl_attr_definition(
+    cls: TypeAttributeInvT, *, init: bool = True
+) -> TypeAttributeInvT: ...
+
+
+@overload
+def irdl_attr_definition(
+    *, init: bool = True
+) -> Callable[[TypeAttributeInvT], TypeAttributeInvT]: ...
+
+
+@dataclass_transform(frozen_default=True)
+def irdl_attr_definition(
+    cls: TypeAttributeInvT | None = None, *, init: bool = True
+) -> TypeAttributeInvT | Callable[[TypeAttributeInvT], TypeAttributeInvT]:
+    def decorator(cls: TypeAttributeInvT) -> TypeAttributeInvT:
+        check_attr_name(cls)
+        if issubclass(cls, ParametrizedAttribute):
+            return irdl_param_attr_definition(cls)
+        if issubclass(cls, Data):
+            # This used to be convoluted
+            # But Data is already frozen itself, so any child Attribute still throws on
+            # .data!
+            return runtime_final(cast(TypeAttributeInvT, cls))
+        raise TypeError(
+            f"Class {cls.__name__} should either be a subclass of 'Data' or "
+            "'ParametrizedAttribute'"
+        )
+
+    if cls is None:
+        return decorator
+    return decorator(cls)
 
 
 IRDLGenericAttrConstraint: TypeAlias = (

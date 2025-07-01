@@ -224,7 +224,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
         type2: IntegerType | AnyFloat | ReferenceType | None = None,
     ):
         if type2 is not None:
-            super().__init__([ArrayAttr([NoneType()]), type1, type2])
+            super().__init__(ArrayAttr([NoneType()]), type1, type2)
         else:
             if shape is None:
                 shape = [1]
@@ -235,11 +235,9 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
                 ]
             )
             super().__init__(
-                [
-                    shape_array_attr,
-                    type1,
-                    NoneType(),
-                ]
+                shape_array_attr,
+                type1,
+                NoneType(),
             )
 
     def print_parameters(self, printer: Printer) -> None:
@@ -1087,6 +1085,29 @@ class BoxIsptrOp(IRDLOperation):
     val = operand_def()
     result_0 = result_def()
     regs = var_region_def()
+
+
+@irdl_op_definition
+class BoxOffsetOp(IRDLOperation):
+    """
+    Given the address of a fir.box, compute the address of a field inside
+    the fir.box.
+    This allows keeping the actual runtime descriptor layout abstract in
+    FIR while providing access to the pointer addresses in the runtime
+    descriptor for OpenMP/OpenACC target mapping.
+
+    To avoid requiring too much information about the fields that the runtime
+    descriptor implementation must have, only the base_addr and derived_type
+    descriptor fields can be addressed.
+
+    %addr = fir.box_offset %box base_addr : (!fir.ref<!fir.box<!fir.array<?xi32>>>) -> !fir.llvm_ptr<!fir.ref<!fir.array<?xi32>>>
+    %tdesc = fir.box_offset %box derived_type : (!fir.ref<!fir.box<!fir.type<t>>>) -> !fir.llvm_ptr<!fir.tdesc<!fir.type<t>>>
+    """
+
+    name = "fir.box_offset"
+    field = prop_def(Attribute)
+    val = operand_def()
+    result_0 = result_def()
 
 
 @irdl_op_definition
@@ -2397,6 +2418,7 @@ FIR = Dialect(
         BoxIsallocOp,
         BoxIsarrayOp,
         BoxIsptrOp,
+        BoxOffsetOp,
         BoxprocHostOp,
         BoxRankOp,
         BoxTdescOp,

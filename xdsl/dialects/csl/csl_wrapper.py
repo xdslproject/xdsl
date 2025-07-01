@@ -55,14 +55,6 @@ class ParamAttribute(ParametrizedAttribute):
     value: IntegerAttr[IntegerType] | NoneAttr
     type: IntegerType
 
-    def __init__(
-        self,
-        key: StringAttr,
-        value: IntegerAttr[IntegerType] | NoneAttr,
-        type: IntegerType,
-    ):
-        super().__init__((key, value, type))
-
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print_string_literal(self.key.data)
