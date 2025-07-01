@@ -93,8 +93,11 @@ class GenericData(Data[_DataElement], ABC):
 #
 
 
-# Field definition classes for `@irdl_param_attr_definition`
 class _ParameterDef:
+    """
+    Parameter field definition class for `@irdl_param_attr_definition`.
+    """
+
     param: GenericAttrConstraint[Attribute] | None
 
     def __init__(
