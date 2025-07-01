@@ -216,10 +216,10 @@ class ParamAttrDef:
                             value.param, allow_type_var=True
                         )
                         parameters[field_name] &= constraint
-                except TypeError:
+                except TypeError as e:
                     raise PyRDLAttrDefinitionError(
                         f"Invalid constraint {value.param} for field name {field_name}."
-                    )
+                    ) from e
 
                 continue
 
