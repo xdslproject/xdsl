@@ -38,6 +38,7 @@ from xdsl.irdl import (
     RangeOf,
     SameVariadicOperandSize,
     base,
+    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -56,6 +57,7 @@ from xdsl.traits import (
     IsTerminator,
     NoMemoryEffect,
     NoTerminator,
+    RecursiveMemoryEffect,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -593,6 +595,55 @@ class MapInfoOp(IRDLOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class SimdOp(IRDLOperation):
+    """
+    Implementation of upstream omp.simd
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompsimd-ompsimdop).
+    """
+
+    name = "omp.simd"
+
+    ALIGN_COUNT: ClassVar = IntVarConstraint("ALIGN_COUNT", AnyInt())
+    LINEAR_COUNT: ClassVar = IntVarConstraint("LINEAR_COUNT", AnyInt())
+
+    aligned_vars = var_operand_def(
+        RangeOf(
+            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
+            length=ALIGN_COUNT,
+        )
+    )
+    if_expr = opt_operand_def(i1)
+    linear_vars = var_operand_def(RangeOf(AnyAttr(), length=LINEAR_COUNT))
+    linear_step_vars = var_operand_def(RangeOf(eq(i32), length=LINEAR_COUNT))
+    nontemporal_vars = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    private_vars = opt_operand_def()
+    reduction_vars = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+
+    alignments = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(IntegerAttr[i64]), length=ALIGN_COUNT))
+    )
+    order = opt_prop_def(OrderKindAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    simdlen = opt_prop_def(IntegerAttr[i64])
+    safelen = opt_prop_def(IntegerAttr[i64])
+
+    body = region_def("single_block")
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    traits = traits_def(RecursiveMemoryEffect(), LoopWrapper())
+
+    def verify_(self) -> None:
+        if self.simdlen and self.safelen:
+            if self.simdlen.value.data > self.safelen.value.data:
+                raise VerifyException(
+                    f"in {self.name} `safelen` must be greater than or equal to `simdlen`"
+                )
+        return super().verify_()
+
+
 OMP = Dialect(
     "omp",
     [
@@ -604,6 +655,7 @@ OMP = Dialect(
         TargetOp,
         MapBoundsOp,
         MapInfoOp,
+        SimdOp,
     ],
     [
         ClauseRequiresKindAttr,
