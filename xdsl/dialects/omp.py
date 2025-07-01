@@ -1,11 +1,12 @@
 from enum import IntFlag, auto
-from typing import ClassVar, cast
+from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     DenseIntOrFPElementsAttr,
     IndexType,
+    IntAttr,
     IntegerAttr,
     IntegerType,
     Signedness,
@@ -33,6 +34,7 @@ from xdsl.irdl import (
     IntVarConstraint,
     IRDLOperation,
     Operation,
+    ParameterDef,
     RangeOf,
     SameVariadicOperandSize,
     base,
@@ -116,35 +118,60 @@ class OpenMPOffloadMappingFlags(IntFlag):
 
 
 class ScheduleKind(StrEnum):
-    static = auto()
-    dynamic = auto()
-    auto = auto()
+    STATIC = auto()
+    DYNAMIC = auto()
+    AUTO = auto()
 
 
 class ScheduleModifier(StrEnum):
-    none = auto()
-    monotonic = auto()
-    nonmonotonic = auto()
-    simd = auto()
+    NONE = auto()
+    MONOTONIC = auto()
+    NONMONOTONIC = auto()
+    SIMD = auto()
 
 
 class OrderKind(StrEnum):
-    concurrent = auto()
+    CONCURRENT = auto()
 
 
 class DependKind(StrEnum):
-    taskdependin = auto()
-    taskdependout = auto()
-    taskdependinout = auto()
-    taskdependmutexinoutset = auto()
-    taskdependinoutset = auto()
+    TASKDEPENDIN = auto()
+    TASKDEPENDOUT = auto()
+    TASKDEPENDINOUT = auto()
+    TASKDEPENDMUTEXINOUTSET = auto()
+    TASKDEPENDINOUTSET = auto()
 
 
 class VariableCaptureKind(StrEnum):
-    This = "This"
-    ByRef = "ByRef"
-    ByCopy = "ByCopy"
-    VLAType = "VLAType"
+    THIS = "This"
+    BY_REF = "ByRef"
+    BY_COPY = "ByCopy"
+    VLA_TYPE = "VLAType"
+
+
+class DataSharingClauseKind(StrEnum):
+    PRIVATE = auto()
+    FIRSTPRIVATE = auto()
+
+
+class ClauseRequiresKind(StrEnum):
+    NONE = auto()
+    REVERSE_OFFLOAD = auto()
+    UNIFIED_ADDRESS = auto()
+    UNIFIED_SHARED_MEMORY = auto()
+    DYNAMIC_ALLOCATORS = auto()
+
+
+class DeclareTargetDeviceTypeKind(StrEnum):
+    ANY = auto()
+    HOST = auto()
+    NOHOST = auto()
+
+
+class DeclareTargetCaptureClauseKind(StrEnum):
+    TO = auto()
+    LINK = auto()
+    ENTER = auto()
 
 
 class LoopWrapper(NoTerminator):
@@ -202,7 +229,7 @@ class DependKindAttr(EnumAttribute[DependKind], SpacedOpaqueSyntaxAttribute):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> DependKind:
         with parser.in_parens():
-            return cast(DependKind, parser.parse_str_enum(cls.enum_type))
+            return parser.parse_str_enum(DependKind)
 
 
 @irdl_attr_definition
@@ -223,7 +250,146 @@ class VariableCaptureKindAttr(
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> VariableCaptureKind:
         with parser.in_parens():
-            return cast(VariableCaptureKind, parser.parse_str_enum(cls.enum_type))
+            return parser.parse_str_enum(VariableCaptureKind)
+
+
+@irdl_attr_definition
+class DeclareTargetDeviceTypeAttr(
+    EnumAttribute[DeclareTargetDeviceTypeKind], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Implementation of upstream omp.device_type
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#declaretargetdevicetypeattr).
+    """
+
+    name = "omp.device_type"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> DeclareTargetDeviceTypeKind:
+        with parser.in_parens():
+            return parser.parse_str_enum(DeclareTargetDeviceTypeKind)
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_parens():
+            printer.print_string(self.data)
+
+
+@irdl_attr_definition
+class DeclareTargetCaptureClauseAttr(
+    EnumAttribute[DeclareTargetCaptureClauseKind], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Implementation of upstream omp.capture_clause
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#declaretargetcaptureclauseattr).
+    """
+
+    name = "omp.capture_clause"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> DeclareTargetCaptureClauseKind:
+        with parser.in_parens():
+            return parser.parse_str_enum(DeclareTargetCaptureClauseKind)
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_parens():
+            printer.print_string(self.data)
+
+
+@irdl_attr_definition
+class DeclareTargetAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
+    """
+    Implementation of upstream omp.declaretarget
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#declaretargetattr).
+    """
+
+    name = "omp.declaretarget"
+
+    device_type: ParameterDef[DeclareTargetDeviceTypeAttr]
+    capture_clause: ParameterDef[DeclareTargetCaptureClauseAttr]
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_keyword("device_type")
+            parser.parse_punctuation("=")
+            device_type = DeclareTargetDeviceTypeAttr(
+                DeclareTargetDeviceTypeAttr.parse_parameter(parser)
+            )
+            parser.parse_punctuation(",")
+            parser.parse_keyword("capture_clause")
+            parser.parse_punctuation("=")
+            capture = DeclareTargetCaptureClauseAttr(
+                DeclareTargetCaptureClauseAttr.parse_parameter(parser)
+            )
+            return [device_type, capture]
+
+    def print_parameters(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string("device_type = ")
+            self.device_type.print_parameter(printer)
+            printer.print_string(", capture_clause = ")
+            self.capture_clause.print_parameter(printer)
+
+
+@irdl_attr_definition
+class ClauseRequiresKindAttr(
+    EnumAttribute[ClauseRequiresKind], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Implementation of upstream omp.clause_requires
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#clauserequiresattr).
+    """
+
+    name = "omp.clause_requires"
+
+
+@irdl_attr_definition
+class DataSharingClauseAttr(
+    EnumAttribute[DataSharingClauseKind], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Implementation of upstream omp.data_sharing_type
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#datasharingclausetypeattr).
+    """
+
+    name = "omp.data_sharing_type"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> DataSharingClauseKind:
+        with parser.in_braces():
+            parser.parse_keyword("type")
+            parser.parse_punctuation("=")
+            return parser.parse_str_enum(DataSharingClauseKind)
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_braces():
+            printer.print_string("type = ")
+            printer.print_string(self.data)
+
+
+@irdl_attr_definition
+class VersionAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
+    """
+    Implementation of upstream omp.version
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#versionattr).
+    """
+
+    name = "omp.version"
+
+    version: ParameterDef[IntAttr]
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_keyword("version")
+            parser.parse_punctuation("=")
+            version = parser.parse_integer(allow_boolean=False)
+            return [IntAttr(version)]
+
+    def print_parameters(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string("version = ")
+            printer.print_int(self.version.data)
 
 
 @irdl_attr_definition
@@ -275,10 +441,10 @@ class WsLoopOp(IRDLOperation):
 
 
 class ProcBindKindEnum(StrEnum):
-    Primary = auto()
-    Master = auto()
-    Close = auto()
-    Spread = auto()
+    PRIMARY = auto()
+    MASTER = auto()
+    CLOSE = auto()
+    SPREAD = auto()
 
 
 class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], SpacedOpaqueSyntaxAttribute):
@@ -440,6 +606,11 @@ OMP = Dialect(
         MapInfoOp,
     ],
     [
+        ClauseRequiresKindAttr,
+        DataSharingClauseAttr,
+        DeclareTargetAttr,
+        DeclareTargetCaptureClauseAttr,
+        DeclareTargetDeviceTypeAttr,
         OrderKindAttr,
         ProcBindKindAttr,
         ScheduleKindAttr,
@@ -447,5 +618,6 @@ OMP = Dialect(
         DependKindAttr,
         MapBoundsType,
         VariableCaptureKindAttr,
+        VersionAttr,
     ],
 )
