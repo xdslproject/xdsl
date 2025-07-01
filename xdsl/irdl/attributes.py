@@ -107,7 +107,6 @@ class _ParameterDef:
 def param_def(
     constraint: GenericAttrConstraint[AttributeInvT] | None = None,
     *,
-    resolver: None = None,
     init: Literal[True] = True,
 ) -> AttributeInvT:
     """Defines a property of an operation."""
