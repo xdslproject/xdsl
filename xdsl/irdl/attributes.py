@@ -152,6 +152,8 @@ _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
     for key in dict
 }
 
+_IGNORED_PARAM_ATTR_FIELD_TYPES = set(("name", "parameters"))
+
 
 @dataclass
 class ParamAttrDef:
@@ -172,15 +174,43 @@ class ParamAttrDef:
             if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS
         }
 
+        if "name" not in clsdict:
+            raise Exception(
+                f"pyrdl attribute definition '{pyrdl_def.__name__}' does not "
+                "define the attribute name. The attribute name is defined by "
+                "adding a 'name' field."
+            )
+
+        name = clsdict["name"]
+
+        # Get type hints
+        field_types = {
+            field_name: field_type
+            for field_name, field_type in get_type_hints(
+                pyrdl_def, include_extras=True
+            ).items()
+            if field_name not in _IGNORED_PARAM_ATTR_FIELD_TYPES
+        }
+
+        # Get assigned values
+        field_values = {
+            field_name: field_value
+            for field_name, field_value in clsdict.items()
+            if (
+                # Ignore name field
+                field_name != "name"
+                # Ignore functions
+                and not isinstance(
+                    field_value,
+                    FunctionType | PropertyType | classmethod | staticmethod,
+                )
+            )
+        }
+
         # The resulting parameters
         parameters: dict[str, AttrConstraint] = {}
 
-        for field_name, field_type in get_type_hints(
-            pyrdl_def, include_extras=True
-        ).items():
-            if field_name == "name" or field_name == "parameters":
-                continue
-
+        for field_name, field_type in field_types.items():
             try:
                 constraint = irdl_to_attr_constraint(field_type, allow_type_var=True)
             except TypeError as e:
@@ -190,16 +220,7 @@ class ParamAttrDef:
 
             parameters[field_name] = constraint
 
-        for field_name, value in clsdict.items():
-            if field_name == "name":
-                # Ignore name field
-                continue
-            if isinstance(
-                value, FunctionType | PropertyType | classmethod | staticmethod
-            ):
-                # Ignore functions
-                continue
-
+        for field_name, value in field_values.items():
             # Parameter def must be a field def
             if isinstance(value, _ParameterDef):
                 if field_name not in parameters:
@@ -227,15 +248,6 @@ class ParamAttrDef:
             raise PyRDLAttrDefinitionError(
                 f"{field_name} is not a parameter definition."
             )
-
-        if "name" not in clsdict:
-            raise Exception(
-                f"pyrdl attribute definition '{pyrdl_def.__name__}' does not "
-                "define the attribute name. The attribute name is defined by "
-                "adding a 'name' field."
-            )
-
-        name = clsdict["name"]
 
         return ParamAttrDef(name, list(parameters.items()))
 
