@@ -1191,13 +1191,15 @@ class OpDef:
             if prop_name not in op.properties:
                 if isinstance(attr_def, OptPropertyDef):
                     continue
-                raise VerifyException(f"property {prop_name} expected")
+                raise VerifyException(
+                    f"property '{prop_name}' expected in operation '{op.name}'"
+                )
             attr_def.constr.verify(op.properties[prop_name], constraint_context)
 
         for prop_name in op.properties.keys():
             if prop_name not in self.properties:
                 raise VerifyException(
-                    f"property '{prop_name}' is not defined by the operation. "
+                    f"property '{prop_name}' is not defined by the operation '{op.name}'. "
                     "Use the dictionary attribute to add arbitrary information "
                     "to the operation."
                 )
@@ -1207,7 +1209,9 @@ class OpDef:
             if attr_name not in op.attributes:
                 if isinstance(attr_def, OptAttributeDef):
                     continue
-                raise VerifyException(f"attribute {attr_name} expected")
+                raise VerifyException(
+                    f"attribute '{attr_name}' expected in operation '{op.name}'"
+                )
             attr_def.constr.verify(op.attributes[attr_name], constraint_context)
 
         # Verify traits.

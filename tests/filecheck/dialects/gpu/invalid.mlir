@@ -130,7 +130,7 @@
     }) {} : () -> ()
 }) {} : () -> ()
 
-// CHECK: property sym_name expected
+// CHECK: property 'sym_name' expected in operation 'gpu.module'
 
 // -----
 
