@@ -304,8 +304,14 @@ class DotAttr(ParametrizedAttribute):
         printer.print_string("]")
 
     @staticmethod
-    def _parse_parameter(name: str, parser: AttrParser) -> ArrayAttr[IntegerAttr[I64]]:
-        parser.parse_characters(name)
+    def _parse_parameter(
+        name: str, parser: AttrParser, optional: bool = False
+    ) -> ArrayAttr[IntegerAttr[I64]]:
+        if optional:
+            if parser.parse_optional_characters(name) is None:
+                return ArrayAttr(())
+        else:
+            parser.parse_characters(name)
         parser.parse_punctuation("=")
         value = parser.parse_comma_separated_list(
             AttrParser.Delimiter.SQUARE,
@@ -316,14 +322,19 @@ class DotAttr(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             with printer.indented():
-                DotAttr._print_parameter(
-                    "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
-                )
-                printer.print_string(",")
-                DotAttr._print_parameter(
-                    "rhs_batching_dimensions", self.rhs_batching_dimensions, printer
-                )
-                printer.print_string(",")
+                if (
+                    self.lhs_batching_dimensions.data
+                    and self.rhs_batching_dimensions.data
+                ):
+                    DotAttr._print_parameter(
+                        "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
+                    )
+                    printer.print_string(",")
+                    DotAttr._print_parameter(
+                        "rhs_batching_dimensions", self.rhs_batching_dimensions, printer
+                    )
+                    printer.print_string(",")
+
                 DotAttr._print_parameter(
                     "lhs_contracting_dimensions",
                     self.lhs_contracting_dimensions,
@@ -341,13 +352,17 @@ class DotAttr(ParametrizedAttribute):
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
             lhs_batching_dimensions = DotAttr._parse_parameter(
-                "lhs_batching_dimensions", parser
+                "lhs_batching_dimensions", parser, optional=True
             )
-            parser.parse_punctuation(",")
-            rhs_batching_dimensions = DotAttr._parse_parameter(
-                "rhs_batching_dimensions", parser
-            )
-            parser.parse_punctuation(",")
+            if lhs_batching_dimensions.data:
+                parser.parse_punctuation(",")
+                rhs_batching_dimensions = DotAttr._parse_parameter(
+                    "rhs_batching_dimensions", parser
+                )
+                parser.parse_punctuation(",")
+            else:
+                rhs_batching_dimensions = ArrayAttr(())
+
             lhs_contracting_dimensions = DotAttr._parse_parameter(
                 "lhs_contracting_dimensions", parser
             )
