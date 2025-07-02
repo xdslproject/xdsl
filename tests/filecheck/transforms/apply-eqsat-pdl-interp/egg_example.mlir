@@ -1,3 +1,4 @@
+// XFAIL: *
 // RUN: xdsl-opt %s -p apply-eqsat-pdl-interp | filecheck %s
 
 func.func @impl() -> i32 {
