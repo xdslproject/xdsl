@@ -5,6 +5,7 @@ from xdsl.backend.utils import cast_to_regs
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
+    IndexType,
     ShapedType,
     VectorType,
 )
@@ -39,8 +40,9 @@ def vector_type_to_register_type(
 
 def scalar_type_to_register_type(value_type: Attribute) -> type[RegisterType]:
     assert not isinstance(value_type, ShapedType)
-    assert isinstance(value_type, FixedBitwidthType)
-    if value_type.bitwidth <= 64:
+    if (
+        isinstance(value_type, FixedBitwidthType) and value_type.bitwidth <= 64
+    ) or isinstance(value_type, IndexType):
         return x86.register.GeneralRegisterType
     else:
         raise DiagnosticException("Not implemented for bitwidth larger than 64.")
