@@ -132,9 +132,6 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert isinstance(args[0], SSAValue)
         if not isinstance(args[0], OpResult):
             return (None,)
-        assert isinstance(args[0].owner, Operation), (
-            "Cannot get defining op of a Block argument"
-        )
         return (args[0].owner,)
 
     @impl_terminator(pdl_interp.CheckOperationNameOp)
