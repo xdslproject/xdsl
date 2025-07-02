@@ -91,9 +91,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Used for hashconsing operations. When new operations are created, if they are identical to an existing operation,
     the existing operation is reused instead of creating a new one."""
 
-    known_ops_restore_list: list[Operation] = field(default_factory=list[Operation])
-    """List of operations that have been modified during the pattern matching."""
-
     eclass_union_find: DisjointSet[eqsat.EClassOp] = field(
         default_factory=lambda: DisjointSet[eqsat.EClassOp]()
     )
@@ -106,12 +103,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         """
         Keeps `known_ops` up to date.
         Whenever an operation is modified, for example when its operands are updated to a different eclass value,
-        the operation is added to `known_ops_restore_list`. At the end of `apply_matches`, all the (now updated)
-        operations in `known_ops_restore_list` are put back into `known_ops`.
+        the operation is added to the hashcons `known_ops`.
         """
-        if op in self.known_ops:
-            removed = self.known_ops.pop(op)
-            self.known_ops_restore_list.append(removed)
+        self.known_ops[op] = op
 
     def populate_known_ops(self, module: ModuleOp) -> None:
         """
@@ -358,11 +352,10 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 new_operands = (*operands, *to_replace.operands)
                 to_keep.operands = new_operands
 
+            for use in to_replace.result.uses:
+                if use.operation in self.known_ops:
+                    self.known_ops.pop(use.operation)
+
             self.rewriter.replace_op(
                 to_replace, new_ops=[], new_results=to_keep.results
             )
-
-        while self.known_ops_restore_list:
-            op = self.known_ops_restore_list.pop()
-            assert op not in self.known_ops
-            self.known_ops[op] = op
