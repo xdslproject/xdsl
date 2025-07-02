@@ -119,6 +119,12 @@ class OpenMPOffloadMappingFlags(IntFlag):
     MEMBER_OF = 0xFFFF000000000000
     """ The 16 MSBs of the flags indicate whether the entry is member of some struct/class. """
 
+    def __iter__(self):
+        """
+        available in the standard library since python 3.11
+        """
+        return (flag for flag in type(self) if self & flag)
+
 
 def verify_map_vars(
     vars: VarOperand,
