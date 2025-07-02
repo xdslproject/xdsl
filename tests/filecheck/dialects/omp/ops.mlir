@@ -142,6 +142,39 @@ builtin.module {
     %ptr_ptr_info = "omp.map.info"(%ptr_ptr, %ptr_info, %bounds) <{operandSegmentSizes = array<i32: 1, 0, 1, 1>, map_capture_type = #omp<variable_capture_kind (ByCopy)>, var_type = memref<1xmemref<1xf32>>}> : (memref<1xmemref<1xf32>>, memref<1xf32>, !omp.map_bounds_ty) -> memref<1xmemref<1xf32>>
     func.return
   }
+  func.func @omp_simd(%ub : index, %lb : index, %step : index, %if : i1, %nt : memref<1xi32>, %p1 : f32, %r1 : memref<1xf32>) {
+    "omp.simd"(%if, %nt, %p1, %r1) <{operandSegmentSizes = array<i32: 0, 1, 0, 0, 1, 1, 1>, order = #omp<orderkind concurrent>, private_syms=[@p1], reduction_syms=[@r1], simdlen = 64 : i64, safelen = 128 : i64}> ({
+    ^0(%1 : f32, %2 : f32):
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^0(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+
+    }) : (i1, memref<1xi32>, f32, memref<1xf32>) -> ()
+    func.return
+  }
+
+  func.func @omp_simd_aligned(%ub : index, %lb : index, %step : index, %a1 : memref<1xi32>, %a2 : memref<10xf32>) {
+    "omp.simd"(%a1, %a2) <{operandSegmentSizes = array<i32: 2, 0, 0, 0, 0, 0, 0>, alignments = [64, 8]}> ({
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^0(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+
+    }) : (memref<1xi32>, memref<10xf32>) -> ()
+    func.return
+  }
+
+  func.func @omp_simd_linear(%ub : index, %lb : index, %step : index, %l1 : memref<1xi32>, %lstep : i32) {
+    "omp.simd"(%l1, %lstep) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 0>}> ({
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^0(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+
+    }) : (memref<1xi32>, i32) -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -284,6 +317,34 @@ builtin.module {
 // CHECK-NEXT:      %bounds = "omp.map.bounds"(%lb, %ub) <{operandSegmentSizes = array<i32: 1, 1, 0, 0, 0>, stride_in_bytes = false}> : (index, index) -> !omp.map_bounds_ty
 // CHECK-NEXT:      %ptr_info = "omp.map.info"(%ptr, %ptr_ptr, %bounds) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>, var_type = memref<1xf32>, map_type = 1 : ui64, name = "ptr_info"}> : (memref<1xf32>, memref<1xmemref<1xf32>>, !omp.map_bounds_ty) -> memref<1xf32>
 // CHECK-NEXT:      %ptr_ptr_info = "omp.map.info"(%ptr_ptr, %ptr_info, %bounds) <{operandSegmentSizes = array<i32: 1, 0, 1, 1>, map_capture_type = #omp<variable_capture_kind (ByCopy)>, var_type = memref<1xmemref<1xf32>>}> : (memref<1xmemref<1xf32>>, memref<1xf32>, !omp.map_bounds_ty) -> memref<1xmemref<1xf32>>
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_simd(%ub : index, %lb : index, %step : index, %if : i1, %nt : memref<1xi32>, %p1 : f32, %r1 : memref<1xf32>) {
+// CHECK-NEXT:      "omp.simd"(%if, %nt, %p1, %r1) <{operandSegmentSizes = array<i32: 0, 1, 0, 0, 1, 1, 1>, order = #omp<orderkind concurrent>, private_syms = [@p1], reduction_syms = [@r1], simdlen = 64 : i64, safelen = 128 : i64}> ({
+// CHECK-NEXT:      ^0(%0 : f32, %1 : f32):
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^1(%iter : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (i1, memref<1xi32>, f32, memref<1xf32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_simd_aligned(%ub : index, %lb : index, %step : index, %a1 : memref<1xi32>, %a2 : memref<10xf32>) {
+// CHECK-NEXT:      "omp.simd"(%a1, %a2) <{operandSegmentSizes = array<i32: 2, 0, 0, 0, 0, 0, 0>, alignments = [64 : i64, 8 : i64]}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^0(%iter : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (memref<1xi32>, memref<10xf32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_simd_linear(%ub : index, %lb : index, %step : index, %l1 : memref<1xi32>, %lstep : i32) {
+// CHECK-NEXT:      "omp.simd"(%l1, %lstep) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^0(%iter : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (memref<1xi32>, i32) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }

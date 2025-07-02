@@ -206,9 +206,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         if not isinstance(args[0], OpResult):
             return (None,)
         else:
-            assert isinstance(args[0].owner, Operation), (
-                "Cannot get defining op of a Block argument"
-            )
             defining_op = args[0].owner
 
         if not isinstance(defining_op, eqsat.EClassOp):
@@ -236,7 +233,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 )
             )
         defining_op = eclass_op.operands[index].owner
-        assert isinstance(defining_op, Operation)
+        if not isinstance(defining_op, Operation):
+            return (None,)
 
         return (defining_op,)
 

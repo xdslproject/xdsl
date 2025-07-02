@@ -74,9 +74,14 @@ class LowerFuncOp(RewritePattern):
         for i, register_type in enumerate(reg_args_types):
             arg = first_block.args[i]
             register = first_block.insert_arg(register_type, i)
-            cast_op = builtin.UnrealizedConversionCastOp.get((register,), (arg.type,))
-            rewriter.insert_op([cast_op], insertion_point)
-            arg.replace_by(cast_op.results[0])
+            mov_op = x86.DS_MovOp(
+                source=register, destination=x86.register.UNALLOCATED_GENERAL
+            )
+            cast_op, parameter = builtin.UnrealizedConversionCastOp.cast_one(
+                mov_op.destination, arg.type
+            )
+            rewriter.insert_op([mov_op, cast_op], insertion_point)
+            arg.replace_by(parameter)
             first_block.erase_arg(arg)
 
         # The last argument of the basic block should be the stack pointer
@@ -121,7 +126,8 @@ class LowerFuncOp(RewritePattern):
 class LowerReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
-        if len(op.arguments) == 0:
+        if not op.arguments:
+            rewriter.replace_matched_op([x86_func.RetOp()])
             return
         elif len(op.arguments) > 1:
             raise DiagnosticException(
