@@ -352,7 +352,7 @@ class DotAttr(ParametrizedAttribute):
             lhs_batching_dimensions = DotAttr._parse_parameter(
                 "lhs_batching_dimensions", parser, optional=True
             )
-            if lhs_batching_dimensions != ArrayAttr(()):
+            if lhs_batching_dimensions.data:
                 parser.parse_punctuation(",")
                 rhs_batching_dimensions = DotAttr._parse_parameter(
                     "rhs_batching_dimensions", parser
