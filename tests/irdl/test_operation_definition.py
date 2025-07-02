@@ -591,6 +591,18 @@ def test_attribute_setters():
     assert op.opt_attr is None
 
 
+def test_attribute_missing():
+    """Test verification raises error when an attribute is missing"""
+
+    op = AttributeOp.create(attributes={})
+
+    with pytest.raises(
+        VerifyException,
+        match="attribute 'attr' expected in operation 'test.attribute_op'",
+    ):
+        op.verify()
+
+
 @irdl_op_definition
 class PropertyOp(IRDLOperation):
     name = "test.attribute_op"
@@ -625,6 +637,33 @@ def test_property_setters():
 
     op.opt_attr = None
     assert op.opt_attr is None
+
+
+def test_property_missing():
+    """Test verification raises error when a property is missing"""
+
+    op = PropertyOp.create(properties={})
+
+    with pytest.raises(
+        VerifyException,
+        match="property 'attr' expected in operation 'test.attribute_op'",
+    ):
+        op.verify()
+
+
+def test_undefined_property():
+    """Test verification raises error when a property is missing"""
+
+    op = PropertyOp.create(
+        properties={"attr": StringAttr("test"), "unknown": StringAttr("test")}
+    )
+
+    with pytest.raises(
+        VerifyException,
+        match="property 'unknown' is not defined by the operation 'test.attribute_op'."
+        + " Use the dictionary attribute to add arbitrary information to the operation.",
+    ):
+        op.verify()
 
 
 ################################################################################
@@ -662,7 +701,10 @@ def test_renamed_attributes_verify():
             "accessor": StringAttr("test"),
         }
     )
-    with pytest.raises(VerifyException, match="attribute attr_name expected"):
+    with pytest.raises(
+        VerifyException,
+        match="attribute 'attr_name' expected in operation 'test.renamed_attribute_op'",
+    ):
         op.verify()
 
     op = RenamedAttributeOp.create(
@@ -714,7 +756,10 @@ def test_renamed_properties_verify():
             "accessor": StringAttr("test"),
         }
     )
-    with pytest.raises(VerifyException, match="property prop_name expected"):
+    with pytest.raises(
+        VerifyException,
+        match="property 'prop_name' expected in operation 'test.renamed_property_op'",
+    ):
         op.verify()
 
     op = RenamedPropertyOp.create(

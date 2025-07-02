@@ -35,7 +35,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -692,7 +691,7 @@ def test_missing_custom_format():
 class CustomFormatAttr(ParametrizedAttribute):
     name = "test.custom"
 
-    attr: ParameterDef[IntAttr]
+    attr: IntAttr
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:

@@ -170,7 +170,7 @@ def test_inner_symbol_table_interface():
     MissingAttrModuleOp(regions=[[mod_missing_trait_parent, OutputOp()]])
     with pytest.raises(
         VerifyException,
-        match="attribute sym_name expected",
+        match="attribute 'sym_name' expected in operation 'module'",
     ):
         mod_missing_trait_parent.verify()
 
