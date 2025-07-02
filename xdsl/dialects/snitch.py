@@ -32,7 +32,6 @@ from xdsl.irdl import (
     GenericAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -55,7 +54,7 @@ class ReadableStreamType(
 ):
     name = "snitch.readable"
 
-    element_type: ParameterDef[_StreamTypeElement]
+    element_type: _StreamTypeElement
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
@@ -79,7 +78,7 @@ class WritableStreamType(
 ):
     name = "snitch.writable"
 
-    element_type: ParameterDef[_StreamTypeElement]
+    element_type: _StreamTypeElement
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type

@@ -23,7 +23,6 @@ from xdsl.irdl import (
     GenericRangeConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    ParameterDef,
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
@@ -62,7 +61,7 @@ class BitVectorType(ParametrizedAttribute, TypeAttribute):
 
     name = "smt.bv"
 
-    width: ParameterDef[IntAttr]
+    width: IntAttr
 
     def __init__(self, width: int | IntAttr):
         if isinstance(width, int):
@@ -105,10 +104,10 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
     name = "smt.func"
 
-    domain_types: ParameterDef[ArrayAttr[NonFuncSMTType]]
+    domain_types: ArrayAttr[NonFuncSMTType]
     """The types of the function arguments."""
 
-    range_type: ParameterDef[NonFuncSMTType]
+    range_type: NonFuncSMTType
     """The type of the function result."""
 
     def __init__(
@@ -149,8 +148,8 @@ SMTTypeConstr = irdl_to_attr_constraint(SMTType)
 class BitVectorAttr(TypedAttribute):
     name = "smt.bv"
 
-    value: ParameterDef[IntAttr]
-    type: ParameterDef[BitVectorType]
+    value: IntAttr
+    type: BitVectorType
 
     def __init__(self, value: int | IntAttr, type: BitVectorType | int):
         if isinstance(value, int):

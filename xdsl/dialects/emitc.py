@@ -31,7 +31,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypeAttribute,
 )
-from xdsl.irdl import ParameterDef, irdl_attr_definition
+from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -45,8 +45,8 @@ class EmitC_ArrayType(
 
     name = "emitc.array"
 
-    shape: ParameterDef[ArrayAttr[IntAttr]]
-    element_type: ParameterDef[AttributeCovT]
+    shape: ArrayAttr[IntAttr]
+    element_type: AttributeCovT
 
     def __init__(
         self,
@@ -123,7 +123,7 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "emitc.lvalue"
-    value_type: ParameterDef[TypeAttribute]
+    value_type: TypeAttribute
 
     def verify(self) -> None:
         """

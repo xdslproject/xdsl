@@ -27,7 +27,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -78,7 +77,7 @@ setattr(VariadicityAttr, "VARIADIC", VariadicityAttr(VariadicityEnum.VARIADIC))
 class VariadicityArrayAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
     name = "irdl.variadicity_array"
 
-    value: ParameterDef[ArrayAttr[VariadicityAttr]]
+    value: ArrayAttr[VariadicityAttr]
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> tuple[ArrayAttr[VariadicityAttr]]:

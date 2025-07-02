@@ -37,7 +37,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -138,7 +137,7 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "fir.ref"
-    type: ParameterDef[Attribute]
+    type: Attribute
 
 
 @irdl_attr_definition
@@ -177,7 +176,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.llvm_ptr"
 
-    type: ParameterDef[Attribute]
+    type: Attribute
 
 
 @irdl_attr_definition
@@ -190,7 +189,7 @@ class PointerType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.ptr"
 
-    type: ParameterDef[Attribute]
+    type: Attribute
 
 
 @irdl_attr_definition
@@ -214,15 +213,15 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "fir.array"
-    shape: ParameterDef[ArrayAttr[IntegerAttr | DeferredAttr | NoneType]]
-    type: ParameterDef[Attribute]
-    type2: ParameterDef[Attribute]
+    shape: ArrayAttr[IntegerAttr | DeferredAttr | NoneType]
+    type: Attribute
+    type2: Attribute
 
     def __init__(
         self,
-        type1: ParameterDef[IntegerType | AnyFloat | ReferenceType],
+        type1: IntegerType | AnyFloat | ReferenceType,
         shape: list[int | IntegerAttr[IndexType] | DeferredAttr] | None = None,
-        type2: ParameterDef[IntegerType | AnyFloat | ReferenceType] | None = None,
+        type2: IntegerType | AnyFloat | ReferenceType | None = None,
     ):
         if type2 is not None:
             super().__init__(ArrayAttr([NoneType()]), type1, type2)
@@ -316,8 +315,8 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.char"
 
-    from_index: ParameterDef[IntAttr | DeferredAttr]
-    to_index: ParameterDef[IntAttr | DeferredAttr]
+    from_index: IntAttr | DeferredAttr
+    to_index: IntAttr | DeferredAttr
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -361,7 +360,7 @@ class LogicalType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.logical"
 
-    size: ParameterDef[IntAttr]
+    size: IntAttr
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -385,7 +384,7 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.complex"
 
-    width: ParameterDef[IntAttr]
+    width: IntAttr
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -409,7 +408,7 @@ class ShiftType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.shift"
 
-    indexes: ParameterDef[IntAttr]
+    indexes: IntAttr
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -433,7 +432,7 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.shape"
 
-    indexes: ParameterDef[IntAttr]
+    indexes: IntAttr
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -458,7 +457,7 @@ class ShapeShiftType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.shapeshift"
 
-    indexes: ParameterDef[IntAttr]
+    indexes: IntAttr
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -483,7 +482,7 @@ class HeapType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.heap"
 
-    type: ParameterDef[SequenceType | CharacterType]
+    type: SequenceType | CharacterType
 
 
 @irdl_attr_definition
@@ -496,7 +495,7 @@ class BoxType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.box"
 
-    type: ParameterDef[Attribute]
+    type: Attribute
 
 
 @irdl_attr_definition
@@ -509,7 +508,7 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.boxchar"
 
-    kind: ParameterDef[IntAttr]
+    kind: IntAttr
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
