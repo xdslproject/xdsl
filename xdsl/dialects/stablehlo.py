@@ -21,7 +21,6 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     IntegerAttr,
     IntegerType,
-    NoneAttr,
     TensorType,
     i64,
 )
@@ -289,8 +288,8 @@ class DotAttr(ParametrizedAttribute):
 
     name = "stablehlo.dot"
 
-    lhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]] | NoneAttr]
-    rhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]] | NoneAttr]
+    lhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+    rhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
     lhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
     rhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
 
@@ -308,10 +307,10 @@ class DotAttr(ParametrizedAttribute):
     @staticmethod
     def _parse_parameter(
         name: str, parser: AttrParser, optional: bool = False
-    ) -> ArrayAttr[IntegerAttr[I64]] | NoneAttr:
+    ) -> ArrayAttr[IntegerAttr[I64]]:
         if optional:
             if parser.parse_optional_characters(name) is None:
-                return NoneAttr()
+                return ArrayAttr(())
         else:
             parser.parse_characters(name)
         parser.parse_punctuation("=")
@@ -324,9 +323,9 @@ class DotAttr(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             with printer.indented():
-                if not isinstance(
-                    self.lhs_batching_dimensions, NoneAttr
-                ) and not isinstance(self.rhs_batching_dimensions, NoneAttr):
+                if self.lhs_batching_dimensions != ArrayAttr(
+                    ()
+                ) and self.rhs_batching_dimensions != ArrayAttr(()):
                     DotAttr._print_parameter(
                         "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
                     )
@@ -355,14 +354,14 @@ class DotAttr(ParametrizedAttribute):
             lhs_batching_dimensions = DotAttr._parse_parameter(
                 "lhs_batching_dimensions", parser, optional=True
             )
-            if not isinstance(lhs_batching_dimensions, NoneAttr):
+            if lhs_batching_dimensions != ArrayAttr(()):
                 parser.parse_punctuation(",")
                 rhs_batching_dimensions = DotAttr._parse_parameter(
                     "rhs_batching_dimensions", parser
                 )
                 parser.parse_punctuation(",")
             else:
-                rhs_batching_dimensions = NoneAttr()
+                rhs_batching_dimensions = ArrayAttr(())
 
             lhs_contracting_dimensions = DotAttr._parse_parameter(
                 "lhs_contracting_dimensions", parser
