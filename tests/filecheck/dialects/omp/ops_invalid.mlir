@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t arm-asm %s --verify-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s
 
 func.func @omp_ordered(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
     "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 0 : i64}> ({
@@ -68,3 +68,41 @@ func.func @omp_simd_simdlen(%ub : index, %lb : index, %step : index) {
 }
 
 // CHECK: `safelen` must be greater than or equal to `simdlen`
+
+// -----
+
+func.func @omp_target_data_no_map_info(%m : memref<1xf32>) {
+  "omp.target_data"(%m) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0>}> ({
+  ^0(%0 : memref<1xf32>, %1 : memref<1xf32>, %2 : memref<1xf32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xf32>) -> ()
+  func.return
+}
+
+// CHECK: All mapped operands of omp.target_data must be results of a omp.map.info
+
+// -----
+
+func.func @omp_target_data_delete(%m : memref<1xf32>) {
+  %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x08 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+  "omp.target_data"(%m1) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0>}> ({
+  ^0(%0 : memref<1xf32>, %1 : memref<1xf32>, %2 : memref<1xf32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xf32>) -> ()
+  func.return
+}
+
+// CHECK: Cannot have map_type DELETE in omp.target_data
+
+// -----
+
+func.func @omp_target_data_to_and_delete(%dev : i64, %if : i1, %m : memref<1xf32>, %d1 : memref<1xf32>, %d2 : memref<1xf32>) {
+  %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x9 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+  "omp.target_data"(%m1) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0>}> ({
+  ^0(%0 : memref<1xf32>, %1 : memref<1xf32>, %2 : memref<1xf32>):
+    "omp.terminator"() : () -> ()
+  }) : (memref<1xf32>) -> ()
+  func.return
+}
+
+// CHECK: Cannot have map_type DELETE in omp.target_data
