@@ -33,6 +33,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IntVarConstraint,
     IRDLOperation,
+    Operand,
     Operation,
     RangeOf,
     SameVariadicOperandSize,
@@ -132,6 +133,7 @@ def verify_map_vars(
     disallowed_types: OpenMPOffloadMappingFlags = OpenMPOffloadMappingFlags.NONE,
     one_of: OpenMPOffloadMappingFlags = OpenMPOffloadMappingFlags.NONE,
 ):
+    mapped = dict[Operand, OpenMPOffloadMappingFlags]()
     for var in vars:
         if not isinstance(owner := var.owner, MapInfoOp):
             raise VerifyException(
@@ -140,11 +142,16 @@ def verify_map_vars(
         for t in disallowed_types:
             if owner.map_type.value.data & t:
                 raise VerifyException(f"Cannot have map_type {t.name} in {op_name}")
-        if one_of and (owner.map_type.value.data & one_of).bit_count() != 1:
-            one_of_names = ", ".join(bit.name for bit in one_of if bit.name)
-            raise VerifyException(
-                f"{op_name} expected to have exactly one of {one_of_names} as map_type"
+        if one_of:
+            mapped[owner.var_ptr] = (
+                mapped.setdefault(owner.var_ptr, OpenMPOffloadMappingFlags.NONE)
+                | owner.map_type.value.data
             )
+            if (mapped[owner.var_ptr] & one_of).bit_count() != 1:
+                one_of_names = ", ".join(bit.name for bit in one_of if bit.name)
+                raise VerifyException(
+                    f"{op_name} expected to have exactly one of {one_of_names} as map_type"
+                )
 
 
 class ScheduleKind(StrEnum):
@@ -676,6 +683,88 @@ class SimdOp(IRDLOperation):
         return super().verify_()
 
 
+class TargetTaskBasedDataOp(IRDLOperation):
+    """
+    Base class representing target data movement operations which are task based,
+    this includes enter and exit data pragmas along with data update
+    """
+
+    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+
+    depend_vars = var_operand_def(
+        RangeOf(
+            AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
+            length=DEP_COUNT,
+        )
+    )
+    device = opt_operand_def(IntegerType | IndexType)
+    if_expr = opt_operand_def(i1)
+    map_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+
+    depend_kinds = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(DependKindAttr), length=DEP_COUNT))
+    )
+    nowait = opt_prop_def(UnitAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
+@irdl_op_definition
+class TargetEnterDataOp(TargetTaskBasedDataOp):
+    """
+    Implementation of upstream omp.target_enter_data
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget_enter_data-omptargetenterdataop).
+    """
+
+    name = "omp.target_enter_data"
+
+    def verify_(self) -> None:
+        verify_map_vars(
+            self.map_vars,
+            self.name,
+            disallowed_types=OpenMPOffloadMappingFlags.FROM
+            | OpenMPOffloadMappingFlags.DELETE,
+        )
+        return super().verify_()
+
+
+@irdl_op_definition
+class TargetExitDataOp(TargetTaskBasedDataOp):
+    """
+    Implementation of omp.target_exit_data
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget_enter_data-omptargetenterdataop).
+    """
+
+    name = "omp.target_exit_data"
+
+    def verify_(self) -> None:
+        verify_map_vars(
+            self.map_vars,
+            self.name,
+            disallowed_types=OpenMPOffloadMappingFlags.TO,
+        )
+        return super().verify_()
+
+
+@irdl_op_definition
+class TargetUpdateOp(TargetTaskBasedDataOp):
+    """
+    Implementation of upstream omp.target_update
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget_update-omptargetupdateop).
+    """
+
+    name = "omp.target_update"
+
+    def verify_(self) -> None:
+        verify_map_vars(
+            self.map_vars,
+            self.name,
+            disallowed_types=OpenMPOffloadMappingFlags.DELETE,
+            one_of=OpenMPOffloadMappingFlags.TO | OpenMPOffloadMappingFlags.FROM,
+        )
+        return super().verify_()
+
+
 @irdl_op_definition
 class TargetDataOp(IRDLOperation):
     """
@@ -716,6 +805,9 @@ OMP = Dialect(
         MapBoundsOp,
         MapInfoOp,
         SimdOp,
+        TargetEnterDataOp,
+        TargetExitDataOp,
+        TargetUpdateOp,
         TargetDataOp,
     ],
     [
