@@ -1,9 +1,19 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from itertools import repeat
 
+from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import memref_stream
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import (
+    AffineMapAttr,
+    ArrayAttr,
+    IndexType,
+    IntegerAttr,
+    ModuleOp,
+)
+from xdsl.ir import Block, Region, SSAValue
+from xdsl.ir.affine import AffineExpr
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -11,10 +21,38 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.memref_stream_unroll_and_jam import (
-    unroll_and_jam,
-    unroll_and_jam_bound_indices_and_factors,
-)
+
+
+def factors(num: int) -> tuple[int, ...]:
+    """
+    For all positive integers, returns the n-tuple of all numbers that evenly divide the
+    input, returns an empty tuple for 0 or negative inputs.
+    """
+    if num <= 0:
+        return ()
+
+    if num == 1:
+        return (1,)
+
+    return tuple(factor for factor in range(1, num + 1) if not num % factor)
+
+
+def unroll_and_jam_bound_indices_and_factors(
+    op: memref_stream.GenericOp,
+) -> tuple[tuple[int, int], ...]:
+    parallel_indices = tuple(
+        index
+        for index, iterator_type in enumerate(op.iterator_types)
+        if iterator_type == memref_stream.IteratorTypeAttr.parallel()
+    )
+    parallel_bounds = tuple(
+        op.bounds.data[index].value.data for index in parallel_indices
+    )
+    return tuple(
+        (index, factor)
+        for index, bound in zip(parallel_indices, parallel_bounds)
+        for factor in factors(bound)
+    )
 
 
 def interleave_index_and_factor(
@@ -44,7 +82,9 @@ def interleave_index_and_factor(
 
 @dataclass(frozen=True)
 class PipelineGenericPattern(RewritePattern):
-    pipeline_depth: int = field()
+    pipeline_depth: int
+    iterator_index: int | None = field(default=None)
+    unroll_factor: int | None = field(default=None)
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -62,13 +102,99 @@ class PipelineGenericPattern(RewritePattern):
         if not indices_and_factors:
             return
 
-        t = interleave_index_and_factor(indices_and_factors, self.pipeline_depth)
-        if t is None:
+        assert (self.iterator_index is None) == (self.unroll_factor is None)
+
+        if self.iterator_index is not None and self.unroll_factor is not None:
+            iterator_index = self.iterator_index
+            unroll_factor = self.unroll_factor
+        else:
+            t = interleave_index_and_factor(indices_and_factors, self.pipeline_depth)
+            if t is None:
+                return
+
+            iterator_index, unroll_factor = t
+
+        if unroll_factor == 1:
+            # If unroll factor is 1, rewrite is a no-op
             return
 
-        index, factor = t
+        old_block = op.body.block
+        new_region = Region(
+            Block(
+                arg_types=(
+                    t for arg in old_block.args for t in repeat(arg.type, unroll_factor)
+                )
+            )
+        )
+        with ImplicitBuilder(new_region) as args:
+            # For each interleaved block replica, a mapping from old values to new values
+            value_map: tuple[dict[SSAValue, SSAValue], ...] = tuple(
+                {} for _ in range(unroll_factor)
+            )
+            for arg_index, new_arg in enumerate(args):
+                old_arg = old_block.args[arg_index // unroll_factor]
+                value_map[arg_index % unroll_factor][old_arg] = new_arg
+                new_arg.name_hint = old_arg.name_hint
+            for block_op in old_block.ops:
+                if isinstance(block_op, memref_stream.YieldOp):
+                    memref_stream.YieldOp(
+                        *([vm[arg] for vm in value_map for arg in block_op.arguments])
+                    )
+                else:
+                    for i in range(unroll_factor):
+                        block_op.clone(value_mapper=value_map[i])
 
-        unroll_and_jam(op, rewriter, index, factor)
+        # New maps are the same, except that they have one more dimension and the
+        # dimension that is interleaved is updated to
+        # `dim * interleave_factor + new_dim`.
+        new_indexing_maps = ArrayAttr(
+            AffineMapAttr(
+                m.data.replace_dims_and_symbols(
+                    (
+                        tuple(AffineExpr.dimension(i) for i in range(iterator_index))
+                        + (
+                            AffineExpr.dimension(iterator_index) * unroll_factor
+                            + AffineExpr.dimension(m.data.num_dims),
+                        )
+                        + tuple(
+                            AffineExpr.dimension(i)
+                            for i in range(iterator_index + 1, m.data.num_dims + 2)
+                        )
+                    ),
+                    (),
+                    m.data.num_dims + 1,
+                    0,
+                )
+            )
+            for m in op.indexing_maps
+        )
+
+        # The new bounds are the same, except there is one more bound
+        new_bounds = list(op.bounds)
+        new_bounds.append(IntegerAttr(unroll_factor, IndexType()))
+        iterator_ub = op.bounds.data[iterator_index].value.data
+        new_bounds[iterator_index] = IntegerAttr.from_index_int_value(
+            iterator_ub // unroll_factor
+        )
+
+        rewriter.replace_op(
+            op,
+            memref_stream.GenericOp(
+                op.inputs,
+                op.outputs,
+                op.inits,
+                new_region,
+                new_indexing_maps,
+                ArrayAttr(
+                    op.iterator_types.data
+                    + (memref_stream.IteratorTypeAttr.interleaved(),)
+                ),
+                ArrayAttr(new_bounds),
+                op.init_indices,
+                op.doc,
+                op.library_call,
+            ),
+        )
 
 
 @dataclass(frozen=True)

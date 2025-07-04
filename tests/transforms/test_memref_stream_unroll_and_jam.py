@@ -1,4 +1,4 @@
-from xdsl.transforms.memref_stream_unroll_and_jam import factors
+from xdsl.transforms.memref_stream_interleave import factors
 
 
 def test_factors():

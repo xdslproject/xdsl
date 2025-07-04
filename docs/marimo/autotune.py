@@ -452,7 +452,7 @@ def _(
 @app.cell
 def _(memref_stream_module, mo):
     from xdsl.dialects import memref_stream
-    from xdsl.transforms.memref_stream_unroll_and_jam import unroll_and_jam_bound_indices_and_factors
+    from xdsl.transforms.memref_stream_interleave import unroll_and_jam_bound_indices_and_factors
 
     msg_op = next(child for child in memref_stream_module.walk() if isinstance(child, memref_stream.GenericOp))
 
