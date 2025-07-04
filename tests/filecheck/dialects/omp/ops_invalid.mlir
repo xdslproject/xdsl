@@ -155,7 +155,7 @@ func.func @omp_target_update_to_from_same_map(%m : memref<1xf32>) {
   func.return
 }
 
-// CHECK: omp.target_update expected to have exactly one of TO, FROM as map_type
+// CHECK: omp.target_update expected to have exactly one of TO or FROM as map_type
 
 // -----
 
@@ -166,4 +166,4 @@ func.func @omp_target_update_to_from_same_operand(%m : memref<1xf32>) {
   func.return
 }
 
-// CHECK: omp.target_update expected to have exactly one of TO, FROM as map_type
+// CHECK: omp.target_update expected to have exactly one of TO or FROM as map_type
