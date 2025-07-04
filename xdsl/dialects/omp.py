@@ -1,3 +1,4 @@
+from collections import defaultdict
 from enum import IntFlag, auto
 from typing import ClassVar
 
@@ -131,9 +132,7 @@ def verify_map_vars(
     op_name: str,
     *,
     disallowed_types: OpenMPOffloadMappingFlags = OpenMPOffloadMappingFlags.NONE,
-    one_of: OpenMPOffloadMappingFlags = OpenMPOffloadMappingFlags.NONE,
 ):
-    mapped = dict[Operand, OpenMPOffloadMappingFlags]()
     for var in vars:
         if not isinstance(owner := var.owner, MapInfoOp):
             raise VerifyException(
@@ -142,16 +141,6 @@ def verify_map_vars(
         for t in disallowed_types:
             if owner.map_type.value.data & t:
                 raise VerifyException(f"Cannot have map_type {t.name} in {op_name}")
-        if one_of:
-            mapped[owner.var_ptr] = (
-                mapped.setdefault(owner.var_ptr, OpenMPOffloadMappingFlags.NONE)
-                | owner.map_type.value.data
-            )
-            if (mapped[owner.var_ptr] & one_of).bit_count() != 1:
-                one_of_names = ", ".join(bit.name for bit in one_of if bit.name)
-                raise VerifyException(
-                    f"{op_name} expected to have exactly one of {one_of_names} as map_type"
-                )
 
 
 class ScheduleKind(StrEnum):
@@ -760,8 +749,19 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
             self.map_vars,
             self.name,
             disallowed_types=OpenMPOffloadMappingFlags.DELETE,
-            one_of=OpenMPOffloadMappingFlags.TO | OpenMPOffloadMappingFlags.FROM,
         )
+        mapped = defaultdict[Operand, OpenMPOffloadMappingFlags](
+            lambda: OpenMPOffloadMappingFlags.NONE
+        )
+        one_of = OpenMPOffloadMappingFlags.TO | OpenMPOffloadMappingFlags.FROM
+        for var in self.map_vars:
+            assert isinstance(owner := var.owner, MapInfoOp)
+
+            mapped[owner.var_ptr] |= owner.map_type.value.data
+            if (mapped[owner.var_ptr] & one_of).bit_count() != 1:
+                raise VerifyException(
+                    f"{self.name} expected to have exactly one of TO or FROM as map_type"
+                )
         return super().verify_()
 
 
