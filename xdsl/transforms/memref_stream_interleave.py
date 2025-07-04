@@ -105,16 +105,16 @@ class PipelineGenericPattern(RewritePattern):
         assert (self.iterator_index is None) == (self.unroll_factor is None)
 
         if self.iterator_index is not None and self.unroll_factor is not None:
-            iterator_index = self.iterator_index
-            unroll_factor = self.unroll_factor
+            interleave_bound_index = self.iterator_index
+            interleave_factor = self.unroll_factor
         else:
             t = interleave_index_and_factor(indices_and_factors, self.pipeline_depth)
             if t is None:
                 return
 
-            iterator_index, unroll_factor = t
+            interleave_bound_index, interleave_factor = t
 
-        if unroll_factor == 1:
+        if interleave_factor == 1:
             # If unroll factor is 1, rewrite is a no-op
             return
 
@@ -122,18 +122,20 @@ class PipelineGenericPattern(RewritePattern):
         new_region = Region(
             Block(
                 arg_types=(
-                    t for arg in old_block.args for t in repeat(arg.type, unroll_factor)
+                    t
+                    for arg in old_block.args
+                    for t in repeat(arg.type, interleave_factor)
                 )
             )
         )
         with ImplicitBuilder(new_region) as args:
             # For each interleaved block replica, a mapping from old values to new values
             value_map: tuple[dict[SSAValue, SSAValue], ...] = tuple(
-                {} for _ in range(unroll_factor)
+                {} for _ in range(interleave_factor)
             )
             for arg_index, new_arg in enumerate(args):
-                old_arg = old_block.args[arg_index // unroll_factor]
-                value_map[arg_index % unroll_factor][old_arg] = new_arg
+                old_arg = old_block.args[arg_index // interleave_factor]
+                value_map[arg_index % interleave_factor][old_arg] = new_arg
                 new_arg.name_hint = old_arg.name_hint
             for block_op in old_block.ops:
                 if isinstance(block_op, memref_stream.YieldOp):
@@ -141,7 +143,7 @@ class PipelineGenericPattern(RewritePattern):
                         *([vm[arg] for vm in value_map for arg in block_op.arguments])
                     )
                 else:
-                    for i in range(unroll_factor):
+                    for i in range(interleave_factor):
                         block_op.clone(value_mapper=value_map[i])
 
         # New maps are the same, except that they have one more dimension and the
@@ -151,14 +153,20 @@ class PipelineGenericPattern(RewritePattern):
             AffineMapAttr(
                 m.data.replace_dims_and_symbols(
                     (
-                        tuple(AffineExpr.dimension(i) for i in range(iterator_index))
+                        tuple(
+                            AffineExpr.dimension(i)
+                            for i in range(interleave_bound_index)
+                        )
                         + (
-                            AffineExpr.dimension(iterator_index) * unroll_factor
+                            AffineExpr.dimension(interleave_bound_index)
+                            * interleave_factor
                             + AffineExpr.dimension(m.data.num_dims),
                         )
                         + tuple(
                             AffineExpr.dimension(i)
-                            for i in range(iterator_index + 1, m.data.num_dims + 2)
+                            for i in range(
+                                interleave_bound_index + 1, m.data.num_dims + 2
+                            )
                         )
                     ),
                     (),
@@ -171,10 +179,10 @@ class PipelineGenericPattern(RewritePattern):
 
         # The new bounds are the same, except there is one more bound
         new_bounds = list(op.bounds)
-        new_bounds.append(IntegerAttr(unroll_factor, IndexType()))
-        iterator_ub = op.bounds.data[iterator_index].value.data
-        new_bounds[iterator_index] = IntegerAttr.from_index_int_value(
-            iterator_ub // unroll_factor
+        new_bounds.append(IntegerAttr(interleave_factor, IndexType()))
+        iterator_ub = op.bounds.data[interleave_bound_index].value.data
+        new_bounds[interleave_bound_index] = IntegerAttr.from_index_int_value(
+            iterator_ub // interleave_factor
         )
 
         rewriter.replace_op(
