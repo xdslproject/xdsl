@@ -197,6 +197,101 @@ class AbsIOp(SignlessIntegerLikeUnaryMathOperation):
 
 
 @irdl_op_definition
+class AcosOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+    """
+    Arcus cosine of the specified value
+
+    The acos operation computes the arcus cosine of a given value. It takes one
+    operand of floating point type (i.e., scalar, tensor or vector) and returns
+    one result of the same type. It has no standard attributes.
+
+    Example:
+    // Scalar arcus cosine value.
+    %a = math.acos %b : f64
+    """
+
+    name = "math.acos"
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+
+@irdl_op_definition
+class AcoshOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+    """
+    Hyperbolic arcus cosine of the given value
+
+    The acosh operation computes the arcus cosine of a given value. It takes
+    one operand of floating point type (i.e., scalar, tensor or vector) and
+    returns one result of the same type. It has no standard attributes.
+
+    Example:
+    // Hyperbolic arcus cosine of scalar value.
+    %a = math.acosh %b : f64
+    """
+
+    name = "math.acosh"
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+
+@irdl_op_definition
+class AsinOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+    """
+    Arcus sine of the given value
+
+    The asin operation computes the arcus sine of a given value. It takes one
+    operand of floating point type (i.e., scalar, tensor or vector) and returns
+    one result of the same type. It has no standard attributes.
+
+    Example:
+    // Arcus sine of scalar value.
+    %a = math.asin %b : f64
+    """
+
+    name = "math.asin"
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+
+@irdl_op_definition
+class AsinhOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+    """
+    Hyperbolic arcus sine of the given value
+
+    The asinh operation computes the hyperbolic arcus sine of a given value. It
+    takes one operand of floating point type (i.e., scalar, tensor or vector) and
+    returns one result of the same type. It has no standard attributes.
+
+    Example:
+    // Hyperbolic arcus sine of scalar value.
+    %a = math.asinh %b : f64
+    """
+
+    name = "math.asinh"
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+
+@irdl_op_definition
+class AtanhOp(FloatingPointLikeUnaryMathOperationWithFastMath):
+    """
+    Hyperbolic arcus tangent of the given value
+
+    The atanh operation computes the hyperbolic arcus tangent of a given value. It
+    takes one operand of floating point type (i.e., scalar, tensor or vector) and
+    returns one result of the same type. It has no standard attributes.
+
+    Example:
+    // Hyperbolic arcus tangent of scalar value.
+    %a = math.atanh %b : f64
+    """
+
+    name = "math.atanh"
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+
+@irdl_op_definition
 class Atan2Op(FloatingPointLikeBinaryMathOperationWithFastMath):
     """
     The atan2 operation takes two operands and returns one result, all of
@@ -855,8 +950,13 @@ Math = Dialect(
     [
         AbsFOp,
         AbsIOp,
+        AcosOp,
+        AcoshOp,
+        AsinOp,
+        AsinhOp,
         Atan2Op,
         AtanOp,
+        AtanhOp,
         CbrtOp,
         CeilOp,
         CopySignOp,
