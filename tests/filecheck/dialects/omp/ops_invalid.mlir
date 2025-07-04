@@ -106,3 +106,64 @@ func.func @omp_target_data_to_and_delete(%dev : i64, %if : i1, %m : memref<1xf32
 }
 
 // CHECK: Cannot have map_type DELETE in omp.target_data
+
+// -----
+
+func.func @omp_target_enter_data_from(%m : memref<1xf32>) {
+  %from = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x2 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+"omp.target_enter_data"(%from) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<1xf32>) -> ()
+  func.return
+}
+
+// CHECK: Cannot have map_type FROM in omp.target_enter_data
+
+// -----
+
+func.func @omp_target_enter_data_delete(%m : memref<1xf32>) {
+  %del = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x8 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+"omp.target_enter_data"(%del) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<1xf32>) -> ()
+  func.return
+}
+
+// CHECK: Cannot have map_type DELETE in omp.target_enter_data
+
+// -----
+
+func.func @omp_target_exit_data_to(%m : memref<1xf32>) {
+  %to = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x1 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+  "omp.target_exit_data"(%to) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<1xf32>) -> ()
+  func.return
+}
+
+// CHECK: Cannot have map_type TO in omp.target_exit_data
+
+// -----
+
+func.func @omp_target_update_del(%m : memref<1xf32>) {
+  %del = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x8 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+  "omp.target_update"(%del) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<1xf32>) -> ()
+  func.return
+}
+
+// CHECK: Cannot have map_type DELETE in omp.target_update
+
+// -----
+
+func.func @omp_target_update_to_from_same_map(%m : memref<1xf32>) {
+  %tofrom = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x3 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+  "omp.target_update"(%tofrom) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<1xf32>) -> ()
+  func.return
+}
+
+// CHECK: omp.target_update expected to have exactly one of TO or FROM as map_type
+
+// -----
+
+func.func @omp_target_update_to_from_same_operand(%m : memref<1xf32>) {
+  %to = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x1 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+  %from = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x2 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+  "omp.target_update"(%to, %from) <{operandSegmentSizes = array<i32: 0, 0, 0, 2>}> : (memref<1xf32>, memref<1xf32>) -> ()
+  func.return
+}
+
+// CHECK: omp.target_update expected to have exactly one of TO or FROM as map_type
