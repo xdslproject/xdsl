@@ -8,7 +8,6 @@ from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
-    IndexType,
     IntegerAttr,
     ModuleOp,
 )
@@ -179,14 +178,13 @@ class PipelineGenericPattern(RewritePattern):
 
         # The new bounds are the same, except there is one more bound
         new_bounds = list(op.bounds)
-        new_bounds.append(IntegerAttr(interleave_factor, IndexType()))
+        new_bounds.append(IntegerAttr.from_index_int_value(interleave_factor))
         iterator_ub = op.bounds.data[interleave_bound_index].value.data
         new_bounds[interleave_bound_index] = IntegerAttr.from_index_int_value(
             iterator_ub // interleave_factor
         )
 
-        rewriter.replace_op(
-            op,
+        rewriter.replace_matched_op(
             memref_stream.GenericOp(
                 op.inputs,
                 op.outputs,
@@ -201,7 +199,7 @@ class PipelineGenericPattern(RewritePattern):
                 op.init_indices,
                 op.doc,
                 op.library_call,
-            ),
+            )
         )
 
 
