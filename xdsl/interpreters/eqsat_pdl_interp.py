@@ -99,6 +99,10 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     merge_list: list[MergeTodo] = field(default_factory=list[MergeTodo])
     """List of e-classes that should be merged by `apply_matches` after the pattern matching is done."""
 
+    is_matching: bool = True
+    """Keeps track whether the interpreter is currently in a matching context (as opposed to in a rewriting context).
+    If it is, finalize behaves differently by backtracking."""
+
     def modification_handler(self, op: Operation):
         """
         Keeps `known_ops` up to date.
@@ -324,10 +328,24 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (new_op,)
 
+    @impl_terminator(pdl_interp.RecordMatchOp)
+    def run_recordmatch(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.RecordMatchOp,
+        args: tuple[Any, ...],
+    ):
+        self.is_matching = False
+        interpreter.call_op(op.rewriter, args)
+        self.is_matching = True
+        return Successor(op.dest, ()), ()
+
     @impl_terminator(pdl_interp.FinalizeOp)
     def run_finalize(
         self, interpreter: Interpreter, _: pdl_interp.FinalizeOp, args: tuple[Any, ...]
     ):
+        if not self.is_matching:
+            return ReturnedValues(()), ()
         for backtrack_point in reversed(self.backtrack_stack):
             if backtrack_point.index >= backtrack_point.max_index:
                 self.backtrack_stack.pop()
