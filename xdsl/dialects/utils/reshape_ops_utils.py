@@ -14,18 +14,11 @@ from xdsl.irdl import AtLeast, AttrConstraint, ConstraintContext, GenericAttrCon
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-_ReassociationAttrBase = ArrayAttr[
-    ArrayAttr[
-        Annotated[
-            IntegerAttr,
-            IntegerAttr.constr(value=AtLeast(0)),
-        ]
-    ]
-]
-
 
 @dataclass(frozen=True)
-class ContiguousArrayOfIntArray(GenericAttrConstraint[_ReassociationAttrBase]):
+class ContiguousArrayOfIntArray(
+    GenericAttrConstraint[ArrayAttr[ArrayAttr[IntegerAttr]]]
+):
     """
     Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values across all inner arrays.
     For example: [[0, 1], [2, 3]] is valid, but [[3, 4], [0, 1]] is not.
@@ -35,9 +28,19 @@ class ContiguousArrayOfIntArray(GenericAttrConstraint[_ReassociationAttrBase]):
     def verify(
         self, attr: Attribute, constraint_context: ConstraintContext | None = None
     ) -> None:
-        if not isa(attr, ArrayAttr[ArrayAttr[IntegerAttr[I64]]]):
+        if not isa(
+            attr,
+            ArrayAttr[
+                ArrayAttr[
+                    Annotated[
+                        IntegerAttr[I64],
+                        IntegerAttr.constr(value=AtLeast(0)),
+                    ]
+                ]
+            ],
+        ):
             raise VerifyException(
-                f"Expected ArrayAttr but got {getattr(attr, 'name', type(attr))}"
+                f"Expected ArrayAttr[ArrayAttr[IntegerAttr[I64]]] but got {getattr(attr, 'name', type(attr))}"
             )
 
         # Flatten all integer values from all inner arrays
