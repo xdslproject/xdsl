@@ -10,13 +10,22 @@ from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import I64, Annotated, ArrayAttr, IntegerAttr
 from xdsl.ir import Attribute
-from xdsl.irdl import AtLeast, AttrConstraint, ConstraintContext
+from xdsl.irdl import AtLeast, AttrConstraint, ConstraintContext, GenericAttrConstraint
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
+_ReassociationAttrBase = ArrayAttr[
+    ArrayAttr[
+        Annotated[
+            IntegerAttr[I64],
+            IntegerAttr.constr(value=AtLeast(0)),
+        ]
+    ]
+]
+
 
 @dataclass(frozen=True)
-class ContiguousArrayOfIntArray(GenericAttrConstraint[ArrayAttr[ArrayAttr[IntegerAttr]]]):
+class ContiguousArrayOfIntArray(GenericAttrConstraint[_ReassociationAttrBase]):
     """
     Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values across all inner arrays.
     For example: [[0, 1], [2, 3]] is valid, but [[3, 4], [0, 1]] is not.
@@ -45,14 +54,4 @@ class ContiguousArrayOfIntArray(GenericAttrConstraint[ArrayAttr[ArrayAttr[Intege
         return self
 
 
-ReassociationAttr = Annotated[
-    ArrayAttr[
-        ArrayAttr[
-            Annotated[
-                IntegerAttr[I64],
-                IntegerAttr.constr(value=AtLeast(0)),
-            ]
-        ]
-    ],
-    ContiguousArrayOfIntArray(),
-]
+ReassociationAttr = ContiguousArrayOfIntArray()
