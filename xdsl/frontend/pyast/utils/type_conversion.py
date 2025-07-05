@@ -1,3 +1,5 @@
+"""Utility to support mapping between Python source objects, AST nodes, and xDSL IR."""
+
 import importlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -6,7 +8,7 @@ from typing import (
     cast,
 )
 
-from xdsl.frontend.pyast.exception import (
+from xdsl.frontend.pyast.utils.exceptions import (
     FrontendProgramException,
 )
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
