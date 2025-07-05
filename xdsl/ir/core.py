@@ -2542,3 +2542,9 @@ class Region(IRNode):
         ):
             return False
         return True
+
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
+    def __hash__(self) -> int:
+        return id(self)
