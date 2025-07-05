@@ -35,7 +35,9 @@ from xdsl.dialects.utils import (
     split_dynamic_index_list,
 )
 from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
-from xdsl.dialects.utils.reshape_ops_utils import ReassociationAttr
+from xdsl.dialects.utils.reshape_ops_utils import (
+    ContiguousArrayOfIntArray,
+)
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
@@ -478,7 +480,7 @@ class RankOp(IRDLOperation):
 
 class AlterShapeOperation(IRDLOperation, abc.ABC):
     result = result_def(MemRefType)
-    reassociation = prop_def(ReassociationAttr)
+    reassociation = prop_def(ContiguousArrayOfIntArray())
 
     traits = traits_def(NoMemoryEffect())
 

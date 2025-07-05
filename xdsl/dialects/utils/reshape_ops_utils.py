@@ -52,6 +52,3 @@ class ContiguousArrayOfIntArray(GenericAttrConstraint[_ReassociationAttrBase]):
     ) -> "ContiguousArrayOfIntArray":
         # No type variables to map in this constraint
         return self
-
-
-ReassociationAttr = ContiguousArrayOfIntArray()

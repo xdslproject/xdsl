@@ -16,7 +16,9 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     i64,
 )
-from xdsl.dialects.utils.reshape_ops_utils import ReassociationAttr
+from xdsl.dialects.utils.reshape_ops_utils import (
+    ContiguousArrayOfIntArray,
+)
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -185,7 +187,7 @@ class CollapseShapeOp(IRDLOperation):
 
     src = operand_def(TensorType[Attribute])
     result = result_def(TensorType[Attribute])
-    reassociation = prop_def(ReassociationAttr)
+    reassociation = prop_def(ContiguousArrayOfIntArray())
     assembly_format = (
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
     )
