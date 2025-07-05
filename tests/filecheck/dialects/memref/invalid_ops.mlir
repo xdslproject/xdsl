@@ -24,7 +24,7 @@ builtin.module {
 
 
 
-// CHECK: Expected attribute i64
+// CHECK: Expected ArrayAttr[ArrayAttr[IntegerAttr[I64]]] but got array
 
 // -----
 
@@ -34,7 +34,7 @@ builtin.module {
     "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "invalid_reassociation"} : () -> ()
 
-// CHECK: Expected attribute i64
+// CHECK: Expected ArrayAttr[ArrayAttr[IntegerAttr[I64]]] but got array
 
 
 // -----

@@ -85,7 +85,5 @@ builtin.module {
 
 // -----
 
-// CHECK: The following constraints were not satisfied:
-// CHECK-NEXT: expected integer >= 0, got -2
-// CHECK-NEXT: All inner arrays must be contiguous: [[-2 : i64, 3 : i64], [0 : i64, 1 : i64]]
+// CHECK: Expected ArrayAttr[ArrayAttr[IntegerAttr[I64]]] but got array
 %res_collapse2 = tensor.collapse_shape %t0 [ [-2, 3], [0, 1] ] : tensor<4x1xf32> into tensor<4x1xf32>
