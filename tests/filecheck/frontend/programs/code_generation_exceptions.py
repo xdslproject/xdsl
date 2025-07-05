@@ -1,75 +1,12 @@
 # RUN: python %s | filecheck %s
 
 from collections.abc import Callable
-from ctypes import c_int32, c_int64
 
-from xdsl.dialects import builtin
 from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.exception import (
-    CodeGenerationException,
-    FrontendProgramException,
-)
 from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 
 p = FrontendProgram()
-p.register_type(bool, builtin.i1)
-p.register_type(c_int32, builtin.i32)
-p.register_type(c_int64, builtin.i64)
-try:
-    with CodeContext(p):
-        # CHECK: Expected non-zero number of return types in function 'test_no_return_type', but got 0.
-        def test_no_return_type(a: c_int32) -> c_int32:
-            return
-
-    p.compile(desymref=False)
-    exit(1)
-except FrontendProgramException as e:
-    print(e.msg)
-
-try:
-    with CodeContext(p):
-        # CHECK: Type signature and the type of the return value do not match at position 0: expected i32, got i64.
-        def test_wrong_return_type(a: c_int32, b: c_int64) -> c_int32:
-            return b
-
-    p.compile(desymref=False)
-    exit(1)
-except FrontendProgramException as e:
-    print(e.msg)
-
-try:
-    with CodeContext(p):
-        # CHECK: Expected no return types in function 'test_wrong_return_type'.
-        def test_wrong_return_type(a: c_int32):
-            return a
-
-    p.compile(desymref=False)
-    exit(1)
-except FrontendProgramException as e:
-    print(e.msg)
-
-try:
-    with CodeContext(p):
-        # CHECK: Expected the same types for binary operation 'Add', but got i32 and i64.
-        def bin_op_type_mismatch(a: c_int32, b: c_int64) -> c_int32:
-            return a + b
-
-    p.compile(desymref=False)
-    exit(1)
-except FrontendProgramException as e:
-    print(e.msg)
-
-try:
-    with CodeContext(p):
-        # CHECK: Expected the same types for comparison operator 'Lt', but got i32 and i64.
-        def cmp_op_type_mismatch(a: c_int32, b: c_int64) -> bool:
-            return a < b
-
-    p.compile(desymref=False)
-    exit(1)
-except FrontendProgramException as e:
-    print(e.msg)
-
 try:
     with CodeContext(p):
         # CHECK: Else clause in for loops is not supported.

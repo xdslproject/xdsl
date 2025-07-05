@@ -6,7 +6,7 @@ from typing import (
     cast,
 )
 
-from xdsl.frontend.pyast.exception import (
+from xdsl.frontend.pyast.utils.exceptions import (
     FrontendProgramException,
 )
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
