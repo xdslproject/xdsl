@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterable, Sequence
-from typing import Annotated, ClassVar, cast
+from typing import ClassVar, cast
 
 from typing_extensions import Self
 
@@ -35,6 +35,7 @@ from xdsl.dialects.utils import (
     split_dynamic_index_list,
 )
 from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
+from xdsl.dialects.utils.reshape_ops_utils import ReassociationAttr
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
@@ -473,11 +474,6 @@ class RankOp(IRDLOperation):
     @staticmethod
     def from_memref(memref: Operation | SSAValue):
         return RankOp.build(operands=[memref], result_types=[IndexType()])
-
-
-ReassociationAttr = ArrayAttr[
-    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
-]
 
 
 class AlterShapeOperation(IRDLOperation, abc.ABC):
