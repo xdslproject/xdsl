@@ -106,6 +106,7 @@ extraPaths = ["tests"]
     "tests/dialects/test_memref.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
+    "tests/frontend/test_jax_stablehlo.py"
 ]
 "ignore" = [
     "docs/marimo",
