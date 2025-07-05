@@ -16,7 +16,7 @@ from xdsl.utils.hints import isa
 
 
 @dataclass(frozen=True)
-class ContiguousArrayOfIntArray(AttrConstraint):
+class ContiguousArrayOfIntArray(GenericAttrConstraint[ArrayAttr[ArrayAttr[IntegerAttr]]]):
     """
     Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values across all inner arrays.
     For example: [[0, 1], [2, 3]] is valid, but [[3, 4], [0, 1]] is not.
