@@ -17,7 +17,7 @@ from xdsl.utils.hints import isa
 _ReassociationAttrBase = ArrayAttr[
     ArrayAttr[
         Annotated[
-            IntegerAttr[I64],
+            IntegerAttr,
             IntegerAttr.constr(value=AtLeast(0)),
         ]
     ]
@@ -35,7 +35,7 @@ class ContiguousArrayOfIntArray(GenericAttrConstraint[_ReassociationAttrBase]):
     def verify(
         self, attr: Attribute, constraint_context: ConstraintContext | None = None
     ) -> None:
-        if not isa(attr, ArrayAttr[ArrayAttr[IntegerAttr]]):
+        if not isa(attr, ArrayAttr[ArrayAttr[IntegerAttr[I64]]]):
             raise VerifyException(
                 f"Expected ArrayAttr but got {getattr(attr, 'name', type(attr))}"
             )
