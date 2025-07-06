@@ -15,6 +15,16 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
+_CONTIGUOUS_ARRAY_TYPE_CONSTRAINT = irdl_to_attr_constraint(ArrayAttr[
+	    ArrayAttr[
+	        Annotated[
+	            IntegerAttr[I64],
+	            IntegerAttr.constr(value=AtLeast(0)),
+	        ]
+	    ]
+	]
+)
+
 @dataclass(frozen=True)
 class ContiguousArrayOfIntArray(
     GenericAttrConstraint[ArrayAttr[ArrayAttr[IntegerAttr]]]
@@ -28,20 +38,8 @@ class ContiguousArrayOfIntArray(
     def verify(
         self, attr: Attribute, constraint_context: ConstraintContext | None = None
     ) -> None:
-        if not isa(
-            attr,
-            ArrayAttr[
-                ArrayAttr[
-                    Annotated[
-                        IntegerAttr[I64],
-                        IntegerAttr.constr(value=AtLeast(0)),
-                    ]
-                ]
-            ],
-        ):
-            raise VerifyException(
-                f"Expected ArrayAttr[ArrayAttr[IntegerAttr[I64]]] but got {getattr(attr, 'name', type(attr))}"
-            )
+        _CONTIGUOUS_ARRAY_TYPE_CONSTRAINT.verify(attr)
+        attr = cast(ArrayAttr[ArrayAttr[IntegerAttr]], attr)
 
         # Flatten all integer values from all inner arrays
         flat_values = [e.value.data for inner in attr.data for e in inner.data]
