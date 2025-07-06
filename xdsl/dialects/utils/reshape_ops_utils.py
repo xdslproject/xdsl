@@ -31,11 +31,11 @@ _CONTIGUOUS_ARRAY_TYPE_CONSTRAINT = irdl_to_attr_constraint(
     ]
 )
 
+ArrayOfIntArrayAttr = ArrayAttr[ArrayAttr[IntegerAttr]]
+
 
 @dataclass(frozen=True)
-class ContiguousArrayOfIntArray(
-    GenericAttrConstraint[ArrayAttr[ArrayAttr[IntegerAttr]]]
-):
+class ContiguousArrayOfIntArray(GenericAttrConstraint[ArrayOfIntArrayAttr]):
     """
     Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values across all inner arrays.
     For example: [[0, 1], [2, 3]] is valid, but [[3, 4], [0, 1]] is not.
@@ -46,7 +46,7 @@ class ContiguousArrayOfIntArray(
         _CONTIGUOUS_ARRAY_TYPE_CONSTRAINT.verify(
             attr, constraint_context=constraint_context
         )
-        attr = cast(ArrayAttr[ArrayAttr[IntegerAttr]], attr)
+        attr = cast(ArrayOfIntArrayAttr, attr)
 
         # Flatten all integer values from all inner arrays
         flat_values = [e.value.data for inner in attr.data for e in inner.data]
@@ -103,7 +103,7 @@ def verify_reshape_like_types(
 def verify_reshape_like_shapes_are_compatible(
     collapsed_shape: tuple[int, ...],
     expanded_shape: tuple[int, ...],
-    reassociation: ReassociationAttr,
+    reassociation: ArrayOfIntArrayAttr,
 ):
     """
     Verify that collapsed and expanded shapes adhere to reassociation mapping.
