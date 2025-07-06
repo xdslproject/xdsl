@@ -747,11 +747,11 @@ class IRNode(ABC):
     @abstractmethod
     def parent_node(self) -> IRNode | None: ...
 
-    @abstractmethod
-    def __eq__(self, other: object) -> bool: ...
+    def __eq__(self, other: object) -> bool:
+        return self is other
 
-    @abstractmethod
-    def __hash__(self) -> int: ...
+    def __hash__(self) -> int:
+        return id(self)
 
 
 @dataclass
@@ -832,7 +832,7 @@ class OpTraits(Iterable[OpTrait]):
         return isinstance(value, OpTraits) and self._traits == value._traits
 
 
-@dataclass
+@dataclass(eq=False, unsafe_hash=False)
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
@@ -1383,12 +1383,6 @@ class Operation(IRNode):
     def dialect_name(cls) -> str:
         return Dialect.split_name(cls.name)[0]
 
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
-
     def __str__(self) -> str:
         from xdsl.printer import Printer
 
@@ -1490,7 +1484,7 @@ class BlockOps(Reversible[Operation], Iterable[Operation]):
         return self.block.last_op
 
 
-@dataclass(init=False)
+@dataclass(init=False, eq=False, unsafe_hash=False)
 class Block(IRNode, IRWithUses):
     """A sequence of operations"""
 
@@ -1919,12 +1913,6 @@ class Block(IRNode, IRWithUses):
 
         return True
 
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
-
 
 @dataclass
 class _RegionBlocksIterator(Iterator[Block]):
@@ -2072,7 +2060,7 @@ class RegionBlocks(Sequence[Block], Reversible[Block]):
         return self._region.last_block
 
 
-@dataclass(init=False)
+@dataclass(init=False, eq=False, unsafe_hash=False)
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
@@ -2542,9 +2530,3 @@ class Region(IRNode):
         ):
             return False
         return True
-
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
