@@ -65,7 +65,8 @@ def interleave_index_and_factor(
         (index, factor) for index, factor in indices_and_factors if index == max_index
     )
 
-    # Reject factors greater than or equal to pipeline_depth * 2
+    # Want the biggest number for maximal instruction-level parallelism, less than
+    # 2 * pipeline depth as a heuristic to limit register pressure.
     indices_and_factors = tuple(
         (index, factor)
         for index, factor in indices_and_factors
@@ -76,6 +77,7 @@ def interleave_index_and_factor(
 
     sorted_indices_and_factors = sorted(indices_and_factors, key=lambda x: x[1])
 
+    # Greatest number less than double of pipeline depth.
     return sorted_indices_and_factors[-1]
 
 

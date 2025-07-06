@@ -55,11 +55,14 @@ class ScopedDict(Generic[_Key, _Value]):
         Fetch key from environment. Attempts to first fetch from current scope,
         then from parent scopes. Raises KeyError error if not found.
         """
-        if key in self._local_scope:
+        cur = self
+        if key in cur._local_scope:
             return self._local_scope[key]
-        if self.parent is None:
-            raise KeyError(f"No value for key {key}")
-        return self.parent[key]
+        while cur.parent is not None:
+            cur = cur.parent
+            if key in cur._local_scope:
+                return cur._local_scope[key]
+        raise KeyError(f"No value for key {key}")
 
     def __setitem__(self, key: _Key, value: _Value):
         """
