@@ -19,7 +19,10 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     i64,
 )
-from xdsl.dialects.utils.dynamic_index_list import parse_dynamic_index_list_without_types, print_dynamic_index_list
+from xdsl.dialects.utils.dynamic_index_list import (
+    parse_dynamic_index_list_without_types,
+    print_dynamic_index_list,
+)
 from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
     verify_reshape_like_types,
@@ -38,7 +41,6 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.irdl.constraints import AnyAttr
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import NoMemoryEffect
