@@ -5,25 +5,32 @@ for more details.
 """
 
 from dataclasses import dataclass
+from typing import cast
 
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import I64, Annotated, ArrayAttr, IntegerAttr
 from xdsl.ir import Attribute
-from xdsl.irdl import AtLeast, AttrConstraint, ConstraintContext, GenericAttrConstraint
-from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
-
-
-_CONTIGUOUS_ARRAY_TYPE_CONSTRAINT = irdl_to_attr_constraint(ArrayAttr[
-	    ArrayAttr[
-	        Annotated[
-	            IntegerAttr[I64],
-	            IntegerAttr.constr(value=AtLeast(0)),
-	        ]
-	    ]
-	]
+from xdsl.irdl import (
+    AtLeast,
+    AttrConstraint,
+    ConstraintContext,
+    GenericAttrConstraint,
+    irdl_to_attr_constraint,
 )
+from xdsl.utils.exceptions import VerifyException
+
+_CONTIGUOUS_ARRAY_TYPE_CONSTRAINT = irdl_to_attr_constraint(
+    ArrayAttr[
+        ArrayAttr[
+            Annotated[
+                IntegerAttr[I64],
+                IntegerAttr.constr(value=AtLeast(0)),
+            ]
+        ]
+    ]
+)
+
 
 @dataclass(frozen=True)
 class ContiguousArrayOfIntArray(
@@ -35,10 +42,10 @@ class ContiguousArrayOfIntArray(
     An empty inner array is considered contiguous.
     """
 
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
-        _CONTIGUOUS_ARRAY_TYPE_CONSTRAINT.verify(attr)
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        _CONTIGUOUS_ARRAY_TYPE_CONSTRAINT.verify(
+            attr, constraint_context=constraint_context
+        )
         attr = cast(ArrayAttr[ArrayAttr[IntegerAttr]], attr)
 
         # Flatten all integer values from all inner arrays

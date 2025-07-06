@@ -85,5 +85,5 @@ builtin.module {
 
 // -----
 
-// CHECK: Expected ArrayAttr[ArrayAttr[IntegerAttr[I64]]] but got array
+// CHECK: expected integer >= 0, got -2
 %res_collapse2 = tensor.collapse_shape %t0 [ [-2, 3], [0, 1] ] : tensor<4x1xf32> into tensor<4x1xf32>
