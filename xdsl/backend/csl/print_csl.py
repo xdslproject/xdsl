@@ -503,6 +503,8 @@ class CslPrintContext:
         Walks over a block and prints every operation in the block.
         """
         for op in body.ops:
+            if self._print_op_override(op):
+                continue
             match op:
                 case (
                     arith.AndIOp(lhs=lhs, rhs=rhs, result=res)
@@ -852,6 +854,14 @@ class CslPrintContext:
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
+    def _print_op_override(self, op: Operation) -> bool:
+        """
+        Extension point for classes inheriting `CslPrintContext`.
+
+        Returning `True` from this function indicates that the child class has handled the printing of `op`
+        """
+        return False
+
     @contextmanager
     def descend(self, block_start: str = ""):
         """
@@ -903,11 +913,13 @@ def get_csl_modules_in_module_op(module: ModuleOp) -> Iterable[csl.CslModuleOp]:
     yield from layouts
 
 
-def print_to_csl(prog: ModuleOp, output: IO[str]):
+def print_to_csl(
+    prog: ModuleOp, output: IO[str], Ctx: type[CslPrintContext] = CslPrintContext
+):
     """
     Takes a module op and prints it to the given output stream.
     """
-    ctx = CslPrintContext(output)
+    ctx = Ctx(output)
     ctx.register_binops()
 
     divider = False
