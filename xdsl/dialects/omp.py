@@ -243,7 +243,7 @@ class LoopWrapper(NoTerminator):
         return super().verify(op)
 
 
-class BlockArgOpenMPOp(IRDLOperation):
+class BlockArgOpenMPOperation(IRDLOperation, ABC):
     """
     Verifies that the operation has the appropriate number of block arguments corresponding to the following operands:
     `host_eval`, `in_reduction`, `map`, `private`, `reduction`, `task_reduction`, `use_device_addr` and `use_device_ptr`.
