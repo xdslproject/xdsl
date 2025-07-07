@@ -1,3 +1,4 @@
+from abc import ABC
 from collections import defaultdict
 from enum import IntFlag, auto
 from typing import ClassVar
@@ -523,7 +524,7 @@ class LoopNestOp(IRDLOperation):
 
 
 @irdl_op_definition
-class WsLoopOp(BlockArgOpenMPOp):
+class WsLoopOp(BlockArgOpenMPOperation):
     name = "omp.wsloop"
 
     LINEAR_COUNT: ClassVar = IntVarConstraint("LINEAR_COUNT", AnyInt())
@@ -576,7 +577,7 @@ class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], SpacedOpaqueSyntaxAttrib
 
 
 @irdl_op_definition
-class ParallelOp(BlockArgOpenMPOp):
+class ParallelOp(BlockArgOpenMPOperation):
     name = "omp.parallel"
 
     allocate_vars = var_operand_def()
@@ -636,7 +637,7 @@ class TerminatorOp(IRDLOperation):
 
 
 @irdl_op_definition
-class TargetOp(BlockArgOpenMPOp):
+class TargetOp(BlockArgOpenMPOperation):
     """
     Implementation of upstream omp.target
     See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget-omptargetop).
@@ -755,7 +756,7 @@ class MapInfoOp(IRDLOperation):
 
 
 @irdl_op_definition
-class SimdOp(BlockArgOpenMPOp):
+class SimdOp(BlockArgOpenMPOperation):
     """
     Implementation of upstream omp.simd
     See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompsimd-ompsimdop).
@@ -906,7 +907,7 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
 
 
 @irdl_op_definition
-class TargetDataOp(BlockArgOpenMPOp):
+class TargetDataOp(BlockArgOpenMPOperation):
     """
     Implementation of upstream omp.target_data
     See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget_data-omptargetdataop).
