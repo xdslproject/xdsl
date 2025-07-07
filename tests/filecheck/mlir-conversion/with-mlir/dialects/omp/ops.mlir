@@ -110,12 +110,6 @@ builtin.module {
         omp.yield
       }) : (index, index, index) -> ()
     }) : () -> ()
-    "omp.wsloop"() <{"inclusive", operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
-      "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
-      ^14(%arg7_9 : index):
-        omp.yield
-      }) : (index, index, index) -> ()
-    }) : () -> ()
     "omp.wsloop"() <{"nowait", operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
       "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
       ^15(%arg7_10 : index):
@@ -301,12 +295,6 @@ builtin.module {
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:      }) : (memref<1xi32>, i32, i16) -> ()
-// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
-// CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-// CHECK-NEXT:        ^{{.*}}(%{{.*}} : index):
-// CHECK-NEXT:          omp.yield
-// CHECK-NEXT:        }) : (index, index, index) -> ()
-// CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
 // CHECK-NEXT:        ^{{.*}}(%{{.*}} : index):

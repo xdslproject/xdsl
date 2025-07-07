@@ -26,6 +26,76 @@ func.func @omp_ordered(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4
 
 // -----
 
+func.func @omp_wsloop_block(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
+    "omp.wsloop"(%arg0, %arg1, %arg3) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 2, 1, 0>, ordered = 0 : i64}> ({
+    ^block_(%a : i32):
+        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
+        ^0(%arg7 : i32):
+            omp.yield
+        }) : (i32, i32, i32) -> ()
+    }) : (i32, i32, i64) -> ()
+    return
+}
+
+// CHECK: omp.wsloop expected to have 3 block argument(s), got 1
+
+// -----
+
+func.func @omp_parallel_block(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
+  "omp.parallel"(%arg0, %arg1, %arg2) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 1, 2>}> ({
+    ^block_(%a : i32):
+    "omp.terminator"() : () -> ()
+  }) : (i32, i32, i32) -> ()
+  return
+}
+
+// CHECK: omp.parallel expected to have 3 block argument(s), got 1
+
+// -----
+
+func.func @omp_target_block(%host : i32, %inr1 : i32, %inr2 : i32, %map : memref<1xf32>, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
+  %map1 = "omp.map.info"(%map) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+  "omp.target"(%host, %inr1, %inr2, %map1, %arg4, %arg5, %arg6) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 3, 0>}> ({
+    ^0(%a : i32, %b : i32):
+    "omp.terminator"() : () -> ()
+  }) : (i32, i32, i32, memref<1xf32>, i64, i64, i64) -> ()
+  return
+}
+
+// CHECK: omp.target expected to have 6 block argument(s), got 2
+
+// -----
+
+func.func @omp_simd(%ub : index, %lb : index, %step : index,%p1 : f32, %r1 : memref<1xf32>) {
+  "omp.simd"(%p1, %r1) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 1>}> ({
+  ^0():
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^0(%iter : index):
+      omp.yield
+    }) : (index, index, index) -> ()
+
+  }) : (f32, memref<1xf32>) -> ()
+  func.return
+}
+
+// CHECK: omp.simd expected to have 2 block argument(s), got 0
+
+// -----
+
+func.func @omp_target_data(%dev : i64, %if : i1, %m : memref<1xf32>, %d1 : memref<1xf64>, %d2 : memref<1xi32>) {
+  %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+  "omp.target_data"(%dev, %if, %m1, %d1, %d2, %d2) <{operandSegmentSizes = array<i32: 1, 1, 1, 2, 1>}> ({
+  ^0(%0 : memref<1xi64>, %1 : memref<1xi64>):
+    "omp.terminator"() : () -> ()
+  }) : (i64, i1, memref<1xf32>, memref<1xf64>, memref<1xi32>, memref<1xi32>) -> ()
+  func.return
+}
+
+
+// CHECK: omp.target_data expected to have 3 block argument(s), got 2
+
+// -----
+
 func.func @omp_simd_aligned(%ub : index, %lb : index, %step : index, %a1 : memref<1xi32>, %a2 : memref<10xf32>) {
   "omp.simd"(%a1, %a2) <{operandSegmentSizes = array<i32: 2, 0, 0, 0, 0, 0, 0>, alignments = [64, 8, 16]}> ({
     "omp.loop_nest"(%lb, %ub, %step) ({
