@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import NoReturn
 
 from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects.builtin import ModuleOp, TensorType, UnrankedTensorType, f64
@@ -213,7 +212,7 @@ class IRGen:
         elif binop.op == "*":
             op = self.builder.insert(MulOp(lhs, rhs))
         else:
-            self.error(f"Unsupported binary operation `{binop.op}`")
+            raise IRGenError(f"Unsupported binary operation `{binop.op}`")
 
         return op.res
 
@@ -227,7 +226,7 @@ class IRGen:
             variable = self.symbol_table[expr.name]
             return variable
         except Exception as e:
-            self.error(f"error: unknown variable `{expr.name}`", e)
+            raise IRGenError(f"error: unknown variable `{expr.name}`") from e
 
     def ir_gen_return_expr(self, ret: ReturnExprAST):
         "Emit a return operation. This will return failure if any generation fails."
@@ -287,7 +286,7 @@ class IRGen:
         elif isinstance(expr, NumberExprAST):
             return [expr.val]
         else:
-            self.error(
+            raise IRGenError(
                 f"Unsupported expr ({expr}) of type ({type(expr)}), "
                 "expected literal or number expr"
             )
@@ -308,7 +307,7 @@ class IRGen:
         # straightforward emission.
         if callee == "transpose":
             if len(operands) != 1:
-                self.error(
+                raise IRGenError(
                     "MLIR codegen encountered an error: toy.transpose "
                     "does not accept multiple arguments"
                 )
@@ -352,7 +351,7 @@ class IRGen:
         if isinstance(expr, NumberExprAST):
             return self.ir_gen_number_expr(expr)
         else:
-            self.error(
+            raise IRGenError(
                 f"MLIR codegen encountered an unhandled expr kind '{type(expr).__name__}'"
             )
 
@@ -396,6 +395,3 @@ class IRGen:
             else:
                 # Generic expression dispatch codegen.
                 self.ir_gen_expr(expr)
-
-    def error(self, message: str, cause: Exception | None = None) -> NoReturn:
-        raise IRGenError(message) from cause
