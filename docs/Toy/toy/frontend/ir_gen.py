@@ -352,7 +352,9 @@ class IRGen:
         if isinstance(expr, NumberExprAST):
             return self.ir_gen_number_expr(expr)
         else:
-            self.error(f"MLIR codegen encountered an unhandled expr kind '{expr.kind}'")
+            self.error(
+                f"MLIR codegen encountered an unhandled expr kind '{type(expr).__name__}'"
+            )
 
     def ir_gen_var_decl_expr(self, vardecl: VarDeclExprAST) -> SSAValue:
         """
