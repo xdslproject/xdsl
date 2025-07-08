@@ -4,7 +4,6 @@ Toy language dialect from MLIR tutorial.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import TypeAlias, cast
 
 from xdsl.dialects.builtin import (
@@ -41,13 +40,15 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.pattern_rewriter import RewritePattern
-from xdsl.rewriter import Rewriter
+from xdsl.pattern_rewriter import (
+    PatternRewriter,
+    RewritePattern,
+)
 from xdsl.traits import (
     CallableOpInterface,
     HasCanonicalizationPatternsTrait,
+    HasShapeInferencePatternsTrait,
     IsTerminator,
-    OpTrait,
     Pure,
     SymbolOpInterface,
 )
@@ -58,17 +59,6 @@ TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
 AnyTensorTypeF64: TypeAlias = TensorTypeF64 | UnrankedTensorTypeF64
 AnyTensorTypeF64Constr = base(TensorTypeF64) | base(UnrankedTensorTypeF64)
-
-
-class ToyShapeInferenceTrait(OpTrait, ABC):
-    """
-    Traits Toy operations should inherit from to infer shape inference based on operands.
-    """
-
-    @classmethod
-    @abstractmethod
-    def infer_shape(cls, op: Operation) -> None:
-        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -121,11 +111,11 @@ class ConstantOp(IRDLOperation):
         return list(self.value.get_values())
 
 
-class InferAddOpShapeTrait(ToyShapeInferenceTrait):
-    @classmethod
-    def infer_shape(cls, op: Operation) -> None:
+class InferAddOpShapeInferencePattern(RewritePattern):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         if not isinstance(op, AddOp):
-            raise TypeError
+            return
+
         if not (
             isa(op_lhs_type := op.lhs.type, TensorType)
             and isinstance(op_rhs_type := op.rhs.type, TensorType)
@@ -135,7 +125,13 @@ class InferAddOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert op_lhs_type.get_shape() == op_res_type.get_shape()
         else:
-            Rewriter.replace_value_with_new_type(op.res, op_lhs_type)
+            rewriter.replace_value_with_new_type(op.res, op_lhs_type)
+
+
+class InferAddOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        return (InferAddOpShapeInferencePattern(),)
 
 
 @irdl_op_definition
@@ -150,7 +146,7 @@ class AddOp(IRDLOperation):
     rhs = operand_def(AnyTensorTypeF64Constr)
     res = result_def(AnyTensorTypeF64Constr)
 
-    traits = traits_def(Pure(), InferAddOpShapeTrait())
+    traits = traits_def(Pure(), InferAddOpHasShapeInferencePatternsTrait())
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.type, TensorTypeF64):
@@ -298,11 +294,10 @@ class GenericCallOp(IRDLOperation):
         )
 
 
-class InferMulOpShapeTrait(ToyShapeInferenceTrait):
-    @classmethod
-    def infer_shape(cls, op: Operation) -> None:
+class MulOpInferShapeInferencePattern(RewritePattern):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         if not isinstance(op, MulOp):
-            raise TypeError
+            return
 
         if not (
             isa(op_lhs_type := op.lhs.type, TensorType)
@@ -314,7 +309,13 @@ class InferMulOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert op_lhs_type.get_shape() == op_res_type.get_shape()
         else:
-            Rewriter.replace_value_with_new_type(op.res, op_lhs_type)
+            rewriter.replace_value_with_new_type(op.res, op_lhs_type)
+
+
+class InferMulOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        return (MulOpInferShapeInferencePattern(),)
 
 
 @irdl_op_definition
@@ -329,7 +330,7 @@ class MulOp(IRDLOperation):
     rhs = operand_def(AnyTensorTypeF64Constr)
     res = result_def(AnyTensorTypeF64Constr)
 
-    traits = traits_def(Pure(), InferMulOpShapeTrait())
+    traits = traits_def(Pure(), InferMulOpHasShapeInferencePatternsTrait())
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.type, TensorTypeF64):
@@ -448,11 +449,10 @@ class ReshapeOp(IRDLOperation):
             raise VerifyException("Reshape operation result shape should be defined")
 
 
-class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
-    @classmethod
-    def infer_shape(cls, op: Operation) -> None:
+class TransposeOpInferShapeInferencePattern(RewritePattern):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         if not isinstance(op, TransposeOp):
-            raise TypeError
+            return
 
         if not isinstance(op_arg_type := op.arg.type, TensorType):
             return
@@ -463,7 +463,13 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert res_shape == op_res_type.get_shape()
         else:
-            Rewriter.replace_value_with_new_type(op.res, TensorType(f64, res_shape))
+            rewriter.replace_value_with_new_type(op.res, TensorType(f64, res_shape))
+
+
+class TransposeOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        return (TransposeOpInferShapeInferencePattern(),)
 
 
 class TransposeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -483,7 +489,7 @@ class TransposeOp(IRDLOperation):
     traits = OpTraits(
         lambda: (
             Pure(),
-            InferTransposeOpShapeTrait(),
+            TransposeOpHasShapeInferencePatternsTrait(),
             TransposeOpHasCanonicalizationPatternsTrait(),
         )
     )
@@ -504,11 +510,10 @@ class TransposeOp(IRDLOperation):
         super().__init__(operands=[arg], result_types=[output_type])
 
 
-class InferCastOpShapeTrait(ToyShapeInferenceTrait):
-    @classmethod
-    def infer_shape(cls, op: Operation) -> None:
+class CastOpInferShapeInferencePattern(RewritePattern):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         if not isinstance(op, CastOp):
-            raise TypeError
+            return
 
         if not isinstance(op_arg_type := op.arg.type, TensorType):
             return
@@ -517,8 +522,15 @@ class InferCastOpShapeTrait(ToyShapeInferenceTrait):
 
         if isinstance(op_res_type := op.res.type, TensorType):
             assert shape == op_res_type.get_shape()
+            rewriter.replace_matched_op((), (op.arg,))
         else:
-            Rewriter.replace_value_with_new_type(op.res, TensorType(f64, shape))
+            rewriter.replace_value_with_new_type(op.res, TensorType(f64, shape))
+
+
+class CastOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        return (CastOpInferShapeInferencePattern(),)
 
 
 @irdl_op_definition
@@ -527,7 +539,7 @@ class CastOp(IRDLOperation):
     arg = operand_def(AnyTensorTypeF64Constr)
     res = result_def(AnyTensorTypeF64Constr)
 
-    traits = traits_def(Pure(), InferCastOpShapeTrait())
+    traits = traits_def(Pure(), CastOpHasShapeInferencePatternsTrait())
 
     def __init__(self, arg: SSAValue, res: AnyTensorTypeF64 | None = None):
         if res is None:

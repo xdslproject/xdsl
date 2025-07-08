@@ -35,7 +35,7 @@ parser.add_argument(
         "toy",
         "toy-opt",
         "toy-inline",
-        "toy-infer-shapes",
+        "shape-inference",
         "affine",
         "scf",
         "riscv",
@@ -98,7 +98,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         return
 
     interpreter = Interpreter(module_op)
-    if emit in ("toy", "toy-opt", "toy-inline", "toy-infer-shapes"):
+    if emit in ("toy", "toy-opt", "toy-inline", "shape-inference"):
         interpreter.register_implementations(ToyFunctions())
     if emit in ("affine"):
         interpreter.register_implementations(AffineFunctions())
