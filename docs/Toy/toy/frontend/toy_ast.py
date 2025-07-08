@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
 from typing import NamedTuple
 
 from .location import Location
@@ -15,8 +14,7 @@ class VarType(NamedTuple):
     shape: list[int]
 
 
-@dataclass()
-class Dumper:
+class Dumper(NamedTuple):
     lines: list[str]
     indentation: int = 0
 
