@@ -255,7 +255,7 @@ class BlockArgOpenMPOperation(IRDLOperation, ABC):
             raise VerifyException(f"Expected {self.name} to have at least 1 region")
         if len(self.regions[0].blocks) < 1:
             raise VerifyException(
-                f"Expected {self.name} to have at least 1 block in it's first region"
+                f"Expected {self.name} to have at least 1 block in its first region"
             )
 
         expected = (
