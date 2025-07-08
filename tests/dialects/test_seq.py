@@ -12,12 +12,12 @@ from xdsl.dialects.seq import (
     clock,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_clockdivider_verify():
     clock_div = ClockDividerOp(
-        TestSSAValue(clock),
+        create_ssa_value(clock),
         IntegerAttr(512, i32),
     )
     with pytest.raises(
@@ -28,9 +28,9 @@ def test_clockdivider_verify():
 
 
 def test_compreg_builder():
-    data_val = TestSSAValue(IntegerType(5))
-    bool_val = TestSSAValue(i1)
-    clock_val = TestSSAValue(clock)
+    data_val = create_ssa_value(IntegerType(5))
+    bool_val = create_ssa_value(i1)
+    clock_val = create_ssa_value(clock)
 
     CompRegOp(data_val, clock_val).verify()
 

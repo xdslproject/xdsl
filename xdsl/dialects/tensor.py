@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import Any, cast
+from typing import cast
 
 from typing_extensions import Self
 
@@ -10,19 +10,19 @@ from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     Annotated,
     AnySignlessIntegerOrIndexType,
-    ArrayAttr,
-    ContainerType,
     DenseArrayBase,
     IndexType,
-    IntegerAttr,
-    IntegerType,
     TensorType,
     UnrankedTensorType,
     i64,
 )
+from xdsl.dialects.utils.reshape_ops_utils import (
+    ContiguousArrayOfIntArray,
+)
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     base,
@@ -181,18 +181,13 @@ class EmptyOp(IRDLOperation):
         return empty
 
 
-ReassociationAttr = ArrayAttr[
-    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
-]
-
-
 @irdl_op_definition
 class CollapseShapeOp(IRDLOperation):
     name = "tensor.collapse_shape"
 
     src = operand_def(TensorType[Attribute])
     result = result_def(TensorType[Attribute])
-    reassociation = prop_def(ReassociationAttr)
+    reassociation = prop_def(ContiguousArrayOfIntArray())
     assembly_format = (
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
     )
@@ -257,18 +252,16 @@ class ReshapeOp(IRDLOperation):
         return reshape
 
     def verify_(self) -> None:
-        if (
-            not isinstance(source_type := self.source.type, TensorType)
-            or not isinstance(shape_type := self.shape.type, TensorType)
-            or not isinstance(res_type := self.result.type, TensorType)
-        ):
+        if not isinstance(
+            source_type := self.source.type, TensorType
+        ) or not isinstance(shape_type := self.shape.type, TensorType):
             raise ValueError(
                 "tensor elementwise operation operands and result must be of type TensorType"
             )
 
         source_type = cast(TensorType[Attribute], source_type)
         shape_type = cast(TensorType[Attribute], shape_type)
-        res_type = cast(TensorType[Attribute], res_type)
+        res_type = self.result.type
 
         if source_type.element_type != res_type.element_type:
             raise VerifyException(
@@ -303,9 +296,9 @@ class ExtractSliceOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -322,17 +315,15 @@ class ExtractSliceOp(IRDLOperation):
     ) -> ExtractSliceOp:
         if strides is None:
             strides = [1] * len(offsets)
-        source_v = SSAValue.get(source)
+        source_v = SSAValue.get(source, type=TensorType)
         source_t = source_v.type
-        if not isinstance(source_t, ContainerType):
-            raise ValueError(f"Expected ContainerType, got {source_t}")
 
         if reduce_rank:
             result_sizes = list(s for s in sizes if s != 1)
         else:
             result_sizes = list(sizes)
 
-        return_type = TensorType[Any](source_t.get_element_type(), result_sizes)
+        return_type = TensorType(source_t.get_element_type(), result_sizes)
 
         return ExtractSliceOp.build(
             operands=[source, [], [], []],
@@ -354,9 +345,9 @@ class InsertSliceOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -521,6 +512,17 @@ class InsertOp(IRDLOperation):
         return cls(scalar, dest, indices)
 
 
+@irdl_op_definition
+class FromElementsOp(IRDLOperation):
+    name = "tensor.from_elements"
+
+    ElementType = Annotated[Attribute, ConstraintVar("ElementType")]
+
+    elements = var_operand_def(ElementType)
+    result = result_def(TensorType[ElementType])
+    assembly_format = "$elements attr-dict `:` type($result)"
+
+
 Tensor = Dialect(
     "tensor",
     [
@@ -533,6 +535,7 @@ Tensor = Dialect(
         CollapseShapeOp,
         ExtractOp,
         InsertOp,
+        FromElementsOp,
     ],
     [],
 )

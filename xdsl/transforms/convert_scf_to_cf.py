@@ -1,10 +1,11 @@
-from collections.abc import Sequence
-from typing import cast
-
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.arith import AddiOp, CmpiOp, IndexCastOp
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, i32
+from xdsl.dialects.builtin import (
+    DenseIntElementsAttr,
+    VectorType,
+    i32,
+)
 from xdsl.dialects.cf import BranchOp, ConditionalBranchOp, SwitchOp
 from xdsl.dialects.scf import ForOp, IfOp, IndexSwitchOp, YieldOp
 from xdsl.ir import Block, Region
@@ -191,7 +192,7 @@ class SwitchLowering(RewritePattern):
             self._convert_region(region, continue_block, rewriter)
             for region in op.case_regions
         )
-        case_values = cast(Sequence[int], op.cases.get_values())
+        case_values = op.cases.get_values()
 
         # Convert the default region
         default_block = self._convert_region(
@@ -209,7 +210,9 @@ class SwitchLowering(RewritePattern):
                 case_value,
                 default_block,
                 (),
-                DenseIntOrFPElementsAttr.vector_from_list(case_values, i32),
+                DenseIntElementsAttr.from_list(
+                    VectorType(i32, (len(case_values),)), case_values
+                ),
                 case_successors,
                 case_operands,
             ),

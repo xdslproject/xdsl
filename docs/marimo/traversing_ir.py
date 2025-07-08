@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.13.6"
 app = marimo.App(width="medium")
 
 
@@ -16,10 +16,9 @@ def _():
     from collections import Counter
     from xdsl.ir import OpResult, BlockArgument
     return (
-        BlockArgument,
+        Context,
         Counter,
         Dialect,
-        Context,
         OpResult,
         Parser,
         arith,
@@ -46,8 +45,8 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _():
-    triangle_text = """\
-    func.func @triangle(%n: index) -> index {
+    sum_of_squares_text = """\
+    func.func @sum_of_squares(%n: index) -> index {
       %zero = arith.constant 0 : index
       %one = arith.constant 1 : index
       %res = scf.for %i = %zero to %n step %one iter_args(%acc_in = %zero) -> (index) {
@@ -58,15 +57,16 @@ def _():
       func.return %res : index
     }\
     """
-    return (triangle_text,)
+    return (sum_of_squares_text,)
 
 
 @app.cell(hide_code=True)
-def _(mo, triangle_text):
-    mo.md(fr"""
+def _(mo, sum_of_squares_text):
+    mo.md(
+        fr"""
     In this notebook, we'll be looking at the structure of the following module:
 
-    {mo.ui.code_editor(triangle_text, language="javascript", disabled=True)}
+    {mo.ui.code_editor(sum_of_squares_text, language="javascript", disabled=True)}
     """
     )
     return
@@ -84,12 +84,12 @@ def _(Context, arith, builtin, func, scf):
 
 
 @app.cell
-def _(Parser, ctx, triangle_text, xmo):
-    triangle_module = Parser(ctx, triangle_text).parse_module()
+def _(Parser, ctx, sum_of_squares_text, xmo):
+    sum_of_squares_module = Parser(ctx, sum_of_squares_text).parse_module()
 
     # We can then parse and reprint the same module
-    xmo.module_html(triangle_module)
-    return (triangle_module,)
+    xmo.module_html(sum_of_squares_module)
+    return (sum_of_squares_module,)
 
 
 @app.cell(hide_code=True)
@@ -102,17 +102,17 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        The Operation class exposes a `walk` function, which lets us iterate over the IR from top to bottom.
+    The Operation class exposes a `walk` function, which lets us iterate over the IR from top to bottom.
 
-        For example, to get the names of all the operations in our module, we can write a snippet like this:
-        """
+    For example, to get the names of all the operations in our module, we can write a snippet like this:
+    """
     )
     return
 
 
 @app.cell
-def _(triangle_module):
-    print([op.name for op in triangle_module.walk()])
+def _(sum_of_squares_module):
+    print([op.name for op in sum_of_squares_module.walk()])
     return
 
 
@@ -120,29 +120,29 @@ def _(triangle_module):
 def _(mo):
     mo.md(
         r"""
-        These helpers will be useful for the exercises below:
+    These helpers will be useful for the exercises below:
 
-        `Operation`:
+    `Operation`:
 
-        * `results: Sequence[OpResult]`
-        * `operands: Sequence[SSAValue]`
+    * `results: Sequence[OpResult]`
+    * `operands: Sequence[SSAValue]`
 
-        `Block`:
+    `Block`:
 
-        * `parent_op: Operation | None`
-        * `args: Sequence[BlockArgument]`
+    * `parent_op: Operation | None`
+    * `args: Sequence[BlockArgument]`
 
-        `SSAValue`:
+    `SSAValue`:
 
-        * `uses: set[Use]`
-        * `owner: Operation | Block`
+    * `uses: set[Use]`
+    * `owner: Operation | Block`
 
-        `OpResult` and `BlockArgument` are subclasses of `SSAValue`.
+    `OpResult` and `BlockArgument` are subclasses of `SSAValue`.
 
-        `Use`:
+    `Use`:
 
-        * `operation: Operation`
-        """
+    * `operation: Operation`
+    """
     )
     return
 
@@ -160,9 +160,9 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, triangle_module, unique_operations):
+def _(mo, sum_of_squares_module, unique_operations):
     try:
-        _sorted = "{" + ", ".join(sorted(unique_operations(triangle_module))) + "}"
+        _sorted = "{" + ", ".join(sorted(unique_operations(sum_of_squares_module))) + "}"
         _res = str(_sorted)
     except Exception as e:
         _res = f"{type(e).__name__}: {e}"
@@ -199,9 +199,9 @@ def _(builtin):
 
 
 @app.cell(hide_code=True)
-def _(mo, operation_counts, triangle_module):
+def _(mo, operation_counts, sum_of_squares_module):
     try:
-        _res = str(operation_counts(triangle_module))
+        _res = str(operation_counts(sum_of_squares_module))
     except Exception as e:
         _res = f"{type(e).__name__}: {e}"
 
@@ -239,9 +239,9 @@ def _(Counter, builtin):
 
 
 @app.cell(hide_code=True)
-def _(mo, operations_by_dialect, triangle_module):
+def _(mo, operations_by_dialect, sum_of_squares_module):
     try:
-        _unsorted = operations_by_dialect(triangle_module)
+        _unsorted = operations_by_dialect(sum_of_squares_module)
         _sorted = {
             k: sorted(_unsorted[k])
             for k in sorted(_unsorted)
@@ -298,31 +298,32 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        SSA values in IR are either defined as results or block arguments.
-        In xDSL, the values have optional name hints, and are numbered in ascending order when printing if the name hint is missing.
-        """
+    SSA values in IR are either defined as results or block arguments.
+    In xDSL, the values have optional name hints, and are numbered in ascending order when printing if the name hint is missing.
+    """
     )
     return
 
 
 @app.cell(hide_code=True)
-def _(triangle_module):
-    all_operands = set(val.name_hint for op in triangle_module.walk() for val in op.operands)
-    all_results = set(val.name_hint for op in triangle_module.walk() for val in op.results)
+def _(sum_of_squares_module):
+    all_operands = set(val.name_hint for op in sum_of_squares_module.walk() for val in op.operands)
+    all_results = set(val.name_hint for op in sum_of_squares_module.walk() for val in op.results)
     all_block_args = set(
         val.name_hint
-        for op in triangle_module.walk()
+        for op in sum_of_squares_module.walk()
         for region in op.regions
         for block in region.blocks
         for val in block.args
     )
     all_ssa_values = all_operands | all_results | all_block_args
-    return all_block_args, all_operands, all_results, all_ssa_values
+    return (all_ssa_values,)
 
 
 @app.cell(hide_code=True)
 def _(all_ssa_values, mo):
-    mo.md(fr"""
+    mo.md(
+        fr"""
     Here are all the name hints of SSA values in our module:
 
     ```
@@ -334,9 +335,9 @@ def _(all_ssa_values, mo):
 
 
 @app.cell(hide_code=True)
-def _(definition_by_use, mo, triangle_module):
+def _(definition_by_use, mo, sum_of_squares_module):
     try:
-        _unsorted = definition_by_use(triangle_module)
+        _unsorted = definition_by_use(sum_of_squares_module)
         _sorted = {
             k: sorted(_unsorted[k])
             for k in sorted(_unsorted)
@@ -391,9 +392,9 @@ def _(OpResult, builtin, defaultdict):
 
 
 @app.cell(hide_code=True)
-def _(mo, triangle_module, uses_by_definition):
+def _(mo, sum_of_squares_module, uses_by_definition):
     try:
-        _unsorted = uses_by_definition(triangle_module)
+        _unsorted = uses_by_definition(sum_of_squares_module)
         _sorted = {
             k: sorted(_unsorted[k])
             for k in sorted(_unsorted)

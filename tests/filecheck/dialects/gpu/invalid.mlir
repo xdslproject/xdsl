@@ -8,7 +8,6 @@
             %sum = "arith.addi"(%lhs, %rhs) : (index, index) -> index
             "gpu.yield"(%sum) : (index) -> ()
         }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
-        "gpu.module_end"() : () -> ()
     }) {"sym_name" = "all_reduce_both"} : () -> ()
 }) {} : () -> ()
 
@@ -32,7 +31,6 @@
             %sum = "arith.addi"(%lhs, %c) : (index, index) -> index
             "gpu.yield"(%sum) : (index) -> ()
         }) : (index) -> index
-        "gpu.module_end"() : () -> ()
     }) {"sym_name" = "all_reduce_body_types"} : () -> ()
 }) {} : () -> ()
 
@@ -44,7 +42,6 @@
     "gpu.module"()({
         %init = "arith.constant"() {"value" = 42 : index} : () -> index
         %sum = "gpu.all_reduce"(%init) ({}) : (index) -> index
-        "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
@@ -57,7 +54,6 @@
         %init = "arith.constant"() {"value" = 42 : index} : () -> index
         %sum = "gpu.all_reduce"(%init) ({
         }) {"op" = #gpu<all_reduce_op add>} : (index) -> f32
-        "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
@@ -67,7 +63,7 @@
 
 "builtin.module"() ({
     %0 = "arith.constant"() {"value" = 10 : index} : () -> index
-    %gdmemref = "gpu.alloc"(%0, %0, %0) {"operandSegmentSizes" = array<i32: 0, 3, 0>} : (index, index, index) -> memref<10x10x10xf64>
+    %gdmemref = "gpu.alloc"(%0, %0, %0) {operandSegmentSizes = array<i32: 0, 3, 0>} : (index, index, index) -> memref<10x10x10xf64>
 }) : () -> ()
 
 // CHECK: Expected 0 dynamic sizes, got 3. All dynamic sizes need to be set in the alloc operation.
@@ -93,8 +89,7 @@
             }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
             %final = "arith.muli"(%sum, %one) : (index, index) -> index
             "gpu.terminator"() : () -> ()
-        }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>} : (index, index, index, index, index, index) -> ()
-        "gpu.module_end"() : () -> ()
+        }) {operandSegmentSizes = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>} : (index, index, index, index, index, index) -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
@@ -108,8 +103,7 @@
         %one = "arith.constant"() {"value" = 1 : index} : () -> index
 
         "gpu.launch"(%one, %one, %n, %one, %one, %one) ({})
-        {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>} : (index, index, index, index, index, index) -> ()
-        "gpu.module_end"() : () -> ()
+        {operandSegmentSizes = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>} : (index, index, index, index, index, index) -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
@@ -118,11 +112,11 @@
 // -----
 
 "builtin.module"() ({
-    %memref = "memref.alloc"() {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<10x10xi32>
+    %memref = "memref.alloc"() {"alignment" = 0 : i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<10x10xi32>
     %ten = "arith.constant"() {"value" = 10 : index} : () -> index
-    %gmemref = "gpu.alloc"(%ten, %ten) {"operandSegmentSizes" = array<i32: 0, 2, 0>} : (index, index) -> memref<?x?xi32>
+    %gmemref = "gpu.alloc"(%ten, %ten) {operandSegmentSizes = array<i32: 0, 2, 0>} : (index, index) -> memref<?x?xi32>
 
-    "gpu.memcpy"(%memref, %gmemref) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<10x10xi32>, memref<?x?xi32>) -> ()
+    "gpu.memcpy"(%memref, %gmemref) {operandSegmentSizes = array<i32: 0, 1, 1>} : (memref<10x10xi32>, memref<?x?xi32>) -> ()
 
 }) : () -> ()
 
@@ -132,11 +126,11 @@
 
 "builtin.module"()({
     "gpu.module"()({
-        "gpu.module_end"() : () -> ()
+^0:
     }) {} : () -> ()
 }) {} : () -> ()
 
-// CHECK: property sym_name expected
+// CHECK: property 'sym_name' expected in operation 'gpu.module'
 
 // -----
 
@@ -150,7 +144,6 @@
             %float = "arith.constant"() {"value" = 42.0 : f32} : () -> f32
             "gpu.yield"(%float) : (f32) -> ()
         }) {} : (index) -> index
-        "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
@@ -164,7 +157,6 @@
         ^bb0(%arg0: index):
             "gpu.return"() : () -> ()
         }) {"sym_name" = "foo", "kernel", "function_type" = () -> ()} : () -> ()
-        "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) : () -> ()
 
@@ -178,7 +170,6 @@
         ^bb0(%arg0: index):
             "gpu.return"(%arg0) : (index) -> ()
         }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> (index)} : () -> ()
-        "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) : () -> ()
 

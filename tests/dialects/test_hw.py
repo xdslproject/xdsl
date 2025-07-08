@@ -46,7 +46,7 @@ from xdsl.traits import (
     ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_inner_sym_target():
@@ -170,7 +170,7 @@ def test_inner_symbol_table_interface():
     MissingAttrModuleOp(regions=[[mod_missing_trait_parent, OutputOp()]])
     with pytest.raises(
         VerifyException,
-        match="attribute sym_name expected",
+        match="attribute 'sym_name' expected in operation 'module'",
     ):
         mod_missing_trait_parent.verify()
 
@@ -352,7 +352,7 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
         inst_op := InstanceOp(
             "test",
             SymbolRefAttr("module"),
-            (("foo", TestSSAValue(i32)), ("bar", TestSSAValue(i64))),
+            (("foo", create_ssa_value(i32)), ("bar", create_ssa_value(i64))),
             (("baz", i32), ("qux", i64)),
         )
     )
@@ -368,7 +368,7 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
 
 
 def test_hwmoduleop_hwmodulelike():
-    module_type = ModuleType((ArrayAttr(()),))
+    module_type = ModuleType(ArrayAttr(()))
 
     hw_module = HWModuleOp(
         StringAttr("foo"), module_type, Region((Block((OutputOp(),)),))
@@ -379,11 +379,7 @@ def test_hwmoduleop_hwmodulelike():
     assert hw_module_like.get_hw_module_type(hw_module) == module_type
 
     new_module_type = ModuleType(
-        (
-            ArrayAttr(
-                (ModulePort((StringAttr("in1"), i32, DirectionAttr(Direction.INPUT))),)
-            ),
-        )
+        ArrayAttr((ModulePort(StringAttr("in1"), i32, DirectionAttr(Direction.INPUT)),))
     )
     hw_module_like.set_hw_module_type(hw_module, new_module_type)
     assert hw_module_like.get_hw_module_type(hw_module) == new_module_type

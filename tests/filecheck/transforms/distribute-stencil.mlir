@@ -178,7 +178,7 @@ func.func @store_result_lowering(%arg0 : f64) {
 // SHAPE-NEXT:      func.return
 // SHAPE-NEXT:    }
 
-func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>, %b1 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>)  attributes {"stencil.program"}{
+func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>, %b1 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>)  attributes {"stencil.program"} {
     %101, %102 = stencil.apply(%arg1_1 = %arg0_1 : f64) -> (!stencil.temp<[0,8]x[0,8]x[0,8]xf64>, !stencil.temp<[0,8]x[0,8]x[0,8]xf64>) {
       %true = "test.op"() : () -> i1
       %103, %104 = scf.if %true -> (!stencil.result<f64>, f64) {
@@ -196,7 +196,7 @@ func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,8]x[0,8]x[0,8]xf64
     func.return
   }
 
-// SHAPE:         func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>, %b1 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>)  attributes {stencil.program}{
+// SHAPE:         func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>, %b1 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>)  attributes {stencil.program} {
 // SHAPE-NEXT:      %0, %1 = stencil.apply(%arg1 = %arg0 : f64) -> (!stencil.temp<[0,8]x[0,8]x[0,8]xf64>, !stencil.temp<[0,8]x[0,8]x[0,8]xf64>) {
 // SHAPE-NEXT:        %true = "test.op"() : () -> i1
 // SHAPE-NEXT:        %2, %3 = scf.if %true -> (!stencil.result<f64>, f64) {

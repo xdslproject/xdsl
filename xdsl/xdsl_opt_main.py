@@ -13,7 +13,8 @@ from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.transforms import get_all_passes
-from xdsl.utils.exceptions import DiagnosticException, ShrinkException
+from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
+from xdsl.utils.lexer import Span
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 
@@ -73,6 +74,22 @@ class xDSLOptMain(CommandLineTool):
                         if self.apply_passes(module):
                             output_stream.write(self.output_resulting_program(module))
                     output_stream.flush()
+                except ParseError as e:
+                    s = e.span
+                    e.span = Span(s.start, s.end, s.input, offset)
+                    if self.args.parsing_diagnostics:
+                        print(e)
+                    else:
+                        raise
+                except DiagnosticException as e:
+                    if self.args.verify_diagnostics:
+                        print(e)
+                        # __notes__ only in Python 3.11 and above
+                        if hasattr(e, "__notes__"):
+                            for e in getattr(e, "__notes__"):
+                                print(e)
+                    else:
+                        raise
                 finally:
                     chunk.close()
         except ShrinkException:
@@ -220,6 +237,7 @@ class xDSLOptMain(CommandLineTool):
                 print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
+            printer.print_metadata(self.ctx.loaded_dialects)
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
@@ -299,8 +317,7 @@ class xDSLOptMain(CommandLineTool):
 
         self.pipeline = PipelinePass(
             tuple(
-                pass_type.from_pass_spec(spec)
-                for pass_type, spec in PipelinePass.build_pipeline_tuples(
+                PipelinePass.iter_passes(
                     self.available_passes, parse_pipeline(self.args.passes)
                 )
             ),
@@ -347,19 +364,11 @@ class xDSLOptMain(CommandLineTool):
 
     def apply_passes(self, prog: ModuleOp) -> bool:
         """Apply passes in order."""
-        try:
-            assert isinstance(prog, ModuleOp)
-            if not self.args.disable_verify:
-                prog.verify()
-            self.pipeline.apply(self.ctx, prog)
-            if not self.args.disable_verify:
-                prog.verify()
-        except DiagnosticException as e:
-            if self.args.verify_diagnostics:
-                print(e)
-                return False
-            else:
-                raise e
+        if not self.args.disable_verify:
+            prog.verify()
+        self.pipeline.apply(self.ctx, prog)
+        if not self.args.disable_verify:
+            prog.verify()
         return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:

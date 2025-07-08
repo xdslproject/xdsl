@@ -6,7 +6,7 @@
     %0 = "mpi.comm.rank"() : () -> i32
     %1 = "arith.constant"() {"value" = 0 : i32} : () -> i32
     %2 = "arith.cmpi"(%0, %1) {"predicate" = 0 : i64} : (i32, i32) -> i1
-    %ref = "memref.alloc"() {"alignment" = 32 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
+    %ref = "memref.alloc"() {"alignment" = 32 : i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
     %tag = "arith.constant"() {"value" = 1 : i32} : () -> i32
     %buff, %count, %dtype = "mpi.unwrap_memref"(%ref) : (memref<100x14x14xf64>) -> (!llvm.ptr, i32, !mpi.datatype)
     "scf.if"(%2) ({
@@ -25,10 +25,10 @@
 
 // we don't really care about the whole structure, we just want to make sure mlir-opt can lower all this down to llvm
 
-// CHECK: llvm.call @MPI_Init({{%\d+}}, {{%\d+}}) : (!llvm.ptr, !llvm.ptr) -> i32
-// CHECK: llvm.call @MPI_Comm_rank({{%\d+}}, {{%\d+}}) : (i32, !llvm.ptr) -> i32
-// CHECK: llvm.call @MPI_Send({{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}) : (!llvm.ptr, i32, i32, i32, i32, i32) -> i32
-// CHECK: llvm.call @MPI_Recv({{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}) : (!llvm.ptr, i32, i32, i32, i32, i32, !llvm.ptr) -> i32
+// CHECK: llvm.call @MPI_Init({{%\S+}}, {{%\S+}}) : (!llvm.ptr, !llvm.ptr) -> i32
+// CHECK: llvm.call @MPI_Comm_rank({{%\S+}}, {{%\S+}}) : (i32, !llvm.ptr) -> i32
+// CHECK: llvm.call @MPI_Send({{%\S+}}, {{%\S+}}, {{%\S+}}, {{%\S+}}, {{%\S+}}, {{%\S+}}) : (!llvm.ptr, i32, i32, i32, i32, i32) -> i32
+// CHECK: llvm.call @MPI_Recv({{%\S+}}, {{%\S+}}, {{%\S+}}, {{%\S+}}, {{%\S+}}, {{%\S+}}, {{%\S+}}) : (!llvm.ptr, i32, i32, i32, i32, i32, !llvm.ptr) -> i32
 
 // also check that external funcs were declared correctly:
 

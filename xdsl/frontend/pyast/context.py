@@ -43,7 +43,7 @@ class CodeContext(AbstractContextManager[Any]):
                 # execution.
                 self.program.stmts = node.body
 
-    def __exit__(self, *args: Any):
+    def __exit__(self, *args: object):
         # Having proccessed all the code in the context, check it is well-formed
         # and can be compiled/executed. Additionally, record it for subsequent code generation.
         assert self.program.stmts is not None

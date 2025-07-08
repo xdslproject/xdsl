@@ -205,3 +205,18 @@
 %m_const = arith.constant dense<1.678900e-01> : memref<64xf32>
 // CHECK-NEXT: %t_const = arith.constant dense<1.234500e-01> : tensor<16xf32>
 // CHECK-NEXT: %m_const = arith.constant dense<1.678900e-01> : memref<64xf32>
+
+%fp = arith.constant 2.0 : f32
+%to_si = arith.fptosi %fp : f32 to i32
+%from_si_to_fp = arith.sitofp %to_si : i32 to f32
+%to_ui = arith.fptoui %fp : f32 to i32
+%from_ui_to_fp = arith.uitofp %to_ui : i32 to f32
+
+// CHECK-NEXT: %fp = arith.constant 2.000000e+00 : f32
+// CHECK-NEXT: %to_si = arith.fptosi %fp : f32 to i32
+// CHECK-NEXT: %from_si_to_fp = arith.sitofp %to_si : i32 to f32
+// CHECK-NEXT: %to_ui = arith.fptoui %fp : f32 to i32
+// CHECK-NEXT: %from_ui_to_fp = arith.uitofp %to_ui : i32 to f32
+
+%dense_const = arith.constant dense_resource<dense_resource_test_5xf32> : tensor<5xf32>
+// CHECK-NEXT: %dense_const = arith.constant dense_resource<dense_resource_test_5xf32> : tensor<5xf32>

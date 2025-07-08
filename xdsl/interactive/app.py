@@ -523,11 +523,14 @@ class InputApp(App[None]):
                 output_text = "No input"
             case Exception() as e:
                 output_stream = StringIO()
-                Printer(output_stream).print(e)
+                Printer(output_stream).print_string(str(e))
                 output_text = output_stream.getvalue()
             case ModuleOp():
                 output_stream = StringIO()
-                Printer(output_stream).print(self.current_module)
+                printer = Printer(output_stream)
+                printer.print_op(self.current_module)
+                printer.print_string("\n")
+
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
@@ -724,12 +727,7 @@ def main():
 
     pass_spec_pipeline = list(parse_pipeline(args.passes))
     pass_list = get_all_passes()
-    pipeline = tuple(
-        pass_type.from_pass_spec(spec)
-        for pass_type, spec in PipelinePass.build_pipeline_tuples(
-            pass_list, pass_spec_pipeline
-        )
-    )
+    pipeline = tuple(PipelinePass.iter_passes(pass_list, pass_spec_pipeline))
 
     return InputApp(
         tuple(get_all_dialects().items()),

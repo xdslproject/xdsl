@@ -1,8 +1,7 @@
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from typing import Generic
 
 from xdsl.dialects.builtin import (
-    DYNAMIC_INDEX,
     ArrayAttr,
     DictionaryAttr,
     FunctionType,
@@ -193,23 +192,24 @@ def print_func_op_like(
     res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
 ):
-    printer.print(f" @{sym_name.data}")
+    printer.print_string(" ")
+    printer.print_symbol_name(sym_name.data)
     if body.blocks:
-        printer.print("(")
-        if arg_attrs is not None:
-            printer.print_list(
-                zip(body.blocks[0].args, arg_attrs),
-                lambda arg_with_attrs: print_func_argument(
-                    printer, arg_with_attrs[0], arg_with_attrs[1]
-                ),
-            )
-        else:
-            printer.print_list(body.blocks[0].args, printer.print_block_argument)
-        printer.print(") ")
+        with printer.in_parens():
+            if arg_attrs is not None:
+                printer.print_list(
+                    zip(body.blocks[0].args, arg_attrs),
+                    lambda arg_with_attrs: print_func_argument(
+                        printer, arg_with_attrs[0], arg_with_attrs[1]
+                    ),
+                )
+            else:
+                printer.print_list(body.blocks[0].args, printer.print_block_argument)
+
         if function_type.outputs:
-            printer.print("-> ")
+            printer.print_string(" -> ")
             if len(function_type.outputs) > 1 or res_attrs is not None:
-                printer.print("(")
+                printer.print_string("(")
             if res_attrs is not None:
                 printer.print_list(
                     zip(function_type.outputs, res_attrs),
@@ -220,13 +220,13 @@ def print_func_op_like(
             else:
                 printer.print_list(function_type.outputs, printer.print_attribute)
             if len(function_type.outputs) > 1 or res_attrs is not None:
-                printer.print(")")
-            printer.print(" ")
+                printer.print_string(")")
     else:
         printer.print_attribute(function_type)
     printer.print_op_attributes(
         attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
     )
+    printer.print_string(" ", indent=0)
 
     if body.blocks:
         printer.print_region(body, False, False)
@@ -260,7 +260,7 @@ def parse_func_op_like(
             ret = (arg, arg_attr_dict)
         return ret
 
-    def parse_fun_output() -> tuple[Attribute, dict[str, Attribute]]:
+    def parse_fun_output() -> tuple[TypeAttribute, dict[str, Attribute]]:
         arg_type = parser.parse_optional_type()
         if arg_type is None:
             parser.raise_error("Return type should be specified")
@@ -299,7 +299,7 @@ def parse_func_op_like(
         arg_attrs = None
 
     # Parse return type
-    return_types: list[Attribute] = []
+    return_types: list[TypeAttribute] = []
     res_attrs_raw: list[dict[str, Attribute]] | None = []
     if parser.parse_optional_punctuation("->"):
         return_attributes = parser.parse_optional_comma_separated_list(
@@ -366,125 +366,3 @@ def parse_assignment(
     parser.parse_characters("=")
     val = parser.parse_unresolved_operand()
     return arg, val
-
-
-def print_dynamic_index_list(
-    printer: Printer,
-    values: Sequence[SSAValue],
-    integers: Iterable[int],
-    value_types: Sequence[Attribute] = (),
-    *,
-    dynamic_index: int = DYNAMIC_INDEX,
-    delimiter: Parser.Delimiter = Parser.Delimiter.SQUARE,
-):
-    """
-    Prints a list with either
-      1) the static integer value in `integers` is `ShapedType.DYNAMIC` or
-      2) the next value otherwise.
-    If `value_types` is non-empty, it is expected to contain as many elements as `values`
-    indicating their types. This allows idiomatic printing of mixed value and
-    integer attributes in a list. E.g.
-    `[%arg0 : index, 7, 42, %arg42 : i32]`.
-    The `dynamic_index` parameter specifies the sentinel value to use to print an ssa
-    value instead of a constant.
-    """
-    if delimiter.value is not None:
-        printer.print_string(delimiter.value[0])
-    value_index = 0
-    for integer_index, integer in enumerate(integers):
-        if integer_index:
-            printer.print_string(", ")
-        if integer == dynamic_index:
-            printer.print_ssa_value(values[value_index])
-            if value_types:
-                printer.print_string(" : ")
-                printer.print_attribute(value_types[value_index])
-            value_index += 1
-        else:
-            printer.print_string(f"{integer}")
-    if delimiter.value is not None:
-        printer.print_string(delimiter.value[1])
-
-
-def parse_dynamic_index_with_type(parser: Parser) -> int | SSAValue:
-    """
-    Parses an element in an index list, either an index or an ssa value with a type:
-    e.g. `42` or `%val : i32`.
-    """
-    value = parser.parse_optional_unresolved_operand()
-    if value is None:
-        return parser.parse_integer(allow_boolean=False, allow_negative=False)
-    else:
-        parser.parse_punctuation(":")
-        value_type = parser.parse_attribute()
-        return parser.resolve_operand(value, value_type)
-
-
-def parse_dynamic_index_without_type(parser: Parser) -> int | UnresolvedOperand:
-    """
-    Parses an element in an index list, either an index or an ssa value without a type:
-    e.g. `42` or `%val`.
-    """
-    value = parser.parse_optional_unresolved_operand()
-    if value is None:
-        return parser.parse_integer(allow_boolean=False, allow_negative=False)
-    else:
-        return value
-
-
-def parse_dynamic_index_list_with_types(
-    parser: Parser,
-    *,
-    dynamic_index: int = DYNAMIC_INDEX,
-    delimiter: Parser.Delimiter = Parser.Delimiter.SQUARE,
-) -> tuple[Sequence[SSAValue], Sequence[int]]:
-    """
-    Parses an in index list, composed of a mix of indices and ssa values without a type:
-    e.g. `[1, 2, 3, %val, 5]`.
-    The `dynamic_index` parameter specifies the sentinel value to use to print an ssa
-    value instead of a constant.
-    """
-    mixed_values = parser.parse_comma_separated_list(
-        delimiter, lambda: parse_dynamic_index_with_type(parser)
-    )
-
-    values: list[SSAValue] = []
-    indices: list[int] = []
-
-    for value_or_index in mixed_values:
-        if isinstance(value_or_index, int):
-            indices.append(value_or_index)
-        else:
-            indices.append(dynamic_index)
-            values.append(value_or_index)
-
-    return values, indices
-
-
-def parse_dynamic_index_list_without_types(
-    parser: Parser,
-    *,
-    dynamic_index: int = DYNAMIC_INDEX,
-    delimiter: Parser.Delimiter = Parser.Delimiter.SQUARE,
-) -> tuple[Sequence[UnresolvedOperand], Sequence[int]]:
-    """
-    Parses an in index list, composed of a mix of indices and ssa values with a types:
-    e.g. `[1, 2, 3, %val : i32, 5]`.
-    The `dynamic_index` parameter specifies the sentinel value to use to print an ssa
-    value instead of a constant.
-    """
-    mixed_values = parser.parse_comma_separated_list(
-        delimiter, lambda: parse_dynamic_index_without_type(parser)
-    )
-
-    values: list[UnresolvedOperand] = []
-    indices: list[int] = []
-
-    for value_or_index in mixed_values:
-        if isinstance(value_or_index, int):
-            indices.append(value_or_index)
-        else:
-            indices.append(dynamic_index)
-            values.append(value_or_index)
-
-    return values, indices

@@ -1,11 +1,11 @@
 from xdsl.dialects.builtin import (
     I32,
     I64,
-    AnyFloat,
     BoolAttr,
     DenseArrayBase,
     FloatAttr,
     IntegerAttr,
+    StringAttr,
     TensorType,
 )
 from xdsl.ir import Dialect
@@ -14,6 +14,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     prop_def,
     result_def,
 )
@@ -30,8 +31,10 @@ class ClampOp(IRDLOperation):
     min_int = prop_def(IntegerAttr[I64])
     max_int = prop_def(IntegerAttr[I64])
 
-    min_fp = prop_def(FloatAttr[AnyFloat])
-    max_fp = prop_def(FloatAttr[AnyFloat])
+    min_fp = prop_def(FloatAttr)
+    max_fp = prop_def(FloatAttr)
+
+    nan_mode = opt_prop_def(StringAttr)
 
     input = operand_def(TensorType)
     output = result_def(TensorType)

@@ -70,3 +70,20 @@ builtin.module {
   // CHECK:  Operation does not verify: cannot get dim of 0-rank tensor
   %1 = tensor.dim %t, %i : tensor<f32>
 }
+
+// -----
+
+%t0 = "test.op"() : () -> (tensor<4x1xf32>)
+
+// CHECK: All inner arrays must be contiguous: [[0 : i64, 1 : i64], [3 : i64]]
+%res_collapse1 = tensor.collapse_shape %t0 [ [0, 1], [3] ] : tensor<4x1xf32> into tensor<4x1xf32>
+
+// -----
+
+// CHECK: All inner arrays must be contiguous: [[2 : i64, 3 : i64], [0 : i64, 1 : i64]]
+%res_collapse2 = tensor.collapse_shape %t0 [ [2, 3], [0, 1] ] : tensor<4x1xf32> into tensor<4x1xf32>
+
+// -----
+
+// CHECK: expected integer >= 0, got -2
+%res_collapse2 = tensor.collapse_shape %t0 [ [-2, 3], [0, 1] ] : tensor<4x1xf32> into tensor<4x1xf32>

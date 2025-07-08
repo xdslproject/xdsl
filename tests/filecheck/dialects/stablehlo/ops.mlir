@@ -13,6 +13,16 @@
 // CHECK: %after_all = "stablehlo.after_all"(%token0, %token1) : (!stablehlo.token, !stablehlo.token) -> !stablehlo.token
 %after_all = "stablehlo.after_all"(%token0, %token1) : (!stablehlo.token, !stablehlo.token) -> !stablehlo.token
 
+%tf32 = "test.op"() : () -> tensor<f32>
+// CHECK: %atan2 = "stablehlo.atan2"(%tf32, %tf32) : (tensor<f32>, tensor<f32>) -> tensor<f32>
+%atan2 = "stablehlo.atan2"(%tf32, %tf32) : (tensor<f32>, tensor<f32>) -> tensor<f32>
+
+// CHECK: %cbrt = "stablehlo.cbrt"(%tf32) : (tensor<f32>) -> tensor<f32>
+%cbrt = "stablehlo.cbrt"(%tf32) : (tensor<f32>) -> tensor<f32>
+
+// CHECK: %ceil = "stablehlo.ceil"(%tf32) : (tensor<f32>) -> tensor<f32>
+%ceil = "stablehlo.ceil"(%tf32) : (tensor<f32>) -> tensor<f32>
+
 // CHECK: %multiply = "stablehlo.multiply"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
 %multiply = "stablehlo.multiply"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
 
@@ -76,3 +86,6 @@
   "stablehlo.return"(%result_branch1, %result_branch1) : (tensor<2xi64>, tensor<2xi64>) -> ()
 // CHECK: }) : (tensor<i32>) -> (tensor<2xi64>, tensor<2xi64>)
 }) : (tensor<i32>) -> (tensor<2xi64>, tensor<2xi64>)
+
+// CHECK: %constant = "stablehlo.constant"() {value = dense<[[0.000000e+00, 1.000000e+00], [2.000000e+00, 3.000000e+00]]> : tensor<2x2xf32>} : () -> tensor<2x2xf32>
+%constant = "stablehlo.constant"() {value = dense<[[0.0, 1.0], [2.0, 3.0]]> : tensor<2x2xf32>} : () -> tensor<2x2xf32>

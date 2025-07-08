@@ -7,7 +7,7 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     BFloat16Type,
     ContainerOf,
-    DenseIntOrFPElementsAttr,
+    DenseIntElementsAttr,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     Float128Type,
     IndexType,
     IntegerType,
+    VectorType,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
@@ -22,7 +23,6 @@ from xdsl.irdl import (
     AnyOf,
     IRDLOperation,
     VarConstraint,
-    base,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -92,8 +92,8 @@ class VarithSwitchOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    flag = operand_def(base(IntegerType) | base(IndexType))
-    case_values = prop_def(DenseIntOrFPElementsAttr)
+    flag = operand_def(IntegerType | IndexType)
+    case_values = prop_def(DenseIntElementsAttr)
 
     default_arg = operand_def(T)
     args = var_operand_def(T)
@@ -105,7 +105,7 @@ class VarithSwitchOp(IRDLOperation):
     def __init__(
         self,
         flag: SSAValue | Operation,
-        case_values: DenseIntOrFPElementsAttr,
+        case_values: DenseIntElementsAttr,
         default_arg: SSAValue | Operation,
         *args: SSAValue | Operation,
         attr_dict: dict[str, Attribute] | None = None,
@@ -151,7 +151,9 @@ class VarithSwitchOp(IRDLOperation):
         parser.parse_punctuation("]")
         attr_dict = parser.parse_optional_attr_dict()
 
-        case_values = DenseIntOrFPElementsAttr.vector_from_list(values, flag_type)
+        case_values = DenseIntElementsAttr.from_list(
+            VectorType(flag_type, (len(values),)), values
+        )
 
         return cls(
             flag,

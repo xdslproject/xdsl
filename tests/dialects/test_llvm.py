@@ -4,10 +4,10 @@ import pytest
 
 from xdsl.dialects import arith, builtin, llvm, test
 from xdsl.dialects.builtin import UnitAttr, i32
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, Block, Region
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 @pytest.mark.parametrize(
@@ -261,6 +261,19 @@ def test_global_op():
     assert isinstance(global_op.linkage, llvm.LinkageAttr)
     assert isinstance(global_op_value := global_op.value, builtin.IntegerAttr)
     assert global_op_value.value.data == 76
+    assert len(global_op.body.blocks) == 0
+
+
+def test_global_op_with_body():
+    global_op = llvm.GlobalOp(
+        builtin.i32,
+        "testsymbol",
+        "internal",
+        body=Region([Block([llvm.UnreachableOp()])]),
+    )
+
+    assert len(global_op.body.blocks) == 1
+    assert len(global_op.body.blocks[0].ops) == 1
 
 
 def test_addressof_op():
@@ -297,9 +310,9 @@ def test_variadic_func():
 
 def test_inline_assembly_op():
     a, b, c = (
-        TestSSAValue(builtin.i32),
-        TestSSAValue(builtin.i32),
-        TestSSAValue(builtin.i32),
+        create_ssa_value(builtin.i32),
+        create_ssa_value(builtin.i32),
+        create_ssa_value(builtin.i32),
     )
 
     op = llvm.InlineAsmOp(

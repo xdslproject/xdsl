@@ -2,6 +2,7 @@ import pytest
 
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_unallocated_register():
@@ -58,7 +59,6 @@ def test_unallocated_register():
 def test_register(register: x86.register.GeneralRegisterType, name: str):
     assert register.is_allocated
     assert register.register_name.data == name
-    assert register.instruction_set_name() == "x86"
 
 
 def test_rflags_register():
@@ -107,7 +107,6 @@ def test_rflags_register():
 def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
     assert register.is_allocated
     assert register.register_name.data == name
-    assert register.instruction_set_name() == "AVX512"
 
 
 @pytest.mark.parametrize(
@@ -134,7 +133,6 @@ def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
 def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
     assert register.is_allocated
     assert register.register_name.data == name
-    assert register.instruction_set_name() == "AVX2"
 
 
 @pytest.mark.parametrize(
@@ -161,20 +159,19 @@ def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
 def test_sse_register(register: x86.register.SSERegisterType, name: str):
     assert register.is_allocated
     assert register.register_name.data == name
-    assert register.instruction_set_name() == "SSE"
 
 
 @pytest.mark.parametrize(
     "OpClass, dest, operand1, operand2",
     [
         (
-            x86.ops.RRR_Vfmadd231pdOp,
+            x86.ops.RSS_Vfmadd231pdOp,
             x86.register.YMM0,
             x86.register.YMM1,
             x86.register.YMM2,
         ),
         (
-            x86.ops.RRR_Vfmadd231psOp,
+            x86.ops.RSS_Vfmadd231psOp,
             x86.register.YMM0,
             x86.register.YMM1,
             x86.register.YMM2,
@@ -183,7 +180,7 @@ def test_sse_register(register: x86.register.SSERegisterType, name: str):
 )
 def test_rrr_vops(
     OpClass: type[
-        x86.ops.RRROperation[
+        x86.ops.RSS_Operation[
             x86.register.X86VectorRegisterType,
             x86.register.X86VectorRegisterType,
             x86.register.X86VectorRegisterType,
@@ -193,25 +190,30 @@ def test_rrr_vops(
     operand1: x86.register.X86VectorRegisterType,
     operand2: x86.register.X86VectorRegisterType,
 ):
-    output = x86.ops.GetAVXRegisterOp(dest)
-    param1 = x86.ops.GetAVXRegisterOp(operand1)
-    param2 = x86.ops.GetAVXRegisterOp(operand2)
-    op = OpClass(r3=output.result, r1=param1.result, r2=param2.result, result=dest)
-    assert op.r1.type == operand1
-    assert op.r2.type == operand2
-    assert op.r3.type == dest
+    output = create_ssa_value(dest)
+    param1 = create_ssa_value(operand1)
+    param2 = create_ssa_value(operand2)
+    op = OpClass(
+        source2=output,
+        register_in=param1,
+        source1=param2,
+        register_out=dest,
+    )
+    assert op.register_in.type == operand1
+    assert op.source1.type == operand2
+    assert op.source2.type == dest
 
 
 @pytest.mark.parametrize(
     "OpClass, dest, src",
     [
         (
-            x86.ops.MR_VmovupsOp,
+            x86.ops.MS_VmovupsOp,
             x86.register.RCX,
             x86.register.YMM0,
         ),
         (
-            x86.ops.MR_VmovapdOp,
+            x86.ops.MS_VmovapdOp,
             x86.register.RCX,
             x86.register.YMM0,
         ),
@@ -219,7 +221,7 @@ def test_rrr_vops(
 )
 def test_mr_vops(
     OpClass: type[
-        x86.ops.M_MR_Operation[
+        x86.ops.MS_Operation[
             x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
         ]
     ],
@@ -228,26 +230,26 @@ def test_mr_vops(
 ):
     output = x86.ops.GetRegisterOp(dest)
     input = x86.ops.GetAVXRegisterOp(src)
-    op = OpClass(r1=output, r2=input, offset=IntegerAttr(0, 64))
-    assert op.r1.type == dest
-    assert op.r2.type == src
+    op = OpClass(memory=output, source=input, memory_offset=IntegerAttr(0, 64))
+    assert op.memory.type == dest
+    assert op.source.type == src
 
 
 @pytest.mark.parametrize(
     "OpClass, dest, src",
     [
         (
-            x86.ops.RM_VmovupsOp,
+            x86.ops.DM_VmovupsOp,
             x86.register.YMM0,
             x86.register.RCX,
         ),
         (
-            x86.ops.RM_VbroadcastsdOp,
+            x86.ops.DM_VbroadcastsdOp,
             x86.register.YMM0,
             x86.register.RCX,
         ),
         (
-            x86.ops.RM_VbroadcastssOp,
+            x86.ops.DM_VbroadcastssOp,
             x86.register.YMM0,
             x86.register.RCX,
         ),
@@ -255,14 +257,14 @@ def test_mr_vops(
 )
 def test_rm_vops(
     OpClass: type[
-        x86.ops.R_M_Operation[
-            x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
+        x86.ops.DM_Operation[
+            x86.register.X86VectorRegisterType, x86.register.GeneralRegisterType
         ]
     ],
     dest: x86.register.X86VectorRegisterType,
     src: x86.register.GeneralRegisterType,
 ):
     input = x86.ops.GetRegisterOp(src)
-    op = OpClass(r1=input, result=dest, offset=IntegerAttr(0, 64))
-    assert op.r1.type == src
-    assert op.result.type == dest
+    op = OpClass(memory=input, destination=dest, memory_offset=IntegerAttr(0, 64))
+    assert op.memory.type == src
+    assert op.destination.type == dest

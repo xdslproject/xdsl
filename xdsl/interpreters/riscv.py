@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Sequence
-from typing import Any, TypeAlias, TypeVar, cast
+from typing import Any, TypeAlias, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import (
+    DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -26,6 +29,7 @@ from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 _T = TypeVar("_T")
 
@@ -585,9 +589,6 @@ class RiscvFunctions(InterpreterFunctions):
     ) -> PythonValues:
         attr = op.res.type
 
-        if not isinstance(attr, riscv.RISCVRegisterType):
-            raise InterpretationError(f"Unexpected type {attr}, expected register type")
-
         if not attr.is_allocated:
             raise InterpretationError(
                 f"Cannot get value for unallocated register {attr}"
@@ -642,6 +643,7 @@ class RiscvFunctions(InterpreterFunctions):
             case IntegerAttr():
                 return attr.value.data
             case builtin.DenseIntOrFPElementsAttr():
+                assert isa(attr, DenseIntOrFPElementsAttr)
                 data = attr.get_values()
                 data_ptr = ptr.TypedPtr[Any].new(
                     data,

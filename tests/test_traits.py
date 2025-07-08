@@ -60,7 +60,7 @@ from xdsl.traits import (
     is_speculatable,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 @dataclass(frozen=True)
@@ -154,9 +154,9 @@ def test_verifier():
     """
     Check that the traits verifier are correctly called.
     """
-    operand64 = TestSSAValue(i64)
-    operand32 = TestSSAValue(i32)
-    operand1 = TestSSAValue(i1)
+    operand64 = create_ssa_value(i64)
+    operand32 = create_ssa_value(i32)
+    operand1 = create_ssa_value(i1)
     op = TestOp.create(operands=[operand1], result_types=[i32])
 
     message = (
@@ -565,7 +565,7 @@ def test_speculability(
     [
         ([()], [()]),
         ([()], (test.TestType("foo"),)),
-        ((TestSSAValue(test.TestType("foo")),), [()]),
+        ((create_ssa_value(test.TestType("foo")),), [()]),
     ],
 )
 def test_same_operands_and_result_type_trait_for_scalar_types(
@@ -652,7 +652,7 @@ def test_same_operands_and_result_type_trait_for_result_element_type_of_shaped_t
 ):
     op = SameOperandsAndResultTypeOp(
         operands=[
-            TestSSAValue(
+            create_ssa_value(
                 TensorType(operand1_and_result_element_type, operand_and_result_shape1)
             )
         ],
@@ -728,7 +728,7 @@ def test_same_operands_and_result_type_trait_for_element_type_of_shaped_types(
     op = SameOperandsAndResultTypeOp(
         operands=[
             [
-                TestSSAValue(operand_type),
+                create_ssa_value(operand_type),
             ]
             * operands_num,
         ],
@@ -785,7 +785,7 @@ def test_same_operands_and_result_type_trait_for_result_encoding_of_shaped_types
     op = SameOperandsAndResultTypeOp(
         operands=[
             [
-                TestSSAValue(
+                create_ssa_value(
                     TensorType(
                         element_type,
                         shape,
@@ -862,7 +862,7 @@ def test_same_operands_and_result_type_trait_for_encoding_of_shaped_types(
     op = SameOperandsAndResultTypeOp(
         operands=[
             [
-                TestSSAValue(
+                create_ssa_value(
                     TensorType(
                         element_type,
                         shape,
@@ -927,10 +927,10 @@ def test_same_operands_and_result_type_trait_for_ranked_mixed_shapes(
     op = SameOperandsAndResultTypeOp(
         operands=[
             [
-                TestSSAValue(
+                create_ssa_value(
                     TensorType(test.TestType("foo"), operand1_and_result_shape)
                 ),
-                TestSSAValue(TensorType(test.TestType("foo"), operand2_shape)),
+                create_ssa_value(TensorType(test.TestType("foo"), operand2_shape)),
             ]
             * operands_num,
         ],
@@ -967,10 +967,10 @@ def test_same_operands_and_result_type_trait_for_mixed_rank_and_mixed_shapes(
     op = SameOperandsAndResultTypeOp(
         operands=[
             [
-                TestSSAValue(
+                create_ssa_value(
                     TensorType(test.TestType("foo"), operand1_and_result_shape)
                 ),
-                TestSSAValue(UnrankedTensorType(test.TestType("foo"))),
+                create_ssa_value(UnrankedTensorType(test.TestType("foo"))),
             ]
             * operands_num,
         ],

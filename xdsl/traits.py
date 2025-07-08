@@ -4,7 +4,9 @@ import abc
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, TypeVar, final
+from typing import TYPE_CHECKING, final
+
+from typing_extensions import TypeVar
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -35,7 +37,7 @@ class ConstantLike(OpTrait):
     """
     Operation known to be constant-like.
 
-    https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html
+    See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html).
     """
 
 
@@ -104,7 +106,7 @@ class IsTerminator(OpTrait):
     This trait provides verification and functionality for operations that are
     known to be terminators.
 
-    https://mlir.llvm.org/docs/Traits/#terminator
+    See external [documentation](https://mlir.llvm.org/docs/Traits/#terminator).
     """
 
     def verify(self, op: Operation) -> None:
@@ -119,7 +121,7 @@ class NoTerminator(OpTrait):
     """
     Allow an operation to have single block regions with no terminator.
 
-    https://mlir.llvm.org/docs/Traits/#terminator
+    See external [documentation](https://mlir.llvm.org/docs/Traits/#terminator).
     """
 
     def verify(self, op: Operation) -> None:
@@ -138,8 +140,9 @@ class SingleBlockImplicitTerminator(OpTrait):
     The conditions for the implicit creation of the terminator depend on the operation
     and occur during its creation using the `ensure_terminator` method.
 
-    This should be fully compatible with MLIR's Trait:
-    https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator
+    This should be fully compatible with MLIR's Trait.
+
+    See external [documentation](https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator).
     """
 
     op_type: type[Operation]
@@ -209,8 +212,9 @@ class IsolatedFromAbove(OpTrait):
     Constrains the contained operations to use only values defined inside this
     operation.
 
-    This should be fully compatible with MLIR's Trait:
-    https://mlir.llvm.org/docs/Traits/#isolatedfromabove
+    This should be fully compatible with MLIR's Trait.
+
+    See external [documentation](https://mlir.llvm.org/docs/Traits/#isolatedfromabove).
     """
 
     def verify(self, op: Operation) -> None:
@@ -245,7 +249,7 @@ class SymbolUserOpInterface(OpTrait, abc.ABC):
     ability to perform safe and efficient verification of symbol uses, as well as
     additional functionality.
 
-    https://mlir.llvm.org/docs/Interfaces/#symbolinterfaces
+    See external [documentation](https://mlir.llvm.org/docs/Interfaces/#symbolinterfaces).
     """
 
     @abc.abstractmethod
@@ -377,7 +381,7 @@ class SymbolOpInterface(OpTrait):
     More requirements are defined in MLIR; Please see MLIR documentation for Symbol and
     SymbolTable for the requirements that are upcoming in xDSL.
 
-    https://mlir.llvm.org/docs/SymbolsAndSymbolTables/#symbol
+    See external [documentation](https://mlir.llvm.org/docs/SymbolsAndSymbolTables/#symbol).
     """
 
     def get_sym_attr_name(self, op: Operation) -> StringAttr | None:
@@ -427,7 +431,7 @@ class CallableOpInterface(OpTrait, abc.ABC):
     Please see MLIR documentation for CallOpInterface and CallableOpInterface for more
     information.
 
-    https://mlir.llvm.org/docs/Interfaces/#callinterfaces
+    See external [documentation](https://mlir.llvm.org/docs/Interfaces/#callinterfaces).
     """
 
     @classmethod
@@ -720,7 +724,7 @@ class HasInsnRepresentation(OpTrait, abc.ABC):
     The returned string contains python string.format placeholders where formatted operands are inserted during
     printing.
 
-    See https://sourceware.org/binutils/docs/as/RISC_002dV_002dDirectives.html for more information.
+    See external [documentation](https://sourceware.org/binutils/docs/as/RISC_002dV_002dDirectives.html for more information.).
     """
 
     @abc.abstractmethod

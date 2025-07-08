@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from typing_extensions import Self
 
@@ -15,22 +16,19 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypeAttribute,
 )
-from xdsl.irdl import ParameterDef
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
+@dataclass(frozen=True)
 class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
     An abstract register type for target ISA-specific dialects.
     """
 
-    index: ParameterDef[IntAttr | NoneAttr]
-    register_name: ParameterDef[StringAttr]
-
-    def __init__(self, index: IntAttr | NoneAttr, register_name: StringAttr):
-        super().__init__((index, register_name))
+    index: IntAttr | NoneAttr
+    register_name: StringAttr
 
     @classmethod
     def unallocated(cls) -> Self:
@@ -111,8 +109,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
 
             if expected_index is None:
                 raise VerifyException(
-                    f"Invalid register name {name} for register set "
-                    f"{self.instruction_set_name()}."
+                    f"Invalid register name {name} for register type {self.name}."
                 )
             else:
                 raise VerifyException(
@@ -140,9 +137,11 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         raise VerifyException(f"Invalid index {self.index.data} for register {name}.")
 
     @classmethod
-    @abstractmethod
-    def instruction_set_name(cls) -> str:
-        raise NotImplementedError()
+    def allocatable_registers(cls) -> Sequence[Self]:
+        """
+        Registers of this type that can be used for register allocation.
+        """
+        return ()
 
     @classmethod
     @abstractmethod

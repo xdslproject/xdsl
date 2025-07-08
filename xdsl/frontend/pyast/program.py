@@ -1,4 +1,5 @@
 import ast
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from io import StringIO
 from typing import Any
@@ -8,7 +9,12 @@ from xdsl.frontend.pyast.code_generation import CodeGeneration
 from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.passes.desymref import Desymrefier
 from xdsl.frontend.pyast.python_code_check import FunctionMap
-from xdsl.frontend.pyast.type_conversion import TypeConverter
+from xdsl.frontend.pyast.type_conversion import (
+    FunctionRegistry,
+    TypeConverter,
+    TypeRegistry,
+)
+from xdsl.ir import Operation, TypeAttribute
 from xdsl.printer import Printer
 
 
@@ -31,8 +37,28 @@ class FrontendProgram:
     xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
+    type_registry: TypeRegistry = field(default_factory=TypeRegistry)
+    """Mappings between source code and IR type."""
+
+    function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
+    """Mappings between functions and their operation types."""
+
     file: str | None = field(default=None)
     """Path to the file that contains the program."""
+
+    def register_type(
+        self,
+        source_type: type,
+        ir_type: TypeAttribute,
+    ) -> None:
+        """Associate a type in the source code with its type in the IR."""
+        self.type_registry.insert(source_type, ir_type)
+
+    def register_function(
+        self, function: Callable[..., Any], ir_op: type[Operation]
+    ) -> None:
+        """Associate a method on an object in the source code with its IR implementation."""
+        self.function_registry.insert(function, ir_op)
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
@@ -52,9 +78,15 @@ Cannot compile program without the code context. Try to use:
         assert self.globals is not None
         assert self.functions_and_blocks is not None
 
-        type_converter = TypeConverter(self.globals)
+        type_converter = TypeConverter(
+            globals=self.globals,
+            type_registry=self.type_registry,
+            function_registry=self.function_registry,
+        )
         self.xdsl_program = CodeGeneration.run_with_type_converter(
-            type_converter, self.functions_and_blocks, self.file
+            type_converter,
+            self.functions_and_blocks,
+            self.file,
         )
         self.xdsl_program.verify()
 
