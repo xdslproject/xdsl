@@ -11,9 +11,6 @@ theme:
     - navigation.sections
     - navigation.expand
 
-markdown_extensions:
-- docs.blocks:MarimoBlocksExtension # the marimo mkdocs extension is out of date, this is what they use internally
-
 plugins:
 - search
 - gen-files:
@@ -45,16 +42,16 @@ nav:
   - Notebooks:
     - Overview: marimo/index.md
     - Manipulating IR:
-      - MLIR IR: marimo/mlir_ir.md
-      - Traversing IR: marimo/traversing_ir.md
-      - Builders: marimo/builders.md
-      - IR Generation: marimo/ir_gen.md
-      - Rewrites: marimo/pattern_rewrites.md
-      - Rewrite Exercises: marimo/rewrite_exercises.md
-      - Defining Dialects: marimo/defining_dialects.md
+      - MLIR IR: marimo/mlir_ir.html
+      - Traversing IR: marimo/traversing_ir.html
+      - Builders: marimo/builders.html
+      - IR Generation: marimo/ir_gen.html
+      - Rewrites: marimo/pattern_rewrites.html
+      - Rewrite Exercises: marimo/rewrite_exercises.html
+      - Defining Dialects: marimo/defining_dialects.html
     - RISC-V Dialects:
-      - RISC-V Dialects: marimo/riscv_dialects.md
-      - Compiling Linalg to Snitch: marimo/linalg_snitch.md
+      - RISC-V Dialects: marimo/riscv_dialects.html
+      - Compiling Linalg to Snitch: marimo/linalg_snitch.html
   - Code Reference: reference/index.md
   - Guides:
     - MLIR Interoperation: guides/mlir_interoperation.md
