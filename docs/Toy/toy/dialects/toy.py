@@ -293,7 +293,7 @@ class GenericCallOp(IRDLOperation):
         )
 
 
-class InferMulOpShapeTrait(HasShapeInferencePatternsTrait):
+class InferMulOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
         return (MulOpInferShapeInferencePattern(),)
@@ -311,7 +311,7 @@ class MulOp(IRDLOperation):
     rhs = operand_def(AnyTensorTypeF64Constr)
     res = result_def(AnyTensorTypeF64Constr)
 
-    traits = traits_def(Pure(), InferMulOpShapeTrait())
+    traits = traits_def(Pure(), InferMulOpHasShapeInferencePatternsTrait())
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.type, TensorTypeF64):
@@ -446,7 +446,7 @@ class ReshapeOp(IRDLOperation):
             raise VerifyException("Reshape operation result shape should be defined")
 
 
-class TransposeOpShapeTrait(HasShapeInferencePatternsTrait):
+class TransposeOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
         return (TransposeOpInferShapeInferencePattern(),)
@@ -469,7 +469,7 @@ class TransposeOp(IRDLOperation):
     traits = OpTraits(
         lambda: (
             Pure(),
-            TransposeOpShapeTrait(),
+            TransposeOpHasShapeInferencePatternsTrait(),
             TransposeOpHasCanonicalizationPatternsTrait(),
         )
     )
@@ -505,7 +505,7 @@ class TransposeOpInferShapeInferencePattern(RewritePattern):
             rewriter.replace_value_with_new_type(op.res, TensorType(f64, res_shape))
 
 
-class CastOpShapeTrait(HasShapeInferencePatternsTrait):
+class CastOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
         return (CastOpInferShapeInferencePattern(),)
@@ -517,7 +517,7 @@ class CastOp(IRDLOperation):
     arg = operand_def(AnyTensorTypeF64Constr)
     res = result_def(AnyTensorTypeF64Constr)
 
-    traits = traits_def(Pure(), CastOpShapeTrait())
+    traits = traits_def(Pure(), CastOpHasShapeInferencePatternsTrait())
 
     def __init__(self, arg: SSAValue, res: AnyTensorTypeF64 | None = None):
         if res is None:
