@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from typing import NamedTuple
 
 from .location import Location
 
 INDENT = 2
 
 
-@dataclass
-class VarType:
+class VarType(NamedTuple):
     "A variable type with shape information."
 
     shape: list[int]
@@ -45,27 +45,10 @@ class Dumper:
         return "\n".join(self.lines)
 
 
-@dataclass
-class ExprAST:
-    loc: Location
-
-    def __init__(self, loc: Location):
-        self.loc = loc
-        print(self.dump())
-
-    def inner_dump(self, prefix: str, dumper: Dumper):
-        dumper.append(prefix, self.__class__.__name__)
-
-    def dump(self):
-        dumper = Dumper([])
-        self.inner_dump("", dumper)
-        return dumper.message
-
-
-@dataclass
-class VarDeclExprAST(ExprAST):
+class VarDeclExprAST(NamedTuple):
     "Expression class for defining a variable."
 
+    loc: Location
     name: str
     varType: VarType
     expr: ExprAST
@@ -77,10 +60,10 @@ class VarDeclExprAST(ExprAST):
         self.expr.inner_dump("", child)
 
 
-@dataclass
-class ReturnExprAST(ExprAST):
+class ReturnExprAST(NamedTuple):
     "Expression class for a return operator."
 
+    loc: Location
     expr: ExprAST | None
 
     def inner_dump(self, prefix: str, dumper: Dumper):
@@ -90,27 +73,27 @@ class ReturnExprAST(ExprAST):
             self.expr.inner_dump("", child)
 
 
-@dataclass
-class NumberExprAST(ExprAST):
+class NumberExprAST(NamedTuple):
     'Expression class for numeric literals like "1.0".'
 
+    loc: Location
     val: float
 
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append(prefix, f" {self.val:.6e}")
 
 
-@dataclass
-class LiteralExprAST(ExprAST):
+class LiteralExprAST(NamedTuple):
     "Expression class for a literal value."
 
+    loc: Location
     values: list[LiteralExprAST | NumberExprAST]
     dims: list[int]
 
     def __dump(self) -> str:
         dims_str = ", ".join(f"{int(dim)}" for dim in self.dims)
         vals_str = ",".join(
-            val.__dump() if isinstance(val, LiteralExprAST) else val.dump()
+            val.__dump() if isinstance(val, LiteralExprAST) else f" {val.val:.6e}"
             for val in self.values
         )
         return f" <{dims_str}>[{vals_str}]"
@@ -119,20 +102,20 @@ class LiteralExprAST(ExprAST):
         dumper.append("Literal:", self.__dump() + f" @{self.loc}")
 
 
-@dataclass
-class VariableExprAST(ExprAST):
+class VariableExprAST(NamedTuple):
     'Expression class for referencing a variable, like "a".'
 
+    loc: Location
     name: str
 
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append("var: ", f"{self.name} @{self.loc}")
 
 
-@dataclass
-class BinaryExprAST(ExprAST):
+class BinaryExprAST(NamedTuple):
     "Expression class for a binary operator."
 
+    loc: Location
     op: str
     lhs: ExprAST
     rhs: ExprAST
@@ -144,10 +127,10 @@ class BinaryExprAST(ExprAST):
         self.rhs.inner_dump("", child)
 
 
-@dataclass
-class CallExprAST(ExprAST):
+class CallExprAST(NamedTuple):
     "Expression class for function calls."
 
+    loc: Location
     callee: str
     args: list[ExprAST]
 
@@ -161,20 +144,18 @@ class CallExprAST(ExprAST):
         )
 
 
-@dataclass
-class PrintExprAST(ExprAST):
+class PrintExprAST(NamedTuple):
     "Expression class for builtin print calls."
 
+    loc: Location
     arg: ExprAST
 
     def inner_dump(self, prefix: str, dumper: Dumper):
-        super().inner_dump(prefix, dumper)
         child = dumper.child()
         self.arg.inner_dump("arg: ", child)
 
 
-@dataclass
-class PrototypeAST:
+class PrototypeAST(NamedTuple):
     """
     This class represents the "prototype" for a function, which captures its
     name, and its argument names (thus implicitly the number of arguments the
@@ -195,8 +176,7 @@ class PrototypeAST:
         dumper.append("Params: ", f"[{', '.join(arg.name for arg in self.args)}]")
 
 
-@dataclass
-class FunctionAST:
+class FunctionAST(NamedTuple):
     "This class represents a function definition itself."
 
     loc: Location
@@ -221,8 +201,7 @@ class FunctionAST:
         )
 
 
-@dataclass
-class ModuleAST:
+class ModuleAST(NamedTuple):
     "This class represents a list of functions to be processed together"
 
     funcs: tuple[FunctionAST, ...]
@@ -236,3 +215,15 @@ class ModuleAST:
         dumper.append_list(
             prefix, "Module:", self.funcs, "", lambda dd, func: func.inner_dump("", dd)
         )
+
+
+ExprAST = (
+    BinaryExprAST
+    | VariableExprAST
+    | LiteralExprAST
+    | CallExprAST
+    | NumberExprAST
+    | PrintExprAST
+    | VarDeclExprAST
+    | ReturnExprAST
+)
