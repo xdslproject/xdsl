@@ -283,7 +283,9 @@ class IRGen:
         """
 
         if isinstance(expr, LiteralExprAST):
-            return expr.flattened_values()
+            return [
+                value for inner in expr.values for value in self.collect_data(inner)
+            ]
         elif isinstance(expr, NumberExprAST):
             return [expr.val]
         else:
