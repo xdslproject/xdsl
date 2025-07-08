@@ -614,7 +614,7 @@ class ParallelOp(BlockArgOpenMPOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "omp.yield"
 
-    assembly_format = "( `(` $results^ `:` type($results) `)` )? attr-dict"
+    assembly_format = "( `(` $arguments^ `:` type($arguments) `)` )? attr-dict"
 
     traits = traits_def(
         IsTerminator(),
