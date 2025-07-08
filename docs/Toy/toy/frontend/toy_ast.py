@@ -149,6 +149,7 @@ class PrintExprAST(NamedTuple):
     arg: ExprAST
 
     def inner_dump(self, prefix: str, dumper: Dumper):
+        dumper.append(prefix, self.__class__.__name__)
         child = dumper.child()
         self.arg.inner_dump("arg: ", child)
 
@@ -187,7 +188,7 @@ class FunctionAST(NamedTuple):
         return dumper.message
 
     def inner_dump(self, prefix: str, dumper: Dumper):
-        dumper.append(prefix, "Function ")
+        dumper.append(prefix, "Function")
         child = dumper.child()
         self.proto.inner_dump("proto: ", child)
         child.append_list(
