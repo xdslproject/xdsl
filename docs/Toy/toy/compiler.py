@@ -58,7 +58,7 @@ def context() -> Context:
 
 def parse_toy(program: str, ctx: Context | None = None) -> ModuleOp:
     mlir_gen = IRGen()
-    module_ast = ToyParser(Path("in_memory"), program).parseModule()
+    module_ast = ToyParser(Path("in_memory"), program).parse_module()
     module_op = mlir_gen.ir_gen_module(module_ast)
     return module_op
 

@@ -15,7 +15,7 @@ def test_convert_ast():
     with open(ast_toy) as f:
         parser = ToyParser(ast_toy, f.read())
 
-    module_ast = parser.parseModule()
+    module_ast = parser.parse_module()
 
     ir_gen = IRGen()
 
@@ -65,7 +65,7 @@ def test_convert_scalar():
     with open(scalar_toy) as f:
         parser = ToyParser(scalar_toy, f.read())
 
-    module_ast = parser.parseModule()
+    module_ast = parser.parse_module()
 
     ir_gen = IRGen()
 
