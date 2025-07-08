@@ -42,7 +42,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    OptSingleBlockRegion,
     attr_def,
     base,
     irdl_attr_definition,
@@ -3589,7 +3588,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
     def __init__(
         self,
         directive: str | StringAttr,
-        region: OptSingleBlockRegion = None,
+        region: Region | None = None,
     ):
         if isinstance(directive, str):
             directive = StringAttr(directive)
