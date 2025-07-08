@@ -129,10 +129,9 @@ class GenericParser(Generic[TokenKindT]):
         use `_parse_token` instead.
         """
         consumed_token = self._current_token
-        if expected_kind is not None:
-            assert consumed_token.kind == expected_kind, (
-                f"Unexpected token {consumed_token}, expected {expected_kind}"
-            )
+        assert expected_kind is None or consumed_token.kind == expected_kind, (
+            f"Unexpected token {consumed_token}, expected {expected_kind}"
+        )
         self._parser_state.current_token = self.lexer.lex()
         return consumed_token
 
@@ -147,15 +146,13 @@ class GenericParser(Generic[TokenKindT]):
             return self._consume_token()
 
     def _parse_token(
-        self, expected_kind: TokenKindT, error_msg: str | None = None
+        self, expected_kind: TokenKindT, error_msg: str
     ) -> Token[TokenKindT]:
         """
         Parse a specific token, and raise an error if it is not present.
         Returns the token that was parsed.
         """
         if (result := self._parse_optional_token(expected_kind)) is None:
-            if error_msg is None:
-                error_msg = f"Expected {expected_kind}"
             self.raise_error(error_msg, self._current_token.span)
         return result
 
