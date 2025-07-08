@@ -723,7 +723,7 @@ class ErasedSSAValue(SSAValue):
 @dataclass(init=False)
 class _IRNode(ABC):
     def is_ancestor(self, op: IRNode) -> bool:
-        "Returns true if the IRNode is an ancestor of another IRNode."
+        "Returns true if `self` is an ancestor of `op`."
         curr = op
         while curr is not None:
             if curr is self:
@@ -732,7 +732,10 @@ class _IRNode(ABC):
         return False
 
     def get_toplevel_object(self) -> IRNode:
-        """Get the operation, block, or region ancestor that has no parents."""
+        """
+        Get the ancestor of `self` that has no parent.
+        This can be an Operation, Block, or Region.
+        """
         current = self
         while (parent := current.parent_node) is not None:
             current = parent
