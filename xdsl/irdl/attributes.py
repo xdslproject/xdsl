@@ -65,7 +65,6 @@ from .constraints import (  # noqa: TID251
     TypeVarConstraint,
     VarConstraint,
 )
-from .error import IRDLAnnotations  # noqa: TID251
 
 _DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
 
@@ -384,9 +383,6 @@ def irdl_list_to_attr_constraint(
     constraints = tuple(
         irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)
         for arg in pyrdl_constraints
-        # We should not try to convert IRDL annotations, which do not correspond to
-        # constraints
-        if not isinstance(arg, IRDLAnnotations)
     )
 
     if len(constraints) > 1:
@@ -505,10 +501,6 @@ def irdl_to_attr_constraint(
     if origin == UnionType or origin == Union:
         constraints: list[AttrConstraint] = []
         for arg in get_args(irdl):
-            # We should not try to convert IRDL annotations, which do not
-            # correspond to constraints
-            if isinstance(arg, IRDLAnnotations):
-                continue
             constraints.append(
                 irdl_to_attr_constraint(
                     arg,
