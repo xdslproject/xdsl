@@ -32,13 +32,13 @@ from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
+from xdsl.transforms.shape_inference import ShapeInferencePass
 
 from .dialects import toy
 from .frontend.ir_gen import IRGen
 from .frontend.parser import ToyParser
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_toy_affine import LowerToAffinePass
-from .rewrites.shape_inference import ShapeInferencePass
 
 
 def context() -> Context:
@@ -84,7 +84,7 @@ def transform(
 
     ShapeInferencePass().apply(ctx, module_op)
 
-    if target == "toy-infer-shapes":
+    if target == "shape-inference":
         return
 
     LowerToAffinePass().apply(ctx, module_op)
