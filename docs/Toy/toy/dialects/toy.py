@@ -505,6 +505,23 @@ class TransposeOpInferShapeInferencePattern(RewritePattern):
             rewriter.replace_value_with_new_type(op.res, TensorType(f64, res_shape))
 
 
+class CastOpInferShapeInferencePattern(RewritePattern):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+        if not isinstance(op, CastOp):
+            return
+
+        if not isinstance(op_arg_type := op.arg.type, TensorType):
+            return
+
+        shape = op_arg_type.get_shape()
+
+        if isinstance(op_res_type := op.res.type, TensorType):
+            assert shape == op_res_type.get_shape()
+            rewriter.replace_matched_op((), (op.arg,))
+        else:
+            rewriter.replace_value_with_new_type(op.res, TensorType(f64, shape))
+
+
 class CastOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -527,21 +544,6 @@ class CastOp(IRDLOperation):
             operands=[arg],
             result_types=[res],
         )
-
-
-class CastOpInferShapeInferencePattern(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
-        if not isinstance(op_arg_type := op.arg.type, TensorType):
-            return
-
-        shape = op_arg_type.get_shape()
-
-        if isinstance(op_res_type := op.res.type, TensorType):
-            assert shape == op_res_type.get_shape()
-            rewriter.replace_matched_op((), (op.arg,))
-        else:
-            rewriter.replace_value_with_new_type(op.res, TensorType(f64, shape))
 
 
 Toy = Dialect(
