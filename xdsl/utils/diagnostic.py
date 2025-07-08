@@ -32,7 +32,6 @@ class Diagnostic:
                 p.print_block(toplevel)
             case Region():
                 p.print_region(toplevel)
-        p.print_string("\n")
 
         # __notes__ only in 3.11 and above
         if hasattr(underlying_error, "add_note"):
