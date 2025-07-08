@@ -34,14 +34,13 @@ class NewPrinter(print_csl.CslPrintContext):
             case _:
                 return super().mlir_type_to_csl_type(type_attr)
 
-    def _print_op_override(self, op: Operation) -> bool:
+    def print_op(self, op: Operation):
         match op:
             case test.TestOp(res=res, ops=ops):
                 var = "test" if not ops else self._var_use(ops[0])
                 self._print_or_promote_to_inline_expr(res[0], var)
-                return True
             case _:
-                return False
+                super().print_op(op)
 
 
 def test_csl_printer_extension(layout: csl.CslModuleOp, program: csl.CslModuleOp):
