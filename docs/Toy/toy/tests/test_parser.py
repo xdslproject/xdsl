@@ -28,7 +28,7 @@ def test_parse_ast():
     with open(ast_toy) as f:
         parser = ToyParser(ast_toy, f.read())
 
-    parsed_module_ast = parser.parseModule()
+    parsed_module_ast = parser.parse_module()
 
     def loc(line: int, col: int) -> Location:
         return Location(str(ast_toy), line, col)
@@ -183,7 +183,7 @@ def test_parse_error():
     program = "def("
     parser = ToyParser(Path(), program)
     with pytest.raises(ParseError, match="Expected expression"):
-        parser.parseIdentifierExpr()
+        parser.parse_identifier_expr()
 
 
 def test_parse_scalar():
@@ -192,7 +192,7 @@ def test_parse_scalar():
     with open(ast_toy) as f:
         parser = ToyParser(ast_toy, f.read())
 
-    parsed_module_ast = parser.parseModule()
+    parsed_module_ast = parser.parse_module()
 
     def loc(line: int, col: int) -> Location:
         return Location(str(ast_toy), line, col)

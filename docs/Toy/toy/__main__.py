@@ -61,7 +61,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         match path.suffix:
             case ".toy":
                 parser = ToyParser(path, f.read())
-                ast = parser.parseModule()
+                ast = parser.parse_module()
                 if emit == "ast":
                     print(ast.dump())
                     return
