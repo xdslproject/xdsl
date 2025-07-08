@@ -43,7 +43,6 @@ from xdsl.irdl import (
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
-    op_type_rewrite_pattern,
 )
 from xdsl.traits import (
     CallableOpInterface,
@@ -156,8 +155,10 @@ class AddOp(IRDLOperation):
 
 
 class InferAddOpShapeInferencePattern(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: AddOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+        if not isinstance(op, AddOp):
+            return
+
         if not (
             isa(op_lhs_type := op.lhs.type, TensorType)
             and isinstance(op_rhs_type := op.rhs.type, TensorType)
@@ -293,6 +294,24 @@ class GenericCallOp(IRDLOperation):
         )
 
 
+class MulOpInferShapeInferencePattern(RewritePattern):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+        if not isinstance(op, MulOp):
+            return
+
+        if not (
+            isa(op_lhs_type := op.lhs.type, TensorType)
+            and isinstance(op_rhs_type := op.rhs.type, TensorType)
+        ):
+            return
+
+        assert op_lhs_type.get_shape() == op_rhs_type.get_shape()
+        if isinstance(op_res_type := op.res.type, TensorType):
+            assert op_lhs_type.get_shape() == op_res_type.get_shape()
+        else:
+            rewriter.replace_value_with_new_type(op.res, op_lhs_type)
+
+
 class InferMulOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -334,22 +353,6 @@ class MulOp(IRDLOperation):
                         raise VerifyException(
                             "Expected MulOp args to have the same shape"
                         )
-
-
-class MulOpInferShapeInferencePattern(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: MulOp, rewriter: PatternRewriter, /):
-        if not (
-            isa(op_lhs_type := op.lhs.type, TensorType)
-            and isinstance(op_rhs_type := op.rhs.type, TensorType)
-        ):
-            return
-
-        assert op_lhs_type.get_shape() == op_rhs_type.get_shape()
-        if isinstance(op_res_type := op.res.type, TensorType):
-            assert op_lhs_type.get_shape() == op_res_type.get_shape()
-        else:
-            rewriter.replace_value_with_new_type(op.res, op_lhs_type)
 
 
 @irdl_op_definition
@@ -446,6 +449,23 @@ class ReshapeOp(IRDLOperation):
             raise VerifyException("Reshape operation result shape should be defined")
 
 
+class TransposeOpInferShapeInferencePattern(RewritePattern):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+        if not isinstance(op, TransposeOp):
+            return
+
+        if not isinstance(op_arg_type := op.arg.type, TensorType):
+            return
+
+        arg_shape = op_arg_type.get_shape()
+        res_shape = arg_shape[::-1]
+
+        if isinstance(op_res_type := op.res.type, TensorType):
+            assert res_shape == op_res_type.get_shape()
+        else:
+            rewriter.replace_value_with_new_type(op.res, TensorType(f64, res_shape))
+
+
 class TransposeOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -488,21 +508,6 @@ class TransposeOp(IRDLOperation):
             output_type = arg.type
 
         super().__init__(operands=[arg], result_types=[output_type])
-
-
-class TransposeOpInferShapeInferencePattern(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: TransposeOp, rewriter: PatternRewriter, /):
-        if not isinstance(op_arg_type := op.arg.type, TensorType):
-            return
-
-        arg_shape = op_arg_type.get_shape()
-        res_shape = arg_shape[::-1]
-
-        if isinstance(op_res_type := op.res.type, TensorType):
-            assert res_shape == op_res_type.get_shape()
-        else:
-            rewriter.replace_value_with_new_type(op.res, TensorType(f64, res_shape))
 
 
 class CastOpInferShapeInferencePattern(RewritePattern):
