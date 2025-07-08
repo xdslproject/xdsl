@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from .location import Location
@@ -117,16 +117,6 @@ class LiteralExprAST(ExprAST):
 
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append("Literal:", self.__dump() + f" @{self.loc}")
-
-    def iter_flattened_values(self) -> Generator[float, None, None]:
-        for value in self.values:
-            if isinstance(value, NumberExprAST):
-                yield value.val
-            else:
-                yield from value.iter_flattened_values()
-
-    def flattened_values(self) -> list[float]:
-        return list(self.iter_flattened_values())
 
 
 @dataclass
