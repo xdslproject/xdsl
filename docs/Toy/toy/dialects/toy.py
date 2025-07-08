@@ -45,7 +45,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import Rewriter
 from xdsl.traits import (
     CallableOpInterface,
     HasCanonicalizationPatternsTrait,
@@ -168,7 +167,7 @@ class InferAddOpShapeInferencePattern(RewritePattern):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert op_lhs_type.get_shape() == op_res_type.get_shape()
         else:
-            Rewriter.replace_value_with_new_type(op.res, op_lhs_type)
+            rewriter.replace_value_with_new_type(op.res, op_lhs_type)
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -350,7 +349,7 @@ class MulOpInferShapeInferencePattern(RewritePattern):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert op_lhs_type.get_shape() == op_res_type.get_shape()
         else:
-            Rewriter.replace_value_with_new_type(op.res, op_lhs_type)
+            rewriter.replace_value_with_new_type(op.res, op_lhs_type)
 
 
 @irdl_op_definition
