@@ -111,6 +111,23 @@ class ConstantOp(IRDLOperation):
         return list(self.value.get_values())
 
 
+class InferAddOpShapeInferencePattern(RewritePattern):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+        if not isinstance(op, AddOp):
+            return
+
+        if not (
+            isa(op_lhs_type := op.lhs.type, TensorType)
+            and isinstance(op_rhs_type := op.rhs.type, TensorType)
+        ):
+            return
+        assert op_lhs_type.get_shape() == op_rhs_type.get_shape()
+        if isinstance(op_res_type := op.res.type, TensorType):
+            assert op_lhs_type.get_shape() == op_res_type.get_shape()
+        else:
+            rewriter.replace_value_with_new_type(op.res, op_lhs_type)
+
+
 class InferAddOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -152,23 +169,6 @@ class AddOp(IRDLOperation):
                         raise VerifyException(
                             "Expected AddOp args to have the same shape"
                         )
-
-
-class InferAddOpShapeInferencePattern(RewritePattern):
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        if not isinstance(op, AddOp):
-            return
-
-        if not (
-            isa(op_lhs_type := op.lhs.type, TensorType)
-            and isinstance(op_rhs_type := op.rhs.type, TensorType)
-        ):
-            return
-        assert op_lhs_type.get_shape() == op_rhs_type.get_shape()
-        if isinstance(op_res_type := op.res.type, TensorType):
-            assert op_lhs_type.get_shape() == op_res_type.get_shape()
-        else:
-            rewriter.replace_value_with_new_type(op.res, op_lhs_type)
 
 
 class FuncOpCallableInterface(CallableOpInterface):
