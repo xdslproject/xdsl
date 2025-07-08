@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Generator, Iterable
 from dataclasses import dataclass
-from enum import Enum
 
 from .location import Location
 
@@ -14,17 +13,6 @@ class VarType:
     "A variable type with shape information."
 
     shape: list[int]
-
-
-class ExprASTKind(Enum):
-    Expr_VarDecl = 1
-    Expr_Return = 2
-    Expr_Num = 3
-    Expr_Literal = 4
-    Expr_Var = 5
-    Expr_BinOp = 6
-    Expr_Call = 7
-    Expr_Print = 8
 
 
 @dataclass()
@@ -65,10 +53,6 @@ class ExprAST:
         self.loc = loc
         print(self.dump())
 
-    @property
-    def kind(self) -> ExprASTKind:
-        raise AssertionError(f"ExprAST kind not defined for {type(self)}")
-
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append(prefix, self.__class__.__name__)
 
@@ -86,10 +70,6 @@ class VarDeclExprAST(ExprAST):
     varType: VarType
     expr: ExprAST
 
-    @property
-    def kind(self):
-        return ExprASTKind.Expr_VarDecl
-
     def inner_dump(self, prefix: str, dumper: Dumper):
         dims_str = ", ".join(f"{int(dim)}" for dim in self.varType.shape)
         dumper.append("VarDecl ", f"{self.name}<{dims_str}> @{self.loc}")
@@ -102,10 +82,6 @@ class ReturnExprAST(ExprAST):
     "Expression class for a return operator."
 
     expr: ExprAST | None
-
-    @property
-    def kind(self):
-        return ExprASTKind.Expr_Return
 
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append(prefix, "Return")
@@ -120,10 +96,6 @@ class NumberExprAST(ExprAST):
 
     val: float
 
-    @property
-    def kind(self):
-        return ExprASTKind.Expr_Num
-
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append(prefix, f" {self.val:.6e}")
 
@@ -134,10 +106,6 @@ class LiteralExprAST(ExprAST):
 
     values: list[LiteralExprAST | NumberExprAST]
     dims: list[int]
-
-    @property
-    def kind(self):
-        return ExprASTKind.Expr_Literal
 
     def __dump(self) -> str:
         dims_str = ", ".join(f"{int(dim)}" for dim in self.dims)
@@ -167,10 +135,6 @@ class VariableExprAST(ExprAST):
 
     name: str
 
-    @property
-    def kind(self):
-        return ExprASTKind.Expr_Var
-
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append("var: ", f"{self.name} @{self.loc}")
 
@@ -182,10 +146,6 @@ class BinaryExprAST(ExprAST):
     op: str
     lhs: ExprAST
     rhs: ExprAST
-
-    @property
-    def kind(self):
-        return ExprASTKind.Expr_BinOp
 
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append(prefix, f"BinOp: {self.op} @{self.loc}")
@@ -200,10 +160,6 @@ class CallExprAST(ExprAST):
 
     callee: str
     args: list[ExprAST]
-
-    @property
-    def kind(self):
-        return ExprASTKind.Expr_Call
 
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append_list(
@@ -220,10 +176,6 @@ class PrintExprAST(ExprAST):
     "Expression class for builtin print calls."
 
     arg: ExprAST
-
-    @property
-    def kind(self):
-        return ExprASTKind.Expr_Print
 
     def inner_dump(self, prefix: str, dumper: Dumper):
         super().inner_dump(prefix, dumper)
