@@ -19,9 +19,8 @@ jobs:
       - uses: astral-sh/setup-uv@v3
 
       - run: |
-          rm uv.lock
           echo "\`\`\`" > uv_output.md
-          make venv &>> uv_output.md
+          uv lock -U &>> uv_output.md
           echo "\`\`\`" >> uv_output.md
 
       - name: Create pull request
