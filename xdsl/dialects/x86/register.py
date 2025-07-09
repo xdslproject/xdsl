@@ -70,10 +70,9 @@ class GeneralRegisterType(X86RegisterType):
         """
         Registers of this type that can be used for register allocation.
 
-        Returns:
-            A tuple of GeneralRegisterType instances corresponding to registers
-            that are allocatable according to the x86-64 System V ABI.
-            This excludes registers with special purposes (e.g., stack pointer, base pointer).
+        Returns a tuple of GeneralRegisterType instances corresponding to registers that
+        are allocatable according to the x86-64 System V ABI.
+        This excludes registers with special purposes (e.g., stack pointer, base pointer).
         """
         return (
             RAX,
