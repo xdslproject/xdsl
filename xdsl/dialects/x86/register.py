@@ -65,6 +65,31 @@ class GeneralRegisterType(X86RegisterType):
     def infinite_register_prefix(cls):
         return "inf_reg_"
 
+    @classmethod
+    def allocatable_registers(cls):
+        """
+        Registers of this type that can be used for register allocation.
+
+        Returns a tuple of GeneralRegisterType instances corresponding to registers that
+        are allocatable according to the x86-64 System V ABI.
+        This excludes registers with special purposes (e.g., stack pointer, base pointer).
+        """
+        return (
+            RAX,
+            RCX,
+            RDX,
+            RBX,
+            RSI,
+            RDI,
+            R8,
+            R9,
+            R10,
+            R11,
+            R13,
+            R14,
+            R15,
+        )
+
 
 UNALLOCATED_GENERAL = GeneralRegisterType.unallocated()
 RAX = GeneralRegisterType.from_name("rax")
