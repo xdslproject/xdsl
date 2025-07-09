@@ -65,7 +65,7 @@
 
 // -----
 
-// CHECK: '>' expected
+// CHECK: Expected shape type.
 "test.op"() {
   illegal_array_unranked = !emitc.array<*xi32>
 }: ()->()
