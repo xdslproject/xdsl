@@ -10,6 +10,7 @@ from xdsl.utils.scoped_dict import ScopedDict
 
 from ..dialects.toy import (
     AddOp,
+    AnyTensorTypeF64,
     ConstantOp,
     FuncOp,
     FunctionType,
@@ -18,7 +19,6 @@ from ..dialects.toy import (
     PrintOp,
     ReshapeOp,
     ReturnOp,
-    TensorTypeF64,
     TransposeOp,
     UnrankedTensorTypeF64,
 )
@@ -110,7 +110,7 @@ class IRGen:
         self.symbol_table[var] = value
         return True
 
-    def get_type(self, shape: list[int]) -> TensorTypeF64 | UnrankedTensorTypeF64:
+    def get_type(self, shape: list[int]) -> AnyTensorTypeF64:
         "Build a tensor type from a list of shape dimensions."
         # If the shape is empty, then this type is unranked.
         if len(shape):
@@ -138,7 +138,7 @@ class IRGen:
         parent_builder = self.builder
 
         # Create a scope in the symbol table to hold variable declarations.
-        self.symbol_table = ScopedDict[str, SSAValue]()
+        self.symbol_table = ScopedDict()
 
         proto_args = function_ast.proto.args
 
@@ -335,8 +335,7 @@ class IRGen:
 
     def ir_gen_number_expr(self, num: NumberExprAST) -> SSAValue:
         "Emit a constant for a single number"
-
-        constant_op = self.builder.insert(ConstantOp.from_list([num.val], []))
+        constant_op = self.builder.insert(ConstantOp.from_value(num.val))
         return constant_op.res
 
     def ir_gen_expr(self, expr: ExprAST) -> SSAValue:
