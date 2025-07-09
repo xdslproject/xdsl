@@ -111,3 +111,17 @@
 "test.op"() {
   illegal_lvalue_tuple_emitc_array_i32 = !emitc.lvalue<tuple<!emitc.array<1xi32>>>
 }: ()->()
+
+// -----
+
+// CHECK: expected non empty string in !emitc.opaque type
+"test.op"() {
+  empty_str = !emitc.opaque<"">
+}: ()->()
+
+// -----
+
+// CHECK: pointer not allowed as outer type with !emitc.opaque, use !emitc.ptr instead
+"test.op"() {
+  with_ptr = !emitc.opaque<"foo*">
+}: ()->()
