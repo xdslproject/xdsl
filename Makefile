@@ -62,10 +62,6 @@ pytest: uv-installed
 filecheck-toy: uv-installed
 	uv run lit $(LIT_OPTIONS) docs/Toy/examples
 
-.PHONY: pytest-toy
-pytest-toy: uv-installed
-	uv run pytest docs/Toy/toy/tests
-
 .PHONY: pytest-toy-nb
 pytest-toy-nb:
 	@if uv run python -c "import riscemu" > /dev/null 2>&1; then \
@@ -75,7 +71,7 @@ pytest-toy-nb:
 	fi
 
 .PHONY: tests-toy
-tests-toy: filecheck-toy pytest-toy pytest-toy-nb
+tests-toy: filecheck-toy pytest-toy-nb
 
 
 .PHONY: tests-marimo
