@@ -80,7 +80,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
         Verifies that the current token is of expected type,
         raises ParseError otherwise
         """
-        return self._consume_token(tokenType)
+        return self._parse_token(tokenType, f"Expected {tokenType}")
 
     def parse_module(self):
         """
