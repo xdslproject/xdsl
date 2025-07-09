@@ -2233,17 +2233,12 @@ class MemRefType(
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
-        s: ArrayAttr[IntAttr]
-        if isa(shape, ArrayAttr[IntAttr]):
-            # Temporary cast until Pyright is fixed to not infer ArrayAttr[int] as a
-            # possible value for shape
-            s = shape
-        else:
-            s = ArrayAttr(
+        if not isa(shape, ArrayAttr[IntAttr]):
+            shape = ArrayAttr(
                 [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
             )
         super().__init__(
-            s,
+            shape,
             element_type,
             layout,
             memory_space,
