@@ -1,20 +1,19 @@
 import re
-from dataclasses import dataclass
+from typing import NamedTuple
 
 from typing_extensions import Any
 
 from xdsl.utils.lexer import Token
 
 
-@dataclass
-class Location:
+class Location(NamedTuple):
     "Structure definition a location in a file."
 
     file: str
     line: int
     col: int
 
-    def __repr__(self):
+    def __str__(self) -> str:
         return f"{self.file}:{self.line}:{self.col}"
 
 

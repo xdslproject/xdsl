@@ -57,7 +57,6 @@ from .constraints import (  # noqa: TID251
     RangeConstraint,
     RangeOf,
 )
-from .error import IRDLAnnotations  # noqa: TID251
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -437,15 +436,6 @@ class VarSingleBlockRegionDef(RegionDef, VariadicDef):
 
 class OptSingleBlockRegionDef(RegionDef, OptionalDef):
     """An IRDL optional region definition that expects exactly one block."""
-
-
-SingleBlockRegion: TypeAlias = Annotated[Region, IRDLAnnotations.SingleBlockRegionAnnot]
-VarSingleBlockRegion: TypeAlias = Annotated[
-    list[Region], IRDLAnnotations.SingleBlockRegionAnnot
-]
-OptSingleBlockRegion: TypeAlias = Annotated[
-    Region | None, IRDLAnnotations.SingleBlockRegionAnnot
-]
 
 
 @dataclass
