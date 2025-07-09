@@ -693,16 +693,33 @@ class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
 
 
 @irdl_attr_definition
-class LocationAttr(ParametrizedAttribute, BuiltinAttribute):
+class UnknownLoc(ParametrizedAttribute, BuiltinAttribute):
     """
-    An attribute representing source code location.
-    Only supports unknown locations for now.
+    Syntax:
+
+    ```
+    unknown-location ::= `unknown`
+    ```
+
+    Source location information is an extremely integral part of the MLIR
+    infrastructure. As such, location information is always present in the IR,
+    and must explicitly be set to unknown. Thus, an instance of the `unknown`
+    location represents an unspecified source location.
+
+    Example:
+
+    ```mlir
+    loc(unknown)
+    ```
     """
 
-    name = "loc"
+    name = "unknown_loc"
 
     def print_builtin(self, printer: Printer) -> None:
         printer.print_string("loc(unknown)")
+
+
+LocationAttr = UnknownLoc
 
 
 @irdl_attr_definition
@@ -2774,7 +2791,7 @@ Builtin = Dialect(
         DenseResourceAttr,
         UnitAttr,
         FloatData,
-        LocationAttr,
+        UnknownLoc,
         NoneAttr,
         OpaqueAttr,
         # Types
