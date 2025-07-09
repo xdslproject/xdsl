@@ -13,7 +13,6 @@ from typing import (
     Annotated,
     Generic,
     TypeAlias,
-    cast,
     overload,
 )
 
@@ -153,11 +152,8 @@ class ArrayAttr(
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
-        data = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_attribute
-        )
-        # the type system can't ensure that the elements are of type _ArrayAttrT
-        return cast(tuple[AttributeCovT, ...], tuple(data))
+        # This functionality is provided by the attribute parser.
+        raise NotImplementedError
 
     def print_parameter(self, printer: Printer) -> None:
         self.print_builtin(printer)
@@ -303,9 +299,8 @@ class EmptyArrayAttrConstraint(AttrConstraint):
     """
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, ArrayAttr):
+        if not isa(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
-        attr = cast(ArrayAttr[Attribute], attr)
         if attr.data:
             raise VerifyException(f"expected empty array, but got {attr}")
 
@@ -1410,8 +1405,7 @@ class ContainerOf(
         object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(elem_constr))
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isinstance(attr, VectorType) or isinstance(attr, TensorType):
-            attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
+        if isa(attr, VectorType) or isa(attr, TensorType):
             self.elem_constr.verify(attr.element_type, constraint_context)
         else:
             self.elem_constr.verify(attr, constraint_context)
@@ -1467,9 +1461,8 @@ class VectorBaseTypeConstraint(AttrConstraint):
     """The expected vector base type."""
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, VectorType):
+        if not isa(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
-        attr = cast(VectorType[Attribute], attr)
         if attr.element_type != self.expected_type:
             raise VerifyException(
                 f"Expected vector type to be {self.expected_type}, got {attr.element_type}."
@@ -1620,8 +1613,8 @@ class DenseArrayBase(
     ) -> DenseArrayBase:
         if isinstance(data_type, IntegerType):
             data = tuple(
-                data_type.get_normalized_value(value)
-                for value in cast(Sequence[int], data)
+                data_type.get_normalized_value(value)  # pyright: ignore[reportArgumentType]
+                for value in data
             )
         bytes_data = data_type.pack(data)  # pyright: ignore[reportArgumentType]
         return DenseArrayBase(data_type, BytesAttr(bytes_data))
@@ -2240,17 +2233,12 @@ class MemRefType(
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
-        s: ArrayAttr[IntAttr]
-        if isinstance(shape, ArrayAttr):
-            # Temporary cast until Pyright is fixed to not infer ArrayAttr[int] as a
-            # possible value for shape
-            s = cast(ArrayAttr[IntAttr], shape)
-        else:
-            s = ArrayAttr(
+        if not isa(shape, ArrayAttr[IntAttr]):
+            shape = ArrayAttr(
                 [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
             )
         super().__init__(
-            s,
+            shape,
             element_type,
             layout,
             memory_space,
@@ -2492,7 +2480,7 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
         if isinstance(data, int | float):
             data = (data,)
-        return DenseIntOrFPElementsAttr.from_list(type, cast(Sequence[float], data))
+        return DenseIntOrFPElementsAttr.from_list(type, data)
 
     @overload
     @staticmethod
@@ -2562,7 +2550,7 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr:
         # Normalise ints
         if isinstance(t := type.get_element_type(), IntegerType):
-            data = tuple(t.get_normalized_value(cast(int, x)) for x in data)
+            data = tuple(t.get_normalized_value(x) for x in data)  # pyright: ignore[reportArgumentType]
 
         b = type.element_type.pack(data)  # pyright: ignore[reportArgumentType]
 
@@ -2697,11 +2685,13 @@ class DenseIntOrFPElementsAttr(
         self, val: float | tuple[int, int] | tuple[float, float], printer: Printer
     ):
         if isinstance(val, int):
-            printer.print_int(
-                val, cast(IntegerType | IndexType, self.get_element_type())
+            assert isinstance(
+                element_type := self.get_element_type(), IntegerType | IndexType
             )
+            printer.print_int(val, element_type)
         elif isinstance(val, float):
-            printer.print_float(val, cast(AnyFloat, self.get_element_type()))
+            assert isinstance(element_type := self.get_element_type(), AnyFloat)
+            printer.print_float(val, element_type)
         else:  # complex
             assert isinstance(element_type := self.get_element_type(), ComplexType)
             printer.print_complex(val, element_type)
