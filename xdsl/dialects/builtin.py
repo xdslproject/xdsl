@@ -29,6 +29,7 @@ from xdsl.ir import (
     BlockOps,
     BuiltinAttribute,
     Data,
+    DataElement,
     Dialect,
     Operation,
     ParametrizedAttribute,
@@ -129,6 +130,29 @@ class ContainerType(Generic[_ContainerElementTypeT], ABC):
         pass
 
 
+class _BuiltinData(Generic[DataElement], Data[DataElement], BuiltinAttribute, ABC):
+    """
+    Helper superclass to implement dummy print and parse parameter methods.
+    """
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> DataElement:
+        # This functionality is provided by the attribute parser.
+        raise ValueError(f"Should not use parse_parameter on BuiltinAttribute {cls}")
+
+    def print_parameter(self, printer: Printer) -> None:
+        # This functionality is provided by print_builtin.
+        raise ValueError(f"Should not use print_parameter on BuiltinAttribute {self}")
+
+
+class _BuiltinGenericData(
+    Generic[DataElement], GenericData[DataElement], _BuiltinData[DataElement], ABC
+):
+    """
+    Helper superclass to implement dummy print and parse parameter methods.
+    """
+
+
 @irdl_attr_definition
 class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
     """An attribute representing the absence of an attribute."""
@@ -142,25 +166,13 @@ class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
 @irdl_attr_definition
 class ArrayAttr(
     Generic[AttributeCovT],
-    GenericData[tuple[AttributeCovT, ...]],
-    BuiltinAttribute,
+    _BuiltinGenericData[tuple[AttributeCovT, ...]],
     Iterable[AttributeCovT],
 ):
     name = "array"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
         super().__init__(tuple(param))
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
-        data = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_attribute
-        )
-        # the type system can't ensure that the elements are of type _ArrayAttrT
-        return cast(tuple[AttributeCovT, ...], tuple(data))
-
-    def print_parameter(self, printer: Printer) -> None:
-        self.print_builtin(printer)
 
     def print_builtin(self, printer: Printer):
         with printer.in_square_brackets():
@@ -236,30 +248,16 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
 
 
 @irdl_attr_definition
-class StringAttr(Data[str], BuiltinAttribute):
+class StringAttr(_BuiltinData[str]):
     name = "string"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
-        return parser.parse_str_literal()
-
-    def print_parameter(self, printer: Printer) -> None:
-        self.print_builtin(printer)
 
     def print_builtin(self, printer: Printer):
         printer.print_string_literal(self.data)
 
 
 @irdl_attr_definition
-class BytesAttr(Data[bytes], BuiltinAttribute):
+class BytesAttr(_BuiltinData[bytes]):
     name = "bytes"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> bytes:
-        return parser.parse_bytes_literal()
-
-    def print_parameter(self, printer: Printer) -> None:
-        self.print_builtin(printer)
 
     def print_builtin(self, printer: Printer):
         printer.print_bytes_literal(self.data)
@@ -1165,20 +1163,13 @@ class ComplexType(
 
 
 @irdl_attr_definition
-class DictionaryAttr(Data[immutabledict[str, Attribute]], BuiltinAttribute):
+class DictionaryAttr(_BuiltinData[immutabledict[str, Attribute]]):
     name = "dictionary"
 
     def __init__(self, value: Mapping[str, Attribute]):
         if not isinstance(value, immutabledict):
             value = immutabledict(value)
         super().__init__(value)
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> immutabledict[str, Attribute]:
-        return immutabledict(parser.parse_optional_dictionary_attr_dict())
-
-    def print_parameter(self, printer: Printer) -> None:
-        self.print_builtin(printer)
 
     def print_builtin(self, printer: Printer):
         printer.print_attr_dict(self.data)
@@ -1870,19 +1861,10 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
 
 
 @irdl_attr_definition
-class AffineMapAttr(MemRefLayoutAttr, BuiltinAttribute, Data[AffineMap]):
+class AffineMapAttr(MemRefLayoutAttr, _BuiltinData[AffineMap]):
     """An Attribute containing an AffineMap object."""
 
     name = "affine_map"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> AffineMap:
-        with parser.in_angle_brackets():
-            data = parser.parse_affine_map()
-            return data
-
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f"{self.data}")
 
     def print_builtin(self, printer: Printer):
         printer.print_string(f"affine_map<{self.data}>")
@@ -1896,17 +1878,10 @@ class AffineMapAttr(MemRefLayoutAttr, BuiltinAttribute, Data[AffineMap]):
 
 
 @irdl_attr_definition
-class AffineSetAttr(Data[AffineSet], BuiltinAttribute):
+class AffineSetAttr(_BuiltinData[AffineSet]):
     """An attribute containing an AffineSet object."""
 
     name = "affine_set"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> AffineSet:
-        return parser.parse_affine_set()
-
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f"{self.data}")
 
     def print_builtin(self, printer: Printer):
         printer.print_string(f"affine_set<{self.data}>")
