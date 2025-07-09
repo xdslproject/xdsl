@@ -304,10 +304,8 @@ class GenericParser(Generic[TokenKindT]):
     @contextmanager
     def delimited(self, start: str, end: str):
         self.parse_characters(start)
-        try:
-            yield
-        finally:
-            self.parse_characters(end)
+        yield
+        self.parse_characters(end)
 
     def in_angle_brackets(self):
         return self.delimited("<", ">")
