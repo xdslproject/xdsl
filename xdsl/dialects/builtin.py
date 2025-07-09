@@ -152,11 +152,8 @@ class ArrayAttr(
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
-        data = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_attribute
-        )
-        # the type system can't ensure that the elements are of type _ArrayAttrT
-        return tuple(data)  # pyright: ignore [reportReturnType]
+        # This functionality is provided by the attribute parser.
+        raise NotImplementedError
 
     def print_parameter(self, printer: Printer) -> None:
         self.print_builtin(printer)
