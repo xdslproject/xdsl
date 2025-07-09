@@ -28,6 +28,7 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     DictionaryAttr,
+    FileLineColLoc,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -1269,6 +1270,13 @@ class AttrParser(BaseParser):
         with self.in_parens():
             if self.parse_optional_keyword("unknown"):
                 return UnknownLoc()
+
+            if (filename := self.parse_optional_str_literal()) is not None:
+                self.parse_punctuation(":")
+                line = self.parse_integer(False, False)
+                self.parse_punctuation(":")
+                col = self.parse_integer(False, False)
+                return FileLineColLoc.get(filename, line, col)
 
             self.raise_error("Unexpected location syntax.")
 
