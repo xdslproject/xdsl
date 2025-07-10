@@ -630,8 +630,8 @@ class AttrParser(BaseParser):
             self.parse_optional_type, self.parse_type
         )
         if params is None:
-            params = []
-        return TupleType(params)
+            params = ()
+        return TupleType(tuple(params))
 
     def _parse_attribute_type(self) -> Attribute:
         """

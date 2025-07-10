@@ -439,21 +439,11 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
-    def __init__(self, *parameters: Attribute):
-        if len(parameters) == 1 and isinstance(parameters[0], tuple):
-            import warnings
-
-            warnings.warn(
-                "Passing a tuple as a single argument to ParametrizedAttribute.__init__ is deprecated. "
-                "Pass the tuple elements as separate arguments instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            parameters = parameters[0]
-
-        for (f, _), param in zip(
-            self.get_irdl_definition().parameters, parameters, strict=True
-        ):
+    def __init__(self, *parameters: Any):
+        irdl_def = self.get_irdl_definition()
+        for (f, d), param in zip(irdl_def.parameters, parameters, strict=True):
+            if d.converter is not None:
+                param = d.converter(param)
             object.__setattr__(self, f, param)
         super().__init__()
 
