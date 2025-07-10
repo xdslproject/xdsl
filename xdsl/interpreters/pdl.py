@@ -249,7 +249,7 @@ class PDLRewritePattern(RewritePattern):
         if not matcher.match_operation(pdl_op_val, pdl_op, xdsl_op):
             return
 
-        # Special case for memref.load followed by memref.store
+        # Special case for memref.load that follows memref.store
         # If so, match corresponding memref.store operation to ensure context is matched
         if isinstance(pdl_op.prev_op, pdl.OperationOp):
             if (
