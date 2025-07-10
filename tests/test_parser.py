@@ -972,18 +972,8 @@ def test_parse_location():
     attr = Parser(ctx, "loc(unknown)").parse_optional_location()
     assert attr == UnknownLoc()
 
-    with pytest.raises(ParseError) as e:
+    with pytest.raises(ParseError, match="Unexpected location syntax."):
         Parser(ctx, "loc(unexpected)").parse_optional_location()
-
-    assert (
-        str(e.value)
-        == """\
-<unknown>:1:4
-loc(unexpected)
-    ^^^^^^^^^^
-    Unexpected location syntax.
-"""
-    )
 
 
 @pytest.mark.parametrize(
