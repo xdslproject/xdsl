@@ -4,7 +4,8 @@ Toy language dialect from MLIR tutorial.
 
 from __future__ import annotations
 
-from typing import TypeAlias, cast
+from collections.abc import Sequence
+from typing import TypeAlias
 
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
@@ -21,7 +22,6 @@ from xdsl.ir import (
     Block,
     Dialect,
     Operation,
-    OpResult,
     OpTraits,
     Region,
     SSAValue,
@@ -29,7 +29,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     attr_def,
-    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -47,6 +46,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.traits import (
     CallableOpInterface,
     HasCanonicalizationPatternsTrait,
+    HasParent,
     HasShapeInferencePatternsTrait,
     IsTerminator,
     Pure,
@@ -58,7 +58,6 @@ from xdsl.utils.hints import isa
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
 AnyTensorTypeF64: TypeAlias = TensorTypeF64 | UnrankedTensorTypeF64
-AnyTensorTypeF64Constr = base(TensorTypeF64) | base(UnrankedTensorTypeF64)
 
 
 @irdl_op_definition
@@ -100,16 +99,6 @@ class ConstantOp(IRDLOperation):
                 f"{self.res.type}, {self.value.type}"
             )
 
-    def get_type(self) -> TensorTypeF64:
-        # Constant cannot be unranked
-        return cast(TensorTypeF64, self.value.type)
-
-    def get_shape(self) -> list[int]:
-        return list(self.get_type().get_shape())
-
-    def get_data(self) -> list[float]:
-        return list(self.value.get_values())
-
 
 class InferAddOpShapeInferencePattern(RewritePattern):
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
@@ -142,9 +131,9 @@ class AddOp(IRDLOperation):
     """
 
     name = "toy.add"
-    lhs = operand_def(AnyTensorTypeF64Constr)
-    rhs = operand_def(AnyTensorTypeF64Constr)
-    res = result_def(AnyTensorTypeF64Constr)
+    lhs = operand_def(AnyTensorTypeF64)
+    rhs = operand_def(AnyTensorTypeF64)
+    res = result_def(AnyTensorTypeF64)
 
     traits = traits_def(Pure(), InferAddOpHasShapeInferencePatternsTrait())
 
@@ -207,7 +196,7 @@ class FuncOp(IRDLOperation):
     """
 
     name = "toy.func"
-    body = region_def()
+    body = region_def("single_block")
     sym_name = attr_def(StringAttr)
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
@@ -234,11 +223,7 @@ class FuncOp(IRDLOperation):
         return super().__init__(attributes=attributes, regions=[region])
 
     def verify_(self):
-        # Check that the returned value matches the type of the function
-        if len(self.body.blocks) != 1:
-            raise VerifyException("Expected FuncOp to contain one block")
-
-        block = self.body.blocks[0]
+        block = self.body.block
 
         if not block.ops:
             raise VerifyException("Expected FuncOp to not be empty")
@@ -248,26 +233,6 @@ class FuncOp(IRDLOperation):
         if not isinstance(last_op, ReturnOp):
             raise VerifyException("Expected last op of FuncOp to be a ReturnOp")
 
-        operand = last_op.input
-        operand_type = None if operand is None else operand.type
-
-        return_types = self.function_type.outputs.data
-
-        if len(return_types):
-            if len(return_types) == 1:
-                return_type = return_types[0]
-            else:
-                raise VerifyException(
-                    "Expected return type of func to have 0 or 1 values"
-                )
-        else:
-            return_type = None
-
-        if operand_type != return_type:
-            raise VerifyException(
-                "Expected return value to match return type of function"
-            )
-
 
 @irdl_op_definition
 class GenericCallOp(IRDLOperation):
@@ -275,14 +240,13 @@ class GenericCallOp(IRDLOperation):
     arguments = var_operand_def()
     callee = attr_def(SymbolRefAttr)
 
-    # Note: naming this results triggers an ArgumentError
-    res = var_result_def(AnyTensorTypeF64Constr)
+    res = var_result_def(AnyTensorTypeF64)
 
     def __init__(
         self,
         callee: str | SymbolRefAttr,
-        operands: list[SSAValue | OpResult],
-        return_types: list[Attribute],
+        operands: Sequence[SSAValue],
+        return_types: Sequence[Attribute],
     ):
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
@@ -326,18 +290,14 @@ class MulOp(IRDLOperation):
     """
 
     name = "toy.mul"
-    lhs = operand_def(AnyTensorTypeF64Constr)
-    rhs = operand_def(AnyTensorTypeF64Constr)
-    res = result_def(AnyTensorTypeF64Constr)
+    lhs = operand_def(AnyTensorTypeF64)
+    rhs = operand_def(AnyTensorTypeF64)
+    res = result_def(AnyTensorTypeF64)
 
     traits = traits_def(Pure(), InferMulOpHasShapeInferencePatternsTrait())
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
-        if isa(lhs.type, TensorTypeF64):
-            result_type = lhs.type
-        else:
-            result_type = rhs.type
-        super().__init__(result_types=[result_type], operands=[lhs, rhs])
+        super().__init__(result_types=[lhs.type], operands=[lhs, rhs])
 
     def verify_(self):
         args = [self.lhs, self.rhs]
@@ -386,12 +346,22 @@ class ReturnOp(IRDLOperation):
     """
 
     name = "toy.return"
-    input = opt_operand_def(AnyTensorTypeF64Constr)
+    input = opt_operand_def(AnyTensorTypeF64)
 
-    traits = traits_def(IsTerminator())
+    traits = traits_def(IsTerminator(), HasParent(FuncOp))
 
     def __init__(self, input: SSAValue | None = None):
         return super().__init__(operands=[input])
+
+    def verify_(self) -> None:
+        func_op = self.parent_op()
+        assert isinstance(func_op, FuncOp)
+
+        function_return_types = func_op.function_type.outputs.data
+        if function_return_types != tuple(self.operand_types):
+            raise VerifyException(
+                "Expected arguments to have the same types as the function output types"
+            )
 
 
 class ReshapeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -417,36 +387,15 @@ class ReshapeOp(IRDLOperation):
     """
 
     name = "toy.reshape"
-    arg = operand_def(AnyTensorTypeF64Constr)
-    # We expect that the reshape operation returns a statically shaped tensor.
+    arg = operand_def(AnyTensorTypeF64)
     res = result_def(TensorTypeF64)
 
     traits = traits_def(Pure(), ReshapeOpHasCanonicalizationPatternsTrait())
 
-    def __init__(self, arg: SSAValue, shape: list[int]):
-        if not AnyTensorTypeF64Constr.verifies(arg.type):
-            raise ValueError(
-                f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
-                " {AnyTensorTypeF64}"
-            )
-        element_type = arg.type.element_type
-        t = TensorTypeF64(element_type, shape)
-        return super().__init__(result_types=[t], operands=[arg])
-
-    @staticmethod
-    def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
-        if not AnyTensorTypeF64Constr.verifies(arg.type):
-            raise ValueError(
-                f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
-                " {AnyTensorTypeF64}"
-            )
-        return ReshapeOp.create(result_types=[t], operands=[arg])
-
-    def verify_(self):
-        result_type = self.res.type
-        assert isa(result_type, TensorTypeF64)
-        if not len(result_type.shape.data):
-            raise VerifyException("Reshape operation result shape should be defined")
+    def __init__(self, arg: SSAValue, result_type: TensorTypeF64 | Sequence[int]):
+        if not isinstance(result_type, TensorType):
+            result_type = TensorType(f64, result_type)
+        return super().__init__(result_types=[result_type], operands=[arg])
 
 
 class TransposeOpInferShapeInferencePattern(RewritePattern):
@@ -483,8 +432,8 @@ class TransposeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTra
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
     name = "toy.transpose"
-    arg = operand_def(AnyTensorTypeF64Constr)
-    res = result_def(AnyTensorTypeF64Constr)
+    arg = operand_def(AnyTensorTypeF64)
+    res = result_def(AnyTensorTypeF64)
 
     traits = OpTraits(
         lambda: (
@@ -495,16 +444,11 @@ class TransposeOp(IRDLOperation):
     )
 
     def __init__(self, arg: SSAValue):
-        output_type: TensorTypeF64 | UnrankedTensorTypeF64
         if isa(arg.type, TensorTypeF64):
-            element_type = arg.type.element_type
-            output_type = TensorType(element_type, list(reversed(arg.type.get_shape())))
+            output_type = TensorType(
+                arg.type.element_type, reversed(arg.type.get_shape())
+            )
         else:
-            if not isa(arg.type, UnrankedTensorTypeF64):
-                raise ValueError(
-                    f"Unexpected operand of type {arg.type} passed to TransposeOp, "
-                    "expected {TensorTypeF64 | UnrankedTensorTypeF64}"
-                )
             output_type = arg.type
 
         super().__init__(operands=[arg], result_types=[output_type])
@@ -536,8 +480,8 @@ class CastOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
 @irdl_op_definition
 class CastOp(IRDLOperation):
     name = "toy.cast"
-    arg = operand_def(AnyTensorTypeF64Constr)
-    res = result_def(AnyTensorTypeF64Constr)
+    arg = operand_def(AnyTensorTypeF64)
+    res = result_def(AnyTensorTypeF64)
 
     traits = traits_def(Pure(), CastOpHasShapeInferencePatternsTrait())
 
