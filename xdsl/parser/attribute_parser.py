@@ -1261,9 +1261,7 @@ class AttrParser(BaseParser):
         Parse a location attribute, if present.
           location ::= `loc` `(` `unknown` `)`
         """
-        snapshot = self._current_token.span.start
         if not self.parse_optional_characters("loc"):
-            self._resume_from(snapshot)
             return None
 
         with self.in_parens():
