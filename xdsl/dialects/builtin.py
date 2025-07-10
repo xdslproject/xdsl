@@ -119,7 +119,7 @@ class ShapedType(Attribute, ABC):
 
 
 _ContainerElementTypeT = TypeVar(
-    "_ContainerElementTypeT", bound=Attribute | None, covariant=True
+    "_ContainerElementTypeT", bound=Attribute, default=Attribute, covariant=True
 )
 
 

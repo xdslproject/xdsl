@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, ClassVar, cast
+from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -42,6 +42,7 @@ from xdsl.traits import (
     RecursiveMemoryEffect,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @irdl_op_definition
@@ -323,12 +324,12 @@ class LoadOp(IRDLOperation):
         if result_type is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
-            if not isinstance(memref.type, ContainerType):
+            if not isa(memref.type, ContainerType):
                 raise ValueError(
                     "affine.store memref operand must be of type ContainerType"
                 )
-            memref_type = cast(ContainerType[Any], memref.type)
-            result_type = memref_type.get_element_type()
+
+            result_type = memref.type.get_element_type()
 
         super().__init__(
             operands=(memref, indices),

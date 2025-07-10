@@ -1,6 +1,6 @@
 import collections
 from dataclasses import dataclass
-from typing import Literal, cast
+from typing import Literal
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, varith
@@ -14,6 +14,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.type import get_element_type_or_self
 
 # map the arith operation to the right varith op:
 ARITH_TO_VARITH_TYPE_MAP: dict[
@@ -173,12 +174,8 @@ def is_integer_like_type(t: Attribute) -> bool:
     Returns true if t is an integer/container of integers/container of
     container of integers ...
     """
-    if isinstance(t, builtin.IntegerType | builtin.IndexType):
-        return True
-    if isinstance(t, builtin.ContainerType):
-        elm_type = cast(builtin.ContainerType[Attribute], t).get_element_type()
-        return is_integer_like_type(elm_type)
-    return False
+    t = get_element_type_or_self(t)
+    return isinstance(t, builtin.IntegerType | builtin.IndexType)
 
 
 @dataclass
@@ -194,9 +191,7 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: varith.VarithAddOp, rewriter: PatternRewriter, /):
-        elem_t = op.res.type
-        if isinstance(elem_t, builtin.ContainerType):
-            elem_t = cast(builtin.ContainerType[Attribute], elem_t).get_element_type()
+        elem_t = get_element_type_or_self(op.res.type)
 
         assert isinstance(
             elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat
