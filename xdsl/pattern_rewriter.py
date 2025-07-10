@@ -309,6 +309,9 @@ class RewritePattern(ABC):
     A side-effect free rewrite pattern matching on a DAG.
     """
 
+    # A dictionary to store memref.store operations during pdl match_and_rewrite.
+    store_dict: dict[SSAValue, Operation] = {}
+
     # The / in the function signature makes the previous arguments positional, see
     # https://peps.python.org/pep-0570/
     # This is used by the op_type_rewrite_pattern

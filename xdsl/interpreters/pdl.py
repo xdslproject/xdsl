@@ -240,10 +240,29 @@ class PDLRewritePattern(RewritePattern):
         assert isinstance(pdl_op_val, OpResult)
         pdl_op = pdl_op_val.op
 
+        if xdsl_op.name == "memref.store":
+            # catch the latest memref.store operation with MemRefType value
+            self.store_dict[xdsl_op.operands[1]] = xdsl_op
+
         assert isinstance(pdl_op, pdl.OperationOp)
         matcher = PDLMatcher()
         if not matcher.match_operation(pdl_op_val, pdl_op, xdsl_op):
             return
+
+        # Special case for memref.load followed by memref.store
+        # If so, match corresponding memref.store operation to ensure context is matched
+        if isinstance(pdl_op.prev_op, pdl.OperationOp):
+            if (
+                pdl_op.opName is not None
+                and pdl_op.opName.data == "memref.load"
+                and pdl_op.prev_op.opName is not None
+                and pdl_op.prev_op.opName.data == "memref.store"
+            ):
+                if xdsl_op.operands[0] in self.store_dict:
+                    xdsl_op_store = self.store_dict[xdsl_op.operands[0]]
+                    matcher.match_operation(
+                        pdl_op.prev_op.op, pdl_op.prev_op, xdsl_op_store
+                    )
 
         parent = self.pdl_rewrite_op.parent_op()
         assert isinstance(parent, pdl.PatternOp)

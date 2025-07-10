@@ -92,6 +92,12 @@ def has_binding_use(op: Operation) -> bool:
                 use.operation
             ):
                 return True
+
+    if isinstance(op, OperationOp):
+        if op.opName is not None and op.opName.data == "memref.store":
+            # If the operation is a memref.store, we consider it as having a binding use.
+            return True
+
     return False
 
 
