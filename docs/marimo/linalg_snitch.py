@@ -30,7 +30,7 @@ def _():
     from xdsl.dialects.riscv import riscv_code
     from xdsl.interpreters.utils.ptr import TypedPtr
     from xdsl.ir import Attribute, Block, Region, SSAValue
-    from xdsl.passes import PipelinePass
+    from xdsl.passes import PassPipeline
     from xdsl.tools.command_line_tool import get_all_dialects
     from xdsl.transforms import (
         arith_add_fastmath,
@@ -63,7 +63,7 @@ def _():
         ImplicitBuilder,
         MemRefType,
         ModuleOp,
-        PipelinePass,
+        PassPipeline,
         RISCVRegisterAllocation,
         Region,
         TypedPtr,
@@ -235,7 +235,7 @@ def _(mo):
 
 @app.cell
 def _(
-    PipelinePass,
+    PassPipeline,
     convert_arith_to_riscv,
     convert_func_to_riscv_func,
     convert_linalg_to_loops,
@@ -246,7 +246,7 @@ def _(
     reconcile_unrealized_casts,
     xmo,
 ):
-    lower_to_riscv = PipelinePass(
+    lower_to_riscv = PassPipeline(
         [
             convert_linalg_to_loops.ConvertLinalgToLoopsPass(),
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
@@ -280,13 +280,13 @@ def _(mo):
 @app.cell
 def _(
     CanonicalizePass,
-    PipelinePass,
+    PassPipeline,
     RISCVRegisterAllocation,
     riscv_ctx,
     riscv_module,
     xmo,
 ):
-    allocate_registers = PipelinePass(
+    allocate_registers = PassPipeline(
         [
             RISCVRegisterAllocation(),
             CanonicalizePass(),
@@ -305,12 +305,12 @@ def _(
 def _(
     CanonicalizePass,
     ConvertRiscvScfToRiscvCfPass,
-    PipelinePass,
+    PassPipeline,
     regalloc_ctx,
     regalloc_module,
     xmo,
 ):
-    lower_to_asm = PipelinePass(
+    lower_to_asm = PassPipeline(
         [
             ConvertRiscvScfToRiscvCfPass(),
             CanonicalizePass(),
@@ -358,7 +358,7 @@ def _(mo):
 
 @app.cell
 def _(
-    PipelinePass,
+    PassPipeline,
     arith_add_fastmath,
     convert_linalg_to_memref_stream,
     convert_riscv_scf_for_to_frep,
@@ -368,7 +368,7 @@ def _(
 ):
     from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES, OPTIMISE_MEMREF_STREAM_PASSES
 
-    convert_linalg_to_snitch = PipelinePass(
+    convert_linalg_to_snitch = PassPipeline(
         [
             convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),

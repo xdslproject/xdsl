@@ -190,7 +190,7 @@ def get_pass_option_infos(
 
 
 @dataclass(frozen=True)
-class PipelinePass(ModulePass):
+class PassPipeline:
     passes: tuple[ModulePass, ...]
     callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] | None = field(
         default=None
@@ -219,7 +219,7 @@ class PipelinePass(ModulePass):
         spec: str,
         callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None]
         | None = None,
-    ) -> PipelinePass:
+    ) -> PassPipeline:
         specs = tuple(parse_pipeline(spec))
         unrecognised_passes = tuple(
             p.name for p in specs if p.name not in available_passes
@@ -229,7 +229,7 @@ class PipelinePass(ModulePass):
 
         passes = tuple(available_passes[p.name]().from_pass_spec(p) for p in specs)
 
-        return PipelinePass(passes, callback)
+        return PassPipeline(passes, callback)
 
 
 def _convert_pass_arg_to_type(
