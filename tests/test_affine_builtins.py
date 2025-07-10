@@ -219,6 +219,33 @@ def test_inverse_permutation():
     )
 
 
+@pytest.mark.parametrize(
+    "input_map, expected_map",
+    [
+        (AffineMap.empty(), AffineMap.empty()),
+        (
+            AffineMap.from_callable(lambda d0, d1, d2: (d2, d1, d0)),
+            AffineMap.from_callable(lambda d0, d1, d2: (d2, d1, d0)),
+        ),
+        (
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, d0)),
+            AffineMap.from_callable(lambda d0, d1: (d1, d0, 0)),
+        ),
+        (
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, 0, d0)),
+            AffineMap.from_callable(lambda d0, d1, d2: (d2, d0, 0)),
+        ),
+    ],
+)
+def test_inverse_and_broadcast_projected_permutation(
+    input_map: AffineMap, expected_map: AffineMap
+):
+    inverse = input_map.inverse_and_broadcast_projected_permutation()
+    assert inverse == expected_map, f"{input_map} {expected_map}"
+    if inverse.is_projected_permutation():
+        assert inverse.inverse_and_broadcast_projected_permutation() == input_map
+
+
 def test_drop_dims():
     # (d0, d1, d2) -> (d1, d2) with [0,1,1] gives (d0, d1) -> (d0, d1)
     # (d0, d1, d2) -> (d2, d2) with [1,0,1] gives (d0, d1) -> (d1, d1)
@@ -230,6 +257,17 @@ def test_drop_dims():
     assert AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)).drop_dims(
         [f, t, f]
     ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
+
+
+def test_drop_results():
+    t = True
+    f = False
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)).drop_results(
+        [t, f]
+    ) == AffineMap.from_callable(lambda d0, d1, d2: (d2,))
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)).drop_results(
+        [f, t]
+    ) == AffineMap.from_callable(lambda d0, d1, d2: (d1,))
 
 
 def test_affine_expr_affine_expr_binary_simplification():

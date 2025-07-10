@@ -235,6 +235,39 @@ class AffineMap:
             results=results,
         )
 
+    def inverse_and_broadcast_projected_permutation(self):
+        """
+        If `self` is a projected permutation, with possible constant 0 expression
+        results, returns the inverse permutation.
+
+        Examples:
+        ```
+        (d0, d1, d2) -> (d2, d1, d0) => (d0, d1, d2) -> (d2, d1, d0)
+        (d0, d1, d2) -> (d1, d0)     => (d0, d1)     -> (d1, d0, 0)
+        (d0, d1, d2) -> (d1, 0, d0)  => (d0, d1, d2) -> (d2, d0, 0)
+        ```
+
+        Equivalent to `inverseAndBroadcastProjectedPermutation` in MLIR.
+        """
+        assert self.is_projected_permutation(allow_zero_in_results=True), f"{self}"
+        zero = AffineExpr.constant(0)
+        # Start with all the results as 0.
+        exprs = [zero] * self.num_dims
+        for i, res in enumerate(self.results):
+            # Skip zeros from input map. 'exprs' is already initialized to zero.
+            if isinstance(const_expr := res, AffineConstantExpr):
+                assert const_expr.value == 0, (
+                    "Unexpected constant in projected permutation"
+                )
+                continue
+
+            assert isinstance(dim_expr := res, AffineDimExpr)
+
+            # Reverse each dimension existing in the original map result.
+            exprs[dim_expr.position] = AffineExpr.dimension(i)
+
+        return AffineMap(len(self.results), 0, tuple(exprs))
+
     def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> tuple[int, ...]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
         assert len(dims) == self.num_dims, f"{len(dims)}, {self.num_dims}"
@@ -271,6 +304,36 @@ class AffineMap:
 
         return self.replace_dims_and_symbols(
             new_dims, new_symbols, result_num_dims, self.num_symbols
+        )
+
+    def drop_results(self, unused_results: Sequence[bool]) -> AffineMap:
+        """
+        Given a sequence of `unused_results` indicating the resuts to drop,
+        return a new map only with the new results.
+
+        Examples:
+        ```
+        (d0, d1, d2) -> (d1, d2) with [1,0] gives (d0, d1, d2) -> (d1)
+        (d0, d1, d2) -> (d2, d2) with [0,1] gives (d0, d1, d2) -> (d2)
+        ```
+
+        Corresponds to MLIR's `dropResults`, but passing a mask instead of integer
+        indices to drop.
+        """
+        if len(unused_results) != len(self.results):
+            raise ValueError(
+                f"Invalid `unused_results`, expected {len(self.results)} `bool` values, got "
+                f"{len(unused_results)}"
+            )
+
+        return AffineMap(
+            self.num_dims,
+            self.num_symbols,
+            tuple(
+                result
+                for (mask, result) in zip(unused_results, self.results)
+                if not mask
+            ),
         )
 
     def used_dims(self) -> set[int]:
