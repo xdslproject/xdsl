@@ -101,7 +101,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
         Parse a return statement.
         return :== return ; | return expr ;
         """
-        returnToken = self.pop_pattern("return")
+        returnToken = self.pop_token(ToyTokenKind.RETURN)
         expr = None
 
         # Return takes an optional argument
@@ -319,7 +319,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
         initializer.
         decl ::= var identifier [ type ] = expr
         """
-        var = self.pop_pattern("var")
+        var = self.pop_token(ToyTokenKind.VAR)
         name = self.pop_token(ToyTokenKind.IDENTIFIER).text
 
         # Type is optional, it can be inferred
@@ -350,10 +350,10 @@ class ToyParser(GenericParser[ToyTokenKind]):
             self.pop_pattern(";")
 
         while not self.check("}"):
-            if self.check("var"):
+            if self.check(ToyTokenKind.VAR):
                 # Variable declaration
                 exprList.append(self.parse_declaration())
-            elif self.check("return"):
+            elif self.check(ToyTokenKind.RETURN):
                 # Return statement
                 exprList.append(self.parse_return())
             else:
@@ -376,7 +376,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
         prototype ::= def id '(' decl_list ')'
         decl_list ::= identifier | identifier, decl_list
         """
-        defToken = self.pop_pattern("def")
+        defToken = self.pop_token(ToyTokenKind.DEF)
         fnName = self.pop_token(ToyTokenKind.IDENTIFIER).text
         self.pop_pattern("(")
 
