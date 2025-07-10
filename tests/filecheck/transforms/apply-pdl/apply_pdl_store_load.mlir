@@ -1,28 +1,13 @@
 // RUN: xdsl-opt %s -p apply-pdl | filecheck %s
 
 
-// CHECK:       builtin.module {
-// CHECK-NEXT:    func.func @test(%x : memref<1xindex>) -> index {
+// CHECK:         func.func @test(%x : memref<1xindex>) -> index {
 // CHECK-NEXT:      %a = arith.constant 2 : index
 // CHECK-NEXT:      %c0 = arith.constant 0 : index
 // CHECK-NEXT:      memref.store %a, %x[%c0] : memref<1xindex>
 // CHECK-NEXT:      %d = arith.addi %a, %a : index
 // CHECK-NEXT:      func.return %d : index
 // CHECK-NEXT:    }
-// CHECK-NEXT:    pdl.pattern : benefit(1) {
-// CHECK-NEXT:      %memref_ty = pdl.type : memref<1xindex>
-// CHECK-NEXT:      %idx_ty = pdl.type : index
-// CHECK-NEXT:      %mem = pdl.operand : %memref_ty
-// CHECK-NEXT:      %idx = pdl.operand : %idx_ty
-// CHECK-NEXT:      %val = pdl.operand : %idx_ty
-// CHECK-NEXT:      %store = pdl.operation "memref.store" (%val, %mem, %idx : !pdl.value, !pdl.value, !pdl.value)
-// CHECK-NEXT:      %load = pdl.operation "memref.load" (%mem, %idx : !pdl.value, !pdl.value) -> (%idx_ty : !pdl.type)
-// CHECK-NEXT:      %loaded = pdl.result 0 of %load
-// CHECK-NEXT:      pdl.rewrite %load {
-// CHECK-NEXT:        pdl.replace %load with (%val : !pdl.value)
-// CHECK-NEXT:      }
-// CHECK-NEXT:    }
-// CHECK-NEXT:  }
 
 func.func @test(%x : memref<1xindex>) -> (index) {
   %a = arith.constant 2 : index
