@@ -1,5 +1,5 @@
 // RUN: XDSL_ROUNDTRIP
-#map = affine_map<(d0, d1) -> (d0)>
+
 func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %i : index, %fvec : vector<2xf32>) {
   %load = vector.load %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
   vector.store %load, %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
@@ -16,9 +16,6 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
   %read = vector.transfer_read %base[%i, %i], %i {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : memref<4x4xindex>, vector<4xindex>
   %read_1 = vector.transfer_read %base[%i, %i], %i {in_bounds = [true]} : memref<4x4xindex>, vector<4xindex>
   vector.transfer_write %read, %base[%i, %i] {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : vector<4xindex>, memref<4x4xindex>
-  %8 = "vector.transfer_read"(%0, %2, %2, %2) <{"in_bounds" = [true], "operandSegmentSizes" = array<i32: 1, 2, 1, 0>, "permutation_map" = #map}> : (memref<4x4xindex>, index, index, index) -> vector<4xindex>
-  "vector.transfer_write"(%8, %0, %2, %2) <{"in_bounds" = [true], "operandSegmentSizes" = array<i32: 1, 1, 2, 0>, "permutation_map" = #map}> :  (vector<4xindex>, memref<4x4xindex>, index, index) -> ()
-
   func.return
 }
 
@@ -39,8 +36,6 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
 // CHECK-NEXT:     %read = vector.transfer_read %base[%i, %i], %i {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : memref<4x4xindex>, vector<4xindex>
 // CHECK-NEXT:     %read_1 = vector.transfer_read %base[%i, %i], %i {in_bounds = [true]} : memref<4x4xindex>, vector<4xindex>
 // CHECK-NEXT:     vector.transfer_write %read, %base[%i, %i] {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : vector<4xindex>, memref<4x4xindex>
-// CHECK-NEXT:     %8 = "vector.transfer_read"(%0, %2, %2, %2) <{in_bounds = [true], operandSegmentSizes = array<i32: 1, 2, 1, 0>, permutation_map = affine_map<(d0, d1) -> (d0)>}> : (memref<4x4xindex>, index, index, index) -> vector<4xindex>
-// CHECK-NEXT:     "vector.transfer_write"(%8, %0, %2, %2) <{in_bounds = [true], operandSegmentSizes = array<i32: 1, 1, 2, 0>, permutation_map = affine_map<(d0, d1) -> (d0)>}> : (vector<4xindex>, memref<4x4xindex>, index, index) -> ()
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 
