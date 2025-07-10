@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --print-op-generic %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt --print-op-generic | filecheck %s
+// RUN: xdsl-opt --print-op-generic --split-input-file %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt --print-op-generic | filecheck %s
 
 %vector0, %vector1, %i0= "test.op"() : () -> (vector<index>, vector<3xindex>, index)
 // CHECK:      %0, %1, %2 = "test.op"() : () -> (vector<index>, vector<3xindex>, index)
