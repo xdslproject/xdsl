@@ -14,6 +14,10 @@ from xdsl.utils.hints import isa
 
 
 def get_element_type_or_self(maybe_container_type: Attribute) -> Attribute:
+    """
+    If the input is a `ContainerType`, then returns it's element type, otherwise returns
+    input.
+    """
     if isa(maybe_container_type, ContainerType):
         return maybe_container_type.get_element_type()
     return maybe_container_type
