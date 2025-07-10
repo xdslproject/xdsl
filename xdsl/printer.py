@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
     UnitAttr,
+    UnknownLoc,
     UnregisteredOp,
     i1,
 )
@@ -220,7 +221,8 @@ class Printer(BasePrinter):
             self.print_string(" : ")
             self.print_attribute(arg.type)
             if self.print_debuginfo:
-                self.print_string(" loc(unknown)")
+                self.print_string(" ")
+                self.print_attribute(UnknownLoc())
 
     def print_region(
         self,
@@ -543,7 +545,8 @@ class Printer(BasePrinter):
     def print_operation_type(self, op: Operation) -> None:
         self.print_function_type(op.operand_types, op.result_types)
         if self.print_debuginfo:
-            self.print_string(" loc(unknown)")
+            self.print_string(" ")
+            self.print_attribute(UnknownLoc())
 
     def enter_scope(self) -> None:
         self._next_valid_name_id.append(self._next_valid_name_id[-1])

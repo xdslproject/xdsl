@@ -34,7 +34,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    SingleBlockRegion,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -817,7 +816,7 @@ class HWModuleOp(IRDLOperation):
     sym_visibility = opt_attr_def(StringAttr)
     parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
-    body: SingleBlockRegion = region_def("single_block")
+    body = region_def("single_block")
 
     traits = lazy_traits_def(
         lambda: (

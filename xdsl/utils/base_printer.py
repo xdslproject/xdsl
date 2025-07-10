@@ -71,10 +71,8 @@ class BasePrinter:
     @contextmanager
     def delimited(self, start: str, end: str):
         self.print_string(start)
-        try:
-            yield
-        finally:
-            self.print_string(end)
+        yield
+        self.print_string(end)
 
     def in_angle_brackets(self):
         return self.delimited("<", ">")

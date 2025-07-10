@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import cast
+from typing import ClassVar, cast
 
 from typing_extensions import Self
 
@@ -10,14 +10,22 @@ from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     Annotated,
     AnySignlessIntegerOrIndexType,
+    ArrayAttr,
     DenseArrayBase,
     IndexType,
+    IntegerAttr,
+    ShapedType,
     TensorType,
     UnrankedTensorType,
     i64,
 )
+from xdsl.dialects.utils.dynamic_index_list import (
+    parse_dynamic_index_list_without_types,
+    print_dynamic_index_list,
+)
 from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
+    verify_reshape_like_types,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
@@ -289,6 +297,120 @@ class ReshapeOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ExpandShapeOp(IRDLOperation):
+    """
+    Operation to produce a tensor with a higher rank
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorexpand_shape-tensorexpandshapeop)
+    """
+
+    # Constant value used to denote dynamic indices in offsets, sizes, and strides.
+    # Same constant as in MLIR.
+    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
+
+    name = "tensor.expand_shape"
+
+    src = operand_def(TensorType)
+    dynamic_output_shape = var_operand_def(IndexType)
+
+    reassociation = prop_def(ContiguousArrayOfIntArray())
+
+    static_output_shape = prop_def(DenseArrayBase.constr(i64))
+
+    result = result_def(TensorType[Attribute])
+
+    def __init__(
+        self,
+        src: SSAValue | Operation,
+        dynamic_output_shape: Sequence[SSAValue],
+        reassociation: ArrayAttr[ArrayAttr[IntegerAttr]],
+        static_output_shape: Sequence[int] | DenseArrayBase,
+        result_type: TensorType[Attribute],
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if not isinstance(static_output_shape, DenseArrayBase):
+            static_output_shape = DenseArrayBase.from_list(i64, static_output_shape)
+
+        super().__init__(
+            operands=[src, dynamic_output_shape],
+            result_types=[result_type],
+            properties={
+                "reassociation": reassociation,
+                "static_output_shape": static_output_shape,
+            },
+            attributes=attributes,
+        )
+
+    def verify_(self):
+        assert isinstance(self.src.type, ShapedType)
+        assert isinstance(self.result.type, ShapedType)
+
+        # make sure the static output shape matches the result type
+        if len(self.static_output_shape) != len(self.result.type.get_shape()):
+            raise VerifyException(
+                "expected number of static shape dims to be equal to the output rank "
+                f"({len(self.result.type.get_shape())}) but found {len(self.static_output_shape)} inputs instead"
+            )
+
+        verify_reshape_like_types(
+            collapsed_type=self.src.type,
+            expanded_type=self.result.type,
+            reassociation=self.reassociation,
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        src_operand = parser.parse_unresolved_operand()
+
+        reassociation = parser.parse_attribute()
+        parser.parse_characters("output_shape")
+        index = IndexType()
+
+        # Parse shape: mixture of ints and SSA values
+        dyn_shape, static_shape = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=cls.DYNAMIC_INDEX
+        )
+
+        dyn_shape = parser.resolve_operands(
+            dyn_shape, (index,) * len(dyn_shape), parser.pos
+        )
+
+        attributes = parser.parse_optional_attr_dict()
+
+        parser.parse_punctuation(":")
+        src_type = parser.parse_type()
+        parser.parse_characters("into")
+        result_type = parser.parse_type()
+        src = parser.resolve_operand(src_operand, src_type)
+
+        shape_attr = DenseArrayBase.from_list(i64, static_shape)
+
+        reassociation = cast(ArrayAttr[ArrayAttr[IntegerAttr]], reassociation)
+        result_type = cast(TensorType[Attribute], result_type)
+
+        return cls(src, dyn_shape, reassociation, shape_attr, result_type, attributes)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.src)
+        printer.print_string(" ")
+        printer.print_attribute(self.reassociation)
+        printer.print_string(" static_output_shape ")
+        print_dynamic_index_list(
+            printer,
+            self.DYNAMIC_INDEX,
+            self.dynamic_output_shape,
+            self.static_output_shape.get_values(),
+        )
+
+        printer.print_op_attributes(attributes=self.attributes)
+
+        printer.print_string(" : ")
+        printer.print_attribute(self.src.type)
+        printer.print_string(" into ")
+        printer.print_attribute(self.result.type)
+
+
+@irdl_op_definition
 class ExtractSliceOp(IRDLOperation):
     name = "tensor.extract_slice"
 
@@ -529,6 +651,7 @@ Tensor = Dialect(
         CastOp,
         DimOp,
         EmptyOp,
+        ExpandShapeOp,
         ExtractSliceOp,
         InsertSliceOp,
         ReshapeOp,

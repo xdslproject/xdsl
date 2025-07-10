@@ -23,14 +23,16 @@ X86_INDEX_BY_NAME = {
     "rbp": 5,
     "rsi": 6,
     "rdi": 7,
-    "eax": 0,
-    "ecx": 1,
-    "edx": 2,
-    "ebx": 3,
-    "esp": 4,
-    "ebp": 5,
-    "esi": 6,
-    "edi": 7,
+    # Currently don't support 32-bit registers
+    # https://github.com/xdslproject/xdsl/issues/4737
+    # "eax": 0,
+    # "ecx": 1,
+    # "edx": 2,
+    # "ebx": 3,
+    # "esp": 4,
+    # "ebp": 5,
+    # "esi": 6,
+    # "edi": 7,
     "r8": 8,
     "r9": 9,
     "r10": 10,
@@ -63,6 +65,31 @@ class GeneralRegisterType(X86RegisterType):
     def infinite_register_prefix(cls):
         return "inf_reg_"
 
+    @classmethod
+    def allocatable_registers(cls):
+        """
+        Registers of this type that can be used for register allocation.
+
+        Returns a tuple of GeneralRegisterType instances corresponding to registers that
+        are allocatable according to the x86-64 System V ABI.
+        This excludes registers with special purposes (e.g., stack pointer, base pointer).
+        """
+        return (
+            RAX,
+            RCX,
+            RDX,
+            RBX,
+            RSI,
+            RDI,
+            R8,
+            R9,
+            R10,
+            R11,
+            R13,
+            R14,
+            R15,
+        )
+
 
 UNALLOCATED_GENERAL = GeneralRegisterType.unallocated()
 RAX = GeneralRegisterType.from_name("rax")
@@ -74,14 +101,16 @@ RBP = GeneralRegisterType.from_name("rbp")
 RSI = GeneralRegisterType.from_name("rsi")
 RDI = GeneralRegisterType.from_name("rdi")
 
-EAX = GeneralRegisterType.from_name("eax")
-ECX = GeneralRegisterType.from_name("ecx")
-EDX = GeneralRegisterType.from_name("edx")
-EBX = GeneralRegisterType.from_name("ebx")
-ESP = GeneralRegisterType.from_name("esp")
-EBP = GeneralRegisterType.from_name("ebp")
-ESI = GeneralRegisterType.from_name("esi")
-EDI = GeneralRegisterType.from_name("edi")
+# Currently don't support 32-bit registers
+# https://github.com/xdslproject/xdsl/issues/4737
+# EAX = GeneralRegisterType.from_name("eax")
+# ECX = GeneralRegisterType.from_name("ecx")
+# EDX = GeneralRegisterType.from_name("edx")
+# EBX = GeneralRegisterType.from_name("ebx")
+# ESP = GeneralRegisterType.from_name("esp")
+# EBP = GeneralRegisterType.from_name("ebp")
+# ESI = GeneralRegisterType.from_name("esi")
+# EDI = GeneralRegisterType.from_name("edi")
 
 R8 = GeneralRegisterType.from_name("r8")
 R9 = GeneralRegisterType.from_name("r9")

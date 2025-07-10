@@ -6,6 +6,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast, overload
 
+from immutabledict import immutabledict
+
 import xdsl.parser as affine_parser
 from xdsl.context import Context
 from xdsl.dialect_interfaces import OpAsmDialectInterface
@@ -51,6 +53,7 @@ from xdsl.dialects.builtin import (
     TensorType,
     TupleType,
     UnitAttr,
+    UnknownLoc,
     UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
@@ -1260,16 +1263,14 @@ class AttrParser(BaseParser):
         Parse a location attribute, if present.
           location ::= `loc` `(` `unknown` `)`
         """
-        snapshot = self._current_token.span.start
-        if (
-            self.parse_optional_characters("loc")
-            and self.parse_optional_punctuation("(")
-            and self.parse_optional_characters("unknown")
-            and self.parse_optional_punctuation(")")
-        ):
-            return LocationAttr()
-        self._resume_from(snapshot)
-        return None
+        if not self.parse_optional_characters("loc"):
+            return None
+
+        with self.in_parens():
+            if self.parse_optional_keyword("unknown"):
+                return UnknownLoc()
+
+            self.raise_error("Unexpected location syntax.")
 
     def parse_optional_builtin_int_or_float_attr(
         self,
@@ -1407,8 +1408,7 @@ class AttrParser(BaseParser):
         """
         if self._current_token.kind != MLIRTokenKind.L_BRACE:
             return None
-        param = DictionaryAttr.parse_parameter(self)
-        return DictionaryAttr(param)
+        return self._parse_builtin_dict_attr()
 
     def _parse_builtin_dict_attr(self) -> DictionaryAttr:
         """
@@ -1416,8 +1416,9 @@ class AttrParser(BaseParser):
         `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
         `attribute-entry` := (bare-id | string-literal) `=` attribute
         """
-        param = DictionaryAttr.parse_parameter(self)
-        return DictionaryAttr(param)
+        return DictionaryAttr(
+            immutabledict[str, Attribute](self.parse_optional_dictionary_attr_dict())
+        )
 
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
     _builtin_float_type_regex = re.compile(r"^f(\d+)$")

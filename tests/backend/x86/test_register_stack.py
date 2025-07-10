@@ -28,3 +28,6 @@ def test_push_register():
 
     register_stack.push(x86.register.YMM0)
     assert register_stack.pop(x86.AVX2RegisterType) == x86.register.YMM0
+
+    register_stack.push(x86.register.RAX)
+    assert register_stack.pop(x86.GeneralRegisterType) == x86.register.RAX
