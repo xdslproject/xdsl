@@ -53,6 +53,7 @@ from xdsl.dialects.builtin import (
     TensorType,
     TupleType,
     UnitAttr,
+    UnknownLoc,
     UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
@@ -1262,16 +1263,14 @@ class AttrParser(BaseParser):
         Parse a location attribute, if present.
           location ::= `loc` `(` `unknown` `)`
         """
-        snapshot = self._current_token.span.start
-        if (
-            self.parse_optional_characters("loc")
-            and self.parse_optional_punctuation("(")
-            and self.parse_optional_characters("unknown")
-            and self.parse_optional_punctuation(")")
-        ):
-            return LocationAttr()
-        self._resume_from(snapshot)
-        return None
+        if not self.parse_optional_characters("loc"):
+            return None
+
+        with self.in_parens():
+            if self.parse_optional_keyword("unknown"):
+                return UnknownLoc()
+
+            self.raise_error("Unexpected location syntax.")
 
     def parse_optional_builtin_int_or_float_attr(
         self,
