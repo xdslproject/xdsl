@@ -15,7 +15,6 @@ from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
 from xdsl.utils.lexer import Span
-from xdsl.utils.parse_pipeline import parse_pipeline
 
 
 class xDSLOptMain(CommandLineTool):
@@ -315,12 +314,9 @@ class xDSLOptMain(CommandLineTool):
                 printer.print_op(module)
                 print("\n\n\n")
 
-        self.pipeline = PipelinePass(
-            tuple(
-                PipelinePass.iter_passes(
-                    self.available_passes, parse_pipeline(self.args.passes)
-                )
-            ),
+        self.pipeline = PipelinePass.parse_spec(
+            self.available_passes,
+            self.args.passes,
             callback,
         )
 

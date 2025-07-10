@@ -3,6 +3,7 @@ This test file needs the other files in the same folder to read and reprint them
 test functions below.
 """
 
+import re
 from contextlib import redirect_stdout
 from io import StringIO
 from typing import IO
@@ -76,15 +77,13 @@ def test_error_on_run(args: list[str], expected_error: str):
     [
         (
             ["tests/xdsl_opt/empty_program.mlir", "-p", "wrong"],
-            "Unrecognized pass: wrong",
+            "Unrecognized passes: ['wrong']",
         )
     ],
 )
 def test_error_on_construction(args: list[str], expected_error: str):
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=re.escape(expected_error)):
         _opt = xDSLOptMain(args=args)
-
-    assert e.value.args[0] == expected_error
 
 
 def test_wrong_target():
