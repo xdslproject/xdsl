@@ -98,21 +98,25 @@ class _ParameterDef:
     """
 
     param: GenericAttrConstraint[Attribute] | None
+    converter: Callable[[Any], Attribute] | None
 
     def __init__(
         self,
         param: GenericAttrConstraint[Attribute] | None,
+        converter: Callable[[Any], Attribute] | None,
     ):
         self.param = param
+        self.converter = converter
 
 
 def param_def(
     constraint: GenericAttrConstraint[AttributeInvT] | None = None,
     *,
+    converter: Callable[[Any], AttributeInvT] | None = None,
     init: Literal[True] = True,
 ) -> AttributeInvT:
     """Defines a property of an operation."""
-    return cast(AttributeInvT, _ParameterDef(constraint))
+    return cast(AttributeInvT, _ParameterDef(constraint, converter))
 
 
 def check_attr_name(cls: type):
@@ -160,6 +164,7 @@ class ParamAttrDef:
 
     name: str
     parameters: list[tuple[str, AttrConstraint]]
+    converters: dict[str, Callable[[Any], Attribute]]
 
     @staticmethod
     def from_pyrdl(
@@ -208,6 +213,7 @@ class ParamAttrDef:
 
         # The resulting parameters
         parameters: dict[str, AttrConstraint] = {}
+        converters: dict[str, Callable[[Any], Attribute]] = {}
 
         for field_name, field_type in field_types.items():
             try:
@@ -233,6 +239,8 @@ class ParamAttrDef:
                             value.param, allow_type_var=True
                         )
                         parameters[field_name] &= constraint
+                    if value.converter is not None:
+                        converters[field_name] = value.converter
                 except TypeError as e:
                     raise PyRDLAttrDefinitionError(
                         f"Invalid constraint {value.param} for field name {field_name}."
@@ -248,7 +256,7 @@ class ParamAttrDef:
                 f"{field_name} is not a parameter definition."
             )
 
-        return ParamAttrDef(name, list(parameters.items()))
+        return ParamAttrDef(name, list(parameters.items()), converters)
 
     def verify(self, attr: ParametrizedAttribute):
         """Verify that `attr` satisfies the invariants."""

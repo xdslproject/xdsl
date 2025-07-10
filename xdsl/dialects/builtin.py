@@ -64,6 +64,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_prop_def,
+    param_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -184,6 +185,14 @@ class ArrayAttr(
         | GenericRangeConstraint[AttributeInvT],
     ) -> ArrayOfConstraint[AttributeInvT]:
         return ArrayOfConstraint(constr)
+
+    @staticmethod
+    def get(
+        elements: Sequence[AttributeInvT] | ArrayAttr[AttributeInvT],
+    ) -> ArrayAttr[AttributeInvT]:
+        if isinstance(elements, ArrayAttr):
+            return elements
+        return ArrayAttr(elements)
 
     def __len__(self):
         return len(self.data)
@@ -1197,12 +1206,7 @@ class DictionaryAttr(_BuiltinData[immutabledict[str, Attribute]]):
 class TupleType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "tuple"
 
-    types: ArrayAttr[TypeAttribute]
-
-    def __init__(self, types: list[TypeAttribute] | ArrayAttr[TypeAttribute]) -> None:
-        if isinstance(types, list):
-            types = ArrayAttr(types)
-        super().__init__(types)
+    types: ArrayAttr[TypeAttribute] = param_def(converter=ArrayAttr.get)
 
     def print_builtin(self, printer: Printer):
         printer.print_string("tuple")
