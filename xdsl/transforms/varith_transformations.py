@@ -176,7 +176,7 @@ def is_integer_like_type(t: Attribute) -> bool:
     if isinstance(t, builtin.IntegerType | builtin.IndexType):
         return True
     if isinstance(t, builtin.ContainerType):
-        elm_type = cast(builtin.ContainerType[Attribute], t).get_element_type()
+        elm_type = cast(builtin.ContainerType, t).get_element_type()
         return is_integer_like_type(elm_type)
     return False
 
@@ -196,7 +196,7 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
     def match_and_rewrite(self, op: varith.VarithAddOp, rewriter: PatternRewriter, /):
         elem_t = op.res.type
         if isinstance(elem_t, builtin.ContainerType):
-            elem_t = cast(builtin.ContainerType[Attribute], elem_t).get_element_type()
+            elem_t = cast(builtin.ContainerType, elem_t).get_element_type()
 
         assert isinstance(
             elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat

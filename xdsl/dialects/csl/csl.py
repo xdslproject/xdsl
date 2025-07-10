@@ -301,7 +301,7 @@ class DirectionType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType):
     """
     Represents a typed pointer in CSL.
 
@@ -398,7 +398,7 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class VarType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+class VarType(ParametrizedAttribute, TypeAttribute, ContainerType):
     name = "csl.var"
 
     child_type: TypeAttribute
