@@ -974,7 +974,7 @@ def test_parse_location():
     assert attr == UnknownLoc()
 
     attr = Parser(ctx, 'loc("one":2:3)').parse_optional_location()
-    assert attr == FileLineColLoc.get("one", 2, 3)
+    assert attr == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
 
     with pytest.raises(ParseError, match="Unexpected location syntax."):
         Parser(ctx, "loc(unexpected)").parse_optional_location()

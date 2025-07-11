@@ -37,6 +37,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     FunctionType,
     IndexType,
+    IntAttr,
     IntegerAttr,
     IntegerType,
     LocationAttr,
@@ -1276,7 +1277,7 @@ class AttrParser(BaseParser):
                 line = self.parse_integer(False, False)
                 self.parse_punctuation(":")
                 col = self.parse_integer(False, False)
-                return FileLineColLoc.get(filename, line, col)
+                return FileLineColLoc(StringAttr(filename), IntAttr(line), IntAttr(col))
 
             self.raise_error("Unexpected location syntax.")
 

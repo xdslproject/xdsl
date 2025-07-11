@@ -743,10 +743,6 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
     line: IntAttr = param_def()
     column: IntAttr = param_def()
 
-    @staticmethod
-    def get(filename: str, line: int, column: int):
-        return FileLineColLoc(StringAttr(filename), IntAttr(line), IntAttr(column))
-
     def print_builtin(self, printer: Printer) -> None:
         printer.print_string("loc")
         with printer.in_parens():
