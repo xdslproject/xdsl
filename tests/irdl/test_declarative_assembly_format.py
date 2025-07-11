@@ -33,14 +33,13 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
-    AnyInt,
+    AnyIntConstr,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     BaseAttr,
     EqAttrConstraint,
     GenericAttrConstraint,
-    IntVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     ParsePropInAttrDict,
@@ -2574,7 +2573,7 @@ def test_int_var_inference():
     @irdl_op_definition
     class IntVarOp(IRDLOperation):
         name = "test.int_var"
-        T: ClassVar = IntVarConstraint("T", AnyInt())
+        T: ClassVar = VarConstraint("T", AnyIntConstr)
         ins = var_operand_def(RangeOf(eq(IndexType()), length=T))
         outs = var_result_def(RangeOf(eq(IntegerType(64)), length=T))
 
@@ -3318,7 +3317,7 @@ def test_multiple_operand_extraction_fails():
 class IntAttrExtractOp(IRDLOperation):
     name = "test.int_attr_extract"
 
-    _I: ClassVar = IntVarConstraint("I", AnyInt())
+    _I: ClassVar = VarConstraint("I", AnyIntConstr)
 
     prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
@@ -3363,7 +3362,7 @@ def test_int_attr_extraction_errors(program: str, error: str):
 class IntAttrVerifyOp(IRDLOperation):
     name = "test.int_attr_verify"
 
-    _I: ClassVar = IntVarConstraint("I", AnyInt())
+    _I: ClassVar = VarConstraint("I", AnyIntConstr)
 
     prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
@@ -3395,19 +3394,19 @@ def test_int_attr_verify(program: str):
     [
         (
             "test.int_attr_verify 1, %0, %1",
-            "integer 2 expected from int variable 'I', but got 1",
+            "attribute #builtin.int<2> expected from variable 'I', but got #builtin.int<1>",
         ),
         (
             "test.int_attr_verify 1 and 2, %0",
-            "integer 1 expected from int variable 'I', but got 2",
+            "attribute #builtin.int<1> expected from variable 'I', but got #builtin.int<2>",
         ),
         (
             "test.int_attr_verify 2, %0",
-            "integer 1 expected from int variable 'I'",
+            "attribute #builtin.int<1> expected from variable 'I', but got #builtin.int<2>",
         ),
         (
             "test.int_attr_verify 2 and 1, %0, %1",
-            "integer 2 expected from int variable 'I', but got 1",
+            "attribute #builtin.int<2> expected from variable 'I', but got #builtin.int<1>",
         ),
     ],
 )
