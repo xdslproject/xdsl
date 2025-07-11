@@ -430,9 +430,8 @@ class ParametrizedAttribute(Attribute):
         irdl_def = self.get_irdl_definition()
         for (f, _), param in zip(irdl_def.parameters, parameters, strict=True):
             if (converter := irdl_def.converters.get(f)) is not None:
-                object.__setattr__(self, f, converter(param))
-            else:
-                object.__setattr__(self, f, param)
+                param = converter(param)
+            object.__setattr__(self, f, param)
         super().__init__()
 
     @property
