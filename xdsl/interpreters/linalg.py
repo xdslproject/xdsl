@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from itertools import product
 from typing import Any, cast
 
@@ -13,6 +14,51 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.ir import Region, SSAValue
+from xdsl.ir.affine import AffineMap
+
+
+def run_linalg_op(
+    interpreter: Interpreter,
+    body: Region,
+    inputs_count: int,
+    results: Sequence[SSAValue],
+    args: tuple[ShapedArray[float] | float, ...],
+    indexing_maps: Sequence[AffineMap],
+    loop_ranges: Sequence[int],
+):
+    input_args = args[:inputs_count]
+    output_args = args[inputs_count:]
+
+    if any(not isinstance(arg, ShapedArray) for arg in output_args):
+        raise NotImplementedError("Only shaped out results are implemented")
+    output_args = cast(tuple[ShapedArray[float], ...], output_args)
+    if results:
+        # If there are results, they must be tensors, initialised with the
+        # `output_args`. If not, the results are stored in output_args directly.
+        outputs = tuple(arg.copy() for arg in output_args)
+    else:
+        outputs = output_args
+
+    loop_shaped_args = input_args + outputs
+
+    output_indexing_maps = indexing_maps[inputs_count:]
+
+    for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
+        loop_scalar_args = tuple(
+            (
+                i.load(indexing_map.eval(indices, ()))
+                if isinstance(i, ShapedArray)
+                else i
+            )
+            for i, indexing_map in zip(loop_shaped_args, indexing_maps, strict=True)
+        )
+        loop_results = interpreter.run_ssacfg_region(body, loop_scalar_args, "for_loop")
+        for res, indexing_map in zip(loop_results, output_indexing_maps, strict=True):
+            result_indices = indexing_map.eval(indices, ())
+            outputs[0].store(result_indices, res)
+
+    return outputs if results else ()
 
 
 @register_impls
@@ -25,45 +71,15 @@ class LinalgFunctions(InterpreterFunctions):
             raise NotImplementedError(
                 "library_call not yet supported in linalg.generic interpreter"
             )
-        inputs_count = len(op.inputs)
-        input_args = args[:inputs_count]
-        output_args = args[inputs_count:]
-
-        for arg in output_args:
-            assert isinstance(arg, ShapedArray)
-
-        output_args = cast(tuple[ShapedArray[float], ...], output_args)
-        if op.results:
-            # If there are results, they must be tensors, initialised with the
-            # `output_args`. If not, the results are stored in output_args directly.
-            outputs = tuple(arg.copy() for arg in output_args)
-        else:
-            outputs = output_args
-
-        loop_shaped_args = input_args + outputs
-
-        indexing_maps = op.get_indexing_maps()
-        output_indexing_maps = indexing_maps[inputs_count:]
-
-        loop_ranges = op.get_static_loop_ranges()
-
-        for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
-            loop_args = tuple(
-                (
-                    (cast(ShapedArray[Any], i)).load(indexing_map.eval(indices, ()))
-                    if isinstance(i, ShapedArray)
-                    else i
-                )
-                for i, indexing_map in zip(loop_shaped_args, indexing_maps, strict=True)
-            )
-            loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
-            for res, indexing_map in zip(
-                loop_results, output_indexing_maps, strict=True
-            ):
-                result_indices = indexing_map.eval(indices, ())
-                outputs[0].store(result_indices, res)
-
-        return outputs if op.results else ()
+        return run_linalg_op(
+            interpreter,
+            op.body,
+            len(op.inputs),
+            op.results,
+            args,
+            op.get_indexing_maps(),
+            op.get_static_loop_ranges(),
+        )
 
     @impl_terminator(linalg.YieldOp)
     def run_yield(
@@ -75,21 +91,15 @@ class LinalgFunctions(InterpreterFunctions):
     def run_add(
         self, interpreter: Interpreter, op: linalg.AddOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        (lhs, rhs, res) = (args[0], args[1], args[2])
-        assert isinstance(lhs, ShapedArray)
-        assert isinstance(rhs, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        lhs = cast(ShapedArray[float], lhs)
-        rhs = cast(ShapedArray[float], rhs)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        assert lhs.shape == rhs.shape == res.shape
-        for i in range(len(lhs.data)):
-            res.data_ptr[i] = lhs.data_ptr[i] + rhs.data_ptr[i]
-        if len(op.results) > 0:
-            return (res,)
-        return ()
+        return run_linalg_op(
+            interpreter,
+            op.hidden_region,
+            len(op.inputs),
+            op.results,
+            args,
+            op.get_indexing_maps(),
+            op.get_static_loop_ranges(),
+        )
 
     @impl(linalg.FillOp)
     def run_fill(
@@ -112,21 +122,15 @@ class LinalgFunctions(InterpreterFunctions):
     def run_mul(
         self, interpreter: Interpreter, op: linalg.MulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        lhs, rhs, res = args[0], args[1], args[2]
-        assert isinstance(lhs, ShapedArray)
-        assert isinstance(rhs, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        lhs = cast(ShapedArray[float], lhs)
-        rhs = cast(ShapedArray[float], rhs)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        assert lhs.shape == rhs.shape == res.shape
-        for i in range(len(lhs.data)):
-            res.data_ptr[i] = lhs.data_ptr[i] * rhs.data_ptr[i]
-        if len(op.results) > 0:
-            return (res,)
-        return ()
+        return run_linalg_op(
+            interpreter,
+            op.hidden_region,
+            len(op.inputs),
+            op.results,
+            args,
+            op.get_indexing_maps(),
+            op.get_static_loop_ranges(),
+        )
 
     @impl(linalg.TransposeOp)
     def run_transpose(
@@ -153,29 +157,15 @@ class LinalgFunctions(InterpreterFunctions):
     def run_mat_mul(
         self, interpreter: Interpreter, op: linalg.MatmulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        lhs, rhs, res = args[0], args[1], args[2]
-        assert isinstance(lhs, ShapedArray)
-        assert isinstance(rhs, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        lhs = cast(ShapedArray[float], lhs)
-        rhs = cast(ShapedArray[float], rhs)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        rows = lhs.shape[0]
-        cols = rhs.shape[1]
-        assert rows == cols
-        for i in range(rows):
-            for j in range(cols):
-                res.data_ptr[i * cols + j] = sum(
-                    lhs.data_ptr[i * lhs.shape[1] + k]
-                    * rhs.data_ptr[k * rhs.shape[1] + j]
-                    for k in range(lhs.shape[1])
-                )
-
-        if len(op.results) > 0:
-            return (res,)
-        return ()
+        return run_linalg_op(
+            interpreter,
+            op.hidden_region,
+            len(op.inputs),
+            op.results,
+            args,
+            op.get_indexing_maps(),
+            op.get_static_loop_ranges(),
+        )
 
     @impl(linalg.PoolingNchwMaxOp)
     def run_pooling_nchw_max(
