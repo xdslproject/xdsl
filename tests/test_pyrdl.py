@@ -152,13 +152,13 @@ class LessThan(AttrConstraint):
 
     def verify(
         self,
-        attr: Attribute,
+        value: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        if not isinstance(attr, IntData):
-            raise VerifyException(f"{attr} should be of base attribute {IntData.name}")
-        if attr.data >= self.bound:
-            raise VerifyException(f"{attr} should hold a value less than {self.bound}")
+        if not isinstance(value, IntData):
+            raise VerifyException(f"{value} should be of base attribute {IntData.name}")
+        if value.data >= self.bound:
+            raise VerifyException(f"{value} should hold a value less than {self.bound}")
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -170,12 +170,12 @@ class LessThan(AttrConstraint):
 class GreaterThan(AttrConstraint):
     bound: int
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, IntData):
-            raise VerifyException(f"{attr} should be of base attribute {IntData.name}")
-        if attr.data <= self.bound:
+    def verify(self, value: Attribute, constraint_context: ConstraintContext) -> None:
+        if not isinstance(value, IntData):
+            raise VerifyException(f"{value} should be of base attribute {IntData.name}")
+        if value.data <= self.bound:
             raise VerifyException(
-                f"{attr} should hold a value greater than {self.bound}"
+                f"{value} should hold a value greater than {self.bound}"
             )
 
     def mapping_type_vars(

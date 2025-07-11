@@ -426,13 +426,13 @@ def test_union_constraint_fail():
 
 
 class PositiveIntConstr(AttrConstraint):
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, IntData):
+    def verify(self, value: Attribute, constraint_context: ConstraintContext) -> None:
+        if not isinstance(value, IntData):
             raise VerifyException(
-                f"Expected {IntData.name} attribute, but got {attr.name}."
+                f"Expected {IntData.name} attribute, but got {value.name}."
             )
-        if attr.data <= 0:
-            raise VerifyException(f"Expected positive integer, got {attr.data}.")
+        if value.data <= 0:
+            raise VerifyException(f"Expected positive integer, got {value.data}.")
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -682,14 +682,14 @@ class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
 
     def verify(
         self,
-        attr: Attribute,
+        value: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        if not isa(attr, ListData):
+        if not isa(value, ListData):
             raise VerifyException(
-                f"Expected {attr} to be instance of {ListData.__name__}"
+                f"Expected {value} to be instance of {ListData.__name__}"
             )
-        for e in attr.data:
+        for e in value.data:
             self.elem_constr.verify(e, constraint_context)
 
     def mapping_type_vars(

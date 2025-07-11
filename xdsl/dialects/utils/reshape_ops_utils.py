@@ -41,18 +41,18 @@ class ContiguousArrayOfIntArray(AttrConstraint[ArrayOfIntArrayAttr]):
     An empty inner array is considered contiguous.
     """
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, value: Attribute, constraint_context: ConstraintContext) -> None:
         _CONTIGUOUS_ARRAY_TYPE_CONSTRAINT.verify(
-            attr, constraint_context=constraint_context
+            value, constraint_context=constraint_context
         )
-        attr = cast(ArrayOfIntArrayAttr, attr)
+        value = cast(ArrayOfIntArrayAttr, value)
 
         # Flatten all integer values from all inner arrays
-        flat_values = [e.value.data for inner in attr.data for e in inner.data]
+        flat_values = [e.value.data for inner in value.data for e in inner.data]
         # Check that the flattened list is contiguous
         for prev, curr in zip(flat_values, flat_values[1:]):
             if curr != prev + 1:
-                raise VerifyException(f"All inner arrays must be contiguous: {attr}")
+                raise VerifyException(f"All inner arrays must be contiguous: {value}")
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]

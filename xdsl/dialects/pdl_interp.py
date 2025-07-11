@@ -488,14 +488,14 @@ class ValueConstrFromResultConstr(AttrConstraint[ValueType | RangeType[ValueType
             return RangeType(ValueType())
         return ValueType()
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isa(attr, RangeType[ValueType]):
+    def verify(self, value: Attribute, constraint_context: ConstraintContext) -> None:
+        if isa(value, RangeType[ValueType]):
             result_type = RangeType(TypeType())
-        elif isa(attr, ValueType):
+        elif isa(value, ValueType):
             result_type = TypeType()
         else:
             raise VerifyException(
-                f"Expected an attribute of type ValueType or RangeType[ValueType], but got {attr}"
+                f"Expected an attribute of type ValueType or RangeType[ValueType], but got {value}"
             )
         return self.result_constr.verify(result_type, constraint_context)
 
