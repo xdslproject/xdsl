@@ -64,6 +64,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_prop_def,
+    param_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -715,7 +716,44 @@ class UnknownLoc(ParametrizedAttribute, BuiltinAttribute):
         printer.print_string("loc(unknown)")
 
 
-LocationAttr = UnknownLoc
+@irdl_attr_definition
+class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
+    """
+    Syntax:
+
+    ```
+    filelinecol-location ::= string-literal `:` integer-literal `:`
+                             integer-literal
+    ```
+
+    An instance of this location represents a tuple of file, line number, and
+    column number. This is similar to the type of location that you get from
+    most source languages.
+
+    Example:
+
+    ```mlir
+    loc("mysource.cc":10:8)
+    ```
+    """
+
+    name = "file_line_loc"
+
+    filename: StringAttr = param_def()
+    line: IntAttr = param_def()
+    column: IntAttr = param_def()
+
+    def print_builtin(self, printer: Printer) -> None:
+        printer.print_string("loc")
+        with printer.in_parens():
+            printer.print_string_literal(self.filename.data)
+            printer.print_string(":")
+            printer.print_int(self.line.data)
+            printer.print_string(":")
+            printer.print_int(self.column.data)
+
+
+LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc
 
 
 @irdl_attr_definition
@@ -2760,6 +2798,7 @@ Builtin = Dialect(
         UnitAttr,
         FloatData,
         UnknownLoc,
+        FileLineColLoc,
         NoneAttr,
         OpaqueAttr,
         # Types
