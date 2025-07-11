@@ -51,7 +51,6 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.transforms import get_all_passes, individual_rewrite
-from xdsl.utils.parse_pipeline import parse_pipeline
 
 from ._pasteboard import pyclip_copy
 
@@ -725,9 +724,8 @@ def main():
     else:
         file_contents = None
 
-    pass_spec_pipeline = list(parse_pipeline(args.passes))
     pass_list = get_all_passes()
-    pipeline = tuple(PipelinePass.iter_passes(pass_list, pass_spec_pipeline))
+    pipeline = PipelinePass.parse_spec(pass_list, args.passes).passes
 
     return InputApp(
         tuple(get_all_dialects().items()),

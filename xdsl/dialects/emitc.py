@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     ShapedType,
+    StringAttr,
     TensorType,
     TupleType,
 )
@@ -139,6 +140,22 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
             raise VerifyException("!emitc.lvalue cannot wrap !emitc.array type")
 
 
+@irdl_attr_definition
+class EmitC_OpaqueType(ParametrizedAttribute, TypeAttribute):
+    """EmitC opaque type"""
+
+    name = "emitc.opaque"
+    value: StringAttr
+
+    def verify(self) -> None:
+        if not self.value.data:
+            raise VerifyException("expected non empty string in !emitc.opaque type")
+        if self.value.data[-1] == "*":
+            raise VerifyException(
+                "pointer not allowed as outer type with !emitc.opaque, use !emitc.ptr instead"
+            )
+
+
 _SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
 
 
@@ -188,6 +205,8 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
             return _is_supported_integer_type(type_attr)
         case IndexType():
             return True
+        case EmitC_OpaqueType():
+            return True
         case EmitC_ArrayType():
             elem_type = cast(Attribute, type_attr.get_element_type())
             return not isinstance(
@@ -215,5 +234,6 @@ EmitC = Dialect(
     [
         EmitC_ArrayType,
         EmitC_LValueType,
+        EmitC_OpaqueType,
     ],
 )

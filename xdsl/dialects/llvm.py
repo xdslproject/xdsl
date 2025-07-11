@@ -146,9 +146,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class LLVMPointerType(
-    ParametrizedAttribute, TypeAttribute, ContainerType[Attribute | None]
-):
+class LLVMPointerType(ParametrizedAttribute, TypeAttribute, ContainerType):
     name = "llvm.ptr"
 
     type: Attribute
@@ -194,7 +192,7 @@ class LLVMPointerType(
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
 
-    def get_element_type(self) -> Attribute | None:
+    def get_element_type(self) -> Attribute:
         return self.type
 
 

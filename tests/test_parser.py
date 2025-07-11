@@ -15,9 +15,9 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
-    LocationAttr,
     StringAttr,
     SymbolRefAttr,
+    UnknownLoc,
     i32,
 )
 from xdsl.dialects.test import Test
@@ -970,7 +970,10 @@ def test_properties_retrocompatibility():
 def test_parse_location():
     ctx = Context()
     attr = Parser(ctx, "loc(unknown)").parse_optional_location()
-    assert attr == LocationAttr()
+    assert attr == UnknownLoc()
+
+    with pytest.raises(ParseError, match="Unexpected location syntax."):
+        Parser(ctx, "loc(unexpected)").parse_optional_location()
 
 
 @pytest.mark.parametrize(

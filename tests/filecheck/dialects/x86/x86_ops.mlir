@@ -5,7 +5,6 @@
 %0, %1 = "test.op"() : () -> (!x86.reg, !x86.reg)
 %rsp = "test.op"() : () -> !x86.reg<rsp>
 %rax = "test.op"() : () -> !x86.reg<rax>
-%eax = "test.op"() : () -> !x86.reg<eax>
 %rdx = "test.op"() : () -> !x86.reg<rdx>
 
 %rr_add = x86.rs.add %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
@@ -371,8 +370,8 @@ x86.ms.vmovapd %0, %ymm1, 8 : (!x86.reg, !x86.avx2reg) -> ()
 // CHECK-NEXT: %{{.*}} = x86.dm.vbroadcastsd %{{.*}}, 8 : (!x86.reg) -> !x86.avx2reg
 %ds_vpbroadcastd_avx2 = x86.ds.vpbroadcastd %rax : (!x86.reg<rax>) -> !x86.avx2reg
 // CHECK-NEXT: %{{.*}} = x86.ds.vpbroadcastd %{{.*}} : (!x86.reg<rax>) -> !x86.avx2reg
-%ds_vpbroadcastq_avx2 = x86.ds.vpbroadcastq %eax : (!x86.reg<eax>) -> !x86.avx2reg
-// CHECK-NEXT: %{{.*}} = x86.ds.vpbroadcastq %{{.*}} : (!x86.reg<eax>) -> !x86.avx2reg
+%ds_vpbroadcastq_avx2 = x86.ds.vpbroadcastq %rax : (!x86.reg<rax>) -> !x86.avx2reg
+// CHECK-NEXT: %{{.*}} = x86.ds.vpbroadcastq %{{.*}} : (!x86.reg<rax>) -> !x86.avx2reg
 
 %zmm0, %zmm1, %zmm2 = "test.op"() : () -> (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg)
 

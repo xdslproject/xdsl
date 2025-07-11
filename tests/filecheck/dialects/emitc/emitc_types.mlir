@@ -28,16 +28,26 @@
 // CHECK: f64 = !emitc.lvalue<f64>
 // CHECK-SAME: i32 = !emitc.lvalue<i32>
 // CHECK-SAME: index = !emitc.lvalue<index>
-// CHECK-SAME: tensor_i32 = !emitc.lvalue<tensor<1xi32>>
+// CHECK-SAME: opaque_int = !emitc.lvalue<!emitc.opaque<"int">>
+// CHECK-SAME: tensor_i32 = !emitc.lvalue<tensor<1xi32>>,
 // CHECK-SAME: tuple_i32 = !emitc.lvalue<tuple<i32, i32>>
 "test.op"() {
   f64 = !emitc.lvalue<f64>,
   i32 = !emitc.lvalue<i32>,
   index = !emitc.lvalue<index>,
+  opaque_int = !emitc.lvalue<!emitc.opaque<"int">>,
   tensor_i32 = !emitc.lvalue<tensor<1xi32>>,
   tuple_i32 = !emitc.lvalue<tuple<i32, i32>>
-  // emitc.ptr and emitc.opaque types are not supported yet.
-  // Once they are supported, the following lines can be uncommented:
+  // emitc.ptr type is not supported yet.
+  // Once it is supported, the following lines can be uncommented:
   // ptr_i32 = !emitc.lvalue<!emitc.ptr<i32>>,
-  // opaque_int = !emitc.lvalue<!emitc.opaque<"int">>
+}: ()->()
+
+//===----------------------------------------------------------------------===//
+// OpaqueType
+//===----------------------------------------------------------------------===//
+
+// CHECK: opaque_type = !emitc.opaque<"my_custom_type">
+"test.op"() {
+  opaque_type = !emitc.opaque<"my_custom_type">
 }: ()->()

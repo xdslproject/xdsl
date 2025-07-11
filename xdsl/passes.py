@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import dataclasses
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import Field, dataclass, field
 from types import NoneType, UnionType
 from typing import (
@@ -21,6 +23,7 @@ from xdsl.utils.parse_pipeline import (
     PassArgElementType,
     PassArgListType,
     PipelinePassSpec,
+    parse_pipeline,
 )
 
 ModulePassT = TypeVar("ModulePassT", bound="ModulePass")
@@ -210,16 +213,23 @@ class PipelinePass(ModulePass):
 
         self.passes[-1].apply(ctx, op)
 
-    @classmethod
-    def iter_passes(
-        cls,
+    @staticmethod
+    def parse_spec(
         available_passes: dict[str, Callable[[], type[ModulePass]]],
-        pass_spec_pipeline: Iterable[PipelinePassSpec],
-    ) -> Iterable[ModulePass]:
-        for p in pass_spec_pipeline:
-            if p.name not in available_passes:
-                raise Exception(f"Unrecognized pass: {p.name}")
-            yield available_passes[p.name]().from_pass_spec(p)
+        spec: str,
+        callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None]
+        | None = None,
+    ) -> PipelinePass:
+        specs = tuple(parse_pipeline(spec))
+        unrecognised_passes = tuple(
+            p.name for p in specs if p.name not in available_passes
+        )
+        if unrecognised_passes:
+            raise Exception(f"Unrecognized passes: {list(unrecognised_passes)}")
+
+        passes = tuple(available_passes[p.name]().from_pass_spec(p) for p in specs)
+
+        return PipelinePass(passes, callback)
 
 
 def _convert_pass_arg_to_type(
