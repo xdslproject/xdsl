@@ -18,7 +18,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    AtLeast,
     GenericAttrConstraint,
     GenericRangeConstraint,
     IRDLOperation,
@@ -38,6 +37,7 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
+from xdsl.irdl.int_constraints import AtLeast
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import ConstantLike, HasParent, IsTerminator, Pure

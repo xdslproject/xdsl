@@ -37,7 +37,7 @@ func.func @omp_simd_aligned(%ub : index, %lb : index, %step : index, %a1 : memre
   func.return
 }
 
-// CHECK: integer 2 expected from int variable 'ALIGN_COUNT', but got 3
+// CHECK: attribute #builtin.int<2> expected from variable 'ALIGN_COUNT', but got #builtin.int<3>
 
 // -----
 
@@ -52,7 +52,7 @@ func.func @omp_simd_linear(%ub : index, %lb : index, %step : index, %l1 : memref
   func.return
 }
 
-// CHECK: integer 1 expected from int variable 'LINEAR_COUNT', but got 2
+// CHECK: attribute #builtin.int<1> expected from variable 'LINEAR_COUNT', but got #builtin.int<2>
 
 // -----
 
