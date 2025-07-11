@@ -1098,7 +1098,7 @@ class QuantizedMatmulOp(NamedOperation):
         )
 
 
-class PoolingOpsBase(NamedOperation, ABC):
+class PoolingOperation(NamedOperation, ABC):
     """Base class for linalg pooling operations."""
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
@@ -1108,7 +1108,7 @@ class PoolingOpsBase(NamedOperation, ABC):
 
 
 @irdl_op_definition
-class PoolingNchwMaxOp(PoolingOpsBase):
+class PoolingNchwMaxOp(PoolingOperation):
     """
     Performs max pooling
 
@@ -1144,7 +1144,7 @@ class PoolingNchwMaxOp(PoolingOpsBase):
         )
 
 
-class ConvOpsBase(NamedOperation, ABC):
+class ConvOperation(NamedOperation, ABC):
     """Base class for linalg convolution operations."""
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
@@ -1189,7 +1189,7 @@ class ConvOpsBase(NamedOperation, ABC):
 
 
 @irdl_op_definition
-class Conv2DNchwFchwOp(ConvOpsBase):
+class Conv2DNchwFchwOp(ConvOperation):
     """
     Performs 2-D convolution
 
@@ -1200,27 +1200,27 @@ class Conv2DNchwFchwOp(ConvOpsBase):
 
 
 @irdl_op_definition
-class Conv2DNgchwFgchwOp(ConvOpsBase):
+class Conv2DNgchwFgchwOp(ConvOperation):
     name = "linalg.conv_2d_ngchw_fgchw"
 
 
 @irdl_op_definition
-class Conv2DNgchwGfchwOp(ConvOpsBase):
+class Conv2DNgchwGfchwOp(ConvOperation):
     name = "linalg.conv_2d_ngchw_gfchw"
 
 
 @irdl_op_definition
-class Conv2DNhwc_FhwcOp(ConvOpsBase):
+class Conv2DNhwc_FhwcOp(ConvOperation):
     name = "linalg.conv_2d_nhwc_fhwc"
 
 
 @irdl_op_definition
-class Conv2DNhwc_HwcfOp(ConvOpsBase):
+class Conv2DNhwc_HwcfOp(ConvOperation):
     name = "linalg.conv_2d_nhwc_hwcf"
 
 
 @irdl_op_definition
-class Conv2DNhwgcGfhwcOp(ConvOpsBase):
+class Conv2DNhwgcGfhwcOp(ConvOperation):
     name = "linalg.conv_2d_nhwgc_gfhwc"
 
 
