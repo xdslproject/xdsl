@@ -41,14 +41,10 @@ from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
 )
-from xdsl.interactive.passes import (
-    AvailablePass,
-    apply_passes_to_module,
-    get_new_registered_context,
-)
+from xdsl.interactive.passes import AvailablePass, get_new_registered_context
 from xdsl.ir import Dialect
 from xdsl.parser import Parser
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
 from xdsl.transforms import get_all_passes, individual_rewrite
 
@@ -505,9 +501,8 @@ class InputApp(App[None]):
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
-            self.current_module = apply_passes_to_module(
-                module, ctx, self.pass_pipeline
-            )
+            PassPipeline(self.pass_pipeline).apply(ctx, module)
+            self.current_module = module
         except Exception as e:
             self.current_module = e
             self.update_input_operation_count_tuple(ModuleOp([], None))
@@ -725,7 +720,7 @@ def main():
         file_contents = None
 
     pass_list = get_all_passes()
-    pipeline = PipelinePass.parse_spec(pass_list, args.passes).passes
+    pipeline = PassPipeline.parse_spec(pass_list, args.passes).passes
 
     return InputApp(
         tuple(get_all_dialects().items()),
