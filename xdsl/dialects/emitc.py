@@ -156,6 +156,18 @@ class EmitC_OpaqueType(ParametrizedAttribute, TypeAttribute):
             )
 
 
+@irdl_attr_definition
+class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
+    """EmitC pointer type"""
+
+    name = "emitc.ptr"
+    pointee_type: TypeAttribute
+
+    def verify(self) -> None:
+        if isinstance(self.pointee_type, EmitC_LValueType):
+            raise VerifyException("pointers to lvalues are not allowed")
+
+
 _SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
 
 
@@ -212,6 +224,8 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
             return not isinstance(
                 elem_type, EmitC_ArrayType
             ) and is_supported_emitc_type(elem_type)
+        case EmitC_PointerType():
+            return is_supported_emitc_type(type_attr.pointee_type)
         case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
             return True
         case TensorType():
@@ -235,5 +249,6 @@ EmitC = Dialect(
         EmitC_ArrayType,
         EmitC_LValueType,
         EmitC_OpaqueType,
+        EmitC_PointerType,
     ],
 )
