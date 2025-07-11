@@ -12,12 +12,12 @@ from typing_extensions import TypeVar
 from xdsl.dialects.builtin import I64, Annotated, ArrayAttr, IntegerAttr, ShapedType
 from xdsl.ir import Attribute
 from xdsl.irdl import (
-    AtLeast,
     AttrConstraint,
     ConstraintContext,
     GenericAttrConstraint,
     irdl_to_attr_constraint,
 )
+from xdsl.irdl.int_constraints import AtLeast
 from xdsl.utils.exceptions import VerifyException
 
 _CONTIGUOUS_ARRAY_TYPE_CONSTRAINT = irdl_to_attr_constraint(
