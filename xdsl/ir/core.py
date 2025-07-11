@@ -226,6 +226,12 @@ class Data(Generic[DataElement], Attribute, ABC):
         return attr
 
     @classmethod
+    def get(cls, attr: DataElement | Self) -> Self:
+        if not isinstance(attr, cls):
+            attr = cls.new(attr)
+        return attr
+
+    @classmethod
     @abstractmethod
     def parse_parameter(cls, parser: AttrParser) -> DataElement:
         """Parse the attribute parameter."""
