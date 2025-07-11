@@ -11,7 +11,7 @@ class AnyRangeConstraint(RangeConstraint):
     """Constraint for testing default infer"""
 
     def verify(
-        self, attrs: Sequence[Attribute], constraint_context: ConstraintContext
+        self, value: Sequence[Attribute], constraint_context: ConstraintContext
     ) -> None:
         return
 
