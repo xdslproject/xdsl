@@ -4,7 +4,15 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from xdsl.builder import Builder, InsertPoint
-from xdsl.dialects.builtin import ModuleOp, TensorType, UnrankedTensorType, f64
+from xdsl.dialects.builtin import (
+    FileLineColLoc,
+    IntAttr,
+    ModuleOp,
+    StringAttr,
+    TensorType,
+    UnrankedTensorType,
+    f64,
+)
 from xdsl.ir import Block, Region, SSAValue
 from xdsl.utils.scoped_dict import ScopedDict
 
@@ -22,13 +30,13 @@ from ..dialects.toy import (
     TransposeOp,
     UnrankedTensorTypeF64,
 )
-from .location import Location
 from .toy_ast import (
     BinaryExprAST,
     CallExprAST,
     ExprAST,
     FunctionAST,
     LiteralExprAST,
+    Location,
     ModuleAST,
     NumberExprAST,
     PrintExprAST,
@@ -96,9 +104,7 @@ class IRGen:
 
     def loc(self, loc: Location):
         "Helper conversion for a Toy AST location to an MLIR location."
-        # TODO: Need location support in xDSL
-        # return mlir::FileLineColLoc::get(builder.getStringAttr(*loc.file), loc.line, loc.col);
-        pass
+        return FileLineColLoc(StringAttr(loc.file), IntAttr(loc.line), IntAttr(loc.col))
 
     def declare(self, var: str, value: SSAValue) -> bool:
         """

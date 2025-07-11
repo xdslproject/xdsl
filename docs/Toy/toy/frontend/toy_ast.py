@@ -3,9 +3,18 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import NamedTuple
 
-from .location import Location
-
 INDENT = 2
+
+
+class Location(NamedTuple):
+    "Structure definition a location in a file."
+
+    file: str
+    line: int
+    col: int
+
+    def __str__(self) -> str:
+        return f"{self.file}:{self.line}:{self.col}"
 
 
 class VarType(NamedTuple):

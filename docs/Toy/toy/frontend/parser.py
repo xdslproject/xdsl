@@ -5,13 +5,13 @@ from xdsl.parser import GenericParser, ParserState
 from xdsl.utils.lexer import Input
 
 from .lexer import ToyLexer, ToyToken, ToyTokenKind
-from .location import loc
 from .toy_ast import (
     BinaryExprAST,
     CallExprAST,
     ExprAST,
     FunctionAST,
     LiteralExprAST,
+    Location,
     ModuleAST,
     NumberExprAST,
     PrintExprAST,
@@ -21,6 +21,12 @@ from .toy_ast import (
     VariableExprAST,
     VarType,
 )
+
+
+def loc(token: ToyToken):
+    file = token.span.input.name
+    line, col = token.span.get_line_col()
+    return Location(file, line, col + 1)
 
 
 class ToyParser(GenericParser[ToyTokenKind]):
