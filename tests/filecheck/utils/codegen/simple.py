@@ -37,16 +37,27 @@ from xdsl.traits import (
 from xdsl.utils.dialect_codegen import dump_dialect_pyfile, generate_dynamic_attr_class
 
 types = [
-    ("Test_SingletonAType", ParamAttrDef(name="test.singleton_a", parameters=[])),
-    ("Test_SingletonBType", ParamAttrDef(name="test.singleton_b", parameters=[])),
-    ("Test_SingletonCType", ParamAttrDef(name="test.singleton_c", parameters=[])),
+    (
+        "Test_SingletonAType",
+        ParamAttrDef(name="test.singleton_a", parameters=[], converters={}),
+    ),
+    (
+        "Test_SingletonBType",
+        ParamAttrDef(name="test.singleton_b", parameters=[], converters={}),
+    ),
+    (
+        "Test_SingletonCType",
+        ParamAttrDef(name="test.singleton_c", parameters=[], converters={}),
+    ),
 ]
 
 SingletonAType = generate_dynamic_attr_class(types[0][0], types[0][1])
 SingletonBType = generate_dynamic_attr_class(types[1][0], types[1][1])
 SingletonCType = generate_dynamic_attr_class(types[2][0], types[2][1])
 
-attrs = [("Test_TestAttr", ParamAttrDef(name="test.test", parameters=[]))]
+attrs = [
+    ("Test_TestAttr", ParamAttrDef(name="test.test", parameters=[], converters={}))
+]
 
 ops = [
     (

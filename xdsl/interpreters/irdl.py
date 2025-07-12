@@ -157,7 +157,7 @@ class IRDLFunctions(InterpreterFunctions):
     @impl(irdl.TypeOp)
     def run_type(self, interpreter: Interpreter, op: irdl.TypeOp, args: PythonValues):
         name = op.qualified_name
-        self._set_attr_def(interpreter, name, ParamAttrDef(name, []))
+        self._set_attr_def(interpreter, name, ParamAttrDef(name, [], {}))
         interpreter.run_ssacfg_region(op.body, ())
 
         attr = self.get_attr(interpreter, name)

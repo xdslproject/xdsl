@@ -792,15 +792,10 @@ class ParamAttrDefAttr(ParametrizedAttribute):
 def test_irdl_definition():
     """Test that we can get the IRDL definition of a parametrized attribute."""
     assert ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef(
-        "test.param_attr_def_attr", [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))]
+        "test.param_attr_def_attr",
+        [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))],
+        {},
     )
-
-
-def test_deprecated_tuple_init():
-    with pytest.deprecated_call():
-        assert ParamAttrDefAttr(StringData(""), BoolData(True)) == ParamAttrDefAttr(
-            (StringData(""), BoolData(True))  # pyright: ignore[reportCallIssue]
-        )
 
 
 @irdl_attr_definition
@@ -821,6 +816,7 @@ def test_irdl_definition2():
     assert ParamAttrDefAttr2.get_irdl_definition() == ParamAttrDef(
         "test.param_attr_def_attr",
         [("arg1", AnyAttr() & BaseAttr(IntAttr)), ("arg2", BaseAttr(BoolData))],
+        {},
     )
 
 
@@ -900,6 +896,7 @@ def test_generic_attr():
                 ),
             )
         ],
+        {},
     )
 
     assert base(GenericAttr[IntAttr]) == ParamAttrConstraint(
