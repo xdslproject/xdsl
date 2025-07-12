@@ -97,32 +97,37 @@ ConstraintVariableType: TypeAlias = Attribute | Sequence[Attribute] | int
 Possible types that a constraint variable can have.
 """
 
+ConstraintInputT = TypeVar("ConstraintInputT")
+ConstraintOutputT = TypeVar("ConstraintOutputT", covariant=True)
+
 
 @dataclass(frozen=True)
-class GenericAttrConstraint(Generic[AttributeCovT], ABC):
-    """Constrain an attribute to a certain value."""
-
+class GenericConstraint(Generic[ConstraintInputT, ConstraintOutputT], ABC):
     @abstractmethod
     def verify(
-        self,
-        attr: Attribute,
-        constraint_context: ConstraintContext,
+        self, value: ConstraintInputT, constraint_context: ConstraintContext
     ) -> None:
         """
-        Check if the attribute satisfies the constraint,
-        or raise an exception otherwise.
+        Check if the value satisfies the constraint, or raise an exception otherwise.
         """
         ...
 
-    def verifies(self, attr: Attribute) -> TypeGuard[AttributeCovT]:
+    def verifies(self, value: ConstraintInputT) -> TypeGuard[ConstraintOutputT]:
         """
-        A helper method to check whether a given attribute matches `self`.
+        A helper method to check whether a given value matches `self`.
         """
         try:
-            self.verify(attr, ConstraintContext())
+            self.verify(value, ConstraintContext())
             return True
         except VerifyException:
             return False
+
+
+@dataclass(frozen=True)
+class GenericAttrConstraint(
+    Generic[AttributeCovT], GenericConstraint[Attribute, AttributeCovT], ABC
+):
+    """Constrain an attribute to a certain value."""
 
     def variables(self) -> set[str]:
         """
@@ -202,11 +207,11 @@ class TypedAttributeConstraint(GenericAttrConstraint[TypedAttributeCovT]):
     attr_constraint: GenericAttrConstraint[TypedAttributeCovT]
     type_constraint: GenericAttrConstraint[Attribute]
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, TypedAttribute):
-            raise VerifyException(f"attribute {attr} expected to be a TypedAttribute")
-        self.attr_constraint.verify(attr, constraint_context)
-        self.type_constraint.verify(attr.get_type(), constraint_context)
+    def verify(self, value: Attribute, constraint_context: ConstraintContext) -> None:
+        if not isinstance(value, TypedAttribute):
+            raise VerifyException(f"attribute {value} expected to be a TypedAttribute")
+        self.attr_constraint.verify(value, constraint_context)
+        self.type_constraint.verify(value.get_type(), constraint_context)
 
     def variables(self) -> set[str]:
         return self.type_constraint.variables() | self.attr_constraint.variables()
@@ -244,19 +249,19 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
 
     def verify(
         self,
-        attr: Attribute,
+        value: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
         ctx_attr = constraint_context.get_variable(self.name)
         if ctx_attr is not None:
-            if attr != ctx_attr:
+            if value != ctx_attr:
                 raise VerifyException(
                     f"attribute {constraint_context.get_variable(self.name)} expected from variable "
-                    f"'{self.name}', but got {attr}"
+                    f"'{self.name}', but got {value}"
                 )
         else:
-            self.constraint.verify(attr, constraint_context)
-            constraint_context.set_attr_variable(self.name, attr)
+            self.constraint.verify(value, constraint_context)
+            constraint_context.set_attr_variable(self.name, value)
 
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
@@ -293,10 +298,10 @@ class TypeVarConstraint(AttrConstraint):
 
     def verify(
         self,
-        attr: Attribute,
+        value: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        self.base_constraint.verify(attr, constraint_context)
+        self.base_constraint.verify(value, constraint_context)
 
     def get_bases(self) -> set[type[Attribute]] | None:
         return self.base_constraint.get_bases()
@@ -334,11 +339,11 @@ class EqAttrConstraint(Generic[AttributeCovT], GenericAttrConstraint[AttributeCo
 
     def verify(
         self,
-        attr: Attribute,
+        value: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        if attr != self.attr:
-            raise VerifyException(f"Expected attribute {self.attr} but got {attr}")
+        if value != self.attr:
+            raise VerifyException(f"Expected attribute {self.attr} but got {value}")
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return True
@@ -367,12 +372,12 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
 
     def verify(
         self,
-        attr: Attribute,
+        value: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        if not isinstance(attr, self.attr):
+        if not isinstance(value, self.attr):
             raise VerifyException(
-                f"{attr} should be of base attribute {self.attr.name}"
+                f"{value} should be of base attribute {self.attr.name}"
             )
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
@@ -417,7 +422,7 @@ class AnyAttr(GenericAttrConstraint[Attribute]):
 
     def verify(
         self,
-        attr: Attribute,
+        value: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
         pass
@@ -505,13 +510,13 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
             based_constrs,
         )
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if attr in self._eq_constrs:
+    def verify(self, value: Attribute, constraint_context: ConstraintContext) -> None:
+        if value in self._eq_constrs:
             return
-        constr = self._based_constrs.get(attr.__class__)
+        constr = self._based_constrs.get(value.__class__)
         if constr is None:
-            raise VerifyException(f"Unexpected attribute {attr}")
-        constr.verify(attr, constraint_context)
+            raise VerifyException(f"Unexpected attribute {value}")
+        constr.verify(value, constraint_context)
 
     def __or__(
         self, value: GenericAttrConstraint[_AttributeCovT], /
@@ -550,14 +555,14 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
 
     def verify(
         self,
-        attr: Attribute,
+        value: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
         exc_bucket: list[VerifyException] = []
 
         for attr_constr in self.attr_constrs:
             try:
-                attr_constr.verify(attr, constraint_context)
+                attr_constr.verify(value, constraint_context)
             except VerifyException as e:
                 exc_bucket.append(e)
 
@@ -650,14 +655,14 @@ class ParamAttrConstraint(
 
     def verify(
         self,
-        attr: Attribute,
+        value: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        if not isinstance(attr, self.base_attr):
+        if not isinstance(value, self.base_attr):
             raise VerifyException(
-                f"{attr} should be of base attribute {self.base_attr.name}"
+                f"{value} should be of base attribute {self.base_attr.name}"
             )
-        parameters = attr.parameters
+        parameters = value.parameters
         if len(self.param_constrs) != len(parameters):
             raise VerifyException(
                 f"{len(self.param_constrs)} parameters expected, "
@@ -734,11 +739,11 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
 
     def verify(
         self,
-        attr: Attribute,
+        value: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
         try:
-            return self.constr.verify(attr, constraint_context)
+            return self.constr.verify(value, constraint_context)
         except VerifyException as e:
             raise VerifyException(
                 f"{self.message}\nUnderlying verification failure: {e.args[0]}",
@@ -766,19 +771,8 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
 
 
 @dataclass(frozen=True)
-class IntConstraint(ABC):
+class IntConstraint(GenericConstraint[int, int], ABC):
     """Constrain an integer to certain values."""
-
-    @abstractmethod
-    def verify(
-        self,
-        i: int,
-        constraint_context: ConstraintContext,
-    ) -> None:
-        """
-        Check if the integer satisfies the constraint, or raise an exception otherwise.
-        """
-        ...
 
     def variables(self) -> set[str]:
         """
@@ -811,7 +805,7 @@ class AnyInt(IntConstraint):
     Constraint that is verified by all integers.
     """
 
-    def verify(self, i: int, constraint_context: ConstraintContext) -> None:
+    def verify(self, value: int, constraint_context: ConstraintContext) -> None:
         pass
 
 
@@ -822,9 +816,9 @@ class AtLeast(IntConstraint):
     bound: int
     """The minimum value the integer can take."""
 
-    def verify(self, i: int, constraint_context: ConstraintContext) -> None:
-        if i < self.bound:
-            raise VerifyException(f"expected integer >= {self.bound}, got {i}")
+    def verify(self, value: int, constraint_context: ConstraintContext) -> None:
+        if value < self.bound:
+            raise VerifyException(f"expected integer >= {self.bound}, got {value}")
 
 
 @dataclass(frozen=True)
@@ -842,18 +836,18 @@ class IntVarConstraint(IntConstraint):
 
     def verify(
         self,
-        i: int,
+        value: int,
         constraint_context: ConstraintContext,
     ) -> None:
         if self.name in constraint_context.int_variables:
-            if i != constraint_context.get_int_variable(self.name):
+            if value != constraint_context.get_int_variable(self.name):
                 raise VerifyException(
                     f"integer {constraint_context.get_int_variable(self.name)} expected from int variable "
-                    f"'{self.name}', but got {i}"
+                    f"'{self.name}', but got {value}"
                 )
         else:
-            self.constraint.verify(i, constraint_context)
-            constraint_context.set_int_variable(self.name, i)
+            self.constraint.verify(value, constraint_context)
+            constraint_context.set_int_variable(self.name, value)
 
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
@@ -871,19 +865,12 @@ class IntVarConstraint(IntConstraint):
 
 
 @dataclass(frozen=True)
-class GenericRangeConstraint(Generic[AttributeCovT], ABC):
+class GenericRangeConstraint(
+    Generic[AttributeCovT],
+    GenericConstraint[Sequence[Attribute], Sequence[AttributeCovT]],
+    ABC,
+):
     """Constrain a range of attributes to certain values."""
-
-    @abstractmethod
-    def verify(
-        self,
-        attrs: Sequence[Attribute],
-        constraint_context: ConstraintContext,
-    ) -> None:
-        """
-        Check if the range satisfies the constraint, or raise an exception otherwise.
-        """
-        ...
 
     @abstractmethod
     def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
@@ -961,19 +948,19 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
 
     def verify(
         self,
-        attrs: Sequence[Attribute],
+        value: Sequence[Attribute],
         constraint_context: ConstraintContext,
     ) -> None:
         ctx_attrs = constraint_context.get_range_variable(self.name)
         if ctx_attrs is not None:
-            if attrs != ctx_attrs:
+            if value != ctx_attrs:
                 raise VerifyException(
                     f"attributes {tuple(str(x) for x in ctx_attrs)} expected from range variable "
-                    f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
+                    f"'{self.name}', but got {tuple(str(x) for x in value)}"
                 )
         else:
-            self.constraint.verify(attrs, constraint_context)
-            constraint_context.set_range_variable(self.name, tuple(attrs))
+            self.constraint.verify(value, constraint_context)
+            constraint_context.set_range_variable(self.name, tuple(value))
 
     def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
         # It is not possible to fully verify the constraint from just the length, so we don't try.
@@ -1013,13 +1000,13 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
 
     def verify(
         self,
-        attrs: Sequence[Attribute],
+        value: Sequence[Attribute],
         constraint_context: ConstraintContext,
     ) -> None:
-        for a in attrs:
+        for a in value:
             self.constr.verify(a, constraint_context)
         try:
-            self.length.verify(len(attrs), constraint_context)
+            self.length.verify(len(value), constraint_context)
         except VerifyException as e:
             raise VerifyException(
                 "incorrect length for range variable:\n" + str(e)
@@ -1067,12 +1054,12 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
 
     def verify(
         self,
-        attrs: Sequence[Attribute],
+        value: Sequence[Attribute],
         constraint_context: ConstraintContext,
     ) -> None:
-        if len(attrs) != 1:
-            raise VerifyException(f"Expected a single attribute, got {len(attrs)}")
-        self.constr.verify(attrs[0], constraint_context)
+        if len(value) != 1:
+            raise VerifyException(f"Expected a single attribute, got {len(value)}")
+        self.constr.verify(value[0], constraint_context)
 
     def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
         if length != 1:
