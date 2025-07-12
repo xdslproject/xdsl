@@ -1,4 +1,5 @@
 import re
+from collections.abc import Sequence
 
 import pytest
 
@@ -246,28 +247,66 @@ def test_inverse_and_broadcast_projected_permutation(
         assert inverse.inverse_and_broadcast_projected_permutation() == input_map
 
 
-def test_drop_dims():
-    # (d0, d1, d2) -> (d1, d2) with [0,1,1] gives (d0, d1) -> (d0, d1)
-    # (d0, d1, d2) -> (d2, d2) with [1,0,1] gives (d0, d1) -> (d1, d1)
-    t = True
-    f = False
-    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)).drop_dims(
-        [t, f, f]
-    ) == AffineMap.from_callable(lambda d0, d1: (d0, d1))
-    assert AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)).drop_dims(
-        [f, t, f]
-    ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
+t = True
+f = False
 
 
-def test_drop_results():
-    t = True
-    f = False
-    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)).drop_results(
-        [t, f]
-    ) == AffineMap.from_callable(lambda d0, d1, d2: (d2,))
-    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)).drop_results(
-        [f, t]
-    ) == AffineMap.from_callable(lambda d0, d1, d2: (d1,))
+@pytest.mark.parametrize(
+    "input_map, drop_dims_mask, expected_map",
+    [
+        (
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)),
+            [t, f, f],
+            AffineMap.from_callable(lambda d0, d1: (d0, d1)),
+        ),
+        (
+            AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)),
+            [f, t, f],
+            AffineMap.from_callable(lambda d0, d1: (d1, d1)),
+        ),
+    ],
+)
+def test_drop_dims(
+    input_map: AffineMap, drop_dims_mask: Sequence[bool], expected_map: AffineMap
+):
+    assert input_map.drop_dims(drop_dims_mask) == expected_map
+
+
+@pytest.mark.parametrize(
+    "input_map, drop_results_mask, expected_map",
+    [
+        (
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)),
+            [t, f],
+            AffineMap.from_callable(lambda d0, d1, d2: (d2,)),
+        ),
+        (
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)),
+            [f, t],
+            AffineMap.from_callable(lambda d0, d1, d2: (d1,)),
+        ),
+        (
+            AffineMap.from_callable(
+                lambda d0, d1, s0: (d0 + s0, d1), dim_symbol_split=(2, 1)
+            ),
+            [t, f],
+            AffineMap.from_callable(lambda d0, d1, s0: (d1,), dim_symbol_split=(2, 1)),
+        ),
+        (
+            AffineMap.from_callable(
+                lambda d0, d1, s0: (d0 + s0, d1), dim_symbol_split=(2, 1)
+            ),
+            [f, t],
+            AffineMap.from_callable(
+                lambda d0, d1, s0: (d0 + s0,), dim_symbol_split=(2, 1)
+            ),
+        ),
+    ],
+)
+def test_drop_results(
+    input_map: AffineMap, drop_results_mask: Sequence[bool], expected_map: AffineMap
+):
+    assert input_map.drop_results(drop_results_mask) == expected_map
 
 
 def test_affine_expr_affine_expr_binary_simplification():
