@@ -168,6 +168,17 @@ class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
             raise VerifyException("pointers to lvalues are not allowed")
 
 
+@irdl_attr_definition
+class EmitC_PtrDiffT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC signed pointer diff type.
+    Signed data type as wide as platform-specific pointer types. In particular, it is as wide as emitc.size_t.
+    It corresponds to ptrdiff_t found in <stddef.h>.
+    """
+
+    name = "emitc.ptrdiff_t"
+
+
 _SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
 
 
@@ -194,6 +205,18 @@ def is_supported_float_type(type_attr: Attribute) -> bool:
             return False
 
 
+def is_pointer_wide_type(type_attr: Attribute) -> bool:
+    """Check if a type is a pointer-wide type."""
+    match type_attr:
+        case EmitC_PtrDiffT():
+            return True
+        # TODO: Comment this out when EmitC_SignedSizeT and EmitC_SizeT are implemented.
+        # case EmitC_PtrDiffT() | EmitC_SignedSizeT() | EmitC_SizeT():
+        #     return True
+        case _:
+            return False
+
+
 def is_integer_index_or_opaque_type(
     type_attr: Attribute,
 ) -> bool:
@@ -204,7 +227,11 @@ def is_integer_index_or_opaque_type(
     only for integer and index types.
     See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
     """
-    return _is_supported_integer_type(type_attr) or isinstance(type_attr, IndexType)
+    return (
+        _is_supported_integer_type(type_attr)
+        or isinstance(type_attr, IndexType)
+        or is_pointer_wide_type(type_attr)
+    )
 
 
 def is_supported_emitc_type(type_attr: Attribute) -> bool:
@@ -238,6 +265,8 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
                 not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
                 for t in type_attr.types
             )
+        case EmitC_PtrDiffT():
+            return True
         case _:
             return False
 
@@ -250,5 +279,6 @@ EmitC = Dialect(
         EmitC_LValueType,
         EmitC_OpaqueType,
         EmitC_PointerType,
+        EmitC_PtrDiffT,
     ],
 )
