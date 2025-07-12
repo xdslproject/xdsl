@@ -7,8 +7,10 @@ Those can be translated to C/C++ via the Cpp emitter.
 See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import cast
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -17,8 +19,10 @@ from xdsl.dialects.builtin import (
     Float16Type,
     Float32Type,
     Float64Type,
+    FloatAttr,
     IndexType,
     IntAttr,
+    IntegerAttr,
     IntegerType,
     ShapedType,
     StringAttr,
@@ -30,12 +34,23 @@ from xdsl.ir import (
     AttributeCovT,
     Dialect,
     ParametrizedAttribute,
+    SSAValue,
     TypeAttribute,
 )
-from xdsl.irdl import irdl_attr_definition
-from xdsl.parser import AttrParser
+from xdsl.irdl import (
+    AnyAttr,
+    IRDLOperation,
+    irdl_attr_definition,
+    irdl_op_definition,
+    opt_prop_def,
+    prop_def,
+    var_operand_def,
+    var_result_def,
+)
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
@@ -289,9 +304,134 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
             return False
 
 
+@irdl_op_definition
+class EmitC_CallOpaqueOp(IRDLOperation):
+    """
+    The emitc.call_opaque operation represents a C++ function call. The callee can be an arbitrary non-empty string.
+    The call allows specifying order of operands and attributes in the call as follows:
+
+        - integer value of index type refers to an operand;
+        - attribute which will get lowered to constant value in call;
+    """
+
+    name = "emitc.call_opaque"
+
+    callee = prop_def(StringAttr)
+    args = opt_prop_def(ArrayAttr[Attribute])
+    template_args = opt_prop_def(ArrayAttr[Attribute])
+    # The SSA‐value operands of the call
+    call_args = var_operand_def(AnyAttr())
+    res = var_result_def(AnyAttr())
+
+    def __init__(
+        self,
+        callee: StringAttr | str,
+        call_args: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+        args: ArrayAttr[Attribute] | None = None,
+        template_args: ArrayAttr[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        super().__init__(
+            properties={
+                "callee": callee
+                if isinstance(callee, StringAttr)
+                else StringAttr(callee),
+                "args": args,
+                "template_args": template_args,
+            },
+            operands=[call_args],
+            result_types=[result_types],
+            attributes=attributes,
+        )
+
+    def verify_(self) -> None:
+        if not self.callee.data:
+            raise VerifyException("callee must not be empty")
+
+        if self.args is not None:
+            for arg in self.args.data:
+                if isa(arg, IntegerAttr) and isinstance(arg.type, IndexType):
+                    index = arg.value.data
+                    if not (0 <= index < len(self.call_args)):
+                        raise VerifyException("index argument is out of range")
+                elif isinstance(arg, ArrayAttr):
+                    # see https://github.com/llvm/llvm-project/blob/2eb733b5a6ab17a3ae812bb55c1c7c64569cadcd/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L342
+                    # This part is referenced as a FIXME there.
+                    raise VerifyException("array argument has no type")
+
+        if self.template_args is not None:
+            for t_arg in self.template_args.data:
+                if not isa(
+                    t_arg,
+                    TypeAttribute | IntegerAttr | FloatAttr,
+                    # FIXME: uncomment when EmitC_OpaqueAttr is implemented
+                    # OpaqueAttr is not defined yet,
+                ):
+                    raise VerifyException("template argument has invalid type")
+
+        for res_type in self.res.types:
+            if isinstance(res_type, EmitC_ArrayType):
+                raise VerifyException("cannot return array type")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        callee = parser.parse_attribute()
+        if not isinstance(callee, StringAttr):
+            parser.raise_error("Expected a StringAttr for the callee")
+
+        parser.parse_punctuation("(")
+        call_args: list[SSAValue] = []
+        if not parser.parse_optional_punctuation(")"):
+            call_args.append(parser.parse_operand())
+            while parser.parse_optional_punctuation(","):
+                call_args.append(parser.parse_operand())
+            parser.parse_punctuation(")")
+
+        attr_dict = parser.parse_optional_attr_dict() or {}
+
+        parser.parse_punctuation(":")
+        parser.parse_punctuation("(")
+
+        # We don't use the operand types, just parse them
+        if not parser.parse_optional_punctuation(")"):
+            parser.parse_type()
+            while parser.parse_optional_punctuation(","):
+                parser.parse_type()
+            parser.parse_punctuation(")")
+
+        parser.parse_punctuation("->")
+
+        parser.parse_optional_punctuation("(")
+        result_types: list[Attribute] = []
+        if not parser.parse_optional_punctuation(")"):
+            result_types.append(parser.parse_type())
+            while parser.parse_optional_punctuation(","):
+                result_types.append(parser.parse_type())
+            parser.parse_optional_punctuation(")")
+
+        args = attr_dict.get("args")
+        if args is not None and not isa(args, ArrayAttr[Attribute]):
+            parser.raise_error("Expected an ArrayAttr for args")
+
+        template_args = attr_dict.get("template_args")
+        if template_args is not None and not isa(template_args, ArrayAttr[Attribute]):
+            parser.raise_error("Expected an ArrayAttr for template_args")
+
+        return cls(
+            callee=callee,
+            call_args=call_args,
+            result_types=result_types,
+            args=args,
+            template_args=template_args,
+        )
+
+
 EmitC = Dialect(
     "emitc",
-    [],
+    [
+        EmitC_CallOpaqueOp,
+    ],
     [
         EmitC_ArrayType,
         EmitC_LValueType,
