@@ -100,17 +100,13 @@ class PatternRewriter(Builder, PatternRewriterListener):
         Builder.__init__(self, InsertPoint.before(current_operation))
 
     def insert_op(
-        self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
+        self,
+        op: Operation | Sequence[Operation],
+        insertion_point: InsertPoint | None = None,
     ):
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
-        op = (op,) if isinstance(op, Operation) else op
-        if not op:
-            return
-        Rewriter.insert_op(op, insertion_point)
-
-        for op_ in op:
-            self.handle_operation_insertion(op_)
+        super().insert_op(op)
 
     def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations before the matched operation."""
