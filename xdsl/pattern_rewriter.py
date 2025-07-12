@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import Union, final, get_args, get_origin
+from typing import Union, final, get_args, get_origin, overload
 
 from typing_extensions import TypeVar
 
@@ -18,6 +18,7 @@ from xdsl.ir import (
     BlockArgument,
     ErasedSSAValue,
     Operation,
+    OperationInvT,
     OpResult,
     ParametrizedAttribute,
     Region,
@@ -99,14 +100,28 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.current_operation = current_operation
         Builder.__init__(self, InsertPoint.before(current_operation))
 
+    @overload
+    def insert_op(
+        self,
+        op: OperationInvT,
+        insertion_point: InsertPoint | None = None,
+    ) -> OperationInvT: ...
+
+    @overload
+    def insert_op(
+        self,
+        op: Sequence[Operation],
+        insertion_point: InsertPoint | None = None,
+    ) -> None: ...
+
     def insert_op(
         self,
         op: Operation | Sequence[Operation],
         insertion_point: InsertPoint | None = None,
-    ):
+    ) -> Operation | None:
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
-        super().insert_op(op, insertion_point)
+        return super().insert_op(op, insertion_point)
 
     def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations before the matched operation."""

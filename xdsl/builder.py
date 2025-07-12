@@ -58,17 +58,30 @@ class Builder(BuilderListener):
         """
         Inserts op at the current location and returns it.
         """
-        self.insert_op(op)
-        return op
+        return self.insert_op(op)
+
+    @overload
+    def insert_op(
+        self,
+        op: OperationInvT,
+        insertion_point: InsertPoint | None = None,
+    ) -> OperationInvT: ...
+
+    @overload
+    def insert_op(
+        self,
+        op: Sequence[Operation],
+        insertion_point: InsertPoint | None = None,
+    ) -> None: ...
 
     def insert_op(
         self,
         op: Operation | Sequence[Operation],
         insertion_point: InsertPoint | None = None,
-    ):
+    ) -> Operation | None:
         """Inserts `op` at the current insertion point."""
-        op = (op,) if isinstance(op, Operation) else op
-        if not op:
+        res, ops = (op, (op,)) if isinstance(op, Operation) else (None, op)
+        if not ops:
             return
 
         implicit_builder = ImplicitBuilder.get()
@@ -81,10 +94,10 @@ class Builder(BuilderListener):
             op, self.insertion_point if insertion_point is None else insertion_point
         )
 
-        for op_ in op:
+        for op_ in ops:
             self.handle_operation_insertion(op_)
 
-        return op
+        return res
 
     def create_block(
         self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()
