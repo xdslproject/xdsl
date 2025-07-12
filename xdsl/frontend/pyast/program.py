@@ -1,3 +1,5 @@
+"""Facilitate convert from Python source code to xDSL IR."""
+
 import ast
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -6,16 +8,16 @@ from typing import Any
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import CodeGeneration
-from xdsl.frontend.pyast.exception import FrontendProgramException
-from xdsl.frontend.pyast.passes.desymref import Desymrefier
-from xdsl.frontend.pyast.python_code_check import FunctionMap
-from xdsl.frontend.pyast.type_conversion import (
+from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
+from xdsl.frontend.pyast.utils.python_code_check import FunctionMap
+from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
     TypeConverter,
     TypeRegistry,
 )
 from xdsl.ir import Operation, TypeAttribute
 from xdsl.printer import Printer
+from xdsl.transforms.desymref import Desymrefier
 
 
 @dataclass
@@ -60,7 +62,8 @@ class FrontendProgram:
         """Associate a method on an object in the source code with its IR implementation."""
         self.function_registry.insert(function, ir_op)
 
-    def _check_can_compile(self):
+    def _check_can_compile(self) -> None:
+        """Ensure that the program has a code context to compile."""
         if self.stmts is None or self.globals is None:
             msg = """
 Cannot compile program without the code context. Try to use:
@@ -71,20 +74,16 @@ Cannot compile program without the code context. Try to use:
 
     def compile(self, desymref: bool = True) -> None:
         """Generates xDSL from the source program."""
-
-        # Both statements and globals msut be initialized from within the
-        # `CodeContext`.
         self._check_can_compile()
         assert self.globals is not None
         assert self.functions_and_blocks is not None
 
-        type_converter = TypeConverter(
-            globals=self.globals,
-            type_registry=self.type_registry,
-            function_registry=self.function_registry,
-        )
         self.xdsl_program = CodeGeneration.run_with_type_converter(
-            type_converter,
+            TypeConverter(
+                globals=self.globals,
+                type_registry=self.type_registry,
+                function_registry=self.function_registry,
+            ),
             self.functions_and_blocks,
             self.file,
         )
@@ -101,6 +100,7 @@ Cannot compile program without the code context. Try to use:
         self.xdsl_program.verify()
 
     def _check_can_print(self):
+        """Ensure that the program has been compiled to be able to print."""
         if self.xdsl_program is None:
             msg = """
 Cannot print the program IR without compiling it first. Make sure to use:
@@ -111,6 +111,7 @@ Cannot print the program IR without compiling it first. Make sure to use:
             raise FrontendProgramException(msg)
 
     def textual_format(self) -> str:
+        """Get a textual representation of the program."""
         self._check_can_print()
         assert self.xdsl_program is not None
 
