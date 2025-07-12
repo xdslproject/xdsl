@@ -4,6 +4,7 @@ import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
+from typing import cast
 
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 
@@ -250,21 +251,14 @@ class AffineMap:
         Equivalent to `inverseAndBroadcastProjectedPermutation` in MLIR.
         """
         assert self.is_projected_permutation(allow_zero_in_results=True), f"{self}"
+        results = cast(tuple[AffineConstantExpr | AffineDimExpr, ...], self.results)
         zero = AffineExpr.constant(0)
         # Start with all the results as 0.
         exprs = [zero] * self.num_dims
-        for i, res in enumerate(self.results):
-            # Skip zeros from input map. 'exprs' is already initialized to zero.
-            if isinstance(const_expr := res, AffineConstantExpr):
-                assert const_expr.value == 0, (
-                    "Unexpected constant in projected permutation"
-                )
-                continue
-
-            assert isinstance(dim_expr := res, AffineDimExpr)
-
-            # Reverse each dimension existing in the original map result.
-            exprs[dim_expr.position] = AffineExpr.dimension(i)
+        for i, res in enumerate(results):
+            if isinstance(res, AffineDimExpr):
+                # Reverse each dimension existing in the original map result.
+                exprs[res.position] = AffineExpr.dimension(i)
 
         return AffineMap(len(self.results), 0, tuple(exprs))
 
