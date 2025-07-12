@@ -277,8 +277,8 @@ class AffineMap:
 
         Examples:
         ```
-        (d0, d1, d2) -> (d1, d2) with [1,0,0] gives (d0, d1) -> (d0, d1)
-        (d0, d1, d2) -> (d2, d2) with [0,1,0] gives (d0, d1) -> (d1, d1)
+        (d0, d1, d2) -> (d1, d2) with [T,F,F] gives (d0, d1) -> (d0, d1)
+        (d0, d1, d2) -> (d2, d2) with [F,T,F] gives (d0, d1) -> (d1, d1)
         ```
 
         Corresponds to MLIR's `compressDims`.
@@ -302,13 +302,13 @@ class AffineMap:
 
     def drop_results(self, unused_results: Sequence[bool]) -> AffineMap:
         """
-        Given a sequence of `unused_results` indicating the resuts to drop,
+        Given a sequence of `unused_results` indicating the results to drop,
         return a new map only with the new results.
 
         Examples:
         ```
-        (d0, d1, d2) -> (d1, d2) with [1,0] gives (d0, d1, d2) -> (d1)
-        (d0, d1, d2) -> (d2, d2) with [0,1] gives (d0, d1, d2) -> (d2)
+        (d0, d1, d2) -> (d1, d2) with [T,F] gives (d0, d1, d2) -> (d1)
+        (d0, d1, d2) -> (d1, d2) with [F,T] gives (d0, d1, d2) -> (d1)
         ```
 
         Corresponds to MLIR's `dropResults`, but passing a mask instead of integer
