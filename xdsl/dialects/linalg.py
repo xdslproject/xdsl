@@ -411,7 +411,7 @@ class IndexOp(IRDLOperation):
         super().__init__(properties={"dim": dim_attr}, result_types=[IndexType()])
 
 
-class NamedOpBase(IRDLOperation, ABC):
+class NamedOperation(IRDLOperation, ABC):
     """
     Abstract base class for named ops with hidden region.
     """
@@ -570,7 +570,7 @@ class NamedOpBase(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class AddOp(NamedOpBase):
+class AddOp(NamedOperation):
     """
     Adds two tensors elementwise.
 
@@ -609,7 +609,7 @@ class AddOp(NamedOpBase):
 
 
 @irdl_op_definition
-class SubOp(NamedOpBase):
+class SubOp(NamedOperation):
     """
     Subtracts two tensors elementwise.
 
@@ -648,7 +648,7 @@ class SubOp(NamedOpBase):
 
 
 @irdl_op_definition
-class SelectOp(NamedOpBase):
+class SelectOp(NamedOperation):
     """
     Chooses one value based on a binary condition supplied as its first operand.
 
@@ -686,7 +686,7 @@ class SelectOp(NamedOpBase):
 
 
 @irdl_op_definition
-class FillOp(NamedOpBase):
+class FillOp(NamedOperation):
     """
     Fills the output tensor with the given value.
 
@@ -738,7 +738,7 @@ class FillOp(NamedOpBase):
 
 
 @irdl_op_definition
-class MaxOp(NamedOpBase):
+class MaxOp(NamedOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -779,7 +779,7 @@ class MaxOp(NamedOpBase):
 
 
 @irdl_op_definition
-class MinOp(NamedOpBase):
+class MinOp(NamedOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -820,7 +820,7 @@ class MinOp(NamedOpBase):
 
 
 @irdl_op_definition
-class MulOp(NamedOpBase):
+class MulOp(NamedOperation):
     """
     Multiplies two tensors elementwise.
 
@@ -883,7 +883,7 @@ class TransposeOp(IRDLOperation):
         permutation: Attribute,
         result: Attribute | None = None,
     ):
-        arg_types = NamedOpBase.body_arg_types((input, init))
+        arg_types = NamedOperation.body_arg_types((input, init))
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -972,7 +972,7 @@ class TransposeOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MatmulOp(NamedOpBase):
+class MatmulOp(NamedOperation):
     """
     Performs a matrix multiplication of two 2D inputs.
 
@@ -1036,7 +1036,7 @@ class MatmulOp(NamedOpBase):
 
 
 @irdl_op_definition
-class QuantizedMatmulOp(NamedOpBase):
+class QuantizedMatmulOp(NamedOperation):
     """
     Performs a matrix multiplication of two 2D inputs.
 
@@ -1098,7 +1098,7 @@ class QuantizedMatmulOp(NamedOpBase):
         )
 
 
-class PoolingOpsBase(NamedOpBase, ABC):
+class PoolingOperation(NamedOperation, ABC):
     """Base class for linalg pooling operations."""
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
@@ -1108,7 +1108,7 @@ class PoolingOpsBase(NamedOpBase, ABC):
 
 
 @irdl_op_definition
-class PoolingNchwMaxOp(PoolingOpsBase):
+class PoolingNchwMaxOp(PoolingOperation):
     """
     Performs max pooling
 
@@ -1144,7 +1144,7 @@ class PoolingNchwMaxOp(PoolingOpsBase):
         )
 
 
-class ConvOpsBase(NamedOpBase, ABC):
+class ConvOperation(NamedOperation, ABC):
     """Base class for linalg convolution operations."""
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
@@ -1189,7 +1189,7 @@ class ConvOpsBase(NamedOpBase, ABC):
 
 
 @irdl_op_definition
-class Conv2DNchwFchwOp(ConvOpsBase):
+class Conv2DNchwFchwOp(ConvOperation):
     """
     Performs 2-D convolution
 
@@ -1200,27 +1200,27 @@ class Conv2DNchwFchwOp(ConvOpsBase):
 
 
 @irdl_op_definition
-class Conv2DNgchwFgchwOp(ConvOpsBase):
+class Conv2DNgchwFgchwOp(ConvOperation):
     name = "linalg.conv_2d_ngchw_fgchw"
 
 
 @irdl_op_definition
-class Conv2DNgchwGfchwOp(ConvOpsBase):
+class Conv2DNgchwGfchwOp(ConvOperation):
     name = "linalg.conv_2d_ngchw_gfchw"
 
 
 @irdl_op_definition
-class Conv2DNhwc_FhwcOp(ConvOpsBase):
+class Conv2DNhwc_FhwcOp(ConvOperation):
     name = "linalg.conv_2d_nhwc_fhwc"
 
 
 @irdl_op_definition
-class Conv2DNhwc_HwcfOp(ConvOpsBase):
+class Conv2DNhwc_HwcfOp(ConvOperation):
     name = "linalg.conv_2d_nhwc_hwcf"
 
 
 @irdl_op_definition
-class Conv2DNhwgcGfhwcOp(ConvOpsBase):
+class Conv2DNhwgcGfhwcOp(ConvOperation):
     name = "linalg.conv_2d_nhwgc_gfhwc"
 
 
@@ -1249,7 +1249,7 @@ class BroadcastOp(IRDLOperation):
         dimensions: Attribute,
         result: Attribute | None = None,
     ):
-        arg_types = NamedOpBase.body_arg_types((input, init))
+        arg_types = NamedOperation.body_arg_types((input, init))
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
