@@ -69,3 +69,14 @@
   ptr_i32 = !emitc.ptr<!emitc.ptr<i32>>,
   ptr_opaque_int = !emitc.ptr<!emitc.opaque<"int">>
 }: ()->()
+
+//===----------------------------------------------------------------------===//
+// PtrDiffTType
+//===----------------------------------------------------------------------===//
+
+// CHECK: array_ptrdiff = !emitc.array<30x!emitc.ptrdiff_t>
+// CHECK-SAME: lvalue_ptrdiff = !emitc.lvalue<!emitc.ptrdiff_t>
+"test.op"() {
+  array_ptrdiff = !emitc.array<30x!emitc.ptrdiff_t>,
+  lvalue_ptrdiff = !emitc.lvalue<!emitc.ptrdiff_t>
+}: ()->()
