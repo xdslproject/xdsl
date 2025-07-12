@@ -6,16 +6,16 @@ from typing import Any
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import CodeGeneration
-from xdsl.frontend.pyast.exception import FrontendProgramException
-from xdsl.frontend.pyast.passes.desymref import Desymrefier
-from xdsl.frontend.pyast.python_code_check import FunctionMap
-from xdsl.frontend.pyast.type_conversion import (
+from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
+from xdsl.frontend.pyast.utils.python_code_check import FunctionMap
+from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
     TypeConverter,
     TypeRegistry,
 )
 from xdsl.ir import Operation, TypeAttribute
 from xdsl.printer import Printer
+from xdsl.transforms.desymref import Desymrefier
 
 
 @dataclass
