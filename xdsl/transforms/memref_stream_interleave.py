@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from itertools import repeat
 
@@ -35,9 +36,56 @@ def factors(num: int) -> tuple[int, ...]:
     return tuple(factor for factor in range(1, num + 1) if not num % factor)
 
 
+def unroll_and_jam_bound_indices_and_factors(
+    op: memref_stream.GenericOp,
+) -> tuple[tuple[int, int], ...]:
+    parallel_indices = tuple(
+        index
+        for index, iterator_type in enumerate(op.iterator_types)
+        if iterator_type == memref_stream.IteratorTypeAttr.parallel()
+    )
+    parallel_bounds = tuple(
+        op.bounds.data[index].value.data for index in parallel_indices
+    )
+    return tuple(
+        (index, factor)
+        for index, bound in zip(parallel_indices, parallel_bounds)
+        for factor in factors(bound)
+    )
+
+
+def interleave_index_and_factor(
+    indices_and_factors: Sequence[tuple[int, int]], pipeline_depth: int
+) -> tuple[int, int] | None:
+    if not indices_and_factors:
+        return None
+    # Filter for innermost parallel index
+    max_index = max(index for index, _ in indices_and_factors)
+    indices_and_factors = tuple(
+        (index, factor) for index, factor in indices_and_factors if index == max_index
+    )
+
+    # Want the biggest number for maximal instruction-level parallelism, less than
+    # 2 * pipeline depth as a heuristic to limit register pressure.
+    indices_and_factors = tuple(
+        (index, factor)
+        for index, factor in indices_and_factors
+        if factor < pipeline_depth * 2
+    )
+    if not indices_and_factors:
+        return None
+
+    sorted_indices_and_factors = sorted(indices_and_factors, key=lambda x: x[1])
+
+    # Greatest number less than double of pipeline depth.
+    return sorted_indices_and_factors[-1]
+
+
 @dataclass(frozen=True)
 class PipelineGenericPattern(RewritePattern):
-    pipeline_depth: int = field()
+    pipeline_depth: int
+    iterator_index: int | None = field(default=None)
+    unroll_factor: int | None = field(default=None)
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -51,24 +99,25 @@ class PipelineGenericPattern(RewritePattern):
             # No reduction
             return
 
-        interleave_bound_index = -1
-        interleave_bound = -1
-        for index, (iterator_type, bound) in enumerate(
-            zip(op.iterator_types, op.bounds, strict=True)
-        ):
-            if iterator_type == memref_stream.IteratorTypeAttr.parallel():
-                interleave_bound = bound.value.data
-                interleave_bound_index = index
-        if interleave_bound == -1:
-            # No parallel dimension
+        indices_and_factors = unroll_and_jam_bound_indices_and_factors(op)
+        if not indices_and_factors:
             return
 
-        # Greatest number less than double of pipeline depth.
-        # Want the biggest number for maximal instruction-level parallelism, less than
-        # 2 * pipeline depth as a heuristic to limit register pressure.
-        interleave_factor = max(
-            f for f in factors(interleave_bound) if f < self.pipeline_depth * 2
-        )
+        assert (self.iterator_index is None) == (self.unroll_factor is None)
+
+        if self.iterator_index is not None and self.unroll_factor is not None:
+            interleave_bound_index = self.iterator_index
+            interleave_factor = self.unroll_factor
+        else:
+            t = interleave_index_and_factor(indices_and_factors, self.pipeline_depth)
+            if t is None:
+                return
+
+            interleave_bound_index, interleave_factor = t
+
+        if interleave_factor == 1:
+            # If unroll factor is 1, rewrite is a no-op
+            return
 
         old_block = op.body.block
         new_region = Region(
@@ -132,8 +181,9 @@ class PipelineGenericPattern(RewritePattern):
         # The new bounds are the same, except there is one more bound
         new_bounds = list(op.bounds)
         new_bounds.append(IntegerAttr.from_index_int_value(interleave_factor))
+        iterator_ub = op.bounds.data[interleave_bound_index].value.data
         new_bounds[interleave_bound_index] = IntegerAttr.from_index_int_value(
-            interleave_bound // interleave_factor
+            iterator_ub // interleave_factor
         )
 
         rewriter.replace_matched_op(
