@@ -7,6 +7,8 @@ from typing import IO, Any
 
 from typing_extensions import TypeVar
 
+from xdsl.utils.colors import RESET, Colors
+
 
 @dataclass(eq=False, repr=False)
 class BasePrinter:
@@ -15,12 +17,23 @@ class BasePrinter:
     _indent: int = field(default=0, init=False)
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
+    syntax_highlight: bool = field(default=False)
 
     _next_line_callback: list[Callable[[], None]] = field(
         default_factory=list[Callable[[], None]], init=False
     )
 
-    def print_string(self, text: str, *, indent: int | None = None) -> None:
+    def _print(
+        self, value: object, end: str | None = "\n", color: Colors | None = None
+    ):
+        if self.syntax_highlight and color is not None:
+            print(color.value, value, RESET, sep="", end=end, file=self.stream)
+        else:
+            print(value, end=end, file=self.stream)
+
+    def print_string(
+        self, text: str, *, indent: int | None = None, color: Colors | None = None
+    ) -> None:
         """
         Prints a string to the printer's output.
 
@@ -34,7 +47,7 @@ class BasePrinter:
 
         if not num_newlines:
             self._current_column += len(text)
-            print(text, end="", file=self.stream)
+            self._print(text, end="", color=color)
             return
 
         indent = self._indent if indent is None else indent
@@ -45,17 +58,17 @@ class BasePrinter:
             # can be printed directly.
             self._current_line += num_newlines
             self._current_column = len(lines[-1])
-            print(text, end="", file=self.stream)
+            self._print(text, end="", color=color)
             return
 
         # Line and column information is not computed ahead of time
         # as indent-aware newline printing may use it as part of
         # callbacks.
-        print(lines[0], end="", file=self.stream)
+        self._print(lines[0], end="", color=color)
         self._current_column += len(lines[0])
         for line in lines[1:]:
             self._print_new_line(indent=indent)
-            print(line, end="", file=self.stream)
+            self._print(line, end="", color=color)
             self._current_column += len(line)
 
     T = TypeVar("T")

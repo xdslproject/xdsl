@@ -190,6 +190,13 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
+            "--syntax-highlight",
+            default=False,
+            action="store_true",
+            help="Enable printing with syntax highlighting on the terminal.",
+        )
+
+        arg_parser.add_argument(
             "-v",
             "--version",
             action=VersionAction,
@@ -231,6 +238,7 @@ class xDSLOptMain(CommandLineTool):
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(
                 stream=output,
+                syntax_highlight=self.args.syntax_highlight,
                 print_generic_format=self.args.print_op_generic,
                 print_properties_as_attributes=self.args.print_no_properties,
                 print_debuginfo=self.args.print_debuginfo,
