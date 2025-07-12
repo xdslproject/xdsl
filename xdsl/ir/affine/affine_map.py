@@ -347,9 +347,22 @@ class AffineMap:
             if isinstance(expr, AffineDimExpr)
         }
 
+    def unused_dims(self) -> set[int]:
+        """
+        Return all dimensions used in the map as a set
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives {d1}
+        (d0, d1, d2, d3) -> (d0, d2) gives {d1, d3}
+        ```
+        """
+        return self.used_dims().symmetric_difference(range(self.num_dims))
+
     def used_dims_bit_vector(self) -> tuple[bool, ...]:
         """
-        Return a tuple of bools with the i-th entry being True if the i-th dimension is used in the map, otherwise it is False.
+        Return a tuple of bools with the i-th entry being True if the i-th dimension is
+        used in the map, otherwise it is False.
 
         Example:
         ```
@@ -357,13 +370,22 @@ class AffineMap:
         (d0, d1, d2) -> (d0, d2) gives (True, False, True)
         ```
         """
+        used_dims = self.used_dims()
+        return tuple(dim in used_dims for dim in range(self.num_dims))
 
-        used_dims = [False] * self.num_dims
-        for res_expr in self.results:
-            for expr in res_expr.dfs():
-                if isinstance(expr, AffineDimExpr):
-                    used_dims[expr.position] = True
-        return tuple(used_dims)
+    def unused_dims_bit_vector(self) -> tuple[bool, ...]:
+        """
+        Return a tuple of bools with the i-th entry being True if the i-th dimension is
+        not used in the map, otherwise it is False.
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives (True, False)
+        (d0, d1, d2) -> (d0, d2) gives (True, False, True)
+        ```
+        """
+        used_dims = self.used_dims()
+        return tuple(dim not in used_dims for dim in range(self.num_dims))
 
     def is_minor_identity(self) -> bool:
         """
