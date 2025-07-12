@@ -88,3 +88,12 @@
 "test.op"() {
   array_ssize = !emitc.array<30x!emitc.ssize_t>
 }: ()->()
+
+//===----------------------------------------------------------------------===//
+// SizeTType
+//===----------------------------------------------------------------------===//
+
+// CHECK: array_size = !emitc.array<30x!emitc.size_t>
+"test.op"() {
+  array_size = !emitc.array<30x!emitc.size_t>
+}: ()->()
