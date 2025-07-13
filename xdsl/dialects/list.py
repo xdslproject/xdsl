@@ -35,7 +35,7 @@ class List(ParametrizedAttribute, TypeAttribute):
     element_type: TypeAttribute
 
     def __init__(self, element_type: TypeAttribute):
-        super().__init__((element_type,))
+        super().__init__(element_type)
 
 
 @irdl_op_definition
