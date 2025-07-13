@@ -71,7 +71,7 @@ class Builder(BuilderListener):
         insertion_point: InsertPoint | None = None,
     ) -> InsertOpInvT:
         """Inserts `op` at the current insertion point."""
-        res, ops = (op, (op,)) if isinstance(op, Operation) else (op, op)
+        ops = (op,) if isinstance(op, Operation) else op
         if not ops:
             return ops
 
@@ -88,7 +88,7 @@ class Builder(BuilderListener):
         for op_ in ops:
             self.handle_operation_insertion(op_)
 
-        return res
+        return op
 
     def create_block(
         self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()
