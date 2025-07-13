@@ -8,6 +8,7 @@ from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
+from xdsl.transforms.apply_eqsat_pdl_interp import check_invariant
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 from xdsl.transforms.common_subexpression_elimination import cse
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -61,11 +62,13 @@ class ApplyEqsatPDLPass(ModulePass):
         for _i in range(self.max_iterations):
             # Register matches by walking the module
             walker.rewrite_module(op)
+            check_invariant(op)
 
             if not implementations.merge_list:
                 break
 
             implementations.apply_matches()
+            check_invariant(op)
 
-            # Run CSE to simplify the IR
             cse(op)
+            check_invariant(op)
