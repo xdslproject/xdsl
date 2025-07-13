@@ -4,7 +4,7 @@ from typing import NamedTuple
 from xdsl.context import Context
 from xdsl.dialects import builtin, get_all_dialects
 from xdsl.ir import Dialect
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass
 from xdsl.transforms.mlir_opt import MLIROptPass
 
 
@@ -28,20 +28,6 @@ def get_new_registered_context(
     for dialect_name, dialect_factory in all_dialects:
         ctx.register_dialect(dialect_name, dialect_factory)
     return ctx
-
-
-def apply_passes_to_module(
-    module: builtin.ModuleOp,
-    ctx: Context,
-    passes: tuple[ModulePass, ...],
-) -> builtin.ModuleOp:
-    """
-    Function that takes a ModuleOp, an Context and a pass_pipeline, applies the
-    passes to the ModuleOp and returns the modified ModuleOp.
-    """
-    pipeline = PipelinePass(passes=passes)
-    pipeline.apply(ctx, module)
-    return module
 
 
 def iter_condensed_passes(

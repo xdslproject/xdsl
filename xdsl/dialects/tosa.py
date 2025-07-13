@@ -1,7 +1,6 @@
 from xdsl.dialects.builtin import (
     I32,
     I64,
-    AnyFloat,
     BoolAttr,
     DenseArrayBase,
     FloatAttr,
@@ -32,8 +31,8 @@ class ClampOp(IRDLOperation):
     min_int = prop_def(IntegerAttr[I64])
     max_int = prop_def(IntegerAttr[I64])
 
-    min_fp = prop_def(FloatAttr[AnyFloat])
-    max_fp = prop_def(FloatAttr[AnyFloat])
+    min_fp = prop_def(FloatAttr)
+    max_fp = prop_def(FloatAttr)
 
     nan_mode = opt_prop_def(StringAttr)
 

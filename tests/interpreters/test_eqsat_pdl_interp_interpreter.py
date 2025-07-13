@@ -837,3 +837,46 @@ def test_rebuilding():
   %d = arith.muli %c_b, %c_b : i32
 }"""
     )
+
+
+def test_run_get_defining_op_block_argument():
+    """Test that run_get_defining_op returns None for block arguments."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create a block argument
+    from xdsl.ir import Block
+
+    block = Block((), arg_types=(i32,))
+    block_arg = block.args[0]
+
+    # Test GetDefiningOpOp with block argument
+    result = interpreter.run_op(
+        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())),
+        (block_arg,),
+    )
+
+    # Should return None for block arguments
+    assert result == (None,)
+
+    # Should not have set up any backtracking for block arguments
+    assert len(interp_functions.backtrack_stack) == 0
+
+    # test the case where the value is used in an EClassOp:
+    block.add_op(
+        gdo := pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
+    )
+
+    eclass_result = eqsat.EClassOp(block_arg, res_type=i32).result
+
+    # set dummy value
+    interpreter.push_scope()
+    interpreter._ctx[block_arg] = None  # pyright: ignore[reportPrivateUsage]
+
+    result = interpreter.run_op(
+        gdo,
+        (eclass_result,),
+    )
+    assert result == (None,)
+    assert len(interp_functions.backtrack_stack) == 1

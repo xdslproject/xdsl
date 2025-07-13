@@ -12,7 +12,6 @@ from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
-    ParameterDef,
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
@@ -33,7 +32,7 @@ class List(ParametrizedAttribute, TypeAttribute):
 
     name = "list.list"
 
-    element_type: ParameterDef[TypeAttribute]
+    element_type: TypeAttribute
 
     def __init__(self, element_type: TypeAttribute):
         super().__init__((element_type,))

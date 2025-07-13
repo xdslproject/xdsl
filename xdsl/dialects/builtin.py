@@ -13,7 +13,6 @@ from typing import (
     Annotated,
     Generic,
     TypeAlias,
-    cast,
     overload,
 )
 
@@ -29,6 +28,7 @@ from xdsl.ir import (
     BlockOps,
     BuiltinAttribute,
     Data,
+    DataElement,
     Dialect,
     Operation,
     ParametrizedAttribute,
@@ -59,12 +59,12 @@ from xdsl.irdl import (
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
-    ParameterDef,
     RangeOf,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_prop_def,
+    param_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -120,7 +120,7 @@ class ShapedType(Attribute, ABC):
 
 
 _ContainerElementTypeT = TypeVar(
-    "_ContainerElementTypeT", bound=Attribute | None, covariant=True
+    "_ContainerElementTypeT", bound=Attribute, default=Attribute, covariant=True
 )
 
 
@@ -128,6 +128,29 @@ class ContainerType(Generic[_ContainerElementTypeT], ABC):
     @abstractmethod
     def get_element_type(self) -> _ContainerElementTypeT:
         pass
+
+
+class _BuiltinData(Generic[DataElement], Data[DataElement], BuiltinAttribute, ABC):
+    """
+    Helper superclass to implement dummy print and parse parameter methods.
+    """
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> DataElement:
+        # This functionality is provided by the attribute parser.
+        raise ValueError(f"Should not use parse_parameter on BuiltinAttribute {cls}")
+
+    def print_parameter(self, printer: Printer) -> None:
+        # This functionality is provided by print_builtin.
+        raise ValueError(f"Should not use print_parameter on BuiltinAttribute {self}")
+
+
+class _BuiltinGenericData(
+    Generic[DataElement], GenericData[DataElement], _BuiltinData[DataElement], ABC
+):
+    """
+    Helper superclass to implement dummy print and parse parameter methods.
+    """
 
 
 @irdl_attr_definition
@@ -143,25 +166,13 @@ class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
 @irdl_attr_definition
 class ArrayAttr(
     Generic[AttributeCovT],
-    GenericData[tuple[AttributeCovT, ...]],
-    BuiltinAttribute,
+    _BuiltinGenericData[tuple[AttributeCovT, ...]],
     Iterable[AttributeCovT],
 ):
     name = "array"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
         super().__init__(tuple(param))
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
-        data = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_attribute
-        )
-        # the type system can't ensure that the elements are of type _ArrayAttrT
-        return cast(tuple[AttributeCovT, ...], tuple(data))
-
-    def print_parameter(self, printer: Printer) -> None:
-        self.print_builtin(printer)
 
     def print_builtin(self, printer: Printer):
         with printer.in_square_brackets():
@@ -237,51 +248,26 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
 
 
 @irdl_attr_definition
-class StringAttr(Data[str], BuiltinAttribute):
+class StringAttr(_BuiltinData[str]):
     name = "string"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
-        return parser.parse_str_literal()
-
-    def print_parameter(self, printer: Printer) -> None:
-        self.print_builtin(printer)
 
     def print_builtin(self, printer: Printer):
         printer.print_string_literal(self.data)
 
 
 @irdl_attr_definition
-class BytesAttr(Data[bytes], BuiltinAttribute):
+class BytesAttr(_BuiltinData[bytes]):
     name = "bytes"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> bytes:
-        return parser.parse_bytes_literal()
-
-    def print_parameter(self, printer: Printer) -> None:
-        self.print_builtin(printer)
 
     def print_builtin(self, printer: Printer):
         printer.print_bytes_literal(self.data)
 
 
 @irdl_attr_definition
-class SymbolNameAttr(ParametrizedAttribute, BuiltinAttribute):
-    name = "symbol_name"
-    data: ParameterDef[StringAttr]
-
-    def __init__(self, data: str | StringAttr) -> None:
-        if isinstance(data, str):
-            data = StringAttr(data)
-        super().__init__([data])
-
-
-@irdl_attr_definition
 class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "symbol_ref"
-    root_reference: ParameterDef[StringAttr]
-    nested_references: ParameterDef[ArrayAttr[StringAttr]]
+    root_reference: StringAttr
+    nested_references: ArrayAttr[StringAttr]
 
     def __init__(
         self,
@@ -294,7 +280,7 @@ class SymbolRefAttr(ParametrizedAttribute, BuiltinAttribute):
             nested = ArrayAttr(
                 [StringAttr(x) if isinstance(x, str) else x for x in nested]
             )
-        super().__init__([root, nested])
+        super().__init__(root, nested)
 
     def string_value(self):
         root = self.root_reference.data
@@ -315,9 +301,8 @@ class EmptyArrayAttrConstraint(AttrConstraint):
     """
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, ArrayAttr):
+        if not isa(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
-        attr = cast(ArrayAttr[Attribute], attr)
         if attr.data:
             raise VerifyException(f"expected empty array, but got {attr}")
 
@@ -569,8 +554,8 @@ class IntegerType(
     ParametrizedAttribute, StructPackableType[int], FixedBitwidthType, BuiltinAttribute
 ):
     name = "integer_type"
-    width: ParameterDef[IntAttr]
-    signedness: ParameterDef[SignednessAttr]
+    width: IntAttr
+    signedness: SignednessAttr
 
     def __init__(
         self,
@@ -581,7 +566,7 @@ class IntegerType(
             data = IntAttr(data)
         if isinstance(signedness, Signedness):
             signedness = SignednessAttr(signedness)
-        super().__init__([data, signedness])
+        super().__init__(data, signedness)
 
     def print_builtin(self, printer: Printer) -> None:
         if self.signedness.data == Signedness.SIGNLESS:
@@ -705,16 +690,70 @@ class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
 
 
 @irdl_attr_definition
-class LocationAttr(ParametrizedAttribute, BuiltinAttribute):
+class UnknownLoc(ParametrizedAttribute, BuiltinAttribute):
     """
-    An attribute representing source code location.
-    Only supports unknown locations for now.
+    Syntax:
+
+    ```
+    unknown-location ::= `unknown`
+    ```
+
+    Source location information is an extremely integral part of the MLIR
+    infrastructure. As such, location information is always present in the IR,
+    and must explicitly be set to unknown. Thus, an instance of the `unknown`
+    location represents an unspecified source location.
+
+    Example:
+
+    ```mlir
+    loc(unknown)
+    ```
     """
 
-    name = "loc"
+    name = "unknown_loc"
 
     def print_builtin(self, printer: Printer) -> None:
         printer.print_string("loc(unknown)")
+
+
+@irdl_attr_definition
+class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
+    """
+    Syntax:
+
+    ```
+    filelinecol-location ::= string-literal `:` integer-literal `:`
+                             integer-literal
+    ```
+
+    An instance of this location represents a tuple of file, line number, and
+    column number. This is similar to the type of location that you get from
+    most source languages.
+
+    Example:
+
+    ```mlir
+    loc("mysource.cc":10:8)
+    ```
+    """
+
+    name = "file_line_loc"
+
+    filename: StringAttr = param_def()
+    line: IntAttr = param_def()
+    column: IntAttr = param_def()
+
+    def print_builtin(self, printer: Printer) -> None:
+        printer.print_string("loc")
+        with printer.in_parens():
+            printer.print_string_literal(self.filename.data)
+            printer.print_string(":")
+            printer.print_int(self.line.data)
+            printer.print_string(":")
+            printer.print_int(self.column.data)
+
+
+LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc
 
 
 @irdl_attr_definition
@@ -753,8 +792,8 @@ class IntegerAttr(
     TypedAttribute,
 ):
     name = "integer"
-    value: ParameterDef[IntAttr]
-    type: ParameterDef[_IntegerAttrType]
+    value: IntAttr
+    type: _IntegerAttrType
 
     @overload
     def __init__(
@@ -791,7 +830,7 @@ class IntegerAttr(
             )
             if normalized_value is not None:
                 value = normalized_value
-        super().__init__([IntAttr(value), value_type])
+        super().__init__(IntAttr(value), value_type)
 
     @staticmethod
     def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
@@ -844,11 +883,13 @@ class IntegerAttr(
     def constr(
         cls,
         *,
-        value: AttrConstraint | None = None,
+        value: AttrConstraint | IntConstraint | None = None,
         type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
     ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
         if value is None and type == AnyAttr():
             return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
+        if isinstance(value, IntConstraint):
+            value = IntAttrConstraint(value)
         return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
             IntegerAttr,
             (
@@ -1018,8 +1059,8 @@ _FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
     name = "float"
 
-    value: ParameterDef[FloatData]
-    type: ParameterDef[_FloatAttrType]
+    value: FloatData
+    type: _FloatAttrType
 
     @overload
     def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None: ...
@@ -1052,7 +1093,7 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
 
         data_attr = FloatData(value)
 
-        super().__init__([data_attr, type])
+        super().__init__(data_attr, type)
 
     @staticmethod
     def parse_with_type(
@@ -1108,10 +1149,7 @@ class ComplexType(
     TypeAttribute,
 ):
     name = "complex"
-    element_type: ParameterDef[ComplexElementCovT]
-
-    def __init__(self, element_type: ComplexElementCovT):
-        super().__init__([element_type])
+    element_type: ComplexElementCovT
 
     def print_builtin(self, printer: Printer):
         printer.print_string("complex")
@@ -1178,20 +1216,13 @@ class ComplexType(
 
 
 @irdl_attr_definition
-class DictionaryAttr(Data[immutabledict[str, Attribute]], BuiltinAttribute):
+class DictionaryAttr(_BuiltinData[immutabledict[str, Attribute]]):
     name = "dictionary"
 
     def __init__(self, value: Mapping[str, Attribute]):
         if not isinstance(value, immutabledict):
             value = immutabledict(value)
         super().__init__(value)
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> immutabledict[str, Attribute]:
-        return immutabledict(parser.parse_optional_dictionary_attr_dict())
-
-    def print_parameter(self, printer: Printer) -> None:
-        self.print_builtin(printer)
 
     def print_builtin(self, printer: Printer):
         printer.print_attr_dict(self.data)
@@ -1204,12 +1235,12 @@ class DictionaryAttr(Data[immutabledict[str, Attribute]], BuiltinAttribute):
 class TupleType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "tuple"
 
-    types: ParameterDef[ArrayAttr[TypeAttribute]]
+    types: ArrayAttr[TypeAttribute]
 
     def __init__(self, types: list[TypeAttribute] | ArrayAttr[TypeAttribute]) -> None:
         if isinstance(types, list):
             types = ArrayAttr(types)
-        super().__init__([types])
+        super().__init__(types)
 
     def print_builtin(self, printer: Printer):
         printer.print_string("tuple")
@@ -1228,9 +1259,9 @@ class VectorType(
 ):
     name = "vector"
 
-    shape: ParameterDef[ArrayAttr[IntAttr]]
-    element_type: ParameterDef[AttributeCovT]
-    scalable_dims: ParameterDef[ArrayAttr[BoolAttr]]
+    shape: ArrayAttr[IntAttr]
+    element_type: AttributeCovT
+    scalable_dims: ArrayAttr[BoolAttr]
 
     def __init__(
         self,
@@ -1244,7 +1275,7 @@ class VectorType(
         if scalable_dims is None:
             false = BoolAttr(False, i1)
             scalable_dims = ArrayAttr(false for _ in shape)
-        super().__init__([shape, element_type, scalable_dims])
+        super().__init__(shape, element_type, scalable_dims)
 
     @staticmethod
     def _print_vector_dim(printer: Printer, pair: tuple[IntAttr, BoolAttr]):
@@ -1331,9 +1362,9 @@ class TensorType(
 ):
     name = "tensor"
 
-    shape: ParameterDef[ArrayAttr[IntAttr]]
-    element_type: ParameterDef[AttributeCovT]
-    encoding: ParameterDef[Attribute]
+    shape: ArrayAttr[IntAttr]
+    element_type: AttributeCovT
+    encoding: Attribute
 
     def __init__(
         self,
@@ -1344,7 +1375,7 @@ class TensorType(
         shape = ArrayAttr(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
         )
-        super().__init__([shape, element_type, encoding])
+        super().__init__(shape, element_type, encoding)
 
     def print_builtin(self, printer: Printer):
         printer.print_string("tensor")
@@ -1389,10 +1420,7 @@ class UnrankedTensorType(
 ):
     name = "unranked_tensor"
 
-    element_type: ParameterDef[AttributeCovT]
-
-    def __init__(self, element_type: AttributeCovT) -> None:
-        super().__init__([element_type])
+    element_type: AttributeCovT
 
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
@@ -1426,8 +1454,7 @@ class ContainerOf(
         object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(elem_constr))
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isinstance(attr, VectorType) or isinstance(attr, TensorType):
-            attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
+        if isa(attr, VectorType) or isa(attr, TensorType):
             self.elem_constr.verify(attr.element_type, constraint_context)
         else:
             self.elem_constr.verify(attr, constraint_context)
@@ -1483,9 +1510,8 @@ class VectorBaseTypeConstraint(AttrConstraint):
     """The expected vector base type."""
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, VectorType):
+        if not isa(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
-        attr = cast(VectorType[Attribute], attr)
         if attr.element_type != self.expected_type:
             raise VerifyException(
                 f"Expected vector type to be {self.expected_type}, got {attr.element_type}."
@@ -1525,8 +1551,8 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
     name = "dense_resource"
 
-    resource_handle: ParameterDef[StringAttr]
-    type: ParameterDef[ShapedType]
+    resource_handle: StringAttr
+    type: ShapedType
 
     def print_without_type(self, printer: Printer):
         printer.print_string("dense_resource")
@@ -1542,7 +1568,7 @@ class DenseResourceAttr(BuiltinAttribute, TypedAttribute):
     def from_params(handle: str | StringAttr, type: ShapedType) -> DenseResourceAttr:
         if isinstance(handle, str):
             handle = StringAttr(handle)
-        return DenseResourceAttr([handle, type])
+        return DenseResourceAttr(handle, type)
 
 
 DenseArrayT = TypeVar(
@@ -1568,11 +1594,8 @@ class DenseArrayBase(
 ):
     name = "array"
 
-    elt_type: ParameterDef[DenseArrayT]
-    data: ParameterDef[BytesAttr]
-
-    def __init__(self, elt_type: DenseArrayT, data: BytesAttr):
-        super().__init__((elt_type, data))
+    elt_type: DenseArrayT
+    data: BytesAttr
 
     def print_builtin(self, printer: Printer):
         printer.print_string("array")
@@ -1639,8 +1662,8 @@ class DenseArrayBase(
     ) -> DenseArrayBase:
         if isinstance(data_type, IntegerType):
             data = tuple(
-                data_type.get_normalized_value(value)
-                for value in cast(Sequence[int], data)
+                data_type.get_normalized_value(value)  # pyright: ignore[reportArgumentType]
+                for value in data
             )
         bytes_data = data_type.pack(data)  # pyright: ignore[reportArgumentType]
         return DenseArrayBase(data_type, BytesAttr(bytes_data))
@@ -1702,8 +1725,8 @@ class DenseArrayBase(
 class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "fun"
 
-    inputs: ParameterDef[ArrayAttr[Attribute]]
-    outputs: ParameterDef[ArrayAttr[Attribute]]
+    inputs: ArrayAttr[Attribute]
+    outputs: ArrayAttr[Attribute]
 
     def print_builtin(self, printer: Printer):
         with printer.in_parens():
@@ -1720,22 +1743,22 @@ class FunctionType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     def from_lists(
         inputs: Sequence[Attribute], outputs: Sequence[Attribute]
     ) -> FunctionType:
-        return FunctionType([ArrayAttr(inputs), ArrayAttr(outputs)])
+        return FunctionType(ArrayAttr(inputs), ArrayAttr(outputs))
 
     @staticmethod
     def from_attrs(
         inputs: ArrayAttr[Attribute], outputs: ArrayAttr[Attribute]
     ) -> FunctionType:
-        return FunctionType([inputs, outputs])
+        return FunctionType(inputs, outputs)
 
 
 @irdl_attr_definition
 class OpaqueAttr(ParametrizedAttribute, BuiltinAttribute):
     name = "opaque"
 
-    ident: ParameterDef[StringAttr]
-    value: ParameterDef[StringAttr]
-    type: ParameterDef[Attribute]
+    ident: StringAttr
+    value: StringAttr
+    type: Attribute
 
     def print_builtin(self, printer: Printer):
         printer.print_string("opaque")
@@ -1750,7 +1773,7 @@ class OpaqueAttr(ParametrizedAttribute, BuiltinAttribute):
 
     @staticmethod
     def from_strings(name: str, value: str, type: Attribute = NoneAttr()) -> OpaqueAttr:
-        return OpaqueAttr([StringAttr(name), StringAttr(value), type])
+        return OpaqueAttr(StringAttr(name), StringAttr(value), type)
 
 
 class MemRefLayoutAttr(Attribute, ABC):
@@ -1797,8 +1820,8 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
 
     name = "strided"
 
-    strides: ParameterDef[ArrayAttr[IntAttr | NoneAttr]]
-    offset: ParameterDef[IntAttr | NoneAttr]
+    strides: ArrayAttr[IntAttr | NoneAttr]
+    offset: IntAttr | NoneAttr
 
     def __init__(
         self,
@@ -1823,7 +1846,7 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
         if offset is None:
             offset = NoneAttr()
 
-        super().__init__([strides, offset])
+        super().__init__(strides, offset)
 
     @staticmethod
     def _print_int_or_question(printer: Printer, value: IntAttr | NoneAttr) -> None:
@@ -1889,19 +1912,10 @@ class StridedLayoutAttr(MemRefLayoutAttr, BuiltinAttribute, ParametrizedAttribut
 
 
 @irdl_attr_definition
-class AffineMapAttr(MemRefLayoutAttr, BuiltinAttribute, Data[AffineMap]):
+class AffineMapAttr(MemRefLayoutAttr, _BuiltinData[AffineMap]):
     """An Attribute containing an AffineMap object."""
 
     name = "affine_map"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> AffineMap:
-        with parser.in_angle_brackets():
-            data = parser.parse_affine_map()
-            return data
-
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f"{self.data}")
 
     def print_builtin(self, printer: Printer):
         printer.print_string(f"affine_map<{self.data}>")
@@ -1915,17 +1929,10 @@ class AffineMapAttr(MemRefLayoutAttr, BuiltinAttribute, Data[AffineMap]):
 
 
 @irdl_attr_definition
-class AffineSetAttr(Data[AffineSet], BuiltinAttribute):
+class AffineSetAttr(_BuiltinData[AffineSet]):
     """An attribute containing an AffineSet object."""
 
     name = "affine_set"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> AffineSet:
-        return parser.parse_affine_set()
-
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f"{self.data}")
 
     def print_builtin(self, printer: Printer):
         printer.print_string(f"affine_set<{self.data}>")
@@ -2059,6 +2066,7 @@ class UnregisteredOp(Operation, ABC):
         return value_if_unregistered
 
 
+@dataclass(frozen=True, init=False)
 class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
     """
     An unregistered attribute or type.
@@ -2075,10 +2083,10 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
 
     name = "builtin.unregistered"
 
-    attr_name: ParameterDef[StringAttr]
-    is_type: ParameterDef[IntAttr]
-    is_opaque: ParameterDef[IntAttr]
-    value: ParameterDef[StringAttr]
+    attr_name: StringAttr
+    is_type: IntAttr
+    is_opaque: IntAttr
+    value: StringAttr
     """
     This parameter is non-null is the attribute is a type, and null otherwise.
     """
@@ -2098,7 +2106,7 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
             is_opaque = IntAttr(int(is_opaque))
         if isinstance(value, str):
             value = StringAttr(value)
-        super().__init__([attr_name, is_type, is_opaque, value])
+        super().__init__(attr_name, is_type, is_opaque, value)
 
     def print_builtin(self, printer: Printer):
         # Do not print `!` or `#` for unregistered builtin attributes
@@ -2121,7 +2129,7 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
         `Context` to get an `UnregisteredAttr` type.
         """
 
-        @irdl_attr_definition
+        @irdl_attr_definition(init=False)
         class UnregisteredAttrWithName(UnregisteredAttr):
             def verify(self):
                 if self.attr_name.data != name:
@@ -2129,7 +2137,7 @@ class UnregisteredAttr(ParametrizedAttribute, BuiltinAttribute, ABC):
                 if self.is_type.data != int(is_type):
                     raise VerifyException("Unregistered attribute is_type mismatch")
 
-        @irdl_attr_definition
+        @irdl_attr_definition(init=False)
         class UnregisteredAttrTypeWithName(UnregisteredAttr, TypeAttribute):
             def verify(self):
                 if self.attr_name.data != name:
@@ -2246,10 +2254,10 @@ class MemRefType(
 ):
     name = "memref"
 
-    shape: ParameterDef[ArrayAttr[IntAttr]]
-    element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[StridedLayoutAttr | AffineMapAttr | NoneAttr]
-    memory_space: ParameterDef[Attribute]
+    shape: ArrayAttr[IntAttr]
+    element_type: _MemRefTypeElement
+    layout: StridedLayoutAttr | AffineMapAttr | NoneAttr
+    memory_space: Attribute
 
     def __init__(
         self,
@@ -2258,22 +2266,15 @@ class MemRefType(
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
-        s: ArrayAttr[IntAttr]
-        if isinstance(shape, ArrayAttr):
-            # Temporary cast until Pyright is fixed to not infer ArrayAttr[int] as a
-            # possible value for shape
-            s = cast(ArrayAttr[IntAttr], shape)
-        else:
-            s = ArrayAttr(
+        if not isa(shape, ArrayAttr[IntAttr]):
+            shape = ArrayAttr(
                 [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
             )
         super().__init__(
-            (
-                s,
-                element_type,
-                layout,
-                memory_space,
-            )
+            shape,
+            element_type,
+            layout,
+            memory_space,
         )
 
     def get_num_dims(self) -> int:
@@ -2416,8 +2417,8 @@ class UnrankedMemRefType(
 ):
     name = "unranked_memref"
 
-    element_type: ParameterDef[_UnrankedMemRefTypeElems]
-    memory_space: ParameterDef[Attribute]
+    element_type: _UnrankedMemRefTypeElems
+    memory_space: Attribute
 
     def print_builtin(self, printer: Printer):
         printer.print_string("memref<*x")
@@ -2432,7 +2433,7 @@ class UnrankedMemRefType(
         referenced_type: _UnrankedMemRefTypeElemsInit,
         memory_space: Attribute = NoneAttr(),
     ) -> UnrankedMemRefType[_UnrankedMemRefTypeElemsInit]:
-        return UnrankedMemRefType([referenced_type, memory_space])
+        return UnrankedMemRefType(referenced_type, memory_space)
 
     def get_element_type(self) -> _UnrankedMemRefTypeElems:
         return self.element_type
@@ -2460,8 +2461,8 @@ class DenseIntOrFPElementsAttr(
     ContainerType[DenseElementCovT],
 ):
     name = "dense"
-    type: ParameterDef[RankedStructure[DenseElementCovT]]
-    data: ParameterDef[BytesAttr]
+    type: RankedStructure[DenseElementCovT]
+    data: BytesAttr
 
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...]:
@@ -2512,7 +2513,7 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr[_FloatAttrType]:
         if isinstance(data, int | float):
             data = (data,)
-        return DenseIntOrFPElementsAttr.from_list(type, cast(Sequence[float], data))
+        return DenseIntOrFPElementsAttr.from_list(type, data)
 
     @overload
     @staticmethod
@@ -2582,7 +2583,7 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr:
         # Normalise ints
         if isinstance(t := type.get_element_type(), IntegerType):
-            data = tuple(t.get_normalized_value(cast(int, x)) for x in data)
+            data = tuple(t.get_normalized_value(x) for x in data)  # pyright: ignore[reportArgumentType]
 
         b = type.element_type.pack(data)  # pyright: ignore[reportArgumentType]
 
@@ -2590,7 +2591,7 @@ class DenseIntOrFPElementsAttr(
         if len(data) == 1 and (p := prod(type.get_shape())) != 1:
             b *= p
 
-        return DenseIntOrFPElementsAttr((type, BytesAttr(b)))
+        return DenseIntOrFPElementsAttr(type, BytesAttr(b))
 
     def iter_values(
         self,
@@ -2717,11 +2718,13 @@ class DenseIntOrFPElementsAttr(
         self, val: float | tuple[int, int] | tuple[float, float], printer: Printer
     ):
         if isinstance(val, int):
-            printer.print_int(
-                val, cast(IntegerType | IndexType, self.get_element_type())
+            assert isinstance(
+                element_type := self.get_element_type(), IntegerType | IndexType
             )
+            printer.print_int(val, element_type)
         elif isinstance(val, float):
-            printer.print_float(val, cast(AnyFloat, self.get_element_type()))
+            assert isinstance(element_type := self.get_element_type(), AnyFloat)
+            printer.print_float(val, element_type)
         else:  # complex
             assert isinstance(element_type := self.get_element_type(), ComplexType)
             printer.print_complex(val, element_type)
@@ -2786,7 +2789,6 @@ Builtin = Dialect(
         # Attributes
         StringAttr,
         SymbolRefAttr,
-        SymbolNameAttr,
         IntAttr,
         IntegerAttr,
         ArrayAttr,
@@ -2795,7 +2797,8 @@ Builtin = Dialect(
         DenseResourceAttr,
         UnitAttr,
         FloatData,
-        LocationAttr,
+        UnknownLoc,
+        FileLineColLoc,
         NoneAttr,
         OpaqueAttr,
         # Types

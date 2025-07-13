@@ -10,7 +10,7 @@ from typing import Union, final, get_args, get_origin
 
 from typing_extensions import TypeVar
 
-from xdsl.builder import Builder, BuilderListener
+from xdsl.builder import Builder, BuilderListener, InsertOpInvT
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -100,25 +100,21 @@ class PatternRewriter(Builder, PatternRewriterListener):
         Builder.__init__(self, InsertPoint.before(current_operation))
 
     def insert_op(
-        self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
-    ):
+        self,
+        op: InsertOpInvT,
+        insertion_point: InsertPoint | None = None,
+    ) -> InsertOpInvT:
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
-        op = (op,) if isinstance(op, Operation) else op
-        if not op:
-            return
-        Rewriter.insert_op(op, insertion_point)
+        return super().insert_op(op, insertion_point)
 
-        for op_ in op:
-            self.handle_operation_insertion(op_)
-
-    def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
+    def insert_op_before_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations before the matched operation."""
-        self.insert_op(op, InsertPoint.before(self.current_operation))
+        return self.insert_op(op, InsertPoint.before(self.current_operation))
 
-    def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
+    def insert_op_after_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations after the matched operation."""
-        self.insert_op(op, InsertPoint.after(self.current_operation))
+        return self.insert_op(op, InsertPoint.after(self.current_operation))
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
@@ -781,8 +777,7 @@ class PatternRewriteWalker:
                 self.pattern.match_and_rewrite(op, rewriter)
             except Exception as err:
                 op.emit_error(
-                    f"Error while applying pattern: {str(err)}",
-                    exception_type=type(err),
+                    f"Error while applying pattern: {err}",
                     underlying_error=err,
                 )
             rewriter_has_done_action |= rewriter.has_done_action

@@ -11,7 +11,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -92,11 +91,7 @@ class PragmaArrayPartitionOp(IRDLOperation):
 class HLSStreamType(ParametrizedAttribute, TypeAttribute):
     name = "hls.streamtype"
 
-    element_type: ParameterDef[Attribute]
-
-    @staticmethod
-    def get(element_type: Attribute):
-        return HLSStreamType([element_type])
+    element_type: Attribute
 
 
 @irdl_op_definition
@@ -111,7 +106,7 @@ class HLSStreamOp(IRDLOperation):
 
         attrs["elem_type"] = elem_type
 
-        stream_type = HLSStreamType([elem_type])
+        stream_type = HLSStreamType(elem_type)
         return HLSStreamOp.build(result_types=[stream_type], attributes=attrs)
 
 

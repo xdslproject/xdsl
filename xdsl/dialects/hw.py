@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttrConstr,
     IntAttr,
     LocationAttr,
-    ParameterDef,
     StringAttr,
     SymbolRefAttr,
 )
@@ -35,7 +34,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    SingleBlockRegion,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -100,16 +98,16 @@ class InnerRefAttr(ParametrizedAttribute):
     """This works like a symbol reference, but to a name inside a module."""
 
     name = "hw.innerNameRef"
-    module_ref: ParameterDef[FlatSymbolRefAttr]
+    module_ref: FlatSymbolRefAttr
     # NB. upstream defines as “name” which clashes with Attribute.name
-    sym_name: ParameterDef[StringAttr]
+    sym_name: StringAttr
 
     def __init__(self, module: str | StringAttr, name: str | StringAttr) -> None:
         if isinstance(module, str):
             module = StringAttr(module)
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__((SymbolRefAttr(module), name))
+        super().__init__(SymbolRefAttr(module), name)
 
     @classmethod
     def get_from_operation(
@@ -286,9 +284,9 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
     name = "hw.innerSymProps"
 
     # NB. upstream defines as “name” which clashes with Attribute.name
-    sym_name: ParameterDef[StringAttr]
-    field_id: ParameterDef[IntAttr]
-    sym_visibility: ParameterDef[StringAttr]
+    sym_name: StringAttr
+    field_id: IntAttr
+    sym_visibility: StringAttr
 
     def __init__(
         self,
@@ -302,7 +300,7 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
             field_id = IntAttr(field_id)
         if isinstance(sym_visibility, str):
             sym_visibility = StringAttr(sym_visibility)
-        super().__init__([sym, field_id, sym_visibility])
+        super().__init__(sym, field_id, sym_visibility)
 
     @classmethod
     def parse_parameters(
@@ -349,7 +347,7 @@ class InnerSymAttr(
 
     name = "hw.innerSym"
 
-    props: ParameterDef[ArrayAttr[InnerSymPropertiesAttr]]
+    props: ArrayAttr[InnerSymPropertiesAttr]
 
     @overload
     def __init__(self) -> None:
@@ -377,7 +375,7 @@ class InnerSymAttr(
             syms = [InnerSymPropertiesAttr(syms)]
         if not isinstance(syms, ArrayAttr):
             syms = ArrayAttr(syms)
-        super().__init__([syms])
+        super().__init__(syms)
 
     def get_sym_if_exists(self, field_id: IntAttr | int) -> StringAttr | None:
         """Get the inner sym name for field_id, if it exists."""
@@ -503,16 +501,16 @@ class ModulePort(ParametrizedAttribute):
 
     name = "hw.modport"
 
-    port_name: ParameterDef[StringAttr]
-    type: ParameterDef[TypeAttribute]
-    dir: ParameterDef[DirectionAttr]
+    port_name: StringAttr
+    type: TypeAttribute
+    dir: DirectionAttr
 
 
 @irdl_attr_definition
 class ModuleType(ParametrizedAttribute, TypeAttribute):
     name = "hw.modty"
 
-    ports: ParameterDef[ArrayAttr[ModulePort]]
+    ports: ArrayAttr[ModulePort]
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -528,7 +526,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
             parser.parse_punctuation(":")
             typ = parser.parse_type()
 
-            return ModulePort([StringAttr(name), typ, DirectionAttr(direction)])
+            return ModulePort(StringAttr(name), typ, DirectionAttr(direction))
 
         return [
             ArrayAttr(
@@ -552,13 +550,13 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
 class ParamDeclAttr(ParametrizedAttribute):
     name = "hw.param.decl"
 
-    port_name: ParameterDef[StringAttr]
-    type: ParameterDef[TypeAttribute]
+    port_name: StringAttr
+    type: TypeAttribute
 
     @classmethod
     def parse_free_standing_parameters(
         cls, parser: AttrParser, only_accept_string_literal_name: bool = False
-    ) -> Sequence[Attribute]:
+    ) -> tuple[StringAttr, TypeAttribute]:
         """
         Parses the parameter declaration without the encompassing angle brackets.
         If only_accept_string_literal_name is True, the parser will not accept
@@ -656,20 +654,16 @@ class ParsedModuleHeader(NamedTuple):
 
     def get_module_type(self) -> ModuleType:
         return ModuleType(
-            [
-                ArrayAttr(
-                    tuple(
-                        ModulePort(
-                            (
-                                StringAttr(arg.port_name),
-                                arg.port_type,
-                                DirectionAttr(arg.port_dir),
-                            )
-                        )
-                        for arg in self.args
+            ArrayAttr(
+                tuple(
+                    ModulePort(
+                        StringAttr(arg.port_name),
+                        arg.port_type,
+                        DirectionAttr(arg.port_dir),
                     )
+                    for arg in self.args
                 )
-            ]
+            )
         )
 
     @classmethod
@@ -714,7 +708,9 @@ class ParsedModuleHeader(NamedTuple):
         name = parser.parse_symbol_name()
         parameters = parser.parse_optional_comma_separated_list(
             parser.Delimiter.ANGLE,
-            lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
+            lambda: ParamDeclAttr(
+                *ParamDeclAttr.parse_free_standing_parameters(parser)
+            ),
         )
         args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parse_module_arg
@@ -820,7 +816,7 @@ class HWModuleOp(IRDLOperation):
     sym_visibility = opt_attr_def(StringAttr)
     parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
-    body: SingleBlockRegion = region_def("single_block")
+    body = region_def("single_block")
 
     traits = lazy_traits_def(
         lambda: (

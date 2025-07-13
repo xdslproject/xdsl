@@ -893,6 +893,16 @@ def test_detach_region():
     assert op.get_region_index(region2) == 0
 
 
+def test_region_hashable():
+    a = Region()
+    b = Region()
+    assert a == a
+    assert a != b
+    assert hash(a) == hash(a)
+    assert a in {a}
+    assert b not in {a}
+
+
 @irdl_op_definition
 class CustomVerifyOp(IRDLOperation):
     name = "test.custom_verify_op"

@@ -754,3 +754,20 @@ def test_switch_attribute():
     assert isinstance(switch_result.terminator_value, Successor)
     assert isinstance(switch_result.terminator_value.block, Block)
     assert switch_result.terminator_value.block is default
+
+
+def test_get_defining_op_block_argument():
+    """Test that get_defining_op returns None for block arguments."""
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    # Create a block argument
+    block_arg = Block((), arg_types=(i32,)).args[0]
+
+    # Test GetDefiningOpOp with block argument
+    result = interpreter.run_op(
+        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (block_arg,)
+    )
+
+    # Should return None for block arguments since they are not defined by operations
+    assert result == (None,)

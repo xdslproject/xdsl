@@ -11,13 +11,14 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     Builtin,
     DictionaryAttr,
+    FileLineColLoc,
     FloatAttr,
     IntAttr,
     IntegerAttr,
     IntegerType,
-    LocationAttr,
     StringAttr,
     SymbolRefAttr,
+    UnknownLoc,
     i32,
 )
 from xdsl.dialects.test import Test
@@ -970,7 +971,13 @@ def test_properties_retrocompatibility():
 def test_parse_location():
     ctx = Context()
     attr = Parser(ctx, "loc(unknown)").parse_optional_location()
-    assert attr == LocationAttr()
+    assert attr == UnknownLoc()
+
+    attr = Parser(ctx, 'loc("one":2:3)').parse_optional_location()
+    assert attr == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
+
+    with pytest.raises(ParseError, match="Unexpected location syntax."):
+        Parser(ctx, "loc(unexpected)").parse_optional_location()
 
 
 @pytest.mark.parametrize(
@@ -1048,6 +1055,80 @@ def test_parse_optional_complex_success(
     value, span = value_and_span
     assert value == pyval
     assert span.text == toks
+
+
+@pytest.mark.parametrize(
+    "start, end, text",
+    [
+        ("<", ">", "<1>"),
+        ("[", "]", "[1]"),
+        ("{", "}", "{1}"),
+        ("(", ")", "(1)"),
+        ("{-#", "#-}", "{-# 1 #-}"),
+    ],
+)
+def test_delimiters(start: str, end: str, text: str):
+    parser = Parser(Context(), text)
+    with parser.delimited(start, end):
+        value = parser.parse_integer()
+
+    assert value == 1
+    assert parser.pos == len(text)
+
+
+def test_angle_brackets():
+    parser = Parser(Context(), "<1>")
+    with parser.in_angle_brackets():
+        value = parser.parse_integer()
+
+    assert value == 1
+    assert parser.pos == 3
+
+
+def test_square_brackets():
+    parser = Parser(Context(), "[1]")
+    with parser.in_square_brackets():
+        value = parser.parse_integer()
+
+    assert value == 1
+    assert parser.pos == 3
+
+
+def test_braces():
+    parser = Parser(Context(), "{1}")
+    with parser.in_braces():
+        value = parser.parse_integer()
+
+    assert value == 1
+    assert parser.pos == 3
+
+
+def test_parens():
+    parser = Parser(Context(), "(1)")
+    with parser.in_parens():
+        value = parser.parse_integer()
+
+    assert value == 1
+    assert parser.pos == 3
+
+
+def test_wrong_delimiter():
+    parser = Parser(Context(), "(1)")
+    with pytest.raises(ParseError, match="'<' expected"):
+        with parser.in_angle_brackets():
+            parser.parse_integer()
+
+
+def test_early_return_delimiter():
+    def my_parse(parser: Parser):
+        with parser.in_angle_brackets():
+            if parser.parse_integer() == 1:
+                return 1
+            return 2
+
+    parser = Parser(Context(), "<1>")
+    assert my_parse(parser) == 1
+    assert parser.pos == 3
 
 
 class MySingletonEnum(StrEnum):

@@ -548,6 +548,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
 
+    def get_test_transform_dialect_erase_schedule():
+        from xdsl.transforms import test_transform_dialect_erase_schedule
+
+        return (
+            test_transform_dialect_erase_schedule.TestTransformDialectEraseSchedulePass
+        )
+
     def get_transform_interpreter():
         from xdsl.transforms import transform_interpreter
 
@@ -674,6 +681,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-constant-folding": get_test_constant_folding,
         "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
         "x86-allocate-registers": get_x86_allocate_registers,

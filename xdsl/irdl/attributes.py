@@ -6,7 +6,7 @@
 #
 
 from abc import ABC, abstractmethod
-from collections.abc import Hashable, Sequence
+from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
 from inspect import isclass
 from types import FunctionType, GenericAlias, UnionType
@@ -15,15 +15,17 @@ from typing import (
     Annotated,
     Any,
     Generic,
+    Literal,
     TypeAlias,
     Union,
     cast,
     get_args,
     get_origin,
     get_type_hints,
+    overload,
 )
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, dataclass_transform
 
 from xdsl.ir import AttributeCovT
 
@@ -39,7 +41,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypedAttribute,
 )
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError
+from xdsl.utils.exceptions import PyRDLAttrDefinitionError, PyRDLTypeError
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
@@ -63,7 +65,6 @@ from .constraints import (  # noqa: TID251
     TypeVarConstraint,
     VarConstraint,
 )
-from .error import IRDLAnnotations  # noqa: TID251
 
 _DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
 
@@ -90,9 +91,28 @@ class GenericData(Data[_DataElement], ABC):
 # |_|   \__,_|_|  \__,_|_| |_| |_/_/   \_\__|\__|_|
 #
 
-_A = TypeVar("_A", bound=Attribute)
 
-ParameterDef = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
+class _ParameterDef:
+    """
+    Parameter field definition class for `@irdl_param_attr_definition`.
+    """
+
+    param: GenericAttrConstraint[Attribute] | None
+
+    def __init__(
+        self,
+        param: GenericAttrConstraint[Attribute] | None,
+    ):
+        self.param = param
+
+
+def param_def(
+    constraint: GenericAttrConstraint[AttributeInvT] | None = None,
+    *,
+    init: Literal[True] = True,
+) -> AttributeInvT:
+    """Defines a property of an operation."""
+    return cast(AttributeInvT, _ParameterDef(constraint))
 
 
 def check_attr_name(cls: type):
@@ -121,26 +141,6 @@ def check_attr_name(cls: type):
         )
 
 
-def irdl_param_attr_get_param_type_hints(cls: type[_A]) -> list[tuple[str, Any]]:
-    """Get the type hints of an IRDL parameter definitions."""
-    res = list[tuple[str, Any]]()
-    for field_name, field_type in get_type_hints(cls, include_extras=True).items():
-        if field_name == "name" or field_name == "parameters":
-            continue
-
-        origin: Any | None = cast(Any | None, get_origin(field_type))
-        args = get_args(field_type)
-        if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
-            raise PyRDLAttrDefinitionError(
-                f"In attribute {cls.__name__} definition: Parameter "
-                + f"definition {field_name} should be defined with "
-                + f"type `ParameterDef[<Constraint>]`, got type {field_type}."
-            )
-
-        res.append((field_name, field_type))
-    return res
-
-
 _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
     key
     for dict_seq in (
@@ -150,6 +150,8 @@ _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
     for dict in dict_seq
     for key in dict
 }
+
+_IGNORED_PARAM_ATTR_FIELD_TYPES = set(("name", "parameters"))
 
 
 @dataclass
@@ -171,23 +173,6 @@ class ParamAttrDef:
             if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS
         }
 
-        # Check that all fields of the attribute definition are either already
-        # in ParametrizedAttribute, or are class functions or methods.
-        for field_name, value in clsdict.items():
-            if field_name == "name":
-                continue
-            if isinstance(
-                value, FunctionType | PropertyType | classmethod | staticmethod
-            ):
-                continue
-            # Constraint variables are allowed
-            if get_origin(value) is Annotated:
-                if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
-                    continue
-            raise PyRDLAttrDefinitionError(
-                f"{field_name} is not a parameter definition."
-            )
-
         if "name" not in clsdict:
             raise Exception(
                 f"pyrdl attribute definition '{pyrdl_def.__name__}' does not "
@@ -197,14 +182,73 @@ class ParamAttrDef:
 
         name = clsdict["name"]
 
-        param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
+        # Get type hints
+        field_types = {
+            field_name: field_type
+            for field_name, field_type in get_type_hints(
+                pyrdl_def, include_extras=True
+            ).items()
+            if field_name not in _IGNORED_PARAM_ATTR_FIELD_TYPES
+        }
 
-        parameters = list[tuple[str, AttrConstraint]]()
-        for param_name, param_type in param_hints:
-            constraint = irdl_to_attr_constraint(param_type, allow_type_var=True)
-            parameters.append((param_name, constraint))
+        # Get assigned values
+        field_values = {
+            field_name: field_value
+            for field_name, field_value in clsdict.items()
+            if (
+                # Ignore name field
+                field_name != "name"
+                # Ignore functions
+                and not isinstance(
+                    field_value,
+                    FunctionType | PropertyType | classmethod | staticmethod,
+                )
+            )
+        }
 
-        return ParamAttrDef(name, parameters)
+        # The resulting parameters
+        parameters: dict[str, AttrConstraint] = {}
+
+        for field_name, field_type in field_types.items():
+            try:
+                constraint = irdl_to_attr_constraint(field_type, allow_type_var=True)
+            except TypeError as e:
+                raise PyRDLAttrDefinitionError(
+                    f"Invalid field type {field_type} for field name {field_name}."
+                ) from e
+
+            parameters[field_name] = constraint
+
+        for field_name, value in field_values.items():
+            # Parameter def must be a field def
+            if isinstance(value, _ParameterDef):
+                if field_name not in parameters:
+                    raise PyRDLAttrDefinitionError(
+                        f"Missing field type for parameter name {field_name}"
+                    )
+
+                try:
+                    if value.param is not None:
+                        constraint = irdl_to_attr_constraint(
+                            value.param, allow_type_var=True
+                        )
+                        parameters[field_name] &= constraint
+                except TypeError as e:
+                    raise PyRDLAttrDefinitionError(
+                        f"Invalid constraint {value.param} for field name {field_name}."
+                    ) from e
+
+                continue
+
+            # Constraint variables are allowed
+            if get_origin(value) is Annotated:
+                if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
+                    continue
+            raise PyRDLAttrDefinitionError(
+                f"{field_name} is not a parameter definition."
+            )
+
+        return ParamAttrDef(name, list(parameters.items()))
 
     def verify(self, attr: ParametrizedAttribute):
         """Verify that `attr` satisfies the invariants."""
@@ -262,19 +306,39 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
 TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
 
 
-def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
-    check_attr_name(cls)
-    if issubclass(cls, ParametrizedAttribute):
-        return irdl_param_attr_definition(cls)
-    if issubclass(cls, Data):
-        # This used to be convoluted
-        # But Data is already frozen itself, so any child Attribute still throws on
-        # .data!
-        return runtime_final(cast(TypeAttributeInvT, cls))
-    raise TypeError(
-        f"Class {cls.__name__} should either be a subclass of 'Data' or "
-        "'ParametrizedAttribute'"
-    )
+@overload
+def irdl_attr_definition(
+    cls: TypeAttributeInvT, *, init: bool = True
+) -> TypeAttributeInvT: ...
+
+
+@overload
+def irdl_attr_definition(
+    *, init: bool = True
+) -> Callable[[TypeAttributeInvT], TypeAttributeInvT]: ...
+
+
+@dataclass_transform(frozen_default=True, field_specifiers=(param_def,))
+def irdl_attr_definition(
+    cls: TypeAttributeInvT | None = None, *, init: bool = True
+) -> TypeAttributeInvT | Callable[[TypeAttributeInvT], TypeAttributeInvT]:
+    def decorator(cls: TypeAttributeInvT) -> TypeAttributeInvT:
+        check_attr_name(cls)
+        if issubclass(cls, ParametrizedAttribute):
+            return irdl_param_attr_definition(cls)
+        if issubclass(cls, Data):
+            # This used to be convoluted
+            # But Data is already frozen itself, so any child Attribute still throws on
+            # .data!
+            return runtime_final(cast(TypeAttributeInvT, cls))
+        raise TypeError(
+            f"Class {cls.__name__} should either be a subclass of 'Data' or "
+            "'ParametrizedAttribute'"
+        )
+
+    if cls is None:
+        return decorator
+    return decorator(cls)
 
 
 IRDLGenericAttrConstraint: TypeAlias = (
@@ -319,9 +383,6 @@ def irdl_list_to_attr_constraint(
     constraints = tuple(
         irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)
         for arg in pyrdl_constraints
-        # We should not try to convert IRDL annotations, which do not correspond to
-        # constraints
-        if not isinstance(arg, IRDLAnnotations)
     )
 
     if len(constraints) > 1:
@@ -376,9 +437,11 @@ def irdl_to_attr_constraint(
     # We take the type variable bound constraint.
     if isinstance(irdl, TypeVar):
         if not allow_type_var:
-            raise ValueError("TypeVar in unexpected context.")
+            raise PyRDLTypeError("TypeVar in unexpected context.")
         if irdl.__bound__ is None:
-            raise ValueError("Type variables used in IRDL are expected to be bound.")
+            raise PyRDLTypeError(
+                "Type variables used in IRDL are expected to be bound."
+            )
         # We do not allow nested type variables.
         constraint = irdl_to_attr_constraint(irdl.__bound__)
         return cast(
@@ -391,7 +454,7 @@ def irdl_to_attr_constraint(
     if isclass(origin) and issubclass(origin, GenericData):
         args = get_args(irdl)
         if len(args) != 1:
-            raise Exception(f"GenericData args must have length 1, got {args}")
+            raise PyRDLTypeError(f"GenericData args must have length 1, got {args}")
         constr = irdl_to_attr_constraint(args[0])
 
         return cast(GenericAttrConstraint[AttributeInvT], origin.constr(constr))
@@ -411,7 +474,7 @@ def irdl_to_attr_constraint(
 
         # Check that we have the right number of parameters
         if len(args) != len(generic_args):
-            raise Exception(
+            raise PyRDLTypeError(
                 f"{origin.name} expects {len(generic_args)}"
                 f" parameters, got {len(args)}."
             )
@@ -438,10 +501,6 @@ def irdl_to_attr_constraint(
     if origin == UnionType or origin == Union:
         constraints: list[AttrConstraint] = []
         for arg in get_args(irdl):
-            # We should not try to convert IRDL annotations, which do not
-            # correspond to constraints
-            if isinstance(arg, IRDLAnnotations):
-                continue
             constraints.append(
                 irdl_to_attr_constraint(
                     arg,
@@ -454,13 +513,13 @@ def irdl_to_attr_constraint(
 
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):
-        raise ValueError(
+        raise PyRDLTypeError(
             f"Generic `Data` type '{origin.name}' cannot be converted to "
             "an attribute constraint. Consider making it inherit from "
             "`GenericData` instead of `Data`."
         )
 
-    raise ValueError(f"Unexpected irdl constraint: {irdl}")
+    raise PyRDLTypeError(f"Unexpected irdl constraint: {irdl}")
 
 
 def base(irdl: type[AttributeInvT]) -> GenericAttrConstraint[AttributeInvT]:

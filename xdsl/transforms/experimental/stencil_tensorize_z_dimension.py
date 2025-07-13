@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeGuard
+from typing import Any, TypeGuard
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, varith
@@ -58,7 +58,7 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
-def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
+def get_required_result_type(op: Operation) -> TensorType[Any] | None:
     for result in op.results:
         for use in result.uses:
             if (
@@ -67,8 +67,8 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
             ):
                 for ret in p_op.results:
                     if is_tensorized(ret.type):
-                        if isa(ret.type, TempType[Attribute]) and isa(
-                            r_type := ret.type.get_element_type(), TensorType[Attribute]
+                        if isa(ret.type, TempType) and isa(
+                            r_type := ret.type.get_element_type(), TensorType
                         ):
                             return r_type
                 # abort when encountering an un-tensorized ReturnOp successor
@@ -86,7 +86,7 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
                     static_sizes[dimdiff:],
                 )
             for ret in use.operation.results:
-                if isa(r_type := ret.type, TensorType[Attribute]):
+                if isa(r_type := ret.type, TensorType):
                     return r_type
 
 
@@ -423,7 +423,7 @@ class ConstOpUpdateShape(RewritePattern):
                 if needs_update_shape(op.result.type, typ):
                     assert isinstance(op.value, DenseIntOrFPElementsAttr)
                     rewriter.replace_matched_op(
-                        ConstantOp(DenseIntOrFPElementsAttr([typ, op.value.data]))
+                        ConstantOp(DenseIntOrFPElementsAttr(typ, op.value.data))
                     )
 
 

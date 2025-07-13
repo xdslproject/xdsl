@@ -6,6 +6,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast, overload
 
+from immutabledict import immutabledict
+
 import xdsl.parser as affine_parser
 from xdsl.context import Context
 from xdsl.dialect_interfaces import OpAsmDialectInterface
@@ -26,6 +28,7 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     DictionaryAttr,
+    FileLineColLoc,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -34,6 +37,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     FunctionType,
     IndexType,
+    IntAttr,
     IntegerAttr,
     IntegerType,
     LocationAttr,
@@ -51,6 +55,7 @@ from xdsl.dialects.builtin import (
     TensorType,
     TupleType,
     UnitAttr,
+    UnknownLoc,
     UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
@@ -744,19 +749,11 @@ class AttrParser(BaseParser):
 
     def _parse_dense_literal_type(
         self,
-    ) -> (
-        RankedStructure[IntegerType]
-        | RankedStructure[IndexType]
-        | RankedStructure[AnyFloat]
-        | RankedStructure[ComplexType]
-    ):
+    ) -> RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType]:
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
         if not (
-            base(RankedStructure[IntegerType])
-            | base(RankedStructure[IndexType])
-            | base(RankedStructure[AnyFloat])
-            | base(RankedStructure[ComplexType])
+            base(RankedStructure[IntegerType | IndexType | AnyFloat | ComplexType])
         ).verifies(
             type,
         ):
@@ -823,7 +820,7 @@ class AttrParser(BaseParser):
                 bytes_values *= type_num_values
 
             # Create attribute
-            attr = DenseIntOrFPElementsAttr([type, BytesAttr(bytes_values)])
+            attr = DenseIntOrFPElementsAttr(type, BytesAttr(bytes_values))
             if type_num_values != len(attr):
                 self.raise_error(
                     f"Shape mismatch in dense literal. Expected {type_num_values} "
@@ -1268,16 +1265,21 @@ class AttrParser(BaseParser):
         Parse a location attribute, if present.
           location ::= `loc` `(` `unknown` `)`
         """
-        snapshot = self._current_token.span.start
-        if (
-            self.parse_optional_characters("loc")
-            and self.parse_optional_punctuation("(")
-            and self.parse_optional_characters("unknown")
-            and self.parse_optional_punctuation(")")
-        ):
-            return LocationAttr()
-        self._resume_from(snapshot)
-        return None
+        if not self.parse_optional_characters("loc"):
+            return None
+
+        with self.in_parens():
+            if self.parse_optional_keyword("unknown"):
+                return UnknownLoc()
+
+            if (filename := self.parse_optional_str_literal()) is not None:
+                self.parse_punctuation(":")
+                line = self.parse_integer(False, False)
+                self.parse_punctuation(":")
+                col = self.parse_integer(False, False)
+                return FileLineColLoc(StringAttr(filename), IntAttr(line), IntAttr(col))
+
+            self.raise_error("Unexpected location syntax.")
 
     def parse_optional_builtin_int_or_float_attr(
         self,
@@ -1415,8 +1417,7 @@ class AttrParser(BaseParser):
         """
         if self._current_token.kind != MLIRTokenKind.L_BRACE:
             return None
-        param = DictionaryAttr.parse_parameter(self)
-        return DictionaryAttr(param)
+        return self._parse_builtin_dict_attr()
 
     def _parse_builtin_dict_attr(self) -> DictionaryAttr:
         """
@@ -1424,8 +1425,9 @@ class AttrParser(BaseParser):
         `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
         `attribute-entry` := (bare-id | string-literal) `=` attribute
         """
-        param = DictionaryAttr.parse_parameter(self)
-        return DictionaryAttr(param)
+        return DictionaryAttr(
+            immutabledict[str, Attribute](self.parse_optional_dictionary_attr_dict())
+        )
 
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
     _builtin_float_type_regex = re.compile(r"^f(\d+)$")

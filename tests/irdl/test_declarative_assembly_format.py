@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
     Float64Type,
     FloatAttr,
     IndexType,
-    IntAttrConstraint,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -44,7 +43,6 @@ from xdsl.irdl import (
     IntVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    ParameterDef,
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
@@ -410,7 +408,7 @@ def test_unqualified_attr(program: str, generic_program: str):
     @irdl_attr_definition
     class ParamOne(ParametrizedAttribute):
         name = "test.param"
-        p: ParameterDef[Attribute]
+        p: Attribute
 
     @irdl_op_definition
     class UnqualifiedAttrOp(IRDLOperation):
@@ -2419,9 +2417,9 @@ def test_nested_inference():
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
 
-        n: ParameterDef[Attribute]
-        p: ParameterDef[_T]
-        q: ParameterDef[Attribute]
+        n: Attribute
+        p: _T
+        q: Attribute
 
         @classmethod
         def constr(
@@ -2465,7 +2463,7 @@ def test_nested_inference_variable():
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
 
-        p: ParameterDef[_T]
+        p: _T
 
         @classmethod
         def constr(
@@ -2505,7 +2503,7 @@ def test_non_verifying_inference():
     @irdl_attr_definition
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
-        p: ParameterDef[_T]
+        p: _T
 
         @classmethod
         def constr(
@@ -3252,8 +3250,8 @@ class DoubleParamAttr(ParametrizedAttribute, TypeAttribute):
 
     name = "test.param"
 
-    param1: ParameterDef[Attribute]
-    param2: ParameterDef[Attribute]
+    param1: Attribute
+    param2: Attribute
 
 
 @irdl_op_definition
@@ -3322,9 +3320,7 @@ class IntAttrExtractOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(
-        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-    )
+    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
     outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
 
@@ -3369,13 +3365,9 @@ class IntAttrVerifyOp(IRDLOperation):
 
     _I: ClassVar = IntVarConstraint("I", AnyInt())
 
-    prop = prop_def(
-        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-    )
+    prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
-    prop2 = opt_prop_def(
-        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-    )
+    prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
     ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
 
@@ -3433,7 +3425,7 @@ def test_int_attr_verify_errors(program: str, error: str):
 class MyAttr(ParametrizedAttribute):
     name = "test.my_attr"
 
-    param: ParameterDef[StringAttr]
+    param: StringAttr
 
 
 @irdl_op_definition
@@ -3453,7 +3445,7 @@ def test_non_qualified_attr():
     parser = Parser(ctx, 'test.non_qualified_attr <"test">')
     op = parser.parse_operation()
     assert isinstance(op, NonQualifiedAttrOp)
-    assert op.attr == MyAttr([StringAttr("test")])
+    assert op.attr == MyAttr(StringAttr("test"))
 
 
 @irdl_op_definition
@@ -3473,4 +3465,4 @@ def test_qualified_attr():
     parser = Parser(ctx, 'test.qualified_attr #test.my_attr<"test">')
     op = parser.parse_operation()
     assert isinstance(op, QualifiedAttrOp)
-    assert op.attr == MyAttr([StringAttr("test")])
+    assert op.attr == MyAttr(StringAttr("test"))

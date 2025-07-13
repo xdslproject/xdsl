@@ -437,7 +437,7 @@ def _(mo):
         r"""
     #### Parametrized Attributes
 
-    `ParametrizedAttribute` attribute types are defined using the `irdl_attr_definition` decorator on a class. Such class should contain a `name` field specifying the attribute name. Parameters are added to attribute definitions by defining fields containing a `ParameterDef`. The field names correspond to the parameter names, and `ParameterDef` contains a constraint that should be respected by this parameter. The order of the fields correspond to the order of the parameters when using the attribute. Upon construction of an attribute, all constraints will be checked, and an exception will be raised if the invariants are not satisfied.
+    `ParametrizedAttribute` attribute types are defined using the `irdl_attr_definition` decorator on a class. Such class should contain a `name` field specifying the attribute name. Parameters are added to attribute definitions by defining fields with a type, and optionally with a `param_def`. The field names correspond to the parameter names, and `param_def` contains an optional constraint that should be respected by this parameter. The order of the fields correspond to the order of the parameters when using the attribute. Upon construction of an attribute, all constraints will be checked, and an exception will be raised if the invariants are not satisfied.
 
     Here is an example of an integer type definition:
     """
@@ -446,9 +446,9 @@ def _(mo):
 
 
 @app.cell
-def _(IntAttr, StringAttr, irdl_attr_definition):
+def _(EqAttrConstraint, IntAttr, StringAttr, irdl_attr_definition):
     from xdsl.ir import ParametrizedAttribute
-    from xdsl.irdl import ParameterDef
+    from xdsl.irdl import param_def
 
 
     # Represent an integer type with a given bitwidth
@@ -458,23 +458,24 @@ def _(IntAttr, StringAttr, irdl_attr_definition):
         name = "test.integer_type"
 
         # Only parameter of the type, with an `EqAttrConstraint` constraint.
-        # Note the use of the attribute constraint coercion.
-        width: ParameterDef[IntAttr]
+        width: IntAttr = param_def(EqAttrConstraint(IntAttr(32)))
 
 
-    my_i32 = MyIntegerType([IntAttr(32)])
-
-    # This will trigger an exception, since the attribute only expect a single attribute
-    try:
-        MyIntegerType([IntAttr(32), IntAttr(64)])
-    except Exception as e:
-        print(e)
+    my_i32 = MyIntegerType(IntAttr(32))
 
     # This will trigger an exception, since the attribute is not an IntAttr
     try:
-        MyIntegerType([StringAttr("ga")])
+        MyIntegerType(StringAttr("not an int"))
     except Exception as e:
         print(e)
+
+    # This will trigger an exception, since the attribute is not equal to the expected value
+    try:
+        MyIntegerType(IntAttr(64))
+    except Exception as e:
+        print(e)
+
+    print(MyIntegerType(IntAttr(32)))
     return (my_i32,)
 
 
@@ -492,7 +493,7 @@ def _(my_i32):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Our attribute definition also defines accessors for each parameter based on the name given in the `ParameterDef` field:""")
+    mo.md(r"""Our attribute definition also defines accessors for each parameter based on the name given in the `param_def` field:""")
     return
 
 
@@ -557,7 +558,6 @@ def _(IRDLOperation, IntegerAttr, i32, irdl_op_definition, printer):
         name = "arith.addi32"
 
         # Definition of operands and results.
-        # Note the use of the attribute constraint coercion.
         input1 = operand_def(i32)
         input2 = operand_def(i32)
         output = result_def(i32)

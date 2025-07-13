@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     StringAttr,
 )
-from xdsl.dialects.csl import ParameterDef, csl
+from xdsl.dialects.csl import csl
 from xdsl.ir import (
     Attribute,
     Block,
@@ -51,9 +51,9 @@ class ParamAttribute(ParametrizedAttribute):
 
     name = "csl_wrapper.param"
 
-    key: ParameterDef[StringAttr]
-    value: ParameterDef[IntegerAttr[IntegerType] | NoneAttr]
-    type: ParameterDef[IntegerType]
+    key: StringAttr
+    value: IntegerAttr[IntegerType] | NoneAttr
+    type: IntegerType
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -187,7 +187,7 @@ class ModuleOp(IRDLOperation):
             params = []
         elif isinstance(params, dict):
             params = [
-                ParamAttribute([StringAttr(name), val, val.type])
+                ParamAttribute(StringAttr(name), val, val.type)
                 for name, val in params.items()
             ]
         params_attr = ArrayAttr(params)

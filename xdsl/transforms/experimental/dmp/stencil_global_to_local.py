@@ -73,7 +73,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         exchanges = list(op.swaps)
 
-        input_type = cast(ContainerType[Attribute], op.input_stencil.type)
+        input_type = cast(ContainerType, op.input_stencil.type)
 
         rewriter.replace_matched_op(
             list(
