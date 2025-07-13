@@ -179,6 +179,17 @@ class EmitC_PtrDiffT(ParametrizedAttribute, TypeAttribute):
     name = "emitc.ptrdiff_t"
 
 
+@irdl_attr_definition
+class EmitC_SignedSizeT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC signed size type.
+    Data type representing all values of emitc.size_t, plus -1. It corresponds to ssize_t found in <sys/types.h>.
+    Use of this type causes the code to be non-C99 compliant.
+    """
+
+    name = "emitc.ssize_t"
+
+
 _SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
 
 
@@ -208,10 +219,10 @@ def is_supported_float_type(type_attr: Attribute) -> bool:
 def is_pointer_wide_type(type_attr: Attribute) -> bool:
     """Check if a type is a pointer-wide type."""
     match type_attr:
-        case EmitC_PtrDiffT():
+        case EmitC_PtrDiffT() | EmitC_SignedSizeT():
             return True
         # TODO: Comment this out when EmitC_SignedSizeT and EmitC_SizeT are implemented.
-        # case EmitC_PtrDiffT() | EmitC_SignedSizeT() | EmitC_SizeT():
+        # case EmitC_SizeT():
         #     return True
         case _:
             return False
@@ -280,5 +291,6 @@ EmitC = Dialect(
         EmitC_OpaqueType,
         EmitC_PointerType,
         EmitC_PtrDiffT,
+        EmitC_SignedSizeT,
     ],
 )

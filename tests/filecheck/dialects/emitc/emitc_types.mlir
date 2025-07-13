@@ -79,3 +79,12 @@
 "test.op"() {
   array_ptrdiff = !emitc.array<30x!emitc.ptrdiff_t>
 }: ()->()
+
+//===----------------------------------------------------------------------===//
+// SignedSizeTType
+//===----------------------------------------------------------------------===//
+
+// CHECK: array_ssize = !emitc.array<30x!emitc.ssize_t>
+"test.op"() {
+  array_ssize = !emitc.array<30x!emitc.ssize_t>
+}: ()->()
