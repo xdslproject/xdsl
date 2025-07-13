@@ -43,19 +43,19 @@ class Input:
             if next_start == -1:
                 if span.start > len(source):
                     return None
-                return [source[start:]], start, line_no
+                return [source[start:]], span.start - start + 1, line_no
             # As long as the next newline comes before the spans start we can continue
             if next_start < span.start:
                 start = next_start + 1
                 continue
             # If the whole span is on one line, we are good as well
             if next_start >= span.end:
-                return [source[start:next_start]], start, line_no
+                return [source[start:next_start]], span.start - start + 1, line_no
             while next_start < span.end:
                 next_start = source.find("\n", next_start + 1)
                 if next_start == -1:
                     next_start = span.end
-            return source[start:next_start].split("\n"), start, line_no
+            return source[start:next_start].split("\n"), span.start - start + 1, line_no
 
     def at(self, i: Position) -> str | None:
         if i >= self.len:
@@ -87,7 +87,6 @@ class Span:
     """
     The input being operated on
     """
-
     line_offset: int = 0
     """
     A line offset, to just add to ht file number in input when printed.
@@ -108,8 +107,8 @@ class Span:
         info = self.input.get_lines_containing(self)
         if info is None:
             return -1, -1
-        _lines, offset_of_first_line, line_no = info
-        return line_no, self.start - offset_of_first_line
+        _lines, col, line = info
+        return line, col
 
     def print_with_context(self, msg: str | None = None) -> str:
         """
@@ -120,12 +119,12 @@ class Span:
         info = self.input.get_lines_containing(self)
         if info is None:
             return f"Unknown location of span {msg}. Error: "
-        lines, offset_of_first_line, line_no = info
+        lines, col_no, line_no = info
         # Offset relative to the first line:
-        offset = self.start - offset_of_first_line
+        offset = col_no - 1
         remaining_len = max(self.len, 1)
         capture = StringIO()
-        print(f"{self.input.name}:{line_no}:{offset}", file=capture)
+        print(f"{self.input.name}:{line_no}:{col_no}", file=capture)
         for line in lines:
             print(line, file=capture)
             if remaining_len < 0:
