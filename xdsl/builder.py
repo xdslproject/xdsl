@@ -70,7 +70,7 @@ class Builder(BuilderListener):
         op: InsertOpInvT,
         insertion_point: InsertPoint | None = None,
     ) -> InsertOpInvT:
-        """Inserts `op` at the current insertion point."""
+        """Inserts op(s) at the current insertion point."""
         ops = (op,) if isinstance(op, Operation) else op
         if not ops:
             return ops
