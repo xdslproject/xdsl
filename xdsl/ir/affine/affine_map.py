@@ -349,7 +349,7 @@ class AffineMap:
 
     def unused_dims(self) -> set[int]:
         """
-        Return all dimensions used in the map as a set
+        Return all dimensions not used in the map as a set
 
         Example:
         ```
