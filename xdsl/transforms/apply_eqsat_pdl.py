@@ -10,7 +10,6 @@ from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
 from xdsl.transforms.apply_eqsat_pdl_interp import check_invariant
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
-from xdsl.transforms.common_subexpression_elimination import cse
 from xdsl.transforms.mlir_opt import MLIROptPass
 
 
@@ -68,7 +67,4 @@ class ApplyEqsatPDLPass(ModulePass):
                 break
 
             implementations.apply_matches()
-            check_invariant(op)
-
-            cse(op)
             check_invariant(op)

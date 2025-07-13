@@ -11,7 +11,6 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
-from xdsl.transforms.common_subexpression_elimination import cse
 
 
 def check_invariant(
@@ -74,8 +73,4 @@ class ApplyEqsatPDLInterpPass(ModulePass):
                 break
 
             implementations.apply_matches()
-            check_invariant(op)
-
-            # Run CSE to simplify the IR
-            cse(op)
             check_invariant(op)
