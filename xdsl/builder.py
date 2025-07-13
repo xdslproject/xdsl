@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import ClassVar, TypeAlias, overload
 
+from typing_extensions import TypeVar
+
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
@@ -42,6 +44,9 @@ class BuilderListener:
         self.block_creation_handler.extend(listener.block_creation_handler)
 
 
+InsertOpInvT = TypeVar("InsertOpInvT", bound=Operation | Sequence[Operation])
+
+
 @dataclass
 class Builder(BuilderListener):
     """
@@ -60,29 +65,15 @@ class Builder(BuilderListener):
         """
         return self.insert_op(op)
 
-    @overload
     def insert_op(
         self,
-        op: OperationInvT,
+        op: InsertOpInvT,
         insertion_point: InsertPoint | None = None,
-    ) -> OperationInvT: ...
-
-    @overload
-    def insert_op(
-        self,
-        op: Sequence[Operation],
-        insertion_point: InsertPoint | None = None,
-    ) -> None: ...
-
-    def insert_op(
-        self,
-        op: Operation | Sequence[Operation],
-        insertion_point: InsertPoint | None = None,
-    ) -> Operation | None:
+    ) -> InsertOpInvT:
         """Inserts `op` at the current insertion point."""
-        res, ops = (op, (op,)) if isinstance(op, Operation) else (None, op)
+        res, ops = (op, (op,)) if isinstance(op, Operation) else (op, op)
         if not ops:
-            return
+            return ops
 
         implicit_builder = ImplicitBuilder.get()
         if implicit_builder is not None and implicit_builder is not self:
