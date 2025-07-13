@@ -37,9 +37,9 @@ def test_func():
     # Create a region to include a, b, c
     @Builder.region
     def region0(builder: Builder):
-        builder.insert(a)
-        builder.insert(b)
-        builder.insert(c)
+        builder.insert_op(a)
+        builder.insert_op(b)
+        builder.insert_op(c)
 
     # Use this region to create a func0
     func0 = FuncOp.from_region("func0", [], [], region0)

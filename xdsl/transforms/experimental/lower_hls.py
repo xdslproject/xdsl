@@ -481,7 +481,7 @@ class GetHLSStreamInDataflow(RewritePattern):
 
         @Builder.region
         def empty_region(builder: Builder):
-            builder.insert(hls_yield)
+            builder.insert_op(hls_yield)
 
         dataflow = PragmaDataflowOp(empty_region)
         rewriter.insert_op_before_matched_op(dataflow)
