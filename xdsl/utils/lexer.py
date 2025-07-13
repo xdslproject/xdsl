@@ -49,7 +49,7 @@ class Input:
         pos = self.content.find("\n", pos)
         # If the result is at the end of the input, return the length for correct slice
         # indexing
-        return len(self.content) if pos == -1 else pos
+        return self.len if pos == -1 else pos
 
     def get_lines_containing(self, span: Span) -> tuple[list[str], int, int]:
         source = self.content
