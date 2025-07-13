@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
-from typing import Generic
+from typing import Generic, NamedTuple
 
 from typing_extensions import TypeVar
 
@@ -13,6 +13,16 @@ Position = int
 A position in a file.
 The position correspond to the character index in the file.
 """
+
+
+class LineStartAndIndex(NamedTuple):
+    "Helper struct holding the start position of a line and its index in the input."
+
+    line_start: Position
+    "The start position of a line."
+
+    line_index: int
+    "1-index of line in file."
 
 
 @dataclass(frozen=True)
@@ -51,14 +61,18 @@ class Input:
         # indexing
         return self.len if pos == -1 else pos
 
-    def get_lines_containing(self, span: Span) -> tuple[list[str], int, int]:
-        source = self.content
-        span_first_line_start = self.get_start_of_line(span.start)
-        span_last_line_end = self.get_end_of_line(span.end)
-        line_no_in_file = source.count("\n", 0, span_first_line_start) + 1
-        line_no = line_no_in_file + span.line_offset
-        lines = source[span_first_line_start:span_last_line_end].splitlines()
-        return lines, span_first_line_start, line_no
+    def get_line_start_and_index(
+        self, pos: Position, line_offset: int
+    ) -> LineStartAndIndex:
+        """
+        The start offset and 1-index of position in a file.
+        The line index is offset by `line_offset`, which is non-0 when the input file is
+        split.
+        """
+        line_start = self.get_start_of_line(pos)
+        line_index_in_source = self.content.count("\n", 0, line_start) + 1
+        line_index = line_index_in_source + line_offset
+        return LineStartAndIndex(line_start, line_index)
 
     def at(self, i: Position) -> str | None:
         if i >= self.len:
@@ -108,8 +122,9 @@ class Span:
         return self.input.content[self.start : self.end]
 
     def get_line_col(self) -> tuple[int, int]:
-        info = self.input.get_lines_containing(self)
-        _lines, offset_of_first_line, line_no = info
+        offset_of_first_line, line_no = self.input.get_line_start_and_index(
+            self.start, self.line_offset
+        )
         return line_no, self.start - offset_of_first_line
 
     def print_with_context(self, msg: str | None = None) -> str:
@@ -118,10 +133,13 @@ class Span:
         are highlighted by up-carets beneath them (`^`). The message msg is printed
         along these.
         """
-        info = self.input.get_lines_containing(self)
-        lines, offset_of_first_line, line_no = info
-        # Offset relative to the first line:
-        offset = self.start - offset_of_first_line
+        span_first_line_start, line_no = self.input.get_line_start_and_index(
+            self.start, self.line_offset
+        )
+        source = self.input.content
+        span_last_line_end = self.input.get_end_of_line(self.end)
+        lines = source[span_first_line_start:span_last_line_end].splitlines()
+        offset = self.start - span_first_line_start
         remaining_len = max(self.len, 1)
         capture = StringIO()
         print(f"{self.input.name}:{line_no}:{offset}", file=capture)
