@@ -108,9 +108,8 @@ class Span:
         return self.input.content[self.start : self.end]
 
     def get_line_col(self) -> tuple[int, int]:
-        offset_of_first_line = self.input.get_start_of_line(self.start)
-        line_no_in_file = self.input.content.count("\n", 0, offset_of_first_line) + 1
-        line_no = line_no_in_file + self.line_offset
+        info = self.input.get_lines_containing(self)
+        _lines, offset_of_first_line, line_no = info
         return line_no, self.start - offset_of_first_line
 
     def print_with_context(self, msg: str | None = None) -> str:
