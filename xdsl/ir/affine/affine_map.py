@@ -439,8 +439,8 @@ class AffineMap:
 
     def apply_permutation(self, source: Sequence[_T]) -> tuple[_T, ...]:
         """
-        Assert that `self` represents a permutation, and apply the permutation to
-        `source`.
+        Assert that `self` represents a projected permutation, and apply the permutation
+        to `source`.
         The number of inputs must match the size of the source.
 
         Example:
