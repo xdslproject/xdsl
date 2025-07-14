@@ -2771,7 +2771,7 @@ def test_impossible_optional_else_group():
     ):
 
         @irdl_op_definition
-        class _OptionalImpossibleElseGroup(IRDLOperation):
+        class OptionalImpossibleElseGroup(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.impossible_optional_else_group"
 
             val = opt_prop_def(IntegerAttr[I32])
