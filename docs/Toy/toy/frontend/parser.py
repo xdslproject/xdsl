@@ -11,7 +11,6 @@ from .toy_ast import (
     ExprAST,
     FunctionAST,
     LiteralExprAST,
-    Location,
     ModuleAST,
     NumberExprAST,
     PrintExprAST,
@@ -21,12 +20,6 @@ from .toy_ast import (
     VariableExprAST,
     VarType,
 )
-
-
-def loc(token: ToyToken):
-    file = token.span.input.name
-    line, col = token.span.get_line_col()
-    return Location(file, line, col + 1)
 
 
 class ToyParser(GenericParser[ToyTokenKind]):
@@ -82,7 +75,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
         if self._parse_optional_token(ToyTokenKind.SEMICOLON) is None:
             expr = self.parse_expression()
 
-        return ReturnExprAST(loc(return_token), expr)
+        return ReturnExprAST(return_token.span.get_location(), expr)
 
     def parse_number_expr(self):
         """
@@ -90,7 +83,9 @@ class ToyParser(GenericParser[ToyTokenKind]):
         numberexpr ::= number
         """
         number_token = self._pop(ToyTokenKind.NUMBER)
-        return NumberExprAST(loc(number_token), float(number_token.span.text))
+        return NumberExprAST(
+            number_token.span.get_location(), float(number_token.span.text)
+        )
 
     def parse_tensor_literal_expr(self) -> LiteralExprAST | NumberExprAST:
         """
@@ -131,7 +126,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
 
             dims += first
 
-        return LiteralExprAST(loc(open_bracket), values, dims)
+        return LiteralExprAST(open_bracket.span.get_location(), values, dims)
 
     def parse_paren_expr(self) -> ExprAST:
         "parenexpr ::= '(' expression ')'"
@@ -150,7 +145,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
         )
         if args is None:
             # Simple variable ref.
-            return VariableExprAST(loc(name), name.text)
+            return VariableExprAST(name.span.get_location(), name.text)
 
         # This is a function call.
         if name.text == "print":
@@ -158,9 +153,9 @@ class ToyParser(GenericParser[ToyTokenKind]):
             if len(args) != 1:
                 self.raise_error("Expected <single arg> as argument to print()")
 
-            return PrintExprAST(loc(name), args[0])
+            return PrintExprAST(name.span.get_location(), args[0])
 
-        return CallExprAST(loc(name), name.text, args)
+        return CallExprAST(name.span.get_location(), name.text, args)
 
     def parse_primary(self) -> ExprAST | None:
         """
@@ -269,7 +264,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
         var_type = self.parse_type() if self._peek(ToyTokenKind.LT) else VarType([])
         self._pop(ToyTokenKind.EQ)
         expr = self.parse_expression()
-        return VarDeclExprAST(loc(var), name, var_type, expr)
+        return VarDeclExprAST(var.span.get_location(), name, var_type, expr)
 
     def parse_block(self) -> tuple[ExprAST, ...]:
         """
@@ -309,7 +304,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
 
     def _parse_arg(self) -> VariableExprAST:
         arg = self._pop(ToyTokenKind.IDENTIFIER)
-        return VariableExprAST(loc(arg), arg.text)
+        return VariableExprAST(arg.span.get_location(), arg.text)
 
     def parse_prototype(self):
         """
@@ -319,7 +314,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
         def_token = self._pop(ToyTokenKind.DEF)
         name = self._pop(ToyTokenKind.IDENTIFIER).text
         args = self.parse_comma_separated_list(self.Delimiter.PAREN, self._parse_arg)
-        return PrototypeAST(loc(def_token), name, args)
+        return PrototypeAST(def_token.span.get_location(), name, args)
 
     def parse_definition(self):
         """

@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     f64,
 )
 from xdsl.ir import Block, Region, SSAValue
+from xdsl.utils.lexer import Location
 from xdsl.utils.scoped_dict import ScopedDict
 
 from ..dialects.toy import (
@@ -36,7 +37,6 @@ from .toy_ast import (
     ExprAST,
     FunctionAST,
     LiteralExprAST,
-    Location,
     ModuleAST,
     NumberExprAST,
     PrintExprAST,
