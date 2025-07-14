@@ -1405,7 +1405,6 @@ class TensorType(
 
     @staticmethod
     def constr(
-        *,
         element_type: IRDLGenericAttrConstraint[AttributeInvT] | None = None,
     ) -> GenericAttrConstraint[TensorType[AttributeInvT]]:
         if element_type is None:
