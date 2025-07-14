@@ -24,7 +24,7 @@ with CodeContext(p):
 
     def test_for_I(end: c_size_t):
         for _ in range(
-            end  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            end  # pyright: ignore[reportArgumentType]
         ):
             pass
         return
@@ -39,8 +39,8 @@ with CodeContext(p):
     # CHECK-NEXT: }
     def test_for_II(start: c_size_t, end: c_size_t):
         for _ in range(
-            start,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
-            end,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            start,  # pyright: ignore[reportArgumentType]
+            end,  # pyright: ignore[reportArgumentType]
         ):
             pass
         return
@@ -55,9 +55,9 @@ with CodeContext(p):
     # CHECK-NEXT: }
     def test_for_III(start: c_size_t, end: c_size_t, step: c_size_t):
         for _ in range(
-            start,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
-            end,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
-            step,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            start,  # pyright: ignore[reportArgumentType]
+            end,  # pyright: ignore[reportArgumentType]
+            step,  # pyright: ignore[reportArgumentType]
         ):
             pass
         return
@@ -82,13 +82,13 @@ with CodeContext(p):
     # CHECK-NEXT:   }
     def test_for_IV(a: c_size_t, b: c_size_t, c: c_size_t):
         for _ in range(
-            a  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            a  # pyright: ignore[reportArgumentType]
         ):
             for _ in range(
-                b  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+                b  # pyright: ignore[reportArgumentType]
             ):
                 for _ in range(
-                    c  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+                    c  # pyright: ignore[reportArgumentType]
                 ):
                     pass
         return
@@ -115,7 +115,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop start, got 'f64'.
         def test_not_supported_loop_II(start: float, end: c_size_t):
-            for _ in range(start, end):
+            for _ in range(start, end):  # pyright: ignore[reportArgumentType]
                 pass
             return
 
@@ -128,7 +128,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop step, got 'f64'.
         def test_not_supported_loop_III(start: c_size_t, end: c_size_t, step: float):
-            for _ in range(start, end, step):
+            for _ in range(start, end, step):  # pyright: ignore[reportArgumentType]
                 pass
             return
 
@@ -194,7 +194,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected the same types for if expression, but got !bigint.bigint and f64.
         def test_type_mismatch_in_if_expr(cond: bool, x: int, y: float) -> int:
-            return x if cond else y
+            return x if cond else y  # pyright: ignore[reportReturnType]
 
     p.compile(desymref=False)
     print(p.textual_format())

@@ -125,3 +125,17 @@
 "test.op"() {
   with_ptr = !emitc.opaque<"foo*">
 }: ()->()
+
+// -----
+
+// CHECK: pointers to lvalues are not allowed
+"test.op"() {
+  ptr_lvalue = !emitc.ptr<!emitc.lvalue<i32>>
+}: ()->()
+
+// -----
+
+// CHECK: !emitc.lvalue must wrap supported emitc type, but got !emitc.ptr<memref<1xi32>>
+"test.op"() {
+  lvalue_ptr_memref = !emitc.lvalue<!emitc.ptr<memref<1xi32>>>
+}: ()->()

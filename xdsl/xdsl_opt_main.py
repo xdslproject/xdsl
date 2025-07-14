@@ -9,7 +9,7 @@ from typing import IO, Any
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.transforms import get_all_passes
@@ -29,7 +29,7 @@ class xDSLOptMain(CommandLineTool):
     stream.
     """
 
-    pipeline: PipelinePass
+    pipeline: PassPipeline
     """ The pass-pipeline to be applied. """
 
     def __init__(
@@ -314,7 +314,7 @@ class xDSLOptMain(CommandLineTool):
                 printer.print_op(module)
                 print("\n\n\n")
 
-        self.pipeline = PipelinePass.parse_spec(
+        self.pipeline = PassPipeline.parse_spec(
             self.available_passes,
             self.args.passes,
             callback,

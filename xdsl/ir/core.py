@@ -226,6 +226,19 @@ class Data(Generic[DataElement], Attribute, ABC):
         return attr
 
     @classmethod
+    def get(cls, attr: DataElement | Self) -> Self:
+        """
+        Creates an element of this class from `DataElement`,
+        or returns the input when it is already an instance of this class.
+
+        This function is useful for `__init__` methods, for example when a we
+        would like to accept either a `StringAttr` or a `str`.
+        """
+        if not isinstance(attr, cls):
+            attr = cls.new(attr)
+        return attr
+
+    @classmethod
     @abstractmethod
     def parse_parameter(cls, parser: AttrParser) -> DataElement:
         """Parse the attribute parameter."""

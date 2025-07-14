@@ -244,7 +244,7 @@ class LoopWrapper(NoTerminator):
         return super().verify(op)
 
 
-class BlockArgOpenMPOperation(OpTrait):
+class BlockArgOpenMPInterface(OpTrait):
     """
     Verifies that the operation has the appropriate number of block arguments corresponding to the following operands:
     `host_eval_vars`, `in_reduction_vars`, `map_vars`, `private_vars`, `reduction_vars`,
@@ -543,11 +543,8 @@ class WsLoopOp(IRDLOperation):
     traits = traits_def(
         LoopWrapper(),
         RecursiveMemoryEffect(),
-        BlockArgOpenMPOperation(),
+        BlockArgOpenMPInterface(),
     )
-
-    def num_reduction_block_args(self) -> int:
-        return len(self.reduction_vars)
 
 
 class ProcBindKindEnum(StrEnum):
@@ -586,10 +583,7 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(RecursiveMemoryEffect(), BlockArgOpenMPOperation())
-
-    def num_reduction_block_args(self) -> int:
-        return len(self.reduction_vars)
+    traits = traits_def(RecursiveMemoryEffect(), BlockArgOpenMPInterface())
 
 
 @irdl_op_definition
@@ -661,13 +655,7 @@ class TargetOp(IRDLOperation):
     region = region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
-    traits = traits_def(IsolatedFromAbove(), BlockArgOpenMPOperation())
-
-    def num_host_eval_block_args(self) -> int:
-        return len(self.host_eval_vars)
-
-    def num_in_reduction_block_args(self) -> int:
-        return len(self.in_reduction_vars)
+    traits = traits_def(IsolatedFromAbove(), BlockArgOpenMPInterface())
 
     def verify_(self) -> None:
         verify_map_vars(
@@ -778,11 +766,8 @@ class SimdOp(IRDLOperation):
     traits = traits_def(
         RecursiveMemoryEffect(),
         LoopWrapper(),
-        BlockArgOpenMPOperation(),
+        BlockArgOpenMPInterface(),
     )
-
-    def num_reduction_block_args(self) -> int:
-        return len(self.reduction_vars)
 
     def verify_(self) -> None:
         if self.simdlen and self.safelen:
@@ -904,7 +889,7 @@ class TargetDataOp(IRDLOperation):
     region = region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
-    traits = traits_def(BlockArgOpenMPOperation())
+    traits = traits_def(BlockArgOpenMPInterface())
 
     # NOTE: Unlike TargetOp `mapped_vars` are not passed as block args.
 

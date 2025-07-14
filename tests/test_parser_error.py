@@ -39,7 +39,7 @@ def test_parser_missing_equal():
   %0 "test.unknown"() : () -> !i32
 }) : () -> ()
 """
-    check_error(prog, 3, 5, "Expected '=' after operation result list")
+    check_error(prog, 3, 6, "Expected '=' after operation result list")
 
 
 def test_parser_redefined_value():
@@ -53,7 +53,7 @@ def test_parser_redefined_value():
   %val = "test.unknown"() : () -> i32
 }) : () -> ()
 """
-    check_error(prog, 4, 2, "SSA value %val is already defined")
+    check_error(prog, 4, 3, "SSA value %val is already defined")
 
 
 def test_parser_missing_operation_name():
@@ -66,4 +66,4 @@ def test_parser_missing_operation_name():
   %val =
 }) : () -> ()
 """
-    check_error(prog, 4, 0, "operation name expected")
+    check_error(prog, 4, 1, "operation name expected")
