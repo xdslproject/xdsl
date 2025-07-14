@@ -8,7 +8,6 @@ from typing_extensions import Self
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
-    Annotated,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
     DenseArrayBase,
@@ -29,10 +28,11 @@ from xdsl.dialects.utils.reshape_ops_utils import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     Operand,
+    VarConstraint,
     base,
     irdl_op_definition,
     operand_def,
@@ -638,10 +638,10 @@ class InsertOp(IRDLOperation):
 class FromElementsOp(IRDLOperation):
     name = "tensor.from_elements"
 
-    ElementType = Annotated[Attribute, ConstraintVar("ElementType")]
+    ELEMENT_TYPE: ClassVar = VarConstraint("ELEMENT_TYPE", AnyAttr())
 
-    elements = var_operand_def(ElementType)
-    result = result_def(TensorType[ElementType])
+    elements = var_operand_def(ELEMENT_TYPE)
+    result = result_def(TensorType.constr(ELEMENT_TYPE))
     assembly_format = "$elements attr-dict `:` type($result)"
 
 

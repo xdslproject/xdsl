@@ -7,7 +7,7 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 
 import abc
 from collections.abc import Sequence
-from typing import Annotated, ClassVar, TypeAlias, cast
+from typing import ClassVar, TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     I32,
@@ -36,8 +36,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     BaseAttr,
-    ConstraintVar,
     IRDLOperation,
     VarConstraint,
     attr_def,
@@ -741,10 +741,10 @@ class TransposeOp(IRDLOperation):
 
     name = "stablehlo.transpose"
 
-    ElementType = Annotated[Attribute, ConstraintVar("ElementType")]
+    ELEMENT_TYPE: ClassVar = VarConstraint("ELEMENT_TYPE", AnyAttr())
 
-    operand = operand_def(TensorType[ElementType])
-    result = result_def(TensorType[ElementType])
+    operand = operand_def(TensorType.constr(ELEMENT_TYPE))
+    result = result_def(TensorType.constr(ELEMENT_TYPE))
     permutation = attr_def(DenseArrayBase.constr(i64))
 
     def __init__(
