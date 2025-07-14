@@ -110,7 +110,7 @@ class Span:
     def get_line_col(self) -> tuple[int, int]:
         info = self.input.get_lines_containing(self)
         _lines, offset_of_first_line, line_no = info
-        return line_no, self.start - offset_of_first_line
+        return line_no, self.start - offset_of_first_line + 1
 
     def print_with_context(self, msg: str | None = None) -> str:
         """
@@ -124,7 +124,7 @@ class Span:
         offset = self.start - offset_of_first_line
         remaining_len = max(self.len, 1)
         capture = StringIO()
-        print(f"{self.input.name}:{line_no}:{offset}", file=capture)
+        print(f"{self.input.name}:{line_no}:{offset + 1}", file=capture)
         for line in lines:
             print(line, file=capture)
             if remaining_len < 0:
