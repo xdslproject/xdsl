@@ -110,9 +110,7 @@ class Span:
 
     def get_line_start_and_index(self) -> LineStartAndIndex:
         """
-        The start offset and 1-index of position in a file.
-        The line index is offset by `line_offset`, which is non-0 when the input file is
-        split.
+        The start offset and 1-index of the start position of this span in a file.
         """
         line_start = self.input.get_start_of_line(self.start)
         line_index_in_source = self.input.content.count("\n", 0, line_start) + 1
