@@ -6,7 +6,7 @@ from typing import (
     cast,
 )
 
-from xdsl.frontend.pyast.exception import (
+from xdsl.frontend.pyast.utils.exceptions import (
     FrontendProgramException,
 )
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
@@ -32,7 +32,7 @@ class FunctionRegistry:
     def get_operation_constructor(
         self, callable: Callable[..., Any]
     ) -> Callable[..., Operation] | None:
-        """Get the IR operation ir_constructor from a Python callable."""
+        """Get the IR operation constructor from a Python callable."""
         return self._mapping.get(callable, None)
 
     def resolve_operation(

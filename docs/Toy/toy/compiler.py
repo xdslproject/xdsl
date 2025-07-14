@@ -38,7 +38,7 @@ from .dialects import toy
 from .frontend.ir_gen import IRGen
 from .frontend.parser import ToyParser
 from .rewrites.inline_toy import InlineToyPass
-from .rewrites.lower_toy_affine import LowerToAffinePass
+from .rewrites.lower_toy import LowerToyPass
 
 
 def context() -> Context:
@@ -87,7 +87,7 @@ def transform(
     if target == "shape-inference":
         return
 
-    LowerToAffinePass().apply(ctx, module_op)
+    LowerToyPass().apply(ctx, module_op)
     module_op.verify()
 
     if target == "affine":
