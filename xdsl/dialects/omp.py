@@ -30,14 +30,14 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    AnyInt,
+    AnyIntConstr,
     AttrSizedOperandSegments,
-    IntVarConstraint,
     IRDLOperation,
     Operand,
     Operation,
     RangeOf,
     SameVariadicOperandSize,
+    VarConstraint,
     VarOperand,
     base,
     eq,
@@ -522,7 +522,7 @@ class TargetOp(IRDLOperation):
 
     name = "omp.target"
 
-    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+    DEP_COUNT: ClassVar = VarConstraint("DEP_COUNT", AnyIntConstr)
 
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
@@ -632,8 +632,8 @@ class SimdOp(IRDLOperation):
 
     name = "omp.simd"
 
-    ALIGN_COUNT: ClassVar = IntVarConstraint("ALIGN_COUNT", AnyInt())
-    LINEAR_COUNT: ClassVar = IntVarConstraint("LINEAR_COUNT", AnyInt())
+    ALIGN_COUNT: ClassVar = VarConstraint("ALIGN_COUNT", AnyIntConstr)
+    LINEAR_COUNT: ClassVar = VarConstraint("LINEAR_COUNT", AnyIntConstr)
 
     aligned_vars = var_operand_def(
         RangeOf(
@@ -678,7 +678,7 @@ class TargetTaskBasedDataOp(IRDLOperation):
     this includes enter and exit data pragmas along with data update
     """
 
-    DEP_COUNT: ClassVar = IntVarConstraint("DEP_COUNT", AnyInt())
+    DEP_COUNT: ClassVar = VarConstraint("DEP_COUNT", AnyIntConstr)
 
     depend_vars = var_operand_def(
         RangeOf(

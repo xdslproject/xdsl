@@ -53,7 +53,6 @@ from xdsl.irdl import (
     GenericAttrConstraint,
     GenericData,
     GenericRangeConstraint,
-    IntConstraint,
     IRDLAttrConstraint,
     IRDLGenericAttrConstraint,
     IRDLOperation,
@@ -321,37 +320,6 @@ FlatSymbolRefAttrConstr = MessageConstraint(
 
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstr]
 """SymbolRef constrained to have an empty `nested_references` property."""
-
-
-@dataclass(frozen=True)
-class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
-    """
-    Constrains the value of an IntAttr.
-    """
-
-    int_constraint: IntConstraint
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, IntAttr):
-            raise VerifyException(f"attribute {attr} expected to be an IntAttr")
-        self.int_constraint.verify(attr.data, constraint_context)
-
-    def variables(self) -> set[str]:
-        return self.int_constraint.variables()
-
-    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
-        return self.int_constraint.can_infer(var_constraint_names)
-
-    def infer(self, context: ConstraintContext) -> IntAttr:
-        return IntAttr(self.int_constraint.infer(context))
-
-    def get_bases(self) -> set[type[Attribute]] | None:
-        return {IntAttr}
-
-    def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> Self:
-        return self
 
 
 class Signedness(Enum):
@@ -865,13 +833,11 @@ class IntegerAttr(
     def constr(
         cls,
         *,
-        value: AttrConstraint | IntConstraint | None = None,
+        value: AttrConstraint | None = None,
         type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
     ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
         if value is None and type == AnyAttr():
             return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
-        if isinstance(value, IntConstraint):
-            value = IntAttrConstraint(value)
         return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
             IntegerAttr,
             (
