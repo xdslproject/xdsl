@@ -2763,6 +2763,22 @@ def test_optional_else_group(
     check_equivalence(program, generic_program, ctx)
 
 
+def test_impossible_optional_else_group():
+    error = "property 'val' is already bound"
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match=error,
+    ):
+
+        @irdl_op_definition
+        class OptionalImpossibleElseGroupOp(IRDLOperation):
+            name = "test.impossible_optional_else_group"
+
+            val = opt_prop_def(IntegerAttr[I32])
+
+            assembly_format = """($val^):($val)? attr-dict"""
+
+
 @pytest.mark.parametrize(
     "program, generic_program",
     [
