@@ -1,16 +1,11 @@
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TypeGuard, cast
+from typing import Any, TypeGuard
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, varith
 from xdsl.dialects.arith import (
-    AddfOp,
     ConstantOp,
-    DivfOp,
     FloatingPointLikeBinaryOperation,
-    MulfOp,
-    SubfOp,
 )
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -19,7 +14,6 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
-    IntAttr,
     IntegerType,
     ModuleOp,
     ShapedType,
@@ -64,7 +58,7 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
-def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
+def get_required_result_type(op: Operation) -> TensorType[Any] | None:
     for result in op.results:
         for use in result.uses:
             if (
@@ -73,20 +67,16 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
             ):
                 for ret in p_op.results:
                     if is_tensorized(ret.type):
-                        if isa(ret.type, TempType[Attribute]) and isa(
-                            r_type := ret.type.get_element_type(), TensorType[Attribute]
+                        if isa(ret.type, TempType) and isa(
+                            r_type := ret.type.get_element_type(), TensorType
                         ):
                             return r_type
                 # abort when encountering an un-tensorized ReturnOp successor
                 return None
-            if (
-                isinstance(use.operation, InsertSliceOp)
-                and is_tensor(use.operation.result.type)
-                and isa(
-                    static_sizes := use.operation.static_sizes.get_values(),
-                    tuple[int, ...],
-                )
+            if isinstance(use.operation, InsertSliceOp) and is_tensor(
+                use.operation.result.type
             ):
+                static_sizes = use.operation.static_sizes.get_values()
                 assert is_tensor(use.operation.source.type)
                 # inserting an (n-1)d tensor into an (n)d tensor should not require the input tensor to also be (n)d
                 # instead, drop the first `dimdiff` dimensions
@@ -96,14 +86,14 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
                     static_sizes[dimdiff:],
                 )
             for ret in use.operation.results:
-                if isa(r_type := ret.type, TensorType[Attribute]):
+                if isa(r_type := ret.type, TensorType):
                     return r_type
 
 
 def needs_update_shape(
     op_type: Attribute, succ_req_type: TensorType[Attribute]
 ) -> bool:
-    assert isa(op_type, TensorType[Attribute])
+    assert isa(op_type, TensorType)
     return op_type.get_shape() != succ_req_type.get_shape()
 
 
@@ -169,7 +159,7 @@ class ArithOpTensorize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: AddfOp | SubfOp | MulfOp | DivfOp, rewriter: PatternRewriter, /
+        self, op: FloatingPointLikeBinaryOperation, rewriter: PatternRewriter, /
     ):
         type_constructor = type(op)
         if is_tensor(op.result.type):
@@ -178,14 +168,14 @@ class ArithOpTensorize(RewritePattern):
             rewriter.replace_matched_op(
                 type_constructor(op.lhs, op.rhs, flags=None, result_type=op.lhs.type)
             )
-        elif is_tensor(op.lhs.type) and is_scalar(op.rhs.type):
+        elif isa(op.lhs.type, TensorType[AnyFloat]) and is_scalar(op.rhs.type):
             new_rhs = ArithOpTensorize._rewrite_scalar_operand(
                 op.rhs, op.lhs.type, op, rewriter
             )
             rewriter.replace_matched_op(
                 type_constructor(op.lhs, new_rhs, flags=None, result_type=op.lhs.type)
             )
-        elif is_scalar(op.lhs.type) and is_tensor(op.rhs.type):
+        elif is_scalar(op.lhs.type) and isa(op.rhs.type, TensorType[AnyFloat]):
             new_lhs = ArithOpTensorize._rewrite_scalar_operand(
                 op.lhs, op.rhs.type, op, rewriter
             )
@@ -196,7 +186,7 @@ class ArithOpTensorize(RewritePattern):
     @staticmethod
     def _rewrite_scalar_operand(
         scalar_op: SSAValue,
-        dest_typ: TensorType[IndexType | IntegerType | AnyFloat],
+        dest_typ: TensorType[AnyFloat],
         op: FloatingPointLikeBinaryOperation,
         rewriter: PatternRewriter,
     ) -> SSAValue:
@@ -245,10 +235,7 @@ class ApplyOpTensorize(RewritePattern):
                 ApplyOp.get(
                     op.args,
                     body,
-                    [
-                        stencil_temp_to_tensor(cast(TempType[Attribute], r.type))
-                        for r in op.res
-                    ],
+                    [stencil_temp_to_tensor(r.type) for r in op.res],
                 )
             )
 
@@ -259,7 +246,9 @@ class FuncOpTensorize(RewritePattern):
         if not op.is_declaration:
             for arg in op.args:
                 if isa(arg.type, FieldType[Attribute]):
-                    op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
+                    op.replace_argument_type(
+                        arg, stencil_field_to_tensor(arg.type), rewriter
+                    )
 
 
 def is_tensorized(
@@ -369,14 +358,9 @@ class ExtractSliceOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: ExtractSliceOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ):
-                if isa(offsets := op.static_offsets.get_values(), Sequence[IntAttr]):
-                    new_offsets = [o.data for o in offsets]
-                else:
-                    assert isa(offsets, Sequence[int])
-                    new_offsets = offsets
                 rewriter.replace_matched_op(
                     ExtractSliceOp.from_static_parameters(
-                        op.source, new_offsets, typ.get_shape()
+                        op.source, op.static_offsets.get_values(), typ.get_shape()
                     )
                 )
 
@@ -397,7 +381,7 @@ def arithBinaryOpUpdateShape(
 class ArithOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: AddfOp | SubfOp | MulfOp | DivfOp, rewriter: PatternRewriter, /
+        self, op: FloatingPointLikeBinaryOperation, rewriter: PatternRewriter, /
     ):
         arithBinaryOpUpdateShape(op, rewriter)
 
@@ -439,7 +423,7 @@ class ConstOpUpdateShape(RewritePattern):
                 if needs_update_shape(op.result.type, typ):
                     assert isinstance(op.value, DenseIntOrFPElementsAttr)
                     rewriter.replace_matched_op(
-                        ConstantOp(DenseIntOrFPElementsAttr([typ, op.value.data]))
+                        ConstantOp(DenseIntOrFPElementsAttr(typ, op.value.data))
                     )
 
 

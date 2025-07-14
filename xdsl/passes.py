@@ -1,17 +1,20 @@
+from __future__ import annotations
+
 import dataclasses
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable
 from dataclasses import Field, dataclass, field
 from types import NoneType, UnionType
 from typing import (
     Any,
     ClassVar,
     NamedTuple,
-    TypeVar,
     Union,
     get_args,
     get_origin,
 )
+
+from typing_extensions import Self, TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin
@@ -20,6 +23,7 @@ from xdsl.utils.parse_pipeline import (
     PassArgElementType,
     PassArgListType,
     PipelinePassSpec,
+    parse_pipeline,
 )
 
 ModulePassT = TypeVar("ModulePassT", bound="ModulePass")
@@ -60,7 +64,7 @@ class ModulePass(ABC):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None: ...
 
     @classmethod
-    def from_pass_spec(cls: type[ModulePassT], spec: PipelinePassSpec) -> ModulePassT:
+    def from_pass_spec(cls, spec: PipelinePassSpec) -> Self:
         """
         This method takes a PipelinePassSpec, does type checking on the
         arguments, and then instantiates an instance of the ModulePass
@@ -116,7 +120,7 @@ class ModulePass(ABC):
         return cls(**arg_dict)
 
     @classmethod
-    def required_fields(cls: type[ModulePassT]) -> set[str]:
+    def required_fields(cls) -> set[str]:
         """
         Inspects the definition of the pass for fields that do not have default values.
         """
@@ -186,14 +190,22 @@ def get_pass_option_infos(
 
 
 @dataclass(frozen=True)
-class PipelinePass(ModulePass):
+class PassPipeline:
+    """
+    A representation of a pass pipeline, with an optional callback to be executed
+    between each of the passes.
+    """
+
     passes: tuple[ModulePass, ...]
+    """
+    These will be executed sequentially during the execution of the pipeline.
+    """
     callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] | None = field(
         default=None
     )
     """
-    Function called in between every pass, taking the pass that just ran, the module, and
-    the next pass.
+    Function called in between every pass, taking the pass that just ran, the module,
+    and the next pass.
     """
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
@@ -209,16 +221,23 @@ class PipelinePass(ModulePass):
 
         self.passes[-1].apply(ctx, op)
 
-    @classmethod
-    def build_pipeline_tuples(
-        cls,
+    @staticmethod
+    def parse_spec(
         available_passes: dict[str, Callable[[], type[ModulePass]]],
-        pass_spec_pipeline: Iterable[PipelinePassSpec],
-    ) -> Iterator[tuple[type[ModulePass], PipelinePassSpec]]:
-        for p in pass_spec_pipeline:
-            if p.name not in available_passes:
-                raise Exception(f"Unrecognized pass: {p.name}")
-            yield (available_passes[p.name](), p)
+        spec: str,
+        callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None]
+        | None = None,
+    ) -> PassPipeline:
+        specs = tuple(parse_pipeline(spec))
+        unrecognised_passes = tuple(
+            p.name for p in specs if p.name not in available_passes
+        )
+        if unrecognised_passes:
+            raise Exception(f"Unrecognized passes: {list(unrecognised_passes)}")
+
+        passes = tuple(available_passes[p.name]().from_pass_spec(p) for p in specs)
+
+        return PassPipeline(passes, callback)
 
 
 def _convert_pass_arg_to_type(

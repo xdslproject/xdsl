@@ -45,7 +45,6 @@ from xdsl.transforms.varith_transformations import (
     ConvertVarithToArithPass,
 )
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 def get_stencil_access_operands(op: Operand) -> set[Operand]:
@@ -175,9 +174,8 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             "all swaps need to be of uniform size"
         )
 
-        assert isattr(
-            op.input_stencil.type,
-            MemRefType.constr() | stencil.StencilTypeConstr,
+        assert (MemRefType.constr() | stencil.StencilTypeConstr).verifies(
+            op.input_stencil.type
         )
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
@@ -312,7 +310,8 @@ def split_ops(
         for op in ops:
             if op in a:
                 recv_chunk_ops.append(op)
-                if op in cnst_exports and isinstance(op, arith.ConstantOp):
+                if op in cnst_exports:
+                    assert isinstance(op, arith.ConstantOp)
                     # create a copy of the constant in the second region
                     done_exch_ops.append(cln := op.clone())
                     # rewire ops of the second region to use the copied constant
@@ -581,7 +580,7 @@ class PromoteCoefficients(RewritePattern):
             return
 
         val = dense.get_attrs()[0]
-        assert isattr(val, FloatAttr)
+        assert isinstance(val, FloatAttr)
         apply.add_coeff(op.offset, val)
         rewriter.replace_op(mulf, [], new_results=[op.result])
 

@@ -7,14 +7,13 @@ be materialised and there is a higher level of information about
 the programmer's Fortran code, compared to FIR, available for
 optimisation and lowering.
 
-For more details see https://flang.llvm.org/docs/HighLevelFIR.html
+See external [documentation](https://flang.llvm.org/docs/HighLevelFIR.html).
 """
 
 from __future__ import annotations
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
-    AnyFloat,
     ArrayAttr,
     Attribute,
     BoolAttr,
@@ -30,13 +29,11 @@ from xdsl.dialects.experimental.fir import (
     DeferredAttr,
     FortranVariableFlagsAttr,
     NoneType,
-    ReferenceType,
 )
 from xdsl.ir import Dialect, TypeAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -45,10 +42,14 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
+    var_region_def,
+    var_result_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator
 
 
 @irdl_attr_definition
@@ -61,24 +62,22 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "hlfir.expr"
-    shape: ParameterDef[ArrayAttr[IntegerAttr | DeferredAttr | NoneType]]
-    elementType: ParameterDef[IntegerType | AnyFloat | ReferenceType]
+    shape: ArrayAttr[IntegerAttr | DeferredAttr | NoneType]
+    elementType: Attribute
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        for s in self.shape.data:
-            if isinstance(s, DeferredAttr):
-                printer.print_string("?")
-            elif isinstance(s, NoneType):
-                raise Exception(
-                    "Can not have none type as part of sequence shape with only one type"
-                )
-            else:
-                printer.print_string(f"{s.value.data}")
-            printer.print_string("x")
-        printer.print(self.elementType)
-
-        printer.print(">")
+        with printer.in_angle_brackets():
+            for s in self.shape.data:
+                if isinstance(s, DeferredAttr):
+                    printer.print_string("?")
+                elif isinstance(s, NoneType):
+                    raise Exception(
+                        "Can not have none type as part of sequence shape with only one type"
+                    )
+                else:
+                    printer.print_int(s.value.data)
+                printer.print_string("x")
+            printer.print_attribute(self.elementType)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -148,6 +147,7 @@ class DeclareOp(IRDLOperation):
     memref = operand_def()
     shape = opt_operand_def()
     typeparams = var_operand_def()
+    dummy_scope = opt_operand_def()
     uniq_name = opt_prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
     result = result_def()
@@ -494,7 +494,7 @@ class AssociateOp(IRDLOperation):
     typeparams = var_operand_def()
     uniq_name = opt_prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
-    result = result_def()
+    result = var_result_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -588,6 +588,7 @@ class ElementalOp(IRDLOperation):
     mold = opt_operand_def()
     typeparams = var_operand_def()
     unordered = opt_prop_def(UnitAttr)
+    regs = var_region_def()
     result = result_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -603,6 +604,8 @@ class YieldElementOp(IRDLOperation):
 
     name = "hlfir.yield_element"
     element_value = operand_def()
+
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -696,7 +699,7 @@ class CopyInOp(IRDLOperation):
     name = "hlfir.copy_in"
     var = operand_def()
     var_is_present = opt_operand_def()
-    result = result_def()
+    result = var_result_def()
 
 
 @irdl_op_definition
@@ -806,6 +809,8 @@ class RegionYieldOp(IRDLOperation):
     name = "hlfir.yield"
     entity = operand_def()
     cleanup = region_def()
+
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition

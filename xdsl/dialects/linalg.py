@@ -15,7 +15,10 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
     DenseArrayBase,
-    DenseIntOrFPElementsAttr,
+    DenseIntElementsAttr,
+    IndexType,
+    IndexTypeConstr,
+    IntegerAttr,
     IntegerType,
     MemRefType,
     ShapedType,
@@ -47,13 +50,14 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -239,7 +243,7 @@ class GenericOp(IRDLOperation):
             del extra_attrs["library_call"]
 
         if extra_attrs:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(extra_attrs)
 
         printer.print_string(" ")
@@ -250,11 +254,10 @@ class GenericOp(IRDLOperation):
             if len(self.res) == 1:
                 printer.print_attribute(self.res[0].type)
             else:
-                printer.print("(")
-                printer.print_list(
-                    self.res, lambda res: printer.print_attribute(res.type)
-                )
-                printer.print(")")
+                with printer.in_parens():
+                    printer.print_list(
+                        self.res, lambda res: printer.print_attribute(res.type)
+                    )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -388,7 +391,27 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = traits_def(IsTerminator())
 
 
-class NamedOpBase(IRDLOperation, ABC):
+@irdl_op_definition
+class IndexOp(IRDLOperation):
+    name = "linalg.index"
+
+    dim = prop_def(IntegerAttr[i64])
+
+    result = result_def(IndexTypeConstr)
+
+    traits = traits_def(HasParent(GenericOp))
+
+    assembly_format = "$dim attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        dim: int,
+    ):
+        dim_attr = IntegerAttr(dim, i64)
+        super().__init__(properties={"dim": dim_attr}, result_types=[IndexType()])
+
+
+class NamedOperation(IRDLOperation, ABC):
     """
     Abstract base class for named ops with hidden region.
     """
@@ -511,7 +534,7 @@ class NamedOpBase(IRDLOperation, ABC):
             printer.print_string(")")
 
         if extra_attrs and not self.PRINT_ATTRS_IN_FRONT:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(extra_attrs)
 
         if self.res:
@@ -519,11 +542,10 @@ class NamedOpBase(IRDLOperation, ABC):
             if len(self.res) == 1:
                 printer.print_attribute(self.res[0].type)
             else:
-                printer.print("(")
-                printer.print_list(
-                    self.res, lambda res: printer.print_attribute(res.type)
-                )
-                printer.print(")")
+                with printer.in_parens():
+                    printer.print_list(
+                        self.res, lambda res: printer.print_attribute(res.type)
+                    )
 
     @staticmethod
     def body_arg_types(
@@ -537,9 +559,7 @@ class NamedOpBase(IRDLOperation, ABC):
 
         for op in operands:
             op_type = op.type
-            if isa(op_type, MemRefType[Attribute]):
-                element_type = op_type.get_element_type()
-            elif isa(op_type, TensorType[Attribute]):
+            if isa(op_type, MemRefType | TensorType):
                 element_type = op_type.get_element_type()
             else:  # int or float
                 element_type = op_type
@@ -550,11 +570,11 @@ class NamedOpBase(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class AddOp(NamedOpBase):
+class AddOp(NamedOperation):
     """
     Adds two tensors elementwise.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgadd-linalgaddop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgadd-linalgaddop).
     """
 
     name = "linalg.add"
@@ -589,11 +609,11 @@ class AddOp(NamedOpBase):
 
 
 @irdl_op_definition
-class SubOp(NamedOpBase):
+class SubOp(NamedOperation):
     """
     Subtracts two tensors elementwise.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgsub-linalgsubop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgsub-linalgsubop).
     """
 
     name = "linalg.sub"
@@ -628,7 +648,45 @@ class SubOp(NamedOpBase):
 
 
 @irdl_op_definition
-class FillOp(NamedOpBase):
+class SelectOp(NamedOperation):
+    """
+    Chooses one value based on a binary condition supplied as its first operand.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgselect-linalgselectop).
+    """
+
+    name = "linalg.select"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = arith.SelectOp(*args[: len(inputs)])
+            YieldOp(result)
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
+
+
+@irdl_op_definition
+class FillOp(NamedOperation):
     """
     Fills the output tensor with the given value.
 
@@ -636,7 +694,7 @@ class FillOp(NamedOpBase):
     only and is thus rank polymorphic. Numeric casting is performed on the value operand,
     promoting it to the same data type as the output.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgfill-linalgfillop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgfill-linalgfillop).
     """
 
     name = "linalg.fill"
@@ -680,11 +738,93 @@ class FillOp(NamedOpBase):
 
 
 @irdl_op_definition
-class MulOp(NamedOpBase):
+class MaxOp(NamedOperation):
+    """
+    Takes the max (signed) between two inputs, elementwise.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmax-linalgmaxop).
+    """
+
+    name = "linalg.max"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+        maxop = (
+            arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
+        )
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = maxop(args[0], args[1])
+            YieldOp(result)
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
+
+
+@irdl_op_definition
+class MinOp(NamedOperation):
+    """
+    Takes the max (signed) between two inputs, elementwise.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmax-linalgmaxop).
+    """
+
+    name = "linalg.min"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+        minop = (
+            arith.MinimumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MinSIOp
+        )
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = minop(args[0], args[1])
+            YieldOp(result)
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
+
+
+@irdl_op_definition
+class MulOp(NamedOperation):
     """
     Multiplies two tensors elementwise.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmul-linalgmulop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmul-linalgmulop).
     """
 
     name = "linalg.mul"
@@ -723,7 +863,7 @@ class TransposeOp(IRDLOperation):
     """
     Transpose operator
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgtranspose-linalgtransposeop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgtranspose-linalgtransposeop).
     """
 
     name = "linalg.transpose"
@@ -734,7 +874,7 @@ class TransposeOp(IRDLOperation):
 
     hidden_region = region_def("single_block")
 
-    permutation = prop_def(DenseArrayBase)
+    permutation = prop_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
@@ -743,7 +883,7 @@ class TransposeOp(IRDLOperation):
         permutation: Attribute,
         result: Attribute | None = None,
     ):
-        arg_types = NamedOpBase.body_arg_types((input, init))
+        arg_types = NamedOperation.body_arg_types((input, init))
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -776,7 +916,7 @@ class TransposeOp(IRDLOperation):
                 f"Input rank ({input_rank}) does not match size of permutation ({permutation_size})"
             )
 
-        permutation_shape = cast(list[int], self.permutation.get_values())
+        permutation_shape = self.permutation.get_values()
 
         for i in range(len(input_shape)):
             input_dimension = input_shape[permutation_shape[i]]
@@ -789,19 +929,19 @@ class TransposeOp(IRDLOperation):
                 )
 
     def print(self, printer: Printer):
-        printer.print_string(" ins(")
-        printer.print(self.input)
-        printer.print_string(":")
-        printer.print(self.input.type)
-        printer.print_string(")")
-        printer.print_string(" outs(")
-        printer.print(self.init)
-        printer.print_string(":")
-        printer.print(self.init.type)
-        printer.print_string(") ")
-        printer.print_string("permutation")
-        printer.print_string(" = ")
-        printer.print(list(self.permutation.get_values()))
+        printer.print_string(" ins")
+        with printer.in_parens():
+            printer.print_ssa_value(self.input)
+            printer.print_string(":")
+            printer.print_attribute(self.input.type)
+        printer.print_string(" outs")
+        with printer.in_parens():
+            printer.print_ssa_value(self.init)
+            printer.print_string(":")
+            printer.print_attribute(self.init.type)
+        printer.print_string(" permutation = ")
+        with printer.in_square_brackets():
+            printer.print_list(self.permutation.get_values(), printer.print_int)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -825,24 +965,25 @@ class TransposeOp(IRDLOperation):
         transpose = cls(
             input,
             init,
-            DenseArrayBase.create_dense_int(i64, permutation),
+            DenseArrayBase.from_list(i64, permutation),
             result,
         )
         return transpose
 
 
 @irdl_op_definition
-class MatmulOp(NamedOpBase):
+class MatmulOp(NamedOperation):
     """
     Performs a matrix multiplication of two 2D inputs.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmatmul-linalgmatmulop
-
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmatmul-linalgmatmulop).
     """
 
     name = "linalg.matmul"
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
+
+    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
 
     def __init__(
         self,
@@ -874,33 +1015,32 @@ class MatmulOp(NamedOpBase):
             YieldOp(mac)
 
         # add linalg.memoized_indexing_maps attribute
-        if not attributes:
-            attributes = {}
-        if "linalg.memoized_indexing_maps" not in attributes:
-            attributes["linalg.memoized_indexing_maps"] = ArrayAttr(
+        properties: dict[str, Attribute] = {
+            "indexing_maps": ArrayAttr(
                 [
                     AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
                     AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
                     AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
                 ]
             )
+        }
 
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=result_types,
+            properties=properties,
             attributes=attributes,
             hidden_region=hidden_region,
         )
 
 
 @irdl_op_definition
-class QuantizedMatmulOp(NamedOpBase):
+class QuantizedMatmulOp(NamedOperation):
     """
     Performs a matrix multiplication of two 2D inputs.
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgquantized_matmul-linalgquantizedmatmulop
-
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgquantized_matmul-linalgquantizedmatmulop).
     """
 
     name = "linalg.quantized_matmul"
@@ -958,21 +1098,21 @@ class QuantizedMatmulOp(NamedOpBase):
         )
 
 
-class PoolingOpsBase(NamedOpBase, ABC):
+class PoolingOperation(NamedOperation, ABC):
     """Base class for linalg pooling operations."""
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    strides = attr_def(DenseIntOrFPElementsAttr)
-    dilations = attr_def(DenseIntOrFPElementsAttr)
+    strides = attr_def(DenseIntElementsAttr)
+    dilations = attr_def(DenseIntElementsAttr)
 
 
 @irdl_op_definition
-class PoolingNchwMaxOp(PoolingOpsBase):
+class PoolingNchwMaxOp(PoolingOperation):
     """
     Performs max pooling
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_max-linalgpoolingnchwmaxop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_max-linalgpoolingnchwmaxop).
     """
 
     name = "linalg.pooling_nchw_max"
@@ -1004,13 +1144,13 @@ class PoolingNchwMaxOp(PoolingOpsBase):
         )
 
 
-class ConvOpsBase(NamedOpBase, ABC):
+class ConvOperation(NamedOperation, ABC):
     """Base class for linalg convolution operations."""
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    strides = attr_def(DenseIntOrFPElementsAttr)
-    dilations = attr_def(DenseIntOrFPElementsAttr)
+    strides = attr_def(DenseIntElementsAttr)
+    dilations = attr_def(DenseIntElementsAttr)
 
     def __init__(
         self,
@@ -1049,14 +1189,39 @@ class ConvOpsBase(NamedOpBase, ABC):
 
 
 @irdl_op_definition
-class Conv2DNchwFchwOp(ConvOpsBase):
+class Conv2DNchwFchwOp(ConvOperation):
     """
     Performs 2-D convolution
 
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgconv_2d_nchw_fchw-linalgconv2dnchwfchwop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgconv_2d_nchw_fchw-linalgconv2dnchwfchwop).
     """
 
     name = "linalg.conv_2d_nchw_fchw"
+
+
+@irdl_op_definition
+class Conv2DNgchwFgchwOp(ConvOperation):
+    name = "linalg.conv_2d_ngchw_fgchw"
+
+
+@irdl_op_definition
+class Conv2DNgchwGfchwOp(ConvOperation):
+    name = "linalg.conv_2d_ngchw_gfchw"
+
+
+@irdl_op_definition
+class Conv2DNhwc_FhwcOp(ConvOperation):
+    name = "linalg.conv_2d_nhwc_fhwc"
+
+
+@irdl_op_definition
+class Conv2DNhwc_HwcfOp(ConvOperation):
+    name = "linalg.conv_2d_nhwc_hwcf"
+
+
+@irdl_op_definition
+class Conv2DNhwgcGfhwcOp(ConvOperation):
+    name = "linalg.conv_2d_nhwgc_gfhwc"
 
 
 @irdl_op_definition
@@ -1075,7 +1240,7 @@ class BroadcastOp(IRDLOperation):
 
     hidden_region = region_def("single_block")
 
-    dimensions = attr_def(DenseArrayBase)
+    dimensions = attr_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
@@ -1084,7 +1249,7 @@ class BroadcastOp(IRDLOperation):
         dimensions: Attribute,
         result: Attribute | None = None,
     ):
-        arg_types = NamedOpBase.body_arg_types((input, init))
+        arg_types = NamedOperation.body_arg_types((input, init))
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -1135,19 +1300,19 @@ class BroadcastOp(IRDLOperation):
                 )
 
     def print(self, printer: Printer):
-        printer.print_string(" ins(")
-        printer.print(self.input)
-        printer.print_string(":")
-        printer.print(self.input.type)
-        printer.print_string(")")
-        printer.print_string(" outs(")
-        printer.print(self.init)
-        printer.print_string(":")
-        printer.print(self.init.type)
-        printer.print_string(") ")
-        printer.print_string("dimensions")
-        printer.print_string(" = ")
-        printer.print(list(self.dimensions.get_values()))
+        printer.print_string(" ins")
+        with printer.in_parens():
+            printer.print_ssa_value(self.input)
+            printer.print_string(":")
+            printer.print_attribute(self.input.type)
+        printer.print_string(" outs")
+        with printer.in_parens():
+            printer.print_ssa_value(self.init)
+            printer.print_string(":")
+            printer.print_attribute(self.init.type)
+        printer.print_string(" dimensions = ")
+        with printer.in_square_brackets():
+            printer.print_list(self.dimensions.get_values(), printer.print_int)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -1171,7 +1336,7 @@ class BroadcastOp(IRDLOperation):
         broadcast = cls(
             input,
             init,
-            DenseArrayBase.create_dense_int(i64, dimensions),
+            DenseArrayBase.from_list(i64, dimensions),
             result,
         )
         return broadcast
@@ -1182,15 +1347,24 @@ Linalg = Dialect(
     [
         GenericOp,
         YieldOp,
+        IndexOp,
         AddOp,
         SubOp,
+        SelectOp,
         FillOp,
+        MaxOp,
+        MinOp,
         MulOp,
         TransposeOp,
         MatmulOp,
         QuantizedMatmulOp,
         PoolingNchwMaxOp,
         Conv2DNchwFchwOp,
+        Conv2DNhwgcGfhwcOp,
+        Conv2DNhwc_HwcfOp,
+        Conv2DNgchwGfchwOp,
+        Conv2DNgchwFgchwOp,
+        Conv2DNhwc_FhwcOp,
         BroadcastOp,
     ],
     [

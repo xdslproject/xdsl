@@ -2,8 +2,8 @@
 This is a stub of CIRCT’s hw dialect.
 Follows definitions as of CIRCT commit `f8c7faec1e8447521a1ea9a0836b6923a132c79e`.
 
-[1] https://circt.llvm.org/docs/Dialects/HW/
-[2] https://circt.llvm.org/docs/RationaleSymbols/
+See [rationale](https://circt.llvm.org/docs/RationaleSymbols/) for symbols.
+See external [documentation](https://circt.llvm.org/docs/Dialects/HW/).
 """
 
 import abc
@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttrConstr,
     IntAttr,
     LocationAttr,
-    ParameterDef,
     StringAttr,
     SymbolRefAttr,
 )
@@ -35,7 +34,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    SingleBlockRegion,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -100,16 +98,16 @@ class InnerRefAttr(ParametrizedAttribute):
     """This works like a symbol reference, but to a name inside a module."""
 
     name = "hw.innerNameRef"
-    module_ref: ParameterDef[FlatSymbolRefAttr]
+    module_ref: FlatSymbolRefAttr
     # NB. upstream defines as “name” which clashes with Attribute.name
-    sym_name: ParameterDef[StringAttr]
+    sym_name: StringAttr
 
     def __init__(self, module: str | StringAttr, name: str | StringAttr) -> None:
         if isinstance(module, str):
             module = StringAttr(module)
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__((SymbolRefAttr(module), name))
+        super().__init__(SymbolRefAttr(module), name)
 
     @classmethod
     def get_from_operation(
@@ -139,11 +137,10 @@ class InnerRefAttr(ParametrizedAttribute):
         ]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<@")
-        printer.print_string(self.module_ref.root_reference.data)
-        printer.print_string("::@")
-        printer.print_string(self.sym_name.data)
-        printer.print_string(">")
+        with printer.in_angle_brackets():
+            printer.print_symbol_name(self.module_ref.root_reference.data)
+            printer.print_string("::")
+            printer.print_symbol_name(self.sym_name.data)
 
 
 @dataclass(frozen=True)
@@ -172,7 +169,9 @@ class InnerSymbolTable:
     """A class for lookups in inner symbol tables. Called InnerSymbolTable in upstream (name clash with trait)."""
 
     op: InitVar[Operation | None] = None
-    symbol_table: dict[StringAttr, InnerSymTarget] = field(default_factory=dict)
+    symbol_table: dict[StringAttr, InnerSymTarget] = field(
+        default_factory=dict[StringAttr, InnerSymTarget]
+    )
 
     def __post_init__(self, op: Operation | None = None) -> None:
         pass
@@ -184,7 +183,7 @@ class InnerSymbolTableCollection:
     """This class represents a collection of InnerSymbolTable."""
 
     symbol_tables: dict[Operation, InnerSymbolTable] = field(
-        default_factory=dict, init=False
+        default_factory=dict[Operation, InnerSymbolTable], init=False
     )
     op: InitVar[Operation | None] = None
 
@@ -258,8 +257,6 @@ class InnerRefNamespaceTrait(OpTrait):
 class InnerRefNamespaceLike(abc.ABC, OpTrait):
     """Trait-metaclass to check whether an operation is explicitly an IRN or appears compatible."""
 
-    ...
-
 
 InnerRefNamespaceLike.register(SymbolTable)
 InnerRefNamespaceLike.register(InnerRefNamespaceTrait)
@@ -287,9 +284,9 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
     name = "hw.innerSymProps"
 
     # NB. upstream defines as “name” which clashes with Attribute.name
-    sym_name: ParameterDef[StringAttr]
-    field_id: ParameterDef[IntAttr]
-    sym_visibility: ParameterDef[StringAttr]
+    sym_name: StringAttr
+    field_id: IntAttr
+    sym_visibility: StringAttr
 
     def __init__(
         self,
@@ -303,7 +300,7 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
             field_id = IntAttr(field_id)
         if isinstance(sym_visibility, str):
             sym_visibility = StringAttr(sym_visibility)
-        super().__init__([sym, field_id, sym_visibility])
+        super().__init__(sym, field_id, sym_visibility)
 
     @classmethod
     def parse_parameters(
@@ -324,7 +321,7 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
         printer.print_string("<@")
         printer.print_string(self.sym_name.data)
         printer.print_string(",")
-        printer.print_string(str(self.field_id.data))
+        printer.print_int(self.field_id.data)
         printer.print_string(",")
         printer.print_string(self.sym_visibility.data)
         printer.print_string(">")
@@ -350,7 +347,7 @@ class InnerSymAttr(
 
     name = "hw.innerSym"
 
-    props: ParameterDef[ArrayAttr[InnerSymPropertiesAttr]]
+    props: ArrayAttr[InnerSymPropertiesAttr]
 
     @overload
     def __init__(self) -> None:
@@ -378,7 +375,7 @@ class InnerSymAttr(
             syms = [InnerSymPropertiesAttr(syms)]
         if not isinstance(syms, ArrayAttr):
             syms = ArrayAttr(syms)
-        super().__init__([syms])
+        super().__init__(syms)
 
     def get_sym_if_exists(self, field_id: IntAttr | int) -> StringAttr | None:
         """Get the inner sym name for field_id, if it exists."""
@@ -465,9 +462,9 @@ class Direction(Enum):
     def print(self, printer: Printer, short: bool = False) -> None:
         match self:
             case Direction.INPUT:
-                printer.print("input" if not short else "in")
+                printer.print_string("input" if not short else "in")
             case Direction.OUTPUT:
-                printer.print("output" if not short else "out")
+                printer.print_string("output" if not short else "out")
 
     def is_input_like(self) -> bool:
         return self == Direction.INPUT
@@ -504,16 +501,16 @@ class ModulePort(ParametrizedAttribute):
 
     name = "hw.modport"
 
-    port_name: ParameterDef[StringAttr]
-    type: ParameterDef[TypeAttribute]
-    dir: ParameterDef[DirectionAttr]
+    port_name: StringAttr
+    type: TypeAttribute
+    dir: DirectionAttr
 
 
 @irdl_attr_definition
 class ModuleType(ParametrizedAttribute, TypeAttribute):
     name = "hw.modty"
 
-    ports: ParameterDef[ArrayAttr[ModulePort]]
+    ports: ArrayAttr[ModulePort]
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -529,7 +526,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
             parser.parse_punctuation(":")
             typ = parser.parse_type()
 
-            return ModulePort([StringAttr(name), typ, DirectionAttr(direction)])
+            return ModulePort(StringAttr(name), typ, DirectionAttr(direction))
 
         return [
             ArrayAttr(
@@ -540,9 +537,9 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer):
         def print_port(port: ModulePort):
             port.dir.data.print(printer)
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_identifier_or_string_literal(port.port_name.data)
-            printer.print(" : ")
+            printer.print_string(" : ")
             printer.print_attribute(port.type)
 
         with printer.in_angle_brackets():
@@ -553,13 +550,13 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
 class ParamDeclAttr(ParametrizedAttribute):
     name = "hw.param.decl"
 
-    port_name: ParameterDef[StringAttr]
-    type: ParameterDef[TypeAttribute]
+    port_name: StringAttr
+    type: TypeAttribute
 
     @classmethod
     def parse_free_standing_parameters(
         cls, parser: AttrParser, only_accept_string_literal_name: bool = False
-    ) -> Sequence[Attribute]:
+    ) -> tuple[StringAttr, TypeAttribute]:
         """
         Parses the parameter declaration without the encompassing angle brackets.
         If only_accept_string_literal_name is True, the parser will not accept
@@ -603,7 +600,7 @@ class ParamDeclAttr(ParametrizedAttribute):
             printer.print_attribute(self.port_name)
         else:
             printer.print_identifier_or_string_literal(self.port_name.data)
-        printer.print(": ")
+        printer.print_string(": ")
         printer.print_attribute(self.type)
 
     def print_parameters(self, printer: Printer):
@@ -657,20 +654,16 @@ class ParsedModuleHeader(NamedTuple):
 
     def get_module_type(self) -> ModuleType:
         return ModuleType(
-            [
-                ArrayAttr(
-                    tuple(
-                        ModulePort(
-                            (
-                                StringAttr(arg.port_name),
-                                arg.port_type,
-                                DirectionAttr(arg.port_dir),
-                            )
-                        )
-                        for arg in self.args
+            ArrayAttr(
+                tuple(
+                    ModulePort(
+                        StringAttr(arg.port_name),
+                        arg.port_type,
+                        DirectionAttr(arg.port_dir),
                     )
+                    for arg in self.args
                 )
-            ]
+            )
         )
 
     @classmethod
@@ -715,7 +708,9 @@ class ParsedModuleHeader(NamedTuple):
         name = parser.parse_symbol_name()
         parameters = parser.parse_optional_comma_separated_list(
             parser.Delimiter.ANGLE,
-            lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
+            lambda: ParamDeclAttr(
+                *ParamDeclAttr.parse_free_standing_parameters(parser)
+            ),
         )
         args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parse_module_arg
@@ -745,9 +740,10 @@ def print_module_header(
     name of an SSA value, or a string decided beforehand.
     """
     if visibility is not None:
-        printer.print(f" {visibility.data}")
-    printer.print(" @")
-    printer.print_identifier_or_string_literal(module_name.data)
+        printer.print_string(" ")
+        printer.print_string(visibility.data)
+    printer.print_string(" ")
+    printer.print_symbol_name(module_name.data)
 
     # Print parameters
     if parameters is not None and len(parameters.data) != 0:
@@ -757,13 +753,12 @@ def print_module_header(
                 lambda x: x.print_free_standing_parameters(printer),
             )
 
-    printer.print("(")
     arg_iter = iter(arg_ssa_iter)
 
     def print_port(port: ModulePort):
         ssa_arg = next(arg_iter) if port.dir.data.is_input_like() else None
         port.dir.data.print(printer, short=True)
-        printer.print(" ")
+        printer.print_string(" ")
 
         # Print argument
         if ssa_arg is not None:
@@ -771,19 +766,19 @@ def print_module_header(
                 used_name = printer.print_ssa_value(ssa_arg)
             else:
                 assert isinstance(ssa_arg, str)
-                printer.print(f"%{ssa_arg}")
+                printer.print_string("%")
+                printer.print_string(ssa_arg)
                 used_name = ssa_arg
             if port.port_name.data != used_name:
-                printer.print(" ")
+                printer.print_string(" ")
                 printer.print_identifier_or_string_literal(port.port_name.data)
         else:
             printer.print_identifier_or_string_literal(port.port_name.data)
-        printer.print(": ")
+        printer.print_string(": ")
         printer.print_attribute(port.type)
 
-    printer.print_list(module_type.ports.data, print_port)
-
-    printer.print(")")
+    with printer.in_parens():
+        printer.print_list(module_type.ports.data, print_port)
 
 
 _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT: list[str] = [
@@ -821,7 +816,7 @@ class HWModuleOp(IRDLOperation):
     sym_visibility = opt_attr_def(StringAttr)
     parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
-    body: SingleBlockRegion = region_def("single_block")
+    body = region_def("single_block")
 
     traits = lazy_traits_def(
         lambda: (
@@ -917,7 +912,7 @@ class HWModuleOp(IRDLOperation):
             reserved_attr_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
             print_keyword=True,
         )
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_region(self.body, print_entry_block_args=False)
 
 
@@ -1188,41 +1183,41 @@ class InstanceOp(IRDLOperation):
         )
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_attribute(self.instance_name)
-        printer.print(" ")
+        printer.print_string(" ")
         if self.inner_sym is not None:
-            printer.print("sym ")
+            printer.print_string("sym ")
             printer.print_attribute(self.inner_sym)
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_attribute(self.module_name)
 
         def print_input_port(name: str, operand: SSAValue):
             printer.print_identifier_or_string_literal(name)
-            printer.print(": ")
+            printer.print_string(": ")
             printer.print_operand(operand)
-            printer.print(": ")
+            printer.print_string(": ")
             printer.print_attribute(operand.type)
 
         def print_output_port(name: str, port_type: Attribute):
             printer.print_identifier_or_string_literal(name)
-            printer.print(": ")
+            printer.print_string(": ")
             printer.print_attribute(port_type)
 
-        printer.print("(")
-        printer.print_list(
-            zip((name.data for name in self.arg_names), self.operands),
-            lambda x: print_input_port(*x),
-        )
-        printer.print(") -> (")
-        printer.print_list(
-            zip(
-                (name.data for name in self.result_names),
-                self.result_types,
-            ),
-            lambda x: print_output_port(*x),
-        )
-        printer.print(")")
+        with printer.in_parens():
+            printer.print_list(
+                zip((name.data for name in self.arg_names), self.operands),
+                lambda x: print_input_port(*x),
+            )
+        printer.print_string(" -> ")
+        with printer.in_parens():
+            printer.print_list(
+                zip(
+                    (name.data for name in self.result_names),
+                    self.result_types,
+                ),
+                lambda x: print_output_port(*x),
+            )
         printer.print_op_attributes(
             self.attributes,
             reserved_attr_names=(
@@ -1286,9 +1281,9 @@ class OutputOp(IRDLOperation):
         if len(self.inputs) == 0:
             return
 
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_operand)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_list(self.inputs.types, printer.print_attribute)
 
 

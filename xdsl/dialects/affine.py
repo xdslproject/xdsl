@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, ClassVar, cast
+from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     ArrayAttr,
     ContainerType,
-    DenseIntOrFPElementsAttr,
+    DenseIntElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -23,7 +23,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     VarConstraint,
-    attr_def,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -43,6 +42,7 @@ from xdsl.traits import (
     RecursiveMemoryEffect,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @irdl_op_definition
@@ -97,13 +97,13 @@ class ApplyOp(IRDLOperation):
         assert len(operands) == m.num_dims + m.num_symbols, f"{len(operands)} {m}"
         printer.print_string(" ")
         printer.print_attribute(self.map)
-        printer.print_string(" ")
+        printer.print_string(" (")
         if m.num_dims:
-            printer.print_string("(")
             printer.print_list(
                 operands[: m.num_dims], lambda el: printer.print_operand(el)
             )
-            printer.print_string(")")
+        printer.print_string(")")
+
         if m.num_symbols:
             printer.print_string("[")
             printer.print_list(
@@ -198,7 +198,7 @@ class ForOp(IRDLOperation):
 @irdl_op_definition
 class IfOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop).
     """
 
     name = "affine.if"
@@ -206,7 +206,7 @@ class IfOp(IRDLOperation):
     args = var_operand_def(IndexType)
     res = var_result_def()
 
-    condition = attr_def(AffineSetAttr)
+    condition = prop_def(AffineSetAttr)
 
     then_region = region_def("single_block")
     else_region = region_def()
@@ -217,7 +217,7 @@ class IfOp(IRDLOperation):
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     """
-    https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop).
     """
 
     name = "affine.parallel"
@@ -226,9 +226,9 @@ class ParallelOp(IRDLOperation):
 
     reductions = prop_def(ArrayAttr[StringAttr])
     lowerBoundsMap = prop_def(AffineMapAttr)
-    lowerBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    lowerBoundsGroups = prop_def(DenseIntElementsAttr)
     upperBoundsMap = prop_def(AffineMapAttr)
-    upperBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    upperBoundsGroups = prop_def(DenseIntElementsAttr)
     steps = prop_def(ArrayAttr[IntegerAttr[IntegerType]])
 
     res = var_result_def()
@@ -318,18 +318,18 @@ class LoadOp(IRDLOperation):
                 raise ValueError(
                     "affine.store memref operand must be of type ShapedType"
                 )
-            memref_type = cast(MemRefType[Attribute], memref.type)
+            memref_type = cast(MemRefType, memref.type)
             rank = memref_type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
         if result_type is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
-            if not isinstance(memref.type, ContainerType):
+            if not isa(memref.type, ContainerType):
                 raise ValueError(
                     "affine.store memref operand must be of type ContainerType"
                 )
-            memref_type = cast(ContainerType[Any], memref.type)
-            result_type = memref_type.get_element_type()
+
+            result_type = memref.type.get_element_type()
 
         super().__init__(
             operands=(memref, indices),

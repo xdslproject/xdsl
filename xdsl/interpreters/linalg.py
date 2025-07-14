@@ -202,8 +202,8 @@ class LinalgFunctions(InterpreterFunctions):
         ]
 
         output: list[float] = []
-        for k in range(0, m_height - ky + 1, int(strides[0])):
-            for l in range(0, m_width - kx + 1, int(strides[0])):
+        for k in range(0, m_height - ky + 1, strides[0]):
+            for l in range(0, m_width - kx + 1, strides[0]):
                 block_max_value = float("-inf")
                 for i in range(k, k + ky):
                     for j in range(l, l + kx):
@@ -248,8 +248,8 @@ class LinalgFunctions(InterpreterFunctions):
             for r in range(kernel_filter.shape[2])
         ]
         output: list[float] = []
-        for k in range(0, m_height - ky + 1, int(strides[0])):
-            for l in range(0, m_width - kx + 1, int(strides[0])):
+        for k in range(0, m_height - ky + 1, strides[0]):
+            for l in range(0, m_width - kx + 1, strides[0]):
                 conv_value: float = 0.0
                 for i in range(k, k + ky):
                     for j in range(l, l + kx):

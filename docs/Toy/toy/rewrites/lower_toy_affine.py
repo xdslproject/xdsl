@@ -6,7 +6,9 @@ expects that all calls have been inlined, and all shapes have been resolved.
 
 from collections.abc import Callable, Sequence
 from itertools import product
-from typing import TypeAlias, TypeVar, cast
+from typing import TypeAlias, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.builder import Builder, InsertPoint
 from xdsl.context import Context
@@ -136,8 +138,6 @@ def build_affine_for_const(
         body_builder_fn,
     )
 
-
-_Bounds: TypeAlias = tuple[int, ...]
 
 LoopIterationFn: TypeAlias = Callable[[Builder, _ValueRange, _ValueRange], SSAValue]
 """
@@ -356,7 +356,7 @@ class ConstantOpLowering(RewritePattern):
         # When lowering the constant operation, we allocate and assign the constant
         # values to a corresponding memref allocation.
 
-        tensor_type = cast(toy.TensorTypeF64, op.res.type)
+        tensor_type = op.res.type
         memref_type = convert_tensor_to_memref(tensor_type)
         alloc = insert_alloc_and_dealloc(memref_type, op, rewriter)
 

@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from math import prod
-from typing import ClassVar, TypeVar, cast
+from typing import ClassVar, cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
@@ -19,8 +19,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import StencilToMemRefType
-
-_T = TypeVar("_T", bound=Attribute)
 
 _rank_dtype = builtin.i32
 
@@ -75,7 +73,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         exchanges = list(op.swaps)
 
-        input_type = cast(ContainerType[Attribute], op.input_stencil.type)
+        input_type = cast(ContainerType, op.input_stencil.type)
 
         rewriter.replace_matched_op(
             list(

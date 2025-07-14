@@ -25,7 +25,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     VerifyException,
     irdl_attr_definition,
     irdl_op_definition,
@@ -70,7 +69,7 @@ class EffectsAttr(Data[EffectsEnum]):
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print(self.data.value)
+            printer.print_string(self.data.value)
 
 
 @irdl_attr_definition
@@ -81,12 +80,12 @@ class TokenType(ParametrizedAttribute, TypeAttribute):
 
     name = "accfg.token"
 
-    accelerator: ParameterDef[StringAttr]
+    accelerator: StringAttr
 
     def __init__(self, accelerator: str | StringAttr):
         if not isinstance(accelerator, StringAttr):
             accelerator = StringAttr(accelerator)
-        super().__init__([accelerator])
+        super().__init__(accelerator)
 
 
 @irdl_attr_definition
@@ -97,12 +96,12 @@ class StateType(ParametrizedAttribute, TypeAttribute):
 
     name = "accfg.state"
 
-    accelerator: ParameterDef[StringAttr]
+    accelerator: StringAttr
 
     def __init__(self, accelerator: str | StringAttr):
         if not isinstance(accelerator, StringAttr):
             accelerator = StringAttr(accelerator)
-        return super().__init__([accelerator])
+        return super().__init__(accelerator)
 
 
 @irdl_op_definition
@@ -137,10 +136,7 @@ class LaunchOp(IRDLOperation):
         param_names: Iterable[str] | Iterable[StringAttr],
         state: SSAValue | Operation,
     ):
-        state_val: SSAValue = SSAValue.get(state)
-
-        if not isinstance(state_val.type, StateType):
-            raise ValueError("`state` SSA Value must be of type `accfg.state`!")
+        state_val = SSAValue.get(state, type=StateType)
 
         param_names_tuple: tuple[StringAttr, ...] = tuple(
             StringAttr(name) if isinstance(name, str) else name for name in param_names
@@ -283,7 +279,7 @@ class SetupOp(IRDLOperation):
             )
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.accelerator.data)
 
         if self.in_state:
@@ -304,9 +300,9 @@ class SetupOp(IRDLOperation):
         printer.print_string(") ")
 
         if self.attributes:
-            printer.print("attrs ")
+            printer.print_string("attrs ")
             printer.print_attr_dict(self.attributes)
-            printer.print(" ")
+            printer.print_string(" ")
 
         printer.print_string(": ")
         printer.print_attribute(self.out_state.type)
@@ -341,14 +337,19 @@ class SetupOp(IRDLOperation):
             attributes = parser.parse_optional_attr_dict()
 
         parser.parse_punctuation(":")
+        pos = parser.pos
         res_typ = parser.parse_type()
+        if res_typ != StateType(accelerator):
+            parser.raise_error(
+                f"expected {StateType(accelerator)}, but got {res_typ}", pos
+            )
+
         setup_op = cls(
             [val for _, val in args],
             [name for name, _ in args],
             accelerator,
             in_state,
         )
-        setup_op.out_state.type = res_typ
         setup_op.attributes.update(attributes)
         return setup_op
 

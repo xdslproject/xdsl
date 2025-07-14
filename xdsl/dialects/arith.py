@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Mapping, Sequence
-from typing import ClassVar, Literal, TypeVar, cast
+from typing import ClassVar, Literal, cast
 
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
     ContainerOf,
     DenseIntOrFPElementsAttr,
+    DenseResourceAttr,
     FixedBitwidthType,
     Float16Type,
     Float32Type,
@@ -38,7 +39,6 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_prop_def,
     prop_def,
     result_def,
     traits_def,
@@ -62,7 +62,6 @@ boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
-_FloatTypeT = TypeVar("_FloatTypeT", bound=AnyFloat)
 
 CMPI_COMPARISON_OPERATIONS = [
     "eq",
@@ -136,8 +135,9 @@ class ConstantOp(IRDLOperation):
     value = prop_def(
         TypedAttributeConstraint(
             IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
-            | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
-            | BaseAttr(DenseIntOrFPElementsAttr),
+            | BaseAttr(FloatAttr)
+            | BaseAttr(DenseIntOrFPElementsAttr)
+            | BaseAttr(DenseResourceAttr),
             _T,
         )
     )
@@ -148,7 +148,7 @@ class ConstantOp(IRDLOperation):
 
     def __init__(
         self,
-        value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value: IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr | DenseResourceAttr,
         value_type: Attribute | None = None,
     ):
         if value_type is None:
@@ -173,9 +173,6 @@ class ConstantOp(IRDLOperation):
                 "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
             },
         )
-
-
-_T = TypeVar("_T", bound=Attribute)
 
 
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
@@ -204,7 +201,8 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
     def is_right_zero(attr: IntegerAttr) -> bool:
         """
         Returns True only when 'attr' is a right zero for the operation
-        https://en.wikipedia.org/wiki/Absorbing_element
+
+        See external [documentation](https://en.wikipedia.org/wiki/Absorbing_element).
 
         Note that this depends on the operation and does *not* imply that
         attr.value.data == 0
@@ -215,7 +213,8 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
     def is_right_unit(attr: IntegerAttr) -> bool:
         """
         Return True only when 'attr' is a right unit/identity for the operation
-        https://en.wikipedia.org/wiki/Identity_element
+
+        See external [documentation](https://en.wikipedia.org/wiki/Identity_element).
         """
         return False
 
@@ -316,7 +315,7 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
     rhs = operand_def(T)
     result = result_def(T)
 
-    fastmath = opt_prop_def(FastMathFlagsAttr)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
     def __init__(
         self,
@@ -333,29 +332,9 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
             properties={"fastmath": flags},
         )
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        lhs = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        rhs = parser.parse_unresolved_operand()
-        flags = FastMathFlagsAttr("none")
-        if parser.parse_optional_keyword("fastmath") is not None:
-            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
-        return cls(lhs, rhs, flags, result_type)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_ssa_value(self.lhs)
-        printer.print(", ")
-        printer.print_ssa_value(self.rhs)
-        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
-            printer.print(" fastmath")
-            self.fastmath.print_parameter(printer)
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
+    assembly_format = (
+        "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
+    )
 
 
 @irdl_op_definition
@@ -901,14 +880,14 @@ class CmpiOp(ComparisonOperation):
         return cls(operand1, operand2, arg)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
 
         printer.print_string(CMPI_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -944,6 +923,8 @@ class CmpfOp(ComparisonOperation):
     rhs = operand_def(floatingPointLike)
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
     result = result_def(IntegerType(1))
+
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -1007,16 +988,16 @@ class CmpfOp(ComparisonOperation):
         return cls(operand1, operand2, arg, fastmath)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string(CMPF_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
         if self.fastmath != FastMathFlagsAttr("none"):
             printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -1025,11 +1006,17 @@ class SelectHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import (
             SelectConstPattern,
+            SelectFoldCmpfPattern,
             SelectSamePattern,
             SelectTrueFalsePattern,
         )
 
-        return (SelectConstPattern(), SelectTrueFalsePattern(), SelectSamePattern())
+        return (
+            SelectConstPattern(),
+            SelectTrueFalsePattern(),
+            SelectSamePattern(),
+            SelectFoldCmpfPattern(),
+        )
 
 
 @irdl_op_definition
@@ -1042,19 +1029,14 @@ class SelectOp(IRDLOperation):
     """
 
     name = "arith.select"
-    cond = operand_def(IntegerType(1))  # should be unsigned
-    lhs = operand_def(Attribute)
-    rhs = operand_def(Attribute)
-    result = result_def(Attribute)
+
+    _T: ClassVar = VarConstraint("_T", AnyAttr())
+    cond = operand_def(IntegerType(1))
+    lhs = operand_def(_T)
+    rhs = operand_def(_T)
+    result = result_def(_T)
 
     traits = traits_def(Pure(), SelectHasCanonicalizationPatterns())
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.cond.type != IntegerType(1):
-            raise VerifyException("Condition has to be of type !i1")
-        if self.lhs.type != self.rhs.type or self.rhs.type != self.result.type:
-            raise VerifyException("expect all input and output types to be equal")
 
     def __init__(
         self,
@@ -1067,32 +1049,7 @@ class SelectOp(IRDLOperation):
             operands=[operand1, operand2, operand3], result_types=[operand2.type]
         )
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        cond = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        operand1 = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        operand2 = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        (cond, operand1, operand2) = parser.resolve_operands(
-            [cond, operand1, operand2],
-            [IntegerType(1), result_type, result_type],
-            parser.pos,
-        )
-
-        return cls(cond, operand1, operand2)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_operand(self.cond)
-        printer.print(", ")
-        printer.print_operand(self.lhs)
-        printer.print(", ")
-        printer.print_operand(self.rhs)
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
+    assembly_format = "$cond `,` $lhs `,` $rhs attr-dict `:` type($result)"
 
 
 @irdl_op_definition
@@ -1136,9 +1093,12 @@ class DivfOp(FloatingPointLikeBinaryOperation):
 @irdl_op_definition
 class NegfOp(IRDLOperation):
     name = "arith.negf"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(floatingPointLike)
-    result = result_def(floatingPointLike)
+
+    _T: ClassVar = VarConstraint("_T", floatingPointLike)
+
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    operand = operand_def(_T)
+    result = result_def(_T)
 
     traits = traits_def(Pure())
 
@@ -1152,19 +1112,7 @@ class NegfOp(IRDLOperation):
             result_types=[operand.type],
         )
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        input = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_attribute()
-        input = parser.resolve_operand(input, result_type)
-        return cls(input)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_operand(self.operand)
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
+    assembly_format = "$operand (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
 
 @irdl_op_definition
@@ -1221,13 +1169,15 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        signlessIntegerLike
-        | floatingPointLike
+        ContainerOf(
+            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
+        )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        signlessIntegerLike
-        | floatingPointLike
+        ContainerOf(
+            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
+        )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 
@@ -1288,10 +1238,7 @@ class IndexCastOp(IRDLOperation):
             )
 
 
-@irdl_op_definition
-class FPToSIOp(IRDLOperation):
-    name = "arith.fptosi"
-
+class FloatingPointToIntegerBaseOp(IRDLOperation, abc.ABC):
     input = operand_def(AnyFloatConstr)
     result = result_def(IntegerType)
 
@@ -1304,9 +1251,16 @@ class FPToSIOp(IRDLOperation):
 
 
 @irdl_op_definition
-class SIToFPOp(IRDLOperation):
-    name = "arith.sitofp"
+class FPToSIOp(FloatingPointToIntegerBaseOp):
+    name = "arith.fptosi"
 
+
+@irdl_op_definition
+class FPToUIOp(FloatingPointToIntegerBaseOp):
+    name = "arith.fptoui"
+
+
+class IntegerToFloatingPointBaseOp(IRDLOperation, abc.ABC):
     input = operand_def(IntegerType)
     result = result_def(AnyFloatConstr)
 
@@ -1316,6 +1270,16 @@ class SIToFPOp(IRDLOperation):
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         super().__init__(operands=[op], result_types=[target_type])
+
+
+@irdl_op_definition
+class SIToFPOp(IntegerToFloatingPointBaseOp):
+    name = "arith.sitofp"
+
+
+@irdl_op_definition
+class UIToFPOp(IntegerToFloatingPointBaseOp):
+    name = "arith.uitofp"
 
 
 @irdl_op_definition
@@ -1464,7 +1428,9 @@ Arith = Dialect(
         BitcastOp,
         IndexCastOp,
         FPToSIOp,
+        FPToUIOp,
         SIToFPOp,
+        UIToFPOp,
         ExtFOp,
         TruncFOp,
         TruncIOp,

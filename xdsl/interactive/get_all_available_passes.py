@@ -2,14 +2,13 @@ from collections.abc import Callable
 
 from xdsl.interactive.passes import (
     AvailablePass,
-    apply_passes_to_module,
     get_condensed_pass_list,
     get_new_registered_context,
 )
 from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Dialect
 from xdsl.parser import Parser
-from xdsl.passes import ModulePass
+from xdsl.passes import ModulePass, PassPipeline
 from xdsl.pattern_rewriter import RewritePattern
 
 
@@ -28,7 +27,7 @@ def get_available_pass_list(
     parser = Parser(ctx, input_text)
     current_module = parser.parse_module()
 
-    current_module = apply_passes_to_module(current_module, ctx, pass_pipeline)
+    PassPipeline(pass_pipeline).apply(ctx, current_module)
 
     # get all individual rewrites
     individual_rewrites = get_all_possible_rewrites(

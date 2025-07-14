@@ -41,17 +41,12 @@ from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
 )
-from xdsl.interactive.passes import (
-    AvailablePass,
-    apply_passes_to_module,
-    get_new_registered_context,
-)
+from xdsl.interactive.passes import AvailablePass, get_new_registered_context
 from xdsl.ir import Dialect
 from xdsl.parser import Parser
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
 from xdsl.transforms import get_all_passes, individual_rewrite
-from xdsl.utils.parse_pipeline import parse_pipeline
 
 from ._pasteboard import pyclip_copy
 
@@ -506,9 +501,8 @@ class InputApp(App[None]):
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
-            self.current_module = apply_passes_to_module(
-                module, ctx, self.pass_pipeline
-            )
+            PassPipeline(self.pass_pipeline).apply(ctx, module)
+            self.current_module = module
         except Exception as e:
             self.current_module = e
             self.update_input_operation_count_tuple(ModuleOp([], None))
@@ -523,11 +517,14 @@ class InputApp(App[None]):
                 output_text = "No input"
             case Exception() as e:
                 output_stream = StringIO()
-                Printer(output_stream).print(e)
+                Printer(output_stream).print_string(str(e))
                 output_text = output_stream.getvalue()
             case ModuleOp():
                 output_stream = StringIO()
-                Printer(output_stream).print(self.current_module)
+                printer = Printer(output_stream)
+                printer.print_op(self.current_module)
+                printer.print_string("\n")
+
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
@@ -722,14 +719,8 @@ def main():
     else:
         file_contents = None
 
-    pass_spec_pipeline = list(parse_pipeline(args.passes))
     pass_list = get_all_passes()
-    pipeline = tuple(
-        pass_type.from_pass_spec(spec)
-        for pass_type, spec in PipelinePass.build_pipeline_tuples(
-            pass_list, pass_spec_pipeline
-        )
-    )
+    pipeline = PassPipeline.parse_spec(pass_list, args.passes).passes
 
     return InputApp(
         tuple(get_all_dialects().items()),

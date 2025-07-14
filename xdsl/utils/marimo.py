@@ -5,7 +5,7 @@ import marimo as mo
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass, PassPipeline
 
 
 def asm_html(asm: str) -> mo.Html:
@@ -22,11 +22,11 @@ def module_html(module: ModuleOp) -> mo.Html:
     return mo.ui.code_editor(str(module), language="javascript", disabled=True)
 
 
-def _spec_str(p: ModulePass) -> str:
+def _spec_str(p: ModulePass | PassPipeline) -> str:
     """
     A string representation of the pass passed in, to display to the user.
     """
-    if isinstance(p, PipelinePass):
+    if isinstance(p, PassPipeline):
         return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
     else:
         return str(p.pipeline_pass_spec())

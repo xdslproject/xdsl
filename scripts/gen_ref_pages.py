@@ -43,3 +43,24 @@ for path in sorted(src.rglob("*.py")):
 
 with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
     nav_file.writelines(nav.build_literate_nav())
+
+docs_root = root / "docs"
+
+
+def create_marimo_app_url(code: str, mode: str = "read") -> str:
+    from lzstring2 import LZString
+
+    encoded_code = LZString.compress_to_encoded_URI_component(code)
+    return f"https://marimo.app/#code/{encoded_code}&embed=true"
+
+
+for path in sorted((docs_root / "marimo").rglob("*.py")):
+    doc_path = path.relative_to(docs_root).with_suffix(".html")
+
+    url = create_marimo_app_url(path.read_text())
+
+    with mkdocs_gen_files.open(doc_path, "w") as fd:
+        # Hide the header then inline the notebook
+        fd.write(f"""\
+<iframe style="border: 0px" height="3500em" scrolling="no" width="100%" src="{url}"></iframe>
+""")

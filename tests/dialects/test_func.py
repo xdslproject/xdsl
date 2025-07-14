@@ -18,6 +18,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     traits_def,
 )
+from xdsl.rewriter import Rewriter
 from xdsl.traits import CallableOpInterface, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 
@@ -121,25 +122,26 @@ def test_func_rewriting_helpers():
     with ImplicitBuilder(func.body):
         ReturnOp()
 
-    func.replace_argument_type(2, i64)
+    rewriter = Rewriter()
+    func.replace_argument_type(2, i64, rewriter)
     assert func.function_type.inputs.data[2] is i64
     assert func.args[2].type is i64
 
-    func.replace_argument_type(func.args[0], i64)
+    func.replace_argument_type(func.args[0], i64, rewriter)
     assert func.function_type.inputs.data[0] is i64
     assert func.args[0].type is i64
 
     # check negaitve index
     i8 = IntegerType(8)
-    func.replace_argument_type(-2, i8)
+    func.replace_argument_type(-2, i8, rewriter)
     assert func.function_type.inputs.data[1] is i8
     assert func.args[1].type is i8
 
     with pytest.raises(IndexError):
-        func.replace_argument_type(3, i64)
+        func.replace_argument_type(3, i64, rewriter)
 
     with pytest.raises(IndexError):
-        func.replace_argument_type(-4, i64)
+        func.replace_argument_type(-4, i64, rewriter)
 
     decl = FuncOp.external("external_func", [], [])
     assert decl.is_declaration

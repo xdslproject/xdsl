@@ -4,7 +4,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 Position = int
 """
@@ -29,31 +31,34 @@ class Input:
     def __len__(self):
         return self.len
 
-    def get_lines_containing(self, span: Span) -> tuple[list[str], int, int] | None:
-        # A pointer to the start of the first line
-        start = 0
-        line_no = span.line_offset
+    def get_start_of_line(self, pos: Position) -> Position:
+        """
+        Returns the location of the last newline before `pos`, or 0 if there are no
+        previous newlines.
+        """
+        # Returns -1 if not found, meaning on first line
+        pos = self.content.rfind("\n", 0, pos)
+        # If the result is not the beginning of the input, go past the matching newline
+        return pos + 1
+
+    def get_end_of_line(self, pos: Position) -> Position:
+        """
+        Returns the position of the first newline after `pos`, or the length of the
+        file if there are no more newlines.
+        """
+        pos = self.content.find("\n", pos)
+        # If the result is at the end of the input, return the length for correct slice
+        # indexing
+        return self.len if pos == -1 else pos
+
+    def get_lines_containing(self, span: Span) -> tuple[list[str], int, int]:
         source = self.content
-        while True:
-            next_start = source.find("\n", start)
-            line_no += 1
-            # Handle eof
-            if next_start == -1:
-                if span.start > len(source):
-                    return None
-                return [source[start:]], start, line_no
-            # As long as the next newline comes before the spans start we can continue
-            if next_start < span.start:
-                start = next_start + 1
-                continue
-            # If the whole span is on one line, we are good as well
-            if next_start >= span.end:
-                return [source[start:next_start]], start, line_no
-            while next_start < span.end:
-                next_start = source.find("\n", next_start + 1)
-                if next_start == -1:
-                    next_start = span.end
-            return source[start:next_start].split("\n"), start, line_no
+        span_first_line_start = self.get_start_of_line(span.start)
+        span_last_line_end = self.get_end_of_line(span.end)
+        line_no_in_file = source.count("\n", 0, span_first_line_start) + 1
+        line_no = line_no_in_file + span.line_offset
+        lines = source[span_first_line_start:span_last_line_end].splitlines()
+        return lines, span_first_line_start, line_no
 
     def at(self, i: Position) -> str | None:
         if i >= self.len:
@@ -104,10 +109,8 @@ class Span:
 
     def get_line_col(self) -> tuple[int, int]:
         info = self.input.get_lines_containing(self)
-        if info is None:
-            return -1, -1
         _lines, offset_of_first_line, line_no = info
-        return line_no, self.start - offset_of_first_line
+        return line_no, self.start - offset_of_first_line + 1
 
     def print_with_context(self, msg: str | None = None) -> str:
         """
@@ -116,14 +119,12 @@ class Span:
         along these.
         """
         info = self.input.get_lines_containing(self)
-        if info is None:
-            return f"Unknown location of span {msg}. Error: "
         lines, offset_of_first_line, line_no = info
         # Offset relative to the first line:
         offset = self.start - offset_of_first_line
         remaining_len = max(self.len, 1)
         capture = StringIO()
-        print(f"{self.input.name}:{line_no}:{offset}", file=capture)
+        print(f"{self.input.name}:{line_no}:{offset + 1}", file=capture)
         for line in lines:
             print(line, file=capture)
             if remaining_len < 0:

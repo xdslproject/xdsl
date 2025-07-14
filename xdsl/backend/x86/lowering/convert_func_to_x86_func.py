@@ -74,9 +74,14 @@ class LowerFuncOp(RewritePattern):
         for i, register_type in enumerate(reg_args_types):
             arg = first_block.args[i]
             register = first_block.insert_arg(register_type, i)
-            cast_op = builtin.UnrealizedConversionCastOp.get((register,), (arg.type,))
-            rewriter.insert_op([cast_op], insertion_point)
-            arg.replace_by(cast_op.results[0])
+            mov_op = x86.DS_MovOp(
+                source=register, destination=x86.register.UNALLOCATED_GENERAL
+            )
+            cast_op, parameter = builtin.UnrealizedConversionCastOp.cast_one(
+                mov_op.destination, arg.type
+            )
+            rewriter.insert_op([mov_op, cast_op], insertion_point)
+            arg.replace_by(parameter)
             first_block.erase_arg(arg)
 
         # The last argument of the basic block should be the stack pointer
@@ -91,14 +96,14 @@ class LowerFuncOp(RewritePattern):
         for i in range(num_inputs - MAX_REG_PASSING_INPUTS):
             arg = first_block.args[MAX_REG_PASSING_INPUTS + 1]
             assert sp != arg
-            mov_op = x86.RM_MovOp(
-                r1=sp,
-                offset=STACK_SLOT_SIZE_BYTES * (i + 1),
-                result=x86.register.UNALLOCATED_GENERAL,
+            mov_op = x86.DM_MovOp(
+                memory=sp,
+                memory_offset=STACK_SLOT_SIZE_BYTES * (i + 1),
+                destination=x86.register.UNALLOCATED_GENERAL,
                 comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
             )
             cast_op = builtin.UnrealizedConversionCastOp.get(
-                (mov_op.result,), (arg.type,)
+                (mov_op.destination,), (arg.type,)
             )
             rewriter.insert_op([mov_op, cast_op], insertion_point)
             arg.replace_by(cast_op.results[0])
@@ -121,7 +126,8 @@ class LowerFuncOp(RewritePattern):
 class LowerReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
-        if len(op.arguments) == 0:
+        if not op.arguments:
+            rewriter.replace_matched_op([x86_func.RetOp()])
             return
         elif len(op.arguments) > 1:
             raise DiagnosticException(
@@ -145,11 +151,10 @@ class LowerReturnOp(RewritePattern):
         cast_op = builtin.UnrealizedConversionCastOp.get(
             (return_value,), (x86.register.UNALLOCATED_GENERAL,)
         )
-        get_reg_op = x86.ops.GetRegisterOp(return_passing_register)
-        mov_op = x86.ops.RR_MovOp(cast_op, get_reg_op, result=return_passing_register)
+        mov_op = x86.ops.DS_MovOp(cast_op, destination=return_passing_register)
         ret_op = x86_func.RetOp()
 
-        rewriter.replace_matched_op([cast_op, get_reg_op, mov_op, ret_op])
+        rewriter.replace_matched_op([cast_op, mov_op, ret_op])
 
 
 class ConvertFuncToX86FuncPass(ModulePass):

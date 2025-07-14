@@ -34,7 +34,9 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import Parser
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.printer import Printer
+from xdsl.rewriter import Rewriter
 from xdsl.traits import (
     CallableOpInterface,
     HasParent,
@@ -187,7 +189,8 @@ class FuncOp(IRDLOperation):
     def print(self, printer: Printer):
         if self.sym_visibility:
             visibility = self.sym_visibility.data
-            printer.print(f" {visibility}")
+            printer.print_string(" ")
+            printer.print_string(visibility)
 
         print_func_op_like(
             printer,
@@ -231,7 +234,12 @@ class FuncOp(IRDLOperation):
             visibility=visibility,
         )
 
-    def replace_argument_type(self, arg: int | BlockArgument, new_type: Attribute):
+    def replace_argument_type(
+        self,
+        arg: int | BlockArgument,
+        new_type: Attribute,
+        rewriter: Rewriter | PatternRewriter,
+    ):
         """
         Replaces the type of the argument specified by arg (either the index of the arg,
         or the BlockArgument object itself) with new_type. This also takes care of updating
@@ -248,7 +256,7 @@ class FuncOp(IRDLOperation):
         if arg not in self.args:
             raise ValueError(f"Arg {arg} does not belong to this function")
 
-        arg.type = new_type
+        rewriter.replace_value_with_new_type(arg, new_type)
         self.update_function_type()
 
     def update_function_type(self):

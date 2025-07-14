@@ -95,7 +95,7 @@ def rewrite_and_compare(
 
     file = StringIO()
     printer = Printer(stream=file, print_generic_format=True)
-    printer.print(module)
+    printer.print_op(module)
 
     assert file.getvalue().strip() == expected_prog.strip()
 
@@ -697,7 +697,9 @@ def test_block_argument_type_change():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.modify_value_type(matched_op.regs[0].blocks[0].args[0], i64)
+                rewriter.replace_value_with_new_type(
+                    matched_op.regs[0].blocks[0].args[0], i64
+                )
 
     rewrite_and_compare(
         prog,
@@ -1758,8 +1760,6 @@ builtin.module {
 }
 """
     expected = """\
-Error while applying pattern: Expected operation to not be erroneous!
-
 "builtin.module"() ({
   "test.op"() {erroneous = false} : () -> ()
   "test.op"() : () -> ()
@@ -1769,7 +1769,6 @@ Error while applying pattern: Expected operation to not be erroneous!
   -----------------------------------------------------------------------
   "test.op"() : () -> ()
 }) : () -> ()
-
 """
 
     class Rewrite(RewritePattern):
@@ -1854,4 +1853,35 @@ def test_pattern_rewriter_erase_op_with_region():
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
         op_removed=1,
+    )
+
+
+def test_pattern_rewriter_notify_op_modified():
+    """Test that notifying on op modifications works correctly."""
+    prog = """
+"builtin.module"() ({
+  "test.op"() : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() : () -> ()
+}) : () -> ()"""
+    expected = """
+"builtin.module"() ({
+  "test.op"() {modified} : () -> ()
+  "test.op"() {modified} : () -> ()
+  "test.op"() {modified} : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "modified" in op.attributes:
+                return
+            op.attributes["modified"] = UnitAttr()
+            rewriter.notify_op_modified(op)
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_modified=3,
     )

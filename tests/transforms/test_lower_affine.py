@@ -5,7 +5,7 @@ from xdsl.dialects.builtin import IndexType, IntegerAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.ir.affine import AffineBinaryOpExpr, AffineBinaryOpKind, AffineExpr
 from xdsl.transforms.lower_affine import affine_expr_ops
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 @pytest.mark.parametrize(
@@ -20,7 +20,7 @@ from xdsl.utils.test_value import TestSSAValue
         ),
         (
             AffineExpr.dimension(0),
-            [value0 := TestSSAValue(IndexType())],
+            [value0 := create_ssa_value(IndexType())],
             [],
             [],
             value0,
@@ -28,7 +28,7 @@ from xdsl.utils.test_value import TestSSAValue
         (
             AffineExpr.symbol(0),
             [],
-            [value1 := TestSSAValue(IndexType())],
+            [value1 := create_ssa_value(IndexType())],
             [],
             value1,
         ),
@@ -36,7 +36,10 @@ from xdsl.utils.test_value import TestSSAValue
             AffineBinaryOpExpr(
                 AffineBinaryOpKind.Add, AffineExpr.dimension(0), AffineExpr.dimension(1)
             ),
-            [value2 := TestSSAValue(IndexType()), value3 := TestSSAValue(IndexType())],
+            [
+                value2 := create_ssa_value(IndexType()),
+                value3 := create_ssa_value(IndexType()),
+            ],
             [],
             [arith.AddiOp(value2, value3)],
             None,
@@ -45,7 +48,10 @@ from xdsl.utils.test_value import TestSSAValue
             AffineBinaryOpExpr(
                 AffineBinaryOpKind.Mul, AffineExpr.dimension(0), AffineExpr.dimension(1)
             ),
-            [value2 := TestSSAValue(IndexType()), value3 := TestSSAValue(IndexType())],
+            [
+                value2 := create_ssa_value(IndexType()),
+                value3 := create_ssa_value(IndexType()),
+            ],
             [],
             [arith.MuliOp(value2, value3)],
             None,
@@ -54,7 +60,10 @@ from xdsl.utils.test_value import TestSSAValue
             AffineBinaryOpExpr(
                 AffineBinaryOpKind.Mod, AffineExpr.dimension(0), AffineExpr.dimension(1)
             ),
-            [value2 := TestSSAValue(IndexType()), value3 := TestSSAValue(IndexType())],
+            [
+                value2 := create_ssa_value(IndexType()),
+                value3 := create_ssa_value(IndexType()),
+            ],
             [],
             [arith.RemSIOp(value2, value3)],
             None,
@@ -65,7 +74,10 @@ from xdsl.utils.test_value import TestSSAValue
                 AffineExpr.dimension(0),
                 AffineExpr.dimension(1),
             ),
-            [value2 := TestSSAValue(IndexType()), value3 := TestSSAValue(IndexType())],
+            [
+                value2 := create_ssa_value(IndexType()),
+                value3 := create_ssa_value(IndexType()),
+            ],
             [],
             [arith.FloorDivSIOp(value2, value3)],
             None,
@@ -76,7 +88,10 @@ from xdsl.utils.test_value import TestSSAValue
                 AffineExpr.dimension(0),
                 AffineExpr.dimension(1),
             ),
-            [value2 := TestSSAValue(IndexType()), value3 := TestSSAValue(IndexType())],
+            [
+                value2 := create_ssa_value(IndexType()),
+                value3 := create_ssa_value(IndexType()),
+            ],
             [],
             [arith.CeilDivSIOp(value2, value3)],
             None,

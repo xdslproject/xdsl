@@ -15,6 +15,20 @@ if typing.TYPE_CHECKING:
     from xdsl.utils.parse_pipeline import Token
 
 
+class UnregisteredConstructException(Exception):
+    """
+    An exception raised when a dialect, operation, type,
+    or attribute is not registered.
+    """
+
+
+class AlreadyRegisteredConstructException(Exception):
+    """
+    An exception raised when a dialect, operation, type,
+    or attribute is registered twice.
+    """
+
+
 class DiagnosticException(Exception):
     pass
 
@@ -33,15 +47,27 @@ class PassFailedException(DiagnosticException):
 
 
 class PyRDLError(Exception):
-    pass
+    """
+    An error in our IRDL eDSL.
+    """
 
 
-class PyRDLOpDefinitionError(Exception):
-    pass
+class PyRDLOpDefinitionError(PyRDLError):
+    """
+    An error in the Operation definition eDSL.
+    """
 
 
-class PyRDLAttrDefinitionError(Exception):
-    pass
+class PyRDLAttrDefinitionError(PyRDLError):
+    """
+    An error in the Attribute definition eDSL.
+    """
+
+
+class PyRDLTypeError(TypeError, PyRDLError):
+    """
+    A type error in our IRDL eDSL.
+    """
 
 
 class InvalidIRException(Exception):

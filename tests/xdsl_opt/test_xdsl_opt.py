@@ -1,5 +1,12 @@
+"""
+This test file needs the other files in the same folder to read and reprint them in the
+test functions below.
+"""
+
+import re
 from contextlib import redirect_stdout
 from io import StringIO
+from typing import IO
 
 import pytest
 
@@ -70,15 +77,13 @@ def test_error_on_run(args: list[str], expected_error: str):
     [
         (
             ["tests/xdsl_opt/empty_program.mlir", "-p", "wrong"],
-            "Unrecognized pass: wrong",
+            "Unrecognized passes: ['wrong']",
         )
     ],
 )
 def test_error_on_construction(args: list[str], expected_error: str):
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=re.escape(expected_error)):
         _opt = xDSLOptMain(args=args)
-
-    assert e.value.args[0] == expected_error
 
 
 def test_wrong_target():
@@ -156,6 +161,37 @@ def test_diagnostic_exception():
 
     with pytest.raises(DiagnosticException):
         opt.run()
+
+
+def test_verify_diagnostics_output():
+    """
+    Diagnostic exceptions raised when printing output should be redirected to stdout if
+    --verify-diagnostics flag is provided.
+    """
+
+    class TestMain(xDSLOptMain):
+        def register_all_targets(self):
+            def _my_target(prog: builtin.ModuleOp, output: IO[str]):
+                raise DiagnosticException("fail")
+
+            self.available_targets["fail"] = _my_target
+
+        def get_input_stream(self) -> tuple[IO[str], str]:
+            fake_input = StringIO("builtin.module {}")
+            return (fake_input, "mlir")
+
+    opt = TestMain(args=["-t", "fail"])
+    f = StringIO("")
+    with redirect_stdout(f):
+        with pytest.raises(DiagnosticException, match="fail"):
+            opt.run()
+    assert f.getvalue() == ""
+
+    opt = TestMain(args=["--verify-diagnostics", "-t", "fail"])
+    f = StringIO("")
+    with redirect_stdout(f):
+        opt.run()
+    assert f.getvalue() == "fail\n"
 
 
 def test_split_input():

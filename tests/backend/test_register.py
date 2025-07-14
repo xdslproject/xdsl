@@ -14,11 +14,7 @@ def test_register_clashes():
         def verify(self) -> None: ...
 
         @classmethod
-        def instruction_set_name(cls) -> str:
-            return "TEST"
-
-        @classmethod
-        def abi_index_by_name(cls) -> dict[str, int]:
+        def index_by_name(cls) -> dict[str, int]:
             return {"x0": 0}
 
         @classmethod
@@ -37,12 +33,8 @@ class TestRegister(RegisterType):
     name = "test.reg"
 
     @classmethod
-    def instruction_set_name(cls) -> str:
-        return "TEST"
-
-    @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
-        return {"x0": 0, "x1": 1}
+    def index_by_name(cls) -> dict[str, int]:
+        return {"x0": 0, "x1": 1, "a0": 0, "a1": 1}
 
     @classmethod
     def infinite_register_prefix(cls):
@@ -70,20 +62,20 @@ def test_register_from_string():
     # Infinite prefix but not a number
     with pytest.raises(
         VerifyException,
-        match="Invalid register name yy for register set TEST",
+        match="Invalid register name yy for register type test.reg",
     ):
         TestRegister.from_name("yy")
 
     # Incorrect name
     with pytest.raises(
-        VerifyException, match="Invalid register name z0 for register set TEST"
+        VerifyException, match="Invalid register name z0 for register type test.reg"
     ):
         TestRegister.from_name("z0")
 
 
 def test_invalid_register_name():
     with pytest.raises(
-        VerifyException, match="Invalid register name foo for register set TEST."
+        VerifyException, match="Invalid register name foo for register type test.reg."
     ):
         TestRegister.from_name("foo")
 
@@ -108,3 +100,14 @@ def test_invalid_index():
         VerifyException, match="Invalid index 2 for register x1, expected 1."
     ):
         TestRegister(IntAttr(2), StringAttr("x1"))
+
+
+def test_name_by_index():
+    assert TestRegister.abi_name_by_index() == {0: "a0", 1: "a1"}
+
+
+def test_from_index():
+    assert TestRegister.from_index(0) == TestRegister.from_name("a0")
+    assert TestRegister.from_index(1) == TestRegister.from_name("a1")
+    assert TestRegister.from_index(-1) == TestRegister.infinite_register(0)
+    assert TestRegister.from_index(-2) == TestRegister.infinite_register(1)

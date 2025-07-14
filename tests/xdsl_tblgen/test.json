@@ -1,0 +1,1380 @@
+{
+  "!instanceof": {
+    "AttrDef": [
+      "Test_TestAttr"
+    ],
+    "Dialect": [
+      "Test_Dialect"
+    ],
+    "Op": [
+      "Test_AndOp",
+      "Test_AnyAttrOfOp",
+      "Test_AnyAttrOfSingleOp",
+      "Test_AnyOp",
+      "Test_AssemblyFormat",
+      "Test_AssemblyFormatLong",
+      "Test_AttributesOp",
+      "Test_ConfinedOp",
+      "Test_Integers",
+      "Test_OrOp",
+      "Test_SummaryOp",
+      "Test_TypesOp",
+      "Test_VariadicityOp"
+    ],
+    "TypeDef": [
+      "Test_SingletonAType",
+      "Test_SingletonBType",
+      "Test_SingletonCType"
+    ]
+  },
+  "AnyI8": {
+    "!name": "AnyI8",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "AnyI"
+    ],
+    "bitwidth": 8,
+    "summary": "8-bit integer"
+  },
+  "AnyInteger": {
+    "!name": "AnyInteger",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type"
+    ],
+    "summary": "integer"
+  },
+  "AnyType": {
+    "!name": "AnyType",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type"
+    ],
+    "summary": "any type"
+  },
+  "F32": {
+    "!name": "F32",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "BuildableType",
+      "F"
+    ],
+    "bitwidth": 32,
+    "summary": "32-bit float"
+  },
+  "F8E4M3FN": {
+    "!name": "F8E4M3FN",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "BuildableType"
+    ],
+    "summary": "f8E4M3FN type"
+  },
+  "I16": {
+    "!name": "I16",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "BuildableType",
+      "I"
+    ],
+    "bitwidth": 16,
+    "summary": "16-bit signless integer"
+  },
+  "I16Attr": {
+    "!name": "I16Attr",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "TypedAttrBase",
+      "SignlessIntegerAttrBase",
+      "TypedSignlessIntegerAttrBase"
+    ],
+    "baseAttr": null,
+    "summary": "16-bit signless integer attribute",
+    "valueType": {
+      "def": "I16",
+      "kind": "def",
+      "printable": "I16"
+    }
+  },
+  "I32": {
+    "!name": "I32",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "BuildableType",
+      "I"
+    ],
+    "bitwidth": 32,
+    "summary": "32-bit signless integer"
+  },
+  "I32Attr": {
+    "!name": "I32Attr",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "TypedAttrBase",
+      "SignlessIntegerAttrBase",
+      "TypedSignlessIntegerAttrBase"
+    ],
+    "baseAttr": null,
+    "summary": "32-bit signless integer attribute",
+    "valueType": {
+      "def": "I32",
+      "kind": "def",
+      "printable": "I32"
+    }
+  },
+  "Index": {
+    "!name": "Index",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "BuildableType"
+    ],
+    "summary": "index"
+  },
+  "NoneType": {
+    "!name": "NoneType",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "BuildableType"
+    ],
+    "summary": "none type"
+  },
+  "SI64": {
+    "!name": "SI64",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "BuildableType",
+      "SI"
+    ],
+    "bitwidth": 64,
+    "summary": "64-bit signed integer"
+  },
+  "StrAttr": {
+    "!name": "StrAttr",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "StringBasedAttr"
+    ],
+    "baseAttr": null,
+    "summary": "string attribute",
+    "valueType": {
+      "def": "NoneType",
+      "kind": "def",
+      "printable": "NoneType"
+    }
+  },
+  "Test_AndOp": {
+    "!name": "Test_AndOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "anonymous_338",
+            "kind": "def",
+            "printable": "anonymous_338"
+          },
+          "in"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins anonymous_338:$in)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "and",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_AnyAttrOfOp": {
+    "!name": "Test_AnyAttrOfOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "anonymous_354",
+            "kind": "def",
+            "printable": "anonymous_354"
+          },
+          "attr"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins anonymous_354:$attr)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "any_attr_of_i32_str",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_AnyAttrOfSingleOp": {
+    "!name": "Test_AnyAttrOfSingleOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "anonymous_356",
+            "kind": "def",
+            "printable": "anonymous_356"
+          },
+          "attr"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins anonymous_356:$attr)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "any_attr_of_i32",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_AnyOp": {
+    "!name": "Test_AnyOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "AnyType",
+            "kind": "def",
+            "printable": "AnyType"
+          },
+          "in"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins AnyType:$in)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "any",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_AssemblyFormat": {
+    "!name": "Test_AssemblyFormat",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins)"
+    },
+    "assemblyFormat": "attr-dict",
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "assembly",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_AssemblyFormatLong": {
+    "!name": "Test_AssemblyFormatLong",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins)"
+    },
+    "assemblyFormat": "\n      `a`\n      `very`\n      `long`\n      `assembly`\n      `format`\n      attr-dict\n  ",
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "assembly_long",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_AttributesOp": {
+    "!name": "Test_AttributesOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "I16Attr",
+            "kind": "def",
+            "printable": "I16Attr"
+          },
+          "int_attr"
+        ],
+        [
+          {
+            "def": "Test_TestAttr",
+            "kind": "def",
+            "printable": "Test_TestAttr"
+          },
+          "in"
+        ],
+        [
+          {
+            "def": "anonymous_340",
+            "kind": "def",
+            "printable": "anonymous_340"
+          },
+          "opt"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins I16Attr:$int_attr, Test_TestAttr:$in, anonymous_340:$opt)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "attributes",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_ConfinedOp": {
+    "!name": "Test_ConfinedOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "anonymous_342",
+            "kind": "def",
+            "printable": "anonymous_342"
+          },
+          "tensor"
+        ],
+        [
+          {
+            "def": "anonymous_345",
+            "kind": "def",
+            "printable": "anonymous_345"
+          },
+          "vector"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins anonymous_342:$tensor, anonymous_345:$vector)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "confined",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_Dialect": {
+    "!name": "Test_Dialect",
+    "!superclasses": [
+      "Dialect"
+    ],
+    "name": "test",
+    "summary": null
+  },
+  "Test_Integers": {
+    "!name": "Test_Integers",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "AnyI8",
+            "kind": "def",
+            "printable": "AnyI8"
+          },
+          "any_int"
+        ],
+        [
+          {
+            "def": "AnyInteger",
+            "kind": "def",
+            "printable": "AnyInteger"
+          },
+          "any_integer"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins AnyI8:$any_int, AnyInteger:$any_integer)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "integers",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_OrOp": {
+    "!name": "Test_OrOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "anonymous_347",
+            "kind": "def",
+            "printable": "anonymous_347"
+          },
+          "in"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins anonymous_347:$in)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "or",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_SingletonAType": {
+    "!name": "Test_SingletonAType",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "DialectType",
+      "AttrOrTypeDef",
+      "TypeDef",
+      "Test_Type"
+    ],
+    "assemblyFormat": null,
+    "dialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "summary": "",
+    "typeName": "test.singleton_a"
+  },
+  "Test_SingletonBType": {
+    "!name": "Test_SingletonBType",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "DialectType",
+      "AttrOrTypeDef",
+      "TypeDef",
+      "Test_Type"
+    ],
+    "assemblyFormat": null,
+    "dialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "summary": "",
+    "typeName": "test.singleton_b"
+  },
+  "Test_SingletonCType": {
+    "!name": "Test_SingletonCType",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "DialectType",
+      "AttrOrTypeDef",
+      "TypeDef",
+      "Test_Type"
+    ],
+    "assemblyFormat": null,
+    "dialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "summary": "",
+    "typeName": "test.singleton_c"
+  },
+  "Test_SummaryOp": {
+    "!name": "Test_SummaryOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "summary",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": "Op with a summary."
+  },
+  "Test_TestAttr": {
+    "!name": "Test_TestAttr",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "DialectAttr",
+      "AttrOrTypeDef",
+      "AttrDef",
+      "Test_Attr"
+    ],
+    "assemblyFormat": null,
+    "attrName": "test.test",
+    "baseAttr": null,
+    "dialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "summary": "",
+    "valueType": null
+  },
+  "Test_TypesOp": {
+    "!name": "Test_TypesOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "I32",
+            "kind": "def",
+            "printable": "I32"
+          },
+          "a"
+        ],
+        [
+          {
+            "def": "SI64",
+            "kind": "def",
+            "printable": "SI64"
+          },
+          "b"
+        ],
+        [
+          {
+            "def": "UI8",
+            "kind": "def",
+            "printable": "UI8"
+          },
+          "c"
+        ],
+        [
+          {
+            "def": "Index",
+            "kind": "def",
+            "printable": "Index"
+          },
+          "d"
+        ],
+        [
+          {
+            "def": "F32",
+            "kind": "def",
+            "printable": "F32"
+          },
+          "e"
+        ],
+        [
+          {
+            "def": "NoneType",
+            "kind": "def",
+            "printable": "NoneType"
+          },
+          "f"
+        ],
+        [
+          {
+            "def": "anonymous_349",
+            "kind": "def",
+            "printable": "anonymous_349"
+          },
+          null
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins I32:$a, SI64:$b, UI8:$c, Index:$d, F32:$e, NoneType:$f, anonymous_349)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "types",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "Test_VariadicityOp": {
+    "!name": "Test_VariadicityOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [
+        [
+          {
+            "def": "anonymous_352",
+            "kind": "def",
+            "printable": "anonymous_352"
+          },
+          "variadic"
+        ],
+        [
+          {
+            "def": "anonymous_353",
+            "kind": "def",
+            "printable": "anonymous_353"
+          },
+          "optional"
+        ],
+        [
+          {
+            "def": "Test_SingletonCType",
+            "kind": "def",
+            "printable": "Test_SingletonCType"
+          },
+          "required"
+        ]
+      ],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins anonymous_352:$variadic, anonymous_353:$optional, Test_SingletonCType:$required)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "variadicity",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": ""
+  },
+  "UI8": {
+    "!name": "UI8",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "BuildableType",
+      "UI"
+    ],
+    "bitwidth": 8,
+    "summary": "8-bit unsigned integer"
+  },
+  "anonymous_338": {
+    "!name": "anonymous_338",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "AllOfType"
+    ],
+    "allowedTypes": [
+      {
+        "def": "Test_SingletonAType",
+        "kind": "def",
+        "printable": "Test_SingletonAType"
+      },
+      {
+        "def": "AnyType",
+        "kind": "def",
+        "printable": "AnyType"
+      }
+    ],
+    "summary": " and any type"
+  },
+  "anonymous_340": {
+    "!name": "anonymous_340",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "OptionalAttr"
+    ],
+    "baseAttr": {
+      "def": "Test_TestAttr",
+      "kind": "def",
+      "printable": "Test_TestAttr"
+    },
+    "summary": "",
+    "valueType": null
+  },
+  "anonymous_342": {
+    "!name": "anonymous_342",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "ConfinedType"
+    ],
+    "baseType": {
+      "def": "AnyType",
+      "kind": "def",
+      "printable": "AnyType"
+    },
+    "summary": ""
+  },
+  "anonymous_345": {
+    "!name": "anonymous_345",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "ConfinedType"
+    ],
+    "baseType": {
+      "def": "AnyType",
+      "kind": "def",
+      "printable": "AnyType"
+    },
+    "summary": ""
+  },
+  "anonymous_347": {
+    "!name": "anonymous_347",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "AnyTypeOf"
+    ],
+    "allowedTypes": [
+      {
+        "def": "Test_SingletonAType",
+        "kind": "def",
+        "printable": "Test_SingletonAType"
+      },
+      {
+        "def": "Test_SingletonBType",
+        "kind": "def",
+        "printable": "Test_SingletonBType"
+      },
+      {
+        "def": "Test_SingletonCType",
+        "kind": "def",
+        "printable": "Test_SingletonCType"
+      }
+    ],
+    "summary": " or  or "
+  },
+  "anonymous_349": {
+    "!name": "anonymous_349",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Type",
+      "ConfinedType",
+      "SameBuildabilityAs",
+      "Complex"
+    ],
+    "baseType": {
+      "def": "AnyComplex",
+      "kind": "def",
+      "printable": "AnyComplex"
+    },
+    "elementType": {
+      "def": "F8E4M3FN",
+      "kind": "def",
+      "printable": "F8E4M3FN"
+    },
+    "summary": "complex type with f8E4M3FN type elements"
+  },
+  "anonymous_352": {
+    "!name": "anonymous_352",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Variadic"
+    ],
+    "baseType": {
+      "def": "Test_SingletonAType",
+      "kind": "def",
+      "printable": "Test_SingletonAType"
+    },
+    "summary": "variadic of "
+  },
+  "anonymous_353": {
+    "!name": "anonymous_353",
+    "!superclasses": [
+      "Constraint",
+      "TypeConstraint",
+      "Optional"
+    ],
+    "baseType": {
+      "def": "Test_SingletonBType",
+      "kind": "def",
+      "printable": "Test_SingletonBType"
+    },
+    "summary": ""
+  },
+  "anonymous_354": {
+    "!name": "anonymous_354",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "AnyAttrOf"
+    ],
+    "allowedAttributes": [
+      {
+        "def": "I32Attr",
+        "kind": "def",
+        "printable": "I32Attr"
+      },
+      {
+        "def": "StrAttr",
+        "kind": "def",
+        "printable": "StrAttr"
+      }
+    ],
+    "baseAttr": null,
+    "summary": "32-bit signless integer attribute or string attribute",
+    "valueType": null
+  },
+  "anonymous_356": {
+    "!name": "anonymous_356",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "AnyAttrOf"
+    ],
+    "allowedAttributes": [
+      {
+        "def": "I32Attr",
+        "kind": "def",
+        "printable": "I32Attr"
+      }
+    ],
+    "baseAttr": null,
+    "summary": "32-bit signless integer attribute",
+    "valueType": null
+  }
+}

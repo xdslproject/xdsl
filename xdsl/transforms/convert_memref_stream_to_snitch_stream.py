@@ -141,7 +141,7 @@ class StreamOpLowering(RewritePattern):
         self, op: memref_stream.StreamingRegionOp, rewriter: PatternRewriter
     ) -> None:
         operand_types = tuple(
-            cast(memref.MemRefType[Attribute], value_type)
+            cast(memref.MemRefType, value_type)
             for value in op.operands
             if isinstance(value_type := value.type, memref.MemRefType)
         )
@@ -188,7 +188,7 @@ class StreamOpLowering(RewritePattern):
             arg.replace_by_if(
                 cast_op.results[0], lambda use: use.operation is not cast_op
             )
-            rewriter.modify_value_type(arg, stream_type)
+            rewriter.replace_value_with_new_type(arg, stream_type)
 
 
 def strides_for_affine_map(

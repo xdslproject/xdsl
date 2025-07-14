@@ -7,8 +7,8 @@
 %src = "test.op"() {"value" = dense<1.000000e-01> : tensor<4x1xf32>} : () -> tensor<4x1xf32>
 %shape = "test.op"() : () -> (tensor<1xi32>)
 %t4 = tensor.reshape %src(%shape) : (tensor<4x1xf32>, tensor<1xi32>) -> tensor<4xf32>
-%inserted_slice = "tensor.insert_slice"(%t2, %t1) <{"static_offsets" = array<i64: 0, 1>, "static_sizes" = array<i64: 1, 2>, "static_strides" = array<i64: 1, 1>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 0>}> : (tensor<2xf32>, tensor<2x3xf32>) -> tensor<2x3xf32>
-%extracted_slice = "tensor.extract_slice"(%t1) <{"static_offsets" = array<i64: 0, 1>, "static_sizes" = array<i64: 1, 2>, "static_strides" = array<i64: 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<2x3xf32>) -> tensor<2xf32>
+%inserted_slice = "tensor.insert_slice"(%t2, %t1) <{"static_offsets" = array<i64: 0, 1>, "static_sizes" = array<i64: 1, 2>, "static_strides" = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 1, 0, 0, 0>}> : (tensor<2xf32>, tensor<2x3xf32>) -> tensor<2x3xf32>
+%extracted_slice = "tensor.extract_slice"(%t1) <{"static_offsets" = array<i64: 0, 1>, "static_sizes" = array<i64: 1, 2>, "static_strides" = array<i64: 1, 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<2x3xf32>) -> tensor<2xf32>
 %dim1 = "tensor.dim"(%t1, %i1): (tensor<2x3xf32>, index) -> index
 %dim2 = "tensor.dim"(%t1, %i1) {"hello" = "world"}: (tensor<2x3xf32>, index) -> index
 %cast1 = "tensor.cast"(%t1) : (tensor<2x3xf32>) -> tensor<?x?xf32>
@@ -17,6 +17,7 @@
 %collapsed = tensor.collapse_shape %big_tensor [[0, 1], [2, 3]] : tensor<2x3x2x3xf32> into tensor<6x6xf32>
 %extracted = tensor.extract %t2[%i1] : tensor<2xf32>
 %tensor_with_ins = tensor.insert %extracted into %t2[%i1] : tensor<2xf32>
+%fromelements = tensor.from_elements %i1, %i1: tensor<2xindex>
 
 
 // CHECK:       module {
@@ -37,4 +38,5 @@
 // CHECK-NEXT:  %collapsed = tensor.collapse_shape %6 [[0, 1], [2, 3]] : tensor<2x3x2x3xf32> into tensor<6x6xf32>
 // CHECK-NEXT:  %extracted = tensor.extract %1[%2] : tensor<2xf32>
 // CHECK-NEXT:  %{{.*}} = tensor.insert %extracted into %1[%2] : tensor<2xf32>
+// CHECK-NEXT:  %{{.*}} = tensor.from_elements %2, %2 : tensor<2xindex>
 // CHECK-NEXT: }

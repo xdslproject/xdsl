@@ -9,7 +9,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal, TypeVar
+from typing import Literal
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import UnitAttr
 from xdsl.ir import (
@@ -27,7 +29,6 @@ from xdsl.irdl import (
     OpDef,
     OptionalDef,
     Successor,
-    VarExtractor,
     VariadicDef,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -91,9 +92,6 @@ class FormatProgram:
     stmts: tuple[FormatDirective, ...]
     """The statements composing the program. They are executed in order."""
 
-    extractors: dict[str, VarExtractor[ParsingState]]
-    """Extractors for all type variables from the parsing state."""
-
     @staticmethod
     def from_str(input: str, op_def: OpDef) -> FormatProgram:
         """
@@ -120,7 +118,7 @@ class FormatProgram:
             stmt.parse(parser, state)
 
         # Get constraint variables from the parsed operand and result types
-        self.resolve_constraint_variables(state)
+        self.resolve_constraint_variables(state, op_def)
 
         # Infer operand types that should be inferred
         unresolved_operands = state.operands
@@ -150,36 +148,57 @@ class FormatProgram:
                 "Variadic or optional operand has no type or a single type "
                 operands.append(parser.resolve_operands(uo, ot, parser.pos))
 
-        # Get the properties from the attribute dictionary if no properties are
-        # defined. This is necessary to be compatible with MLIR format, such as
-        # `memref.load`.
-        if state.properties:
-            properties = state.properties
-        else:
-            properties = op_def.split_properties(state.attributes)
-
         return op_type.build(
             result_types=result_types,
             operands=operands,
             attributes=state.attributes,
-            properties=properties,
+            properties=state.properties,
             regions=state.regions,
             successors=state.successors,
         )
 
-    def resolve_constraint_variables(self, state: ParsingState):
-        ctx = ConstraintContext()
-        for k, e in self.extractors.items():
-            v = e.extract_var(state)
-            match v:
-                case Attribute():
-                    ctx.set_variable(k, v)
-                case int():
-                    ctx.set_int_variable(k, v)
-                case _:
-                    ctx.set_range_variable(k, tuple(v))
+    def resolve_constraint_variables(self, state: ParsingState, op_def: OpDef):
+        """
+        Runs verification on the parsed parts of the operation, adding the resolved value
+        of each constraint variable to the `ConstraintContext` `state.context`.
+        """
+        ctx = state.context
 
-        state.context = ctx
+        for operand, operand_type, (_, operand_def) in zip(
+            state.operands, state.operand_types, op_def.operands, strict=True
+        ):
+            length = len(operand) if isinstance(operand, Sequence) else 1
+            operand_def.constr.verify_length(length, ctx)
+            if operand_type is None:
+                continue
+            if isinstance(operand_type, Attribute):
+                operand_type = (operand_type,)
+            operand_def.constr.verify(operand_type, ctx)
+
+        for result_type, (_, result_def) in zip(
+            state.result_types, op_def.results, strict=True
+        ):
+            if result_type is None:
+                continue
+            if isinstance(result_type, Attribute):
+                result_type = (result_type,)
+            result_def.constr.verify(result_type, ctx)
+
+        for prop_name, prop_def in op_def.properties.items():
+            if isinstance(prop_def, OptionalDef) and prop_def.default_value is None:
+                continue
+            attr = state.properties.get(prop_name, prop_def.default_value)
+            if attr is None:
+                continue
+            prop_def.constr.verify(attr, ctx)
+
+        for attr_name, attr_def in op_def.attributes.items():
+            if isinstance(attr_def, OptionalDef) and attr_def.default_value is None:
+                continue
+            attr = state.attributes.get(attr_name, attr_def.default_value)
+            if attr is None:
+                continue
+            attr_def.constr.verify(attr, ctx)
 
     def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
@@ -334,7 +353,7 @@ class TypeDirective(FormatDirective):
         if not types:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_list(types, printer.print_attribute)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -411,9 +430,9 @@ class AttrDictDirective(FormatDirective):
     printed twice otherwise.
     """
 
-    print_properties: bool
+    expected_properties: set[str]
     """
-    If this is set, also print properties as part of the attribute dictionary.
+    Properties that should be printed and parsed as part of this attr-dict.
     This is used to keep compatibility with MLIR which allows that.
     """
 
@@ -423,7 +442,7 @@ class AttrDictDirective(FormatDirective):
             if res is None:
                 res = {}
             else:
-                res = res.data
+                res = dict(res.data)
         else:
             res = parser.parse_optional_attr_dict()
         defined_reserved_keys = self.reserved_attr_names & res.keys()
@@ -433,50 +452,42 @@ class AttrDictDirective(FormatDirective):
                 "assembly format, and thus should not be defined in the attribute "
                 "dictionary."
             )
+
+        props = tuple(k for k in res.keys() if k in self.expected_properties)
+        for name in props:
+            state.properties[name] = res.pop(name)
         state.attributes |= res
-        return bool(res)
+        return bool(res) or bool(props)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if self.print_properties:
-            if any(name in op.attributes for name in op.properties):
-                raise ValueError(
-                    "Cannot print attributes and properties with the same name "
-                    "in a single dictionary"
-                )
-            op_def = op.get_irdl_definition()
-            dictionary = op.attributes | op.properties
-            reserved_or_default = self.reserved_attr_names.union(
-                name
-                for name, d in (op_def.properties | op_def.attributes).items()
-                if d.default_value is not None
-                and dictionary.get(name) == d.default_value
+        if not op.attributes.keys().isdisjoint(self.expected_properties):
+            raise ValueError(
+                "Cannot print attributes and properties with the same name "
+                "in a single dictionary"
             )
-            if reserved_or_default.issuperset(dictionary.keys()):
-                return
-            printer.print_op_attributes(
-                dictionary,
-                reserved_attr_names=reserved_or_default,
-                print_keyword=self.with_keyword,
-            )
-        else:
-            op_def = op.get_irdl_definition()
-            reserved_or_default = self.reserved_attr_names.union(
-                name
-                for name, d in op_def.attributes.items()
-                if d.default_value is not None
-                and op.attributes.get(name) == d.default_value
-            )
-            if reserved_or_default.issuperset(op.attributes.keys()):
-                return
-            printer.print_op_attributes(
-                op.attributes,
-                reserved_attr_names=reserved_or_default,
-                print_keyword=self.with_keyword,
-            )
+        op_def = op.get_irdl_definition()
+        dictionary = op.attributes | {
+            k: v for k, v in op.properties.items() if k in self.expected_properties
+        }
+        defs = {
+            x: op_def.properties[x] for x in self.expected_properties
+        } | op_def.attributes
 
-        # This is changed only if something was printed
-        state.last_was_punctuation = False
-        state.should_emit_space = True
+        reserved_or_default = self.reserved_attr_names.union(
+            name
+            for name, d in defs.items()
+            if d.default_value is not None and dictionary.get(name) == d.default_value
+        )
+
+        printed = printer.print_op_attributes(
+            dictionary,
+            reserved_attr_names=reserved_or_default,
+            print_keyword=self.with_keyword,
+        )
+
+        if printed:
+            state.last_was_punctuation = False
+            state.should_emit_space = True
 
     def is_optional_like(self) -> bool:
         return True
@@ -512,7 +523,7 @@ class OperandVariable(VariableDirective, OperandDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_ssa_value(getattr(op, self.name))
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -556,7 +567,7 @@ class VariadicOperandVariable(VariadicVariable, OperandDirective):
         if not operand:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_list(operand, printer.print_ssa_value)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -601,7 +612,7 @@ class OptionalOperandVariable(OptionalVariable, OperandDirective):
         if not operand:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_ssa_value(operand)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -709,7 +720,7 @@ class OperandsDirective(OperandsOrResultDirective, FormatDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if op.operands:
             if state.should_emit_space or not state.last_was_punctuation:
-                printer.print(" ")
+                printer.print_string(" ")
             printer.print_list(op.operands, printer.print_ssa_value)
             state.last_was_punctuation = False
             state.should_emit_space = True
@@ -914,7 +925,7 @@ class RegionVariable(RegionDirective, VariableDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_region(getattr(op, self.name))
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -944,7 +955,7 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
         if not region:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_list(region, printer.print_region, delimiter=" ")
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -972,7 +983,7 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
         if not region:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_region(region)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -1004,7 +1015,7 @@ class SuccessorVariable(VariableDirective, SuccessorDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_block_name(getattr(op, self.name))
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -1018,12 +1029,11 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        successors: list[Successor] = []
-        current_successor = parser.parse_optional_successor()
-        while current_successor is not None:
-            successors.append(current_successor)
-            current_successor = parser.parse_optional_successor()
-
+        successors = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_successor, parser.parse_successor
+        )
+        if successors is None:
+            successors = []
         state.successors[self.index] = successors
 
         return bool(successors)
@@ -1033,8 +1043,8 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
         if not successor:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
-        printer.print_list(successor, printer.print_block_name, delimiter=" ")
+            printer.print_string(" ")
+        printer.print_list(successor, printer.print_block_name)
         state.last_was_punctuation = False
         state.should_emit_space = True
 
@@ -1061,7 +1071,7 @@ class OptionalSuccessorVariable(OptionalVariable, SuccessorDirective):
         if not successor:
             return
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         printer.print_block_name(successor)
         state.last_was_punctuation = False
         state.should_emit_space = True
@@ -1113,7 +1123,7 @@ class AttributeVariable(FormatDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
+            printer.print_string(" ")
         state.should_emit_space = True
         state.last_was_punctuation = False
 
@@ -1162,6 +1172,20 @@ class OptionalAttributeVariable(AttributeVariable):
     The directive will request a space to be printed after.
     """
 
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        # Only qualified optional attributes can be optionally parsed currently.
+        # Other attributes are parsed as required attributes.
+        if self.unique_base is None:
+            attr = parser.parse_optional_attribute()
+            if attr is None:
+                return False
+            if self.is_property:
+                state.properties[self.name] = attr
+            else:
+                state.attributes[self.name] = attr
+            return True
+        return super().parse(parser, state)
+
     def is_present(self, op: IRDLOperation) -> bool:
         if self.is_property:
             attr = op.properties.get(self.name)
@@ -1171,6 +1195,9 @@ class OptionalAttributeVariable(AttributeVariable):
 
     def is_anchorable(self) -> bool:
         return True
+
+    def is_optional_like(self) -> bool:
+        return self.unique_base is None
 
 
 class OptionalUnitAttrVariable(OptionalAttributeVariable):
@@ -1211,7 +1238,7 @@ class WhitespaceDirective(FormatDirective):
         return False
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        printer.print(self.whitespace)
+        printer.print_string(self.whitespace)
         state.last_was_punctuation = self.whitespace == ""
         state.should_emit_space = False
 
@@ -1244,9 +1271,9 @@ class PunctuationDirective(FormatDirective):
                 emit_space = True
 
             if emit_space:
-                printer.print(" ")
+                printer.print_string(" ")
 
-        printer.print(self.punctuation)
+        printer.print_string(self.punctuation)
 
         state.should_emit_space = self.punctuation not in ("<", "(", "{", "[")
         state.last_was_punctuation = True
@@ -1272,8 +1299,8 @@ class KeywordDirective(FormatDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space:
-            printer.print(" ")
-        printer.print(self.keyword)
+            printer.print_string(" ")
+        printer.print_string(self.keyword)
         state.should_emit_space = True
         state.last_was_punctuation = False
 
@@ -1308,3 +1335,8 @@ class OptionalGroupDirective(FormatDirective):
                 *self.then_elements,
             ):
                 element.print(printer, state, op)
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.then_first.set_empty(state)
+        for element in self.then_elements:
+            element.set_empty(state)

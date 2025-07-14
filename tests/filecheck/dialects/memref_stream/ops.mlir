@@ -71,7 +71,7 @@ memref_stream.generic {
 // CHECK-NEXT:      affine_map<(d0, d1) -> (d1)>,
 // CHECK-NEXT:      affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-NEXT:    ],
-// CHECK-NEXT:    iterator_types = ["parallel", "parallel"]
+// CHECK-NEXT:    iterator_types = ["parallel", "parallel"],
 // CHECK-NEXT:    doc = "documentation string",
 // CHECK-NEXT:    library_call = "library call"
 // CHECK-NEXT:  } ins(%A, %B : memref<2xf32>, memref<3xf32>) outs(%C : memref<3x2xf64>) attrs =  {hello = "world"} {

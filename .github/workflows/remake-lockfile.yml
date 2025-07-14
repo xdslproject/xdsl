@@ -16,12 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v6
 
       - run: |
-          rm uv.lock
           echo "\`\`\`" > uv_output.md
-          make venv &>> uv_output.md
+          uv lock -U &>> uv_output.md
           echo "\`\`\`" >> uv_output.md
 
       - name: Create pull request
@@ -36,4 +35,4 @@ jobs:
           labels: CI
           delete-branch: true
           add-paths: uv.lock
-          assignees: math-fehr, georgebisbas, superlopuh
+          assignees: math-fehr, alexarice, superlopuh

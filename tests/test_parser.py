@@ -1,3 +1,4 @@
+import builtins
 import re
 from io import StringIO
 from typing import cast
@@ -5,17 +6,19 @@ from typing import cast
 import pytest
 
 from xdsl.context import Context
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     ArrayAttr,
     Builtin,
     DictionaryAttr,
+    FileLineColLoc,
     FloatAttr,
     IntAttr,
     IntegerAttr,
     IntegerType,
-    LocationAttr,
     StringAttr,
     SymbolRefAttr,
+    UnknownLoc,
     i32,
 )
 from xdsl.dialects.test import Test
@@ -29,7 +32,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import MLIRTokenKind, PunctuationSpelling
 from xdsl.utils.str_enum import StrEnum
 
@@ -52,7 +55,7 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     attr = DictionaryAttr(data)
 
     with StringIO() as io:
-        Printer(io).print(attr)
+        Printer(io).print_attribute(attr)
         text = io.getvalue()
 
     ctx = Context()
@@ -114,7 +117,7 @@ def test_parsing():
     parse attribute arguments without the delimiters.
     """
     ctx = Context()
-    ctx.load_attr(DummyAttr)
+    ctx.load_attr_or_type(DummyAttr)
 
     prog = '#dummy.attr "foo"'
     parser = Parser(ctx, prog)
@@ -739,6 +742,81 @@ def test_parse_int(
         )
 
 
+@pytest.mark.parametrize("nonnumeric", ["--", "+", "a", "{", "(1.0, 1.0)"])
+def test_parse_optional_bool_int_or_float_nonnumeric(nonnumeric: str):
+    parser = Parser(Context(), nonnumeric)
+    assert parser._parse_optional_bool_int_or_float() is None
+
+
+@pytest.mark.parametrize(
+    "numeric,typ",
+    [
+        ("1", int),
+        ("true", bool),
+        ("1.0", float),
+        ("-1", int),
+        ("-1.0", float),
+        ("false", bool),
+    ],
+)
+def test_parse_optional_bool_int_or_float_numeric(numeric: str, typ: type):
+    parser = Parser(Context(), numeric)
+    value_span = parser._parse_optional_bool_int_or_float()
+    assert value_span is not None
+    value, span = value_span
+    match typ:
+        case builtins.int:
+            assert value == typ(numeric)
+            assert span.text == numeric
+        case builtins.float:
+            assert value == typ(numeric)
+            assert span.text == numeric
+        case builtins.bool:
+            expected = numeric == "true"
+            assert value == expected
+            assert span.text == numeric
+        case _:
+            pytest.fail("unreachable")
+
+
+@pytest.mark.parametrize("nonnumeric", ["--", "+", "a", "{", "(1.0, 1.0)"])
+def test_parse_bool_int_or_float_nonnumeric(nonnumeric: str):
+    parser = Parser(Context(), nonnumeric)
+    with pytest.raises(ParseError):
+        parser._parse_bool_int_or_float()
+
+
+@pytest.mark.parametrize(
+    "numeric,typ",
+    [
+        ("1", int),
+        ("true", bool),
+        ("1.0", float),
+        ("-1", int),
+        ("-1.0", float),
+        ("false", bool),
+    ],
+)
+def test_parse_bool_int_or_float_numeric(numeric: str, typ: type):
+    parser = Parser(Context(), numeric)
+    value_span = parser._parse_optional_bool_int_or_float()
+    assert value_span is not None
+    value, span = value_span
+    match typ:
+        case builtins.int:
+            assert value == typ(numeric)
+            assert span.text == numeric
+        case builtins.float:
+            assert value == typ(numeric)
+            assert span.text == numeric
+        case builtins.bool:
+            expected = numeric == "true"
+            assert value == expected
+            assert span.text == numeric
+        case _:
+            pytest.fail("unreachable")
+
+
 @pytest.mark.parametrize(
     "text, allow_boolean, allow_negative",
     [
@@ -822,14 +900,10 @@ def test_parse_number(
     ],
 )
 def test_parse_optional_builtin_int_or_float_attr(
-    text: str, expected_value: IntegerAttr | FloatAttr | None
+    text: str, expected_value: IntegerAttr | FloatAttr
 ):
     parser = Parser(Context(), text)
-    if expected_value is None:
-        with pytest.raises(ValueError):
-            parser.parse_optional_builtin_int_or_float_attr()
-    else:
-        assert parser.parse_optional_builtin_int_or_float_attr() == expected_value
+    assert parser.parse_optional_builtin_int_or_float_attr() == expected_value
 
 
 @pytest.mark.parametrize(
@@ -884,22 +958,26 @@ def test_properties_retrocompatibility():
     assert op.attributes == retro_op.attributes
     assert op.properties == retro_op.properties
 
-    # We ***do not*** try to be smarter than this. If properties are present, we parse
-    # and verify as-is.
+    # Test partial case
     parser = Parser(ctx, '"test.prop_op"() <{first = "str"}> {second = 42} : () -> ()')
-    wrong_op = parser.parse_op()
-    assert list(wrong_op.properties.keys()) == ["first"]
-    assert list(wrong_op.attributes.keys()) == ["second"]
-    with pytest.raises(
-        VerifyException, match="Operation does not verify: property second expected"
-    ):
-        wrong_op.verify()
+    partial_op = parser.parse_op()
+    assert isinstance(partial_op, PropertyOp)
+    partial_op.verify()
+
+    assert op.attributes == partial_op.attributes
+    assert op.properties == partial_op.properties
 
 
 def test_parse_location():
     ctx = Context()
     attr = Parser(ctx, "loc(unknown)").parse_optional_location()
-    assert attr == LocationAttr()
+    assert attr == UnknownLoc()
+
+    attr = Parser(ctx, 'loc("one":2:3)').parse_optional_location()
+    assert attr == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
+
+    with pytest.raises(ParseError, match="Unexpected location syntax."):
+        Parser(ctx, "loc(unexpected)").parse_optional_location()
 
 
 @pytest.mark.parametrize(
@@ -949,6 +1027,110 @@ def test_parse_str_enum(keyword: str, expected: MyEnum | None):
         assert parser.parse_str_enum(MyEnum) == expected
 
 
+@pytest.mark.parametrize("value", ["(1., 2)", "(1, 2.)"])
+def test_parse_optional_complex_error(value: str):
+    parser = Parser(Context(), value)
+    with pytest.raises(
+        ParseError,
+        match=re.escape("Complex value must be either (float, float) or (int, int)"),
+    ):
+        parser._parse_optional_complex()
+
+
+@pytest.mark.parametrize("noncomplex", ["1", "-1", "A", "{"])
+def test_parse_optional_complex_noncomplex(noncomplex: str):
+    parser = Parser(Context(), noncomplex)
+    assert parser._parse_optional_complex() is None
+
+
+@pytest.mark.parametrize(
+    "toks, pyval", [("(-1., 2.)", (-1.0, 2.0)), ("(1, 2)", (1, 2))]
+)
+def test_parse_optional_complex_success(
+    toks: str, pyval: tuple[int, int] | tuple[float, float]
+):
+    parser = Parser(Context(), toks)
+    value_and_span = parser._parse_optional_complex()
+    assert value_and_span is not None
+    value, span = value_and_span
+    assert value == pyval
+    assert span.text == toks
+
+
+@pytest.mark.parametrize(
+    "start, end, text",
+    [
+        ("<", ">", "<1>"),
+        ("[", "]", "[1]"),
+        ("{", "}", "{1}"),
+        ("(", ")", "(1)"),
+        ("{-#", "#-}", "{-# 1 #-}"),
+    ],
+)
+def test_delimiters(start: str, end: str, text: str):
+    parser = Parser(Context(), text)
+    with parser.delimited(start, end):
+        value = parser.parse_integer()
+
+    assert value == 1
+    assert parser.pos == len(text)
+
+
+def test_angle_brackets():
+    parser = Parser(Context(), "<1>")
+    with parser.in_angle_brackets():
+        value = parser.parse_integer()
+
+    assert value == 1
+    assert parser.pos == 3
+
+
+def test_square_brackets():
+    parser = Parser(Context(), "[1]")
+    with parser.in_square_brackets():
+        value = parser.parse_integer()
+
+    assert value == 1
+    assert parser.pos == 3
+
+
+def test_braces():
+    parser = Parser(Context(), "{1}")
+    with parser.in_braces():
+        value = parser.parse_integer()
+
+    assert value == 1
+    assert parser.pos == 3
+
+
+def test_parens():
+    parser = Parser(Context(), "(1)")
+    with parser.in_parens():
+        value = parser.parse_integer()
+
+    assert value == 1
+    assert parser.pos == 3
+
+
+def test_wrong_delimiter():
+    parser = Parser(Context(), "(1)")
+    with pytest.raises(ParseError, match="'<' expected"):
+        with parser.in_angle_brackets():
+            parser.parse_integer()
+
+
+def test_early_return_delimiter():
+    def my_parse(parser: Parser):
+        with parser.in_angle_brackets():
+            if parser.parse_integer() == 1:
+                return 1
+            return 2
+
+    parser = Parser(Context(), "<1>")
+    assert my_parse(parser) == 1
+    assert parser.pos == 3
+
+
 class MySingletonEnum(StrEnum):
     A = "a"
 
@@ -957,3 +1139,19 @@ def test_parse_singleton_enum_fail():
     parser = Parser(Context(), "b")
     with pytest.raises(ParseError, match="Expected `a`"):
         parser.parse_str_enum(MySingletonEnum)
+
+
+def test_metadata_parsing():
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    metadata_dict = '{-# dialect_resources: {test: {some_res: "0x1"}} #-}'
+
+    parser = Parser(ctx, metadata_dict)
+    assert parser._parse_file_metadata_dictionary() is None
+
+    test_dialect = ctx.get_dialect("test")
+    interface = test_dialect.get_interface(OpAsmDialectInterface)
+    assert interface
+
+    element = interface.lookup("some_res")
+    assert element == "0x1"

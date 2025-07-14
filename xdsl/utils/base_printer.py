@@ -3,7 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import IO, Any, TypeVar
+from typing import IO, Any
+
+from typing_extensions import TypeVar
 
 
 @dataclass(eq=False, repr=False)
@@ -15,7 +17,7 @@ class BasePrinter:
     _current_column: int = field(default=0, init=False)
 
     _next_line_callback: list[Callable[[], None]] = field(
-        default_factory=list, init=False
+        default_factory=list[Callable[[], None]], init=False
     )
 
     def print_string(self, text: str, *, indent: int | None = None) -> None:
@@ -65,6 +67,24 @@ class BasePrinter:
             if i:
                 self.print_string(delimiter)
             print_fn(elem)
+
+    @contextmanager
+    def delimited(self, start: str, end: str):
+        self.print_string(start)
+        yield
+        self.print_string(end)
+
+    def in_angle_brackets(self):
+        return self.delimited("<", ">")
+
+    def in_braces(self):
+        return self.delimited("{", "}")
+
+    def in_parens(self):
+        return self.delimited("(", ")")
+
+    def in_square_brackets(self):
+        return self.delimited("[", "]")
 
     def _print_new_line(
         self, indent: int | None = None, print_message: bool = True

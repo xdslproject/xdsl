@@ -41,37 +41,40 @@ from xdsl.dialects.stencil import (
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_stencilboundsattr_verify():
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException,
+        match=(
+            "Incoherent stencil bounds: lower and upper bounds must have the same"
+            " dimensionality."
+        ),
+    ):
         StencilBoundsAttr.new([IndexAttr.get(1), IndexAttr.get(2, 2)])
-    assert (
-        str(e.value)
-        == "Incoherent stencil bounds: lower and upper bounds must have the same"
-        " dimensionality."
-    )
-    with pytest.raises(VerifyException) as e:
+
+    with pytest.raises(
+        VerifyException,
+        match=(
+            "Incoherent stencil bounds: upper bound must be strictly greater than"
+            " lower bound."
+        ),
+    ):
         StencilBoundsAttr.new([IndexAttr.get(2, 2), IndexAttr.get(2, 2)])
-    assert (
-        str(e.value)
-        == "Incoherent stencil bounds: upper bound must be strictly greater than"
-        " lower bound."
-    )
 
 
 def test_stencil_return_single_float():
-    float_val1 = TestSSAValue(FloatAttr(4.0, f32))
+    float_val1 = create_ssa_value(FloatAttr(4.0, f32))
     return_op = ReturnOp.get([float_val1])
 
     assert return_op.arg[0] is float_val1
 
 
 def test_stencil_return_multiple_floats():
-    float_val1 = TestSSAValue(FloatAttr(4.0, f32))
-    float_val2 = TestSSAValue(FloatAttr(5.0, f32))
-    float_val3 = TestSSAValue(FloatAttr(6.0, f32))
+    float_val1 = create_ssa_value(FloatAttr(4.0, f32))
+    float_val2 = create_ssa_value(FloatAttr(5.0, f32))
+    float_val3 = create_ssa_value(FloatAttr(6.0, f32))
 
     return_op = ReturnOp.get([float_val1, float_val2, float_val3])
 
@@ -81,16 +84,16 @@ def test_stencil_return_multiple_floats():
 
 
 def test_stencil_return_single_ResultType():
-    result_type_val1 = TestSSAValue(ResultType(f32))
+    result_type_val1 = create_ssa_value(ResultType(f32))
     return_op = ReturnOp.get([result_type_val1])
 
     assert return_op.arg[0] is result_type_val1
 
 
 def test_stencil_return_multiple_ResultType():
-    result_type_val1 = TestSSAValue(ResultType(f32))
-    result_type_val2 = TestSSAValue(ResultType(f32))
-    result_type_val3 = TestSSAValue(ResultType(f32))
+    result_type_val1 = create_ssa_value(ResultType(f32))
+    result_type_val2 = create_ssa_value(ResultType(f32))
+    result_type_val3 = create_ssa_value(ResultType(f32))
 
     return_op = ReturnOp.get([result_type_val1, result_type_val2, result_type_val3])
 
@@ -101,7 +104,7 @@ def test_stencil_return_multiple_ResultType():
 
 def test_stencil_cast_op_verifier():
     field_type = FieldType(3, f32)
-    field = TestSSAValue(field_type)
+    field = create_ssa_value(field_type)
 
     # check that correct op verifies correctly
     cast = CastOp.get(field, StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))))
@@ -131,7 +134,7 @@ def test_stencil_cast_op_verifier():
         cast.verify()
 
     # check that non-dynamic input verifies
-    non_dyn_field = TestSSAValue(FieldType(((-2, 102), (-2, 102), (-2, 102)), f32))
+    non_dyn_field = create_ssa_value(FieldType(((-2, 102), (-2, 102), (-2, 102)), f32))
     cast = CastOp.get(
         non_dyn_field,
         StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))),
@@ -152,7 +155,7 @@ def test_stencil_cast_op_verifier():
 
 
 def test_cast_op_constructor():
-    field = TestSSAValue(FieldType(3, f32))
+    field = create_ssa_value(FieldType(3, f32))
 
     cast = CastOp.get(
         field,
@@ -163,7 +166,7 @@ def test_cast_op_constructor():
 
 
 def test_stencil_apply():
-    result_type_val1 = TestSSAValue(ResultType(f32))
+    result_type_val1 = create_ssa_value(ResultType(f32))
 
     stencil_temptype = TempType(2, f32)
     apply_op = ApplyOp.get([result_type_val1], Block([]), [stencil_temptype])
@@ -215,15 +218,17 @@ def test_create_index_attr_from_int_list(indices: list[int | IntAttr]):
 
 
 def test_create_index_attr_from_list_edge_case1():
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(
+        VerifyException, match="Expected 1 to 3 indexes for stencil.index, got 0."
+    ):
         IndexAttr.get()
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 def test_create_index_attr_from_list_edge_case2():
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(
+        VerifyException, match="Expected 1 to 3 indexes for stencil.index, got 4."
+    ):
         IndexAttr.get(*[1] * 4)
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 4."
 
 
 @pytest.mark.parametrize(
@@ -375,14 +380,15 @@ def test_stencil_fieldtype_constructor(
 def test_stencil_fieldtype_constructor_empty_list(
     attr: IntegerType, bounds: list[tuple[int, int]]
 ):
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(
+        VerifyException, match="Expected 1 to 3 indexes for stencil.index, got 0."
+    ):
         FieldType(bounds, attr)
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 def test_stencil_load():
     field_type = FieldType([(0, 1), (0, 1)], f32)
-    result_type_val1 = TestSSAValue(field_type)
+    result_type_val1 = create_ssa_value(field_type)
 
     load = LoadOp.get(result_type_val1)
 
@@ -397,7 +403,7 @@ def test_stencil_load():
 
 def test_stencil_load_bounds():
     field_type = FieldType([(0, 1), (0, 1)], f32)
-    result_type_val1 = TestSSAValue(field_type)
+    result_type_val1 = create_ssa_value(field_type)
 
     lb = IndexAttr.get(1, 1)
     ub = IndexAttr.get(64, 64)
@@ -466,9 +472,10 @@ def test_stencil_temptype_constructor(
 def test_stencil_temptype_constructor_empty_list(
     attr: IntegerType, dims: list[tuple[int, int]]
 ):
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(
+        VerifyException, match="Expected 1 to 3 indexes for stencil.index, got 0."
+    ):
         TempType(dims, attr)
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 @pytest.mark.parametrize(
@@ -484,10 +491,10 @@ def test_stencil_resulttype(float_type: AnyFloat):
 
 def test_stencil_store():
     temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
+    temp_type_ssa_val = create_ssa_value(temp_type)
 
     field_type = FieldType([(0, 2), (0, 2)], f32)
-    field_type_ssa_val = TestSSAValue(field_type)
+    field_type_ssa_val = create_ssa_value(field_type)
 
     lb = IndexAttr.get(1, 1)
     ub = IndexAttr.get(64, 64)
@@ -524,7 +531,7 @@ def test_stencil_index():
 
 def test_stencil_access():
     temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
+    temp_type_ssa_val = create_ssa_value(temp_type)
 
     offset = [1, 1]
     offset_index_attr = IndexAttr.get(*offset)
@@ -538,11 +545,14 @@ def test_stencil_access():
 
 def test_stencil_dyn_access():
     temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
+    temp_type_ssa_val = create_ssa_value(temp_type)
 
     lb = IndexAttr.get(0, 0)
     ub = IndexAttr.get(1, 1)
-    offset = (TestSSAValue(builtin.IndexType()), TestSSAValue(builtin.IndexType()))
+    offset = (
+        create_ssa_value(builtin.IndexType()),
+        create_ssa_value(builtin.IndexType()),
+    )
 
     dyn_access = DynAccessOp(temp_type_ssa_val, offset, lb, ub)
 
@@ -554,7 +564,7 @@ def test_stencil_dyn_access():
 
 def test_stencil_access_offset_mapping():
     temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
+    temp_type_ssa_val = create_ssa_value(temp_type)
 
     offset = [1, 1]
     offset_index_attr = IndexAttr.get(*offset)
@@ -573,7 +583,7 @@ def test_stencil_access_offset_mapping():
 
 def test_store_result():
     elem = IndexAttr.get(1)
-    elem_ssa_val = TestSSAValue(elem)
+    elem_ssa_val = create_ssa_value(elem)
     result_type = ResultType(f32)
 
     store_result = StoreResultOp.build(
@@ -586,7 +596,7 @@ def test_store_result():
 
 
 def test_external_load():
-    memref = TestSSAValue(MemRefType(f32, ([5])))
+    memref = create_ssa_value(MemRefType(f32, [5]))
     field_type = FieldType((5), f32)
 
     external_load = ExternalLoadOp.get(memref, field_type)
@@ -597,8 +607,8 @@ def test_external_load():
 
 
 def test_external_store():
-    field = TestSSAValue(FieldType((5), f32))
-    memref = TestSSAValue(MemRefType(f32, ([5])))
+    field = create_ssa_value(FieldType(5, f32))
+    memref = create_ssa_value(MemRefType(f32, [5]))
 
     external_store = ExternalStoreOp.build(operands=[field, memref])
 
@@ -608,7 +618,7 @@ def test_external_store():
 
 
 def test_buffer():
-    temp = TestSSAValue(TempType((5), f32))
+    temp = create_ssa_value(TempType((5), f32))
     res_type = TempType((5), f32)
 
     buffer = BufferOp.build(operands=[temp], result_types=[res_type])
@@ -620,7 +630,7 @@ def test_buffer():
 
 def test_access_patterns():
     typ = TempType((5), f32)
-    temp = TestSSAValue(typ)
+    temp = create_ssa_value(typ)
 
     @Builder.implicit_region((typ, typ))
     def apply_op_region(args: tuple[SSAValue, ...]):
