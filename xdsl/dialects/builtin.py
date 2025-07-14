@@ -20,7 +20,6 @@ from immutabledict import immutabledict
 from typing_extensions import Self, TypeVar, deprecated, override
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
-from xdsl.dialects.core import IntAttr
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
@@ -71,6 +70,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.core_attrs import IntAttr
 from xdsl.traits import (
     IsolatedFromAbove,
     NoMemoryEffect,
