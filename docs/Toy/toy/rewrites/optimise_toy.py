@@ -49,7 +49,7 @@ class ReshapeReshapeOpPattern(RewritePattern):
             # Input defined by another transpose? If not, no match.
             return
 
-        new_op = ReshapeOp.from_input_and_type(reshape_input_op.arg, op.res.type)
+        new_op = ReshapeOp(reshape_input_op.arg, op.res.type)
         rewriter.replace_matched_op(new_op)
 
 

@@ -2902,6 +2902,17 @@ class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
+class DM_VmovupdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Move aligned packed double precision floating-point values from memory to vector register
+
+    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    """
+
+    name = "x86.dm.vmovupd"
+
+
+@irdl_op_definition
 class DM_VbroadcastsdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
     Broadcast low double precision floating-point element in m64 to eight locations in zmm1 using writemask k1

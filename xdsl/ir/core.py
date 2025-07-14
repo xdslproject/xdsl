@@ -21,6 +21,7 @@ from typing import (
     Generic,
     NoReturn,
     Protocol,
+    TypeAlias,
     cast,
     get_args,
     get_origin,
@@ -137,6 +138,7 @@ class Attribute(ABC):
         return res.getvalue()
 
 
+@dataclass(frozen=True, init=False)
 class BuiltinAttribute(Attribute, ABC):
     """
     This class is used to mark builtin attributes.
@@ -224,6 +226,19 @@ class Data(Generic[DataElement], Attribute, ABC):
         return attr
 
     @classmethod
+    def get(cls, attr: DataElement | Self) -> Self:
+        """
+        Creates an element of this class from `DataElement`,
+        or returns the input when it is already an instance of this class.
+
+        This function is useful for `__init__` methods, for example when a we
+        would like to accept either a `StringAttr` or a `str`.
+        """
+        if not isinstance(attr, cls):
+            attr = cls.new(attr)
+        return attr
+
+    @classmethod
     @abstractmethod
     def parse_parameter(cls, parser: AttrParser) -> DataElement:
         """Parse the attribute parameter."""
@@ -306,6 +321,7 @@ class EnumAttribute(Data[EnumType]):
         return cast(EnumType, parser.parse_str_enum(cls.enum_type))
 
 
+@dataclass(frozen=True, init=False)
 class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
     """
     Core helper for BitEnumAttributes. Takes a StrEnum type parameter, and
@@ -423,7 +439,18 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
-    def __init__(self, parameters: Sequence[Attribute] = ()):
+    def __init__(self, *parameters: Attribute):
+        if len(parameters) == 1 and isinstance(parameters[0], tuple):
+            import warnings
+
+            warnings.warn(
+                "Passing a tuple as a single argument to ParametrizedAttribute.__init__ is deprecated. "
+                "Pass the tuple elements as separate arguments instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            parameters = parameters[0]
+
         for (f, _), param in zip(
             self.get_irdl_definition().parameters, parameters, strict=True
         ):
@@ -452,9 +479,13 @@ class ParametrizedAttribute(Attribute):
         # We do this to allow users to redefine their own __init__.
         attr = cls.__new__(cls)
 
-        # Call the __init__ of ParametrizedAttribute, which will set the
-        # parameters field.
-        ParametrizedAttribute.__init__(attr, tuple(params))
+        # Set the parameters based on the definition
+        for (f, _), param in zip(
+            cls.get_irdl_definition().parameters, params, strict=True
+        ):
+            object.__setattr__(attr, f, param)
+        attr.__post_init__()
+
         return attr
 
     @classmethod
@@ -703,20 +734,25 @@ class ErasedSSAValue(SSAValue):
 
 
 @dataclass(init=False)
-class IRNode(ABC):
+class _IRNode(ABC):
     def is_ancestor(self, op: IRNode) -> bool:
-        "Returns true if the IRNode is an ancestor of another IRNode."
-        if op is self:
-            return True
-        if (parent := op.parent_node) is None:
-            return False
-        return self.is_ancestor(parent)
+        "Returns true if `self` is an ancestor of `op`."
+        curr = op
+        while curr is not None:
+            if curr is self:
+                return True
+            curr = curr.parent_node
+        return False
 
     def get_toplevel_object(self) -> IRNode:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if (parent := self.parent_node) is None:
-            return self
-        return parent.get_toplevel_object()
+        """
+        Get the ancestor of `self` that has no parent.
+        This can be an Operation, Block, or Region.
+        """
+        current = self
+        while (parent := current.parent_node) is not None:
+            current = parent
+        return current  # pyright: ignore[reportReturnType]
 
     def is_structurally_equivalent(
         self,
@@ -730,11 +766,11 @@ class IRNode(ABC):
     @abstractmethod
     def parent_node(self) -> IRNode | None: ...
 
-    @abstractmethod
-    def __eq__(self, other: object) -> bool: ...
+    def __eq__(self, other: object) -> bool:
+        return self is other
 
-    @abstractmethod
-    def __hash__(self) -> int: ...
+    def __hash__(self) -> int:
+        return id(self)
 
 
 @dataclass
@@ -815,8 +851,8 @@ class OpTraits(Iterable[OpTrait]):
         return isinstance(value, OpTraits) and self._traits == value._traits
 
 
-@dataclass
-class Operation(IRNode):
+@dataclass(eq=False, unsafe_hash=False)
+class Operation(_IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
     name: ClassVar[str] = field(repr=False)
@@ -1162,7 +1198,8 @@ class Operation(IRNode):
             self.verify_()
         except VerifyException as err:
             self.emit_error(
-                "Operation does not verify: " + str(err), underlying_error=err
+                f"Operation does not verify: {err}",
+                err,
             )
 
     def verify_(self) -> None:
@@ -1352,25 +1389,18 @@ class Operation(IRNode):
     def emit_error(
         self,
         message: str,
-        exception_type: type[Exception] = VerifyException,
-        underlying_error: Exception | None = None,
+        underlying_error: Exception,
     ) -> NoReturn:
         """Emit an error with the given message."""
         from xdsl.utils.diagnostic import Diagnostic
 
         diagnostic = Diagnostic()
         diagnostic.add_message(self, message)
-        diagnostic.raise_exception(message, self, exception_type, underlying_error)
+        diagnostic.raise_exception(self, underlying_error)
 
     @classmethod
     def dialect_name(cls) -> str:
         return Dialect.split_name(cls.name)[0]
-
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
 
     def __str__(self) -> str:
         from xdsl.printer import Printer
@@ -1473,8 +1503,8 @@ class BlockOps(Reversible[Operation], Iterable[Operation]):
         return self.block.last_op
 
 
-@dataclass(init=False)
-class Block(IRNode, IRWithUses):
+@dataclass(init=False, eq=False, unsafe_hash=False)
+class Block(_IRNode, IRWithUses):
     """A sequence of operations"""
 
     _args: tuple[BlockArgument, ...]
@@ -1902,12 +1932,6 @@ class Block(IRNode, IRWithUses):
 
         return True
 
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
-
 
 @dataclass
 class _RegionBlocksIterator(Iterator[Block]):
@@ -2055,8 +2079,8 @@ class RegionBlocks(Sequence[Block], Reversible[Block]):
         return self._region.last_block
 
 
-@dataclass(init=False)
-class Region(IRNode):
+@dataclass(init=False, eq=False, unsafe_hash=False)
+class Region(_IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
     class DEFAULT:
@@ -2525,3 +2549,6 @@ class Region(IRNode):
         ):
             return False
         return True
+
+
+IRNode: TypeAlias = Operation | Region | Block

@@ -2,8 +2,6 @@
 Type utilities.
 """
 
-from typing import Any, cast
-
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ContainerType,
@@ -12,13 +10,17 @@ from xdsl.dialects.builtin import (
     TensorType,
 )
 from xdsl.ir import Attribute
+from xdsl.utils.hints import isa
 
 
-def get_element_type_or_self(maybe_shaped_type: Attribute) -> Attribute:
-    if isinstance(maybe_shaped_type, ContainerType):
-        container_type = cast(ContainerType[Any], maybe_shaped_type)
-        return container_type.get_element_type()
-    return maybe_shaped_type
+def get_element_type_or_self(maybe_container_type: Attribute) -> Attribute:
+    """
+    If the input is a `ContainerType`, then returns it's element type, otherwise returns
+    input.
+    """
+    if isa(maybe_container_type, ContainerType):
+        return maybe_container_type.get_element_type()
+    return maybe_container_type
 
 
 def get_encoding(maybe_shaped_type: Attribute) -> Attribute:

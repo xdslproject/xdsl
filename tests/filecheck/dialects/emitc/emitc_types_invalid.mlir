@@ -65,7 +65,7 @@
 
 // -----
 
-// CHECK: '>' expected
+// CHECK: Expected shape type.
 "test.op"() {
   illegal_array_unranked = !emitc.array<*xi32>
 }: ()->()
@@ -110,4 +110,32 @@
 // CHECK: !emitc.lvalue must wrap supported emitc type, but got tuple<!emitc.array<1xi32>>
 "test.op"() {
   illegal_lvalue_tuple_emitc_array_i32 = !emitc.lvalue<tuple<!emitc.array<1xi32>>>
+}: ()->()
+
+// -----
+
+// CHECK: expected non empty string in !emitc.opaque type
+"test.op"() {
+  empty_str = !emitc.opaque<"">
+}: ()->()
+
+// -----
+
+// CHECK: pointer not allowed as outer type with !emitc.opaque, use !emitc.ptr instead
+"test.op"() {
+  with_ptr = !emitc.opaque<"foo*">
+}: ()->()
+
+// -----
+
+// CHECK: pointers to lvalues are not allowed
+"test.op"() {
+  ptr_lvalue = !emitc.ptr<!emitc.lvalue<i32>>
+}: ()->()
+
+// -----
+
+// CHECK: !emitc.lvalue must wrap supported emitc type, but got !emitc.ptr<memref<1xi32>>
+"test.op"() {
+  lvalue_ptr_memref = !emitc.lvalue<!emitc.ptr<memref<1xi32>>>
 }: ()->()

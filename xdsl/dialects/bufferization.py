@@ -86,6 +86,9 @@ class TensorFromMemRefConstraint(
             )
         return self.memref_constraint.verify(memref_type, constraint_context)
 
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {TensorType, UnrankedTensorType}
+
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> TensorFromMemRefConstraint:

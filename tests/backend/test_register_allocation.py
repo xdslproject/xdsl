@@ -152,9 +152,7 @@ def test_new_type_for_value():
     a0 = TestRegister.from_name("a0")
     a1 = TestRegister.from_name("a1")
 
-    available_registers = RegisterStack()
-    available_registers.push(a0)
-    available_registers.push(a1)
+    available_registers = RegisterStack.get((a0, a1))
     allocator = ValueAllocator(available_registers, TestRegister)
 
     r0, r1, r2, r3 = op(
@@ -173,9 +171,7 @@ def test_allocate_value():
     a1 = TestRegister.from_name("a1")
     y0 = TestRegister.from_name("y0")
 
-    register_stack = RegisterStack()
-    register_stack.push(a0)
-    register_stack.push(a1)
+    register_stack = RegisterStack.get((a0, a1))
     allocator = ValueAllocator(register_stack, TestRegister)
 
     op0 = op((), u, u, u, u)
@@ -284,9 +280,7 @@ def test_allocate_values_same_reg():
     a1 = TestRegister.from_name("a1")
     y0 = TestRegister.from_name("y0")
 
-    register_stack = RegisterStack()
-    register_stack.push(a0)
-    register_stack.push(a1)
+    register_stack = RegisterStack.get((a0, a1))
     allocator = ValueAllocator(register_stack, TestRegister)
 
     # Empty

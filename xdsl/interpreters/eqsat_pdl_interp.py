@@ -91,9 +91,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Used for hashconsing operations. When new operations are created, if they are identical to an existing operation,
     the existing operation is reused instead of creating a new one."""
 
-    known_ops_restore_list: list[Operation] = field(default_factory=list[Operation])
-    """List of operations that have been modified during the pattern matching."""
-
     eclass_union_find: DisjointSet[eqsat.EClassOp] = field(
         default_factory=lambda: DisjointSet[eqsat.EClassOp]()
     )
@@ -102,16 +99,17 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     merge_list: list[MergeTodo] = field(default_factory=list[MergeTodo])
     """List of e-classes that should be merged by `apply_matches` after the pattern matching is done."""
 
+    is_matching: bool = True
+    """Keeps track whether the interpreter is currently in a matching context (as opposed to in a rewriting context).
+    If it is, finalize behaves differently by backtracking."""
+
     def modification_handler(self, op: Operation):
         """
         Keeps `known_ops` up to date.
         Whenever an operation is modified, for example when its operands are updated to a different eclass value,
-        the operation is added to `known_ops_restore_list`. At the end of `apply_matches`, all the (now updated)
-        operations in `known_ops_restore_list` are put back into `known_ops`.
+        the operation is added to the hashcons `known_ops`.
         """
-        if op in self.known_ops:
-            removed = self.known_ops.pop(op)
-            self.known_ops_restore_list.append(removed)
+        self.known_ops[op] = op
 
     def populate_known_ops(self, module: ModuleOp) -> None:
         """
@@ -206,9 +204,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         if not isinstance(args[0], OpResult):
             return (None,)
         else:
-            assert isinstance(args[0].owner, Operation), (
-                "Cannot get defining op of a Block argument"
-            )
             defining_op = args[0].owner
 
         if not isinstance(defining_op, eqsat.EClassOp):
@@ -236,7 +231,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 )
             )
         defining_op = eclass_op.operands[index].owner
-        assert isinstance(defining_op, Operation)
+        if not isinstance(defining_op, Operation):
+            return (None,)
 
         return (defining_op,)
 
@@ -332,10 +328,24 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (new_op,)
 
+    @impl_terminator(pdl_interp.RecordMatchOp)
+    def run_recordmatch(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.RecordMatchOp,
+        args: tuple[Any, ...],
+    ):
+        self.is_matching = False
+        interpreter.call_op(op.rewriter, args)
+        self.is_matching = True
+        return Successor(op.dest, ()), ()
+
     @impl_terminator(pdl_interp.FinalizeOp)
     def run_finalize(
         self, interpreter: Interpreter, _: pdl_interp.FinalizeOp, args: tuple[Any, ...]
     ):
+        if not self.is_matching:
+            return ReturnedValues(()), ()
         for backtrack_point in reversed(self.backtrack_stack):
             if backtrack_point.index >= backtrack_point.max_index:
                 self.backtrack_stack.pop()
@@ -360,11 +370,10 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 new_operands = (*operands, *to_replace.operands)
                 to_keep.operands = new_operands
 
+            for use in to_replace.result.uses:
+                if use.operation in self.known_ops:
+                    self.known_ops.pop(use.operation)
+
             self.rewriter.replace_op(
                 to_replace, new_ops=[], new_results=to_keep.results
             )
-
-        while self.known_ops_restore_list:
-            op = self.known_ops_restore_list.pop()
-            assert op not in self.known_ops
-            self.known_ops[op] = op

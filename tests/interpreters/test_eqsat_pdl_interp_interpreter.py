@@ -773,39 +773,44 @@ def test_apply_matches():
     assert len(canonical.operands) == initial_operand_count + len(to_replace.operands)
 
 
-def test_apply_matches_with_known_ops_restore():
-    """Test that apply_matches restores operations from known_ops_restore_list."""
-    ctx = Context()
-    interp_functions = EqsatPDLInterpFunctions(ctx)
+def test_run_get_defining_op_block_argument():
+    """Test that run_get_defining_op returns None for block arguments."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
 
-    # Set up a mock rewriter
-    from xdsl.builder import ImplicitBuilder
-    from xdsl.ir import Block, Region
-    from xdsl.pattern_rewriter import PatternRewriter
+    # Create a block argument
+    from xdsl.ir import Block
 
-    testmodule = ModuleOp(Region([Block()]))
-    block = testmodule.body.first_block
-    with ImplicitBuilder(block):
-        root = test.TestOp()
-    rewriter = PatternRewriter(root)
-    interp_functions.rewriter = rewriter
+    block = Block((), arg_types=(i32,))
+    block_arg = block.args[0]
 
-    # Create test operation
-    c0 = create_ssa_value(i32)
-    test_op = test.TestOp((c0,), (i32,))
+    # Test GetDefiningOpOp with block argument
+    result = interpreter.run_op(
+        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())),
+        (block_arg,),
+    )
 
-    # Add operation to restore list (simulating what modification_handler would do)
-    interp_functions.known_ops_restore_list.append(test_op)
+    # Should return None for block arguments
+    assert result == (None,)
 
-    # Verify it's not in known_ops initially
-    assert test_op not in interp_functions.known_ops
+    # Should not have set up any backtracking for block arguments
+    assert len(interp_functions.backtrack_stack) == 0
 
-    # Apply matches (with empty merge list to focus on restore functionality)
-    interp_functions.apply_matches()
+    # test the case where the value is used in an EClassOp:
+    block.add_op(
+        gdo := pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
+    )
 
-    # Should have restored the operation to known_ops
-    assert test_op in interp_functions.known_ops
-    assert interp_functions.known_ops[test_op] is test_op
+    eclass_result = eqsat.EClassOp(block_arg, res_type=i32).result
 
-    # Should have cleared the restore list
-    assert not interp_functions.known_ops_restore_list
+    # set dummy value
+    interpreter.push_scope()
+    interpreter._ctx[block_arg] = None  # pyright: ignore[reportPrivateUsage]
+
+    result = interpreter.run_op(
+        gdo,
+        (eclass_result,),
+    )
+    assert result == (None,)
+    assert len(interp_functions.backtrack_stack) == 1

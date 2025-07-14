@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     ShapedType,
+    StringAttr,
     TensorType,
     TupleType,
 )
@@ -31,7 +32,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     TypeAttribute,
 )
-from xdsl.irdl import ParameterDef, irdl_attr_definition
+from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -45,8 +46,8 @@ class EmitC_ArrayType(
 
     name = "emitc.array"
 
-    shape: ParameterDef[ArrayAttr[IntAttr]]
-    element_type: ParameterDef[AttributeCovT]
+    shape: ArrayAttr[IntAttr]
+    element_type: AttributeCovT
 
     def __init__(
         self,
@@ -56,7 +57,7 @@ class EmitC_ArrayType(
         shape = ArrayAttr(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
         )
-        super().__init__([shape, element_type])
+        super().__init__(shape, element_type)
 
     def verify(self) -> None:
         if not self.shape.data:
@@ -123,10 +124,7 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "emitc.lvalue"
-    value_type: ParameterDef[TypeAttribute]
-
-    def __init__(self, value_type: TypeAttribute):
-        super().__init__([value_type])
+    value_type: TypeAttribute
 
     def verify(self) -> None:
         """
@@ -140,6 +138,66 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
             )
         if isinstance(self.value_type, EmitC_ArrayType):
             raise VerifyException("!emitc.lvalue cannot wrap !emitc.array type")
+
+
+@irdl_attr_definition
+class EmitC_OpaqueType(ParametrizedAttribute, TypeAttribute):
+    """EmitC opaque type"""
+
+    name = "emitc.opaque"
+    value: StringAttr
+
+    def verify(self) -> None:
+        if not self.value.data:
+            raise VerifyException("expected non empty string in !emitc.opaque type")
+        if self.value.data[-1] == "*":
+            raise VerifyException(
+                "pointer not allowed as outer type with !emitc.opaque, use !emitc.ptr instead"
+            )
+
+
+@irdl_attr_definition
+class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
+    """EmitC pointer type"""
+
+    name = "emitc.ptr"
+    pointee_type: TypeAttribute
+
+    def verify(self) -> None:
+        if isinstance(self.pointee_type, EmitC_LValueType):
+            raise VerifyException("pointers to lvalues are not allowed")
+
+
+@irdl_attr_definition
+class EmitC_PtrDiffT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC signed pointer diff type.
+    Signed data type as wide as platform-specific pointer types. In particular, it is as wide as emitc.size_t.
+    It corresponds to ptrdiff_t found in <stddef.h>.
+    """
+
+    name = "emitc.ptrdiff_t"
+
+
+@irdl_attr_definition
+class EmitC_SignedSizeT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC signed size type.
+    Data type representing all values of emitc.size_t, plus -1. It corresponds to ssize_t found in <sys/types.h>.
+    Use of this type causes the code to be non-C99 compliant.
+    """
+
+    name = "emitc.ssize_t"
+
+
+@irdl_attr_definition
+class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC unsigned size type.
+    Unsigned data type as wide as platform-specific pointer types. It corresponds to size_t found in <stddef.h>.
+    """
+
+    name = "emitc.size_t"
 
 
 _SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
@@ -168,6 +226,15 @@ def is_supported_float_type(type_attr: Attribute) -> bool:
             return False
 
 
+def is_pointer_wide_type(type_attr: Attribute) -> bool:
+    """Check if a type is a pointer-wide type."""
+    match type_attr:
+        case EmitC_PtrDiffT() | EmitC_SignedSizeT() | EmitC_SizeT():
+            return True
+        case _:
+            return False
+
+
 def is_integer_index_or_opaque_type(
     type_attr: Attribute,
 ) -> bool:
@@ -178,7 +245,11 @@ def is_integer_index_or_opaque_type(
     only for integer and index types.
     See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
     """
-    return _is_supported_integer_type(type_attr) or isinstance(type_attr, IndexType)
+    return (
+        _is_supported_integer_type(type_attr)
+        or isinstance(type_attr, IndexType)
+        or is_pointer_wide_type(type_attr)
+    )
 
 
 def is_supported_emitc_type(type_attr: Attribute) -> bool:
@@ -191,11 +262,15 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
             return _is_supported_integer_type(type_attr)
         case IndexType():
             return True
+        case EmitC_OpaqueType():
+            return True
         case EmitC_ArrayType():
             elem_type = cast(Attribute, type_attr.get_element_type())
             return not isinstance(
                 elem_type, EmitC_ArrayType
             ) and is_supported_emitc_type(elem_type)
+        case EmitC_PointerType():
+            return is_supported_emitc_type(type_attr.pointee_type)
         case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
             return True
         case TensorType():
@@ -208,6 +283,8 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
                 not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
                 for t in type_attr.types
             )
+        case EmitC_PtrDiffT():
+            return True
         case _:
             return False
 
@@ -218,5 +295,10 @@ EmitC = Dialect(
     [
         EmitC_ArrayType,
         EmitC_LValueType,
+        EmitC_OpaqueType,
+        EmitC_PointerType,
+        EmitC_PtrDiffT,
+        EmitC_SignedSizeT,
+        EmitC_SizeT,
     ],
 )

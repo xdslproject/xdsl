@@ -5,7 +5,6 @@ from typing import TypeAlias, cast
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
     I64,
-    AnyFloat,
     AnyTensorTypeConstr,
     DenseArrayBase,
     Float16Type,
@@ -30,7 +29,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
-    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -77,7 +75,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "csl_stencil.exchange"
 
-    neighbor_param: ParameterDef[DenseArrayBase[I64]]
+    neighbor_param: DenseArrayBase[I64]
 
     def __init__(
         self,
@@ -85,13 +83,9 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
     ):
         data_type = builtin.i64
         super().__init__(
-            [
-                (
-                    neighbor
-                    if isinstance(neighbor, DenseArrayBase)
-                    else DenseArrayBase.from_list(data_type, neighbor)
-                ),
-            ]
+            neighbor
+            if isinstance(neighbor, DenseArrayBase)
+            else DenseArrayBase.from_list(data_type, neighbor)
         )
 
     @classmethod
@@ -166,11 +160,8 @@ CslFloat: TypeAlias = Float16Type | Float32Type
 @irdl_attr_definition
 class CoeffAttr(ParametrizedAttribute):
     name = "csl_stencil.coeff"
-    offset: ParameterDef[stencil.IndexAttr]
-    coeff: ParameterDef[FloatAttr[AnyFloat]]
-
-    def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
-        super().__init__([offset, coeff])
+    offset: stencil.IndexAttr
+    coeff: FloatAttr
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -436,7 +427,7 @@ class ApplyOp(IRDLOperation):
                 accesses.append(offsets)
             yield stencil.AccessPattern(tuple(accesses))
 
-    def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+    def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr):
         self.coeffs = builtin.ArrayAttr(
             list(self.coeffs or []) + [CoeffAttr(offset, coeff)]
         )

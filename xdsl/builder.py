@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import ClassVar, TypeAlias, overload
 
+from typing_extensions import TypeVar
+
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
@@ -42,6 +44,9 @@ class BuilderListener:
         self.block_creation_handler.extend(listener.block_creation_handler)
 
 
+InsertOpInvT = TypeVar("InsertOpInvT", bound=Operation | Sequence[Operation])
+
+
 @dataclass
 class Builder(BuilderListener):
     """
@@ -55,22 +60,33 @@ class Builder(BuilderListener):
     """Operations will be inserted at this location."""
 
     def insert(self, op: OperationInvT) -> OperationInvT:
-        """Inserts `op` at the current insertion point."""
+        """
+        Inserts op at the current location and returns it.
+        """
+        return self.insert_op(op)
+
+    def insert_op(
+        self,
+        op: InsertOpInvT,
+        insertion_point: InsertPoint | None = None,
+    ) -> InsertOpInvT:
+        """Inserts op(s) at the current insertion point."""
+        ops = (op,) if isinstance(op, Operation) else op
+        if not ops:
+            return ops
 
         implicit_builder = ImplicitBuilder.get()
-
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
                 "Cannot insert operation explicitly when an implicit builder exists."
             )
 
-        block = self.insertion_point.block
-        insert_before = self.insertion_point.insert_before
-        if insert_before is not None:
-            block.insert_op_before(op, insert_before)
-        else:
-            block.add_op(op)
-        self.handle_operation_insertion(op)
+        Rewriter.insert_op(
+            op, self.insertion_point if insertion_point is None else insertion_point
+        )
+
+        for op_ in ops:
+            self.handle_operation_insertion(op_)
 
         return op
 

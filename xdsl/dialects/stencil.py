@@ -38,7 +38,6 @@ from xdsl.irdl import (
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
-    ParameterDef,
     VarConstraint,
     attr_def,
     base,
@@ -83,7 +82,7 @@ _FieldTypeElement = TypeVar(
 class IndexAttr(ParametrizedAttribute, Iterable[int]):
     name = "stencil.index"
 
-    array: ParameterDef[ArrayAttr[IntAttr]]
+    array: ArrayAttr[IntAttr]
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -92,7 +91,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
             return [cls.parse_indices(parser)]
 
     @classmethod
-    def parse_indices(cls, parser: AttrParser) -> ArrayAttr:
+    def parse_indices(cls, parser: AttrParser) -> ArrayAttr[IntAttr]:
         """
         Parse a comma-separated, square delimited, list of integers into an ArrayAttr of
         IntAttrs.
@@ -121,11 +120,9 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     @staticmethod
     def get(*indices: int | IntAttr):
         return IndexAttr(
-            [
-                ArrayAttr(
-                    [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
-                )
-            ]
+            ArrayAttr(
+                [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
+            )
         )
 
     # TODO : come to an agreement on, do we want to allow that kind of things
@@ -168,8 +165,8 @@ class StencilBoundsAttr(ParametrizedAttribute):
     """
 
     name = "stencil.bounds"
-    lb: ParameterDef[IndexAttr]
-    ub: ParameterDef[IndexAttr]
+    lb: IndexAttr
+    ub: IndexAttr
 
     def _verify(self):
         if len(self.lb) != len(self.ub):
@@ -190,10 +187,8 @@ class StencilBoundsAttr(ParametrizedAttribute):
         else:
             lb, ub = (), ()
         super().__init__(
-            [
-                IndexAttr.get(*lb),
-                IndexAttr.get(*ub),
-            ]
+            IndexAttr.get(*lb),
+            IndexAttr.get(*ub),
         )
 
     def print_parameters(self, printer: Printer) -> None:
@@ -205,9 +200,9 @@ class StencilBoundsAttr(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         with parser.in_angle_brackets():
-            lb = IndexAttr([IndexAttr.parse_indices(parser)])
+            lb = IndexAttr(IndexAttr.parse_indices(parser))
             parser.parse_punctuation(",")
-            ub = IndexAttr([IndexAttr.parse_indices(parser)])
+            ub = IndexAttr(IndexAttr.parse_indices(parser))
             return [lb, ub]
 
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
@@ -263,14 +258,14 @@ class StencilType(
     builtin.ContainerType[_FieldTypeElement],
 ):
     name = "stencil.type"
-    bounds: ParameterDef[StencilBoundsAttr | IntAttr]
+    bounds: StencilBoundsAttr | IntAttr
     """
     Represents the bounds information of a stencil.field or stencil.temp.
 
     A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
     rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
     """
-    element_type: ParameterDef[_FieldTypeElement]
+    element_type: _FieldTypeElement
 
     def get_num_dims(self) -> int:
         if isinstance(self.bounds, IntAttr):
@@ -356,7 +351,7 @@ class StencilType(
             nbounds = IntAttr(bounds)
         else:
             nbounds = bounds
-        return super().__init__([nbounds, element_type])
+        return super().__init__(nbounds, element_type)
 
     @classmethod
     def constr(
@@ -373,7 +368,7 @@ class StencilType(
         return ParamAttrConstraint(cls, (bounds, element_type))
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class FieldType(
     Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
@@ -390,7 +385,7 @@ class FieldType(
     name = "stencil.field"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class TempType(
     Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
@@ -405,7 +400,7 @@ class TempType(
     name = "stencil.temp"
 
 
-StencilTypeConstr = StencilType[Attribute].constr()
+StencilTypeConstr = FieldType.constr() | TempType.constr()
 FieldTypeConstr = FieldType[Attribute].constr()
 TempTypeConstr = TempType[Attribute].constr()
 
@@ -415,10 +410,7 @@ AnyTempType: TypeAlias = TempType[Attribute]
 @irdl_attr_definition
 class ResultType(ParametrizedAttribute, TypeAttribute):
     name = "stencil.result"
-    elem: ParameterDef[Attribute]
-
-    def __init__(self, type: Attribute) -> None:
-        super().__init__([type])
+    elem: Attribute
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -1111,9 +1103,7 @@ class AccessOp(IRDLOperation):
 
         attributes: dict[str, Attribute] = {
             "offset": IndexAttr(
-                [
-                    ArrayAttr(IntAttr(value) for value in offset),
-                ]
+                ArrayAttr(IntAttr(value) for value in offset),
             ),
         }
 
@@ -1245,8 +1235,7 @@ class LoadOp(IRDLOperation):
         FieldType[Attribute].constr(
             bounds=base(StencilBoundsAttr),
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",
             ),
         )
@@ -1254,8 +1243,7 @@ class LoadOp(IRDLOperation):
     res = result_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",
             )
         )
@@ -1399,8 +1387,7 @@ class StoreOp(IRDLOperation):
     temp = operand_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Input and output fields must have the same element types",
             ),
         )
@@ -1411,8 +1398,7 @@ class StoreOp(IRDLOperation):
                 StencilBoundsAttr, "Output type's size must be explicit"
             ),
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Input and output fields must have the same element types",
             ),
         )
