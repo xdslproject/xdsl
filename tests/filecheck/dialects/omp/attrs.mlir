@@ -90,12 +90,12 @@
                 #omp<order_mod unconstrained>,
                 // CHECK-SAME: #omp<order_mod unconstrained>
 
-                #omp<reduction_modifier defaultmod>,
-                // CHECK-SAME: #omp<reduction_modifier defaultmod>
-                #omp<reduction_modifier inscan>,
-                // CHECK-SAME: #omp<reduction_modifier inscan>
-                #omp<reduction_modifier task>
-                // CHECK-SAME: #omp<reduction_modifier task>
+                #omp<reduction_modifier (defaultmod)>,
+                // CHECK-SAME: #omp<reduction_modifier (defaultmod)>
+                #omp<reduction_modifier (inscan)>,
+                // CHECK-SAME: #omp<reduction_modifier (inscan)>
+                #omp<reduction_modifier (task)>
+                // CHECK-SAME: #omp<reduction_modifier (task)>
 
 
             ]}: () -> !omp.map_bounds_ty
