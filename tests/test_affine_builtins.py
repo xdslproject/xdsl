@@ -2,6 +2,7 @@ import re
 from collections.abc import Sequence
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.ir.affine import (
     AffineBinaryOpExpr,
@@ -331,27 +332,60 @@ def test_affine_expr_used_dims():
     assert AffineExpr.constant(5).used_dims() == set()
 
 
-def test_affine_map_used_dims():
-    assert AffineMap.from_callable(lambda i, j: (i, j)).used_dims() == {0, 1}
-    assert AffineMap.from_callable(lambda i, j, _: (i + j,)).used_dims() == {0, 1}
-    assert AffineMap.from_callable(lambda i, _, k: (i, k)).used_dims() == {0, 2}
+@pytest.mark.parametrize(
+    "affine_map, expected_used, expected_unused",
+    [
+        (
+            AffineMap.from_callable(lambda i, j: (i, j)),
+            {0, 1},
+            set[int](),
+        ),
+        (
+            AffineMap.from_callable(lambda i, j, _: (i + j,)),
+            {0, 1},
+            {2},
+        ),
+        (
+            AffineMap.from_callable(lambda i, _, k: (i, k)),
+            {0, 2},
+            {1},
+        ),
+    ],
+)
+def test_affine_map_used_and_unused_dims(
+    affine_map: AffineMap, expected_used: set[int], expected_unused: set[int]
+):
+    assert affine_map.used_dims() == expected_used
+    assert affine_map.unused_dims() == expected_unused
 
 
-def test_affine_map_used_dims_bit_vector():
-    assert AffineMap.from_callable(lambda i, j: (i, j)).used_dims_bit_vector() == (
-        True,
-        True,
-    )
-    assert AffineMap.from_callable(lambda i, j, _: (i + j,)).used_dims_bit_vector() == (
-        True,
-        True,
-        False,
-    )
-    assert AffineMap.from_callable(lambda i, _, k: (i, k)).used_dims_bit_vector() == (
-        True,
-        False,
-        True,
-    )
+@pytest.mark.parametrize(
+    "affine_map, expected_used",
+    [
+        (
+            AffineMap.from_callable(lambda i, j: (i, j)),
+            (True, True),
+        ),
+        (
+            AffineMap.from_callable(lambda i, j, _: (i + j,)),
+            (True, True, False),
+        ),
+        (
+            AffineMap.from_callable(lambda i, _, k: (i, k)),
+            (True, False, True),
+        ),
+        (
+            AffineMap.from_callable(lambda _, __: ()),
+            (False, False),
+        ),
+    ],
+)
+def test_affine_map_used_dims_bit_vector(
+    affine_map: "AffineMap", expected_used: tuple[bool, ...]
+) -> None:
+    expected_unused = tuple(not d for d in expected_used)
+    assert affine_map.used_dims_bit_vector() == expected_used
+    assert affine_map.unused_dims_bit_vector() == expected_unused
 
 
 def test_minor_identity():
@@ -411,3 +445,29 @@ def test_is_projected_permutation():
     assert AffineMap.from_callable(
         lambda d0, d1, d2: (d1, 0, d0)
     ).is_projected_permutation(allow_zero_in_results=True)
+
+
+_T = TypeVar("_T")
+
+
+@pytest.mark.parametrize(
+    "permutation_map, inputs, expected",
+    [
+        (
+            AffineMap.from_callable(lambda d0, d1, d2: (d1, d0)),
+            (10, 20, 30),
+            (20, 10),
+        ),
+        (
+            AffineMap(
+                8, 0, tuple(AffineExpr.dimension(d) for d in (4, 1, 6, 0, 3, 2, 5, 7))
+            ),
+            "policemr",
+            ("c", "o", "m", "p", "i", "l", "e", "r"),
+        ),
+    ],
+)
+def test_apply_permutation_map(
+    permutation_map: AffineMap, inputs: Sequence[_T], expected: tuple[_T, ...]
+):
+    assert permutation_map.apply_permutation(inputs) == expected

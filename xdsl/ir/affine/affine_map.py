@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from inspect import getfullargspec
 from typing import cast
 
+from typing_extensions import TypeVar
+
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 
 AffineExprBuilderT = AffineExpr | int
@@ -23,6 +25,8 @@ AffineMapBuilderT = (
         tuple[AffineExprBuilderT, ...],
     ]
 )
+
+_T = TypeVar("_T")
 
 
 @dataclass(frozen=True)
@@ -347,9 +351,22 @@ class AffineMap:
             if isinstance(expr, AffineDimExpr)
         }
 
+    def unused_dims(self) -> set[int]:
+        """
+        Return all dimensions not used in the map as a set
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives {d1}
+        (d0, d1, d2, d3) -> (d0, d2) gives {d1, d3}
+        ```
+        """
+        return self.used_dims().symmetric_difference(range(self.num_dims))
+
     def used_dims_bit_vector(self) -> tuple[bool, ...]:
         """
-        Return a tuple of bools with the i-th entry being True if the i-th dimension is used in the map, otherwise it is False.
+        Return a tuple of bools with the i-th entry being True if the i-th dimension is
+        used in the map, otherwise it is False.
 
         Example:
         ```
@@ -357,13 +374,22 @@ class AffineMap:
         (d0, d1, d2) -> (d0, d2) gives (True, False, True)
         ```
         """
+        used_dims = self.used_dims()
+        return tuple(dim in used_dims for dim in range(self.num_dims))
 
-        used_dims = [False] * self.num_dims
-        for res_expr in self.results:
-            for expr in res_expr.dfs():
-                if isinstance(expr, AffineDimExpr):
-                    used_dims[expr.position] = True
-        return tuple(used_dims)
+    def unused_dims_bit_vector(self) -> tuple[bool, ...]:
+        """
+        Return a tuple of bools with the i-th entry being True if the i-th dimension is
+        not used in the map, otherwise it is False.
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives (True, False)
+        (d0, d1, d2) -> (d0, d2) gives (True, False, True)
+        ```
+        """
+        used_dims = self.used_dims()
+        return tuple(dim not in used_dims for dim in range(self.num_dims))
 
     def is_minor_identity(self) -> bool:
         """
@@ -432,6 +458,26 @@ class AffineMap:
 
         # Results are either dims or zeros and zeros can be mapped to input dims.
         return True
+
+    def apply_permutation(self, source: Sequence[_T]) -> tuple[_T, ...]:
+        """
+        Assert that `self` represents a projected permutation, and apply the permutation
+        to `source`.
+        The number of inputs must match the size of the source.
+
+        Example:
+        ```
+        map = (d0, d1, d2) -> (d1, d0)
+        source = [10, 20, 30]
+        result = [20, 10]
+        ```
+
+        Equivalent to `applyPermutationMap` in MLIR.
+        """
+        assert self.is_projected_permutation(), "Map must be a projected permutation"
+        assert self.num_dims == len(source), "Number of inputs must match source size"
+        results = cast(Sequence[AffineDimExpr], self.results)
+        return tuple(source[expr.position] for expr in results)
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.
