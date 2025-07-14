@@ -4,8 +4,8 @@ from ctypes import c_int32
 
 from xdsl.dialects import arith, builtin
 from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.exception import CodeGenerationException
 from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 
 
 def add_i32(operand1: c_int32, operand2: c_int32) -> c_int32: ...
