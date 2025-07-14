@@ -941,7 +941,7 @@ class OptionalElseGroupOp(IRDLOperation):
     v = opt_operand_def(i32)
     a = opt_prop_def(IntegerAttr[I32])
 
-    assembly_format = """(`value` $v^):($a)? attr-dict"""
+    assembly_format = """($v^):($a)? attr-dict"""
 
 
 def test_optional_else_group():
@@ -953,7 +953,7 @@ def test_optional_else_group():
     assert isinstance(op, OptionalElseGroupOp)
     op.verify()
 
-    assert op.a.value.data == 1
+    assert op.a == IntegerAttr(1, 32)
     assert not op.v
 
     prog = """
@@ -966,7 +966,6 @@ def test_optional_else_group():
     op = list(module.ops)[1]
     assert isinstance(op, OptionalElseGroupOp)
     op.verify()
-
     assert not op.a
     assert op.v
 
