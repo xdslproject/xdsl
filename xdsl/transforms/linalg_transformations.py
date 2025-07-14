@@ -21,7 +21,7 @@ def build_generic_fma(
     inputs = (mul_op1, mul_op2, add_op)
     outputs = (out,)
 
-    arg_types = linalg.NamedOpBase.body_arg_types((*inputs, *outputs))
+    arg_types = linalg.NamedOperation.body_arg_types((*inputs, *outputs))
 
     @Builder.implicit_region(arg_types)
     def body(args: tuple[BlockArgument, ...]) -> None:

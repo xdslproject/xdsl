@@ -13,7 +13,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass, PassPipeline
 
 
 @register_impls
@@ -44,7 +44,7 @@ class TransformFunctions(InterpreterFunctions):
         args: PythonValues,
     ) -> PythonValues:
         pass_name = op.pass_name.data
-        pipeline = PipelinePass.parse_spec(self.passes, pass_name)
+        pipeline = PassPipeline.parse_spec(self.passes, pass_name)
         pipeline.apply(self.ctx, args[0])
         return (args[0],)
 
