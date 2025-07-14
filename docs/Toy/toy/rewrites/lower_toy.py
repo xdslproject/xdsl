@@ -464,12 +464,12 @@ class TransposeOpLowering(RewritePattern):
 # endregion RewritePatterns
 
 
-class LowerToAffinePass(ModulePass):
+class LowerToyPass(ModulePass):
     """
-    A pass for lowering operations in the Toy dialect to Builtin.
+    A pass for lowering operations in the Toy dialect to built-in dialects.
     """
 
-    name = "toy-to-builtin"
+    name = "lower-toy"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
