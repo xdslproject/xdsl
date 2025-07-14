@@ -203,7 +203,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.col_offset,
                 f"Function '{func_name}' is not defined in scope.",
             )
-        ir_op = self.type_converter.function_registry.get_operation_type(source_func)
+        ir_op = self.type_converter.function_registry.get_operation_constructor(
+            source_func
+        )
         if ir_op is None:
             raise CodeGenerationException(
                 self.file,
