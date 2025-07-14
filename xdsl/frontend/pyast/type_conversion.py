@@ -17,10 +17,10 @@ class FunctionRegistry:
 
     def __init__(self):
         """Instantiate the function registry."""
-        self._mapping: dict[Callable[..., Any], type[Operation]] = {}
+        self._mapping: dict[Callable[..., Any], Callable[..., Operation]] = {}
 
     def insert(
-        self, callable: Callable[..., Any], operation_type: type[Operation]
+        self, callable: Callable[..., Any], operation_type: Callable[..., Operation]
     ) -> None:
         """Insert a relation between a Python callable and an IR operation type."""
         if callable in self._mapping:
@@ -31,7 +31,7 @@ class FunctionRegistry:
 
     def get_operation_type(
         self, callable: Callable[..., Any]
-    ) -> type[Operation] | None:
+    ) -> Callable[..., Operation] | None:
         """Get the IR operation type from a Python callable"""
         return self._mapping.get(callable, None)
 

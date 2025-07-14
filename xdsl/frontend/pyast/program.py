@@ -55,7 +55,7 @@ class FrontendProgram:
         self.type_registry.insert(source_type, ir_type)
 
     def register_function(
-        self, function: Callable[..., Any], ir_op: type[Operation]
+        self, function: Callable[..., Any], ir_op: Callable[..., Operation]
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
         self.function_registry.insert(function, ir_op)
