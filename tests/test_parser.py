@@ -8,12 +8,12 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
+    I32,
     ArrayAttr,
     Builtin,
     DictionaryAttr,
     FileLineColLoc,
     FloatAttr,
-    I32,
     IntAttr,
     IntegerAttr,
     IntegerType,
