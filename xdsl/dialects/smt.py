@@ -134,6 +134,7 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def constr(
+        *,
         domain: GenericRangeConstraint[NonFuncSMTType],
         range: GenericAttrConstraint[NonFuncSMTType],
     ) -> GenericAttrConstraint[FuncType]:
@@ -169,13 +170,13 @@ class BitVectorAttr(TypedAttribute):
 
     @staticmethod
     def constr(
-        type_constraint: GenericAttrConstraint[BitVectorType],
+        type: GenericAttrConstraint[BitVectorType],
     ) -> GenericAttrConstraint[BitVectorAttr]:
         return ParamAttrConstraint(
             BitVectorAttr,
             (
                 AnyAttr(),
-                type_constraint,
+                type,
             ),
         )
 
@@ -250,7 +251,7 @@ class ApplyFuncOp(IRDLOperation):
     DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(NonFuncSMTTypeConstr))
     RANGE: ClassVar = VarConstraint("RANGE", NonFuncSMTTypeConstr)
 
-    func = operand_def(FuncType.constr(DOMAIN, RANGE))
+    func = operand_def(FuncType.constr(domain=DOMAIN, range=RANGE))
     args = var_operand_def(DOMAIN)
 
     result = result_def(RANGE)

@@ -2421,9 +2421,8 @@ def test_nested_inference():
         p: _T
         q: Attribute
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls,
             *,
             n: GenericAttrConstraint[Attribute] | None = None,
             p: GenericAttrConstraint[_T] | None = None,
@@ -2465,9 +2464,9 @@ def test_nested_inference_variable():
 
         p: _T
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls, *, p: GenericAttrConstraint[_T] | None = None
+            *, p: GenericAttrConstraint[_T] | None = None
         ) -> ParamAttrConstraint[ParamOne[_T]]:
             return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
 
@@ -2505,9 +2504,8 @@ def test_non_verifying_inference():
         name = "test.param_one"
         p: _T
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls,
             *,
             p: GenericAttrConstraint[_T] | None = None,
         ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
@@ -3222,7 +3220,7 @@ class AllOfExtractorOp(IRDLOperation):
     name = "test.all_of_extractor"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    lhs = operand_def(T & MemRefType.constr(element_type=T))
+    lhs = operand_def(T & MemRefType.constr(T))
     rhs = operand_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
