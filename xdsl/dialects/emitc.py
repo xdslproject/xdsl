@@ -332,11 +332,11 @@ class EmitC_CallOpaqueOp(IRDLOperation):
         template_args: ArrayAttr[Attribute] | None = None,
         attributes: dict[str, Attribute] | None = None,
     ):
+        if isinstance(callee, str):
+            callee = StringAttr(callee)
         super().__init__(
             properties={
-                "callee": callee
-                if isinstance(callee, StringAttr)
-                else StringAttr(callee),
+                "callee": callee,
                 "args": args,
                 "template_args": template_args,
             },
