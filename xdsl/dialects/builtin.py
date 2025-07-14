@@ -1405,6 +1405,18 @@ class TensorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
+    @classmethod
+    def constr(
+        cls,
+        *,
+        element_type: IRDLGenericAttrConstraint[AttributeInvT] | None = None,
+    ) -> GenericAttrConstraint[TensorType[AttributeInvT]]:
+        if element_type is None:
+            return BaseAttr[TensorType[AttributeInvT]](TensorType)
+        return ParamAttrConstraint[TensorType[AttributeInvT]](
+            TensorType, (AnyAttr(), element_type, AnyAttr())
+        )
+
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
 AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
