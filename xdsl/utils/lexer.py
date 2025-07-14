@@ -127,10 +127,9 @@ class Span:
         loc = self.get_location()
         # Offset relative to the first line:
         offset = loc.col - 1
-        span_first_line_start = self.start - offset
-        span_last_line_end = self.input.get_end_of_line(self.end)
-        source = self.input.content
-        lines = source[span_first_line_start:span_last_line_end].splitlines()
+        lines_start = self.start - offset
+        lines_end = self.input.get_end_of_line(self.end)
+        lines = self.input.content[lines_start:lines_end].splitlines()
         remaining_len = max(self.len, 1)
         capture = StringIO()
         print(loc, file=capture)
@@ -138,15 +137,12 @@ class Span:
             print(line, file=capture)
             if remaining_len < 0:
                 continue
-            len_on_this_line = min(remaining_len, len(line) - offset)
-            remaining_len -= len_on_this_line
-            print(
-                "{}{}".format(" " * offset, "^" * max(len_on_this_line, 1)),
-                file=capture,
-            )
+            caret_count = min(remaining_len, max(len(line) - offset, 1))
+            print(" " * offset + "^" * caret_count, file=capture)
             if msg is not None:
-                print("{}{}".format(" " * offset, msg), file=capture)
+                print(" " * offset + msg, file=capture)
                 msg = None
+            remaining_len -= caret_count
             offset = 0
         if msg is not None:
             print(msg, file=capture)
