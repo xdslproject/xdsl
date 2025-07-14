@@ -836,18 +836,6 @@ def test_invalid_typed_field():
         irdl_attr_definition(InvalidTypedFieldTestAttr)
 
 
-class InvalidUntypedFieldTestAttr(ParametrizedAttribute):
-    name = "test.invalid_untyped_field"
-
-    x = 2
-
-
-def test_invalid_field():
-    """Check that untyped fields are not allowed."""
-    with pytest.raises(PyRDLAttrDefinitionError):
-        irdl_attr_definition(InvalidUntypedFieldTestAttr)
-
-
 @irdl_attr_definition
 class OveriddenInitAttr(ParametrizedAttribute):
     name = "test.overidden_init"

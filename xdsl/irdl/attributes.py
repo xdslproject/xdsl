@@ -244,9 +244,6 @@ class ParamAttrDef:
             if get_origin(value) is Annotated:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
                     continue
-            raise PyRDLAttrDefinitionError(
-                f"{field_name} is not a parameter definition."
-            )
 
         return ParamAttrDef(name, list(parameters.items()))
 
