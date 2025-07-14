@@ -10,8 +10,6 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 from collections.abc import Iterable, Sequence
 from typing import cast
 
-from typing_extensions import Self
-
 from xdsl.dialects.builtin import (
     ArrayAttr,
     BFloat16Type,
@@ -40,6 +38,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
+    ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
@@ -47,7 +46,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -323,6 +322,11 @@ class EmitC_CallOpaqueOp(IRDLOperation):
     call_args = var_operand_def(AnyAttr())
     res = var_result_def(AnyAttr())
 
+    irdl_options = [ParsePropInAttrDict()]
+    assembly_format = (
+        "$callee `(` $call_args `)` attr-dict `:` functional-type(operands, results)"
+    )
+
     def __init__(
         self,
         callee: StringAttr | str,
@@ -373,58 +377,6 @@ class EmitC_CallOpaqueOp(IRDLOperation):
         for res_type in self.res.types:
             if isinstance(res_type, EmitC_ArrayType):
                 raise VerifyException("cannot return array type")
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        callee = parser.parse_attribute()
-        if not isinstance(callee, StringAttr):
-            parser.raise_error("Expected a StringAttr for the callee")
-
-        parser.parse_punctuation("(")
-        call_args: list[SSAValue] = []
-        if not parser.parse_optional_punctuation(")"):
-            call_args.append(parser.parse_operand())
-            while parser.parse_optional_punctuation(","):
-                call_args.append(parser.parse_operand())
-            parser.parse_punctuation(")")
-
-        attr_dict = parser.parse_optional_attr_dict() or {}
-
-        parser.parse_punctuation(":")
-        parser.parse_punctuation("(")
-
-        # We don't use the operand types, just parse them
-        if not parser.parse_optional_punctuation(")"):
-            parser.parse_type()
-            while parser.parse_optional_punctuation(","):
-                parser.parse_type()
-            parser.parse_punctuation(")")
-
-        parser.parse_punctuation("->")
-
-        parser.parse_optional_punctuation("(")
-        result_types: list[Attribute] = []
-        if not parser.parse_optional_punctuation(")"):
-            result_types.append(parser.parse_type())
-            while parser.parse_optional_punctuation(","):
-                result_types.append(parser.parse_type())
-            parser.parse_optional_punctuation(")")
-
-        args = attr_dict.get("args")
-        if args is not None and not isa(args, ArrayAttr[Attribute]):
-            parser.raise_error("Expected an ArrayAttr for args")
-
-        template_args = attr_dict.get("template_args")
-        if template_args is not None and not isa(template_args, ArrayAttr[Attribute]):
-            parser.raise_error("Expected an ArrayAttr for template_args")
-
-        return cls(
-            callee=callee,
-            call_args=call_args,
-            result_types=result_types,
-            args=args,
-            template_args=template_args,
-        )
 
 
 EmitC = Dialect(
