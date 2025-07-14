@@ -14,6 +14,7 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
+    ClassVar,
     Generic,
     Literal,
     TypeAlias,
@@ -210,6 +211,8 @@ class ParamAttrDef:
         parameters: dict[str, AttrConstraint] = {}
 
         for field_name, field_type in field_types.items():
+            if field_type is ClassVar:
+                continue
             try:
                 constraint = irdl_to_attr_constraint(field_type, allow_type_var=True)
             except TypeError as e:
