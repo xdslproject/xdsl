@@ -17,22 +17,22 @@ class FunctionRegistry:
 
     def __init__(self):
         """Instantiate the function registry."""
-        self._mapping: dict[Callable[..., Any], type[Operation]] = {}
+        self._mapping: dict[Callable[..., Any], Callable[..., Operation]] = {}
 
     def insert(
-        self, callable: Callable[..., Any], operation_type: type[Operation]
+        self, callable: Callable[..., Any], ir_constructor: Callable[..., Operation]
     ) -> None:
-        """Insert a relation between a Python callable and an IR operation type."""
+        """Insert a relation between a Python callable and an IR operation constructor."""
         if callable in self._mapping:
             raise FrontendProgramException(
                 f"Cannot re-register function '{callable.__qualname__}'"
             )
-        self._mapping[callable] = operation_type
+        self._mapping[callable] = ir_constructor
 
-    def get_operation_type(
+    def get_operation_constructor(
         self, callable: Callable[..., Any]
-    ) -> type[Operation] | None:
-        """Get the IR operation type from a Python callable"""
+    ) -> Callable[..., Operation] | None:
+        """Get the IR operation ir_constructor from a Python callable."""
         return self._mapping.get(callable, None)
 
     def resolve_operation(
@@ -50,8 +50,10 @@ class FunctionRegistry:
         if method is None:
             return None
         assert callable(method), "Guaranteed by type signature of registration method"
-        if (operation_type := self.get_operation_type(method)) is not None:
-            return operation_type(*args, **kwargs)
+        if (
+            operation_constructor := self.get_operation_constructor(method)
+        ) is not None:
+            return operation_constructor(*args, **kwargs)
         return None
 
 
