@@ -125,9 +125,8 @@ class Span:
         along these.
         """
         loc = self.get_location()
-        _, _, col_no = loc
         # Offset relative to the first line:
-        offset = col_no - 1
+        offset = loc.col - 1
         span_first_line_start = self.start - offset
         span_last_line_end = self.input.get_end_of_line(self.end)
         source = self.input.content
