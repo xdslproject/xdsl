@@ -915,7 +915,9 @@ def test_generic_attr():
 class ConstraintVarAttr(ParametrizedAttribute):
     name = "test.constraint_var"
 
-    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar[GenericAttrConstraint[IntegerType]] = VarConstraint(
+        "T", BaseAttr(IntegerType)
+    )
 
     param1: IntegerAttr = param_def(IntegerAttr.constr(type=T))
     param2: IntegerAttr = param_def(IntegerAttr.constr(type=T))
