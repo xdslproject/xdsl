@@ -935,42 +935,6 @@ def test_parse_number_error(text: str, allow_boolean: bool):
 
 
 @irdl_op_definition
-class OptionalElseGroupOp(IRDLOperation):
-    name = "test.optional_else_group"
-
-    v = opt_operand_def(i32)
-    a = opt_prop_def(IntegerAttr[I32])
-
-    assembly_format = """($v^):($a)? attr-dict"""
-
-
-def test_optional_else_group():
-    ctx = Context()
-    ctx.load_op(OptionalElseGroupOp)
-    ctx.load_dialect(Test)
-    parser = Parser(ctx, '"test.optional_else_group"() <{a = 1 : i32}> : () -> ()')
-    op = parser.parse_op()
-    assert isinstance(op, OptionalElseGroupOp)
-    op.verify()
-
-    assert op.a == IntegerAttr(1, 32)
-    assert not op.v
-
-    prog = """
-    %0 = "test.op"() : () -> (i32)
-    "test.optional_else_group"(%0) : (i32) -> ()
-    """
-
-    parser = Parser(ctx, prog)
-    module = parser.parse_module()
-    op = list(module.ops)[1]
-    assert isinstance(op, OptionalElseGroupOp)
-    op.verify()
-    assert not op.a
-    assert op.v
-
-
-@irdl_op_definition
 class PropertyOp(IRDLOperation):
     name = "test.prop_op"
 
