@@ -14,6 +14,7 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
+    ClassVar,
     Generic,
     Literal,
     TypeAlias,
@@ -208,8 +209,16 @@ class ParamAttrDef:
 
         # The resulting parameters
         parameters: dict[str, AttrConstraint] = {}
+        classvars = set[str]()
 
         for field_name, field_type in field_types.items():
+            if is_classvar(field_type):
+                if field_name.isupper():
+                    classvars.add(field_name)
+                    continue
+                raise PyRDLAttrDefinitionError(
+                    f'Invalid ClassVar name "{field_name}", must be uppercase.'
+                )
             try:
                 constraint = irdl_to_attr_constraint(field_type, allow_type_var=True)
             except TypeError as e:
@@ -239,7 +248,8 @@ class ParamAttrDef:
                     ) from e
 
                 continue
-
+            if field_name in classvars:
+                continue
             # Constraint variables are allowed
             if get_origin(value) is Annotated:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
@@ -554,3 +564,17 @@ def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
 ) -> GenericRangeConstraint[AttributeCovT]:
     return SingleOf(irdl_to_attr_constraint(attr))
+
+
+def is_classvar(annotation: Any) -> bool:
+    """
+    The type annotation can be one of
+     * `ClassVar[MyType]`,
+     * `ClassVar`, or
+     * `"ClassVar[MyType]"`.
+    """
+    return (
+        get_origin(annotation) is ClassVar
+        or annotation is ClassVar
+        or (isinstance(annotation, str) and annotation.startswith("ClassVar"))
+    )

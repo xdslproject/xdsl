@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, Generic, TypeAlias
+from typing import Annotated, ClassVar, Generic, TypeAlias
 
 import pytest
 from typing_extensions import TypeVar, override
@@ -1056,3 +1056,38 @@ def test_allof_constraint():
     assert allof_constraint.mapping_type_vars({_A: BaseAttr(C)}) == AllOf(
         (BaseAttr(C), BaseAttr(B))
     )
+
+
+################################################################################
+# Constant ClassVar
+################################################################################
+
+
+def test_class_var_pass():
+    """Test that ClassVar constants are allowed in attribute definitions."""
+
+    @irdl_attr_definition
+    class ClassVarAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+        name = "test.class_var"
+        CONSTANT: ClassVar[int]
+        param: IntData
+
+    @irdl_attr_definition
+    class ClassVarAttr2(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+        name = "test.class_var"
+        CONSTANT: ClassVar[int] = 2
+        param: IntData
+
+
+def test_class_var_fail():
+    """Test that lowercase ClassVar fields are not allowed."""
+    with pytest.raises(
+        PyRDLAttrDefinitionError,
+        match='Invalid ClassVar name "constant", must be uppercase.',
+    ):
+
+        @irdl_attr_definition
+        class InvalidClassVarAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+            name = "test.invalid_class_var"
+            constant: ClassVar[int]  # Should be uppercase
+            param: IntData
