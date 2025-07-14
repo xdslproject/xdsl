@@ -307,7 +307,7 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
 @irdl_op_definition
 class EmitC_CallOpaqueOp(IRDLOperation):
     """
-    The emitc.call_opaque operation represents a C++ function call. The callee can be an arbitrary non-empty string.
+    The `emitc.call_opaque` operation represents a C++ function call. The callee can be an arbitrary non-empty string.
     The call allows specifying order of operands and attributes in the call as follows:
 
         - integer value of index type refers to an operand;
