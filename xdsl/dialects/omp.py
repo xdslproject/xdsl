@@ -1,4 +1,3 @@
-from abc import ABC
 from collections import defaultdict
 from enum import IntFlag, auto
 from typing import ClassVar
@@ -62,6 +61,7 @@ from xdsl.traits import (
     IsTerminator,
     NoMemoryEffect,
     NoTerminator,
+    OpTrait,
     Pure,
     RecursiveMemoryEffect,
 )
@@ -244,58 +244,42 @@ class LoopWrapper(NoTerminator):
         return super().verify(op)
 
 
-class BlockArgOpenMPOperation(IRDLOperation, ABC):
+class BlockArgOpenMPOperation(OpTrait):
     """
     Verifies that the operation has the appropriate number of block arguments corresponding to the following operands:
-    `host_eval`, `in_reduction`, `map`, `private`, `reduction`, `task_reduction`, `use_device_addr` and `use_device_ptr`.
+    `host_eval_vars`, `in_reduction_vars`, `map_vars`, `private_vars`, `reduction_vars`,
+    `task_reduction_vars`, `use_device_addr_vars` and `use_device_ptr_vars`.
     """
 
-    def verify_(self) -> None:
-        if len(self.regions) < 1:
-            raise VerifyException(f"Expected {self.name} to have at least 1 region")
-        if len(self.regions[0].blocks) < 1:
+    def verify(self, op: Operation) -> None:
+        if len(op.regions) < 1:
+            raise VerifyException(f"Expected {op.name} to have at least 1 region")
+        if len(op.regions[0].blocks) < 1:
             raise VerifyException(
-                f"Expected {self.name} to have at least 1 block in its first region"
+                f"Expected {op.name} to have at least 1 block in its first region"
             )
 
         expected = (
-            self.num_host_eval_block_args()
-            + self.num_in_reduction_block_args()
-            + self.num_map_block_args()
-            + self.num_private_block_args()
-            + self.num_reduction_block_args()
-            + self.num_task_reduction_block_args()
-            + self.num_use_device_addr_block_args()
-            + self.num_use_device_ptr_block_args()
+            self.__get_len(op, "host_eval_vars")
+            + self.__get_len(op, "in_reduction_vars")
+            + self.__get_len(op, "map_vars")
+            + self.__get_len(op, "private_vars")
+            + self.__get_len(op, "reduction_vars")
+            + self.__get_len(op, "task_reduction_vars")
+            + self.__get_len(op, "use_device_addr_vars")
+            + self.__get_len(op, "use_device_ptr_vars")
         )
 
-        if (actual := len(self.regions[0].blocks[0].args)) != expected:
+        if (actual := len(op.regions[0].blocks[0].args)) != expected:
             raise VerifyException(
-                f"{self.name} expected to have {expected} block argument(s), got {actual}"
+                f"{op.name} expected to have {expected} block argument(s), got {actual}"
             )
 
-    def num_host_eval_block_args(self) -> int:
-        return 0
-
-    def num_in_reduction_block_args(self) -> int:
-        return 0
-
-    def num_map_block_args(self) -> int:
-        return 0
-
-    def num_private_block_args(self) -> int:
-        return 0
-
-    def num_reduction_block_args(self) -> int:
-        return 0
-
-    def num_task_reduction_block_args(self) -> int:
-        return 0
-
-    def num_use_device_addr_block_args(self) -> int:
-        return 0
-
-    def num_use_device_ptr_block_args(self) -> int:
+    @staticmethod
+    def __get_len(op: Operation, name: str):
+        if field := getattr(op, name, None):
+            assert isinstance(field, VarOperand)
+            return len(field)
         return 0
 
 
@@ -524,7 +508,7 @@ class LoopNestOp(IRDLOperation):
 
 
 @irdl_op_definition
-class WsLoopOp(BlockArgOpenMPOperation):
+class WsLoopOp(IRDLOperation):
     name = "omp.wsloop"
 
     LINEAR_COUNT: ClassVar = IntVarConstraint("LINEAR_COUNT", AnyInt())
@@ -556,10 +540,11 @@ class WsLoopOp(BlockArgOpenMPOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
-
-    def num_private_block_args(self) -> int:
-        return len(self.private_vars)
+    traits = traits_def(
+        LoopWrapper(),
+        RecursiveMemoryEffect(),
+        BlockArgOpenMPOperation(),
+    )
 
     def num_reduction_block_args(self) -> int:
         return len(self.reduction_vars)
@@ -577,7 +562,7 @@ class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], SpacedOpaqueSyntaxAttrib
 
 
 @irdl_op_definition
-class ParallelOp(BlockArgOpenMPOperation):
+class ParallelOp(IRDLOperation):
     name = "omp.parallel"
 
     allocate_vars = var_operand_def()
@@ -601,10 +586,7 @@ class ParallelOp(BlockArgOpenMPOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(RecursiveMemoryEffect())
-
-    def num_private_block_args(self) -> int:
-        return len(self.private_vars)
+    traits = traits_def(RecursiveMemoryEffect(), BlockArgOpenMPOperation())
 
     def num_reduction_block_args(self) -> int:
         return len(self.reduction_vars)
@@ -637,7 +619,7 @@ class TerminatorOp(IRDLOperation):
 
 
 @irdl_op_definition
-class TargetOp(BlockArgOpenMPOperation):
+class TargetOp(IRDLOperation):
     """
     Implementation of upstream omp.target
     See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget-omptargetop).
@@ -679,16 +661,13 @@ class TargetOp(BlockArgOpenMPOperation):
     region = region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
-    traits = traits_def(IsolatedFromAbove())
+    traits = traits_def(IsolatedFromAbove(), BlockArgOpenMPOperation())
 
     def num_host_eval_block_args(self) -> int:
         return len(self.host_eval_vars)
 
     def num_in_reduction_block_args(self) -> int:
         return len(self.in_reduction_vars)
-
-    def num_private_block_args(self) -> int:
-        return len(self.private_vars)
 
     def verify_(self) -> None:
         verify_map_vars(
@@ -756,7 +735,7 @@ class MapInfoOp(IRDLOperation):
 
 
 @irdl_op_definition
-class SimdOp(BlockArgOpenMPOperation):
+class SimdOp(IRDLOperation):
     """
     Implementation of upstream omp.simd
     See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompsimd-ompsimdop).
@@ -796,10 +775,11 @@ class SimdOp(BlockArgOpenMPOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(RecursiveMemoryEffect(), LoopWrapper())
-
-    def num_private_block_args(self) -> int:
-        return len(self.private_vars)
+    traits = traits_def(
+        RecursiveMemoryEffect(),
+        LoopWrapper(),
+        BlockArgOpenMPOperation(),
+    )
 
     def num_reduction_block_args(self) -> int:
         return len(self.reduction_vars)
@@ -829,7 +809,7 @@ class TargetTaskBasedDataOp(IRDLOperation):
     )
     device = opt_operand_def(IntegerType | IndexType)
     if_expr = opt_operand_def(i1)
-    map_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    mapped_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
     depend_kinds = opt_prop_def(
         ArrayAttr.constr(RangeOf(base(DependKindAttr), length=DEP_COUNT))
@@ -850,7 +830,7 @@ class TargetEnterDataOp(TargetTaskBasedDataOp):
 
     def verify_(self) -> None:
         verify_map_vars(
-            self.map_vars,
+            self.mapped_vars,
             self.name,
             disallowed_types=OpenMPOffloadMappingFlags.FROM
             | OpenMPOffloadMappingFlags.DELETE,
@@ -869,7 +849,7 @@ class TargetExitDataOp(TargetTaskBasedDataOp):
 
     def verify_(self) -> None:
         verify_map_vars(
-            self.map_vars,
+            self.mapped_vars,
             self.name,
             disallowed_types=OpenMPOffloadMappingFlags.TO,
         )
@@ -887,7 +867,7 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
 
     def verify_(self) -> None:
         verify_map_vars(
-            self.map_vars,
+            self.mapped_vars,
             self.name,
             disallowed_types=OpenMPOffloadMappingFlags.DELETE,
         )
@@ -895,7 +875,7 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
             lambda: OpenMPOffloadMappingFlags.NONE
         )
         one_of = OpenMPOffloadMappingFlags.TO | OpenMPOffloadMappingFlags.FROM
-        for var in self.map_vars:
+        for var in self.mapped_vars:
             assert isinstance(owner := var.owner, MapInfoOp)
 
             mapped[owner.var_ptr] |= owner.map_type.value.data
@@ -907,7 +887,7 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
 
 
 @irdl_op_definition
-class TargetDataOp(BlockArgOpenMPOperation):
+class TargetDataOp(IRDLOperation):
     """
     Implementation of upstream omp.target_data
     See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget_data-omptargetdataop).
@@ -917,26 +897,20 @@ class TargetDataOp(BlockArgOpenMPOperation):
 
     device = opt_operand_def(IntegerType)
     if_expr = opt_operand_def(i1)
-    map_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    mapped_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     use_device_addr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     use_device_ptr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
     region = region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    traits = traits_def(BlockArgOpenMPOperation())
 
-    def num_use_device_addr_block_args(self) -> int:
-        return len(self.use_device_addr_vars)
-
-    def num_use_device_ptr_block_args(self) -> int:
-        return len(self.use_device_ptr_vars)
-
-    # NOTE: Unlike TargetOp This does *not* define `num_map_block_args`.
-    #       `map_vars` are not passed as block args.
+    # NOTE: Unlike TargetOp `mapped_vars` are not passed as block args.
 
     def verify_(self) -> None:
         verify_map_vars(
-            self.map_vars,
+            self.mapped_vars,
             self.name,
             disallowed_types=(OpenMPOffloadMappingFlags.DELETE),
         )

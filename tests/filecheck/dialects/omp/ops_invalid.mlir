@@ -62,7 +62,7 @@ func.func @omp_target_block(%host : i32, %inr1 : i32, %inr2 : i32, %map : memref
   return
 }
 
-// CHECK: omp.target expected to have 6 block argument(s), got 2
+// CHECK: omp.target expected to have 7 block argument(s), got 2
 
 // -----
 
@@ -143,7 +143,6 @@ func.func @omp_simd_simdlen(%ub : index, %lb : index, %step : index) {
 
 func.func @omp_target_data_no_map_info(%m : memref<1xf32>) {
   "omp.target_data"(%m) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0>}> ({
-  ^0(%0 : memref<1xf32>, %1 : memref<1xf32>, %2 : memref<1xf32>):
     "omp.terminator"() : () -> ()
   }) : (memref<1xf32>) -> ()
   func.return
@@ -156,7 +155,6 @@ func.func @omp_target_data_no_map_info(%m : memref<1xf32>) {
 func.func @omp_target_data_delete(%m : memref<1xf32>) {
   %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x08 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
   "omp.target_data"(%m1) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0>}> ({
-  ^0(%0 : memref<1xf32>, %1 : memref<1xf32>, %2 : memref<1xf32>):
     "omp.terminator"() : () -> ()
   }) : (memref<1xf32>) -> ()
   func.return
