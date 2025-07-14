@@ -1405,9 +1405,8 @@ class TensorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
         *,
         element_type: IRDLGenericAttrConstraint[AttributeInvT] | None = None,
     ) -> GenericAttrConstraint[TensorType[AttributeInvT]]:
