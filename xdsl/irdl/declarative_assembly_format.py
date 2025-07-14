@@ -531,9 +531,6 @@ class OperandVariable(VariableDirective, OperandDirective):
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         return (getattr(op, self.name).type,)
 
-    def is_anchorable(self):
-        return True
-
 
 @dataclass(frozen=True)
 class VariadicOperandVariable(VariadicVariable, OperandDirective):
