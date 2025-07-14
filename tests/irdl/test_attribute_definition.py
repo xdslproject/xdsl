@@ -49,6 +49,7 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     ParamAttrDef,
+    ParamDef,
     TypeVarConstraint,
     VarConstraint,
     base,
@@ -791,7 +792,8 @@ class ParamAttrDefAttr(ParametrizedAttribute):
 def test_irdl_definition():
     """Test that we can get the IRDL definition of a parametrized attribute."""
     assert ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef(
-        "test.param_attr_def_attr", [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))]
+        "test.param_attr_def_attr",
+        [("arg1", ParamDef(AnyAttr())), ("arg2", ParamDef(BaseAttr(BoolData)))],
     )
 
 
@@ -819,7 +821,10 @@ def test_irdl_definition2():
 
     assert ParamAttrDefAttr2.get_irdl_definition() == ParamAttrDef(
         "test.param_attr_def_attr",
-        [("arg1", AnyAttr() & BaseAttr(IntAttr)), ("arg2", BaseAttr(BoolData))],
+        [
+            ("arg1", ParamDef(AnyAttr() & BaseAttr(IntAttr))),
+            ("arg2", ParamDef(BaseAttr(BoolData))),
+        ],
     )
 
 
@@ -893,9 +898,11 @@ def test_generic_attr():
         [
             (
                 "param",
-                TypeVarConstraint(
-                    type_var=AttributeInvT,
-                    base_constraint=AnyAttr(),
+                ParamDef(
+                    TypeVarConstraint(
+                        type_var=AttributeInvT,
+                        base_constraint=AnyAttr(),
+                    )
                 ),
             )
         ],
