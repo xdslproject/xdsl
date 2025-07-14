@@ -2771,7 +2771,7 @@ def test_impossible_optional_else_group():
     ):
 
         @irdl_op_definition
-        class OptionalImpossibleElseGroupOp(IRDLOperation):
+        class _OptionalImpossibleElseGroup(IRDLOperation):
             name = "test.impossible_optional_else_group"
 
             val = opt_prop_def(IntegerAttr[I32])
