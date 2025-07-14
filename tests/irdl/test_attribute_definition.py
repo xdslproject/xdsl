@@ -1072,6 +1072,12 @@ def test_class_var_pass():
         CONSTANT: ClassVar[int]
         param: IntData
 
+    @irdl_attr_definition
+    class ClassVarAttr2(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+        name = "test.class_var"
+        CONSTANT: ClassVar[int] = 2
+        param: IntData
+
 
 def test_class_var_fail():
     """Test that lowercase ClassVar fields are not allowed."""

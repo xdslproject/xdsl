@@ -209,10 +209,12 @@ class ParamAttrDef:
 
         # The resulting parameters
         parameters: dict[str, AttrConstraint] = {}
+        classvars = set[str]()
 
         for field_name, field_type in field_types.items():
             if is_classvar(field_type):
                 if field_name.isupper():
+                    classvars.add(field_name)
                     continue
                 raise PyRDLAttrDefinitionError(
                     f'Invalid ClassVar name "{field_name}", must be uppercase.'
@@ -246,7 +248,7 @@ class ParamAttrDef:
                     ) from e
 
                 continue
-            if is_classvar(value):
+            if field_name in classvars:
                 continue
             # Constraint variables are allowed
             if get_origin(value) is Annotated:
