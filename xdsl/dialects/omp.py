@@ -323,6 +323,15 @@ class ReductionModifierAttr(
 ):
     name = "omp.reduction_modifier"
 
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_parens():
+            printer.print_string(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> ReductionModifier:
+        with parser.in_parens():
+            return parser.parse_str_enum(ReductionModifier)
+
 
 @irdl_attr_definition
 class OrderModifierAttr(EnumAttribute[OrderModifier], SpacedOpaqueSyntaxAttribute):
@@ -497,9 +506,6 @@ class LoopNestOp(IRDLOperation):
     upperBound = var_operand_def(base(IntegerType) | base(IndexType))
     step = var_operand_def(base(IntegerType) | base(IndexType))
 
-    loop_lower_bounds = opt_prop_def(IntegerAttr[IntegerType])
-    loop_upper_bounds = opt_prop_def(IntegerAttr[IntegerType])
-    loop_steps = opt_prop_def(IntegerAttr[IntegerType])
     loop_inclusive = opt_prop_def(UnitAttr)
 
     body = region_def("single_block")
@@ -512,6 +518,7 @@ class WsLoopOp(IRDLOperation):
     name = "omp.wsloop"
 
     LINEAR_COUNT: ClassVar = IntVarConstraint("LINEAR_COUNT", AnyInt())
+    REDUCTION_COUNT: ClassVar = IntVarConstraint("REDUCTION_COUNT", AnyInt())
 
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
@@ -520,10 +527,12 @@ class WsLoopOp(IRDLOperation):
     private_vars = var_operand_def()
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
-    reduction_vars = var_operand_def()
+    reduction_vars = var_operand_def(RangeOf(AnyAttr(), length=REDUCTION_COUNT))
     schedule_chunk = opt_operand_def()
 
-    reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    reduction_syms = opt_prop_def(
+        ArrayAttr.constr(RangeOf(base(SymbolRefAttr), length=REDUCTION_COUNT))
+    )
     reduction_mod = opt_prop_def(ReductionModifierAttr)
     reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
     schedule_kind = opt_prop_def(ScheduleKindAttr)
