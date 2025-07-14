@@ -141,6 +141,21 @@ func.func @omp_simd_simdlen(%ub : index, %lb : index, %step : index) {
 
 // -----
 
+func.func @omp_simd_simdlen_0(%ub : index, %lb : index, %step : index) {
+  "omp.simd"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, simdlen=0, safelen=2}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^0(%iter : index):
+      omp.yield
+    }) : (index, index, index) -> ()
+
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: expected integer >= 1, got 0
+
+// -----
+
 func.func @omp_target_data_no_map_info(%m : memref<1xf32>) {
   "omp.target_data"(%m) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0>}> ({
     "omp.terminator"() : () -> ()
@@ -235,3 +250,45 @@ func.func @omp_target_update_to_from_same_operand(%m : memref<1xf32>) {
 }
 
 // CHECK: omp.target_update expected to have exactly one of TO or FROM as map_type
+
+// -----
+
+func.func @wsloopop_linear(%ub : index, %lb : index, %step : index, %l1 : memref<1xi32>, %lstep1 : i32, %lstep2 : i32) {
+  "omp.wsloop"(%l1, %lstep1, %lstep2) <{operandSegmentSizes = array<i32: 0, 0, 1, 2, 0, 0, 0>}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^0(%iter : index):
+      omp.yield
+    }) : (index, index, index) -> ()
+
+  }) : (memref<1xi32>, i32, i32) -> ()
+  func.return
+}
+
+// -----
+
+// CHECK: integer 1 expected from int variable 'LINEAR_COUNT', but got 2
+
+func.func @wsloopop_ordered(%ub : index, %lb : index, %step : index, %l1 : memref<1xi32>, %lstep1 : i32, %lstep2 : i32) {
+  "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = -1 : i64}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^0(%iter : index):
+      omp.yield
+    }) : (index, index, index) -> ()
+
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: expected integer >= 0, got -1
+
+// -----
+
+func.func @yield_parent() {
+  "test.op"() ({
+    omp.yield 
+  }) : () -> ()
+
+  func.return
+}
+
+// CHECK: 'omp.yield' expects parent op 'omp.loop_nest'
