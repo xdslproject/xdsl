@@ -55,10 +55,10 @@ class FrontendProgram:
         self.type_registry.insert(source_type, ir_type)
 
     def register_function(
-        self, function: Callable[..., Any], ir_op: Callable[..., Operation]
+        self, function: Callable[..., Any], ir_constructor: Callable[..., Operation]
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
-        self.function_registry.insert(function, ir_op)
+        self.function_registry.insert(function, ir_constructor)
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
