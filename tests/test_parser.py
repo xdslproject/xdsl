@@ -8,7 +8,6 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
-    I32,
     ArrayAttr,
     Builtin,
     DictionaryAttr,
@@ -28,8 +27,6 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
-    opt_operand_def,
-    opt_prop_def,
     prop_def,
     region_def,
 )
