@@ -318,7 +318,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
 
     callee = prop_def(StringAttr)
     args = opt_prop_def(ArrayAttr[Attribute])
-    template_args = opt_prop_def(ArrayAttr[Attribute])
+    template_args = opt_prop_def(ArrayAttr)
     # The SSA‐value operands of the call
     call_args = var_operand_def(AnyAttr())
     res = var_result_def(AnyAttr())
