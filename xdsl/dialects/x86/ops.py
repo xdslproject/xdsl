@@ -67,8 +67,9 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 
 from .assembly import (
@@ -1096,6 +1097,14 @@ class RS_XorOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     name = "x86.rs.xor"
 
 
+class DS_MovOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.x86 import RemoveRedundantDS_Mov
+
+        return (RemoveRedundantDS_Mov(),)
+
+
 @irdl_op_definition
 class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
     """
@@ -1108,6 +1117,8 @@ class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
     """
 
     name = "x86.ds.mov"
+
+    traits = traits_def(Pure(), DS_MovOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
