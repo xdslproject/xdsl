@@ -2,6 +2,7 @@ import pytest
 
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr, i32
+from xdsl.ir import Block
 from xdsl.transforms.canonicalization_patterns.x86 import get_constant_value
 from xdsl.utils.test_value import create_ssa_value
 
@@ -283,3 +284,6 @@ def test_get_constant_value():
     assert get_constant_value(moved_once) == IntegerAttr(42, i32)
     moved_twice = x86.DS_MovOp(known_value, destination=U).destination
     assert get_constant_value(moved_twice) == IntegerAttr(42, i32)
+
+    block = Block(arg_types=(U,))
+    assert get_constant_value(block.args[0]) is None
