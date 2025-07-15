@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Annotated, ClassVar, Generic
+from typing import Generic
 
 from typing_extensions import TypeVar
 
@@ -16,12 +16,8 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
-    TypeVarConstraint,
-    VarConstraint,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -325,8 +321,6 @@ class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     Initiate an asynchronous 1D DMA transfer
     """
 
-    _T: ClassVar = VarConstraint("T", TypeVarConstraint(_T, AnyAttr()))
-
     dst = operand_def(_T)
     src = operand_def(_T)
 
@@ -347,7 +341,6 @@ class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     Generic base class for starting asynchronous 2D DMA transfers
     """
 
-    T = Annotated[Attribute, ConstraintVar("T"), _T]
     dst = operand_def(_T)
     src = operand_def(_T)
     dst_stride = operand_def(i32)
