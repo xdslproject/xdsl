@@ -1,8 +1,10 @@
 import re
 from collections.abc import Sequence
+from typing import ClassVar
 
 import pytest
 
+from xdsl.backend.block_naive_allocator import BlockNaiveAllocator
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterAllocatableOperation,
@@ -12,17 +14,22 @@ from xdsl.backend.register_allocator import ValueAllocator
 from xdsl.backend.register_stack import RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.builder import Builder
-from xdsl.ir import Attribute, SSAValue
+from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedResultSegments,
     IRDLOperation,
+    VarConstraint,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
+    result_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.test_value import create_ssa_value
 
 
 @irdl_attr_definition
@@ -327,3 +334,40 @@ def test_allocate_values_same_reg():
         allocator.allocate_values_same_reg(
             (op0.results[0], op0.results[1], op1.results[0])
         )
+
+
+def test_fail_error_message():
+    @irdl_op_definition
+    class InoutOp(HasRegisterConstraints, IRDLOperation):
+        name = "test.inout"
+
+        T: ClassVar = VarConstraint("T", base(TestRegister))
+
+        a = operand_def(T)
+        b = result_def(T)
+
+        def get_register_constraints(self) -> RegisterConstraints:
+            return RegisterConstraints((), (), ((self.a, self.b),))
+
+    a = create_ssa_value(TestRegister.from_index(0))
+    block = Block((InoutOp(operands=[a], result_types=[TestRegister.from_index(1)]),))
+
+    allocator = BlockNaiveAllocator(RegisterStack.get(), TestRegister)
+
+    with pytest.raises(
+        DiagnosticException,
+        match=re.escape(
+            "Cannot allocate registers to the same register ['!test.reg<a0>', '!test.reg<a1>']"
+        ),
+    ) as e:
+        allocator.allocate_block(block)
+
+    assert getattr(e.value, "__notes__") == [
+        """
+^0:
+  %0 = "test.inout"(%1) : (!test.reg<a0>) -> !test.reg<a1>
+  ^^^^^^^^^^^^^^^^^----
+  | Error allocating op
+  ---------------------
+"""
+    ]
