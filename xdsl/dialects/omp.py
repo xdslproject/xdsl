@@ -64,6 +64,7 @@ from xdsl.traits import (
     NoTerminator,
     Pure,
     RecursiveMemoryEffect,
+    SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -584,6 +585,61 @@ class ParallelOp(BlockArgOpenMPOperation):
 
 
 @irdl_op_definition
+class DeclareReductionOp(IRDLOperation):
+    """
+    Implementation of upstream omp.declare_reduction
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompdeclare_reduction-ompdeclarereductionop).
+    """
+
+    name = "omp.declare_reduction"
+
+    sym_name = prop_def(StringAttr)
+    var_type = prop_def(TypeAttribute, prop_name="type")
+
+    alloc_region = region_def()
+    init_region = region_def()
+    reduction_region = region_def()
+    atomic_reduction_region = region_def()
+    cleanup_region = region_def()
+
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
+
+    def verify_(self) -> None:
+        if len(self.alloc_region.blocks) > 1:
+            raise VerifyException(
+                f"{self.name} should have at most 1 block in alloc_region"
+            )
+        return super().verify_()
+
+
+@irdl_op_definition
+class PrivateClauseOp(IRDLOperation):
+    """
+    Implementation of upstream omp.private
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompprivate-ompprivateclauseop).
+    """
+
+    name = "omp.private"
+
+    sym_name = prop_def(StringAttr)
+    var_type = prop_def(TypeAttribute, prop_name="type")
+    data_sharing_type = prop_def(DataSharingClauseAttr)
+
+    alloc_region = region_def()
+    copy_region = region_def()
+    dealloc_region = region_def()
+
+    traits = traits_def(IsolatedFromAbove())
+
+    def verify_(self) -> None:
+        if len(self.alloc_region.blocks) < 1:
+            raise VerifyException(
+                f"alloc_region of {self.name} has to have at least 1 block"
+            )
+        return super().verify_()
+
+
+@irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "omp.yield"
 
@@ -596,8 +652,8 @@ class YieldOp(AbstractYieldOperation[Attribute]):
             LoopNestOp,
             # TODO: add these when they are implemented
             # AtomicUpdateOp,
-            # PrivateClauseOp,
-            # DeclareReductionOp,
+            PrivateClauseOp,
+            DeclareReductionOp,
         ),
     )
 
@@ -919,10 +975,12 @@ OMP = Dialect(
         MapBoundsOp,
         MapInfoOp,
         SimdOp,
+        PrivateClauseOp,
         TargetEnterDataOp,
         TargetExitDataOp,
         TargetUpdateOp,
         TargetDataOp,
+        DeclareReductionOp,
     ],
     [
         ClauseRequiresKindAttr,
