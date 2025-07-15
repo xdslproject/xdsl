@@ -1,5 +1,6 @@
 from xdsl.dialects import x86
-from xdsl.ir import Attribute, OpResult, SSAValue
+from xdsl.dialects.builtin import IntegerAttr
+from xdsl.ir import OpResult, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -14,7 +15,7 @@ class RemoveRedundantDS_Mov(RewritePattern):
             rewriter.replace_matched_op((), (op.source,))
 
 
-def get_constant_value(value: SSAValue) -> Attribute | None:
+def get_constant_value(value: SSAValue) -> IntegerAttr | None:
     if not isinstance(value, OpResult):
         return
 
