@@ -45,6 +45,6 @@
 
 %source, %vector, %index = "test.op"() : () -> (memref<?xf32>, vector<7xf32>, index)
 "vector.transfer_write"(%vector, %source, %index) <{in_bounds=[true], operandSegmentSizes = array<i32: 1, 1, 1, 0>, permutation_map = affine_map<(d0) -> (0)>}> : (vector<7xf32>, memref<?xf32>, index) -> ()
-// CHECK: requires a permutation_map that is a permutation (found one dim used more than once)
+// CHECK: should not have broadcast dimensions
 
 // TODO transfer other tests from mlir/test/Dialect/Vector/invalid.mlir once verification for vector element types is implemented
