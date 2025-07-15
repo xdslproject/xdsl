@@ -69,7 +69,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator, Pure
+from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
 from .assembly import (
@@ -1118,7 +1118,7 @@ class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
 
     name = "x86.ds.mov"
 
-    traits = traits_def(Pure(), DS_MovOpHasCanonicalizationPatterns())
+    traits = traits_def(DS_MovOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
