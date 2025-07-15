@@ -930,18 +930,19 @@ class CustomVerifyOp(IRDLOperation):
 def test_op_custom_verify_is_called():
     a = ConstantOp.from_int_and_width(1, i64)
     b = CustomVerifyOp.get(a.result)
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match="Custom Verification Check"):
         b.verify()
-    assert e.value.args[0] == "Custom Verification Check"
 
 
 def test_op_custom_verify_is_done_last():
     a = ConstantOp.from_int_and_width(1, i32)
     # CustomVerify expects a i64, not i32
     b = CustomVerifyOp.get(a.result)
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException,
+        match="operand at position 0 does not verify:\nExpected attribute i64 but got i32",
+    ):
         b.verify()
-    assert "Custom Verification Check" not in e.value.args[0]
 
 
 def test_block_walk():
