@@ -14,7 +14,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, get_all_dialects
 from xdsl.passes import ModulePass
 from xdsl.transforms import get_all_passes
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, ParseError
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 
@@ -44,31 +44,41 @@ def test_empty_program():
 
 
 @pytest.mark.parametrize(
-    "args, expected_error",
+    "args, expected_error, error_type",
     [
         (
             ["--no-implicit-module", "tests/xdsl_opt/not_module.mlir"],
+            ParseError,
             "builtin.module operation expected",
         ),
         (
             ["--no-implicit-module", "tests/xdsl_opt/incomplete_program.mlir"],
+            ParseError,
             "Could not parse entire input",
         ),
         (
             ["tests/xdsl_opt/incomplete_program_residual.mlir"],
+            ParseError,
             "Could not parse entire input",
         ),
         (
             ["tests/xdsl_opt/incomplete_program.mlir"],
+            ParseError,
             "Could not parse entire input",
         ),
-        (["tests/xdsl_opt/empty_program.wrong"], "Unrecognized file extension 'wrong'"),
+        (
+            ["tests/xdsl_opt/empty_program.wrong"],
+            ValueError,
+            "Unrecognized file extension 'wrong'",
+        ),
     ],
 )
-def test_error_on_run(args: list[str], expected_error: str):
+def test_error_on_run(
+    args: list[str], error_type: type[Exception], expected_error: str
+):
     opt = xDSLOptMain(args=args)
 
-    with pytest.raises(Exception, match=expected_error):
+    with pytest.raises(error_type, match=expected_error):
         opt.run()
 
 
@@ -91,10 +101,8 @@ def test_wrong_target():
     opt = xDSLOptMain(args=[filename])
     opt.args.target = "wrong"
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(ValueError, match="Unknown target wrong"):
         opt.run()
-
-    assert e.value.args[0] == "Unknown target wrong"
 
 
 def test_print_to_file():
