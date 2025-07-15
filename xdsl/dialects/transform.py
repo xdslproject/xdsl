@@ -36,7 +36,6 @@ from xdsl.irdl import (
     AnyOf,
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
@@ -113,10 +112,10 @@ class OperationType(TransformOpHandleType):
     """
 
     name = "transform.op"
-    operation: ParameterDef[StringAttr]
+    operation: StringAttr
 
     def __init__(self, operation: str):
-        super().__init__(parameters=[StringAttr(operation)])
+        super().__init__(StringAttr(operation))
 
 
 @irdl_attr_definition
@@ -126,10 +125,7 @@ class ParamType(TransformParamHandleType):
     """
 
     name = "transform.param"
-    type: ParameterDef[TypeAttribute]
-
-    def __init__(self, type: TypeAttribute):
-        super().__init__(parameters=[type])
+    type: TypeAttribute
 
 
 @irdl_attr_definition

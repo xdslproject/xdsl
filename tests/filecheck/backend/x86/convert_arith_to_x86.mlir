@@ -64,3 +64,12 @@
 // CHECK-NEXT:   %c = x86.di.mov 1 : () -> !x86.reg
 // CHECK-NEXT:   %c_1 = builtin.unrealized_conversion_cast %c : !x86.reg to i32
 // CHECK-NEXT: }
+
+// -----
+
+%c = arith.constant 1: index
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %c = x86.di.mov 1 : () -> !x86.reg
+// CHECK-NEXT:   %c_1 = builtin.unrealized_conversion_cast %c : !x86.reg to index
+// CHECK-NEXT: }

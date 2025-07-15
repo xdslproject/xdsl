@@ -36,7 +36,7 @@ class RISCVRegisterAllocation(ModulePass):
 
         for inner_op in op.walk():
             if isinstance(inner_op, riscv_func.FuncOp):
-                register_stack = RiscvRegisterStack.default()
+                register_stack = RiscvRegisterStack.get()
                 allocator = allocator_strategies[self.allocation_strategy](
                     register_stack
                 )

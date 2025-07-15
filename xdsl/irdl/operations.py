@@ -45,6 +45,7 @@ from .attributes import (  # noqa: TID251
     IRDLGenericAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
+    is_classvar,
     range_constr_coercion,
     single_range_constr_coercion,
 )
@@ -57,7 +58,6 @@ from .constraints import (  # noqa: TID251
     RangeConstraint,
     RangeOf,
 )
-from .error import IRDLAnnotations  # noqa: TID251
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -437,15 +437,6 @@ class VarSingleBlockRegionDef(RegionDef, VariadicDef):
 
 class OptSingleBlockRegionDef(RegionDef, OptionalDef):
     """An IRDL optional region definition that expects exactly one block."""
-
-
-SingleBlockRegion: TypeAlias = Annotated[Region, IRDLAnnotations.SingleBlockRegionAnnot]
-VarSingleBlockRegion: TypeAlias = Annotated[
-    list[Region], IRDLAnnotations.SingleBlockRegionAnnot
-]
-OptSingleBlockRegion: TypeAlias = Annotated[
-    Region | None, IRDLAnnotations.SingleBlockRegionAnnot
-]
 
 
 @dataclass
@@ -899,11 +890,7 @@ def _is_const_classvar(field_name: str, annotation: Any) -> bool:
      * `ClassVar`, or
      * `"ClassVar[MyType]"`.
     """
-    return field_name.isupper() and (
-        get_origin(annotation) is ClassVar
-        or annotation is ClassVar
-        or (isinstance(annotation, str) and annotation.startswith("ClassVar"))
-    )
+    return field_name.isupper() and is_classvar(annotation)
 
 
 @dataclass(kw_only=True)
@@ -1191,13 +1178,15 @@ class OpDef:
             if prop_name not in op.properties:
                 if isinstance(attr_def, OptPropertyDef):
                     continue
-                raise VerifyException(f"property {prop_name} expected")
+                raise VerifyException(
+                    f"property '{prop_name}' expected in operation '{op.name}'"
+                )
             attr_def.constr.verify(op.properties[prop_name], constraint_context)
 
         for prop_name in op.properties.keys():
             if prop_name not in self.properties:
                 raise VerifyException(
-                    f"property '{prop_name}' is not defined by the operation. "
+                    f"property '{prop_name}' is not defined by the operation '{op.name}'. "
                     "Use the dictionary attribute to add arbitrary information "
                     "to the operation."
                 )
@@ -1207,7 +1196,9 @@ class OpDef:
             if attr_name not in op.attributes:
                 if isinstance(attr_def, OptAttributeDef):
                     continue
-                raise VerifyException(f"attribute {attr_name} expected")
+                raise VerifyException(
+                    f"attribute '{attr_name}' expected in operation '{op.name}'"
+                )
             attr_def.constr.verify(op.attributes[attr_name], constraint_context)
 
         # Verify traits.

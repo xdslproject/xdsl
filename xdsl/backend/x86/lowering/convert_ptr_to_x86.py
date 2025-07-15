@@ -26,13 +26,26 @@ class PtrAddToX86(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter):
         x86_reg_type = x86.register.UNALLOCATED_GENERAL
-        ptr_cast_op = UnrealizedConversionCastOp.get((op.addr,), (x86_reg_type,))
-        offset_cast_op = UnrealizedConversionCastOp.get((op.offset,), (x86_reg_type,))
-        add_op = x86.RS_AddOp(ptr_cast_op, offset_cast_op, register_out=x86_reg_type)
-        res_cast_op = UnrealizedConversionCastOp.get(
-            (add_op.register_out,), (ptr.PtrType(),)
+
+        rewriter.replace_matched_op(
+            [
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    (op.addr,), (x86_reg_type,)
+                ),
+                offset_cast_op := UnrealizedConversionCastOp.get(
+                    (op.offset,), (x86_reg_type,)
+                ),
+                ptr_mv_op := x86.DS_MovOp(
+                    ptr_cast_op, destination=x86.register.UNALLOCATED_GENERAL
+                ),
+                add_op := x86.RS_AddOp(
+                    ptr_mv_op.destination, offset_cast_op, register_out=x86_reg_type
+                ),
+                UnrealizedConversionCastOp.get(
+                    (add_op.register_out,), (ptr.PtrType(),)
+                ),
+            ]
         )
-        rewriter.replace_matched_op([ptr_cast_op, offset_cast_op, add_op, res_cast_op])
 
 
 @dataclass
@@ -98,9 +111,7 @@ class PtrLoadToX86(RewritePattern):
                 case 32:
                     mov = x86.ops.DM_VmovupsOp
                 case 64:
-                    raise DiagnosticException(
-                        "Double precision floating point vector load is not implemented yet."
-                    )
+                    mov = x86.ops.DM_VmovupdOp
                 case _:
                     raise DiagnosticException(
                         "Float precision must be half, single or double."

@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.dialects import arith, builtin, llvm, test
 from xdsl.dialects.builtin import UnitAttr, i32
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, Block, Region
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
@@ -155,7 +155,9 @@ def test_llvm_getelementptr_op_invalid_construction():
     opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
 
     # check that passing an opaque pointer to GEP without a pointee type fails
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="Opaque types must have a pointee type passed"
+    ):
         llvm.GEPOp(
             opaque_ptr,
             indices=[1],
@@ -163,7 +165,10 @@ def test_llvm_getelementptr_op_invalid_construction():
         )
 
     # check that non-pointer arguments fail
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="Expected <class 'xdsl.dialects.llvm.LLVMPointerType'> but got SSAValue with type i32.",
+    ):
         llvm.GEPOp(
             size,
             indices=[1],
@@ -261,6 +266,19 @@ def test_global_op():
     assert isinstance(global_op.linkage, llvm.LinkageAttr)
     assert isinstance(global_op_value := global_op.value, builtin.IntegerAttr)
     assert global_op_value.value.data == 76
+    assert len(global_op.body.blocks) == 0
+
+
+def test_global_op_with_body():
+    global_op = llvm.GlobalOp(
+        builtin.i32,
+        "testsymbol",
+        "internal",
+        body=Region([Block([llvm.UnreachableOp()])]),
+    )
+
+    assert len(global_op.body.blocks) == 1
+    assert len(global_op.body.blocks[0].ops) == 1
 
 
 def test_addressof_op():

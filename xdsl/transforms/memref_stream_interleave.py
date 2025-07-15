@@ -21,6 +21,20 @@ from xdsl.pattern_rewriter import (
 )
 
 
+def factors(num: int) -> tuple[int, ...]:
+    """
+    For all positive integers, returns the n-tuple of all numbers that evenly divide the
+    input, returns an empty tuple for 0 or negative inputs.
+    """
+    if num <= 0:
+        return ()
+
+    if num == 1:
+        return (1,)
+
+    return tuple(factor for factor in range(1, num + 1) if not num % factor)
+
+
 @dataclass(frozen=True)
 class PipelineGenericPattern(RewritePattern):
     pipeline_depth: int = field()
@@ -49,12 +63,12 @@ class PipelineGenericPattern(RewritePattern):
             # No parallel dimension
             return
 
-        interleave_factor = 1
-        # Search factors until the next number divisible by pipeline_depth
-        for potential_factor in range(1, self.pipeline_depth * 2):
-            if not interleave_bound % potential_factor:
-                # Found a larger factor
-                interleave_factor = potential_factor
+        # Greatest number less than double of pipeline depth.
+        # Want the biggest number for maximal instruction-level parallelism, less than
+        # 2 * pipeline depth as a heuristic to limit register pressure.
+        interleave_factor = max(
+            f for f in factors(interleave_bound) if f < self.pipeline_depth * 2
+        )
 
         old_block = op.body.block
         new_region = Region(

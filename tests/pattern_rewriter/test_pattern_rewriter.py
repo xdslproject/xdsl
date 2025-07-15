@@ -602,7 +602,7 @@ def test_operation_deletion_failure():
 
     # Check that the rewrite fails
     with pytest.raises(
-        Exception,
+        ValueError,
         match="Attempting to delete SSA value that still has uses of result of operation",
     ):
         walker.rewrite_module(module)
@@ -1760,8 +1760,6 @@ builtin.module {
 }
 """
     expected = """\
-Error while applying pattern: Expected operation to not be erroneous!
-
 "builtin.module"() ({
   "test.op"() {erroneous = false} : () -> ()
   "test.op"() : () -> ()

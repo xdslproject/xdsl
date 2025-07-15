@@ -1,11 +1,9 @@
-import pytest
-
 from xdsl.backend.x86.register_stack import X86RegisterStack
 from xdsl.dialects import x86
 
 
 def test_default_reserved_registers():
-    register_stack = X86RegisterStack.default()
+    register_stack = X86RegisterStack.get()
 
     for reg in (
         x86.register.RAX,
@@ -26,12 +24,10 @@ def test_push_infinite_register():
 
 
 def test_push_register():
-    register_stack = X86RegisterStack()
-
-    with pytest.raises(
-        NotImplementedError, match="x86 general register type not implemented yet."
-    ):
-        register_stack.push(x86.register.RBX)
+    register_stack = X86RegisterStack.get()
 
     register_stack.push(x86.register.YMM0)
     assert register_stack.pop(x86.AVX2RegisterType) == x86.register.YMM0
+
+    register_stack.push(x86.register.RAX)
+    assert register_stack.pop(x86.GeneralRegisterType) == x86.register.RAX

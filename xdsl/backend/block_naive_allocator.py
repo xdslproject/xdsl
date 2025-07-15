@@ -1,6 +1,7 @@
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.ir import Block
+from xdsl.utils.exceptions import DiagnosticException
 
 
 class BlockNaiveAllocator(BlockAllocator):
@@ -34,4 +35,7 @@ class BlockNaiveAllocator(BlockAllocator):
     def allocate_block(self, block: Block):
         for op in reversed(block.ops):
             if isinstance(op, RegisterAllocatableOperation):
-                op.allocate_registers(self)
+                try:
+                    op.allocate_registers(self)
+                except DiagnosticException as e:
+                    op.emit_error("Error allocating op", e)

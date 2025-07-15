@@ -23,7 +23,6 @@ from xdsl.irdl import (
     GenericRangeConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    ParameterDef,
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
@@ -62,12 +61,12 @@ class BitVectorType(ParametrizedAttribute, TypeAttribute):
 
     name = "smt.bv"
 
-    width: ParameterDef[IntAttr]
+    width: IntAttr
 
     def __init__(self, width: int | IntAttr):
         if isinstance(width, int):
             width = IntAttr(width)
-        super().__init__([width])
+        super().__init__(width)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -105,16 +104,16 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
     name = "smt.func"
 
-    domain_types: ParameterDef[ArrayAttr[NonFuncSMTType]]
+    domain_types: ArrayAttr[NonFuncSMTType]
     """The types of the function arguments."""
 
-    range_type: ParameterDef[NonFuncSMTType]
+    range_type: NonFuncSMTType
     """The type of the function result."""
 
     def __init__(
         self, domain_types: Sequence[NonFuncSMTType], range_type: NonFuncSMTType
     ):
-        super().__init__([ArrayAttr[NonFuncSMTType](domain_types), range_type])
+        super().__init__(ArrayAttr[NonFuncSMTType](domain_types), range_type)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -149,15 +148,15 @@ SMTTypeConstr = irdl_to_attr_constraint(SMTType)
 class BitVectorAttr(TypedAttribute):
     name = "smt.bv"
 
-    value: ParameterDef[IntAttr]
-    type: ParameterDef[BitVectorType]
+    value: IntAttr
+    type: BitVectorType
 
     def __init__(self, value: int | IntAttr, type: BitVectorType | int):
         if isinstance(value, int):
             value = IntAttr(value)
         if isinstance(type, int):
             type = BitVectorType(type)
-        super().__init__([value, type])
+        super().__init__(value, type)
 
     def verify(self) -> None:
         super().verify()

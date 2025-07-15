@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
     UnitAttr,
+    UnknownLoc,
     UnregisteredOp,
     i1,
 )
@@ -179,7 +180,7 @@ class Printer(BasePrinter):
         self.print_string("^")
         if block not in self.block_names:
             self.block_names[block] = self._get_new_valid_block_id()
-        self.print_string(f"{self._block_names[-1][block]}")
+        self.print_int(self._block_names[-1][block])
 
     def print_block(
         self,
@@ -197,9 +198,8 @@ class Printer(BasePrinter):
             self._print_new_line()
             self.print_block_name(block)
             if len(block.args) != 0:
-                self.print_string("(")
-                self.print_list(block.args, self.print_block_argument)
-                self.print_string(")")
+                with self.in_parens():
+                    self.print_list(block.args, self.print_block_argument)
             self.print_string(":")
 
         with self.indented():
@@ -221,7 +221,8 @@ class Printer(BasePrinter):
             self.print_string(" : ")
             self.print_attribute(arg.type)
             if self.print_debuginfo:
-                self.print_string(" loc(unknown)")
+                self.print_string(" ")
+                self.print_attribute(UnknownLoc())
 
     def print_region(
         self,
@@ -238,50 +239,48 @@ class Printer(BasePrinter):
         * If `print_block_terminators` is False, the block terminators are not printed.
         """
         # Empty region
-        self.print_string("{")
-        if (entry_block := region.blocks.first) is None:
+        with self.in_braces():
+            if (entry_block := region.blocks.first) is None:
+                self._print_new_line()
+                return
+
+            print_entry_block_args = (
+                bool(entry_block.args) and print_entry_block_args
+            ) or (not entry_block.ops and print_empty_block)
+            self.print_block(
+                entry_block,
+                print_block_args=print_entry_block_args,
+                print_block_terminator=print_block_terminators,
+            )
+
+            next_block = entry_block.next_block
+            while next_block is not None:
+                self.print_block(
+                    next_block, print_block_terminator=print_block_terminators
+                )
+                next_block = next_block.next_block
+
             self._print_new_line()
-            self.print_string("}")
-            return
-
-        print_entry_block_args = (
-            bool(entry_block.args) and print_entry_block_args
-        ) or (not entry_block.ops and print_empty_block)
-        self.print_block(
-            entry_block,
-            print_block_args=print_entry_block_args,
-            print_block_terminator=print_block_terminators,
-        )
-
-        next_block = entry_block.next_block
-        while next_block is not None:
-            self.print_block(next_block, print_block_terminator=print_block_terminators)
-            next_block = next_block.next_block
-
-        self._print_new_line()
-        self.print_string("}")
 
     def print_regions(self, regions: Sequence[Region]) -> None:
         if len(regions) == 0:
             return
 
-        self.print_string(" (")
-        self.print_list(regions, self.print_region)
-        self.print_string(")")
+        self.print_string(" ")
+        with self.in_parens():
+            self.print_list(regions, self.print_region)
 
     def print_operands(self, operands: Sequence[SSAValue]) -> None:
-        self.print_string("(")
-        self.print_list(operands, self.print_operand)
-        self.print_string(")")
+        with self.in_parens():
+            self.print_list(operands, self.print_operand)
 
     def print_paramattr_parameters(
         self, params: Sequence[Attribute], always_print_brackets: bool = False
     ) -> None:
         if len(params) == 0 and not always_print_brackets:
             return
-        self.print_string("<")
-        self.print_list(params, self.print_attribute)
-        self.print_string(">")
+        with self.in_angle_brackets():
+            self.print_list(params, self.print_attribute)
 
     def print_string_literal(self, string: str):
         self.print_string(json.dumps(string))
@@ -339,11 +338,11 @@ class Printer(BasePrinter):
     def print_float(self, value: float, type: AnyFloat):
         if math.isnan(value) or math.isinf(value):
             if isinstance(type, Float16Type):
-                self.print_string(f"{hex(convert_f16_to_u16(value))}")
+                self.print_string(hex(convert_f16_to_u16(value)))
             elif isinstance(type, Float32Type):
-                self.print_string(f"{hex(convert_f32_to_u32(value))}")
+                self.print_string(hex(convert_f32_to_u32(value)))
             elif isinstance(type, Float64Type):
-                self.print_string(f"{hex(convert_f64_to_u64(value))}")
+                self.print_string(hex(convert_f64_to_u64(value)))
             else:
                 raise NotImplementedError(
                     f"Cannot print '{value}' value for float type {str(type)}"
@@ -418,25 +417,20 @@ class Printer(BasePrinter):
     def print_successors(self, successors: Sequence[Block]):
         if len(successors) == 0:
             return
-        self.print_string(" [")
-        self.print_list(successors, self.print_block_name)
-        self.print_string("]")
+        self.print_string(" ")
+        with self.in_square_brackets():
+            self.print_list(successors, self.print_block_name)
 
     def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
-        # Print the name without quotes if it is a bare identifier
-        if MLIRLexer.bare_identifier_regex.fullmatch(attr_tuple[0]):
-            self.print_string(attr_tuple[0])
-        else:
-            self.print_string(f'"{attr_tuple[0]}"')
+        self.print_identifier_or_string_literal(attr_tuple[0])
 
         if not isinstance(attr_tuple[1], UnitAttr):
             self.print_string(" = ")
             self.print_attribute(attr_tuple[1])
 
     def print_attr_dict(self, attr_dict: Mapping[str, Attribute]) -> None:
-        self.print_string("{")
-        self.print_list(attr_dict.items(), self._print_attr_string)
-        self.print_string("}")
+        with self.in_braces():
+            self.print_list(attr_dict.items(), self._print_attr_string)
 
     def _print_op_properties(self, properties: dict[str, Attribute]) -> None:
         if not properties:
@@ -518,9 +512,9 @@ class Printer(BasePrinter):
         (i32) -> ((i32) -> i32)  # one input, one function type output
         ```
         """
-        self.print_string("(")
-        self.print_list(input_types, self.print_attribute)
-        self.print_string(") -> ")
+        with self.in_parens():
+            self.print_list(input_types, self.print_attribute)
+        self.print_string(" -> ")
 
         remaining_outputs_iterator = iter(output_types)
         try:
@@ -535,25 +529,24 @@ class Printer(BasePrinter):
         except StopIteration:
             # One output, drop parentheses unless it's a FunctionType
             if isinstance(first_type, FunctionType):
-                self.print_string("(")
-                self.print_attribute(first_type)
-                self.print_string(")")
+                with self.in_parens():
+                    self.print_attribute(first_type)
             else:
                 self.print_attribute(first_type)
             return
 
         # Two or more outputs, comma-separated list
-        self.print_string("(")
-        self.print_list(
-            chain((first_type, second_type), remaining_outputs_iterator),
-            self.print_attribute,
-        )
-        self.print_string(")")
+        with self.in_parens():
+            self.print_list(
+                chain((first_type, second_type), remaining_outputs_iterator),
+                self.print_attribute,
+            )
 
     def print_operation_type(self, op: Operation) -> None:
         self.print_function_type(op.operand_types, op.result_types)
         if self.print_debuginfo:
-            self.print_string(" loc(unknown)")
+            self.print_string(" ")
+            self.print_attribute(UnknownLoc())
 
     def enter_scope(self) -> None:
         self._next_valid_name_id.append(self._next_valid_name_id[-1])
@@ -581,7 +574,7 @@ class Printer(BasePrinter):
         elif self.print_generic_format or Operation.print is type(op).print:
             self.print_string(f'"{op.name}"')
         else:
-            self.print_string(f"{op.name}")
+            self.print_string(op.name)
             use_custom_format = True
         end_op_pos = self._current_column
         if op in self.diagnostic.op_messages:
@@ -629,21 +622,32 @@ class Printer(BasePrinter):
             return
 
         # Printing
-        self.print_string("\n\n{-#\n")
-        self.print_string("  dialect_resources: {\n")
+        self._print_new_line()
+        self._print_new_line()
+        with self.delimited("{-#", "#-}"):
+            with self.indented():
+                self._print_new_line()
+                self.print_string("dialect_resources: ")
+                with self.in_braces():
+                    with self.indented():
+                        self._print_new_line()
 
-        for dialect_name, resources in resources_for_printing.items():
-            self.print_string("    " + dialect_name + ": {\n")
-            sorted_elements = sorted(resources.items(), key=lambda x: x[0])
-            for key, resource in sorted_elements[:-1]:
-                self.print_string(f'      {key}: "{resource}",')
-            self.print_string(
-                f'      {sorted_elements[-1][0]}: "{sorted_elements[-1][1]}"'
-            )
-            self.print_string("\n    }\n")
-
-        self.print_string("  }\n")
-        self.print_string("#-}")
+                        for dialect_name, resources in resources_for_printing.items():
+                            self.print_string(dialect_name + ": ")
+                            with self.in_braces():
+                                with self.indented():
+                                    self._print_new_line()
+                                    sorted_elements = sorted(
+                                        resources.items(), key=lambda x: x[0]
+                                    )
+                                    for key, resource in sorted_elements[:-1]:
+                                        self.print_string(f'{key}: "{resource}",')
+                                    self.print_string(
+                                        f'{sorted_elements[-1][0]}: "{sorted_elements[-1][1]}"'
+                                    )
+                                self._print_new_line()
+                    self._print_new_line()
+            self._print_new_line()
 
     def print_symbol_name(self, sym_name: str):
         """
