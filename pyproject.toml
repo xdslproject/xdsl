@@ -102,13 +102,7 @@ reportUnnecessaryTypeIgnoreComment = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests"]
-"exclude" = [
-    "docs/marimo",
-    "tests/dialects/test_memref.py",
-    "tests/test_frontend_python_code_check.py",
-    "tests/filecheck/frontend/programs/code_generation_exceptions.py",
-    "tests/filecheck/frontend/programs/frontend_program_exceptions.py",
-]
+"exclude" = ["docs/marimo"]
 
 [tool.ruff]
 target-version = "py310"

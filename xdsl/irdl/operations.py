@@ -45,6 +45,7 @@ from .attributes import (  # noqa: TID251
     IRDLGenericAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
+    is_classvar,
     range_constr_coercion,
     single_range_constr_coercion,
 )
@@ -889,11 +890,7 @@ def _is_const_classvar(field_name: str, annotation: Any) -> bool:
      * `ClassVar`, or
      * `"ClassVar[MyType]"`.
     """
-    return field_name.isupper() and (
-        get_origin(annotation) is ClassVar
-        or annotation is ClassVar
-        or (isinstance(annotation, str) and annotation.startswith("ClassVar"))
-    )
+    return field_name.isupper() and is_classvar(annotation)
 
 
 @dataclass(kw_only=True)

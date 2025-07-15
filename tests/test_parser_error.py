@@ -26,7 +26,9 @@ def check_error(prog: str, line: int, column: int, message: str):
     with pytest.raises(ParseError, match=message) as e:
         parser.parse_operation()
 
-    assert e.value.span.get_line_col() == (line, column)
+    _, l, c = e.value.span.get_location()
+
+    assert (l, c) == (line, column)
 
 
 def test_parser_missing_equal():
