@@ -39,7 +39,7 @@ class LowerAllocOpPass(RewritePattern):
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         assert (
             MemRefType[ZerosOpAttr]
-            .constr(element_type=csl.ZerosOpAttrConstr)
+            .constr(csl.ZerosOpAttrConstr)
             .verifies(memref_type := op.memref.type)
         )
         zeros_op = csl.ZerosOp(memref_type)

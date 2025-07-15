@@ -169,13 +169,13 @@ class BitVectorAttr(TypedAttribute):
 
     @staticmethod
     def constr(
-        type_constraint: GenericAttrConstraint[BitVectorType],
+        type: GenericAttrConstraint[BitVectorType],
     ) -> GenericAttrConstraint[BitVectorAttr]:
         return ParamAttrConstraint(
             BitVectorAttr,
             (
                 AnyAttr(),
-                type_constraint,
+                type,
             ),
         )
 

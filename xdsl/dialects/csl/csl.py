@@ -637,7 +637,7 @@ class ZerosOp(IRDLOperation):
 
     size = opt_operand_def(T)
 
-    result = result_def(MemRefType.constr(element_type=T))
+    result = result_def(MemRefType.constr(T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -674,7 +674,7 @@ class ConstantsOp(IRDLOperation):
 
     value = operand_def(T)
 
-    result = result_def(MemRefType.constr(element_type=T))
+    result = result_def(MemRefType.constr(T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
