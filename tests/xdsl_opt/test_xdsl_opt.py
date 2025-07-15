@@ -92,7 +92,7 @@ def test_error_on_run(
     [
         (
             ["tests/xdsl_opt/empty_program.mlir", "-p", "wrong"],
-            Exception,
+            ValueError,
             "Unrecognized passes: ['wrong']",
         ),
     ],
