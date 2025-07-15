@@ -13,7 +13,7 @@ x = a
 """
     stmts = ast.parse(src).body
     CheckAndInlineConstants.run(stmts, __file__)
-    assert ast.unparse(stmts).endswith("x = 32")
+    assert ast.unparse(stmts).endswith("x = 32")  # pyright: ignore[reportArgumentType]
 
 
 def test_const_correctly_evaluated_II():
@@ -23,7 +23,7 @@ x: i64 = a + 2
 """
     stmts = ast.parse(src).body
     CheckAndInlineConstants.run(stmts, __file__)
-    assert ast.unparse(stmts).endswith("x: i64 = 4 + 2")
+    assert ast.unparse(stmts).endswith("x: i64 = 4 + 2")  # pyright: ignore[reportArgumentType]
 
 
 def test_const_correctly_evaluated_III():
@@ -35,7 +35,7 @@ y = x
 """
     stmts = ast.parse(src).body
     CheckAndInlineConstants.run(stmts, __file__)
-    assert ast.unparse(stmts).endswith("y = 8")
+    assert ast.unparse(stmts).endswith("y = 8")  # pyright: ignore[reportArgumentType]
 
 
 def test_const_correctly_evaluated_IV():
@@ -46,7 +46,7 @@ def foo(y: i32):
 """
     stmts = ast.parse(src).body
     CheckAndInlineConstants.run(stmts, __file__)
-    assert ast.unparse(stmts).endswith("x: i32 = 4 + y")
+    assert ast.unparse(stmts).endswith("x: i32 = 4 + y")  # pyright: ignore[reportArgumentType]
 
 
 def test_const_correctly_evaluated_V():
@@ -59,7 +59,7 @@ def foo(y: i32):
 """
     stmts = ast.parse(src).body
     CheckAndInlineConstants.run(stmts, __file__)
-    assert ast.unparse(stmts).endswith("x: i32 = 10")
+    assert ast.unparse(stmts).endswith("x: i32 = 10")  # pyright: ignore[reportArgumentType]
 
 
 def test_raises_exception_on_assignemnt_to_const_I():
