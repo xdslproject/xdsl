@@ -8,7 +8,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
-from inspect import isclass
+from inspect import get_annotations, isclass
 from types import FunctionType, GenericAlias, UnionType
 from typing import (
     TYPE_CHECKING,
@@ -22,7 +22,6 @@ from typing import (
     cast,
     get_args,
     get_origin,
-    get_type_hints,
     overload,
 )
 
@@ -186,8 +185,9 @@ class ParamAttrDef:
         # Get type hints
         field_types = {
             field_name: field_type
-            for field_name, field_type in get_type_hints(
-                pyrdl_def, include_extras=True
+            for parent_cls in pyrdl_def.mro()[::-1]
+            for field_name, field_type in get_annotations(
+                parent_cls, eval_str=True
             ).items()
             if field_name not in _IGNORED_PARAM_ATTR_FIELD_TYPES
         }
