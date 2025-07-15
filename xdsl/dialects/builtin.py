@@ -881,9 +881,9 @@ class IntegerAttr(
 
     @staticmethod
     def constr(
+        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
         *,
         value: AttrConstraint | IntConstraint | None = None,
-        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
     ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
         if value is None and type == AnyAttr():
             return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
