@@ -320,7 +320,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
     template_args = opt_prop_def(ArrayAttr)
     # The SSA‐value operands of the call
     call_args = var_operand_def()
-    res = var_result_def(AnyAttr())
+    res = var_result_def()
 
     irdl_options = [ParsePropInAttrDict()]
     assembly_format = (
