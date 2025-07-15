@@ -88,26 +88,39 @@ def test_error_on_run(
 
 
 @pytest.mark.parametrize(
-    "args, expected_error",
+    "args, error_type, expected_error",
     [
         (
             ["tests/xdsl_opt/empty_program.mlir", "-p", "wrong"],
+            Exception,
             "Unrecognized passes: ['wrong']",
-        )
+        ),
     ],
 )
-def test_error_on_construction(args: list[str], expected_error: str):
-    with pytest.raises(Exception, match=re.escape(expected_error)):
-        _opt = xDSLOptMain(args=args)
+def test_error_on_construction(
+    args: list[str], error_type: type[Exception], expected_error: str
+):
+    with pytest.raises(error_type, match=re.escape(expected_error)):
+        xDSLOptMain(args=args)
 
 
-def test_wrong_target():
-    filename = "tests/xdsl_opt/empty_program.mlir"
-    opt = xDSLOptMain(args=[filename])
-    opt.args.target = "wrong"
-
-    with pytest.raises(ValueError, match="Unknown target wrong"):
-        opt.run()
+@pytest.mark.parametrize(
+    "args, expected_error",
+    [
+        (
+            ["tests/xdsl_opt/empty_program.mlir", "-t", "wrong"],
+            "invalid choice: 'wrong'",
+        ),
+    ],
+)
+def test_error_on_argparse(
+    capsys: pytest.CaptureFixture[str], args: list[str], expected_error: str
+):
+    with pytest.raises(SystemExit):
+        xDSLOptMain(args=args)
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert expected_error in err
 
 
 def test_print_to_file():
