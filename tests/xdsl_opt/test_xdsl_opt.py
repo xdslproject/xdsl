@@ -71,6 +71,11 @@ def test_empty_program():
             ValueError,
             "Unrecognized file extension 'wrong'",
         ),
+        (
+            ["tests/xdsl_opt/unverified_program.mlir"],
+            DiagnosticException,
+            "operand at position 0 does not verify",
+        ),
     ],
 )
 def test_error_on_run(
@@ -160,15 +165,6 @@ def test_print_between_passes():
 
     output = f.getvalue()
     assert len([l for l in output.split("\n") if "builtin.module" in l]) == len(passes)
-
-
-def test_diagnostic_exception():
-    filename_in = "tests/xdsl_opt/unverified_program.mlir"
-
-    opt = xDSLOptMain(args=[filename_in])
-
-    with pytest.raises(DiagnosticException):
-        opt.run()
 
 
 def test_verify_diagnostics_output():
