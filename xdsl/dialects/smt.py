@@ -134,7 +134,6 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def constr(
-        *,
         domain: GenericRangeConstraint[NonFuncSMTType],
         range: GenericAttrConstraint[NonFuncSMTType],
     ) -> GenericAttrConstraint[FuncType]:
@@ -251,7 +250,7 @@ class ApplyFuncOp(IRDLOperation):
     DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(NonFuncSMTTypeConstr))
     RANGE: ClassVar = VarConstraint("RANGE", NonFuncSMTTypeConstr)
 
-    func = operand_def(FuncType.constr(domain=DOMAIN, range=RANGE))
+    func = operand_def(FuncType.constr(DOMAIN, RANGE))
     args = var_operand_def(DOMAIN)
 
     result = result_def(RANGE)
