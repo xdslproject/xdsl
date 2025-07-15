@@ -320,7 +320,10 @@ def test_build_nested_implicit_region():
 
 
 def test_build_implicit_region_fail():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(
+        ValueError,
+        match="Cannot insert operation explicitly when an implicit builder exists.",
+    ):
         one = IntAttr(1)
         two = IntAttr(2)
         three = IntAttr(3)
@@ -344,6 +347,3 @@ def test_build_implicit_region_fail():
             IfOp(cond, (), then_0)
 
         _ = region
-    assert e.value.args[0] == (
-        "Cannot insert operation explicitly when an implicit builder exists."
-    )

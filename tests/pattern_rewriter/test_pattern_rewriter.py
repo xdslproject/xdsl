@@ -602,7 +602,7 @@ def test_operation_deletion_failure():
 
     # Check that the rewrite fails
     with pytest.raises(
-        Exception,
+        ValueError,
         match="Attempting to delete SSA value that still has uses of result of operation",
     ):
         walker.rewrite_module(module)

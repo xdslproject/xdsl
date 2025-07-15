@@ -44,10 +44,8 @@ def test_import_functions():
 
     i.register_implementations(B())
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="Use `@register_impls` on class A"):
         i.register_implementations(A())
-
-    assert e.value.args[0] == "Use `@register_impls` on class A"
 
 
 def test_cast():

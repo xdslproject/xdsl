@@ -56,7 +56,7 @@ def test_result_builder():
 
 
 def test_result_builder_exception():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Expected 1 result, but got 0"):
         ResultOp.build()
 
 
@@ -80,7 +80,13 @@ def test_opt_result_builder():
 
 
 def test_opt_result_builder_two_args():
-    with pytest.raises(ValueError) as _:
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Error in test.opt_result_op builder: optional VarIRConstruct.RESULT 0 "
+            "'res' expects a list of size at most 1 or None, but got a list of size 2"
+        ),
+    ):
         OptResultOp.build(result_types=[[StringAttr(""), StringAttr("")]])
 
 
@@ -207,7 +213,7 @@ def test_operand_builder_value():
 
 
 def test_operand_builder_exception():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Expected 1 operand, but got 0"):
         OperandOp.build()
 
 
@@ -230,7 +236,13 @@ def test_opt_operand_builder():
 
 def test_opt_operand_builder_two_args():
     op = ResultOp.build(result_types=[StringAttr("0")])
-    with pytest.raises(ValueError) as _:
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Error in test.opt_operand_op builder: optional VarIRConstruct.OPERAND 0 "
+            "'res' expects a list of size at most 1 or None, but got a list of size 2"
+        ),
+    ):
         OptOperandOp.build(operands=[[op, op]])
 
 
@@ -485,7 +497,13 @@ def test_opt_region_builder():
 
 
 def test_opt_region_builder_two_args():
-    with pytest.raises(ValueError) as _:
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Error in test.opt_region_op builder: optional VarIRConstruct.REGION 0 "
+            "'reg' expects a list of size at most 1 or None, but got a list of size 2"
+        ),
+    ):
         OptRegionOp.build(regions=[[Region(), Region()]])
 
 

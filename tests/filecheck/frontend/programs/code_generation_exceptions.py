@@ -11,7 +11,7 @@ try:
     with CodeContext(p):
         # CHECK: Else clause in for loops is not supported.
         def test_not_supported_loop_I():
-            for i in range(10):
+            for _i in range(10):
                 pass
             else:
                 pass
@@ -26,7 +26,7 @@ try:
     with CodeContext(p):
         # CHECK: Only range-based loops are supported.
         def test_not_supported_loop_II():
-            for i, j in enumerate(range(10, 0, -1)):
+            for _i, _j in enumerate(range(10, 0, -1)):
                 pass
             return
 
@@ -39,7 +39,7 @@ try:
     with CodeContext(p):
         # CHECK: Range-based loop expected between 1 and 3 arguments, but got 4.
         def test_not_supported_loop_III():
-            for i in range(0, 1, 2, 3):
+            for _i in range(0, 1, 2, 3):  # pyright: ignore[reportCallIssue]
                 pass
             return
 
@@ -52,7 +52,7 @@ try:
     with CodeContext(p):
         # CHECK: Range-based loop must take a single target variable, e.g. `for i in range(10)`.
         def test_not_supported_loop_IV():
-            for i, j in range(100):
+            for _i, _j in range(100):  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
                 pass
             return
 

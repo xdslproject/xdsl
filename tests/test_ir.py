@@ -125,16 +125,28 @@ def test_ops_accessor_III():
     region0 = Region([block0, block1])
     region1 = Region(block2)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="'ops' property of Region class is only available for single-block regions.",
+    ):
         region0.ops
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="'op' property of Region class is only available for single-operation single-block regions.",
+    ):
         region0.op
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="'op' property of Region class is only available for single-operation single-block regions.",
+    ):
         region1.op
 
-    with pytest.raises(Exception):
+    with pytest.raises(
+        ValueError,
+        match="Block is not a child of the region.",
+    ):
         region1.detach_block(block0)
 
     region0.detach_block(block0)
@@ -871,9 +883,8 @@ def test_region_index_fetch_region_unavailability():
     op = MultipleRegionsOp.build(regions=[[region0]])
 
     assert op.get_region_index(region0) == 0
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(ValueError, match="Region is not attached to the operation."):
         op.get_region_index(region1)
-    assert exc_info.value.args[0] == "Region is not attached to the operation."
 
 
 def test_detach_region():
@@ -919,18 +930,19 @@ class CustomVerifyOp(IRDLOperation):
 def test_op_custom_verify_is_called():
     a = ConstantOp.from_int_and_width(1, i64)
     b = CustomVerifyOp.get(a.result)
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match="Custom Verification Check"):
         b.verify()
-    assert e.value.args[0] == "Custom Verification Check"
 
 
 def test_op_custom_verify_is_done_last():
     a = ConstantOp.from_int_and_width(1, i32)
     # CustomVerify expects a i64, not i32
     b = CustomVerifyOp.get(a.result)
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException,
+        match="operand at position 0 does not verify:\nExpected attribute i64 but got i32",
+    ):
         b.verify()
-    assert "Custom Verification Check" not in e.value.args[0]
 
 
 def test_block_walk():

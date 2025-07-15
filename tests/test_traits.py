@@ -59,7 +59,7 @@ from xdsl.traits import (
     SymbolTable,
     is_speculatable,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -221,7 +221,13 @@ class WrongTraitsType(IRDLOperation):
 
 
 def test_traits_wrong_type():
-    with pytest.raises(Exception):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match=(
+            "pyrdl operation definition 'WrongTraitsType' traits field should be an "
+            "instance of'OpTraits'."
+        ),
+    ):
         irdl_op_definition(WrongTraitsType)
 
 

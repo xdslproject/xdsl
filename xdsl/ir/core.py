@@ -666,7 +666,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         If safe_erase is False, then replace its uses by an ErasedSSAValue.
         """
         if safe_erase and len(self.uses) != 0:
-            raise Exception(
+            raise ValueError(
                 "Attempting to delete SSA value that still has uses of result "
                 f"of operation:\n{self.owner}"
             )
@@ -1054,7 +1054,7 @@ class Operation(_IRNode):
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
         if region.parent:
-            raise Exception(
+            raise ValueError(
                 "Cannot add region that is already attached on an operation."
             )
         self.regions += (region,)
@@ -1063,7 +1063,7 @@ class Operation(_IRNode):
     def get_region_index(self, region: Region) -> int:
         """Get the region position in the operation."""
         if region.parent is not self:
-            raise Exception("Region is not attached to the operation.")
+            raise ValueError("Region is not attached to the operation.")
         return next(
             idx for idx, curr_region in enumerate(self.regions) if curr_region is region
         )
@@ -1149,7 +1149,7 @@ class Operation(_IRNode):
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
-                raise Exception("Erased SSA value is used by the operation")
+                raise ValueError("Erased SSA value is used by the operation")
 
         parent_block = self.parent
         parent_region = None if parent_block is None else parent_block.parent
@@ -1330,7 +1330,7 @@ class Operation(_IRNode):
     def detach(self):
         """Detach the operation from its parent block."""
         if self.parent is None:
-            raise Exception("Cannot detach a toplevel operation.")
+            raise ValueError("Cannot detach a toplevel operation.")
         self.parent.detach_op(self)
 
     def is_structurally_equivalent(
@@ -1589,7 +1589,7 @@ class Block(_IRNode, IRWithUses):
         Returns the new argument.
         """
         if index < 0 or index > len(self._args):
-            raise Exception("Unexpected index")
+            raise ValueError("Unexpected index")
         new_arg = BlockArgument(arg_type, self, index)
         for arg in self._args[index:]:
             arg.index += 1
@@ -1603,7 +1603,7 @@ class Block(_IRNode, IRWithUses):
         If safe_erase is False, replace the block argument uses with an ErasedSSAVAlue.
         """
         if arg.block is not self:
-            raise Exception("Attempting to delete an argument of the wrong block")
+            raise ValueError("Attempting to delete an argument of the wrong block")
         for block_arg in self._args[arg.index + 1 :]:
             block_arg.index -= 1
         self._args = tuple(chain(self._args[: arg.index], self._args[arg.index + 1 :]))
@@ -1773,7 +1773,7 @@ class Block(_IRNode, IRWithUses):
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
         if op.parent is not self:
-            raise Exception("Operation is not a children of the block.")
+            raise ValueError("Operation is not a child of the block.")
         return next(idx for idx, block_op in enumerate(self.ops) if block_op is op)
 
     def detach_op(self, op: Operation) -> Operation:
@@ -1782,7 +1782,7 @@ class Block(_IRNode, IRWithUses):
         Returns the detached operation.
         """
         if op.parent is not self:
-            raise Exception("Cannot detach operation from a different block.")
+            raise ValueError("Cannot detach operation from a different block.")
         op.parent = None
 
         prev_op = op.prev_op
@@ -1846,7 +1846,7 @@ class Block(_IRNode, IRWithUses):
     def verify(self) -> None:
         for operation in self.ops:
             if operation.parent != self:
-                raise Exception(
+                raise ValueError(
                     "Parent pointer of operation does not refer to containing region"
                 )
             operation.verify()
@@ -2325,7 +2325,7 @@ class Region(_IRNode):
     def get_block_index(self, block: Block) -> int:
         """Get the block position in a region."""
         if block.parent is not self:
-            raise Exception("Block is not a child of the region.")
+            raise ValueError("Block is not a child of the region.")
         return next(
             idx for idx, region_block in enumerate(self.blocks) if region_block is block
         )
@@ -2339,7 +2339,7 @@ class Region(_IRNode):
             block = self.blocks[block]
         else:
             if block.parent is not self:
-                raise Exception("Block is not a child of the region.")
+                raise ValueError("Block is not a child of the region.")
 
         block.parent = None
         if (prev_block := block.prev_block) is None:
@@ -2435,7 +2435,7 @@ class Region(_IRNode):
         for block in self.blocks:
             block.verify()
             if block.parent != self:
-                raise Exception(
+                raise ValueError(
                     "Parent pointer of block does not refer to containing region"
                 )
 

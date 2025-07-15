@@ -479,7 +479,10 @@ def test_erase_op():
 
     rewrite_and_compare(prog, expected, transformation_unsafe)
 
-    with pytest.raises(Exception):
+    with pytest.raises(
+        Exception,
+        match="Attempting to delete SSA value that still has uses",
+    ):
         rewrite_and_compare(prog, expected, transformation_safe)
 
 

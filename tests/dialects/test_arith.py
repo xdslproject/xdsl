@@ -402,28 +402,26 @@ def test_cmpf_get():
     assert cmpf_op.predicate.value.data == 1
 
 
-def test_cmpf_missmatch_type():
+def test_cmpf_mismatch_type():
     a = ConstantOp(FloatAttr(1.0, f32))
     b = ConstantOp(FloatAttr(2.0, f64))
 
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(
+        TypeError,
+        match="Comparison operands must have same type, but provided f32 and f64",
+    ):
         _cmpf_op = CmpfOp(a, b, 1)
-    assert (
-        e.value.args[0]
-        == "Comparison operands must have same type, but provided f32 and f64"
-    )
 
 
 def test_cmpi_mismatch_type():
     a = ConstantOp.from_int_and_width(1, i32)
     b = ConstantOp.from_int_and_width(2, i64)
 
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(
+        TypeError,
+        match="Comparison operands must have same type, but provided i32 and i64",
+    ):
         _cmpi_op = CmpiOp(a, b, 1)
-    assert (
-        e.value.args[0]
-        == "Comparison operands must have same type, but provided i32 and i64"
-    )
 
 
 def test_cmpf_incorrect_comparison():

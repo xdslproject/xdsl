@@ -348,7 +348,7 @@ class xDSLOptMain(CommandLineTool):
         if file_extension not in self.available_frontends:
             for chunk, _ in chunks:
                 chunk.close()
-            raise Exception(f"Unrecognized file extension '{file_extension}'")
+            raise ValueError(f"Unrecognized file extension '{file_extension}'")
 
         return chunks, file_extension
 
@@ -370,9 +370,6 @@ class xDSLOptMain(CommandLineTool):
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
         output = StringIO()
-        if self.args.target not in self.available_targets:
-            raise Exception(f"Unknown target {self.args.target}")
-
         self.available_targets[self.args.target](prog, output)
         return output.getvalue()
 

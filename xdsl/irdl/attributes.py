@@ -8,12 +8,13 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
-from inspect import isclass
+from inspect import get_annotations, isclass
 from types import FunctionType, GenericAlias, UnionType
 from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
+    ClassVar,
     Generic,
     Literal,
     TypeAlias,
@@ -21,7 +22,6 @@ from typing import (
     cast,
     get_args,
     get_origin,
-    get_type_hints,
     overload,
 )
 
@@ -185,8 +185,9 @@ class ParamAttrDef:
         # Get type hints
         field_types = {
             field_name: field_type
-            for field_name, field_type in get_type_hints(
-                pyrdl_def, include_extras=True
+            for parent_cls in pyrdl_def.mro()[::-1]
+            for field_name, field_type in get_annotations(
+                parent_cls, eval_str=True
             ).items()
             if field_name not in _IGNORED_PARAM_ATTR_FIELD_TYPES
         }
@@ -208,8 +209,16 @@ class ParamAttrDef:
 
         # The resulting parameters
         parameters: dict[str, AttrConstraint] = {}
+        classvars = set[str]()
 
         for field_name, field_type in field_types.items():
+            if is_classvar(field_type):
+                if field_name.isupper():
+                    classvars.add(field_name)
+                    continue
+                raise PyRDLAttrDefinitionError(
+                    f'Invalid ClassVar name "{field_name}", must be uppercase.'
+                )
             try:
                 constraint = irdl_to_attr_constraint(field_type, allow_type_var=True)
             except TypeError as e:
@@ -239,7 +248,8 @@ class ParamAttrDef:
                     ) from e
 
                 continue
-
+            if field_name in classvars:
+                continue
             # Constraint variables are allowed
             if get_origin(value) is Annotated:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
@@ -554,3 +564,17 @@ def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
 ) -> GenericRangeConstraint[AttributeCovT]:
     return SingleOf(irdl_to_attr_constraint(attr))
+
+
+def is_classvar(annotation: Any) -> bool:
+    """
+    The type annotation can be one of
+     * `ClassVar[MyType]`,
+     * `ClassVar`, or
+     * `"ClassVar[MyType]"`.
+    """
+    return (
+        get_origin(annotation) is ClassVar
+        or annotation is ClassVar
+        or (isinstance(annotation, str) and annotation.startswith("ClassVar"))
+    )

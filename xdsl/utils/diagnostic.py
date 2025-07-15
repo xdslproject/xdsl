@@ -30,6 +30,7 @@ class Diagnostic:
                 p.print_string("\n")
             case Block():
                 p.print_block(toplevel)
+                p.print_string("\n")
             case Region():
                 p.print_region(toplevel)
 
