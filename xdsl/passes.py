@@ -233,7 +233,7 @@ class PassPipeline:
             p.name for p in specs if p.name not in available_passes
         )
         if unrecognised_passes:
-            raise Exception(f"Unrecognized passes: {list(unrecognised_passes)}")
+            raise ValueError(f"Unrecognized passes: {list(unrecognised_passes)}")
 
         passes = tuple(available_passes[p.name]().from_pass_spec(p) for p in specs)
 
