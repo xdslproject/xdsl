@@ -36,7 +36,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
     ParsePropInAttrDict,
     irdl_attr_definition,
@@ -369,8 +368,8 @@ class EmitC_CallOpaqueOp(IRDLOperation):
                 if not isa(
                     t_arg,
                     TypeAttribute | IntegerAttr | FloatAttr,
-                    # FIXME: uncomment when EmitC_OpaqueAttr is implemented
-                    # OpaqueAttr is not defined yet,
+                    # FIXME: uncomment and replace the line above when EmitC_OpaqueAttr is implemented
+                    # TypeAttribute | IntegerAttr | FloatAttr | EmitC_OpaqueAttr,
                 ):
                     raise VerifyException("template argument has invalid type")
 
