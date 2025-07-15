@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from enum import IntFlag, auto
 from typing import ClassVar
@@ -61,7 +62,6 @@ from xdsl.traits import (
     IsTerminator,
     NoMemoryEffect,
     NoTerminator,
-    OpTrait,
     Pure,
     RecursiveMemoryEffect,
 )
@@ -244,43 +244,29 @@ class LoopWrapper(NoTerminator):
         return super().verify(op)
 
 
-class BlockArgOpenMPInterface(OpTrait):
+class BlockArgOpenMPOperation(IRDLOperation, ABC):
     """
     Verifies that the operation has the appropriate number of block arguments corresponding to the following operands:
     `host_eval_vars`, `in_reduction_vars`, `map_vars`, `private_vars`, `reduction_vars`,
     `task_reduction_vars`, `use_device_addr_vars` and `use_device_ptr_vars`.
     """
 
-    def verify(self, op: Operation) -> None:
-        if len(op.regions) < 1:
-            raise VerifyException(f"Expected {op.name} to have at least 1 region")
-        if len(op.regions[0].blocks) < 1:
+    def verify_(self) -> None:
+        if len(self.regions) < 1:
+            raise VerifyException(f"Expected {self.name} to have at least 1 region")
+        if len(self.regions[0].blocks) < 1:
             raise VerifyException(
-                f"Expected {op.name} to have at least 1 block in its first region"
+                f"Expected {self.name} to have at least 1 block in its first region"
+            )
+        expected = self.num_block_args()
+
+        if (actual := len(self.regions[0].blocks[0].args)) != expected:
+            raise VerifyException(
+                f"{self.name} expected to have {expected} block argument(s), got {actual}"
             )
 
-        expected = (
-            self.__get_len(op, "host_eval_vars")
-            + self.__get_len(op, "in_reduction_vars")
-            + self.__get_len(op, "map_vars")
-            + self.__get_len(op, "private_vars")
-            + self.__get_len(op, "reduction_vars")
-            + self.__get_len(op, "task_reduction_vars")
-            + self.__get_len(op, "use_device_addr_vars")
-            + self.__get_len(op, "use_device_ptr_vars")
-        )
-
-        if (actual := len(op.regions[0].blocks[0].args)) != expected:
-            raise VerifyException(
-                f"{op.name} expected to have {expected} block argument(s), got {actual}"
-            )
-
-    @staticmethod
-    def __get_len(op: Operation, name: str):
-        if field := getattr(op, name, None):
-            assert isinstance(field, VarOperand)
-            return len(field)
-        return 0
+    @abstractmethod
+    def num_block_args(self) -> int: ...
 
 
 _ui64 = IntegerType(64, Signedness.UNSIGNED)
@@ -514,7 +500,7 @@ class LoopNestOp(IRDLOperation):
 
 
 @irdl_op_definition
-class WsLoopOp(IRDLOperation):
+class WsLoopOp(BlockArgOpenMPOperation):
     name = "omp.wsloop"
 
     LINEAR_COUNT: ClassVar = IntVarConstraint("LINEAR_COUNT", AnyInt())
@@ -549,11 +535,10 @@ class WsLoopOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(
-        LoopWrapper(),
-        RecursiveMemoryEffect(),
-        BlockArgOpenMPInterface(),
-    )
+    traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
+
+    def num_block_args(self) -> int:
+        return len(self.private_vars) + len(self.reduction_vars)
 
 
 class ProcBindKindEnum(StrEnum):
@@ -568,7 +553,7 @@ class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], SpacedOpaqueSyntaxAttrib
 
 
 @irdl_op_definition
-class ParallelOp(IRDLOperation):
+class ParallelOp(BlockArgOpenMPOperation):
     name = "omp.parallel"
 
     allocate_vars = var_operand_def()
@@ -592,7 +577,10 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(RecursiveMemoryEffect(), BlockArgOpenMPInterface())
+    traits = traits_def(RecursiveMemoryEffect())
+
+    def num_block_args(self) -> int:
+        return len(self.private_vars) + len(self.reduction_vars)
 
 
 @irdl_op_definition
@@ -622,7 +610,7 @@ class TerminatorOp(IRDLOperation):
 
 
 @irdl_op_definition
-class TargetOp(IRDLOperation):
+class TargetOp(BlockArgOpenMPOperation):
     """
     Implementation of upstream omp.target
     See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget-omptargetop).
@@ -664,7 +652,15 @@ class TargetOp(IRDLOperation):
     region = region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
-    traits = traits_def(IsolatedFromAbove(), BlockArgOpenMPInterface())
+    traits = traits_def(IsolatedFromAbove())
+
+    def num_block_args(self) -> int:
+        return (
+            len(self.host_eval_vars)
+            + len(self.in_reduction_vars)
+            + len(self.map_vars)
+            + len(self.private_vars)
+        )
 
     def verify_(self) -> None:
         verify_map_vars(
@@ -732,7 +728,7 @@ class MapInfoOp(IRDLOperation):
 
 
 @irdl_op_definition
-class SimdOp(IRDLOperation):
+class SimdOp(BlockArgOpenMPOperation):
     """
     Implementation of upstream omp.simd
     See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompsimd-ompsimdop).
@@ -772,11 +768,10 @@ class SimdOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(
-        RecursiveMemoryEffect(),
-        LoopWrapper(),
-        BlockArgOpenMPInterface(),
-    )
+    traits = traits_def(RecursiveMemoryEffect(), LoopWrapper())
+
+    def num_block_args(self) -> int:
+        return len(self.private_vars) + len(self.reduction_vars)
 
     def verify_(self) -> None:
         if self.simdlen and self.safelen:
@@ -881,7 +876,7 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
 
 
 @irdl_op_definition
-class TargetDataOp(IRDLOperation):
+class TargetDataOp(BlockArgOpenMPOperation):
     """
     Implementation of upstream omp.target_data
     See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#omptarget_data-omptargetdataop).
@@ -898,9 +893,10 @@ class TargetDataOp(IRDLOperation):
     region = region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
-    traits = traits_def(BlockArgOpenMPInterface())
 
-    # NOTE: Unlike TargetOp `mapped_vars` are not passed as block args.
+    def num_block_args(self) -> int:
+        # NOTE: Unlike TargetOp `mapped_vars` are not passed as block args.
+        return len(self.use_device_addr_vars) + len(self.use_device_ptr_vars)
 
     def verify_(self) -> None:
         verify_map_vars(
