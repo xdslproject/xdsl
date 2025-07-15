@@ -354,7 +354,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
 
         if self.args is not None:
             for arg in self.args.data:
-                if isa(arg, IntegerAttr[IndexType])
+                if isa(arg, IntegerAttr[IndexType]):
                     index = arg.value.data
                     if not (0 <= index < len(self.call_args)):
                         raise VerifyException("index argument is out of range")
