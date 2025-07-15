@@ -44,7 +44,7 @@ def test_empty_program():
 
 
 @pytest.mark.parametrize(
-    "args, expected_error, error_type",
+    "args, error_type, expected_error",
     [
         (
             ["--no-implicit-module", "tests/xdsl_opt/not_module.mlir"],
