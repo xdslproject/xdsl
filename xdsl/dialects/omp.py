@@ -7,7 +7,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
-    DenseIntOrFPElementsAttr,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -702,7 +701,7 @@ class TargetOp(BlockArgOpenMPOperation):
     nowait = opt_prop_def(UnitAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     private_needs_barrier = opt_prop_def(UnitAttr)
-    private_maps = opt_prop_def(DenseIntOrFPElementsAttr[i64])
+    private_maps = opt_prop_def(DenseArrayBase[i64])
 
     region = region_def()
 
