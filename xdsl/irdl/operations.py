@@ -1052,9 +1052,16 @@ class OpDef:
                     value, FunctionType | PropertyType | classmethod | staticmethod
                 ):
                     continue
-                # Constraint variables are allowed
+                # Constraint variables are deprecated
                 if get_origin(value) is Annotated:
                     if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
+                        import warnings
+
+                        warnings.warn(
+                            "The use of `ConstraintVar` is deprecated, please use `VarConstraint`",
+                            DeprecationWarning,
+                            stacklevel=2,
+                        )
                         continue
 
                 # Get attribute constraints from a list of pyrdl constraints

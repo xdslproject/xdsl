@@ -246,6 +246,15 @@ wheels = [
 ]
 
 [[package]]
+name = "backports-asyncio-runner"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/ff/70dca7d7cb1cbc0edb2c6cc0c38b65cba36cccc491eca64cabd5fe7f8670/backports_asyncio_runner-1.2.0.tar.gz", hash = "sha256:a5aa7b2b7d8f8bfcaa2b57313f70792df84e32a2a746f585213373f900b42162", size = 69893, upload-time = "2025-07-02T02:27:15.685Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/59/76ab57e3fe74484f48a53f8e337171b4a2349e506eabe136d7e01d059086/backports_asyncio_runner-1.2.0-py3-none-any.whl", hash = "sha256:0da0a936a8aeb554eccb426dc55af3ba63bcdc69fa1a600b5bb305413a4477b5", size = 12313, upload-time = "2025-07-02T02:27:14.263Z" },
+]
+
+[[package]]
 name = "backrefs"
 version = "5.9"
 source = { registry = "https://pypi.org/simple" }
@@ -1212,7 +1221,7 @@ source = { git = "https://github.com/superlopuh/lz-string.git#d435be09f8aa454ce0
 
 [[package]]
 name = "marimo"
-version = "0.14.10"
+version = "0.14.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1233,9 +1242,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fa/93/d646fccda297843c41fa088e831212a425036e1cf7ea1c1fca41d7f7ad56/marimo-0.14.10.tar.gz", hash = "sha256:195247aabaccb7559532daa0313b7f47647ba78b98e151fe2b85df1f67bff79e", size = 29134153, upload-time = "2025-07-03T00:54:02.37Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/68/60/6e126ffe81ff4b9ba0af69b1f407b5fcd9f6d5a913559fb06f9f5ac2a0fe/marimo-0.14.11.tar.gz", hash = "sha256:cd430c37d022121b4dcfe0a5f6c8a987120d43afa7e1b9cbb75f85027f7fa8a1", size = 29247216, upload-time = "2025-07-15T19:49:18.529Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/7a/296b66193a41a3024b56280b53e5066050fa0213469dd528bc1b322dac88/marimo-0.14.10-py3-none-any.whl", hash = "sha256:1fb78e272aaa25405f03ce9103972660ea694efc65e5b39b653d8291a9dea719", size = 29611482, upload-time = "2025-07-03T00:54:06.436Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/88/a23e901ef3896d7a9b7caf5bf42415960fc265b7a74c1a4b7355b534893a/marimo-0.14.11-py3-none-any.whl", hash = "sha256:5e2cbdeb5b777c7e764287950e027c8c3392bce5c8e4f6255cb169f2a6a622d2", size = 29735225, upload-time = "2025-07-15T19:49:22.989Z" },
 ]
 
 [[package]]
@@ -2331,14 +2340,15 @@ wheels = [
 
 [[package]]
 name = "pytest-asyncio"
-version = "1.0.0"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "backports-asyncio-runner", marker = "python_full_version < '3.11'" },
     { name = "pytest" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d0/d4/14f53324cb1a6381bef29d698987625d80052bb33932d8e7cbf9b337b17c/pytest_asyncio-1.0.0.tar.gz", hash = "sha256:d15463d13f4456e1ead2594520216b225a16f781e144f8fdf6c5bb4667c48b3f", size = 46960, upload-time = "2025-05-26T04:54:40.484Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4e/51/f8794af39eeb870e87a8c8068642fc07bce0c854d6865d7dd0f2a9d338c2/pytest_asyncio-1.1.0.tar.gz", hash = "sha256:796aa822981e01b68c12e4827b8697108f7205020f24b5793b3c41555dab68ea", size = 46652, upload-time = "2025-07-16T04:29:26.393Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/30/05/ce271016e351fddc8399e546f6e23761967ee09c8c568bbfbecb0c150171/pytest_asyncio-1.0.0-py3-none-any.whl", hash = "sha256:4f024da9f1ef945e680dc68610b52550e36590a67fd31bb3b4943979a1f90ef3", size = 15976, upload-time = "2025-05-26T04:54:39.035Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/9d/bf86eddabf8c6c9cb1ea9a869d6873b46f105a5d292d3a6f7071f5b07935/pytest_asyncio-1.1.0-py3-none-any.whl", hash = "sha256:5fe2d69607b0bd75c656d1211f969cadba035030156745ee09e7d71740e58ecf", size = 15157, upload-time = "2025-07-16T04:29:24.929Z" },
 ]
 
 [[package]]
@@ -3331,7 +3341,7 @@ requires-dist = [
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.6.0" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
     { name = "lzstring2", marker = "extra == 'docs'", git = "https://github.com/superlopuh/lz-string.git" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.14.10" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.14.11" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.1" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.49" },
@@ -3347,7 +3357,7 @@ requires-dist = [
     { name = "pymdown-extensions", marker = "extra == 'docs'", specifier = ">=10.7" },
     { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.403" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "<8.5" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.0.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.1.0" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "riscemu", marker = "extra == 'riscv'", specifier = "==2.2.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.12.3" },
