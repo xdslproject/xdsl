@@ -250,9 +250,16 @@ class ParamAttrDef:
                 continue
             if field_name in classvars:
                 continue
-            # Constraint variables are allowed
+            # Constraint variables are deprecated
             if get_origin(value) is Annotated:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
+                    import warnings
+
+                    warnings.warn(
+                        "The use of `ConstraintVar` is deprecated, please use `VarConstraint`",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                     continue
             raise PyRDLAttrDefinitionError(
                 f"{field_name} is not a parameter definition."
