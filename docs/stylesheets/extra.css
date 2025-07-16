@@ -1,0 +1,46 @@
+/* docs/stylesheets/extra.css */
+/* .md-header {
+  background: linear-gradient(90deg, #7b1fa2 0%, #fbc02d 100%);
+}
+
+h1,
+h2 {
+  color: #7b1fa2;
+  font-family: 'Lexend', sans-serif;
+} */
+
+[data-md-color-scheme="xdsl-light"] {
+  --md-primary-fg-color: rgba(20, 33, 61, 1);
+  /* --md-primary-fg-color--light: #ECB7B7;
+  --md-primary-fg-color--dark: #90030C; */
+
+  /* --md-primary-fg-color: hsla(#{hex2hsl($clr-indigo-500)}, 1);
+  --md-primary-fg-color--light: hsla(#{hex2hsl($clr-indigo-400)}, 1);
+  --md-primary-fg-color--dark: hsla(#{hex2hsl($clr-indigo-700)}, 1);
+  --md-primary-bg-color: hsla(0, 0%, 100%, 1);
+  --md-primary-bg-color--light: hsla(0, 0%, 100%, 0.7);
+
+  --md-accent-fg-color: hsla(#{hex2hsl($clr-indigo-a200)}, 1);
+  --md-accent-fg-color--transparent: hsla(#{hex2hsl($clr-indigo-a200)}, 0.1);
+  --md-accent-bg-color: hsla(0, 0%, 100%, 1);
+  --md-accent-bg-color--light: hsla(0, 0%, 100%, 0.7); */
+}
+
+/* [data-md-color-scheme="xdsl-dark"] {
+  --md-primary-fg-color: #EE0F0F;
+  --md-primary-fg-color--light: #ECB7B7;
+  --md-primary-fg-color--dark: #90030C;
+} */
+
+
+/* navbar-col: "#FFFFFF"
+navbar-text-col: "#000000"
+navbar-border-col: "#E5E5E5"
+page-col: "#FFFFFF"
+text-col: "#000000"
+link-col: "#008AFF"
+hover-col: "#0085A1"
+footer-col: "#14213D"
+footer-text-col: "#E5E5E5"
+footer-link-col: "#0085A1"
+footer-hover-col: "#FCA311" */

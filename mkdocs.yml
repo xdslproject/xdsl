@@ -22,6 +22,24 @@ theme:
     - navigation.sections
     - navigation.expand
     - navigation.indexes
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: xdsl-light
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
 
 plugins:
 - search
