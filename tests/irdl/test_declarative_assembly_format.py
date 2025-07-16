@@ -2161,7 +2161,6 @@ def test_optional_groups_empty_regions(format: str, program: str, generic_progra
     @irdl_op_definition
     class EmptyRegionOp(IRDLOperation):
         name = "test.empty_region_group"
-        irdl_options = [AttrSizedRegionSegments]
         maybe_empty = region_def()
 
         assembly_format = format
