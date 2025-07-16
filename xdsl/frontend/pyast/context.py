@@ -2,7 +2,7 @@ import ast
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
-from inspect import getsource
+from inspect import currentframe, getsource
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
 from typing import Any, overload
 
@@ -40,7 +40,7 @@ class PyASTContext:
     @overload
     def parse_program(
         self,
-        func: None = None,
+        decorated_func: None = None,
         *,
         desymref: bool = True,
     ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]]: ...
@@ -48,34 +48,60 @@ class PyASTContext:
     @overload
     def parse_program(
         self,
-        func: Callable[P, R],
+        decorated_func: Callable[P, R],
         *,
         desymref: bool = True,
     ) -> PyASTProgram[P, R]: ...
 
     def parse_program(
         self,
-        func: Callable[P, R] | None = None,
+        decorated_func: Callable[P, R] | None = None,
         *,
         desymref: bool = True,
     ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]] | PyASTProgram[P, R]:
         """Get a program wrapper by decorating a function."""
 
         def decorator(func: Callable[P, R]) -> PyASTProgram[P, R]:
+            # Get the frame as the function is being decorated
+            current_frame = currentframe()
+            assert current_frame is not None
+            func_frame = current_frame.f_back
+            if decorated_func is not None:
+                assert func_frame is not None
+                func_frame = func_frame.f_back
+            assert func_frame is not None
+
+            # Get the required information about the function from the frame
+            func_file = func_frame.f_code.co_filename
+            func_globals = func_frame.f_globals
+
+            # Retrieve the AST for the function body, without the decorator
+            func_ast = ast.parse(getsource(func.__code__)).body[0]
+            assert isinstance(func_ast, ast.FunctionDef)
+            assert func_ast.name == func.__name__
+            assert len(func_ast.decorator_list) == 1
+            func_ast.decorator_list = []
+
+            # Construct the lazy builder with this information
             builder = PyASTBuilder(
                 type_registry=self.type_registry,
                 function_registry=self.function_registry,
+                file=func_file,
+                globals=func_globals,
+                ast=func_ast,
                 desymref=desymref,
             )
+
+            # Return a PyAST program for this function with the builder
             return PyASTProgram[P, R](
                 name=func.__name__,
                 func=func,
                 _builder=builder,
             )
 
-        if func is None:
+        if decorated_func is None:
             return decorator
-        return decorator(func)
+        return decorator(decorated_func)
 
 
 @dataclass

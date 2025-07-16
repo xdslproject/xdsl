@@ -25,7 +25,7 @@ print(test_arith(1.0, 2.0, 3.0))
 # But the wrapper also provides a property to get an IR representation
 print(test_arith.module)
 # CHECK:       builtin.module {
-# CHECK-NEXT:  func.func @foo(%x : f64, %y : f64, %z : f64) -> f64 {
+# CHECK-NEXT:  func.func @test_arith(%x : f64, %y : f64, %z : f64) -> f64 {
 # CHECK-NEXT:    %0 = arith.mulf %y, %z : f64
 # CHECK-NEXT:    %1 = arith.addf %x, %0 : f64
 # CHECK-NEXT:    func.return %1 : f64
