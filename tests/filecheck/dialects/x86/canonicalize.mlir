@@ -35,4 +35,7 @@ x86.ms.mov %offset_ptr, %rm_mov, 8 : (!x86.reg<rdi>, !x86.reg<rax>) -> ()
 %avx = x86.dm.vmovupd %offset_ptr, 32 : (!x86.reg<rdi>) -> !x86.avx2reg<ymm1>
 x86.ms.vmovapd %offset_ptr, %avx, 32 : (!x86.reg<rdi>, !x86.avx2reg<ymm1>) -> ()
 
+// CHECK-NEXT:     x86.dm.vmovupd %i0, 64 : (!x86.reg<rdi>) -> !x86.avx2reg<ymm1>
+x86.dm.vmovupd %offset_ptr, 32 : (!x86.reg<rdi>) -> !x86.avx2reg<ymm1>
+
 // CHECK-NEXT:  }
