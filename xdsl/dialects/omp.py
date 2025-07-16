@@ -636,7 +636,6 @@ class PrivateClauseOp(IRDLOperation):
             raise VerifyException(
                 f"alloc_region of {self.name} has to have at least 1 block"
             )
-        return super().verify_()
 
 
 @irdl_op_definition
