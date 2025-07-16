@@ -255,6 +255,30 @@ class StringAttr(_BuiltinData[str]):
         printer.print_string_literal(self.data)
 
 
+@dataclass(frozen=True)
+class SymbolNameConstr(GenericAttrConstraint[StringAttr]):
+    """
+    Constrain an attribute to be a StringAttr.
+    This constraint has special assembly format support.
+    """
+
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        if not isinstance(attr, StringAttr):
+            raise VerifyException(f"{attr} should be a string")
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {StringAttr}
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> GenericAttrConstraint[StringAttr]:
+        return self
+
+
 @irdl_attr_definition
 class BytesAttr(_BuiltinData[bytes]):
     name = "bytes"

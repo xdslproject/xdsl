@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
 
-from xdsl.dialects.builtin import Builtin, UnitAttr
+from xdsl.dialects.builtin import Builtin, SymbolNameConstr, UnitAttr
 from xdsl.ir import Attribute, TypedAttribute
 from xdsl.irdl import (
     AttrOrPropDef,
@@ -499,7 +499,7 @@ class FormatParser(BaseParser):
                 )
                 if unique_base == UnitAttr:
                     return OptionalUnitAttrVariable(
-                        variable_name, is_property, None, None
+                        variable_name, is_property, None, None, False
                     )
 
                 # Always qualify builtin attributes
@@ -530,12 +530,16 @@ class FormatParser(BaseParser):
                 # Chill pyright with TypedAttribute without parameter
                 unique_base = cast(type[Attribute] | None, unique_base)
 
+                # We special case `SymbolNameConstr`, just as MLIR does.
+                is_symbol_name = isinstance(attr_def.constr, SymbolNameConstr)
+
                 if attr_def.default_value is not None:
                     return DefaultValuedAttributeVariable(
                         variable_name,
                         is_property,
                         unique_base,
                         unique_type,
+                        is_symbol_name,
                         attr_def.default_value,
                     )
 
@@ -545,7 +549,7 @@ class FormatParser(BaseParser):
                     else AttributeVariable
                 )
                 return variable_type(
-                    variable_name, is_property, unique_base, unique_type
+                    variable_name, is_property, unique_base, unique_type, is_symbol_name
                 )
 
         self.raise_error(
