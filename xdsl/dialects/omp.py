@@ -262,9 +262,9 @@ class BlockArgOpenMPOperation(IRDLOperation, ABC):
             )
         expected = self.num_block_args()
 
-        if (actual := len(self.regions[0].blocks[0].args)) != expected:
+        if (actual := len(self.regions[0].blocks[0].args)) < expected:
             raise VerifyException(
-                f"{self.name} expected to have {expected} block argument(s), got {actual}"
+                f"{self.name} expected to have at least {expected} block argument(s), got {actual}"
             )
 
     @abstractmethod
