@@ -609,7 +609,6 @@ class DeclareReductionOp(IRDLOperation):
             raise VerifyException(
                 f"{self.name} should have at most 1 block in alloc_region"
             )
-        return super().verify_()
 
 
 @irdl_op_definition
