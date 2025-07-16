@@ -2148,6 +2148,10 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
             '"test.empty_region_group"() ({}) : () -> ()',
         ),
         (
+            "test.empty_region_group keyword {\n^0:\n}",
+            '"test.empty_region_group"() ({^0:}) : () -> ()',
+        ),
+        (
             'test.empty_region_group keyword {\n  "test.op"() : () -> ()\n}',
             '"test.empty_region_group"() ({ "test.op"() : () -> ()}) : () -> ()',
         ),
