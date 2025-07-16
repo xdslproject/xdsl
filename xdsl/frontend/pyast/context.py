@@ -1,4 +1,5 @@
 import ast
+import functools
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
@@ -93,11 +94,13 @@ class PyASTContext:
             )
 
             # Return a PyAST program for this function with the builder
-            return PyASTProgram[P, R](
+            program = PyASTProgram[P, R](
                 name=func.__name__,
                 func=func,
                 _builder=builder,
             )
+            functools.update_wrapper(program, func)
+            return program
 
         if decorated_func is None:
             return decorator
