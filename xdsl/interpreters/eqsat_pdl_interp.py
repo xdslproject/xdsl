@@ -54,6 +54,12 @@ class BacktrackPoint:
     max_index: int
     """Last valid operand index in the EClassOp (len(operands) - 1)."""
 
+    reachable_rules: ScopedDict[pdl_interp.FuncOp, bool]
+    """Set of reachable rules to restore at this point in the interpreter."""
+
+    num_reachable_rules: int
+    """Number of reachable rules at this point in the interpreter."""
+
 
 @dataclass
 class MergeTodo:
@@ -102,6 +108,19 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     is_matching: bool = True
     """Keeps track whether the interpreter is currently in a matching context (as opposed to in a rewriting context).
     If it is, finalize behaves differently by backtracking."""
+
+    reachable_rules: ScopedDict[pdl_interp.FuncOp, bool] = field(
+        default_factory=lambda: ScopedDict[pdl_interp.FuncOp, bool](can_overwrite=True)
+    )
+    """Set of reachable rules in the current scope."""
+
+    num_reachable_rules: int = 0
+    """Number of reachable rules at this point in the interpreter."""
+
+    def initialize_reachable_rules(self, rewriters_module: ModuleOp) -> None:
+        for op in rewriters_module.regions[0].block.ops:
+            if isinstance(op, pdl_interp.FuncOp):
+                self.reachable_rules[op] = True
 
     def modification_handler(self, op: Operation):
         """
@@ -228,8 +247,18 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             index = 0
             self.backtrack_stack.append(
                 BacktrackPoint(
-                    block, block_args, scope, op, index, len(eclass_op.operands) - 1
+                    block,
+                    block_args,
+                    scope,
+                    op,
+                    index,
+                    len(eclass_op.operands) - 1,
+                    self.reachable_rules,
+                    self.num_reachable_rules,
                 )
+            )
+            self.reachable_rules = ScopedDict(
+                parent=self.reachable_rules, can_overwrite=True
             )
         defining_op = eclass_op.operands[index].owner
         if not isinstance(defining_op, Operation):
@@ -329,6 +358,48 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (new_op,)
 
+    @impl(eqsat.MarkUnreachableOp)
+    def run_mark_unreachable(
+        self,
+        interpreter: Interpreter,
+        op: eqsat.MarkUnreachableOp,
+        args: tuple[Any, ...],
+    ):
+        for rule in op.rules.data:
+            rule_op = interpreter.get_op_for_symbol(rule)
+            assert isinstance(rule_op, pdl_interp.FuncOp), (
+                "Expected a pdl_interp.FuncOp as rule."
+            )
+            self.reachable_rules[rule_op] = False
+        return ()
+
+    @impl(eqsat.MarkReachableOp)
+    def run_mark_reachable(
+        self,
+        interpreter: Interpreter,
+        op: eqsat.MarkReachableOp,
+        args: tuple[Any, ...],
+    ):
+        for rule in op.rules.data:
+            rule_op = interpreter.get_op_for_symbol(rule)
+            assert isinstance(rule_op, pdl_interp.FuncOp), (
+                "Expected a pdl_interp.FuncOp as rule."
+            )
+            self.reachable_rules[rule_op] = True
+        return ()
+
+    @impl_terminator(eqsat.CheckAllUnreachableOp)
+    def run_check_all_unreachable(
+        self,
+        interpreter: Interpreter,
+        op: eqsat.CheckAllUnreachableOp,
+        args: tuple[Any, ...],
+    ):
+        if not self.reachable_rules:
+            return Successor(op.unreachable_dest, ()), ()
+        else:
+            return Successor(op.reachable_dest, ()), ()
+
     @impl_terminator(pdl_interp.RecordMatchOp)
     def run_recordmatch(
         self,
@@ -354,6 +425,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 backtrack_point.index += 1
                 interpreter._ctx = backtrack_point.scope  # pyright: ignore[reportPrivateUsage]
                 self.visited = False
+                self.num_reachable_rules = backtrack_point.num_reachable_rules
+                self.reachable_rules = backtrack_point.reachable_rules
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
 

@@ -47,11 +47,16 @@ class ApplyEqsatPDLInterpPass(ModulePass):
             pdl_interp_module, builtin.SymbolRefAttr("matcher")
         )
         assert isinstance(matcher, pdl_interp.FuncOp), "matcher function not found"
+        rewriters_module = SymbolTable.lookup_symbol(
+            pdl_interp_module, builtin.SymbolRefAttr("rewriters")
+        )
+        assert isinstance(rewriters_module, builtin.ModuleOp), "rewriters not found"
 
         # Initialize interpreter and implementations once
         interpreter = Interpreter(pdl_interp_module)
         implementations = EqsatPDLInterpFunctions(ctx)
         implementations.populate_known_ops(op)
+        implementations.initialize_reachable_rules(rewriters_module)
         interpreter.register_implementations(implementations)
         rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
 
