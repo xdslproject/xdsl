@@ -1,21 +1,51 @@
 site_name: xDSL
+site_url: https://xdsl.readthedocs.io/
+site_description: xDSL -- a Python-native compiler framework
+site_author: xDSL developers
+copyright: Copyright &copy xDSL developers
+repo_name:  xdslproject/xdsl
+repo_url: https://github.com/xdslproject/xdsl
 
 strict: true
 
 theme:
   name: "material"
+  logo: assets/img/logos/xdsl-transparent-single.png
+  favicon: assets/img/logos/xdsl-transparent-single.png
+  locale: en
   features:
+    - content.code.annotate
+    - content.code.copy
     - navigation.instant
     - navigation.tracking
     - navigation.tabs
     - navigation.sections
     - navigation.expand
+    - navigation.indexes
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: xdsl-light
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
 
 plugins:
 - search
-- gen-files:
-    scripts:
-    - scripts/gen_ref_pages.py
+# - gen-files:
+#     scripts:
+#     - scripts/gen_ref_pages.py
 - mkdocstrings:
     handlers:
       python:
@@ -41,17 +71,17 @@ nav:
       - Dialect: api/ir/dialect.md
   - Notebooks:
     - Overview: marimo/index.md
-    - Manipulating IR:
-      - MLIR IR: marimo/mlir_ir.html
-      - Traversing IR: marimo/traversing_ir.html
-      - Builders: marimo/builders.html
-      - IR Generation: marimo/ir_gen.html
-      - Rewrites: marimo/pattern_rewrites.html
-      - Rewrite Exercises: marimo/rewrite_exercises.html
-      - Defining Dialects: marimo/defining_dialects.html
-    - RISC-V Dialects:
-      - RISC-V Dialects: marimo/riscv_dialects.html
-      - Compiling Linalg to Snitch: marimo/linalg_snitch.html
-  - Code Reference: reference/index.md
+  #   - Manipulating IR:
+  #     - MLIR IR: marimo/mlir_ir.html
+  #     - Traversing IR: marimo/traversing_ir.html
+  #     - Builders: marimo/builders.html
+  #     - IR Generation: marimo/ir_gen.html
+  #     - Rewrites: marimo/pattern_rewrites.html
+  #     - Rewrite Exercises: marimo/rewrite_exercises.html
+  #     - Defining Dialects: marimo/defining_dialects.html
+  #   - RISC-V Dialects:
+  #     - RISC-V Dialects: marimo/riscv_dialects.html
+  #     - Compiling Linalg to Snitch: marimo/linalg_snitch.html
+  # - Code Reference: reference/index.md
   - Guides:
     - MLIR Interoperation: guides/mlir_interoperation.md
