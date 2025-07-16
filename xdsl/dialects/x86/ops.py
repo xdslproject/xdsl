@@ -51,6 +51,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Operation,
+    OpResult,
     SSAValue,
 )
 from xdsl.irdl import (
@@ -432,7 +433,7 @@ class DM_Operation(
     A base class for x86 operations that load from memory into a destination register.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
@@ -2948,6 +2949,16 @@ class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     name = "x86.dm.vmovups"
 
 
+class DM_VmovupdOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.x86 import (
+            DM_VmovupdOp_ConstantOffset,
+        )
+
+        return (DM_VmovupdOp_ConstantOffset(),)
+
+
 @irdl_op_definition
 class DM_VmovupdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
@@ -2957,6 +2968,8 @@ class DM_VmovupdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.dm.vmovupd"
+
+    traits = traits_def(DM_VmovupdOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition

@@ -58,6 +58,22 @@ class DM_Operation_ConstantOffset(RewritePattern):
             )
 
 
+class DM_VmovupdOp_ConstantOffset(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: x86.DM_VmovupdOp, rewriter: PatternRewriter
+    ) -> None:
+        if isinstance(add_op := op.memory.owner, x86.RS_AddOp) and (
+            (value := get_constant_value(add_op.source)) is not None
+        ):
+            new_offset = op.memory_offset.value.data + value.value.data
+            rewriter.replace_matched_op(
+                x86.DM_VmovupdOp(
+                    add_op.register_in, new_offset, destination=op.destination.type
+                )
+            )
+
+
 def get_constant_value(value: SSAValue) -> IntegerAttr | None:
     if not isinstance(value, OpResult):
         return
