@@ -13,13 +13,13 @@
 %o2 = x86.ds.mov %i2 : (!x86.reg) -> !x86.reg
 "test.op"(%o0, %o1, %o2) : (!x86.reg<rdi>, !x86.reg<rdx>, !x86.reg) -> ()
 
-// CHECK-NEXT:    %zero = x86.di.mov 0 : () -> !x86.reg
-// CHECK-NEXT:    "test.op"(%zero) : (!x86.reg) -> ()
-%zero = x86.di.mov 0 : () -> !x86.reg
-"test.op"(%zero) : (!x86.reg) -> ()
+// CHECK-NEXT:    %c0 = x86.di.mov 0 : () -> !x86.reg
+// CHECK-NEXT:    "test.op"(%c0) : (!x86.reg) -> ()
+%c0 = x86.di.mov 0 : () -> !x86.reg
+"test.op"(%c0) : (!x86.reg) -> ()
 
 // CHECK-NEXT:    "test.op"(%i0) : (!x86.reg<rdi>) -> ()
-%add_immediate_zero_reg = x86.rs.add %i0, %zero : (!x86.reg<rdi>, !x86.reg) -> !x86.reg<rdi>
+%add_immediate_zero_reg = x86.rs.add %i0, %c0 : (!x86.reg<rdi>, !x86.reg) -> !x86.reg<rdi>
 "test.op"(%add_immediate_zero_reg) : (!x86.reg<rdi>) -> ()
 
 // CHECK-NEXT:  }
