@@ -61,14 +61,12 @@ func.func @matmul(
 // CHECK-NEXT:      mov rbx, rdi
 // CHECK-NEXT:      mov r11, rsi
 // CHECK-NEXT:      mov rax, rdx
-// CHECK-NEXT:      mov r8, 0
 // CHECK-NEXT:      mov rcx, rax
 // CHECK-NEXT:      vmovupd ymm1, [rcx]
 // CHECK-NEXT:      mov rcx, 32
 // CHECK-NEXT:      mov r8, rax
 // CHECK-NEXT:      add r8, rcx
 // CHECK-NEXT:      vmovupd ymm0, [r8]
-// CHECK-NEXT:      mov r8, 0
 // CHECK-NEXT:      mov rcx, r11
 // CHECK-NEXT:      vmovupd ymm9, [rcx]
 // CHECK-NEXT:      mov rcx, 32
@@ -82,7 +80,6 @@ func.func @matmul(
 // CHECK-NEXT:      mov rcx, 96
 // CHECK-NEXT:      add r11, rcx
 // CHECK-NEXT:      vmovupd ymm3, [r11]
-// CHECK-NEXT:      mov r11, 0
 // CHECK-NEXT:      mov rcx, rbx
 // CHECK-NEXT:      mov rcx, [rcx]
 // CHECK-NEXT:      mov r11, 8
@@ -128,10 +125,7 @@ func.func @matmul(
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm6, ymm7
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm4, ymm5
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm2, ymm3
-// CHECK-NEXT:      mov rbx, 0
 // CHECK-NEXT:      mov rcx, rax
 // CHECK-NEXT:      vmovapd [rcx], ymm1
-// CHECK-NEXT:      mov rcx, 32
-// CHECK-NEXT:      add rax, rcx
-// CHECK-NEXT:      vmovapd [rax], ymm0
+// CHECK-NEXT:      vmovapd [rax+32], ymm0
 // CHECK-NEXT:      ret
