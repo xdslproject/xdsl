@@ -1,5 +1,3 @@
-"""Generate an xDSL `ModuleOp` from a Python source AST tree."""
-
 import ast
 from dataclasses import dataclass, field
 from typing import Any, cast

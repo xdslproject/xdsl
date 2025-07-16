@@ -1,5 +1,3 @@
-"""Utility to check the structure of the input AST, and extract its contents."""
-
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass, field

@@ -1,5 +1,3 @@
-"""Helper functions to support annotating variables as compile-time constants."""
-
 import ast
 from typing import Generic
 

@@ -1,5 +1,3 @@
-"""Helper functions to support marking functions as basic blocks."""
-
 import ast
 from typing import Any
 
@@ -30,7 +28,6 @@ def block(*params: Any):
 
 
 def is_block(node: ast.FunctionDef) -> bool:
-    """Check whether a function definition AST node is decorated as a block."""
     return (
         len(node.decorator_list) == 1
         and isinstance(name := node.decorator_list[0], ast.Name)
