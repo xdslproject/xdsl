@@ -49,7 +49,3 @@ class PyASTBuilder:
             module.verify()
 
         return module
-
-    # @property
-    # def module(self) -> ModuleOp:
-    #     return ModuleOp([])
