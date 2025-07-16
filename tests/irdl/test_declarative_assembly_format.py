@@ -21,7 +21,7 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     StringAttr,
-    SymbolNameConstr,
+    SymbolNameConstraint,
     UnitAttr,
     i32,
 )
@@ -724,8 +724,8 @@ def test_symbol_name_variable(program: str, generic_program: str):
     class SymbolNameOp(IRDLOperation):
         name = "test.symbol"
 
-        sym_name = prop_def(SymbolNameConstr())
-        attr_sym_name = attr_def(SymbolNameConstr())
+        sym_name = prop_def(SymbolNameConstraint())
+        attr_sym_name = attr_def(SymbolNameConstraint())
 
         assembly_format = "$sym_name $attr_sym_name attr-dict"
 
@@ -755,9 +755,9 @@ def test_optional_symbol_name_variable(program: str, generic_program: str):
     class SymbolNameOp(IRDLOperation):
         name = "test.symbol"
 
-        sym_name = opt_prop_def(SymbolNameConstr())
+        sym_name = opt_prop_def(SymbolNameConstraint())
 
-        other_sym_name = opt_prop_def(SymbolNameConstr())
+        other_sym_name = opt_prop_def(SymbolNameConstraint())
 
         assembly_format = "$other_sym_name (`symbol` $sym_name^)? attr-dict"
 

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
 
-from xdsl.dialects.builtin import Builtin, SymbolNameConstr, UnitAttr
+from xdsl.dialects.builtin import Builtin, SymbolNameConstraint, UnitAttr
 from xdsl.ir import Attribute, TypedAttribute
 from xdsl.irdl import (
     AttrOrPropDef,
@@ -531,7 +531,7 @@ class FormatParser(BaseParser):
                 unique_base = cast(type[Attribute] | None, unique_base)
 
                 # We special case `SymbolNameConstr`, just as MLIR does.
-                is_symbol_name = isinstance(attr_def.constr, SymbolNameConstr)
+                is_symbol_name = isinstance(attr_def.constr, SymbolNameConstraint)
 
                 if attr_def.default_value is not None:
                     return DefaultValuedAttributeVariable(

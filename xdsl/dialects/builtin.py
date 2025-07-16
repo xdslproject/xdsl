@@ -256,7 +256,7 @@ class StringAttr(_BuiltinData[str]):
 
 
 @dataclass(frozen=True)
-class SymbolNameConstr(GenericAttrConstraint[StringAttr]):
+class SymbolNameConstraint(GenericAttrConstraint[StringAttr]):
     """
     Constrain an attribute to be a StringAttr.
     This constraint has special assembly format support.
