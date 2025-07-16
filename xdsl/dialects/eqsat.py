@@ -119,38 +119,6 @@ class YieldOp(IRDLOperation):
 
 
 @irdl_op_definition
-class IsNotBannedOp(IRDLOperation):
-    """
-    An operation that checks if there is any rule reachable from the current execution point that is not banned.
-    This operation is used to eagerly jump to finalize if the rules that follow are not applicable.
-    """
-
-    name = "eqsat.is_not_banned"
-
-    traits = traits_def(IsTerminator())
-
-    reachable_rules = prop_def(ArrayAttr[SymbolRefAttr])
-
-    not_banned_dest = successor_def()
-    banned_dest = successor_def()
-
-    assembly_format = (
-        "$reachable_rules attr-dict `->` $not_banned_dest `, ` $banned_dest"
-    )
-
-    def __init__(
-        self,
-        reachable_rules: ArrayAttr[SymbolRefAttr],
-        not_banned_dest: Block,
-        banned_dest: Block,
-    ):
-        super().__init__(
-            successors=[not_banned_dest, banned_dest],
-            properties={"reachable_rules": reachable_rules},
-        )
-
-
-@irdl_op_definition
 class MarkUnreachableOp(IRDLOperation):
     """
     Marks a rewrite rule as unreachable from that point in the program.
@@ -222,7 +190,6 @@ EqSat = Dialect(
         EClassOp,
         YieldOp,
         EGraphOp,
-        IsNotBannedOp,
         MarkUnreachableOp,
         CheckAllUnreachableOp,
     ],
