@@ -230,11 +230,11 @@ builtin.module {
     "omp.target_exit_data" (%dep, %dev, %if, %from, %del) <{operandSegmentSizes = array<i32: 1, 1, 1, 2>, "nowait", depend_kinds=[#omp<clause_task_depend(taskdependin)>]}>: (memref<1xi32>, i32, i1, memref<1xf32>, memref<1xf32>) -> ()
     func.return
   }
-  "omp.private"() <{data_sharing_type = #omp.data_sharing_type {type = private}, sym_name = "p1", type = i32}> ({
+  omp.private {type = private} @p1 : i32 alloc {
   ^0(%p1_arg : i32):
-     %out = arith.constant 0 : i32
-     omp.yield(%out : i32)
-  }, { }, { }) : () -> ()
+    %out = arith.constant 0 : i32
+    omp.yield(%out : i32)
+  }
   "omp.declare_reduction"() <{sym_name = "r1", type = i32}> ({ }, {
   ^0(%r1_arg : i32):
     %out = arith.constant 0 : i32
@@ -470,13 +470,11 @@ builtin.module {
 // CHECK-NEXT:      "omp.target_exit_data"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{depend_kinds = [#omp<clause_task_depend (taskdependin)>], nowait, operandSegmentSizes = array<i32: 1, 1, 1, 2>}> : (memref<1xi32>, i32, i1, memref<1xf32>, memref<1xf32>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    "omp.private"() <{data_sharing_type = #omp<data_sharing_type {type = private}>, sym_name = "p1", type = i32}> ({
+// CHECK-NEXT:    omp.private {type = private} @p1 : i32 alloc {
 // CHECK-NEXT:    ^{{.*}}(%{{.*}} : i32):
 // CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
 // CHECK-NEXT:      omp.yield(%{{.*}} : i32)
-// CHECK-NEXT:    }, {
-// CHECK-NEXT:    }, {
-// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:    }
 // CHECK-NEXT:    "omp.declare_reduction"() <{sym_name = "r1", type = i32}> ({
 // CHECK-NEXT:    }, {
 // CHECK-NEXT:    ^{{.*}}(%{{.*}} : i32):

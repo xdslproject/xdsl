@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     Signedness,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     i1,
@@ -593,7 +594,7 @@ class DeclareReductionOp(IRDLOperation):
 
     name = "omp.declare_reduction"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     var_type = prop_def(TypeAttribute, prop_name="type")
 
     alloc_region = region_def()
@@ -620,7 +621,7 @@ class PrivateClauseOp(IRDLOperation):
 
     name = "omp.private"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     var_type = prop_def(TypeAttribute, prop_name="type")
     data_sharing_type = prop_def(DataSharingClauseAttr)
 
@@ -629,6 +630,14 @@ class PrivateClauseOp(IRDLOperation):
     dealloc_region = region_def()
 
     traits = traits_def(IsolatedFromAbove())
+
+    assembly_format = """
+        $data_sharing_type $sym_name `:` $type
+        `alloc` $alloc_region
+        (`copy` $copy_region^)?
+        (`dealloc` $dealloc_region^)?
+        attr-dict
+    """
 
     def verify_(self) -> None:
         if len(self.alloc_region.blocks) < 1:

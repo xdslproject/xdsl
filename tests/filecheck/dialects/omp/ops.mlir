@@ -224,11 +224,11 @@ builtin.module {
     }) : () -> ()
     func.return
   }
-  "omp.private"() <{data_sharing_type = #omp.data_sharing_type {type = private}, sym_name = "p1", type = i32}> ({
+  omp.private {type = private} @p1 : i32 alloc {
   ^0(%p1_arg : i32):
-     %out = arith.constant 0 : i32
-     omp.yield(%out : i32)
-  }, { }, { }) : () -> ()
+    %out = arith.constant 0 : i32
+    omp.yield(%out : i32)
+  }
   "omp.declare_reduction"() <{sym_name = "r1", type = i32}> ({ }, {
   ^0(%r1_arg : i32):
     %out = arith.constant 0 : i32
@@ -487,13 +487,11 @@ builtin.module {
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    "omp.private"() <{data_sharing_type = #omp<data_sharing_type {type = private}>, sym_name = "p1", type = i32}> ({
+// CHECK-NEXT:    omp.private {type = private} @p1 : i32 alloc {
 // CHECK-NEXT:    ^0(%p1_arg : i32):
-// CHECK-NEXT:       %out = arith.constant 0 : i32
-// CHECK-NEXT:       omp.yield(%out : i32)
-// CHECK-NEXT:    }, {
-// CHECK-NEXT:    }, {
-// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:      %out = arith.constant 0 : i32
+// CHECK-NEXT:      omp.yield(%out : i32)
+// CHECK-NEXT:    }
 // CHECK-NEXT:    "omp.declare_reduction"() <{sym_name = "r1", type = i32}> ({
 // CHECK-NEXT:    }, {
 // CHECK-NEXT:    ^0(%r1_arg : i32):
