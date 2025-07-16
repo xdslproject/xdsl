@@ -1128,7 +1128,7 @@ class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
 
     name = "x86.ds.mov"
 
-    traits = traits_def(DS_MovOpHasCanonicalizationPatterns())
+    traits = traits_def(Pure(), DS_MovOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
@@ -1573,6 +1573,8 @@ class DI_MovOp(DI_Operation[GeneralRegisterType]):
     """
 
     name = "x86.di.mov"
+
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
