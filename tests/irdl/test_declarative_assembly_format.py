@@ -2140,6 +2140,41 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
     check_equivalence(program, generic_program, ctx)
 
 
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.empty_region_group",
+            '"test.empty_region_group"() ({}) : () -> ()',
+        ),
+        (
+            "test.empty_region_group keyword {\n^0:\n}",
+            '"test.empty_region_group"() ({^0:}) : () -> ()',
+        ),
+        (
+            'test.empty_region_group keyword {\n  "test.op"() : () -> ()\n}',
+            '"test.empty_region_group"() ({ "test.op"() : () -> ()}) : () -> ()',
+        ),
+    ],
+)
+def test_optional_groups_empty_regions(program: str, generic_program: str):
+    """Test the parsing of empty regions in an optional group"""
+
+    @irdl_op_definition
+    class EmptyRegionOp(IRDLOperation):
+        name = "test.empty_region_group"
+        maybe_empty = region_def()
+
+        assembly_format = "(`keyword` $maybe_empty^)? attr-dict"
+
+    ctx = Context()
+    ctx.load_op(EmptyRegionOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
 ################################################################################
 # Successors                                                                   #
 ################################################################################
@@ -2422,9 +2457,8 @@ def test_nested_inference():
         p: _T
         q: Attribute
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls,
             *,
             n: GenericAttrConstraint[Attribute] | None = None,
             p: GenericAttrConstraint[_T] | None = None,
@@ -2466,9 +2500,9 @@ def test_nested_inference_variable():
 
         p: _T
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls, *, p: GenericAttrConstraint[_T] | None = None
+            *, p: GenericAttrConstraint[_T] | None = None
         ) -> ParamAttrConstraint[ParamOne[_T]]:
             return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
 
@@ -2506,9 +2540,8 @@ def test_non_verifying_inference():
         name = "test.param_one"
         p: _T
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls,
             *,
             p: GenericAttrConstraint[_T] | None = None,
         ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
@@ -3273,7 +3306,7 @@ class AllOfExtractorOp(IRDLOperation):
     name = "test.all_of_extractor"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    lhs = operand_def(T & MemRefType.constr(element_type=T))
+    lhs = operand_def(T & MemRefType.constr(T))
     rhs = operand_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"

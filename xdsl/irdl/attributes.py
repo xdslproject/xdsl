@@ -17,6 +17,7 @@ from typing import (
     ClassVar,
     Generic,
     Literal,
+    NamedTuple,
     TypeAlias,
     Union,
     cast,
@@ -154,12 +155,21 @@ _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
 _IGNORED_PARAM_ATTR_FIELD_TYPES = set(("name", "parameters"))
 
 
+class ParamDef(NamedTuple):
+    """
+    Contains information about a parameter,
+    effectively acting as a resolved `_ParameterDef`
+    """
+
+    constr: AttrConstraint
+
+
 @dataclass
 class ParamAttrDef:
     """The IRDL definition of a parametrized attribute."""
 
     name: str
-    parameters: list[tuple[str, AttrConstraint]]
+    parameters: list[tuple[str, ParamDef]]
 
     @staticmethod
     def from_pyrdl(
@@ -208,13 +218,12 @@ class ParamAttrDef:
         }
 
         # The resulting parameters
-        parameters: dict[str, AttrConstraint] = {}
-        classvars = set[str]()
+        parameters: dict[str, ParamDef] = {}
 
         for field_name, field_type in field_types.items():
             if is_classvar(field_type):
                 if field_name.isupper():
-                    classvars.add(field_name)
+                    field_values.pop(field_name, None)
                     continue
                 raise PyRDLAttrDefinitionError(
                     f'Invalid ClassVar name "{field_name}", must be uppercase.'
@@ -226,37 +235,53 @@ class ParamAttrDef:
                     f"Invalid field type {field_type} for field name {field_name}."
                 ) from e
 
-            parameters[field_name] = constraint
+            if field_name in field_values:
+                value = field_values.pop(field_name)
+                if isinstance(value, _ParameterDef):
+                    try:
+                        if value.param is not None:
+                            constraint &= irdl_to_attr_constraint(
+                                value.param, allow_type_var=True
+                            )
+                    except TypeError as e:
+                        raise PyRDLAttrDefinitionError(
+                            f"Invalid constraint {value.param} for field name {field_name}."
+                        ) from e
 
-        for field_name, value in field_values.items():
-            # Parameter def must be a field def
-            if isinstance(value, _ParameterDef):
-                if field_name not in parameters:
+                # Constraint variables are deprecated
+                elif get_origin(value) is Annotated or any(
+                    isinstance(arg, ConstraintVar) for arg in get_args(value)
+                ):
+                    import warnings
+
+                    warnings.warn(
+                        "The use of `ConstraintVar` is deprecated, please use `VarConstraint`",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                else:
                     raise PyRDLAttrDefinitionError(
-                        f"Missing field type for parameter name {field_name}"
+                        f"{field_name} is not a parameter definition."
                     )
 
-                try:
-                    if value.param is not None:
-                        constraint = irdl_to_attr_constraint(
-                            value.param, allow_type_var=True
-                        )
-                        parameters[field_name] &= constraint
-                except TypeError as e:
-                    raise PyRDLAttrDefinitionError(
-                        f"Invalid constraint {value.param} for field name {field_name}."
-                    ) from e
+            parameters[field_name] = ParamDef(constraint)
 
-                continue
-            if field_name in classvars:
-                continue
-            # Constraint variables are allowed
-            if get_origin(value) is Annotated:
-                if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
-                    continue
-            raise PyRDLAttrDefinitionError(
-                f"{field_name} is not a parameter definition."
-            )
+        for field_name, value in field_values.items():
+            # Anything left is a field without an annotation or a constaint var.
+            if get_origin(value) is Annotated or any(
+                isinstance(arg, ConstraintVar) for arg in get_args(value)
+            ):
+                import warnings
+
+                warnings.warn(
+                    "The use of `ConstraintVar` is deprecated, please use `VarConstraint`",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            else:
+                raise PyRDLAttrDefinitionError(
+                    f"Missing field type for parameter name {field_name}"
+                )
 
         return ParamAttrDef(name, list(parameters.items()))
 
@@ -265,7 +290,7 @@ class ParamAttrDef:
 
         constraint_context = ConstraintContext()
         for field, param_def in self.parameters:
-            param_def.verify(getattr(attr, field), constraint_context)
+            param_def.constr.verify(getattr(attr, field), constraint_context)
 
 
 _PAttrTT = TypeVar("_PAttrTT", bound=type[ParametrizedAttribute])
@@ -496,9 +521,9 @@ def irdl_to_attr_constraint(
         origin_parameters = attr_def.parameters
 
         origin_constraints = [
-            irdl_to_attr_constraint(param, allow_type_var=True).mapping_type_vars(
-                type_var_mapping
-            )
+            irdl_to_attr_constraint(
+                param.constr, allow_type_var=True
+            ).mapping_type_vars(type_var_mapping)
             for _, param in origin_parameters
         ]
         return cast(

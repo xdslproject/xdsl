@@ -879,12 +879,11 @@ class IntegerAttr(
     def get_type(self) -> Attribute:
         return self.type
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
+        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
         *,
         value: AttrConstraint | IntConstraint | None = None,
-        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
     ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
         if value is None and type == AnyAttr():
             return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
@@ -1326,9 +1325,8 @@ class VectorType(
                 f"equal to number of dimensions {num_dims}."
             )
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
         element_type: IRDLGenericAttrConstraint[AttributeCovT] | None = None,
         *,
         shape: IRDLGenericAttrConstraint[ArrayAttr[IntAttr]] | None = None,
@@ -1407,7 +1405,6 @@ class TensorType(
 
     @staticmethod
     def constr(
-        *,
         element_type: IRDLGenericAttrConstraint[AttributeInvT] | None = None,
     ) -> GenericAttrConstraint[TensorType[AttributeInvT]]:
         if element_type is None:
@@ -1720,9 +1717,8 @@ class DenseArrayBase(
     def __len__(self) -> int:
         return len(self.data.data) // self.elt_type.size
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
         element_type: IRDLGenericAttrConstraint[DenseArrayInvT] | None = None,
     ) -> GenericAttrConstraint[DenseArrayBase[DenseArrayInvT]]:
         if element_type is None:
@@ -2397,12 +2393,11 @@ class MemRefType(
             case _:
                 return self.layout.get_strides()
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
+        element_type: IRDLGenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
         *,
         shape: IRDLAttrConstraint | None = None,
-        element_type: IRDLGenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
         layout: IRDLAttrConstraint | None = None,
         memory_space: IRDLAttrConstraint | None = None,
     ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:

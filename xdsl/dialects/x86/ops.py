@@ -69,7 +69,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator
+from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 
 from .assembly import (
@@ -1013,6 +1013,14 @@ class RSS_Operation(
 # endregion
 
 
+class RS_AddOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.x86 import RS_Add_Zero
+
+        return (RS_Add_Zero(),)
+
+
 @irdl_op_definition
 class RS_AddOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
@@ -1025,6 +1033,8 @@ class RS_AddOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.rs.add"
+
+    traits = traits_def(Pure(), RS_AddOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
@@ -1118,7 +1128,7 @@ class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
 
     name = "x86.ds.mov"
 
-    traits = traits_def(DS_MovOpHasCanonicalizationPatterns())
+    traits = traits_def(Pure(), DS_MovOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
@@ -1563,6 +1573,8 @@ class DI_MovOp(DI_Operation[GeneralRegisterType]):
     """
 
     name = "x86.di.mov"
+
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition

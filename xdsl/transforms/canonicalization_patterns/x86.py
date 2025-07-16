@@ -15,6 +15,16 @@ class RemoveRedundantDS_Mov(RewritePattern):
             rewriter.replace_matched_op((), (op.source,))
 
 
+class RS_Add_Zero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: x86.RS_AddOp, rewriter: PatternRewriter) -> None:
+        if (
+            value := get_constant_value(op.source)
+        ) is not None and value.value.data == 0:
+            # The register would be updated in-place, so no need to move
+            rewriter.replace_matched_op((), (op.register_in,))
+
+
 def get_constant_value(value: SSAValue) -> IntegerAttr | None:
     if not isinstance(value, OpResult):
         return
