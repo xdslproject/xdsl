@@ -116,7 +116,7 @@ def attr_def_to_irdl(
     param_values: list[SSAValue] = []
     names: list[StringAttr] = []
     for param in attr_def.parameters:
-        param_values.append(constraint_to_irdl(builder, param[1]))
+        param_values.append(constraint_to_irdl(builder, param[1].constr))
         names.append(StringAttr(depython_name(param[0])))
     builder.insert(ParametersOp(param_values, ArrayAttr(names)))
 
