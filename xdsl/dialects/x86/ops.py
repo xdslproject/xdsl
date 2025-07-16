@@ -415,6 +415,16 @@ class RM_Operation(
         )
 
 
+class DM_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.x86 import (
+            DM_Operation_ConstantOffset,
+        )
+
+        return (DM_Operation_ConstantOffset(),)
+
+
 class DM_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
@@ -425,6 +435,8 @@ class DM_Operation(
     destination = result_def(R1InvT)
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    traits = traits_def(DM_OperationHasCanonicalizationPatterns())
 
     def __init__(
         self,
@@ -570,6 +582,16 @@ class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
         return RegisterConstraints((), (), ((self.register_in, self.register_out),))
 
 
+class MS_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.x86 import (
+            MS_Operation_ConstantOffset,
+        )
+
+        return (MS_Operation_ConstantOffset(),)
+
+
 class MS_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
@@ -581,6 +603,8 @@ class MS_Operation(
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     source = operand_def(R2InvT)
+
+    traits = traits_def(MS_OperationHasCanonicalizationPatterns())
 
     def __init__(
         self,
