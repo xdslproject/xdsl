@@ -1,12 +1,81 @@
 import ast
+from collections.abc import Callable
 from contextlib import AbstractContextManager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from inspect import getsource
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
-from typing import Any
+from typing import Any, overload
 
-from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.frontend.builder import PyASTBuilder
+from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
+from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
+from xdsl.ir import Operation, TypeAttribute
+
+
+@dataclass
+class PyASTContext:
+    """Encapsulate the mapping between Python and IR types and operations."""
+
+    type_registry: TypeRegistry = field(default_factory=TypeRegistry)
+    """Mappings between source code and IR type."""
+
+    function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
+    """Mappings between functions and their operation types."""
+
+    def register_type(
+        self,
+        source_type: type,
+        ir_type: TypeAttribute,
+    ) -> None:
+        """Associate a type in the source code with its type in the IR."""
+        self.type_registry.insert(source_type, ir_type)
+
+    def register_function(
+        self, function: Callable[..., Any], ir_constructor: Callable[..., Operation]
+    ) -> None:
+        """Associate a method on an object in the source code with its IR implementation."""
+        self.function_registry.insert(function, ir_constructor)
+
+    @overload
+    def parse_program(
+        self,
+        func: None = None,
+        *,
+        desymref: bool = True,
+    ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]]: ...
+
+    @overload
+    def parse_program(
+        self,
+        func: Callable[P, R],
+        *,
+        desymref: bool = True,
+    ) -> PyASTProgram[P, R]: ...
+
+    def parse_program(
+        self,
+        func: Callable[P, R] | None = None,
+        *,
+        desymref: bool = True,
+    ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]] | PyASTProgram[P, R]:
+        """Get a program wrapper by decorating a function."""
+
+        def decorator(func: Callable[P, R]) -> PyASTProgram[P, R]:
+            builder = PyASTBuilder(
+                type_registry=self.type_registry,
+                function_registry=self.function_registry,
+                desymref=desymref,
+            )
+            return PyASTProgram[P, R](
+                name=func.__name__,
+                func=func,
+                _builder=builder,
+            )
+
+        if func is None:
+            return decorator
+        return decorator(func)
 
 
 @dataclass
