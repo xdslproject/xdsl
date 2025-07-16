@@ -37,7 +37,7 @@ class PyASTProgram(Generic[P, R]):
     def module(self) -> ModuleOp:
         """Lazily build the module when required, once."""
         if self._module is None:
-            self._module = self._builder.module
+            self._module = self._builder.build()
         return self._module
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
