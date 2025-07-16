@@ -10,6 +10,7 @@ from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
+from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 
 
@@ -42,13 +43,10 @@ class ApplyEqsatPDLInterpPass(ModulePass):
                 pdl_interp_module = parser.parse_module()
         else:
             pdl_interp_module = op
-        matcher = None
-        for cur in pdl_interp_module.walk():
-            if isinstance(cur, pdl_interp.FuncOp):
-                if cur.sym_name.data == "matcher":
-                    matcher = cur
-                    break
-        assert matcher is not None, "matcher function not found"
+        matcher = SymbolTable.lookup_symbol(
+            pdl_interp_module, builtin.SymbolRefAttr("matcher")
+        )
+        assert isinstance(matcher, pdl_interp.FuncOp), "matcher function not found"
 
         # Initialize interpreter and implementations once
         interpreter = Interpreter(pdl_interp_module)
