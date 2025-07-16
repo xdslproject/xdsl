@@ -14,8 +14,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from xdsl.dialects.builtin import IntAttr
-from xdsl.ir import Attribute, Dialect, Region, SSAValue
+from xdsl.dialects.builtin import ArrayAttr, IntAttr, SymbolRefAttr
+from xdsl.ir import Attribute, Block, Dialect, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
@@ -23,8 +23,10 @@ from xdsl.irdl import (
     irdl_op_definition,
     lazy_traits_def,
     opt_attr_def,
+    prop_def,
     region_def,
     result_def,
+    successor_def,
     traits_def,
     var_operand_def,
     var_result_def,
@@ -114,6 +116,38 @@ class YieldOp(IRDLOperation):
         *values: SSAValue,
     ):
         super().__init__(operands=[values])
+
+
+@irdl_op_definition
+class IsNotBannedOp(IRDLOperation):
+    """
+    An operation that checks if there is any rule reachable from the current execution point that is not banned.
+    This operation is used to eagerly jump to finalize if the rules that follow are not applicable.
+    """
+
+    name = "eqsat.is_not_banned"
+
+    traits = traits_def(IsTerminator())
+
+    reachable_rules = prop_def(ArrayAttr[SymbolRefAttr])
+
+    not_banned_dest = successor_def()
+    banned_dest = successor_def()
+
+    assembly_format = (
+        "$reachable_rules attr-dict `->` $not_banned_dest `, ` $banned_dest"
+    )
+
+    def __init__(
+        self,
+        reachable_rules: ArrayAttr[SymbolRefAttr],
+        not_banned_dest: Block,
+        banned_dest: Block,
+    ):
+        super().__init__(
+            successors=[not_banned_dest, banned_dest],
+            properties={"reachable_rules": reachable_rules},
+        )
 
 
 EqSat = Dialect(
