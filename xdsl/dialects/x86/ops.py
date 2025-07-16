@@ -2949,16 +2949,6 @@ class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     name = "x86.dm.vmovups"
 
 
-class DM_VmovupdOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.x86 import (
-            DM_VmovupdOp_ConstantOffset,
-        )
-
-        return (DM_VmovupdOp_ConstantOffset(),)
-
-
 @irdl_op_definition
 class DM_VmovupdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
@@ -2968,8 +2958,6 @@ class DM_VmovupdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.dm.vmovupd"
-
-    traits = traits_def(DM_VmovupdOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
