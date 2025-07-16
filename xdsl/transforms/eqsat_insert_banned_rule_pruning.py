@@ -12,8 +12,6 @@ from xdsl.traits import IsTerminator
 class EqsatInsertBannedRulePruningPass(ModulePass):
     name = "eqsat-insert-banned-rule-pruning"
 
-    max_rules: int | None = None
-
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         matcher = None
         for cur in op.walk():
@@ -23,9 +21,7 @@ class EqsatInsertBannedRulePruningPass(ModulePass):
                     break
         assert matcher is not None, "matcher function not found"
 
-        insert_pruning(
-            reachable=reachable_rules(matcher), op=matcher, max_rules=self.max_rules
-        )
+        insert_pruning(reachable=reachable_rules(matcher), op=matcher)
 
 
 @dataclass(frozen=True)
@@ -36,9 +32,8 @@ class Edge:
 
 
 def insert_pruning(
-    reachable: dict[Block, set[pdl_interp.RecordMatchOp]],
+    reachable: dict[Block, set[builtin.SymbolRefAttr]],
     op: pdl_interp.FuncOp,
-    max_rules: int | None = None,
 ):
     queue: list[Edge] = []
     for fro in op.body.blocks:
@@ -47,36 +42,45 @@ def insert_pruning(
             reachable_to = reachable[to]
             # If the collection of reachable rules changes when following the edge,
             # we need to insert a pruning operation.
-            max_rule_condition = (
-                (len(reachable_to) <= max_rules) if max_rules is not None else True
-            )
-            if max_rule_condition and len(reachable_from) != len(reachable_to):
+            if len(reachable_from) != len(reachable_to):
                 queue.append(Edge(to=to, to_index=to_index, fro=fro))
 
     finalize_block = Block((pdl_interp.FinalizeOp(),))
 
     assert op.body.first_block, "Function body must have at least one block."
-    if not (reachable_rules := [op.rewriter for op in reachable[op.body.first_block]]):
+    assert op.body.first_block.first_op, (
+        "Function body must have at least one operation."
+    )
+    if not reachable[op.body.first_block]:
         return  # there are no reachable rules, so we don't need to insert anything
 
-    assert op.body.first_block
-    if len(reachable_rules) <= max_rules if max_rules is not None else True:
-        reachable_rules_attr = builtin.ArrayAttr(reachable_rules)
-        b = Block(
-            (
-                eqsat.IsNotBannedOp(
-                    reachable_rules_attr, op.body.first_block, finalize_block
-                ),
-            )
+    # split the first block such that the arguments are kept intact.
+    (b := op.body.first_block).split_before(op.body.first_block.first_op)
+    assert b.next_block
+    b.add_op(
+        eqsat.CheckAllUnreachableOp(
+            unreachable_dest=finalize_block,
+            reachable_dest=b.next_block,
         )
-        op.body.insert_block_before(b, op.body.first_block)
+    )
     op.body.insert_block_after(finalize_block, op.body.first_block)
 
     for edge in queue:
-        if not (reachable_rules := [op.rewriter for op in reachable[edge.to]]):
+        if not (reachable[edge.to]):
             continue
-        reachable_rules_attr = builtin.ArrayAttr(reachable_rules)
-        b = Block((eqsat.IsNotBannedOp(reachable_rules_attr, edge.to, finalize_block),))
+        newly_unreachable_rules = list(
+            reachable[edge.fro].difference(reachable[edge.to])
+        )
+        b = Block(
+            (
+                eqsat.MarkUnreachableOp(newly_unreachable_rules),
+                eqsat.CheckAllUnreachableOp(
+                    unreachable_dest=finalize_block,
+                    reachable_dest=edge.to,
+                ),
+            )
+        )
+
         op.body.insert_block_after(b, edge.fro)
         assert edge.fro.last_op
         edge.fro.last_op.successors[edge.to_index] = b
@@ -84,8 +88,8 @@ def insert_pruning(
 
 def reachable_rules(
     op: pdl_interp.FuncOp,
-) -> dict[Block, set[pdl_interp.RecordMatchOp]]:
-    reachable: dict[Block, set[pdl_interp.RecordMatchOp]] = {}
+) -> dict[Block, set[builtin.SymbolRefAttr]]:
+    reachable: dict[Block, set[builtin.SymbolRefAttr]] = {}
 
     for block in reversed(toposort(op.body.blocks)):
         if rule := rule_in_block(block):
@@ -149,12 +153,12 @@ def successors(block: Block) -> list[Block]:
     return list(terminator.successors)
 
 
-def rule_in_block(block: Block) -> pdl_interp.RecordMatchOp | None:
+def rule_in_block(block: Block) -> builtin.SymbolRefAttr | None:
     terminator = block.last_op
     assert terminator is not None, "Block must contain operations."
     assert terminator.has_trait(IsTerminator), (
         "Expected the last operation of the block to be a terminator."
     )
     if isinstance(terminator, pdl_interp.RecordMatchOp):
-        return terminator
+        return terminator.rewriter
     return None
