@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-vector-to-ptr,convert-memref-to-ptr{lower_func=true},convert-ptr-type-offsets,canonicalize,convert-func-to-x86-func,convert-vector-to-x86{arch=avx2},convert-ptr-to-x86{arch=avx2},convert-arith-to-x86,reconcile-unrealized-casts,x86-allocate-registers,canonicalize -t x86-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-vector-to-ptr,convert-memref-to-ptr{lower_func=true},convert-ptr-type-offsets,canonicalize,convert-func-to-x86-func,convert-vector-to-x86{arch=avx2},convert-ptr-to-x86{arch=avx2},convert-arith-to-x86,reconcile-unrealized-casts,canonicalize,x86-allocate-registers,canonicalize -t x86-asm %s | filecheck %s
 
 func.func @matmul(
   %A: memref<2x4xf64>,
@@ -57,44 +57,45 @@ func.func @matmul(
 
   return
 }
+
 // CHECK:       matmul:
-// CHECK-NEXT:      mov rbx, rdi
-// CHECK-NEXT:      mov r11, rsi
+// CHECK-NEXT:      mov rcx, rdi
+// CHECK-NEXT:      mov rbx, rsi
 // CHECK-NEXT:      mov rax, rdx
-// CHECK-NEXT:      mov rcx, rax
-// CHECK-NEXT:      vmovupd ymm1, [rcx]
-// CHECK-NEXT:      mov rcx, 32
 // CHECK-NEXT:      mov r8, rax
-// CHECK-NEXT:      add r8, rcx
-// CHECK-NEXT:      vmovupd ymm0, [r8]
-// CHECK-NEXT:      mov rcx, r11
-// CHECK-NEXT:      vmovupd ymm9, [rcx]
-// CHECK-NEXT:      mov rcx, 32
-// CHECK-NEXT:      mov r8, r11
-// CHECK-NEXT:      add r8, rcx
+// CHECK-NEXT:      vmovupd ymm1, [r8]
+// CHECK-NEXT:      mov r8, 32
+// CHECK-NEXT:      mov r11, rax
+// CHECK-NEXT:      add r11, r8
+// CHECK-NEXT:      vmovupd ymm0, [r11]
+// CHECK-NEXT:      mov r11, rbx
+// CHECK-NEXT:      vmovupd ymm9, [r11]
+// CHECK-NEXT:      mov r11, 32
+// CHECK-NEXT:      mov r8, rbx
+// CHECK-NEXT:      add r8, r11
 // CHECK-NEXT:      vmovupd ymm7, [r8]
 // CHECK-NEXT:      mov r8, 64
-// CHECK-NEXT:      mov rcx, r11
-// CHECK-NEXT:      add rcx, r8
-// CHECK-NEXT:      vmovupd ymm5, [rcx]
-// CHECK-NEXT:      mov rcx, 96
-// CHECK-NEXT:      add r11, rcx
-// CHECK-NEXT:      vmovupd ymm3, [r11]
-// CHECK-NEXT:      mov rcx, rbx
-// CHECK-NEXT:      mov rcx, [rcx]
+// CHECK-NEXT:      mov r11, rbx
+// CHECK-NEXT:      add r11, r8
+// CHECK-NEXT:      vmovupd ymm5, [r11]
+// CHECK-NEXT:      mov r11, 96
+// CHECK-NEXT:      add rbx, r11
+// CHECK-NEXT:      vmovupd ymm3, [rbx]
+// CHECK-NEXT:      mov rbx, rcx
+// CHECK-NEXT:      mov rbx, [rbx]
 // CHECK-NEXT:      mov r11, 8
-// CHECK-NEXT:      mov r8, rbx
+// CHECK-NEXT:      mov r8, rcx
 // CHECK-NEXT:      add r8, r11
 // CHECK-NEXT:      mov r8, [r8]
 // CHECK-NEXT:      mov r11, 16
-// CHECK-NEXT:      mov r9, rbx
+// CHECK-NEXT:      mov r9, rcx
 // CHECK-NEXT:      add r9, r11
 // CHECK-NEXT:      mov r9, [r9]
 // CHECK-NEXT:      mov r11, 24
-// CHECK-NEXT:      mov r10, rbx
+// CHECK-NEXT:      mov r10, rcx
 // CHECK-NEXT:      add r10, r11
 // CHECK-NEXT:      mov r10, [r10]
-// CHECK-NEXT:      vpbroadcastq ymm2, rcx
+// CHECK-NEXT:      vpbroadcastq ymm2, rbx
 // CHECK-NEXT:      vpbroadcastq ymm4, r8
 // CHECK-NEXT:      vpbroadcastq ymm6, r9
 // CHECK-NEXT:      vpbroadcastq ymm8, r10
@@ -103,24 +104,24 @@ func.func @matmul(
 // CHECK-NEXT:      vfmadd231pd ymm1, ymm6, ymm5
 // CHECK-NEXT:      vfmadd231pd ymm1, ymm8, ymm3
 // CHECK-NEXT:      mov r10, 32
-// CHECK-NEXT:      mov r9, rbx
+// CHECK-NEXT:      mov r9, rcx
 // CHECK-NEXT:      add r9, r10
 // CHECK-NEXT:      mov r9, [r9]
 // CHECK-NEXT:      mov r10, 40
-// CHECK-NEXT:      mov r8, rbx
+// CHECK-NEXT:      mov r8, rcx
 // CHECK-NEXT:      add r8, r10
 // CHECK-NEXT:      mov r8, [r8]
 // CHECK-NEXT:      mov r10, 48
-// CHECK-NEXT:      mov rcx, rbx
-// CHECK-NEXT:      add rcx, r10
-// CHECK-NEXT:      mov rcx, [rcx]
-// CHECK-NEXT:      mov r10, 56
+// CHECK-NEXT:      mov rbx, rcx
 // CHECK-NEXT:      add rbx, r10
 // CHECK-NEXT:      mov rbx, [rbx]
+// CHECK-NEXT:      mov r10, 56
+// CHECK-NEXT:      add rcx, r10
+// CHECK-NEXT:      mov rcx, [rcx]
 // CHECK-NEXT:      vpbroadcastq ymm8, r9
 // CHECK-NEXT:      vpbroadcastq ymm6, r8
-// CHECK-NEXT:      vpbroadcastq ymm4, rcx
-// CHECK-NEXT:      vpbroadcastq ymm2, rbx
+// CHECK-NEXT:      vpbroadcastq ymm4, rbx
+// CHECK-NEXT:      vpbroadcastq ymm2, rcx
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm8, ymm9
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm6, ymm7
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm4, ymm5
