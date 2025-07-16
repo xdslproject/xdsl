@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     StringAttr,
+    SymbolNameConstraint,
     UnitAttr,
     i32,
 )
@@ -699,6 +700,69 @@ def test_typed_attribute_variable(program: str, generic_program: str):
 
     ctx = Context()
     ctx.load_op(TypedAttributeOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.symbol @test @test2",
+            '"test.symbol"() <{sym_name = "test"}> {attr_sym_name = "test2"} : () -> ()',
+        ),
+        (
+            'test.symbol @"123" @"456"',
+            '"test.symbol"() <{sym_name = "123"}> {attr_sym_name = "456"} : () -> ()',
+        ),
+    ],
+)
+def test_symbol_name_variable(program: str, generic_program: str):
+    @irdl_op_definition
+    class SymbolNameOp(IRDLOperation):
+        name = "test.symbol"
+
+        sym_name = prop_def(SymbolNameConstraint())
+        attr_sym_name = attr_def(SymbolNameConstraint())
+
+        assembly_format = "$sym_name $attr_sym_name attr-dict"
+
+    ctx = Context()
+    ctx.load_op(SymbolNameOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.symbol @test symbol @test2",
+            '"test.symbol"() <{sym_name = "test2", other_sym_name = "test"}> : () -> ()',
+        ),
+        (
+            "test.symbol",
+            '"test.symbol"() : () -> ()',
+        ),
+    ],
+)
+def test_optional_symbol_name_variable(program: str, generic_program: str):
+    @irdl_op_definition
+    class SymbolNameOp(IRDLOperation):
+        name = "test.symbol"
+
+        sym_name = opt_prop_def(SymbolNameConstraint())
+
+        other_sym_name = opt_prop_def(SymbolNameConstraint())
+
+        assembly_format = "$other_sym_name (`symbol` $sym_name^)? attr-dict"
+
+    ctx = Context()
+    ctx.load_op(SymbolNameOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
