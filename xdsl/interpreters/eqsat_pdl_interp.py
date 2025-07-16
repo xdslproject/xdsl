@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from ordered_set import OrderedSet
 
@@ -23,6 +24,181 @@ from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
+
+# Set up logging for the scheduler
+logger = logging.getLogger(__name__)
+
+
+class RuleScheduler(Protocol):
+    """Protocol defining the interface for rule schedulers."""
+
+    rule_stats: dict[pdl_interp.FuncOp, RuleStats]
+    current_iteration_matches: dict[pdl_interp.FuncOp, int]
+
+    def is_rule_banned(self, rule: pdl_interp.FuncOp) -> bool:
+        """Check if a rule is currently banned."""
+        ...
+
+    def are_all_rules_banned(self, rules: list[pdl_interp.FuncOp]) -> bool:
+        """Check if all rules in the list are banned."""
+        ...
+
+    def record_rule_match(self, rule: pdl_interp.FuncOp, match_count: int = 1) -> None:
+        """Record that a rule matched in this iteration."""
+        ...
+
+    def end_iteration(self) -> None:
+        """End the current iteration and apply scheduling logic."""
+        ...
+
+    def next_iteration(self) -> None:
+        """Move to the next iteration."""
+        ...
+
+    def can_stop(self) -> bool:
+        """Check if we can stop (scheduler-specific logic)."""
+        ...
+
+
+@dataclass
+class RuleStats:
+    """Statistics for a single rule in the scheduler."""
+
+    times_applied: int = 0
+    banned_until: int = 0
+    times_banned: int = 0
+    match_limit: int = 1000
+    ban_length: int = 5
+    total_matches: int = 0  # Total number of matches seen
+    last_match_count: int = 0  # Number of matches in the last application
+
+
+@dataclass
+class BackoffScheduler:
+    """
+    Exponential backoff scheduler for equality saturation rules.
+
+    Similar to egg's BackoffScheduler, this implements exponential rule backoff.
+    For each rewrite, there exists a configurable initial match limit.
+    If a rewrite search yields more than this limit, then we ban this
+    rule for a number of iterations, double its limit, and double the time
+    it will be banned next time.
+    """
+
+    default_match_limit: int = 1000
+    default_ban_length: int = 5
+    current_iteration: int = 0
+    rule_stats: dict[pdl_interp.FuncOp, RuleStats] = field(default_factory=lambda: {})
+    current_iteration_matches: dict[pdl_interp.FuncOp, int] = field(
+        default_factory=lambda: {}
+    )
+
+    def get_rule_stats(self, rule: pdl_interp.FuncOp) -> RuleStats:
+        """Get or create rule statistics for a rule."""
+        if rule not in self.rule_stats:
+            self.rule_stats[rule] = RuleStats(
+                match_limit=self.default_match_limit, ban_length=self.default_ban_length
+            )
+        return self.rule_stats[rule]
+
+    def is_rule_banned(self, rule: pdl_interp.FuncOp) -> bool:
+        """Check if a rule is currently banned."""
+        stats = self.get_rule_stats(rule)
+        return self.current_iteration < stats.banned_until
+
+    def are_all_rules_banned(self, rules: list[pdl_interp.FuncOp]) -> bool:
+        """Check if all rules in the list are banned."""
+        return all(self.is_rule_banned(rule) for rule in rules)
+
+    def with_initial_match_limit(self, limit: int) -> BackoffScheduler:
+        """Set the initial match limit after which a rule will be banned. Default: 1000"""
+        self.default_match_limit = limit
+        return self
+
+    def with_ban_length(self, ban_length: int) -> BackoffScheduler:
+        """Set the initial ban length. Default: 5 iterations"""
+        self.default_ban_length = ban_length
+        return self
+
+    def rule_match_limit(self, rule: pdl_interp.FuncOp, limit: int) -> BackoffScheduler:
+        """Set the initial match limit for a specific rule."""
+        stats = self.get_rule_stats(rule)
+        stats.match_limit = limit
+        return self
+
+    def rule_ban_length(self, rule: pdl_interp.FuncOp, length: int) -> BackoffScheduler:
+        """Set the initial ban length for a specific rule."""
+        stats = self.get_rule_stats(rule)
+        stats.ban_length = length
+        return self
+
+    def record_rule_match(self, rule: pdl_interp.FuncOp, match_count: int = 1) -> None:
+        """Record that a rule matched in this iteration."""
+        # Don't count matches for banned rules
+        if self.is_rule_banned(rule):
+            return
+
+        # Accumulate matches for this iteration
+        if rule not in self.current_iteration_matches:
+            self.current_iteration_matches[rule] = 0
+        self.current_iteration_matches[rule] += match_count
+
+        # Update total matches immediately for statistics
+        stats = self.get_rule_stats(rule)
+        stats.total_matches += match_count
+
+    def end_iteration(self) -> None:
+        """End the current iteration and apply scheduling logic."""
+        # Apply scheduling logic for rules that matched in this iteration
+        for rule_name, match_count in self.current_iteration_matches.items():
+            stats = self.get_rule_stats(rule_name)
+
+            # Calculate current threshold with exponential backoff
+            threshold = stats.match_limit * (2**stats.times_banned)
+
+            # Check if we should ban this rule
+            if match_count > threshold:
+                # Calculate new ban length with exponential backoff
+                ban_length = stats.ban_length * (2**stats.times_banned)
+
+                stats.times_banned += 1
+                stats.banned_until = self.current_iteration + ban_length + 1
+
+                # Log the ban with detailed information
+                logger.info(
+                    f"Banning rule '{rule_name}' for {ban_length} iterations: "
+                    f"{match_count} matches > {threshold} threshold "
+                    f"(ban #{stats.times_banned})"
+                )
+            else:
+                stats.times_applied += 1
+
+            # Record the match count for this iteration
+            stats.last_match_count = match_count
+
+        # Clear matches for next iteration
+        self.current_iteration_matches.clear()
+
+    def next_iteration(self) -> None:
+        """Move to the next iteration."""
+        self.current_iteration += 1
+
+        # Check for rules that are being unbanned
+        unbanned_rules: list[pdl_interp.FuncOp] = []
+        for rule, stats in self.rule_stats.items():
+            if stats.banned_until == self.current_iteration:
+                unbanned_rules.append(rule)
+
+        if unbanned_rules:
+            logger.info(
+                f"Unbanning rules at iteration {self.current_iteration}: {', '.join(str(rule) for rule in unbanned_rules)}"
+            )
+
+    def can_stop(self) -> bool:
+        """Check if we can stop (no rules are banned)."""
+        return not any(
+            self.is_rule_banned(rule_name) for rule_name in self.rule_stats.keys()
+        )
 
 
 @dataclass
@@ -121,6 +297,18 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         for op in rewriters_module.regions[0].block.ops:
             if isinstance(op, pdl_interp.FuncOp):
                 self.reachable_rules[op] = True
+
+    scheduler: RuleScheduler = field(default_factory=BackoffScheduler)
+    """Rule scheduler implementing exponential backoff for rule management."""
+
+    def next_iteration(self) -> None:
+        """Advance the scheduler to the next iteration."""
+        self.scheduler.end_iteration()
+        self.scheduler.next_iteration()
+
+    def can_stop_due_to_scheduler(self) -> bool:
+        """Check if we can stop based on scheduler state."""
+        return self.scheduler.can_stop()
 
     def modification_handler(self, op: Operation):
         """
@@ -407,6 +595,13 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
+        # Record that this rule matched for scheduling purposes
+        rule = interpreter.get_op_for_symbol(op.rewriter)
+        assert isinstance(rule, pdl_interp.FuncOp)
+        self.scheduler.record_rule_match(rule)
+
+        logger.debug(f"Rule '{op.rewriter}' matched and will be applied")
+
         self.is_matching = False
         interpreter.call_op(op.rewriter, args)
         self.is_matching = True
