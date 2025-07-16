@@ -936,6 +936,9 @@ class RegionVariable(RegionDirective, VariableDirective):
     def set_empty(self, state: ParsingState):
         state.regions[self.index] = Region()
 
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(op.regions[self.index].blocks)
+
 
 @dataclass(frozen=True)
 class VariadicRegionVariable(RegionDirective, VariadicVariable):
