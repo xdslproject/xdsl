@@ -2140,6 +2140,40 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
     check_equivalence(program, generic_program, ctx)
 
 
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "(`keyword` $maybe_empty^)? attr-dict",
+            "test.empty_region_group",
+            '"test.empty_region_group"() ({}) : () -> ()',
+        ),
+        (
+            "(`keyword` $maybe_empty^)? attr-dict",
+            'test.empty_region_group keyword {\n  "test.op"() : () -> ()\n}',
+            '"test.empty_region_group"() ({ "test.op"() : () -> ()}) : () -> ()',
+        ),
+    ],
+)
+def test_optional_groups_empty_regions(format: str, program: str, generic_program: str):
+    """Test the parsing of empty regions in an optional group"""
+
+    @irdl_op_definition
+    class EmptyRegionOp(IRDLOperation):
+        name = "test.empty_region_group"
+        irdl_options = [AttrSizedRegionSegments]
+        maybe_empty = region_def()
+
+        assembly_format = format
+
+    ctx = Context()
+    ctx.load_op(EmptyRegionOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
 ################################################################################
 # Successors                                                                   #
 ################################################################################
