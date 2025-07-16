@@ -394,7 +394,7 @@ class ExpandShapeOp(IRDLOperation):
         printer.print_ssa_value(self.src)
         printer.print_string(" ")
         printer.print_attribute(self.reassociation)
-        printer.print_string(" static_output_shape ")
+        printer.print_string(" output_shape ")
         print_dynamic_index_list(
             printer,
             self.DYNAMIC_INDEX,
