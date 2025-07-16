@@ -930,6 +930,12 @@ class RegionVariable(RegionDirective, VariableDirective):
         state.last_was_punctuation = False
         state.should_emit_space = True
 
+    def is_anchorable(self) -> bool:
+        return True
+
+    def set_empty(self, state: ParsingState):
+        state.regions[self.index] = Region()
+
 
 @dataclass(frozen=True)
 class VariadicRegionVariable(RegionDirective, VariadicVariable):
