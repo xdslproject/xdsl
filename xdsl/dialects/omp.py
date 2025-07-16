@@ -605,6 +605,15 @@ class DeclareReductionOp(IRDLOperation):
 
     traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
 
+    assembly_format = """
+        $sym_name `:` $type attr-dict-with-keyword
+        ( `alloc` $alloc_region^ )?
+        `init` $init_region
+        `combiner` $reduction_region
+        ( `atomic` $atomic_reduction_region^ )?
+        ( `cleanup` $cleanup_region^ )?
+    """
+
     def verify_(self) -> None:
         if len(self.alloc_region.blocks) > 1:
             raise VerifyException(

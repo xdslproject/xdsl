@@ -229,17 +229,15 @@ builtin.module {
     %out = arith.constant 0 : i32
     omp.yield(%out : i32)
   }
-  "omp.declare_reduction"() <{sym_name = "r1", type = i32}> ({ }, {
+  omp.declare_reduction @r1 : i32 init {
   ^0(%r1_arg : i32):
     %out = arith.constant 0 : i32
     omp.yield(%out : i32)
-  }, {
+  } combiner {
   ^1(%r1_acc : i32, %r1 : i32):
     %acc = arith.addi %r1_acc, %r1 : i32
     omp.yield(%acc : i32)
-  }, {
-  }, {
-  }) : () -> ()
+  }
   func.func @omp_wsloop_byref(%lb : index, %ub : index, %step : index, %r : memref<1xi32>) {
     "omp.wsloop"(%r) <{reduction_byref = array<i1: false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0>}> ({
     ^bb0(%r_arg : memref<1xi32>):
@@ -492,18 +490,15 @@ builtin.module {
 // CHECK-NEXT:      %out = arith.constant 0 : i32
 // CHECK-NEXT:      omp.yield(%out : i32)
 // CHECK-NEXT:    }
-// CHECK-NEXT:    "omp.declare_reduction"() <{sym_name = "r1", type = i32}> ({
-// CHECK-NEXT:    }, {
+// CHECK-NEXT:    omp.declare_reduction @r1 : i32 init {
 // CHECK-NEXT:    ^0(%r1_arg : i32):
 // CHECK-NEXT:      %out = arith.constant 0 : i32
 // CHECK-NEXT:      omp.yield(%out : i32)
-// CHECK-NEXT:    }, {
+// CHECK-NEXT:    } combiner {
 // CHECK-NEXT:    ^1(%r1_acc : i32, %r1 : i32):
 // CHECK-NEXT:      %acc = arith.addi %r1_acc, %r1 : i32
 // CHECK-NEXT:      omp.yield(%acc : i32)
-// CHECK-NEXT:    }, {
-// CHECK-NEXT:    }, {
-// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_wsloop_byref(%lb : index, %ub : index, %step : index, %r : memref<1xi32>) {
 // CHECK-NEXT:      "omp.wsloop"(%r) <{reduction_byref = array<i1: false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0>}> ({
 // CHECK-NEXT:      ^0(%r_arg : memref<1xi32>):
