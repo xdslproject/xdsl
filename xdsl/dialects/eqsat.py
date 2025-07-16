@@ -150,11 +150,80 @@ class IsNotBannedOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class MarkUnreachableOp(IRDLOperation):
+    """
+    Marks a rewrite rule as unreachable from that point in the program.
+    This is used to prune the search space of the equality saturation algorithm.
+    """
+
+    name = "eqsat.mark_unreachable"
+
+    rules = prop_def(ArrayAttr[SymbolRefAttr])
+
+    assembly_format = "$rules attr-dict"
+
+    def __init__(self, rules: Sequence[SymbolRefAttr]):
+        super().__init__(
+            operands=[], successors=[], properties={"rules": ArrayAttr(rules)}
+        )
+
+
+@irdl_op_definition
+class MarkReachableOp(IRDLOperation):
+    """
+    Marks a rewrite rule as reachable from that point in the program.
+    Technically, an unreachable rule cannot become reachable again,
+    but this is used as an optimization where we mark rules as unreachable
+    in a parent block and then mark them as reachable in a child block in
+    order to generate a more compact IR.
+    """
+
+    name = "eqsat.mark_reachable"
+
+    rules = prop_def(ArrayAttr[SymbolRefAttr])
+
+    assembly_format = "$rules attr-dict"
+
+    def __init__(self, rules: Sequence[SymbolRefAttr]):
+        super().__init__(
+            operands=[], successors=[], properties={"rules": ArrayAttr(rules)}
+        )
+
+
+@irdl_op_definition
+class CheckAllUnreachableOp(IRDLOperation):
+    """
+    Jumps to `unreachable_dest` if all rules are unreachable (either banned or unreachable in the matcher.)
+    """
+
+    name = "eqsat.check_all_unreachable"
+
+    traits = traits_def(IsTerminator())
+
+    unreachable_dest = successor_def()
+    reachable_dest = successor_def()
+
+    assembly_format = "attr-dict `->` $unreachable_dest `, ` $reachable_dest"
+
+    def __init__(
+        self,
+        unreachable_dest: Block,
+        reachable_dest: Block,
+    ):
+        super().__init__(
+            successors=[unreachable_dest, reachable_dest],
+        )
+
+
 EqSat = Dialect(
     "eqsat",
     [
         EClassOp,
         YieldOp,
         EGraphOp,
+        IsNotBannedOp,
+        MarkUnreachableOp,
+        CheckAllUnreachableOp,
     ],
 )
