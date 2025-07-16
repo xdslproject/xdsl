@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-vector-to-ptr,convert-memref-to-ptr{lower_func=true},convert-ptr-type-offsets,canonicalize,convert-func-to-x86-func,convert-vector-to-x86{arch=avx2},convert-ptr-to-x86{arch=avx2},convert-arith-to-x86,reconcile-unrealized-casts,x86-allocate-registers %s
+// RUN: xdsl-opt -p convert-vector-to-ptr,convert-memref-to-ptr{lower_func=true},convert-ptr-type-offsets,canonicalize,convert-func-to-x86-func,convert-vector-to-x86{arch=avx2},convert-ptr-to-x86{arch=avx2},convert-arith-to-x86,reconcile-unrealized-casts,canonicalize,x86-allocate-registers,canonicalize -t x86-asm %s | filecheck %s
 
 func.func @matmul(
   %A: memref<2x4xf64>,
