@@ -805,6 +805,18 @@ class IntConstraint(ABC):
         """
         raise ValueError(f"Cannot infer integer from constraint {self}")
 
+    @abstractmethod
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+    ) -> IntConstraint:
+        """
+        A helper function to make type vars used in attribute definitions concrete when
+        creating constraints for new attributes or operations.
+        """
+        raise NotImplementedError(
+            "Custom constraints must map type vars in nested constraints, if any."
+        )
+
 
 class AnyInt(IntConstraint):
     """
@@ -813,6 +825,11 @@ class AnyInt(IntConstraint):
 
     def verify(self, i: int, constraint_context: ConstraintContext) -> None:
         pass
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+    ) -> IntConstraint:
+        return self
 
 
 @dataclass(frozen=True)
@@ -834,6 +851,11 @@ class EqIntConstraint(IntConstraint):
 
     def infer(self, context: ConstraintContext) -> int:
         return self.value
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+    ) -> IntConstraint:
+        return self
 
 
 @dataclass(frozen=True)
@@ -868,6 +890,11 @@ class AtLeast(IntConstraint):
     def verify(self, i: int, constraint_context: ConstraintContext) -> None:
         if i < self.bound:
             raise VerifyException(f"expected integer >= {self.bound}, got {i}")
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+    ) -> IntConstraint:
+        return self
 
 
 @dataclass(frozen=True)
@@ -911,6 +938,43 @@ class IntVarConstraint(IntConstraint):
         v = context.get_int_variable(self.name)
         assert isinstance(v, int)
         return v
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+    ) -> IntConstraint:
+        return IntVarConstraint(
+            self.name, self.constraint.mapping_type_vars(type_var_mapping)
+        )
+
+
+@dataclass(frozen=True)
+class IntTypeVarConstraint(IntConstraint):
+    """
+    Stores the TypeVar instance used to define a generic type.
+    """
+
+    type_var: TypeVar
+    """The instance of the TypeVar used in the definition."""
+
+    base_constraint: IntConstraint
+    """Constraint inferred from the base of the TypeVar."""
+
+    def verify(
+        self,
+        i: int,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        self.base_constraint.verify(i, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+    ) -> IntConstraint:
+        res = type_var_mapping.get(self.type_var)
+        if res is None:
+            raise KeyError(f"Mapping value missing for type var {self.type_var}")
+        if not isinstance(res, IntConstraint):
+            raise ValueError(f"Unexpected constraint {res} for TypeVar {self.type_var}")
+        return res
 
 
 @dataclass(frozen=True)
