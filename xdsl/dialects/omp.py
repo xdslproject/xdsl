@@ -854,6 +854,42 @@ class SimdOp(BlockArgOpenMPOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class DistributeOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.distribute
+    https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompdistribute-ompdistributeop
+    """
+
+    name = "omp.distribute"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    dist_schedule_chunk_size = opt_operand_def(IntegerType | IndexType)
+    private_vars = var_operand_def()
+
+    dist_schedule_static = opt_prop_def(UnitAttr)
+    order = opt_prop_def(OrderKindAttr)
+    order_mod = opt_prop_def(OrderModifierAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    body = region_def("single_block")
+
+    traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
+
+    def num_block_args(self) -> int:
+        return len(self.private_vars)
+
+    def verify_(self) -> None:
+        if bool(self.dist_schedule_chunk_size) != bool(self.dist_schedule_static):
+            raise VerifyException(
+                f"{self.name} should have either both dist_schedule_static and dist_schedule_chunk_size, or neither."
+            )
+        return super().verify_()
+
+
 class TargetTaskBasedDataOp(IRDLOperation):
     """
     Base class representing target data movement operations which are task based,
@@ -991,6 +1027,7 @@ OMP = Dialect(
         MapBoundsOp,
         MapInfoOp,
         SimdOp,
+        DistributeOp,
         PrivateClauseOp,
         TargetEnterDataOp,
         TargetExitDataOp,

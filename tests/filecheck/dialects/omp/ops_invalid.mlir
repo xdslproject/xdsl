@@ -321,3 +321,31 @@ func.func @reduction_too_many_blocks() {
 }
 
 // CHECK: omp.declare_reduction should have at most 1 block in alloc_region
+
+// -----
+
+func.func @omp_distribute_chunk_operand(%lb : index, %ub : index, %step : index, %chunk : i64) {
+  "omp.distribute"(%chunk) <{operandSegmentSizes = array<i32: 0, 0, 1, 0>}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^1(%iter : index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (i64) -> ()
+  func.return
+}
+
+// CHECK: omp.distribute should have either both dist_schedule_static and dist_schedule_chunk_size, or neither.
+
+// -----
+
+func.func @omp_distribute_chunk_attr(%lb : index, %ub : index, %step : index) {
+  "omp.distribute"() <{dist_schedule_static, operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^1(%iter : index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: omp.distribute should have either both dist_schedule_static and dist_schedule_chunk_size, or neither.
