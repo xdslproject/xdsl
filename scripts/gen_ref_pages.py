@@ -11,26 +11,28 @@ root = Path(__file__).parent.parent
 src = root / "xdsl"
 
 for path in sorted(src.rglob("*.py")):
-    module_path = path.relative_to(src).with_suffix("")
-    doc_path = path.relative_to(src).with_suffix(".md")
-    full_doc_path = Path("reference", doc_path)
+    contents = path.read_text().strip()
+    if not contents or contents.startswith("# TID 251"):
+        # If this file is empty, or is an __init__.py with star imports, continue
+        continue
 
+    module_path = path.relative_to(src).with_suffix("")
     parts = tuple(module_path.parts)
 
-    if parts[-1] == "__init__":
-        parts = parts[:-1]
-        doc_path = doc_path.with_name("index.md")
-        full_doc_path = full_doc_path.with_name("index.md")
-    elif parts[-1] == "__main__":
+    if parts[-1] == "__main__":
         continue
     elif parts[-1].startswith("_"):
         continue
     if not parts:
         continue
 
-    if "ir" == parts[0]:
-        # IR is documented separately
-        continue
+    doc_path = path.relative_to(src).with_suffix(".md")
+    full_doc_path = Path("reference", doc_path)
+
+    if parts[-1] == "__init__":
+        parts = parts[:-1]
+        doc_path = doc_path.with_name("index.md")
+        full_doc_path = full_doc_path.with_name("index.md")
 
     ident = ".".join(parts)
 
