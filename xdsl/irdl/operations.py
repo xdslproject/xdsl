@@ -42,7 +42,6 @@ from xdsl.utils.hints import PropertyType, get_type_var_mapping
 
 from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
-    IRDLGenericAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
     is_classvar,
@@ -574,7 +573,7 @@ class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
 
 
 def result_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT] = Attribute,
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -588,7 +587,7 @@ def result_def(
 
 def var_result_def(
     constraint: (
-        GenericRangeConstraint[AttributeInvT] | IRDLGenericAttrConstraint[AttributeInvT]
+        GenericRangeConstraint[AttributeInvT] | IRDLAttrConstraint[AttributeInvT]
     ) = Attribute,
     *,
     default: None = None,
@@ -603,7 +602,7 @@ def var_result_def(
 
 def opt_result_def(
     constraint: (
-        GenericRangeConstraint[AttributeInvT] | IRDLGenericAttrConstraint[AttributeInvT]
+        GenericRangeConstraint[AttributeInvT] | IRDLAttrConstraint[AttributeInvT]
     ) = Attribute,
     *,
     default: None = None,
@@ -617,7 +616,7 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
@@ -634,7 +633,7 @@ def prop_def(
 
 @overload
 def opt_prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: None = None,
     *,
     prop_name: str | None = None,
@@ -646,7 +645,7 @@ def opt_prop_def(
 
 @overload
 def opt_prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute,
     *,
     prop_name: str | None = None,
@@ -657,7 +656,7 @@ def opt_prop_def(
 
 
 def opt_prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
@@ -673,7 +672,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
@@ -692,7 +691,7 @@ def attr_def(
 
 @overload
 def opt_attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: None = None,
     *,
     attr_name: str | None = None,
@@ -704,7 +703,7 @@ def opt_attr_def(
 
 @overload
 def opt_attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute,
     *,
     attr_name: str | None = None,
@@ -715,7 +714,7 @@ def opt_attr_def(
 
 
 def opt_attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,

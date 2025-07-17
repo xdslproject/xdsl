@@ -50,12 +50,10 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
-    GenericAttrConstraint,
     GenericData,
     GenericRangeConstraint,
     IntConstraint,
     IRDLAttrConstraint,
-    IRDLGenericAttrConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
@@ -181,7 +179,7 @@ class ArrayAttr(
     @staticmethod
     @override
     def constr(
-        constr: IRDLGenericAttrConstraint[AttributeInvT]
+        constr: IRDLAttrConstraint[AttributeInvT]
         | GenericRangeConstraint[AttributeInvT],
     ) -> ArrayOfConstraint[AttributeInvT]:
         return ArrayOfConstraint(constr)
@@ -194,7 +192,7 @@ class ArrayAttr(
 
 
 @dataclass(frozen=True)
-class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
+class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
     elem_range_constraint: GenericRangeConstraint[AttributeCovT]
     """
     A constraint that enforces an ArrayData whose elements satisfy
@@ -203,9 +201,7 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
 
     def __init__(
         self,
-        constr: (
-            IRDLGenericAttrConstraint[Attribute] | GenericRangeConstraint[AttributeCovT]
-        ),
+        constr: (IRDLAttrConstraint | GenericRangeConstraint[AttributeCovT]),
     ):
         if isinstance(constr, GenericRangeConstraint):
             object.__setattr__(self, "elem_range_constraint", constr)
@@ -241,7 +237,7 @@ class ArrayOfConstraint(GenericAttrConstraint[ArrayAttr[AttributeCovT]]):
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> GenericAttrConstraint[ArrayAttr[AttributeCovT]]:
+    ) -> AttrConstraint[ArrayAttr[AttributeCovT]]:
         return ArrayOfConstraint(
             self.elem_range_constraint.mapping_type_vars(type_var_mapping)
         )
@@ -342,7 +338,7 @@ class IntAttr(Data[int]):
 
 
 @dataclass(frozen=True)
-class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
+class IntAttrConstraint(AttrConstraint[IntAttr]):
     """
     Constrains the value of an IntAttr.
     """
@@ -881,10 +877,10 @@ class IntegerAttr(
 
     @staticmethod
     def constr(
-        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
+        type: AttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
         *,
         value: AttrConstraint | IntConstraint | None = None,
-    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
+    ) -> AttrConstraint[IntegerAttr[_IntegerAttrType]]:
         if value is None and type == AnyAttr():
             return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
         if isinstance(value, IntConstraint):
@@ -1327,11 +1323,11 @@ class VectorType(
 
     @staticmethod
     def constr(
-        element_type: IRDLGenericAttrConstraint[AttributeCovT] | None = None,
+        element_type: IRDLAttrConstraint[AttributeCovT] | None = None,
         *,
-        shape: IRDLGenericAttrConstraint[ArrayAttr[IntAttr]] | None = None,
-        scalable_dims: IRDLGenericAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
-    ) -> GenericAttrConstraint[VectorType[AttributeCovT]]:
+        shape: IRDLAttrConstraint[ArrayAttr[IntAttr]] | None = None,
+        scalable_dims: IRDLAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
+    ) -> AttrConstraint[VectorType[AttributeCovT]]:
         if element_type is None and shape is None and scalable_dims is None:
             return BaseAttr[VectorType[AttributeCovT]](VectorType)
         shape_constr = AnyAttr() if shape is None else shape
@@ -1405,8 +1401,8 @@ class TensorType(
 
     @staticmethod
     def constr(
-        element_type: IRDLGenericAttrConstraint[AttributeInvT] | None = None,
-    ) -> GenericAttrConstraint[TensorType[AttributeInvT]]:
+        element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
+    ) -> AttrConstraint[TensorType[AttributeInvT]]:
         if element_type is None:
             return BaseAttr[TensorType[AttributeInvT]](TensorType)
         return ParamAttrConstraint[TensorType[AttributeInvT]](
@@ -1445,18 +1441,18 @@ AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType
 @dataclass(frozen=True, init=False)
 class ContainerOf(
     Generic[AttributeCovT],
-    GenericAttrConstraint[
+    AttrConstraint[
         AttributeCovT | VectorType[AttributeCovT] | TensorType[AttributeCovT]
     ],
 ):
     """A type constraint that can be nested once in a vector or a tensor."""
 
-    elem_constr: GenericAttrConstraint[AttributeCovT]
+    elem_constr: AttrConstraint[AttributeCovT]
 
     def __init__(
         self,
         elem_constr: (
-            AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT]
+            AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT]
         ),
     ) -> None:
         object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(elem_constr))
@@ -1719,8 +1715,8 @@ class DenseArrayBase(
 
     @staticmethod
     def constr(
-        element_type: IRDLGenericAttrConstraint[DenseArrayInvT] | None = None,
-    ) -> GenericAttrConstraint[DenseArrayBase[DenseArrayInvT]]:
+        element_type: IRDLAttrConstraint[DenseArrayInvT] | None = None,
+    ) -> AttrConstraint[DenseArrayBase[DenseArrayInvT]]:
         if element_type is None:
             return BaseAttr[DenseArrayBase[DenseArrayInvT]](DenseArrayBase)
         return ParamAttrConstraint[DenseArrayBase[DenseArrayInvT]](
@@ -2395,12 +2391,12 @@ class MemRefType(
 
     @staticmethod
     def constr(
-        element_type: IRDLGenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
+        element_type: IRDLAttrConstraint[_MemRefTypeElement] = AnyAttr(),
         *,
         shape: IRDLAttrConstraint | None = None,
         layout: IRDLAttrConstraint | None = None,
         memory_space: IRDLAttrConstraint | None = None,
-    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
+    ) -> AttrConstraint[MemRefType[_MemRefTypeElement]]:
         if (
             shape is None
             and element_type == AnyAttr()

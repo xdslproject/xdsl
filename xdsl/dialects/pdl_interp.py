@@ -48,7 +48,6 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
-    GenericAttrConstraint,
     IRDLOperation,
     VarConstraint,
     base,
@@ -476,10 +475,8 @@ class RecordMatchOp(IRDLOperation):
 
 
 @dataclass(frozen=True)
-class ValueConstrFromResultConstr(
-    GenericAttrConstraint[ValueType | RangeType[ValueType]]
-):
-    result_constr: GenericAttrConstraint[TypeType | RangeType[TypeType]]
+class ValueConstrFromResultConstr(AttrConstraint[ValueType | RangeType[ValueType]]):
+    result_constr: AttrConstraint[TypeType | RangeType[TypeType]]
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.result_constr.can_infer(var_constraint_names)
@@ -503,7 +500,7 @@ class ValueConstrFromResultConstr(
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> GenericAttrConstraint[ValueType | RangeType[ValueType]]:
+    ) -> AttrConstraint[ValueType | RangeType[ValueType]]:
         return ValueConstrFromResultConstr(
             self.result_constr.mapping_type_vars(type_var_mapping)
         )

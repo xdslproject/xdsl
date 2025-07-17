@@ -44,7 +44,6 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
-    GenericAttrConstraint,
     GenericData,
     MessageConstraint,
     ParamAttrConstraint,
@@ -660,7 +659,7 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
     @staticmethod
     @override
     def constr(
-        constr: GenericAttrConstraint[AttributeCovT],
+        constr: AttrConstraint[AttributeCovT],
     ) -> DataListAttr[AttributeCovT]:
         return DataListAttr(constr)
 
@@ -673,13 +672,13 @@ AnyListData: TypeAlias = ListData[Attribute]
 
 
 @dataclass(frozen=True)
-class DataListAttr(GenericAttrConstraint[ListData[AttributeInvT]]):
+class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
     """
     A constraint that enforces that the elements of a ListData all respect
     a constraint.
     """
 
-    elem_constr: GenericAttrConstraint[AttributeInvT]
+    elem_constr: AttrConstraint[AttributeInvT]
 
     def verify(
         self,
