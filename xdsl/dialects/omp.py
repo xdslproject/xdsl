@@ -6,7 +6,7 @@ from typing import ClassVar
 from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
-    DenseIntOrFPElementsAttr,
+    DenseArrayBase,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -262,9 +262,9 @@ class BlockArgOpenMPOperation(IRDLOperation, ABC):
             )
         expected = self.num_block_args()
 
-        if (actual := len(self.regions[0].blocks[0].args)) != expected:
+        if (actual := len(self.regions[0].blocks[0].args)) < expected:
             raise VerifyException(
-                f"{self.name} expected to have {expected} block argument(s), got {actual}"
+                f"{self.name} expected to have at least {expected} block argument(s), got {actual}"
             )
 
     @abstractmethod
@@ -522,7 +522,7 @@ class WsLoopOp(BlockArgOpenMPOperation):
         ArrayAttr.constr(RangeOf(base(SymbolRefAttr), length=REDUCTION_COUNT))
     )
     reduction_mod = opt_prop_def(ReductionModifierAttr)
-    reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
+    reduction_byref = opt_prop_def(DenseArrayBase[i1])
     schedule_kind = opt_prop_def(ScheduleKindAttr)
     schedule_mod = opt_prop_def(ScheduleModifierAttr)
     schedule_simd = opt_prop_def(UnitAttr)
@@ -574,7 +574,7 @@ class ParallelOp(BlockArgOpenMPOperation):
     privatizers = opt_prop_def(ArrayAttr[SymbolRefAttr])
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     reduction_mod = opt_prop_def(ReductionModifierAttr)
-    reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
+    reduction_byref = opt_prop_def(DenseArrayBase[i1])
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -714,12 +714,12 @@ class TargetOp(BlockArgOpenMPOperation):
     depend_kinds = opt_prop_def(
         ArrayAttr.constr(RangeOf(base(DependKindAttr), length=DEP_COUNT))
     )
-    in_reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
+    in_reduction_byref = opt_prop_def(DenseArrayBase[i1])
     in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     nowait = opt_prop_def(UnitAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     private_needs_barrier = opt_prop_def(UnitAttr)
-    private_maps = opt_prop_def(DenseIntOrFPElementsAttr[i64])
+    private_maps = opt_prop_def(DenseArrayBase[i64])
 
     region = region_def()
 
@@ -831,7 +831,7 @@ class SimdOp(BlockArgOpenMPOperation):
     order_mod = opt_prop_def(OrderModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     reduction_mod = opt_prop_def(ReductionModifierAttr)
-    reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
+    reduction_byref = opt_prop_def(DenseArrayBase[i1])
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     simdlen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
     safelen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
