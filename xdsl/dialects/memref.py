@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
     SignlessIntegerConstraint,
     StridedLayoutAttr,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     UnrankedMemRefType,
@@ -403,7 +404,7 @@ class GetGlobalOp(IRDLOperation):
 class GlobalOp(IRDLOperation):
     name = "memref.global"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     sym_visibility = prop_def(StringAttr)
     type = prop_def(MemRefType)
     initial_value = prop_def(UnitAttr | DenseIntOrFPElementsAttr)

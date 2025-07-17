@@ -7,6 +7,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ModuleOp,
     StringAttr,
+    SymbolNameConstraint,
     i32,
     i64,
 )
@@ -188,7 +189,7 @@ def test_call_not_function():
     class SymbolOp(IRDLOperation):
         name = "test.symbol"
 
-        sym_name = attr_def(StringAttr)
+        sym_name = attr_def(SymbolNameConstraint())
 
         traits = traits_def(SymbolOpInterface())
 
