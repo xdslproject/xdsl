@@ -185,8 +185,6 @@ class AttrConstraint(Generic[AttributeCovT], ABC):
         )
 
 
-# This is deprecated and will be removed in a future release
-GenericAttrConstraint: TypeAlias = AttrConstraint
 ConstraintVariableTypeT = TypeVar(
     "ConstraintVariableTypeT", bound=ConstraintVariableType
 )
@@ -940,9 +938,6 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         raise NotImplementedError(
             "Custom constraints must map type vars in nested constraints, if any."
         )
-
-
-RangeConstraint: TypeAlias = GenericRangeConstraint[Attribute]
 
 
 @dataclass(frozen=True)
