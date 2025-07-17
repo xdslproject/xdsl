@@ -53,6 +53,7 @@ from .constraints import (  # noqa: TID251
     AttrConstraint,
     ConstraintContext,
     ConstraintVar,
+    IntConstraint,
     RangeConstraint,
     RangeOf,
 )
@@ -906,7 +907,7 @@ class OpDef:
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
         """Decorator used on classes to define a new operation definition."""
 
-        type_var_mapping: dict[TypeVar, AttrConstraint] | None = None
+        type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint] | None = None
 
         # If the operation inherit from `Generic`, this means that it specializes a
         # generic operation. Retrieve the mapping from `TypeVar` to pyrdl constraints.

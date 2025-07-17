@@ -58,6 +58,7 @@ from .constraints import (  # noqa: TID251
     ConstraintContext,
     ConstraintVar,
     EqAttrConstraint,
+    IntConstraint,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -425,7 +426,7 @@ def irdl_to_attr_constraint(
     irdl: IRDLAttrConstraint[AttributeInvT],
     *,
     allow_type_var: bool = False,
-    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
+    type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint] | None = None,
 ) -> AttrConstraint[AttributeInvT]:
     if isinstance(irdl, AttrConstraint):
         return cast(AttrConstraint[AttributeInvT], irdl)

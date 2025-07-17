@@ -44,6 +44,7 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintContext,
     GenericData,
+    IntConstraint,
     MessageConstraint,
     ParamAttrConstraint,
     ParamAttrDef,
@@ -436,7 +437,7 @@ class PositiveIntConstr(AttrConstraint):
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> PositiveIntConstr:
         return self
 
@@ -694,7 +695,7 @@ class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
             self.elem_constr.verify(e, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> DataListAttr[AttributeInvT]:
         return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
 

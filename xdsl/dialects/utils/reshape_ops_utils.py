@@ -15,6 +15,7 @@ from xdsl.irdl import (
     AtLeast,
     AttrConstraint,
     ConstraintContext,
+    IntConstraint,
     irdl_to_attr_constraint,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -55,7 +56,7 @@ class ContiguousArrayOfIntArray(AttrConstraint[ArrayOfIntArrayAttr]):
                 raise VerifyException(f"All inner arrays must be contiguous: {attr}")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> "ContiguousArrayOfIntArray":
         # No type variables to map in this constraint
         return self
