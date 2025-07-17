@@ -100,6 +100,7 @@ class PyASTContext:
                 _builder=builder,
             )
             functools.update_wrapper(program, func)
+            assert program.__doc__ == func.__doc__
             return program
 
         if decorated_func is None:
