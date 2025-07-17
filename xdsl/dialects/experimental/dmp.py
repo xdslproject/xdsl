@@ -30,6 +30,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_result_def,
+    param_def,
     traits_def,
 )
 from xdsl.parser import AttrParser
@@ -84,10 +85,18 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "dmp.exchange"
 
-    offset_: builtin.DenseArrayBase[builtin.I64]
-    size_: builtin.DenseArrayBase[builtin.I64]
-    source_offset_: builtin.DenseArrayBase[builtin.I64]
-    neighbor_: builtin.DenseArrayBase[builtin.I64]
+    offset_: builtin.DenseArrayBase[builtin.IntegerType] = param_def(
+        builtin.DenseArrayBase.constr(builtin.i64)
+    )
+    size_: builtin.DenseArrayBase[builtin.IntegerType] = param_def(
+        builtin.DenseArrayBase.constr(builtin.i64)
+    )
+    source_offset_: builtin.DenseArrayBase[builtin.IntegerType] = param_def(
+        builtin.DenseArrayBase.constr(builtin.i64)
+    )
+    neighbor_: builtin.DenseArrayBase[builtin.IntegerType] = param_def(
+        builtin.DenseArrayBase.constr(builtin.i64)
+    )
 
     def __init__(
         self,
@@ -258,10 +267,18 @@ class ShapeAttr(ParametrizedAttribute):
 
     name = "dmp.shape_with_halo"
 
-    buff_lb_: builtin.DenseArrayBase[builtin.I64]
-    buff_ub_: builtin.DenseArrayBase[builtin.I64]
-    core_lb_: builtin.DenseArrayBase[builtin.I64]
-    core_ub_: builtin.DenseArrayBase[builtin.I64]
+    buff_lb_: builtin.DenseArrayBase[builtin.IntegerType] = param_def(
+        builtin.DenseArrayBase.constr(builtin.i64)
+    )
+    buff_ub_: builtin.DenseArrayBase[builtin.IntegerType] = param_def(
+        builtin.DenseArrayBase.constr(builtin.i64)
+    )
+    core_lb_: builtin.DenseArrayBase[builtin.IntegerType] = param_def(
+        builtin.DenseArrayBase.constr(builtin.i64)
+    )
+    core_ub_: builtin.DenseArrayBase[builtin.IntegerType] = param_def(
+        builtin.DenseArrayBase.constr(builtin.i64)
+    )
 
     @property
     def buff_lb(self) -> tuple[int, ...]:
@@ -396,7 +413,9 @@ class RankTopoAttr(ParametrizedAttribute):
 
     name = "dmp.topo"
 
-    shape: builtin.DenseArrayBase[builtin.I64]
+    shape: builtin.DenseArrayBase[builtin.IntegerType] = param_def(
+        builtin.DenseArrayBase.constr(builtin.i64)
+    )
 
     def __init__(self, shape: Sequence[int]):
         if len(shape) < 1:

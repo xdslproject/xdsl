@@ -8,8 +8,6 @@ from typing import ClassVar, cast
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
-    I16,
-    I32,
     ArrayAttr,
     ContainerOf,
     DictionaryAttr,
@@ -23,6 +21,8 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i16,
+    i32,
 )
 from xdsl.dialects.pdl import (
     AnyPDLTypeConstr,
@@ -86,13 +86,15 @@ class GetOperandOp(IRDLOperation):
     """
 
     name = "pdl_interp.get_operand"
-    index = prop_def(IntegerAttr[I32])
+    index = prop_def(IntegerAttr.constr(i32))
     input_op = operand_def(OperationType)
     value = result_def(ValueType)
 
     assembly_format = "$index `of` $input_op attr-dict"
 
-    def __init__(self, index: int | IntegerAttr[I32], input_op: SSAValue) -> None:
+    def __init__(
+        self, index: int | IntegerAttr[IntegerType], input_op: SSAValue
+    ) -> None:
         if isinstance(index, int):
             index = IntegerAttr.from_int_and_width(index, 32)
         super().__init__(
@@ -157,7 +159,7 @@ class CheckOperandCountOp(IRDLOperation):
     name = "pdl_interp.check_operand_count"
     traits = traits_def(IsTerminator())
     input_op = operand_def(OperationType)
-    count = prop_def(IntegerAttr[I32])
+    count = prop_def(IntegerAttr.constr(i32))
     compareAtLeast = opt_prop_def(UnitAttr)
     true_dest = successor_def()
     false_dest = successor_def()
@@ -167,7 +169,7 @@ class CheckOperandCountOp(IRDLOperation):
     def __init__(
         self,
         input_op: SSAValue,
-        count: int | IntegerAttr[I32],
+        count: int | IntegerAttr[IntegerType],
         trueDest: Block,
         falseDest: Block,
         compareAtLeast: bool = False,
@@ -193,7 +195,7 @@ class CheckResultCountOp(IRDLOperation):
     name = "pdl_interp.check_result_count"
     traits = traits_def(IsTerminator())
     input_op = operand_def(OperationType)
-    count = prop_def(IntegerAttr[I32])
+    count = prop_def(IntegerAttr.constr(i32))
     compareAtLeast = opt_prop_def(UnitAttr)
     true_dest = successor_def()
     false_dest = successor_def()
@@ -203,7 +205,7 @@ class CheckResultCountOp(IRDLOperation):
     def __init__(
         self,
         input_op: SSAValue,
-        count: int | IntegerAttr[I32],
+        count: int | IntegerAttr[IntegerType],
         trueDest: Block,
         falseDest: Block,
         compareAtLeast: bool = False,
@@ -247,13 +249,15 @@ class GetResultOp(IRDLOperation):
     """
 
     name = "pdl_interp.get_result"
-    index = prop_def(IntegerAttr[I32])
+    index = prop_def(IntegerAttr.constr(i32))
     input_op = operand_def(OperationType)
     value = result_def(ValueType)
 
     assembly_format = "$index `of` $input_op attr-dict"
 
-    def __init__(self, index: int | IntegerAttr[I32], input_op: SSAValue) -> None:
+    def __init__(
+        self, index: int | IntegerAttr[IntegerType], input_op: SSAValue
+    ) -> None:
         if isinstance(index, int):
             index = IntegerAttr.from_int_and_width(index, 32)
         super().__init__(
@@ -268,7 +272,7 @@ class GetResultsOp(IRDLOperation):
     """
 
     name = "pdl_interp.get_results"
-    index = opt_prop_def(IntegerAttr[I32])
+    index = opt_prop_def(IntegerAttr.constr(i32))
     input_op = operand_def(OperationType)
     value = result_def(ValueType | RangeType[ValueType])
 
@@ -277,7 +281,7 @@ class GetResultsOp(IRDLOperation):
 
     def __init__(
         self,
-        index: int | IntegerAttr[I32] | None,
+        index: int | IntegerAttr[IntegerType] | None,
         input_op: SSAValue,
         result_type: ValueType | RangeType[ValueType],
     ) -> None:
@@ -428,7 +432,7 @@ class RecordMatchOp(IRDLOperation):
     rewriter = prop_def(SymbolRefAttr)
     rootKind = opt_prop_def(StringAttr)
     generatedOps = opt_prop_def(ArrayAttr)
-    benefit = prop_def(IntegerAttr[I16])
+    benefit = prop_def(IntegerAttr.constr(i16))
 
     inputs = var_operand_def(AnyPDLTypeConstr)
     matched_ops = var_operand_def(OperationType)
@@ -448,7 +452,7 @@ class RecordMatchOp(IRDLOperation):
         rewriter: str | SymbolRefAttr,
         root_kind: str | StringAttr,
         generated_ops: list[OperationType] | None,
-        benefit: int | IntegerAttr[I16],
+        benefit: int | IntegerAttr[IntegerType],
         inputs: Sequence[SSAValue],
         matched_ops: Sequence[SSAValue],
         dest: Block,

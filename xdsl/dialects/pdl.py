@@ -6,12 +6,12 @@ from typing import Generic
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
-    I16,
-    I32,
     ArrayAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
+    i16,
+    i32,
 )
 from xdsl.ir import (
     Attribute,
@@ -513,7 +513,7 @@ class PatternOp(IRDLOperation):
     """
 
     name = "pdl.pattern"
-    benefit = prop_def(IntegerAttr[I16])
+    benefit = prop_def(IntegerAttr.constr(i16))
     sym_name = opt_prop_def(StringAttr)
     body = region_def("single_block")
 
@@ -724,7 +724,7 @@ class ResultOp(IRDLOperation):
     """
 
     name = "pdl.result"
-    index = prop_def(IntegerAttr[I32])
+    index = prop_def(IntegerAttr.constr(i32))
     parent_ = operand_def(OperationType)
     val = result_def(ValueType)
 

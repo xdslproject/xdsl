@@ -11,7 +11,6 @@ from typing_extensions import TypeVar
 from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
-    I32,
     BoolAttr,
     Float64Type,
     FloatAttr,
@@ -693,7 +692,7 @@ def test_typed_attribute_variable(program: str, generic_program: str):
     @irdl_op_definition
     class TypedAttributeOp(IRDLOperation):
         name = "test.typed_attr"
-        attr = attr_def(IntegerAttr[I32])
+        attr = attr_def(IntegerAttr.constr(i32))
         float_attr = attr_def(FloatAttr[Annotated[Float64Type, Float64Type()]])
 
         assembly_format = "$attr $float_attr attr-dict"
@@ -2848,7 +2847,7 @@ def test_optional_else_group(
         name = "test.optional_else_group"
 
         v = opt_operand_def(i32)
-        a = opt_prop_def(IntegerAttr[I32])
+        a = opt_prop_def(IntegerAttr.constr(i32))
 
         assembly_format = """($v^):($a)? attr-dict"""
 
@@ -2871,7 +2870,7 @@ def test_impossible_optional_else_group():
         class OptionalImpossibleElseGroup(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.impossible_optional_else_group"
 
-            val = opt_prop_def(IntegerAttr[I32])
+            val = opt_prop_def(IntegerAttr.constr(i32))
 
             assembly_format = """($val^):($val)? attr-dict"""
 
@@ -2902,7 +2901,7 @@ def test_optional_optional_group_optional_operand_anchor(
         name = "test.optional_optional_group"
 
         prop = opt_prop_def(StringAttr)
-        arg = opt_operand_def(I32)
+        arg = opt_operand_def(i32)
 
         assembly_format = "(`with` $prop^ ($arg^)?)? attr-dict"
 

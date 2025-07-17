@@ -5,7 +5,6 @@ from collections.abc import Sequence
 from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
-    I1,
     AffineMapAttr,
     AnyFloatConstr,
     ArrayAttr,
@@ -733,7 +732,7 @@ class VectorTransferOperation(IRDLOperation, ABC):
     @staticmethod
     def infer_transfer_op_mask_type(
         vec_type: VectorType, perm_map: AffineMap
-    ) -> VectorType[I1]:
+    ) -> VectorType[IntegerType]:
         """
         Given a resulting vector type and a permutation map from the dimensions of the
         shaped type to the vector type dimensions, return the vector type of the mask.
@@ -856,7 +855,7 @@ class TransferReadOp(VectorTransferOperation):
     source = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
     padding = operand_def()
-    mask = opt_operand_def(VectorType[I1])
+    mask = opt_operand_def(VectorType.constr(i1))
 
     permutation_map = prop_def(AffineMapAttr)
 
@@ -960,7 +959,7 @@ class TransferWriteOp(VectorTransferOperation):
     vector = operand_def(VectorType[Attribute])
     source = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
-    mask = opt_operand_def(VectorType[I1])
+    mask = opt_operand_def(VectorType.constr(i1))
 
     permutation_map = prop_def(AffineMapAttr)
 

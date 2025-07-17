@@ -7,12 +7,13 @@ from types import NoneType
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
-    I32,
     ArrayAttr,
     IntegerAttr,
+    IntegerType,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i32,
 )
 from xdsl.ir import (
     Attribute,
@@ -677,7 +678,7 @@ class RegionOp(IRDLOperation):
 
     constrained_arguments = opt_attr_def(UnitAttr)
 
-    number_of_blocks = opt_attr_def(IntegerAttr[I32])
+    number_of_blocks = opt_attr_def(IntegerAttr.constr(i32))
 
     output = result_def(RegionType())
 
@@ -688,7 +689,7 @@ class RegionOp(IRDLOperation):
 
     def __init__(
         self,
-        number_of_blocks: IntegerAttr[I32],
+        number_of_blocks: IntegerAttr[IntegerType],
         entry_block_args: Sequence[SSAValue],
         constrained_arguments: UnitAttr | NoneType = None,
     ):

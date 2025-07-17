@@ -7,7 +7,6 @@ from types import EllipsisType
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
-    I64,
     AnyFloatConstr,
     ArrayAttr,
     ContainerType,
@@ -1139,7 +1138,7 @@ class InlineAsmOp(IRDLOperation):
     # 0 for AT&T inline assembly dialect
     # 1 for Intel inline assembly dialect
     # In this context dialect does not refer to an MLIR dialect
-    asm_dialect = opt_prop_def(IntegerAttr[I64])
+    asm_dialect = opt_prop_def(IntegerAttr.constr(i64))
 
     asm_string = prop_def(StringAttr)
     constraints = prop_def(StringAttr)

@@ -10,8 +10,6 @@ from collections.abc import Sequence
 from typing import ClassVar, TypeAlias, cast
 
 from xdsl.dialects.builtin import (
-    I32,
-    I64,
     AnyFloat,
     AnyTensorType,
     AnyTensorTypeConstr,
@@ -22,6 +20,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     TensorType,
+    i32,
     i64,
 )
 from xdsl.ir import (
@@ -45,6 +44,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    param_def,
     result_def,
     traits_def,
     var_operand_def,
@@ -60,11 +60,6 @@ IntegerTensorType: TypeAlias = TensorType[IntegerType]
 FloatOrComplexType: TypeAlias = AnyFloat | ComplexType
 FloatOrComplexTensorType: TypeAlias = TensorType[FloatOrComplexType]
 FloatTensorType: TypeAlias = TensorType[AnyFloat]
-
-# TODO: Change to SI32 once StableHLO adopts signful integer semantics
-# See: https://github.com/openxla/stablehlo/issues/22
-# https://github.com/openxla/stablehlo/issues/2489
-SI32TensorType: TypeAlias = TensorType[I32]
 
 
 # region Abstract Base Classes
@@ -287,14 +282,22 @@ class DotAttr(ParametrizedAttribute):
 
     name = "stablehlo.dot"
 
-    lhs_batching_dimensions: ArrayAttr[IntegerAttr[I64]]
-    rhs_batching_dimensions: ArrayAttr[IntegerAttr[I64]]
-    lhs_contracting_dimensions: ArrayAttr[IntegerAttr[I64]]
-    rhs_contracting_dimensions: ArrayAttr[IntegerAttr[I64]]
+    lhs_batching_dimensions: ArrayAttr[IntegerAttr[IntegerType]] = param_def(
+        ArrayAttr.constr(IntegerAttr.constr(i64))
+    )
+    rhs_batching_dimensions: ArrayAttr[IntegerAttr[IntegerType]] = param_def(
+        ArrayAttr.constr(IntegerAttr.constr(i64))
+    )
+    lhs_contracting_dimensions: ArrayAttr[IntegerAttr[IntegerType]] = param_def(
+        ArrayAttr.constr(IntegerAttr.constr(i64))
+    )
+    rhs_contracting_dimensions: ArrayAttr[IntegerAttr[IntegerType]] = param_def(
+        ArrayAttr.constr(IntegerAttr.constr(i64))
+    )
 
     @staticmethod
     def _print_parameter(
-        name: str, value: ArrayAttr[IntegerAttr[I64]], printer: Printer
+        name: str, value: ArrayAttr[IntegerAttr[IntegerType]], printer: Printer
     ):
         printer.print_string(f"\n{name} = [")
         printer.print_list(
@@ -306,7 +309,7 @@ class DotAttr(ParametrizedAttribute):
     @staticmethod
     def _parse_parameter(
         name: str, parser: AttrParser, optional: bool = False
-    ) -> ArrayAttr[IntegerAttr[I64]]:
+    ) -> ArrayAttr[IntegerAttr[IntegerType]]:
         if optional:
             if parser.parse_optional_characters(name) is None:
                 return ArrayAttr(())
@@ -519,7 +522,11 @@ class CaseOp(IRDLOperation):
     """
 
     name = "stablehlo.case"
-    index = operand_def(SI32TensorType)
+
+    # TODO: Change to SI32 once StableHLO adopts signful integer semantics
+    # See: https://github.com/openxla/stablehlo/issues/22
+    # https://github.com/openxla/stablehlo/issues/2489
+    index = operand_def(TensorType.constr(i32))
     branches = var_region_def("single_block")
     _results = var_result_def(AnyTensorTypeConstr | BaseAttr(TokenType))
 

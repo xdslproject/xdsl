@@ -6,7 +6,6 @@ from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
-    I8,
     FunctionType,
     IntegerAttr,
     IntegerType,
@@ -156,7 +155,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
     body = region_def()
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
-    p2align = opt_attr_def(IntegerAttr[I8])
+    p2align = opt_attr_def(IntegerAttr.constr(i8))
 
     traits = traits_def(
         SymbolOpInterface(),
@@ -170,7 +169,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
         region: Region,
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
         visibility: StringAttr | str | None = None,
-        p2align: int | IntegerAttr[I8] | None = None,
+        p2align: int | IntegerAttr[IntegerType] | None = None,
     ):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type

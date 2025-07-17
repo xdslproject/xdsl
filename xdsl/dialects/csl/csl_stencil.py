@@ -4,7 +4,6 @@ from typing import TypeAlias, cast
 
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
-    I64,
     AnyTensorTypeConstr,
     DenseArrayBase,
     Float16Type,
@@ -12,6 +11,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntegerAttr,
+    IntegerType,
     MemRefType,
     TensorType,
     i64,
@@ -34,6 +34,7 @@ from xdsl.irdl import (
     lazy_traits_def,
     operand_def,
     opt_prop_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -75,7 +76,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "csl_stencil.exchange"
 
-    neighbor_param: DenseArrayBase[I64]
+    neighbor_param: DenseArrayBase[IntegerType] = param_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
