@@ -278,6 +278,25 @@ builtin.module {
     }) : () -> ()
     func.return
   }
+  func.func @omp_distribute(%lb : index, %ub : index, %step : index, %a1 : i32, %a2 : i32, %p1 : i32) {
+    "omp.distribute"(%a1, %a2, %p1) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>}> ({
+    ^0(%p1_arg : i32):
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^1(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : (i32, i32, i32) -> ()
+    func.return
+  }
+  func.func @omp_distribute_chunk(%lb : index, %ub : index, %step : index, %chunk : i64) {
+    "omp.distribute"(%chunk) <{operandSegmentSizes = array<i32: 0, 0, 1, 0>, dist_schedule_static}> ({
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^1(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : (i64) -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -548,6 +567,25 @@ builtin.module {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32):
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_distribute(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32) {
+// CHECK-NEXT:      "omp.distribute"(%{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>}> ({
+// CHECK-NEXT:      ^{{.*}}(%{{.*}} : i32):
+// CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:        ^{{.*}}(%{{.*}} : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (i32, i32, i32) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_distribute_chunk(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : i64) {
+// CHECK-NEXT:      "omp.distribute"(%{{.*}}) <{dist_schedule_static, operandSegmentSizes = array<i32: 0, 0, 1, 0>}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:        ^{{.*}}(%{{.*}} : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (i64) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
