@@ -330,7 +330,7 @@ class TblgenLoader:
             case "StrAttr":
                 return "BaseAttr(StringAttr)"
             case "SymbolNameAttr":
-                return "BaseAttr(StringAttr)"
+                return "SymbolNameConstraint()"
             case "UnitAttr":
                 return "EqAttrConstraint(UnitAttr())"
             case _:
