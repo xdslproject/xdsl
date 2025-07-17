@@ -1350,7 +1350,7 @@ def get_variadic_sizes_from_attr(
             f"Expected {size_attribute_name} {container_name} in {op.name} operation."
         )
     attribute = container[size_attribute_name]
-    if not DenseArrayBase.constr(i32).verifies(attribute):
+    if not isinstance(attribute, DenseArrayBase) or attribute.elt_type != i32:  # pyright: ignore[reportUnknownMemberType]
         raise VerifyException(
             f"{size_attribute_name} {container_name} is expected "
             "to be a DenseArrayBase of i32."
