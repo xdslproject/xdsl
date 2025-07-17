@@ -285,10 +285,39 @@ func.func @wsloopop_ordered(%ub : index, %lb : index, %step : index, %l1 : memre
 
 func.func @yield_parent() {
   "test.op"() ({
-    omp.yield 
+    omp.yield
   }) : () -> ()
 
   func.return
 }
 
-// CHECK: 'omp.yield' expects parent op 'omp.loop_nest'
+// CHECK: 'omp.yield' expects parent op to be one of 'omp.loop_nest', 'omp.private', 'omp.declare_reduction'
+
+// -----
+
+func.func @private_not_enough_blocks() {
+  "omp.private"() <{data_sharing_type = #omp.data_sharing_type {type = private}, sym_name = "p1", type = i32}> ({ }, { }, { }) : () -> ()
+
+  func.return
+}
+
+// CHECK: alloc_region of omp.private has to have at least 1 block
+
+// -----
+
+func.func @reduction_too_many_blocks() {
+  "omp.declare_reduction"() <{sym_name = "r1", type = i32}> ({
+  ^0(%r1_arg : i32):
+    cf.br  ^1
+  ^1():
+    omp.yield(%r1_arg : i32)
+  }, {
+  }, {
+  }, {
+  }, {
+  }) : () -> ()
+
+  func.return
+}
+
+// CHECK: omp.declare_reduction should have at most 1 block in alloc_region
