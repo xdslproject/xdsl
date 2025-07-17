@@ -13,7 +13,7 @@ from typing import Literal
 
 from typing_extensions import TypeVar
 
-from xdsl.dialects.builtin import UnitAttr
+from xdsl.dialects.builtin import StringAttr, UnitAttr
 from xdsl.ir import (
     Attribute,
     Data,
@@ -930,6 +930,15 @@ class RegionVariable(RegionDirective, VariableDirective):
         state.last_was_punctuation = False
         state.should_emit_space = True
 
+    def is_anchorable(self) -> bool:
+        return True
+
+    def set_empty(self, state: ParsingState):
+        state.regions[self.index] = Region()
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(op.regions[self.index].blocks)
+
 
 @dataclass(frozen=True)
 class VariadicRegionVariable(RegionDirective, VariadicVariable):
@@ -1084,7 +1093,7 @@ class OptionalSuccessorVariable(OptionalVariable, SuccessorDirective):
 class AttributeVariable(FormatDirective):
     """
     An attribute variable, with the following format:
-      result-directive ::= dollar-ident
+      attribute-variable ::= dollar-ident
     The directive will request a space to be printed right after.
     """
 
@@ -1096,10 +1105,15 @@ class AttributeVariable(FormatDirective):
     """The known base class of the Attribute, if any."""
     unique_type: Attribute | None
     """The known type of the Attribute, if any."""
+    is_symbol_name: bool
+    """Should this attribute be parsed and printed as a symbol name."""
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         unique_base = self.unique_base
-        if unique_base is None:
+
+        if self.is_symbol_name:
+            attr = parser.parse_symbol_name()
+        elif unique_base is None:
             attr = parser.parse_attribute()
         elif self.unique_type is not None:
             assert issubclass(unique_base, TypedAttribute)
@@ -1122,16 +1136,22 @@ class AttributeVariable(FormatDirective):
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if self.is_property:
+            attr = op.properties.get(self.name)
+        else:
+            attr = op.attributes.get(self.name)
+
+        if attr is None:
+            return
+
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print_string(" ")
         state.should_emit_space = True
         state.last_was_punctuation = False
 
-        if self.is_property:
-            attr = op.properties[self.name]
-        else:
-            attr = op.attributes[self.name]
-
+        if self.is_symbol_name:
+            assert isinstance(attr, StringAttr)
+            return printer.print_symbol_name(attr.data)
         if self.unique_type is not None:
             assert isinstance(attr, TypedAttribute)
             return attr.print_without_type(printer)
@@ -1173,18 +1193,22 @@ class OptionalAttributeVariable(AttributeVariable):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        # Only qualified optional attributes can be optionally parsed currently.
+        # Only qualified optional attributes and symbol names can be optionally
+        # parsed currently.
         # Other attributes are parsed as required attributes.
-        if self.unique_base is None:
+        if self.is_symbol_name:
+            attr = parser.parse_optional_symbol_name()
+        elif self.unique_base is None:
             attr = parser.parse_optional_attribute()
-            if attr is None:
-                return False
-            if self.is_property:
-                state.properties[self.name] = attr
-            else:
-                state.attributes[self.name] = attr
-            return True
-        return super().parse(parser, state)
+        else:
+            return super().parse(parser, state)
+        if attr is None:
+            return False
+        if self.is_property:
+            state.properties[self.name] = attr
+        else:
+            state.attributes[self.name] = attr
+        return True
 
     def is_present(self, op: IRDLOperation) -> bool:
         if self.is_property:
@@ -1197,7 +1221,7 @@ class OptionalAttributeVariable(AttributeVariable):
         return True
 
     def is_optional_like(self) -> bool:
-        return self.unique_base is None
+        return self.unique_base is None or self.is_symbol_name
 
 
 class OptionalUnitAttrVariable(OptionalAttributeVariable):
