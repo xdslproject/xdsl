@@ -15,18 +15,28 @@ from xdsl.transforms.desymref import Desymrefier
 
 @dataclass
 class PyASTBuilder:
-    """Build an operation ."""
+    """Builder for xDSL modules from aspects of a Python function."""
 
     type_registry: TypeRegistry
+    """Mappings between source code and IR type."""
+
     function_registry: FunctionRegistry
+    """Mappings between functions and their operation types."""
 
     file: str
+    """The file path of the function being built."""
+
     globals: dict[str, Any]
+    """Global information for the function being built, including all the imports."""
+
     ast: ast.FunctionDef
+    """The AST tree for the function being built."""
 
     desymref: bool
+    """Whether to apply the desymref flag to the built module."""
 
     def build(self) -> ModuleOp:
+        """Build a module from the builder state."""
         # Get the functions and blocks from the builder state
         functions_and_blocks = PythonCodeCheck.run([self.ast], self.file)
 
