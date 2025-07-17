@@ -36,12 +36,12 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyInt,
+    AttrConstraint,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     BaseAttr,
     EqAttrConstraint,
-    GenericAttrConstraint,
     IntVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
@@ -2524,9 +2524,9 @@ def test_nested_inference():
         @staticmethod
         def constr(
             *,
-            n: GenericAttrConstraint[Attribute] | None = None,
-            p: GenericAttrConstraint[_T] | None = None,
-            q: GenericAttrConstraint[Attribute] | None = None,
+            n: AttrConstraint | None = None,
+            p: AttrConstraint[_T] | None = None,
+            q: AttrConstraint | None = None,
         ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
             if n is None and p is None and q is None:
                 return BaseAttr[ParamOne[_T]](ParamOne)
@@ -2566,7 +2566,7 @@ def test_nested_inference_variable():
 
         @staticmethod
         def constr(
-            *, p: GenericAttrConstraint[_T] | None = None
+            *, p: AttrConstraint[_T] | None = None
         ) -> ParamAttrConstraint[ParamOne[_T]]:
             return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
 
@@ -2607,7 +2607,7 @@ def test_non_verifying_inference():
         @staticmethod
         def constr(
             *,
-            p: GenericAttrConstraint[_T] | None = None,
+            p: AttrConstraint[_T] | None = None,
         ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
             if p is None:
                 return BaseAttr[ParamOne[_T]](ParamOne)

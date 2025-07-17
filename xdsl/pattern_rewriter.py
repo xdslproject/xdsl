@@ -23,7 +23,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.irdl import GenericAttrConstraint, base
+from xdsl.irdl import AttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.utils.hints import isa
 
@@ -489,7 +489,7 @@ _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
 def attr_constr_rewrite_pattern(
-    constr: GenericAttrConstraint[_AttributeT],
+    constr: AttrConstraint[_AttributeT],
 ) -> Callable[
     [Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None]],
     Callable[[_TypeConversionPatternT, Attribute], Attribute | None],

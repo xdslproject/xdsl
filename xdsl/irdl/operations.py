@@ -42,7 +42,6 @@ from xdsl.utils.hints import PropertyType, get_type_var_mapping
 
 from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
-    IRDLGenericAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
     is_classvar,
@@ -54,7 +53,6 @@ from .constraints import (  # noqa: TID251
     AttrConstraint,
     ConstraintContext,
     ConstraintVar,
-    GenericRangeConstraint,
     RangeConstraint,
     RangeOf,
 )
@@ -328,7 +326,7 @@ class OptionalDef(VariadicDef):
 class OperandDef(OperandOrResultDef):
     """An IRDL operand definition."""
 
-    constr: GenericRangeConstraint[Attribute]
+    constr: RangeConstraint
     """The operand constraint."""
 
     def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
@@ -367,13 +365,13 @@ OptOperand: TypeAlias = SSAValue | None
 class ResultDef(OperandOrResultDef):
     """An IRDL result definition."""
 
-    constr: GenericRangeConstraint[Attribute]
+    constr: RangeConstraint
     """The result constraint."""
 
     def __init__(
         self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
     ):
-        assert not isinstance(attr, GenericRangeConstraint)
+        assert not isinstance(attr, RangeConstraint)
         self.constr = single_range_constr_coercion(attr)
 
 
@@ -407,9 +405,7 @@ class RegionDef:
     An IRDL region definition.
     """
 
-    entry_args: GenericRangeConstraint[Attribute] = field(
-        default_factory=lambda: RangeOf(AnyAttr())
-    )
+    entry_args: RangeConstraint = field(default_factory=lambda: RangeOf(AnyAttr()))
 
 
 @dataclass
@@ -556,12 +552,12 @@ class _PropertyFieldDef(_AttrOrPropFieldDef[PropertyDef]):
 
 
 class _RegionFieldDef(_OpDefField[RegionDef]):
-    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint
+    entry_args: RangeConstraint | IRDLAttrConstraint
 
     def __init__(
         self,
         cls: type[RegionDef],
-        entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint,
+        entry_args: RangeConstraint | IRDLAttrConstraint,
     ):
         super().__init__(cls)
         self.entry_args = entry_args
@@ -574,7 +570,7 @@ class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
 
 
 def result_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT] = Attribute,
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -588,7 +584,7 @@ def result_def(
 
 def var_result_def(
     constraint: (
-        GenericRangeConstraint[AttributeInvT] | IRDLGenericAttrConstraint[AttributeInvT]
+        RangeConstraint[AttributeInvT] | IRDLAttrConstraint[AttributeInvT]
     ) = Attribute,
     *,
     default: None = None,
@@ -603,7 +599,7 @@ def var_result_def(
 
 def opt_result_def(
     constraint: (
-        GenericRangeConstraint[AttributeInvT] | IRDLGenericAttrConstraint[AttributeInvT]
+        RangeConstraint[AttributeInvT] | IRDLAttrConstraint[AttributeInvT]
     ) = Attribute,
     *,
     default: None = None,
@@ -617,7 +613,7 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
@@ -634,7 +630,7 @@ def prop_def(
 
 @overload
 def opt_prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: None = None,
     *,
     prop_name: str | None = None,
@@ -646,7 +642,7 @@ def opt_prop_def(
 
 @overload
 def opt_prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute,
     *,
     prop_name: str | None = None,
@@ -657,7 +653,7 @@ def opt_prop_def(
 
 
 def opt_prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
@@ -673,7 +669,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
@@ -692,7 +688,7 @@ def attr_def(
 
 @overload
 def opt_attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: None = None,
     *,
     attr_name: str | None = None,
@@ -704,7 +700,7 @@ def opt_attr_def(
 
 @overload
 def opt_attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute,
     *,
     attr_name: str | None = None,
@@ -715,7 +711,7 @@ def opt_attr_def(
 
 
 def opt_attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
@@ -774,9 +770,7 @@ def opt_operand_def(
 def region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(
-        AnyAttr()
-    ),
+    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -791,9 +785,7 @@ def region_def(
 def var_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(
-        AnyAttr()
-    ),
+    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -808,9 +800,7 @@ def var_region_def(
 def opt_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(
-        AnyAttr()
-    ),
+    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -1080,7 +1070,7 @@ class OpDef:
                 def get_range_constraint(
                     pyrdl_constr: RangeConstraint | IRDLAttrConstraint,
                 ) -> RangeConstraint:
-                    if isinstance(pyrdl_constr, GenericRangeConstraint):
+                    if isinstance(pyrdl_constr, RangeConstraint):
                         # Pyright does not know the type of the generic range constraint
                         return cast(RangeConstraint, pyrdl_constr)
                     return RangeOf(get_constraint(pyrdl_constr))
@@ -1090,7 +1080,7 @@ class OpDef:
                 match value:
                     case _ResultFieldDef():
                         if not issubclass(value.cls, VariadicDef):
-                            if isinstance(value.param, GenericRangeConstraint):
+                            if isinstance(value.param, RangeConstraint):
                                 raise TypeError(
                                     "Cannot use a RangeConstraint in result_def, use an "
                                     "AttrConstraint or var_result_def or "
@@ -1105,7 +1095,7 @@ class OpDef:
                         continue
                     case _OperandFieldDef():
                         if not issubclass(value.cls, VariadicDef):
-                            if isinstance(value.param, GenericRangeConstraint):
+                            if isinstance(value.param, RangeConstraint):
                                 raise TypeError(
                                     "Cannot use a RangeConstraint in operand_def, use an "
                                     "AttrConstraint or var_operand_def or "

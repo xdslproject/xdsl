@@ -19,10 +19,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     AtLeast,
-    GenericAttrConstraint,
-    GenericRangeConstraint,
+    AttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
+    RangeConstraint,
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
@@ -134,9 +134,9 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def constr(
-        domain: GenericRangeConstraint[NonFuncSMTType],
-        range: GenericAttrConstraint[NonFuncSMTType],
-    ) -> GenericAttrConstraint[FuncType]:
+        domain: RangeConstraint[NonFuncSMTType],
+        range: AttrConstraint[NonFuncSMTType],
+    ) -> AttrConstraint[FuncType]:
         return ParamAttrConstraint(FuncType, (ArrayAttr.constr(domain), range))
 
 
@@ -169,8 +169,8 @@ class BitVectorAttr(TypedAttribute):
 
     @staticmethod
     def constr(
-        type: GenericAttrConstraint[BitVectorType],
-    ) -> GenericAttrConstraint[BitVectorAttr]:
+        type: AttrConstraint[BitVectorType],
+    ) -> AttrConstraint[BitVectorAttr]:
         return ParamAttrConstraint(
             BitVectorAttr,
             (
