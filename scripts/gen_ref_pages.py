@@ -54,7 +54,7 @@ def create_marimo_app_url(code: str, mode: str = "read") -> str:
     return f"https://marimo.app/#code/{encoded_code}&embed=true"
 
 
-for path in sorted((docs_root / "marimo").rglob("*.py")):
+for path in sorted((docs_root / "marimo").glob("*.py")):
     doc_path = path.relative_to(docs_root).with_suffix(".html")
 
     url = create_marimo_app_url(path.read_text())
@@ -64,3 +64,9 @@ for path in sorted((docs_root / "marimo").rglob("*.py")):
         fd.write(f"""\
 <iframe style="border: 0px" height="3500em" scrolling="no" width="100%" src="{url}"></iframe>
 """)
+
+with open("docs/marimo/README.md") as rf:
+    marimo_readme = rf.read()
+
+with mkdocs_gen_files.open("marimo/index.md", "w") as fd:
+    fd.write(marimo_readme.replace(".py", ".html"))
