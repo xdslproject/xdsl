@@ -271,6 +271,13 @@ builtin.module {
     }) : (memref<1xi32>) -> ()
     func.return
   }
+  func.func @parallel_too_many_args() {
+    "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+    ^0(%x : i32, %y : i32, %z : i32):
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -534,6 +541,13 @@ builtin.module {
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:      }) : (memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @parallel_too_many_args() {
+// CHECK-NEXT:      "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:      ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32):
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
