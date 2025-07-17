@@ -40,7 +40,8 @@ def test_add(x: float, y: float) -> float:
 
 
 # And the extracted module is built only once, then cached
-assert (module := test_add.module) is test_add.module
+module = test_add.module
+assert module is test_add.module
 print(module)
 # CHECK:       builtin.module {
 # CHECK-NEXT:    func.func @test_add(%x : f64, %y : f64) -> f64 {
