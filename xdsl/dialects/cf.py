@@ -36,6 +36,7 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 class AssertHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
@@ -362,7 +363,7 @@ class SwitchOp(IRDLOperation):
             cases = parser.parse_comma_separated_list(
                 Parser.Delimiter.NONE, lambda: cls._parse_case(parser)
             )
-            assert isinstance(flag_type, IntegerType | IndexType)
+            assert isa(flag_type, IntegerType | IndexType)
             data = tuple(x for (x, _, _) in cases)
             case_values = DenseIntElementsAttr.from_list(
                 VectorType(flag_type, (len(data),)), data

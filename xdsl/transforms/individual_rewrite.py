@@ -11,13 +11,14 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.traits import HasCanonicalizationPatternsTrait
+from xdsl.utils.hints import isa
 
 
 class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter) -> None:
         if op.lhs == op.rhs:
-            assert isinstance(type := op.lhs.type, IntegerType | IndexType)
+            assert isa(type := op.lhs.type, IntegerType | IndexType)
             rewriter.replace_matched_op(
                 [
                     li_op := arith.ConstantOp(IntegerAttr(2, type, truncate_bits=True)),

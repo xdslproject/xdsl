@@ -2042,7 +2042,7 @@ class SignednessCastOp(IRDLOperation):
         """
         if result_type is None:
             typ = op.results[0].type if isinstance(op, Operation) else op.type
-            assert isinstance(typ, IntegerType)
+            assert isa(typ, IntegerType)
             result_type = IntegerType(
                 typ.width,
                 (
@@ -2054,7 +2054,7 @@ class SignednessCastOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[result_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.inp.type, IntegerType)
+        assert isa(self.inp.type, IntegerType)
         assert isinstance(self.result.type, IntegerType)
         if self.inp.type.width != self.result.type.width:
             raise VerifyException("Input and output type must be of same bitwidth")

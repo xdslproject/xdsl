@@ -71,6 +71,7 @@ from xdsl.utils.bitwise_casts import (
     convert_u64_to_f64,
 )
 from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position, Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
 
@@ -540,7 +541,7 @@ class AttrParser(BaseParser):
 
     def _parse_complex_attrs(self) -> ComplexType:
         element_type = self.parse_attribute()
-        if not isinstance(element_type, IntegerType | AnyFloat):
+        if not isa(element_type, IntegerType | AnyFloat):
             self.raise_error(
                 "Complex type must be parameterized by an integer or float type!"
             )
@@ -938,7 +939,7 @@ class AttrParser(BaseParser):
         pos = self.pos
         element_type = self.parse_attribute()
 
-        if not isinstance(element_type, IntegerType | AnyFloat):
+        if not isa(element_type, IntegerType | AnyFloat):
             self.raise_error(
                 "dense array element type must be an integer or floating point type",
                 pos,
@@ -1314,7 +1315,7 @@ class AttrParser(BaseParser):
                         )
             return FloatAttr(float(value), type)
 
-        if isinstance(type, IntegerType | IndexType):
+        if isa(type, IntegerType | IndexType):
             if isinstance(value, float):
                 self.raise_error("Floating point value is not valid for integer type.")
             return IntegerAttr(value, type)
