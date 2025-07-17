@@ -31,6 +31,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     Signedness,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
     i8,
@@ -133,7 +134,7 @@ class _FuncBase(IRDLOperation, ABC):
     """
 
     body = region_def()
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
@@ -545,7 +546,7 @@ class CslModuleOp(IRDLOperation):
     name = "csl.module"
     body = region_def("single_block")
     kind = prop_def(ModuleKindAttr)
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
 
     traits = traits_def(
         HasParent(ModuleOp),
@@ -637,7 +638,7 @@ class ZerosOp(IRDLOperation):
 
     size = opt_operand_def(T)
 
-    result = result_def(MemRefType.constr(element_type=T))
+    result = result_def(MemRefType.constr(T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -674,7 +675,7 @@ class ConstantsOp(IRDLOperation):
 
     value = operand_def(T)
 
-    result = result_def(MemRefType.constr(element_type=T))
+    result = result_def(MemRefType.constr(T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 

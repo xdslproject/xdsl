@@ -156,7 +156,7 @@ ops = [
             name="test.properties",
             properties={
                 "int_attr": PropertyDef(
-                    IntegerAttr.constr(type=EqAttrConstraint(IntegerType(16)))
+                    IntegerAttr.constr(EqAttrConstraint(IntegerType(16)))
                 ),
                 "in": PropertyDef(AnyAttr()),
             },

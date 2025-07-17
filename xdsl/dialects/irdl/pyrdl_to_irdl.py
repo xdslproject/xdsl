@@ -13,12 +13,12 @@ from xdsl.dialects.irdl.irdl import (
     VariadicityArrayAttr,
     VariadicityAttr,
 )
-from xdsl.ir import Attribute, Block, Dialect, ParametrizedAttribute, Region, SSAValue
+from xdsl.ir import Block, Dialect, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import (
     AttrConstraint,
-    GenericRangeConstraint,
     IRDLOperation,
     OptionalDef,
+    RangeConstraint,
     VariadicDef,
 )
 
@@ -38,9 +38,7 @@ def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue
     return any_op.output
 
 
-def range_to_irdl(
-    builder: Builder, constraint: GenericRangeConstraint[Attribute]
-) -> SSAValue:
+def range_to_irdl(builder: Builder, constraint: RangeConstraint) -> SSAValue:
     """
     Convert a range constraint to IRDL.
     This will create new operations at the provided builder location.
@@ -116,7 +114,7 @@ def attr_def_to_irdl(
     param_values: list[SSAValue] = []
     names: list[StringAttr] = []
     for param in attr_def.parameters:
-        param_values.append(constraint_to_irdl(builder, param[1]))
+        param_values.append(constraint_to_irdl(builder, param[1].constr))
         names.append(StringAttr(depython_name(param[0])))
     builder.insert(ParametersOp(param_values, ArrayAttr(names)))
 

@@ -6,16 +6,16 @@ from typing import Any
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import CodeGeneration
-from xdsl.frontend.pyast.exception import FrontendProgramException
-from xdsl.frontend.pyast.passes.desymref import Desymrefier
-from xdsl.frontend.pyast.python_code_check import FunctionMap
-from xdsl.frontend.pyast.type_conversion import (
+from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
+from xdsl.frontend.pyast.utils.python_code_check import FunctionMap
+from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
     TypeConverter,
     TypeRegistry,
 )
 from xdsl.ir import Operation, TypeAttribute
 from xdsl.printer import Printer
+from xdsl.transforms.desymref import Desymrefier
 
 
 @dataclass
@@ -55,10 +55,10 @@ class FrontendProgram:
         self.type_registry.insert(source_type, ir_type)
 
     def register_function(
-        self, function: Callable[..., Any], ir_op: type[Operation]
+        self, function: Callable[..., Any], ir_constructor: Callable[..., Operation]
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
-        self.function_registry.insert(function, ir_op)
+        self.function_registry.insert(function, ir_constructor)
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:

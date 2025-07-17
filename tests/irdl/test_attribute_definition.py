@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, Generic, TypeAlias
+from typing import Annotated, ClassVar, Generic, TypeAlias
 
 import pytest
 from typing_extensions import TypeVar, override
@@ -44,12 +44,11 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
-    ConstraintVar,
-    GenericAttrConstraint,
     GenericData,
     MessageConstraint,
     ParamAttrConstraint,
     ParamAttrDef,
+    ParamDef,
     TypeVarConstraint,
     VarConstraint,
     base,
@@ -660,7 +659,7 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
     @staticmethod
     @override
     def constr(
-        constr: GenericAttrConstraint[AttributeCovT],
+        constr: AttrConstraint[AttributeCovT],
     ) -> DataListAttr[AttributeCovT]:
         return DataListAttr(constr)
 
@@ -673,13 +672,13 @@ AnyListData: TypeAlias = ListData[Attribute]
 
 
 @dataclass(frozen=True)
-class DataListAttr(GenericAttrConstraint[ListData[AttributeInvT]]):
+class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
     """
     A constraint that enforces that the elements of a ListData all respect
     a constraint.
     """
 
-    elem_constr: GenericAttrConstraint[AttributeInvT]
+    elem_constr: AttrConstraint[AttributeInvT]
 
     def verify(
         self,
@@ -792,7 +791,8 @@ class ParamAttrDefAttr(ParametrizedAttribute):
 def test_irdl_definition():
     """Test that we can get the IRDL definition of a parametrized attribute."""
     assert ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef(
-        "test.param_attr_def_attr", [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))]
+        "test.param_attr_def_attr",
+        [("arg1", ParamDef(AnyAttr())), ("arg2", ParamDef(BaseAttr(BoolData)))],
     )
 
 
@@ -820,7 +820,10 @@ def test_irdl_definition2():
 
     assert ParamAttrDefAttr2.get_irdl_definition() == ParamAttrDef(
         "test.param_attr_def_attr",
-        [("arg1", AnyAttr() & BaseAttr(IntAttr)), ("arg2", BaseAttr(BoolData))],
+        [
+            ("arg1", ParamDef(AnyAttr() & BaseAttr(IntAttr))),
+            ("arg2", ParamDef(BaseAttr(BoolData))),
+        ],
     )
 
 
@@ -894,9 +897,11 @@ def test_generic_attr():
         [
             (
                 "param",
-                TypeVarConstraint(
-                    type_var=AttributeInvT,
-                    base_constraint=AnyAttr(),
+                ParamDef(
+                    TypeVarConstraint(
+                        type_var=AttributeInvT,
+                        base_constraint=AnyAttr(),
+                    )
                 ),
             )
         ],
@@ -916,10 +921,10 @@ def test_generic_attr():
 class ConstraintVarAttr(ParametrizedAttribute):
     name = "test.constraint_var"
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
 
-    param1: IntegerAttr[T]
-    param2: IntegerAttr[T]
+    param1: IntegerAttr = param_def(IntegerAttr.constr(type=T))
+    param2: IntegerAttr = param_def(IntegerAttr.constr(type=T))
 
 
 def test_constraint_var():
@@ -1056,3 +1061,38 @@ def test_allof_constraint():
     assert allof_constraint.mapping_type_vars({_A: BaseAttr(C)}) == AllOf(
         (BaseAttr(C), BaseAttr(B))
     )
+
+
+################################################################################
+# Constant ClassVar
+################################################################################
+
+
+def test_class_var_pass():
+    """Test that ClassVar constants are allowed in attribute definitions."""
+
+    @irdl_attr_definition
+    class ClassVarAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+        name = "test.class_var"
+        CONSTANT: ClassVar[int]
+        param: IntData
+
+    @irdl_attr_definition
+    class ClassVarAttr2(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+        name = "test.class_var"
+        CONSTANT: ClassVar[int] = 2
+        param: IntData
+
+
+def test_class_var_fail():
+    """Test that lowercase ClassVar fields are not allowed."""
+    with pytest.raises(
+        PyRDLAttrDefinitionError,
+        match='Invalid ClassVar name "constant", must be uppercase.',
+    ):
+
+        @irdl_attr_definition
+        class InvalidClassVarAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+            name = "test.invalid_class_var"
+            constant: ClassVar[int]  # Should be uppercase
+            param: IntData

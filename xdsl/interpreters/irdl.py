@@ -21,6 +21,7 @@ from xdsl.irdl import (
     OperandDef,
     ParamAttrConstraint,
     ParamAttrDef,
+    ParamDef,
     ResultDef,
     VarConstraint,
     get_accessors_from_op_def,
@@ -211,7 +212,7 @@ class IRDLFunctions(InterpreterFunctions):
         attr_op = cast(irdl.AttributeOp | irdl.TypeOp, op.parent_op())
         attr_name = attr_op.qualified_name
         self._get_attr_def(interpreter, attr_name).parameters = list(
-            (python_name(name.data), a) for name, a in zip(op.names, args)
+            (python_name(name.data), ParamDef(a)) for name, a in zip(op.names, args)
         )
         return ()
 

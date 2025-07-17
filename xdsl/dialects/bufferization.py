@@ -23,7 +23,6 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
-    GenericAttrConstraint,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -40,7 +39,7 @@ from xdsl.utils.hints import isa
 
 @dataclass(frozen=True)
 class TensorFromMemRefConstraint(
-    GenericAttrConstraint[TensorType[Attribute] | UnrankedTensorType[Attribute]]
+    AttrConstraint[TensorType[Attribute] | UnrankedTensorType[Attribute]]
 ):
     """
     Converts an input memref constraint to the corresponding tensor constraint, i.e. the constraints
@@ -48,7 +47,7 @@ class TensorFromMemRefConstraint(
     a tensor instead of a memref.
     """
 
-    memref_constraint: GenericAttrConstraint[MemRefType | UnrankedMemRefType]
+    memref_constraint: AttrConstraint[MemRefType | UnrankedMemRefType]
 
     @staticmethod
     def tensor_to_memref(
