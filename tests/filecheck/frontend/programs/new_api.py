@@ -31,3 +31,26 @@ print(test_arith.module)
 # CHECK-NEXT:    func.return %1 : f64
 # CHECK-NEXT:  }
 # CHECK-NEXT:}
+
+
+# The `ctx.parse_program` decorator can also be invoked with arguments
+@ctx.parse_program(desymref=False)
+def test_add(x: float, y: float) -> float:
+    return x + y
+
+
+# And the extracted module is built only once, then cached
+assert (module := test_add.module) is test_add.module
+print(module)
+# CHECK:       builtin.module {
+# CHECK-NEXT:    func.func @test_add(%x : f64, %y : f64) -> f64 {
+# CHECK-NEXT:      symref.declare "x"
+# CHECK-NEXT:      symref.update @x = %x : f64
+# CHECK-NEXT:      symref.declare "y"
+# CHECK-NEXT:      symref.update @y = %y : f64
+# CHECK-NEXT:      %0 = symref.fetch @y : f64
+# CHECK-NEXT:      %1 = symref.fetch @x : f64
+# CHECK-NEXT:      %2 = arith.addf %1, %0 : f64
+# CHECK-NEXT:      func.return %2 : f64
+# CHECK-NEXT:    }
+# CHECK-NEXT:  }
