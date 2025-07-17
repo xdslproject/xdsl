@@ -41,5 +41,6 @@ nav:
       - Dialect: api/ir/dialect.md
   - Notebooks:
     - Overview: marimo/index.md
+  - Code Reference: reference/index.md
   - Guides:
     - MLIR Interoperation: guides/mlir_interoperation.md
