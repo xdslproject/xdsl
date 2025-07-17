@@ -152,7 +152,7 @@ builtin.module {
     func.return
   }
   func.func @omp_target(%dep : memref<6xf32>, %dev : i64, %host : i32, %if : i1, %p1 : memref<10xi8>, %p2 : f64, %tlimit : i32) {
-    "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, in_reduction_syms = [@rsym1, @rsym2], private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend(taskdependinout)>]}> ({
+    "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, private_maps = array<i64: 0, 1>, in_reduction_syms = [@rsym1, @rsym2], in_reduction_byref = array<i1: true, false>, private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend(taskdependinout)>]}> ({
     ^0(%b_host : i32, %b_p1 : memref<10xi8>, %b_p2 : f64):
       "omp.terminator"() : () -> ()
     }) : (memref<6xf32>, i64, i32, i1, memref<10xi8>, f64, i32) -> ()
@@ -243,6 +243,40 @@ builtin.module {
   ^1(%r1_acc : i32, %r1 : i32):
     %acc = arith.addi %r1_acc, %r1 : i32
     omp.yield(%acc : i32)
+  }
+  func.func @omp_wsloop_byref(%lb : index, %ub : index, %step : index, %r : memref<1xi32>) {
+    "omp.wsloop"(%r) <{reduction_syms = [@r1], reduction_byref = array<i1: false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0>}> ({
+    ^bb0(%r_arg : memref<1xi32>):
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^0(%arg7 : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : (memref<1xi32>) -> ()
+    func.return
+  }
+  func.func @parallel_byref(%r : memref<1xi32>) {
+    "omp.parallel"(%r) <{reduction_syms = [@r1], reduction_byref = array<i1: true>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1>}> ({
+    ^bb0(%r_arg : memref<1xi32>):
+      "omp.terminator"() : () -> ()
+    }) : (memref<1xi32>) -> ()
+    func.return
+  }
+  func.func @simd_byref(%lb : index, %ub : index, %step : index, %r : memref<1xi32>) {
+    "omp.simd"(%r) <{reduction_byref = array<i1: false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 1>, order_mod = #omp<order_mod reproducible>}> ({
+    ^bb0(%r_arg : memref<1xi32>):
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^0(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : (memref<1xi32>) -> ()
+    func.return
+  }
+  func.func @parallel_too_many_args() {
+    "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+    ^0(%x : i32, %y : i32, %z : i32):
+      "omp.terminator"() : () -> ()
+    }) : () -> ()
+    func.return
   }
 }
 
@@ -398,7 +432,7 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_target(%{{.*}} : memref<6xf32>, %{{.*}} : i64, %{{.*}} : i32, %{{.*}} : i1, %{{.*}} : memref<10xi8>, %{{.*}} : f64, %{{.*}} : i32) {
-// CHECK-NEXT:      "omp.target"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{bare, depend_kinds = [#omp<clause_task_depend (taskdependinout)>], in_reduction_syms = [@rsym1, @rsym2], nowait, operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, private_syms = [@psym1, @psym2]}> ({
+// CHECK-NEXT:      "omp.target"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{bare, depend_kinds = [#omp<clause_task_depend (taskdependinout)>], in_reduction_byref = array<i1: true, false>, in_reduction_syms = [@rsym1, @rsym2], nowait, operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, private_maps = array<i64: 0, 1>, private_syms = [@psym1, @psym2]}> ({
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : i32, %{{.*}} : memref<10xi8>, %{{.*}} : f64):
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<6xf32>, i64, i32, i1, memref<10xi8>, f64, i32) -> ()
@@ -481,5 +515,39 @@ builtin.module {
 // CHECK-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32):
 // CHECK-NEXT:      %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
 // CHECK-NEXT:      omp.yield(%{{.*}} : i32)
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_wsloop_byref(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : memref<1xi32>) {
+// CHECK-NEXT:      "omp.wsloop"(%{{.*}}) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0>, reduction_byref = array<i1: false>, reduction_syms = [@r1]}> ({
+// CHECK-NEXT:      ^{{.*}}(%{{.*}} : memref<1xi32>):
+// CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:        ^{{.*}}(%{{.*}} : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @parallel_byref(%{{.*}} : memref<1xi32>) {
+// CHECK-NEXT:      "omp.parallel"(%{{.*}}) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1>, reduction_byref = array<i1: true>, reduction_syms = [@r1]}> ({
+// CHECK-NEXT:      ^{{.*}}(%{{.*}} : memref<1xi32>):
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : (memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @simd_byref(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : memref<1xi32>) {
+// CHECK-NEXT:      "omp.simd"(%{{.*}}) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 1>, order_mod = #omp<order_mod reproducible>, reduction_byref = array<i1: false>}> ({
+// CHECK-NEXT:      ^{{.*}}(%{{.*}} : memref<1xi32>):
+// CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:        ^{{.*}}(%{{.*}} : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @parallel_too_many_args() {
+// CHECK-NEXT:      "omp.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:      ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32):
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
