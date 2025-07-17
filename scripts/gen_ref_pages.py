@@ -54,7 +54,7 @@ def create_marimo_app_url(code: str, mode: str = "read") -> str:
     return f"https://marimo.app/#code/{encoded_code}&embed=true"
 
 
-for path in sorted((docs_root / "marimo").glob("*.py")):
+for path in sorted((docs_root / "marimo").rglob("*.py")):
     doc_path = path.relative_to(docs_root).with_suffix(".html")
 
     url = create_marimo_app_url(path.read_text())
