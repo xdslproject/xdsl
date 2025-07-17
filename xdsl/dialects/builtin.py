@@ -252,7 +252,7 @@ class StringAttr(_BuiltinData[str]):
 
 
 @dataclass(frozen=True)
-class SymbolNameConstraint(GenericAttrConstraint[StringAttr]):
+class SymbolNameConstraint(AttrConstraint[StringAttr]):
     """
     Constrain an attribute to be a StringAttr.
     This constraint has special assembly format support.
@@ -271,7 +271,7 @@ class SymbolNameConstraint(GenericAttrConstraint[StringAttr]):
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> GenericAttrConstraint[StringAttr]:
+    ) -> AttrConstraint[StringAttr]:
         return self
 
 
