@@ -275,7 +275,7 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
     """
     match type_attr:
         case IntegerType():
-            return EmitCIntegerConstr.verifies(type_attr)
+            return EmitCIntegerConstr.verifies(cast(IntegerType, type_attr))
         case IndexType():
             return True
         case EmitC_OpaqueType():

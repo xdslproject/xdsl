@@ -51,6 +51,7 @@ from xdsl.ir.affine import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AnyInt,
     AnyOf,
     AttrConstraint,
     BaseAttr,
@@ -58,6 +59,7 @@ from xdsl.irdl import (
     EqAttrConstraint,
     GenericData,
     IntConstraint,
+    IntTypeVarConstraint,
     IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
@@ -396,13 +398,14 @@ class IntAttr(Generic[_IntT], GenericData[_IntT]):
                 literal_args = get_args(arg)
                 assert len(literal_args) == 1
                 assert isinstance(value := literal_args[0], int)
+                constr = EqAttrConstraint(IntAttr(value))
             elif isinstance(arg, int):
-                value = arg
+                constr = EqAttrConstraint(IntAttr(arg))
+            elif isinstance(arg, TypeVar):
+                constr = IntTypeVarConstraint(arg, AnyInt())
             else:
                 raise PyRDLTypeError(f"Invalid IntAttr generic argument {arg}")
-            return cast(
-                AttrConstraint[IntAttr[_IntT]], EqAttrConstraint(IntAttr(value))
-            )
+            return cast(AttrConstraint[IntAttr[_IntT]], constr)
 
 
 @dataclass(frozen=True)
@@ -615,15 +618,19 @@ Bitwidths: `<B`: 1-8, `<H`: 9-16, `<I`: 17-32, `<Q`: 33-64.
 
 @irdl_attr_definition
 class IntegerType(
-    ParametrizedAttribute, StructPackableType[int], FixedBitwidthType, BuiltinAttribute
+    Generic[_IntT],
+    ParametrizedAttribute,
+    StructPackableType[int],
+    FixedBitwidthType,
+    BuiltinAttribute,
 ):
     name = "integer_type"
-    width: IntAttr
+    width: IntAttr[_IntT]
     signedness: SignednessAttr
 
     def __init__(
         self,
-        data: int | IntAttr,
+        data: _IntT | IntAttr[_IntT],
         signedness: Signedness | SignednessAttr = Signedness.SIGNLESS,
     ) -> None:
         if isinstance(data, int):
@@ -910,13 +917,7 @@ class IntegerAttr(
 
     def print_builtin(self, printer: Printer) -> None:
         # boolean shorthands
-        if (
-            isinstance(
-                (ty := self.get_type()),
-                IntegerType,
-            )
-            and ty.width.data == 1
-        ):
+        if isa((ty := self.get_type()), IntegerType) and ty.width.data == 1:
             printer.print_string("true" if self.value.data else "false")
         else:
             self.print_without_type(printer)
@@ -934,7 +935,7 @@ class IntegerAttr(
         parser: AttrParser,
         type: Attribute,
     ) -> TypedAttribute:
-        assert isinstance(type, IntegerType | IndexType)
+        assert isa(type, IntegerType | IndexType)
         return IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type)
 
     def print_without_type(self, printer: Printer):

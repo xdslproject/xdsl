@@ -879,6 +879,11 @@ class IntSetConstraint(IntConstraint):
     def infer(self, context: ConstraintContext) -> int:
         return next(iter(self.values))
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+    ) -> IntConstraint:
+        return self
+
 
 @dataclass(frozen=True)
 class AtLeast(IntConstraint):
