@@ -11,13 +11,14 @@ from math import prod
 from typing import (
     TYPE_CHECKING,
     Annotated,
+    Any,
     Generic,
     TypeAlias,
     overload,
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeVar, deprecated, override
+from typing_extensions import Self, TypeVar, deprecated
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.ir import (
@@ -182,18 +183,24 @@ class ArrayAttr(
         with printer.in_square_brackets():
             printer.print_list(self.data, printer.print_attribute)
 
-    @staticmethod
-    @override
-    def constr(
-        constr: IRDLAttrConstraint[AttributeInvT] | RangeConstraint[AttributeInvT],
-    ) -> ArrayOfConstraint[AttributeInvT]:
-        return ArrayOfConstraint(constr)
+    @classmethod
+    def generic_args_constraint(
+        cls, *args: Any
+    ) -> AttrConstraint[ArrayAttr[AttributeCovT]]:
+        assert len(args) == 1
+        return ArrayOfConstraint(RangeOf(irdl_to_attr_constraint(args[0])))
 
     def __len__(self):
         return len(self.data)
 
     def __iter__(self) -> Iterator[AttributeCovT]:
         return iter(self.data)
+
+    @staticmethod
+    def constr(
+        constr: (IRDLAttrConstraint[AttributeInvT] | RangeConstraint[AttributeInvT]),
+    ) -> AttrConstraint[ArrayAttr[AttributeInvT]]:
+        return ArrayOfConstraint(constr)
 
 
 @dataclass(frozen=True)

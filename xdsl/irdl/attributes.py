@@ -25,7 +25,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar, dataclass_transform
+from typing_extensions import Self, TypeVar, dataclass_transform
 
 from xdsl.ir import AttributeCovT
 from xdsl.utils.classvar import is_const_classvar
@@ -75,12 +75,12 @@ class GenericData(Data[_DataElement], ABC):
     A Data with type parameters.
     """
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def constr(constr: AttrConstraint) -> AttrConstraint:
+    def generic_args_constraint(cls, *args: Any) -> AttrConstraint[Self]:
         """
-        Returns a constraint for this subclass.
-        Generic arguments are constrained via TypeVarConstraints.
+        Given the generic parameters passed to the generic attribute type,
+        return the corresponding attribute constraint.
         """
 
 
@@ -511,9 +511,10 @@ def irdl_to_attr_constraint(
         args = get_args(irdl)
         if len(args) != 1:
             raise PyRDLTypeError(f"GenericData args must have length 1, got {args}")
-        constr = irdl_to_attr_constraint(args[0])
-
-        return cast(AttrConstraint[AttributeInvT], origin.constr(constr))
+        origin = cast(type[GenericData[Attribute]], origin)
+        return cast(
+            AttrConstraint[AttributeInvT], origin.generic_args_constraint(*args)
+        )
 
     # Generic ParametrizedAttributes case
     # We translate it to constraints over the attribute parameters.
