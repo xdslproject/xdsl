@@ -326,7 +326,7 @@ class OptionalDef(VariadicDef):
 class OperandDef(OperandOrResultDef):
     """An IRDL operand definition."""
 
-    constr: RangeConstraint[Attribute]
+    constr: RangeConstraint
     """The operand constraint."""
 
     def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
@@ -365,7 +365,7 @@ OptOperand: TypeAlias = SSAValue | None
 class ResultDef(OperandOrResultDef):
     """An IRDL result definition."""
 
-    constr: RangeConstraint[Attribute]
+    constr: RangeConstraint
     """The result constraint."""
 
     def __init__(
@@ -405,9 +405,7 @@ class RegionDef:
     An IRDL region definition.
     """
 
-    entry_args: RangeConstraint[Attribute] = field(
-        default_factory=lambda: RangeOf(AnyAttr())
-    )
+    entry_args: RangeConstraint = field(default_factory=lambda: RangeOf(AnyAttr()))
 
 
 @dataclass
@@ -554,12 +552,12 @@ class _PropertyFieldDef(_AttrOrPropFieldDef[PropertyDef]):
 
 
 class _RegionFieldDef(_OpDefField[RegionDef]):
-    entry_args: RangeConstraint[Attribute] | IRDLAttrConstraint
+    entry_args: RangeConstraint | IRDLAttrConstraint
 
     def __init__(
         self,
         cls: type[RegionDef],
-        entry_args: RangeConstraint[Attribute] | IRDLAttrConstraint,
+        entry_args: RangeConstraint | IRDLAttrConstraint,
     ):
         super().__init__(cls)
         self.entry_args = entry_args
@@ -772,7 +770,7 @@ def opt_operand_def(
 def region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: RangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(AnyAttr()),
+    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -787,7 +785,7 @@ def region_def(
 def var_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: RangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(AnyAttr()),
+    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -802,7 +800,7 @@ def var_region_def(
 def opt_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: RangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(AnyAttr()),
+    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
