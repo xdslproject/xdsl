@@ -868,7 +868,7 @@ class IntVarConstraint(IntConstraint):
 
 
 @dataclass(frozen=True)
-class GenericRangeConstraint(Generic[AttributeCovT], ABC):
+class RangeConstraint(Generic[AttributeCovT], ABC):
     """Constrain a range of attributes to certain values."""
 
     @abstractmethod
@@ -930,7 +930,7 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
     @abstractmethod
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> GenericRangeConstraint[AttributeCovT]:
+    ) -> RangeConstraint[AttributeCovT]:
         """
         A helper function to make type vars used in attribute definitions concrete when
         creating constraints for new attributes or operations.
@@ -941,7 +941,7 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
 
 
 @dataclass(frozen=True)
-class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
+class RangeVarConstraint(RangeConstraint[AttributeCovT]):
     """
     Constrain an attribute range with the given constraint, and constrain all occurences
     of this constraint (i.e, sharing the same name) to be equal.
@@ -950,7 +950,7 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     name: str
     """The variable name. All uses of that name refer to the same variable."""
 
-    constraint: GenericRangeConstraint[AttributeCovT]
+    constraint: RangeConstraint[AttributeCovT]
     """The constraint that the variable must satisfy."""
 
     def verify(
@@ -996,7 +996,7 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
 
 
 @dataclass(frozen=True)
-class RangeOf(GenericRangeConstraint[AttributeCovT]):
+class RangeOf(RangeConstraint[AttributeCovT]):
     """
     Constrain each element in a range to satisfy a given constraint.
     """
@@ -1052,7 +1052,7 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
 
 
 @dataclass(frozen=True)
-class SingleOf(GenericRangeConstraint[AttributeCovT]):
+class SingleOf(RangeConstraint[AttributeCovT]):
     """
     Constrain a range to only contain a single element, which should satisfy a given constraint.
     """

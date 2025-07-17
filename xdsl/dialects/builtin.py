@@ -51,12 +51,12 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintContext,
     GenericData,
-    GenericRangeConstraint,
     IntConstraint,
     IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
+    RangeConstraint,
     RangeOf,
     irdl_attr_definition,
     irdl_op_definition,
@@ -179,8 +179,7 @@ class ArrayAttr(
     @staticmethod
     @override
     def constr(
-        constr: IRDLAttrConstraint[AttributeInvT]
-        | GenericRangeConstraint[AttributeInvT],
+        constr: IRDLAttrConstraint[AttributeInvT] | RangeConstraint[AttributeInvT],
     ) -> ArrayOfConstraint[AttributeInvT]:
         return ArrayOfConstraint(constr)
 
@@ -193,7 +192,7 @@ class ArrayAttr(
 
 @dataclass(frozen=True)
 class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
-    elem_range_constraint: GenericRangeConstraint[AttributeCovT]
+    elem_range_constraint: RangeConstraint[AttributeCovT]
     """
     A constraint that enforces an ArrayData whose elements satisfy
     the underlying range constraint.
@@ -201,9 +200,9 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
 
     def __init__(
         self,
-        constr: (IRDLAttrConstraint | GenericRangeConstraint[AttributeCovT]),
+        constr: (IRDLAttrConstraint | RangeConstraint[AttributeCovT]),
     ):
-        if isinstance(constr, GenericRangeConstraint):
+        if isinstance(constr, RangeConstraint):
             object.__setattr__(self, "elem_range_constraint", constr)
         else:
             object.__setattr__(

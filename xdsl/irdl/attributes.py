@@ -58,8 +58,8 @@ from .constraints import (  # noqa: TID251
     ConstraintContext,
     ConstraintVar,
     EqAttrConstraint,
-    GenericRangeConstraint,
     ParamAttrConstraint,
+    RangeConstraint,
     RangeOf,
     SingleOf,
     TypeVarConstraint,
@@ -390,9 +390,6 @@ can either be:
 - A TypeForm that can represent both unions and generic attributes.
 """
 
-# This is deprecated and will be removed in a future release
-IRDLGenericAttrConstraint: TypeAlias = IRDLAttrConstraint
-
 
 def irdl_list_to_attr_constraint(
     pyrdl_constraints: Sequence[IRDLAttrConstraint],
@@ -574,17 +571,17 @@ def range_constr_coercion(
         AttributeCovT
         | type[AttributeCovT]
         | AttrConstraint[AttributeCovT]
-        | GenericRangeConstraint[AttributeCovT]
+        | RangeConstraint[AttributeCovT]
     ),
-) -> GenericRangeConstraint[AttributeCovT]:
-    if isinstance(attr, GenericRangeConstraint):
+) -> RangeConstraint[AttributeCovT]:
+    if isinstance(attr, RangeConstraint):
         return attr
     return RangeOf(irdl_to_attr_constraint(attr))
 
 
 def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
-) -> GenericRangeConstraint[AttributeCovT]:
+) -> RangeConstraint[AttributeCovT]:
     return SingleOf(irdl_to_attr_constraint(attr))
 
 

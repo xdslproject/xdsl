@@ -20,9 +20,9 @@ from xdsl.irdl import (
     AnyAttr,
     AtLeast,
     AttrConstraint,
-    GenericRangeConstraint,
     IRDLOperation,
     ParamAttrConstraint,
+    RangeConstraint,
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
@@ -134,7 +134,7 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def constr(
-        domain: GenericRangeConstraint[NonFuncSMTType],
+        domain: RangeConstraint[NonFuncSMTType],
         range: AttrConstraint[NonFuncSMTType],
     ) -> AttrConstraint[FuncType]:
         return ParamAttrConstraint(FuncType, (ArrayAttr.constr(domain), range))
