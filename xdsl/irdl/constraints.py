@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import (
@@ -172,7 +172,7 @@ class AttrConstraint(Generic[AttributeCovT], ABC):
 
     @abstractmethod
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[AttributeCovT]:
         """
         A helper function to make type vars used in attribute definitions concrete when
@@ -221,7 +221,7 @@ class TypedAttributeConstraint(AttrConstraint[TypedAttributeCovT]):
         return self.attr_constraint.get_bases()
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> TypedAttributeConstraint[TypedAttributeCovT]:  # pyright: ignore[reportDeprecated]
         return TypedAttributeConstraint(  # pyright: ignore[reportDeprecated]
             self.attr_constraint.mapping_type_vars(type_var_mapping),
@@ -272,7 +272,7 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
         return self.constraint.get_bases()
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> VarConstraint[AttributeCovT]:
         return VarConstraint(
             self.name, self.constraint.mapping_type_vars(type_var_mapping)
@@ -302,11 +302,13 @@ class TypeVarConstraint(AttrConstraint):
         return self.base_constraint.get_bases()
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint:
         res = type_var_mapping.get(self.type_var)
         if res is None:
             raise KeyError(f"Mapping value missing for type var {self.type_var}")
+        if not isinstance(res, AttrConstraint):
+            raise ValueError(f"Unexpected constraint {res} for TypeVar {self.type_var}")
         return res
 
 
@@ -350,7 +352,7 @@ class EqAttrConstraint(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
         return {type(self.attr)}
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[AttributeCovT]:
         return self
 
@@ -393,7 +395,7 @@ class BaseAttr(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
         return None
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[AttributeCovT]:
         return self
 
@@ -423,7 +425,7 @@ class AnyAttr(AttrConstraint):
         pass
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AnyAttr:
         return self
 
@@ -536,7 +538,7 @@ class AnyOf(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
         return bases
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AnyOf[AttributeCovT]:
         return AnyOf(
             tuple(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
@@ -603,7 +605,7 @@ class AllOf(AttrConstraint[AttributeCovT]):
         return AllOf((*self.attr_constrs, value))  # pyright: ignore[reportReturnType]
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AllOf[AttributeCovT]:
         return AllOf(
             tuple(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
@@ -688,7 +690,7 @@ class ParamAttrConstraint(
         return None
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> ParamAttrConstraint[ParametrizedAttributeCovT]:
         return ParamAttrConstraint(
             self.base_attr,
@@ -756,7 +758,7 @@ class MessageConstraint(AttrConstraint[AttributeCovT]):
         return self.constr.infer(context)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> MessageConstraint[AttributeCovT]:
         return MessageConstraint(
             self.constr.mapping_type_vars(type_var_mapping), self.message
@@ -973,7 +975,7 @@ class RangeConstraint(Generic[AttributeCovT], ABC):
 
     @abstractmethod
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> RangeConstraint[AttributeCovT]:
         """
         A helper function to make type vars used in attribute definitions concrete when
@@ -1039,7 +1041,7 @@ class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
         return self.constraint.infer(context, length=length)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> RangeLengthConstraint[AttributeCovT]:
         return RangeLengthConstraint(
             self.constraint.mapping_type_vars(type_var_mapping), self.length
@@ -1094,7 +1096,7 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
         return cast(Sequence[AttributeCovT], v)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> RangeVarConstraint[AttributeCovT]:
         return RangeVarConstraint(
             self.name, self.constraint.mapping_type_vars(type_var_mapping)
@@ -1138,7 +1140,7 @@ class RangeOf(RangeConstraint[AttributeCovT]):
         return (attr,) * length
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> RangeOf[AttributeCovT]:
         return RangeOf(self.constr.mapping_type_vars(type_var_mapping))
 
@@ -1178,6 +1180,6 @@ class SingleOf(RangeConstraint[AttributeCovT]):
         return (self.constr.infer(context),)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> SingleOf[AttributeCovT]:
         return SingleOf(self.constr.mapping_type_vars(type_var_mapping))
