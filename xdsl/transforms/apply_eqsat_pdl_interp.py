@@ -66,6 +66,7 @@ class ApplyEqsatPDLInterpPass(ModulePass):
 
         for _i in range(self.max_iterations):
             # Register matches by walking the module
+            print("Starting iteration", _i + 1)
             walker.rewrite_module(op)
             check_invariant(op)
 

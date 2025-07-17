@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -23,6 +24,14 @@ from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
+
+logger = logging.getLogger(__name__)
+match_logger = logging.getLogger("match")
+logging.basicConfig(
+    filename="eqsat.log",
+    encoding="utf-8",
+    level=logging.DEBUG,
+)
 
 
 @dataclass
@@ -275,7 +284,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         original_eclass = self.eclass_union_find.find(original_eclass)
 
         if repl_eclass == original_eclass:
+            logger.info("replaced value already present in eclass")
             return ()
+        logger.info(f"Replacing {original_eclass} with {repl_eclass}")
 
         self.eclass_union_find.union(
             original_eclass,
@@ -336,6 +347,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
+        match_logger.debug(f"Matched {op.rewriter}")
         self.is_matching = False
         interpreter.call_op(op.rewriter, args)
         self.is_matching = True
