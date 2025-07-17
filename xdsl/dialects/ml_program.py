@@ -5,6 +5,7 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     NoneType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
 )
@@ -38,7 +39,7 @@ class GlobalOp(IRDLOperation):
 
     name = "ml_program.global"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     type = attr_def(TypeAttribute)
     is_mutable = opt_attr_def(UnitAttr)
     value = opt_attr_def(Attribute)

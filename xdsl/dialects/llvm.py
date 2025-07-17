@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     i1,
@@ -1350,7 +1351,7 @@ class GlobalOp(IRDLOperation):
 
     global_type = prop_def(Attribute)
     constant = opt_prop_def(UnitAttr)
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     linkage = prop_def(LinkageAttr)
     dso_local = opt_prop_def(UnitAttr)
     thread_local_ = opt_prop_def(UnitAttr)
@@ -1506,7 +1507,7 @@ class FuncOp(IRDLOperation):
     name = "llvm.func"
 
     body = region_def()
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(LLVMFunctionType)
     CConv = prop_def(CallingConventionAttr)
     linkage = prop_def(LinkageAttr)
