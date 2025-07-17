@@ -29,9 +29,16 @@ class PyASTProgram(Generic[P, R]):
     """Wrapper to associate an IR representation with a Python function."""
 
     name: Final[str]
+    """The name of the function describing the program."""
+
     func: Final[Callable[P, R]]
+    """A callable object for the function describing the program."""
+
     _builder: Final[PyASTBuilder]
+    """An internal object to contextually build an IR module from the function."""
+
     _module: ModuleOp | None = None
+    """An internal object to cache the built IR module."""
 
     @property
     def module(self) -> ModuleOp:
