@@ -905,15 +905,15 @@ class IntegerAttr(
 
     @staticmethod
     def constr(
-        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
+        type: IRDLGenericAttrConstraint[_IntegerAttrTypeInvT] = IntegerType | IndexType,
         *,
-        value: AttrConstraint | IntConstraint | None = None,
-    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
-        if value is None and type == AnyAttr():
-            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
+        value: IRDLAttrConstraint | IntConstraint | None = None,
+    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrTypeInvT]]:
+        if value is None and type == IntegerType | IndexType:
+            return BaseAttr[IntegerAttr[_IntegerAttrTypeInvT]](IntegerAttr)
         if isinstance(value, IntConstraint):
             value = IntAttrConstraint(value)
-        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
+        return ParamAttrConstraint[IntegerAttr[_IntegerAttrTypeInvT]](
             IntegerAttr,
             (
                 value,

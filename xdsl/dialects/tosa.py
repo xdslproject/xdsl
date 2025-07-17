@@ -1,12 +1,12 @@
 from xdsl.dialects.builtin import (
-    I32,
-    I64,
     BoolAttr,
     DenseArrayBase,
     FloatAttr,
     IntegerAttr,
     StringAttr,
     TensorType,
+    i32,
+    i64,
 )
 from xdsl.ir import Dialect
 from xdsl.irdl import (
@@ -28,8 +28,8 @@ class ClampOp(IRDLOperation):
 
     name = "tosa.clamp"
 
-    min_int = prop_def(IntegerAttr[I64])
-    max_int = prop_def(IntegerAttr[I64])
+    min_int = prop_def(IntegerAttr.constr(i64))
+    max_int = prop_def(IntegerAttr.constr(i64))
 
     min_fp = prop_def(FloatAttr)
     max_fp = prop_def(FloatAttr)
@@ -52,8 +52,8 @@ class RescaleOp(IRDLOperation):
 
     name = "tosa.rescale"
 
-    input_zp = prop_def(IntegerAttr[I32])
-    output_zp = prop_def(IntegerAttr[I32])
+    input_zp = prop_def(IntegerAttr.constr(i32))
+    output_zp = prop_def(IntegerAttr.constr(i32))
     multiplier = prop_def(DenseArrayBase)
     shift = prop_def(DenseArrayBase)
     scale32 = prop_def(BoolAttr)

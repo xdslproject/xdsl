@@ -14,11 +14,12 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
-    I32,
-    I64,
     IntegerAttr,
     IntegerType,
     UnitAttr,
+    i1,
+    i32,
+    i64,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -262,10 +263,10 @@ class ICmpOp(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint("T", base(IntegerType))
 
-    predicate = attr_def(IntegerAttr[I64])
+    predicate = attr_def(IntegerAttr.constr(i64))
     lhs = operand_def(T)
     rhs = operand_def(T)
-    result = result_def(IntegerType(1))
+    result = result_def(i1)
 
     two_state = opt_attr_def(UnitAttr, attr_name="twoState")
 
@@ -399,7 +400,7 @@ class ExtractOp(IRDLOperation):
     name = "comb.extract"
 
     input = operand_def(IntegerType)
-    low_bit = attr_def(IntegerAttr[I32], attr_name="lowBit")
+    low_bit = attr_def(IntegerAttr.constr(i32), attr_name="lowBit")
     result = result_def(IntegerType)
 
     def __init__(
