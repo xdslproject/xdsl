@@ -31,6 +31,9 @@ def test_at_least():
 
 
 def test_eq():
-    EqIntConstraint(1).verify(1, ConstraintContext())
+    one_constr = EqIntConstraint(1)
+    one_constr.verify(1, ConstraintContext())
     with pytest.raises(VerifyException):
-        EqIntConstraint(2).verify(3, ConstraintContext())
+        one_constr.verify(2, ConstraintContext())
+    assert one_constr.can_infer(set())
+    assert one_constr.infer(ConstraintContext()) == 1
