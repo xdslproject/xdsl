@@ -813,6 +813,27 @@ class AnyInt(IntConstraint):
 
 
 @dataclass(frozen=True)
+class EqIntConstraint(IntConstraint):
+    """Constrain an integer to a value."""
+
+    value: int
+
+    def verify(
+        self,
+        i: int,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        if self.value != i:
+            raise VerifyException(f"Invalid value {i}, expected {self.value}")
+
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
+        return True
+
+    def infer(self, context: ConstraintContext) -> int:
+        return self.value
+
+
+@dataclass(frozen=True)
 class AtLeast(IntConstraint):
     """Constrain an integer to be at least a given value."""
 

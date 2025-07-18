@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from xdsl.irdl import AtLeast, ConstraintContext
+from xdsl.irdl import AtLeast, ConstraintContext, EqIntConstraint
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -28,3 +28,9 @@ def test_at_least():
         AtLeast(2).verify(1, ConstraintContext())
     with pytest.raises(VerifyException):
         AtLeast(2).verify(0, ConstraintContext())
+
+
+def test_eq():
+    EqIntConstraint(1).verify(1, ConstraintContext())
+    with pytest.raises(VerifyException):
+        EqIntConstraint(2).verify(3, ConstraintContext())
