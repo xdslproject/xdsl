@@ -855,6 +855,38 @@ class SimdOp(BlockArgOpenMPOperation):
 
 
 @irdl_op_definition
+class TeamsOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.teams
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompteams-ompteamsop).
+    """
+
+    name = "omp.teams"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    if_expr = opt_operand_def(i1)
+    num_teams_lower = opt_operand_def(IntegerType)
+    num_teams_upper = opt_operand_def(IntegerType)
+    private_vars = var_operand_def()
+    reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    thread_limit = opt_operand_def(IntegerType)
+
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    reduction_mod = opt_prop_def(ReductionModifierAttr)
+    reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+
+    body = region_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    traits = traits_def(RecursiveMemoryEffect())
+
+    def num_block_args(self) -> int:
+        return len(self.private_vars) + len(self.reduction_vars)
+
+
+@irdl_op_definition
 class DistributeOp(BlockArgOpenMPOperation):
     """
     Implementation of upstream omp.distribute
@@ -1027,6 +1059,7 @@ OMP = Dialect(
         MapBoundsOp,
         MapInfoOp,
         SimdOp,
+        TeamsOp,
         DistributeOp,
         PrivateClauseOp,
         TargetEnterDataOp,

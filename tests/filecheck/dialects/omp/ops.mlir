@@ -284,6 +284,13 @@ builtin.module {
     }) : (i64) -> ()
     func.return
   }
+  func.func @omp_teams(%a1 : i32, %a2 : i32, %if : i1, %p1 : i32, %r1 : memref<1xi32>, %low : i64, %hi : i64, %tlim : i64) {
+    "omp.teams"(%a1, %a2, %if, %low, %hi, %p1, %r1, %tlim) <{private_syms = [@p1], reduction_mod=#omp<reduction_modifier (task)>, reduction_byref = array<i1: false>, reduction_syms = [@r1], operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1, 1>}> ({
+    ^0(%p_arg : i32, %r_arg : memref<1xi32>):
+      "omp.terminator"() : () -> ()
+    }) : (i32, i32, i1, i64, i64, i32, memref<1xi32>, i64) -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -562,6 +569,13 @@ builtin.module {
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:      }) : (i64) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_teams(%a1 : i32, %a2 : i32, %if : i1, %p1 : i32, %r1 : memref<1xi32>, %low : i64, %hi : i64, %tlim : i64) {
+// CHECK-NEXT:      "omp.teams"(%a1, %a2, %if, %low, %hi, %p1, %r1, %tlim) <{private_syms = [@p1], reduction_mod = #omp<reduction_modifier (task)>, reduction_byref = array<i1: false>, reduction_syms = [@r1], operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1, 1>}> ({
+// CHECK-NEXT:      ^0(%p_arg : i32, %r_arg : memref<1xi32>):
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : (i32, i32, i1, i64, i64, i32, memref<1xi32>, i64) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
