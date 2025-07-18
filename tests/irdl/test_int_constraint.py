@@ -33,7 +33,7 @@ def test_at_least():
 def test_eq():
     one_constr = EqIntConstraint(1)
     one_constr.verify(1, ConstraintContext())
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="Invalid value 2, expected 1"):
         one_constr.verify(2, ConstraintContext())
     assert one_constr.can_infer(set())
     assert one_constr.infer(ConstraintContext()) == 1
