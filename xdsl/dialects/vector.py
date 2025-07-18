@@ -7,6 +7,7 @@ from typing import ClassVar, cast
 from xdsl.dialects.builtin import (
     I1,
     AffineMapAttr,
+    AnyFloat,
     AnyFloatConstr,
     ArrayAttr,
     BoolAttr,
@@ -30,7 +31,7 @@ from xdsl.dialects.utils import (
     verify_dynamic_index_list,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -790,8 +791,8 @@ class VectorTransferOperation(IRDLOperation, ABC):
     def resolve_attrs(
         parser: Parser,
         attributes_dict: dict[str, Attribute],
-        shaped_type: TensorType[Attribute] | MemRefType,
-        vector_type: VectorType[Attribute],
+        shaped_type: TensorType | MemRefType,
+        vector_type: VectorType,
         mask_start_pos: Position | None,
         mask_end_pos: Position | None,
         mask: UnresolvedOperand | None,
@@ -845,6 +846,118 @@ class VectorTransferOperation(IRDLOperation, ABC):
             resolved_mask = None
 
         return resolved_mask, permutation_map, in_bounds
+
+    def has_broadcast_dim(self):
+        """
+        Return "true" if at least one of the vector dimensions is a broadcasted dimension.
+        """
+        return any(
+            isinstance(expr, AffineConstantExpr) and expr.value == 0
+            for expr in self.permutation_map.data.results
+        )
+
+    @staticmethod
+    def verify_op(
+        op: TransferReadOp | TransferWriteOp,
+        shaped_type: MemRefType | TensorType,
+        vector_type: VectorType,
+        mask_type: VectorType[I1] | None,
+        inferred_mask_type: VectorType[I1] | None,
+        permutation_map: AffineMap,
+        in_bounds: ArrayAttr[BoolAttr],
+    ):
+        """
+        This mirrors VectorOps.cpp -> verifyTransferOp from MLIR
+        """
+
+        element_type = shaped_type.element_type
+        vector_element_type = vector_type.element_type
+
+        if isa(element_type, VectorType):
+            # Memref or tensor has vector element type
+            # TODO verify vector element type
+            pass
+        else:
+            # Memref of tensor has scalar element type
+            if isa(vector_element_type, IndexType):
+                if not isa(element_type, IndexType):
+                    raise VerifyException(
+                        "Element type of source is index, expected element type of vector also to be index"
+                    )
+            else:
+                assert isa(vector_element_type, IntegerType | AnyFloat)
+                assert isa(element_type, IntegerType | AnyFloat)
+
+                minor_size = (
+                    1
+                    if vector_type.get_num_dims() == 0
+                    else vector_type.get_shape()[-1]
+                )
+                result_vec_size = vector_element_type.bitwidth * minor_size
+                if result_vec_size % element_type.bitwidth != 0:
+                    raise VerifyException(
+                        f'"{op.name}" requires the bitwidth of the minor 1-D vector to be '
+                        "an integral multiple of the bitwidth of the source element type"
+                    )
+
+            # Check that permutation map results match rank of vector type.
+            if len(permutation_map.results) != vector_type.get_num_dims():
+                raise VerifyException(
+                    f'"{op.name}" requires a permutation_map with result dims of the same rank as the vector type'
+                )
+
+        if permutation_map.num_symbols != 0:
+            raise VerifyException(
+                f'"{op.name}" requires permutation_map without symbols'
+            )
+
+        if permutation_map.num_dims != shaped_type.get_num_dims():
+            raise VerifyException(
+                f'"{op.name}" requires a permutation_map with input dims of the same rank as the source type'
+            )
+
+        if mask_type:
+            if mask_type != inferred_mask_type:
+                raise VerifyException(
+                    f'"{op.name}" inferred mask type ({inferred_mask_type}) and mask operand type ({mask_type}) don\'t match'
+                )
+
+        if len(in_bounds) != len(permutation_map.results):
+            raise VerifyException(
+                f'"{op.name}" expects the in_bounds attr of same rank as permutation_map results: '
+                f"{str(permutation_map)} vs in_bounds of of size {len(in_bounds)}"
+            )
+
+    @staticmethod
+    def verify_permutation_map(
+        op: TransferReadOp | TransferWriteOp,
+        permutation_map: AffineMap,
+    ):
+        """
+        This mirrors VectorOps.cpp -> verifyPermutationMap
+        """
+
+        seen: list[bool] = [False for _ in range(permutation_map.num_dims)]
+
+        for expr in permutation_map.results:
+            if isa(expr, AffineConstantExpr):
+                if expr.value != 0:
+                    raise VerifyException(
+                        f'"{op.name}" requires a projected permutation_map '
+                        "(at most one dim or the zero constant can appear in each result)"
+                    )
+                continue
+            if not isa(expr, AffineDimExpr):
+                raise VerifyException(
+                    f'"{op.name}" requires a projected permutation_map '
+                    "(at most one dim or the zero constant can appear in each result)"
+                )
+            if seen[expr.position]:
+                raise VerifyException(
+                    f'"{op.name}" requires a permutation_map that is a permutation '
+                    "(found one dim used more than once)"
+                )
+            seen[expr.position] = True
 
 
 @irdl_op_definition
@@ -952,19 +1065,65 @@ class TransferReadOp(VectorTransferOperation):
             result_type=vector_type,
         )
 
+    def verify_(self):
+        assert isa(self.source.type, MemRefType | TensorType)
+        assert isa(self.result.type, VectorType)
+        if self.mask:
+            assert isa(self.mask.type, VectorType[I1])
+            mask_type = self.mask.type
+        else:
+            mask_type = None
+
+        if len(self.indices) != self.source.type.get_num_dims():
+            raise VerifyException("Expected an index for each memref/tensor dimension.")
+
+        if mask_type:
+            inferred_mask_type = VectorTransferOperation.infer_transfer_op_mask_type(
+                self.result.type,
+                self.permutation_map.data,
+            )
+        else:
+            inferred_mask_type = VectorType(i1, [])
+
+        VectorTransferOperation.verify_op(
+            self,
+            self.source.type,
+            self.result.type,
+            mask_type,
+            inferred_mask_type,
+            self.permutation_map.data,
+            self.in_bounds,
+        )
+
+        if isa(self.source.type.element_type, VectorType):
+            # TODO verify vector element type
+            pass
+        else:
+            # source memref/tensor has scalar element type
+            # TODO verify that padding type is a valid element_type for a vector
+            if self.source.type.element_type != self.padding.type:
+                raise VerifyException(
+                    f'"{self.name}" requires formal padding and source of the same elemental type'
+                )
+
+        VectorTransferOperation.verify_permutation_map(
+            self,
+            self.permutation_map.data,
+        )
+
 
 @irdl_op_definition
 class TransferWriteOp(VectorTransferOperation):
     name = "vector.transfer_write"
 
-    vector = operand_def(VectorType[Attribute])
+    vector = operand_def(VectorType)
     source = operand_def(TensorType | MemRefType)
     indices = var_operand_def(IndexType)
     mask = opt_operand_def(VectorType[I1])
 
     permutation_map = prop_def(AffineMapAttr)
 
-    result = opt_result_def(TensorType[Attribute])
+    result = opt_result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
 
@@ -976,7 +1135,7 @@ class TransferWriteOp(VectorTransferOperation):
         in_bounds: ArrayAttr[BoolAttr],
         mask: SSAValue | Operation | None = None,
         permutation_map: AffineMapAttr | None = None,
-        result_type: TensorType[Attribute] | None = None,
+        result_type: TensorType | None = None,
     ):
         super().__init__(
             operands=[vector, source, indices, mask],
@@ -1056,6 +1215,46 @@ class TransferWriteOp(VectorTransferOperation):
             permutation_map=permutation_map,
             in_bounds=in_bounds,
             result_type=shaped_type if isinstance(shaped_type, TensorType) else None,
+        )
+
+    def verify_(self):
+        assert isa(self.source.type, MemRefType | TensorType)
+        assert isa(self.vector.type, VectorType)
+        if self.mask:
+            assert isa(self.mask.type, VectorType[I1])
+            mask_type = self.mask.type
+        else:
+            mask_type = None
+
+        if len(self.indices) != self.source.type.get_num_dims():
+            raise VerifyException("Expected an index for each memref/tensor dimension.")
+
+        if self.has_broadcast_dim():
+            raise VerifyException(
+                f'"{self.name}" should not have broadcast dimensions.'
+            )
+
+        if mask_type:
+            inferred_mask_type = VectorTransferOperation.infer_transfer_op_mask_type(
+                self.vector.type,
+                self.permutation_map.data,
+            )
+        else:
+            inferred_mask_type = VectorType(i1, [])
+
+        VectorTransferOperation.verify_op(
+            self,
+            self.source.type,
+            self.vector.type,
+            mask_type,
+            inferred_mask_type,
+            self.permutation_map.data,
+            self.in_bounds,
+        )
+
+        VectorTransferOperation.verify_permutation_map(
+            self,
+            self.permutation_map.data,
         )
 
 
