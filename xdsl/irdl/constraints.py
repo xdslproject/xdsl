@@ -165,12 +165,10 @@ class AttrConstraint(Generic[AttributeCovT], ABC):
             return value  # pyright: ignore[reportReturnType]
         return AnyOf((self, value))
 
-    def __and__(
-        self, value: AttrConstraint[AttributeCovT], /
-    ) -> AttrConstraint[AttributeCovT]:
+    def __and__(self, value: AttrConstraint, /) -> AttrConstraint[AttributeCovT]:
         if isinstance(value, AnyAttr) or self == value:
             return self
-        return AllOf((self, value))
+        return AllOf((self, value))  # pyright: ignore[reportReturnType]
 
     @abstractmethod
     def mapping_type_vars(
@@ -601,8 +599,8 @@ class AllOf(AttrConstraint[AttributeCovT]):
                 bases &= b
         return bases
 
-    def __and__(self, value: AttrConstraint[AttributeCovT], /) -> AllOf[AttributeCovT]:
-        return AllOf((*self.attr_constrs, value))
+    def __and__(self, value: AttrConstraint, /) -> AllOf[AttributeCovT]:
+        return AllOf((*self.attr_constrs, value))  # pyright: ignore[reportReturnType]
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]

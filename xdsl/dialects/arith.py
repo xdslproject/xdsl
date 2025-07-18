@@ -132,9 +132,7 @@ class ConstantOp(IRDLOperation):
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
     value = prop_def(
-        ParamAttrConstraint(
-            IntegerAttr, (AnyAttr(), _T & (SignlessIntegerConstraint | IndexTypeConstr))
-        )
+        IntegerAttr.constr((SignlessIntegerConstraint | IndexTypeConstr) & _T)
         | ParamAttrConstraint(FloatAttr, (AnyAttr(), _T))
         | ParamAttrConstraint(DenseIntOrFPElementsAttr, (_T, AnyAttr()))
         | ParamAttrConstraint(DenseResourceAttr, (AnyAttr(), _T))
