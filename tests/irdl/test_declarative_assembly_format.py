@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     ModuleOp,
+    RangeOf,
     StringAttr,
     SymbolNameConstraint,
     UnitAttr,
@@ -36,6 +37,7 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyInt,
+    AnyRangeOf,
     AttrConstraint,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
@@ -46,7 +48,6 @@ from xdsl.irdl import (
     IRDLOperation,
     ParamAttrConstraint,
     ParsePropInAttrDict,
-    RangeOf,
     RangeVarConstraint,
     TypedAttributeConstraint,  # pyright: ignore[reportDeprecated]
     VarConstraint,
@@ -2645,7 +2646,7 @@ def test_variadic_length_inference():
     @irdl_op_definition
     class RangeVarOp(IRDLOperation):
         name = "test.range_var"
-        T: ClassVar = RangeVarConstraint("T", RangeOf(AnyAttr()))
+        T: ClassVar = RangeVarConstraint("T", AnyRangeOf(AnyAttr()))
         ins = var_operand_def(T)
         outs = var_result_def(T)
 

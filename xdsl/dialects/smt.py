@@ -6,7 +6,7 @@ from typing import ClassVar, TypeAlias
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, StringAttr
+from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, RangeOf, StringAttr
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -18,12 +18,12 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AnyRangeOf,
     AtLeast,
     AttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     RangeConstraint,
-    RangeOf,
     RangeVarConstraint,
     VarConstraint,
     base,
@@ -247,7 +247,7 @@ class ApplyFuncOp(IRDLOperation):
 
     name = "smt.apply_func"
 
-    DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(NonFuncSMTTypeConstr))
+    DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", AnyRangeOf(NonFuncSMTTypeConstr))
     RANGE: ClassVar = VarConstraint("RANGE", NonFuncSMTTypeConstr)
 
     func = operand_def(FuncType.constr(DOMAIN, RANGE))

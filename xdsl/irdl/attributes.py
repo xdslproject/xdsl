@@ -53,6 +53,7 @@ from .constraints import (  # noqa: TID251
     AllOf,
     AnyAttr,
     AnyOf,
+    AnyRangeOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
@@ -60,7 +61,6 @@ from .constraints import (  # noqa: TID251
     EqAttrConstraint,
     ParamAttrConstraint,
     RangeConstraint,
-    RangeOf,
     SingleOf,
     TypeVarConstraint,
     VarConstraint,
@@ -576,7 +576,7 @@ def range_constr_coercion(
 ) -> RangeConstraint[AttributeCovT]:
     if isinstance(attr, RangeConstraint):
         return attr
-    return RangeOf(irdl_to_attr_constraint(attr))
+    return AnyRangeOf(irdl_to_attr_constraint(attr))
 
 
 def single_range_constr_coercion(
