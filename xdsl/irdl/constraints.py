@@ -520,10 +520,12 @@ class AnyOf(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
         return AnyOf((*self.attr_constrs, value))
 
     def variables(self) -> set[str]:
-        if len(self.attr_constrs) == 1:
-            return self.attr_constrs[0].variables()
-        else:
+        if not self.attr_constrs:
             return set()
+        variables = self.attr_constrs[0].variables()
+        for constr in self.attr_constrs[1:]:
+            variables &= constr.variables()
+        return variables
 
     def get_bases(self) -> set[type[Attribute]] | None:
         bases = set[type[Attribute]]()
