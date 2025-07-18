@@ -24,6 +24,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
 )
@@ -1388,7 +1389,7 @@ class DispatchTableOp(IRDLOperation):
 
     name = "fir.dispatch_table"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     regs = var_region_def()
 
     traits = traits_def(SymbolOpInterface())
@@ -1739,7 +1740,7 @@ class GlobalOp(IRDLOperation):
 
     name = "fir.global"
     regs = var_region_def()
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     symref = prop_def(SymbolRefAttr)
     type = prop_def(Attribute)
     linkName = opt_prop_def(StringAttr)

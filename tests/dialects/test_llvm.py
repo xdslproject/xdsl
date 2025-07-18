@@ -155,7 +155,9 @@ def test_llvm_getelementptr_op_invalid_construction():
     opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
 
     # check that passing an opaque pointer to GEP without a pointee type fails
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="Opaque types must have a pointee type passed"
+    ):
         llvm.GEPOp(
             opaque_ptr,
             indices=[1],
@@ -163,7 +165,10 @@ def test_llvm_getelementptr_op_invalid_construction():
         )
 
     # check that non-pointer arguments fail
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="Expected <class 'xdsl.dialects.llvm.LLVMPointerType'> but got SSAValue with type i32.",
+    ):
         llvm.GEPOp(
             size,
             indices=[1],

@@ -7,7 +7,7 @@ Those can be translated to C/C++ via the Cpp emitter.
 See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import cast
 
 from xdsl.dialects.builtin import (
@@ -17,8 +17,10 @@ from xdsl.dialects.builtin import (
     Float16Type,
     Float32Type,
     Float64Type,
+    FloatAttr,
     IndexType,
     IntAttr,
+    IntegerAttr,
     IntegerType,
     ShapedType,
     StringAttr,
@@ -30,12 +32,23 @@ from xdsl.ir import (
     AttributeCovT,
     Dialect,
     ParametrizedAttribute,
+    SSAValue,
     TypeAttribute,
 )
-from xdsl.irdl import irdl_attr_definition
+from xdsl.irdl import (
+    IRDLOperation,
+    ParsePropInAttrDict,
+    irdl_attr_definition,
+    irdl_op_definition,
+    opt_prop_def,
+    prop_def,
+    var_operand_def,
+    var_result_def,
+)
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
@@ -156,6 +169,50 @@ class EmitC_OpaqueType(ParametrizedAttribute, TypeAttribute):
             )
 
 
+@irdl_attr_definition
+class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
+    """EmitC pointer type"""
+
+    name = "emitc.ptr"
+    pointee_type: TypeAttribute
+
+    def verify(self) -> None:
+        if isinstance(self.pointee_type, EmitC_LValueType):
+            raise VerifyException("pointers to lvalues are not allowed")
+
+
+@irdl_attr_definition
+class EmitC_PtrDiffT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC signed pointer diff type.
+    Signed data type as wide as platform-specific pointer types. In particular, it is as wide as emitc.size_t.
+    It corresponds to ptrdiff_t found in <stddef.h>.
+    """
+
+    name = "emitc.ptrdiff_t"
+
+
+@irdl_attr_definition
+class EmitC_SignedSizeT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC signed size type.
+    Data type representing all values of emitc.size_t, plus -1. It corresponds to ssize_t found in <sys/types.h>.
+    Use of this type causes the code to be non-C99 compliant.
+    """
+
+    name = "emitc.ssize_t"
+
+
+@irdl_attr_definition
+class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC unsigned size type.
+    Unsigned data type as wide as platform-specific pointer types. It corresponds to size_t found in <stddef.h>.
+    """
+
+    name = "emitc.size_t"
+
+
 _SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
 
 
@@ -182,6 +239,15 @@ def is_supported_float_type(type_attr: Attribute) -> bool:
             return False
 
 
+def is_pointer_wide_type(type_attr: Attribute) -> bool:
+    """Check if a type is a pointer-wide type."""
+    match type_attr:
+        case EmitC_PtrDiffT() | EmitC_SignedSizeT() | EmitC_SizeT():
+            return True
+        case _:
+            return False
+
+
 def is_integer_index_or_opaque_type(
     type_attr: Attribute,
 ) -> bool:
@@ -192,7 +258,11 @@ def is_integer_index_or_opaque_type(
     only for integer and index types.
     See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
     """
-    return _is_supported_integer_type(type_attr) or isinstance(type_attr, IndexType)
+    return (
+        _is_supported_integer_type(type_attr)
+        or isinstance(type_attr, IndexType)
+        or is_pointer_wide_type(type_attr)
+    )
 
 
 def is_supported_emitc_type(type_attr: Attribute) -> bool:
@@ -212,6 +282,8 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
             return not isinstance(
                 elem_type, EmitC_ArrayType
             ) and is_supported_emitc_type(elem_type)
+        case EmitC_PointerType():
+            return is_supported_emitc_type(type_attr.pointee_type)
         case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
             return True
         case TensorType():
@@ -224,16 +296,100 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
                 not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
                 for t in type_attr.types
             )
+        case EmitC_PtrDiffT():
+            return True
         case _:
             return False
 
 
+@irdl_op_definition
+class EmitC_CallOpaqueOp(IRDLOperation):
+    """
+    The `emitc.call_opaque` operation represents a C++ function call. The callee can be an arbitrary non-empty string.
+    The call allows specifying order of operands and attributes in the call as follows:
+
+        - integer value of index type refers to an operand;
+        - attribute which will get lowered to constant value in call;
+    """
+
+    name = "emitc.call_opaque"
+
+    callee = prop_def(StringAttr)
+    args = opt_prop_def(ArrayAttr)
+    template_args = opt_prop_def(ArrayAttr)
+    # The SSA‐value operands of the call
+    call_args = var_operand_def()
+    res = var_result_def()
+
+    irdl_options = [ParsePropInAttrDict()]
+    assembly_format = (
+        "$callee `(` $call_args `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    def __init__(
+        self,
+        callee: StringAttr | str,
+        call_args: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+        args: ArrayAttr[Attribute] | None = None,
+        template_args: ArrayAttr[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if isinstance(callee, str):
+            callee = StringAttr(callee)
+        super().__init__(
+            properties={
+                "callee": callee,
+                "args": args,
+                "template_args": template_args,
+            },
+            operands=[call_args],
+            result_types=[result_types],
+            attributes=attributes,
+        )
+
+    def verify_(self) -> None:
+        if not self.callee.data:
+            raise VerifyException("callee must not be empty")
+
+        if self.args is not None:
+            for arg in self.args.data:
+                if isa(arg, IntegerAttr[IndexType]):
+                    index = arg.value.data
+                    if not (0 <= index < len(self.call_args)):
+                        raise VerifyException("index argument is out of range")
+                elif isinstance(arg, ArrayAttr):
+                    # see https://github.com/llvm/llvm-project/blob/2eb733b5a6ab17a3ae812bb55c1c7c64569cadcd/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L342
+                    # This part is referenced as a FIXME there.
+                    raise VerifyException("array argument has no type")
+
+        if self.template_args is not None:
+            for t_arg in self.template_args.data:
+                if not isa(
+                    t_arg,
+                    TypeAttribute | IntegerAttr | FloatAttr,
+                    # FIXME: uncomment and replace the line above when EmitC_OpaqueAttr is implemented
+                    # TypeAttribute | IntegerAttr | FloatAttr | EmitC_OpaqueAttr,
+                ):
+                    raise VerifyException("template argument has invalid type")
+
+        for res_type in self.res.types:
+            if isinstance(res_type, EmitC_ArrayType):
+                raise VerifyException("cannot return array type")
+
+
 EmitC = Dialect(
     "emitc",
-    [],
+    [
+        EmitC_CallOpaqueOp,
+    ],
     [
         EmitC_ArrayType,
         EmitC_LValueType,
         EmitC_OpaqueType,
+        EmitC_PointerType,
+        EmitC_PtrDiffT,
+        EmitC_SignedSizeT,
+        EmitC_SizeT,
     ],
 )

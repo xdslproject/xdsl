@@ -18,7 +18,9 @@ class TwoResultOp(IRDLOperation):
 def test_var_mixed_builder():
     op = TwoResultOp.build(result_types=[StringAttr("0"), StringAttr("2")])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="SSAValue.get: expected operation with a single result."
+    ):
         _ = SSAValue.get(op)
 
 
@@ -59,7 +61,7 @@ def test_invalid_ssa_vals(name: str):
     structured.
     """
     val = BlockArgument(i32, Block(), 0)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Invalid SSA Value name format"):
         val.name_hint = name
 
 

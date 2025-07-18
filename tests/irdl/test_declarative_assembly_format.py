@@ -21,7 +21,9 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     StringAttr,
+    SymbolNameConstraint,
     UnitAttr,
+    i32,
 )
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
@@ -34,19 +36,19 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyInt,
+    AttrConstraint,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     BaseAttr,
     EqAttrConstraint,
-    GenericAttrConstraint,
     IntVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
-    TypedAttributeConstraint,
+    TypedAttributeConstraint,  # pyright: ignore[reportDeprecated]
     VarConstraint,
     VarOperand,
     VarOpResult,
@@ -698,6 +700,69 @@ def test_typed_attribute_variable(program: str, generic_program: str):
 
     ctx = Context()
     ctx.load_op(TypedAttributeOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.symbol @test @test2",
+            '"test.symbol"() <{sym_name = "test"}> {attr_sym_name = "test2"} : () -> ()',
+        ),
+        (
+            'test.symbol @"123" @"456"',
+            '"test.symbol"() <{sym_name = "123"}> {attr_sym_name = "456"} : () -> ()',
+        ),
+    ],
+)
+def test_symbol_name_variable(program: str, generic_program: str):
+    @irdl_op_definition
+    class SymbolNameOp(IRDLOperation):
+        name = "test.symbol"
+
+        sym_name = prop_def(SymbolNameConstraint())
+        attr_sym_name = attr_def(SymbolNameConstraint())
+
+        assembly_format = "$sym_name $attr_sym_name attr-dict"
+
+    ctx = Context()
+    ctx.load_op(SymbolNameOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.symbol @test symbol @test2",
+            '"test.symbol"() <{sym_name = "test2", other_sym_name = "test"}> : () -> ()',
+        ),
+        (
+            "test.symbol",
+            '"test.symbol"() : () -> ()',
+        ),
+    ],
+)
+def test_optional_symbol_name_variable(program: str, generic_program: str):
+    @irdl_op_definition
+    class SymbolNameOp(IRDLOperation):
+        name = "test.symbol"
+
+        sym_name = opt_prop_def(SymbolNameConstraint())
+
+        other_sym_name = opt_prop_def(SymbolNameConstraint())
+
+        assembly_format = "$other_sym_name (`symbol` $sym_name^)? attr-dict"
+
+    ctx = Context()
+    ctx.load_op(SymbolNameOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
@@ -2139,6 +2204,41 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
     check_equivalence(program, generic_program, ctx)
 
 
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.empty_region_group",
+            '"test.empty_region_group"() ({}) : () -> ()',
+        ),
+        (
+            "test.empty_region_group keyword {\n^0:\n}",
+            '"test.empty_region_group"() ({^0:}) : () -> ()',
+        ),
+        (
+            'test.empty_region_group keyword {\n  "test.op"() : () -> ()\n}',
+            '"test.empty_region_group"() ({ "test.op"() : () -> ()}) : () -> ()',
+        ),
+    ],
+)
+def test_optional_groups_empty_regions(program: str, generic_program: str):
+    """Test the parsing of empty regions in an optional group"""
+
+    @irdl_op_definition
+    class EmptyRegionOp(IRDLOperation):
+        name = "test.empty_region_group"
+        maybe_empty = region_def()
+
+        assembly_format = "(`keyword` $maybe_empty^)? attr-dict"
+
+    ctx = Context()
+    ctx.load_op(EmptyRegionOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
 ################################################################################
 # Successors                                                                   #
 ################################################################################
@@ -2421,13 +2521,12 @@ def test_nested_inference():
         p: _T
         q: Attribute
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls,
             *,
-            n: GenericAttrConstraint[Attribute] | None = None,
-            p: GenericAttrConstraint[_T] | None = None,
-            q: GenericAttrConstraint[Attribute] | None = None,
+            n: AttrConstraint | None = None,
+            p: AttrConstraint[_T] | None = None,
+            q: AttrConstraint | None = None,
         ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
             if n is None and p is None and q is None:
                 return BaseAttr[ParamOne[_T]](ParamOne)
@@ -2465,9 +2564,9 @@ def test_nested_inference_variable():
 
         p: _T
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls, *, p: GenericAttrConstraint[_T] | None = None
+            *, p: AttrConstraint[_T] | None = None
         ) -> ParamAttrConstraint[ParamOne[_T]]:
             return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
 
@@ -2505,11 +2604,10 @@ def test_non_verifying_inference():
         name = "test.param_one"
         p: _T
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls,
             *,
-            p: GenericAttrConstraint[_T] | None = None,
+            p: AttrConstraint[_T] | None = None,
         ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
             if p is None:
                 return BaseAttr[ParamOne[_T]](ParamOne)
@@ -2726,6 +2824,56 @@ def test_optional_group_optional_operand_anchor(
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> i32\ntest.optional_else_group %0',
+            '%0 = "test.op"() : () -> i32\n"test.optional_else_group"(%0) : (i32) -> ()',
+        ),
+        (
+            "test.optional_else_group 1",
+            '"test.optional_else_group"() <{a = 1 : i32}> : () -> ()',
+        ),
+    ],
+)
+def test_optional_else_group(
+    program: str,
+    generic_program: str,
+):
+    @irdl_op_definition
+    class OptionalElseGroupOp(IRDLOperation):
+        name = "test.optional_else_group"
+
+        v = opt_operand_def(i32)
+        a = opt_prop_def(IntegerAttr[I32])
+
+        assembly_format = """($v^):($a)? attr-dict"""
+
+    ctx = Context()
+    ctx.load_op(OptionalElseGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+def test_impossible_optional_else_group():
+    error = "property 'val' is already bound"
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match=error,
+    ):
+
+        @irdl_op_definition
+        class OptionalImpossibleElseGroup(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.impossible_optional_else_group"
+
+            val = opt_prop_def(IntegerAttr[I32])
+
+            assembly_format = """($val^):($val)? attr-dict"""
 
 
 @pytest.mark.parametrize(
@@ -3097,16 +3245,18 @@ def test_renamed_optional_prop(program: str, output: str, generic: str):
     ],
 )
 def test_optional_property_with_extractor(program: str, generic: str):
-    @irdl_op_definition
-    class OptConstantOp(IRDLOperation):
-        name = "test.opt_constant"
-        T: ClassVar = VarConstraint("T", AnyAttr())
+    with pytest.deprecated_call():
 
-        value = opt_prop_def(TypedAttributeConstraint(IntegerAttr.constr(), T))
+        @irdl_op_definition
+        class OptConstantOp(IRDLOperation):
+            name = "test.opt_constant"
+            T: ClassVar = VarConstraint("T", AnyAttr())
 
-        res = opt_result_def(T)
+            value = opt_prop_def(TypedAttributeConstraint(IntegerAttr.constr(), T))  # pyright: ignore[reportDeprecated]
 
-        assembly_format = "(`value` $value^)? attr-dict `:` `(` type($res) `)`"
+            res = opt_result_def(T)
+
+            assembly_format = "(`value` $value^)? attr-dict `:` `(` type($res) `)`"
 
     ctx = Context()
     ctx.load_op(OptConstantOp)
@@ -3129,19 +3279,21 @@ def test_optional_property_with_extractor(program: str, generic: str):
     ],
 )
 def test_default_property_with_extractor(program: str, generic: str):
-    @irdl_op_definition
-    class DefaultConstantOp(IRDLOperation):
-        name = "test.default_constant"
-        T: ClassVar = VarConstraint("T", AnyAttr())
+    with pytest.deprecated_call():
 
-        value = prop_def(
-            TypedAttributeConstraint(IntegerAttr.constr(), T),
-            default_value=BoolAttr.from_bool(True),
-        )
+        @irdl_op_definition
+        class DefaultConstantOp(IRDLOperation):
+            name = "test.default_constant"
+            T: ClassVar = VarConstraint("T", AnyAttr())
 
-        res = result_def(T)
+            value = prop_def(
+                TypedAttributeConstraint(IntegerAttr.constr(), T),  # pyright: ignore[reportDeprecated]
+                default_value=BoolAttr.from_bool(True),
+            )
 
-        assembly_format = "(`value` $value^)? attr-dict"
+            res = result_def(T)
+
+            assembly_format = "(`value` $value^)? attr-dict"
 
     ctx = Context()
     ctx.load_op(DefaultConstantOp)
@@ -3222,7 +3374,7 @@ class AllOfExtractorOp(IRDLOperation):
     name = "test.all_of_extractor"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    lhs = operand_def(T & MemRefType.constr(element_type=T))
+    lhs = operand_def(T & MemRefType.constr(T))
     rhs = operand_def(T)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"

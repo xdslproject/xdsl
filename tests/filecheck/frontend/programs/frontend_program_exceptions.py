@@ -1,14 +1,15 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.dialects import bigint
-from xdsl.frontend.pyast.block import block
-from xdsl.frontend.pyast.const import Const
+from xdsl.dialects import bigint, builtin
 from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.frontend.pyast.utils.block import block
+from xdsl.frontend.pyast.utils.const import Const
+from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 
 p = FrontendProgram()
 p.register_type(int, bigint.bigint)
+p.register_type(bool, builtin.i1)
 #      CHECK: Cannot compile program without the code context
 # CHECK-NEXT:     p = FrontendProgram()
 # CHECK-NEXT:     with CodeContext(p):
@@ -25,7 +26,7 @@ except FrontendProgramException as e:
 # CHECK-NEXT:     p.compile()
 with CodeContext(p):
 
-    def foo():
+    def not_compiled():
         return
 
 
@@ -52,9 +53,9 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        def foo():
-            # CHECK-NEXT: Cannot have an inner function 'bar' inside the function 'foo'.
-            def bar():
+        def outer():
+            # CHECK-NEXT: Cannot have an inner function 'inner' inside the function 'outer'.
+            def inner():  # pyright: ignore[reportUnusedFunction]
                 return
 
             return
@@ -67,11 +68,11 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        def foo():
+        def function_in_block():
             @block
             def bb1():
-                # CHECK-NEXT: Cannot have a nested function 'foo' inside the block 'bb1'.
-                def foo():
+                # CHECK-NEXT: Cannot have a nested function 'block_inner' inside the block 'bb1'.
+                def block_inner():  # pyright: ignore[reportUnusedFunction]
                     return
 
                 return
@@ -86,7 +87,7 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        def foo():
+        def block_in_block():
             @block
             def bb0():
                 # CHECK-NEXT: Cannot have a nested block 'bb1' inside the block 'bb0'.
@@ -106,9 +107,9 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        def foo():
+        def redefined_block():
             @block
-            def bb0():
+            def bb0():  # pyright: ignore[reportRedeclaration]
                 return bb0()
 
             # CHECK-NEXT: Block 'bb0' is already defined
@@ -127,9 +128,9 @@ try:
     with CodeContext(p):
 
         def test():
-            a: Const[int] = 23
+            a: Const[int] = 23  # pyright: ignore[reportAssignmentType,reportUnusedVariable]
             # CHECK-NEXT: Constant 'a' is already defined and cannot be assigned to.
-            a = 3
+            a = 3  # pyright: ignore[reportAssignmentType, reportUnusedVariable]
             return
 
     p.compile(desymref=False)
@@ -139,11 +140,11 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        a: Const[int] = 23
+        a: Const[int] = 23  # pyright: ignore[reportAssignmentType]
 
         # CHECK-NEXT: Constant 'a' is already defined.
         def test():
-            a: int = 3
+            a: int = 3  # pyright: ignore[reportUnusedVariable]
             return
 
     p.compile(desymref=False)
@@ -153,13 +154,13 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        b: Const[int] = 23
+        b: Const[int] = 23  # pyright: ignore[reportAssignmentType]
 
         def test():
             @block
             def bb0():
                 # CHECK-NEXT: Constant 'b' is already defined and cannot be assigned to.
-                b = 3
+                b = 3  # pyright: ignore[reportUnusedVariable]
                 return
 
             return bb0()
@@ -171,11 +172,11 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[int] = 23
+        c: Const[int] = 23  # pyright: ignore[reportAssignmentType]
 
-        def foo():
+        def redefined_constant():
             # CHECK-NEXT: Constant 'c' is already defined and cannot be assigned to.
-            c = 2
+            c = 2  # pyright: ignore[reportUnusedVariable]
             return
 
     p.compile(desymref=False)
@@ -185,11 +186,11 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[int] = 23
+        c: Const[int] = 23  # pyright: ignore[reportAssignmentType]
 
         def foo():
             # CHECK-NEXT: Constant 'c' is already defined.
-            c: int = 2
+            c: int = 2  # pyright: ignore[reportUnusedVariable]
             return
 
     p.compile(desymref=False)
@@ -199,10 +200,10 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        c: Const[int] = 23
+        c: Const[int] = 23  # pyright: ignore[reportAssignmentType]
 
         # CHECK-NEXT: Constant 'c' is already defined and cannot be used as a function/block argument name.
-        def foo(c: int):
+        def constant_as_argument(c: int):
             return
 
     p.compile(desymref=False)
@@ -212,13 +213,13 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
-        e: Const[int] = 23
+        d: Const[int] = 23  # pyright: ignore[reportAssignmentType]
 
-        def foo():
+        def redefined_constant_in_block():
             @block
             def bb0():
-                # CHECK-NEXT: Constant 'e' is already defined and cannot be assigned to.
-                e = 2
+                # CHECK-NEXT: Constant 'd' is already defined and cannot be assigned to.
+                d = 2  # pyright: ignore[reportUnusedVariable]
                 return
 
             return bb0()
@@ -229,9 +230,9 @@ except FrontendProgramException as e:
     print(e.msg)
 
 with CodeContext(p):
-    # CHECK-NEXT: Expected non-zero number of return types in function 'foo', but got 0.
-    def foo() -> int:
-        return
+    # CHECK-NEXT: Expected non-zero number of return types in function 'missing_return_value', but got 0.
+    def missing_return_value() -> int:
+        return  # pyright: ignore[reportReturnType]
 
 
 try:
@@ -266,5 +267,60 @@ except FrontendProgramException as e:
 try:
     # CHECK-NEXT: Cannot register multiple source types for IR type '!bigint.bigint'
     p.register_type(float, bigint.bigint)
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+        # CHECK: Expected non-zero number of return types in function 'test_no_return_type', but got 0.
+        def test_no_return_type(a: int) -> int:
+            return  # pyright: ignore[reportReturnType]
+
+    p.compile(desymref=False)
+    exit(1)
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+        # CHECK: Type signature and the type of the return value do not match at position 0: expected i1, got !bigint.bigint.
+        def test_wrong_return_type(a: bool, b: int) -> bool:
+            return b  # pyright: ignore[reportReturnType]
+
+    p.compile(desymref=False)
+    exit(1)
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+        # CHECK: Expected no return types in function 'test_no_return_types'.
+        def test_no_return_types(a: int):
+            return a
+
+    p.compile(desymref=False)
+    exit(1)
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+        # CHECK: Expected the same types for binary operation 'Add', but got !bigint.bigint and i1.
+        def bin_op_type_mismatch(a: int, b: bool) -> int:
+            return a + b
+
+    p.compile(desymref=False)
+    exit(1)
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+        # CHECK: Expected the same types for comparison operator 'Lt', but got !bigint.bigint and i1.
+        def cmp_op_type_mismatch(a: int, b: bool) -> bool:
+            return a < b
+
+    p.compile(desymref=False)
+    exit(1)
 except FrontendProgramException as e:
     print(e.msg)

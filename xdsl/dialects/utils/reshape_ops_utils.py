@@ -15,7 +15,6 @@ from xdsl.irdl import (
     AtLeast,
     AttrConstraint,
     ConstraintContext,
-    GenericAttrConstraint,
     irdl_to_attr_constraint,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -35,7 +34,7 @@ ArrayOfIntArrayAttr = ArrayAttr[ArrayAttr[IntegerAttr]]
 
 
 @dataclass(frozen=True)
-class ContiguousArrayOfIntArray(GenericAttrConstraint[ArrayOfIntArrayAttr]):
+class ContiguousArrayOfIntArray(AttrConstraint[ArrayOfIntArrayAttr]):
     """
     Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values across all inner arrays.
     For example: [[0, 1], [2, 3]] is valid, but [[3, 4], [0, 1]] is not.

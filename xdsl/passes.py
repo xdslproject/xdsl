@@ -190,14 +190,22 @@ def get_pass_option_infos(
 
 
 @dataclass(frozen=True)
-class PipelinePass(ModulePass):
+class PassPipeline:
+    """
+    A representation of a pass pipeline, with an optional callback to be executed
+    between each of the passes.
+    """
+
     passes: tuple[ModulePass, ...]
+    """
+    These will be executed sequentially during the execution of the pipeline.
+    """
     callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] | None = field(
         default=None
     )
     """
-    Function called in between every pass, taking the pass that just ran, the module, and
-    the next pass.
+    Function called in between every pass, taking the pass that just ran, the module,
+    and the next pass.
     """
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
@@ -219,17 +227,17 @@ class PipelinePass(ModulePass):
         spec: str,
         callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None]
         | None = None,
-    ) -> PipelinePass:
+    ) -> PassPipeline:
         specs = tuple(parse_pipeline(spec))
         unrecognised_passes = tuple(
             p.name for p in specs if p.name not in available_passes
         )
         if unrecognised_passes:
-            raise Exception(f"Unrecognized passes: {list(unrecognised_passes)}")
+            raise ValueError(f"Unrecognized passes: {list(unrecognised_passes)}")
 
         passes = tuple(available_passes[p.name]().from_pass_spec(p) for p in specs)
 
-        return PipelinePass(passes, callback)
+        return PassPipeline(passes, callback)
 
 
 def _convert_pass_arg_to_type(

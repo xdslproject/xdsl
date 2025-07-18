@@ -4,6 +4,9 @@ import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
+from typing import cast
+
+from typing_extensions import TypeVar
 
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 
@@ -22,6 +25,8 @@ AffineMapBuilderT = (
         tuple[AffineExprBuilderT, ...],
     ]
 )
+
+_T = TypeVar("_T")
 
 
 @dataclass(frozen=True)
@@ -235,6 +240,32 @@ class AffineMap:
             results=results,
         )
 
+    def inverse_and_broadcast_projected_permutation(self):
+        """
+        If `self` is a projected permutation, with possible constant 0 expression
+        results, returns the inverse permutation.
+
+        Examples:
+        ```
+        (d0, d1, d2) -> (d2, d1, d0) => (d0, d1, d2) -> (d2, d1, d0)
+        (d0, d1, d2) -> (d1, d0)     => (d0, d1)     -> (d1, d0, 0)
+        (d0, d1, d2) -> (d1, 0, d0)  => (d0, d1, d2) -> (d2, d0, 0)
+        ```
+
+        Equivalent to `inverseAndBroadcastProjectedPermutation` in MLIR.
+        """
+        assert self.is_projected_permutation(allow_zero_in_results=True), f"{self}"
+        results = cast(tuple[AffineConstantExpr | AffineDimExpr, ...], self.results)
+        zero = AffineExpr.constant(0)
+        # Start with all the results as 0.
+        exprs = [zero] * self.num_dims
+        for i, res in enumerate(results):
+            if isinstance(res, AffineDimExpr):
+                # Reverse each dimension existing in the original map result.
+                exprs[res.position] = AffineExpr.dimension(i)
+
+        return AffineMap(len(self.results), 0, tuple(exprs))
+
     def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> tuple[int, ...]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
         assert len(dims) == self.num_dims, f"{len(dims)}, {self.num_dims}"
@@ -250,8 +281,8 @@ class AffineMap:
 
         Examples:
         ```
-        (d0, d1, d2) -> (d1, d2) with [1,0,0] gives (d0, d1) -> (d0, d1)
-        (d0, d1, d2) -> (d2, d2) with [0,1,0] gives (d0, d1) -> (d1, d1)
+        (d0, d1, d2) -> (d1, d2) with [T,F,F] gives (d0, d1) -> (d0, d1)
+        (d0, d1, d2) -> (d2, d2) with [F,T,F] gives (d0, d1) -> (d1, d1)
         ```
 
         Corresponds to MLIR's `compressDims`.
@@ -273,6 +304,36 @@ class AffineMap:
             new_dims, new_symbols, result_num_dims, self.num_symbols
         )
 
+    def drop_results(self, unused_results: Sequence[bool]) -> AffineMap:
+        """
+        Given a sequence of `unused_results` indicating the results to drop,
+        return a new map only with the new results.
+
+        Examples:
+        ```
+        (d0, d1, d2) -> (d1, d2) with [T,F] gives (d0, d1, d2) -> (d1)
+        (d0, d1, d2) -> (d1, d2) with [F,T] gives (d0, d1, d2) -> (d1)
+        ```
+
+        Corresponds to MLIR's `dropResults`, but passing a mask instead of integer
+        indices to drop.
+        """
+        if len(unused_results) != len(self.results):
+            raise ValueError(
+                f"Invalid `unused_results`, expected {len(self.results)} `bool` values, got "
+                f"{len(unused_results)}"
+            )
+
+        return AffineMap(
+            self.num_dims,
+            self.num_symbols,
+            tuple(
+                result
+                for (mask, result) in zip(unused_results, self.results)
+                if not mask
+            ),
+        )
+
     def used_dims(self) -> set[int]:
         """
         Return all dimensions used in the map as a set
@@ -290,9 +351,22 @@ class AffineMap:
             if isinstance(expr, AffineDimExpr)
         }
 
+    def unused_dims(self) -> set[int]:
+        """
+        Return all dimensions not used in the map as a set
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives {d1}
+        (d0, d1, d2, d3) -> (d0, d2) gives {d1, d3}
+        ```
+        """
+        return self.used_dims().symmetric_difference(range(self.num_dims))
+
     def used_dims_bit_vector(self) -> tuple[bool, ...]:
         """
-        Return a tuple of bools with the i-th entry being True if the i-th dimension is used in the map, otherwise it is False.
+        Return a tuple of bools with the i-th entry being True if the i-th dimension is
+        used in the map, otherwise it is False.
 
         Example:
         ```
@@ -300,13 +374,22 @@ class AffineMap:
         (d0, d1, d2) -> (d0, d2) gives (True, False, True)
         ```
         """
+        used_dims = self.used_dims()
+        return tuple(dim in used_dims for dim in range(self.num_dims))
 
-        used_dims = [False] * self.num_dims
-        for res_expr in self.results:
-            for expr in res_expr.dfs():
-                if isinstance(expr, AffineDimExpr):
-                    used_dims[expr.position] = True
-        return tuple(used_dims)
+    def unused_dims_bit_vector(self) -> tuple[bool, ...]:
+        """
+        Return a tuple of bools with the i-th entry being True if the i-th dimension is
+        not used in the map, otherwise it is False.
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives (True, False)
+        (d0, d1, d2) -> (d0, d2) gives (True, False, True)
+        ```
+        """
+        used_dims = self.used_dims()
+        return tuple(dim not in used_dims for dim in range(self.num_dims))
 
     def is_minor_identity(self) -> bool:
         """
@@ -375,6 +458,26 @@ class AffineMap:
 
         # Results are either dims or zeros and zeros can be mapped to input dims.
         return True
+
+    def apply_permutation(self, source: Sequence[_T]) -> tuple[_T, ...]:
+        """
+        Assert that `self` represents a projected permutation, and apply the permutation
+        to `source`.
+        The number of inputs must match the size of the source.
+
+        Example:
+        ```
+        map = (d0, d1, d2) -> (d1, d0)
+        source = [10, 20, 30]
+        result = [20, 10]
+        ```
+
+        Equivalent to `applyPermutationMap` in MLIR.
+        """
+        assert self.is_projected_permutation(), "Map must be a projected permutation"
+        assert self.num_dims == len(source), "Number of inputs must match source size"
+        results = cast(Sequence[AffineDimExpr], self.results)
+        return tuple(source[expr.position] for expr in results)
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.

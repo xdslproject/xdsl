@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import NamedTuple
 
-from .location import Location
+from xdsl.utils.lexer import Location
 
 INDENT = 2
 

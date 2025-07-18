@@ -2,8 +2,8 @@ import ast
 
 import pytest
 
-from xdsl.frontend.pyast.exception import CodeGenerationException
-from xdsl.frontend.pyast.python_code_check import CheckAndInlineConstants
+from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
+from xdsl.frontend.pyast.utils.python_code_check import CheckAndInlineConstants
 
 
 def test_const_correctly_evaluated_I():
@@ -13,7 +13,7 @@ x = a
 """
     stmts = ast.parse(src).body
     CheckAndInlineConstants.run(stmts, __file__)
-    assert ast.unparse(stmts).endswith("x = 32")
+    assert ast.unparse(stmts).endswith("x = 32")  # pyright: ignore[reportArgumentType]
 
 
 def test_const_correctly_evaluated_II():
@@ -23,7 +23,7 @@ x: i64 = a + 2
 """
     stmts = ast.parse(src).body
     CheckAndInlineConstants.run(stmts, __file__)
-    assert ast.unparse(stmts).endswith("x: i64 = 4 + 2")
+    assert ast.unparse(stmts).endswith("x: i64 = 4 + 2")  # pyright: ignore[reportArgumentType]
 
 
 def test_const_correctly_evaluated_III():
@@ -35,7 +35,7 @@ y = x
 """
     stmts = ast.parse(src).body
     CheckAndInlineConstants.run(stmts, __file__)
-    assert ast.unparse(stmts).endswith("y = 8")
+    assert ast.unparse(stmts).endswith("y = 8")  # pyright: ignore[reportArgumentType]
 
 
 def test_const_correctly_evaluated_IV():
@@ -46,7 +46,7 @@ def foo(y: i32):
 """
     stmts = ast.parse(src).body
     CheckAndInlineConstants.run(stmts, __file__)
-    assert ast.unparse(stmts).endswith("x: i32 = 4 + y")
+    assert ast.unparse(stmts).endswith("x: i32 = 4 + y")  # pyright: ignore[reportArgumentType]
 
 
 def test_const_correctly_evaluated_V():
@@ -59,7 +59,7 @@ def foo(y: i32):
 """
     stmts = ast.parse(src).body
     CheckAndInlineConstants.run(stmts, __file__)
-    assert ast.unparse(stmts).endswith("x: i32 = 10")
+    assert ast.unparse(stmts).endswith("x: i32 = 10")  # pyright: ignore[reportArgumentType]
 
 
 def test_raises_exception_on_assignemnt_to_const_I():
@@ -68,9 +68,11 @@ a: Const[i32] = 2 ** 5
 a = 34
 """
     stmts = ast.parse(src).body
-    with pytest.raises(CodeGenerationException) as err:
+    with pytest.raises(
+        CodeGenerationException,
+        match="Constant 'a' is already defined and cannot be assigned to.",
+    ):
         CheckAndInlineConstants.run(stmts, __file__)
-    assert err.value.msg == "Constant 'a' is already defined and cannot be assigned to."
 
 
 def test_raises_exception_on_assignemnt_to_const_II():
@@ -81,9 +83,11 @@ def foo():
     return
 """
     stmts = ast.parse(src).body
-    with pytest.raises(CodeGenerationException) as err:
+    with pytest.raises(
+        CodeGenerationException,
+        match="Constant 'x' is already defined.",
+    ):
         CheckAndInlineConstants.run(stmts, __file__)
-    assert err.value.msg == "Constant 'x' is already defined."
 
 
 def test_raises_exception_on_assignemnt_to_const_III():
@@ -96,9 +100,11 @@ def bb0():
 bb0()
 """
     stmts = ast.parse(src).body
-    with pytest.raises(CodeGenerationException) as err:
+    with pytest.raises(
+        CodeGenerationException,
+        match="Constant 'y' is already defined and cannot be assigned to.",
+    ):
         CheckAndInlineConstants.run(stmts, __file__)
-    assert err.value.msg == "Constant 'y' is already defined and cannot be assigned to."
 
 
 def test_raises_exception_on_assignemnt_to_const_IV():
@@ -111,12 +117,14 @@ def foo(x: i32):
     bb0(x)
 """
     stmts = ast.parse(src).body
-    with pytest.raises(CodeGenerationException) as err:
+    with pytest.raises(
+        CodeGenerationException,
+        match=(
+            "Constant 'z' is already defined and cannot be used as a function/block "
+            "argument name."
+        ),
+    ):
         CheckAndInlineConstants.run(stmts, __file__)
-    assert (
-        err.value.msg
-        == "Constant 'z' is already defined and cannot be used as a function/block argument name."
-    )
 
 
 def test_raises_exception_on_duplicate_const():
@@ -125,9 +133,11 @@ z: Const[i32] = 100
 z: Const[i32] = 2
 """
     stmts = ast.parse(src).body
-    with pytest.raises(CodeGenerationException) as err:
+    with pytest.raises(
+        CodeGenerationException,
+        match="Constant 'z' is already defined.",
+    ):
         CheckAndInlineConstants.run(stmts, __file__)
-    assert err.value.msg == "Constant 'z' is already defined."
 
 
 def test_raises_exception_on_evaluation_error_I():
@@ -135,12 +145,14 @@ def test_raises_exception_on_evaluation_error_I():
 z: Const[i32] = 23 / 0
 """
     stmts = ast.parse(src).body
-    with pytest.raises(CodeGenerationException) as err:
+    with pytest.raises(
+        CodeGenerationException,
+        match=(
+            "Non-constant expression cannot be assigned to constant variable 'z' or "
+            "cannot be evaluated."
+        ),
+    ):
         CheckAndInlineConstants.run(stmts, __file__)
-    assert (
-        err.value.msg
-        == "Non-constant expression cannot be assigned to constant variable 'z' or cannot be evaluated."
-    )
 
 
 def test_raises_exception_on_evaluation_error_II():
@@ -148,9 +160,11 @@ def test_raises_exception_on_evaluation_error_II():
 a: Const[i32] = x + 12
 """
     stmts = ast.parse(src).body
-    with pytest.raises(CodeGenerationException) as err:
+    with pytest.raises(
+        CodeGenerationException,
+        match=(
+            "Non-constant expression cannot be assigned to constant variable 'a' or "
+            "cannot be evaluated."
+        ),
+    ):
         CheckAndInlineConstants.run(stmts, __file__)
-    assert (
-        err.value.msg
-        == "Non-constant expression cannot be assigned to constant variable 'a' or cannot be evaluated."
-    )

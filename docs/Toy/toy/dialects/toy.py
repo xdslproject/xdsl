@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     Float64Type,
     FunctionType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
     UnrankedTensorType,
@@ -197,7 +198,7 @@ class FuncOp(IRDLOperation):
 
     name = "toy.func"
     body = region_def("single_block")
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
 

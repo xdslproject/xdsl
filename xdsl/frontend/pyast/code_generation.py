@@ -8,13 +8,13 @@ import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
-import xdsl.frontend.pyast.symref as symref
-from xdsl.frontend.pyast.exception import (
+import xdsl.dialects.symref as symref
+from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
 )
-from xdsl.frontend.pyast.op_inserter import OpInserter
-from xdsl.frontend.pyast.python_code_check import FunctionMap
-from xdsl.frontend.pyast.type_conversion import TypeConverter
+from xdsl.frontend.pyast.utils.op_inserter import OpInserter
+from xdsl.frontend.pyast.utils.python_code_check import FunctionMap
+from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, SSAValue, TypeAttribute
 
 
@@ -203,7 +203,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 node.col_offset,
                 f"Function '{func_name}' is not defined in scope.",
             )
-        ir_op = self.type_converter.function_registry.get_operation_type(source_func)
+        ir_op = self.type_converter.function_registry.get_operation_constructor(
+            source_func
+        )
         if ir_op is None:
             raise CodeGenerationException(
                 self.file,

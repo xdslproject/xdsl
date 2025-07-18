@@ -7,7 +7,14 @@ from unittest.mock import ANY, patch
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr, i32, i64
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    StringAttr,
+    SymbolNameConstraint,
+    SymbolRefAttr,
+    i32,
+    i64,
+)
 from xdsl.dialects.hw import (
     HW,
     Direction,
@@ -72,7 +79,7 @@ def test_inner_sym_target():
 class ModuleOp(IRDLOperation):
     name = "module"
     region = region_def()
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     traits = traits_def(InnerSymbolTableTrait(), SymbolOpInterface())
 
 
@@ -86,7 +93,7 @@ class OutputOp(IRDLOperation):
 class CircuitOp(IRDLOperation):
     name = "circuit"
     region: Region | None = opt_region_def()
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     traits = traits_def(
         InnerRefNamespaceTrait(),
         SymbolTable(),
@@ -101,7 +108,7 @@ class CircuitOp(IRDLOperation):
 @irdl_op_definition
 class WireOp(IRDLOperation):
     name = "wire"
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     traits = traits_def(InnerRefUserOpInterfaceTrait())
 
 
@@ -144,7 +151,7 @@ def test_inner_symbol_table_interface():
     class MissingTraitModuleOp(IRDLOperation):
         name = "module"
         region = region_def()
-        sym_name = attr_def(StringAttr)
+        sym_name = attr_def(SymbolNameConstraint())
         traits = traits_def(InnerSymbolTableTrait())
 
     mod_missing_trait = MissingTraitModuleOp(
@@ -184,7 +191,7 @@ def test_inner_ref_namespace_interface():
     class MissingTraitCircuitOp(IRDLOperation):
         name = "circuit"
         region: Region | None = opt_region_def()
-        sym_name = attr_def(StringAttr)
+        sym_name = attr_def(SymbolNameConstraint())
         traits = traits_def(
             InnerRefNamespaceTrait(), SingleBlockImplicitTerminator(OutputOp)
         )
