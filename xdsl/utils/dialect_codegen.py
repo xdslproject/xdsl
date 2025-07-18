@@ -10,13 +10,12 @@ from typing import TextIO
 
 from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
-    AnyInt,
+    AnyRangeOf,
     OpDef,
     OperandDef,
     OptOperandDef,
     OptResultDef,
     ParamAttrDef,
-    RangeOf,
     ResultDef,
     SingleOf,
     VarOperandDef,
@@ -51,7 +50,7 @@ def get_str_from_operand_or_result(
     match operand_or_result.constr:
         case SingleOf():
             inner_constr = operand_or_result.constr.constr
-        case RangeOf(length=AnyInt()):
+        case AnyRangeOf():
             inner_constr = operand_or_result.constr.constr
         case _:
             raise NotImplementedError(

@@ -50,9 +50,9 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data
 from xdsl.irdl import (
+    AnyRangeOf,
     BaseAttr,
     ConstraintContext,
-    RangeOf,
     RangeVarConstraint,
     TypeVarConstraint,
     eq,
@@ -792,7 +792,7 @@ def test_array_constr():
     assert constr.verifies(ArrayAttr([i32]))
     assert not constr.verifies(ArrayAttr([i64]))
 
-    T = RangeVarConstraint("T", RangeOf(eq(i32)))
+    T = RangeVarConstraint("T", AnyRangeOf(eq(i32)))
     constr = ArrayAttr.constr(T)
     assert constr.can_infer({"T"})
 
