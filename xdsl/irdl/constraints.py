@@ -194,6 +194,7 @@ TypedAttributeCovT = TypeVar("TypedAttributeCovT", bound=TypedAttribute, covaria
 TypedAttributeT = TypeVar("TypedAttributeT", bound=TypedAttribute)
 
 
+@deprecated("Please use appropriate `AnyOf` constraints instead.")
 @dataclass(frozen=True)
 class TypedAttributeConstraint(AttrConstraint[TypedAttributeCovT]):
     """
@@ -223,8 +224,8 @@ class TypedAttributeConstraint(AttrConstraint[TypedAttributeCovT]):
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> TypedAttributeConstraint[TypedAttributeCovT]:
-        return TypedAttributeConstraint(
+    ) -> TypedAttributeConstraint[TypedAttributeCovT]:  # pyright: ignore[reportDeprecated]
+        return TypedAttributeConstraint(  # pyright: ignore[reportDeprecated]
             self.attr_constraint.mapping_type_vars(type_var_mapping),
             self.type_constraint.mapping_type_vars(type_var_mapping),
         )

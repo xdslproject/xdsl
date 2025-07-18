@@ -48,7 +48,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
-    TypedAttributeConstraint,
+    TypedAttributeConstraint,  # pyright: ignore[reportDeprecated]
     VarConstraint,
     VarOperand,
     VarOpResult,
@@ -3245,16 +3245,18 @@ def test_renamed_optional_prop(program: str, output: str, generic: str):
     ],
 )
 def test_optional_property_with_extractor(program: str, generic: str):
-    @irdl_op_definition
-    class OptConstantOp(IRDLOperation):
-        name = "test.opt_constant"
-        T: ClassVar = VarConstraint("T", AnyAttr())
+    with pytest.deprecated_call():
 
-        value = opt_prop_def(TypedAttributeConstraint(IntegerAttr.constr(), T))
+        @irdl_op_definition
+        class OptConstantOp(IRDLOperation):
+            name = "test.opt_constant"
+            T: ClassVar = VarConstraint("T", AnyAttr())
 
-        res = opt_result_def(T)
+            value = opt_prop_def(TypedAttributeConstraint(IntegerAttr.constr(), T))  # pyright: ignore[reportDeprecated]
 
-        assembly_format = "(`value` $value^)? attr-dict `:` `(` type($res) `)`"
+            res = opt_result_def(T)
+
+            assembly_format = "(`value` $value^)? attr-dict `:` `(` type($res) `)`"
 
     ctx = Context()
     ctx.load_op(OptConstantOp)
@@ -3277,19 +3279,21 @@ def test_optional_property_with_extractor(program: str, generic: str):
     ],
 )
 def test_default_property_with_extractor(program: str, generic: str):
-    @irdl_op_definition
-    class DefaultConstantOp(IRDLOperation):
-        name = "test.default_constant"
-        T: ClassVar = VarConstraint("T", AnyAttr())
+    with pytest.deprecated_call():
 
-        value = prop_def(
-            TypedAttributeConstraint(IntegerAttr.constr(), T),
-            default_value=BoolAttr.from_bool(True),
-        )
+        @irdl_op_definition
+        class DefaultConstantOp(IRDLOperation):
+            name = "test.default_constant"
+            T: ClassVar = VarConstraint("T", AnyAttr())
 
-        res = result_def(T)
+            value = prop_def(
+                TypedAttributeConstraint(IntegerAttr.constr(), T),  # pyright: ignore[reportDeprecated]
+                default_value=BoolAttr.from_bool(True),
+            )
 
-        assembly_format = "(`value` $value^)? attr-dict"
+            res = result_def(T)
+
+            assembly_format = "(`value` $value^)? attr-dict"
 
     ctx = Context()
     ctx.load_op(DefaultConstantOp)
