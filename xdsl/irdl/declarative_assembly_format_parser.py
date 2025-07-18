@@ -12,7 +12,7 @@ from itertools import pairwise
 from typing import cast
 
 from xdsl.dialects.builtin import Builtin, SymbolNameConstraint, UnitAttr
-from xdsl.ir import Attribute, TypedAttribute
+from xdsl.ir import TypedAttribute
 from xdsl.irdl import (
     AttrOrPropDef,
     AttrSizedOperandSegments,
@@ -526,9 +526,6 @@ class FormatParser(BaseParser):
                 # Ensure qualified attributes stay qualified
                 if qualified:
                     unique_base = None
-
-                # Chill pyright with TypedAttribute without parameter
-                unique_base = cast(type[Attribute] | None, unique_base)
 
                 # We special case `SymbolNameConstr`, just as MLIR does.
                 is_symbol_name = isinstance(attr_def.constr, SymbolNameConstraint)
