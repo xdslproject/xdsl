@@ -743,9 +743,7 @@ def test_vector_transfer_write_construction():
     memref_type = MemRefType(IndexType(), [3, 3])
     # (x, y) -> x
     permutation_map = AffineMapAttr(AffineMap(2, 0, (x,)))
-    in_bounds = ArrayAttr(
-        [IntegerAttr.from_bool(False) for _ in range(vector_type.get_num_dims())]
-    )
+    in_bounds = ArrayAttr([IntegerAttr.from_bool(False)] * vector_type.get_num_dims())
 
     vector = create_ssa_value(vector_type)
     source = create_ssa_value(memref_type)
@@ -773,9 +771,7 @@ def test_vector_transfer_read_construction():
     vector_type = VectorType(IndexType(), [3])
     memref_type = MemRefType(IndexType(), [3, 3])
     permutation_map = AffineMapAttr(AffineMap(2, 0, (x,)))
-    in_bounds = ArrayAttr(
-        [IntegerAttr.from_bool(False) for _ in range(vector_type.get_num_dims())]
-    )
+    in_bounds = ArrayAttr([IntegerAttr.from_bool(False)] * vector_type.get_num_dims())
 
     source = create_ssa_value(memref_type)
     index = create_ssa_value(IndexType())

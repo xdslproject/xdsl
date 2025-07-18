@@ -928,14 +928,6 @@ class VectorTransferOperation(IRDLOperation, ABC):
                 f"{str(permutation_map)} vs in_bounds of of size {len(in_bounds)}"
             )
 
-        for res, res_is_in_bounds in zip(
-            permutation_map.results, in_bounds.data, strict=True
-        ):
-            if isa(res, AffineConstantExpr) and not res_is_in_bounds:
-                raise VerifyException(
-                    f'"{op.name}" requires broadcast dimensions to be in-bounds'
-                )
-
     @staticmethod
     def verify_permutation_map(
         op: TransferReadOp | TransferWriteOp,
@@ -1103,7 +1095,7 @@ class TransferReadOp(VectorTransferOperation):
             self.in_bounds,
         )
 
-        if isa(self.source.type.element_type, VectorType[Attribute]):
+        if isa(self.source.type.element_type, VectorType):
             # TODO verify vector element type
             pass
         else:
