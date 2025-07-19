@@ -1748,7 +1748,7 @@ class GlobalOp(IRDLOperation):
     constant = opt_prop_def(UnitAttr)
     target = opt_prop_def(UnitAttr)
     linkName = opt_prop_def(StringAttr)
-    data_attr = opt_prop_def(Attribute)
+    data_attr = opt_prop_def()
     alignment = opt_prop_def(IntegerAttr)
 
     traits = traits_def(SymbolOpInterface())
