@@ -48,8 +48,8 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
  %fill = linalg.fill ins(%0 : f32) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
  linalg.fill ins(%0 : f32) outs(%m3 : memref<4x16xf32>)
 
- %copy = linalg.copy ins(%t1 : tensor<4x16xf32>) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
- linalg.copy ins(%m1 : memref<4x16xf32>) outs(%m3 : memref<4x16xf32>)
+ %copy = linalg.copy {id} ins(%t1 : tensor<4x16xf32>) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
+ linalg.copy {id} ins(%m1 : memref<4x16xf32>) outs(%m3 : memref<4x16xf32>)
 
  %5, %6 = "test.op"() : () -> (tensor<64x9216xi8>, tensor<9216x4096xi8>)
  %7 = arith.constant 0 : i32
@@ -101,8 +101,8 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-NEXT:    linalg.matmul {id} ins(%{{.*}} %{{.*}} : memref<64x9216xi32>, memref<9216x4096xi32>) outs(%{{.*}} : memref<64x4096xi32>)
 // CHECK-NEXT:    %{{.*}} = linalg.fill ins(%{{.*}} : f32) outs(%{{.*}} : tensor<4x16xf32>) -> tensor<4x16xf32>
 // CHECK-NEXT:    linalg.fill ins(%{{.*}} : f32) outs(%{{.*}} : memref<4x16xf32>)
-// CHECK-NEXT:    %{{.*}} = linalg.copy ins(%{{.*}} : tensor<4x16xf32>) outs(%{{.*}} : tensor<4x16xf32>) -> tensor<4x16xf32>
-// CHECK-NEXT:    linalg.copy ins(%{{.*}} : memref<4x16xf32>) outs(%{{.*}} : memref<4x16xf32>)
+// CHECK-NEXT:    %{{.*}} = linalg.copy {id} ins(%{{.*}} : tensor<4x16xf32>) outs(%{{.*}} : tensor<4x16xf32>) -> tensor<4x16xf32>
+// CHECK-NEXT:    linalg.copy {id} ins(%{{.*}} : memref<4x16xf32>) outs(%{{.*}} : memref<4x16xf32>)
 // CHECK-NEXT:    %5, %6 = "test.op"() : () -> (tensor<64x9216xi8>, tensor<9216x4096xi8>)
 // CHECK-NEXT:    %7 = arith.constant 0 : i32
 // CHECK-NEXT:    %8 = arith.constant 0 : i32

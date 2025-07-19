@@ -66,6 +66,8 @@ linalg.copy ins(%0 : memref<1x256xf32>) outs(%1 : memref<1x256xf32>)
 %zero = arith.constant 0.0 : f32
 linalg.fill {id} ins(%zero : f32) outs(%20 : memref<64x4096xf32>)
 
+linalg.copy {id} ins(%0 : memref<1x256xf32>) outs(%1 : memref<1x256xf32>)
+
 linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) outs(%20 : memref<64x4096xf32>)
 
 
@@ -160,6 +162,7 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 // CHECK-NEXT:    %17 = "test.op"() : () -> memref<64x4096xf32>
 // CHECK-NEXT:    %cst_0 = arith.constant 0.000000e+00 : f32
 // CHECK-NEXT:    linalg.fill {id} ins(%cst_0 : f32) outs(%17 : memref<64x4096xf32>)
+// CHECK-NEXT:    linalg.copy {id} ins(%0 : memref<1x256xf32>) outs(%1 : memref<1x256xf32>)
 // CHECK-NEXT:    linalg.matmul {id} ins(%16#0, %16#1 : memref<64x9216xf32>, memref<9216x4096xf32>) outs(%17 : memref<64x4096xf32>)
 // CHECK-NEXT:    %18:2 = "test.op"() : () -> (tensor<64x9216xi8>, tensor<9216x4096xi8>)
 // CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
