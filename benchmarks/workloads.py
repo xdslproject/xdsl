@@ -153,6 +153,8 @@ class WorkloadBuilder:
         Returns:
             The created module containing the function with addition operations.
         """
+        assert num_add_ops >= 0
+        random.seed(RANDOM_SEED)
         tensor_type = TensorType(shape=tensor_shape, element_type=Float32Type())
         function_type = FunctionType.from_lists(
             inputs=[tensor_type], outputs=[tensor_type]
