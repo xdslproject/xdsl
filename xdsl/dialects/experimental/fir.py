@@ -1744,7 +1744,7 @@ class GlobalOp(IRDLOperation):
     sym_name = prop_def(SymbolNameConstraint())
     symref = prop_def(SymbolRefAttr)
     type = prop_def(Attribute)
-    initVal = opt_prop_def(Attribute)
+    initVal = opt_prop_def()
     constant = opt_prop_def(UnitAttr)
     target = opt_prop_def(UnitAttr)
     linkName = opt_prop_def(StringAttr)
