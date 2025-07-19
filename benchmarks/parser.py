@@ -21,19 +21,19 @@ class Parser:
     WORKLOAD_LARGE_DENSE_ATTR_HEX = WorkloadBuilder.large_dense_attr_hex()
 
     def time_constant_100(self) -> None:
-        """Time lexing constant folding for 100 items."""
+        """Time parsing constant folding for 100 items."""
         XdslParser(CTX, Parser.WORKLOAD_CONSTANT_100).parse_module()
 
     def time_constant_1000(self) -> None:
-        """Time lexing constant folding for 1000 items."""
+        """Time parsing constant folding for 1000 items."""
         XdslParser(CTX, Parser.WORKLOAD_CONSTANT_1000).parse_module()
 
     def ignore_time_dense_attr(self) -> None:
-        """Time lexing a 1024x1024xi8 dense attribute."""
+        """Time parsing a 1024x1024xi8 dense attribute."""
         XdslParser(CTX, Parser.WORKLOAD_LARGE_DENSE_ATTR).parse_module()
 
     def ignore_time_dense_attr_hex(self) -> None:
-        """Time lexing a 1024x1024xi8 dense attribute given as a hex string."""
+        """Time parsing a 1024x1024xi8 dense attribute given as a hex string."""
         XdslParser(CTX, Parser.WORKLOAD_LARGE_DENSE_ATTR_HEX).parse_module()
 
 
