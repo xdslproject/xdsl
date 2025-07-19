@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.test import TestType
-from xdsl.ir import Attribute, Block, Region
+from xdsl.ir import Block, Region
 from xdsl.irdl import (
     AnyAttr,
     AnyInt,
@@ -78,8 +78,8 @@ class OpDefTestOp(IRDLOperation):
 
     operand = operand_def()
     result = result_def()
-    prop = prop_def(Attribute)
-    attr = attr_def(Attribute)
+    prop = prop_def()
+    attr = attr_def()
     region = region_def()
 
     # Check that we can define methods in operation definitions
@@ -452,7 +452,7 @@ def test_same_length_op():
 class WithoutPropOp(IRDLOperation):
     name = "test.op_without_prop"
 
-    prop1 = prop_def(Attribute)
+    prop1 = prop_def()
 
 
 # Check that an operation cannot accept properties that are not defined
@@ -860,7 +860,7 @@ def test_generic_op(cls: type[StringFooOp | StringFoo2Op]):
 
 
 class OtherParentOp(IRDLOperation):
-    other_attr = attr_def(Attribute)
+    other_attr = attr_def()
 
 
 @irdl_op_definition

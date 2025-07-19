@@ -42,7 +42,7 @@ class GlobalOp(IRDLOperation):
     sym_name = attr_def(SymbolNameConstraint())
     type = attr_def(TypeAttribute)
     is_mutable = opt_attr_def(UnitAttr)
-    value = opt_attr_def(Attribute)
+    value = opt_attr_def()
     sym_visibility = attr_def(StringAttr)
 
     traits = traits_def(SymbolOpInterface())
