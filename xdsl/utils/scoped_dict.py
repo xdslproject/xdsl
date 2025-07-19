@@ -24,6 +24,7 @@ class ScopedDict(Generic[_Key, _Value]):
     _local_scope: dict[_Key, _Value]
     parent: ScopedDict[_Key, _Value] | None
     name: str | None
+    can_overwrite: bool
 
     def __init__(
         self,
@@ -31,10 +32,12 @@ class ScopedDict(Generic[_Key, _Value]):
         *,
         name: str | None = None,
         local_scope: dict[_Key, _Value] | None = None,
+        can_overwrite: bool = False,
     ) -> None:
         self._local_scope = {} if local_scope is None else local_scope
         self.parent = parent
         self.name = name
+        self.can_overwrite = can_overwrite
 
     @overload
     def get(self, key: _Key, default: None = None) -> _Value | None: ...
@@ -69,7 +72,7 @@ class ScopedDict(Generic[_Key, _Value]):
         Assign key to current scope. Raises InterpretationError if key already
         assigned to.
         """
-        if key in self._local_scope:
+        if not self.can_overwrite and key in self._local_scope:
             raise ValueError(
                 f"Cannot overwrite value {self._local_scope[key]} for key {key}"
             )
