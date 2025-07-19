@@ -46,6 +46,7 @@ from xdsl.utils.bitwise_casts import (
     convert_f32_to_u32,
     convert_f64_to_u64,
 )
+from xdsl.utils.colors import Colors
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import MLIRLexer
@@ -170,7 +171,8 @@ class Printer(BasePrinter):
             name = self._get_new_valid_name_id()
             self._ssa_values[value] = name
 
-        self.print_string(f"%{name}")
+        with self.colored(Colors.BRIGHT_MAGENTA):
+            self.print_string(f"%{name}")
         return name
 
     def print_operand(self, operand: SSAValue) -> None:
@@ -561,36 +563,37 @@ class Printer(BasePrinter):
         self._block_names.pop()
 
     def print_op(self, op: Operation) -> None:
-        scope = bool(op.get_traits_of_type(IsolatedFromAbove))
-        begin_op_pos = self._current_column
-        self._print_results(op)
-        if scope:
-            self.enter_scope()
-        use_custom_format = False
-        if isinstance(op, UnregisteredOp):
-            self.print_string(f'"{op.op_name.data}"')
-        # If we print with the generic format, or the operation does not have a custom
-        # format
-        elif self.print_generic_format or Operation.print is type(op).print:
-            self.print_string(f'"{op.name}"')
-        else:
-            self.print_string(op.name)
-            use_custom_format = True
-        end_op_pos = self._current_column
-        if op in self.diagnostic.op_messages:
-            for message in self.diagnostic.op_messages[op]:
-                self._add_message_on_next_line(message, begin_op_pos, end_op_pos)
-        if isinstance(op, UnregisteredOp):
-            op_name = op.op_name
-            del op.attributes["op_name__"]
-            self.print_op_with_default_format(op)
-            op.attributes["op_name__"] = op_name
-        elif use_custom_format:
-            op.print(self)
-        else:
-            self.print_op_with_default_format(op)
-        if scope:
-            self.exit_scope()
+        with self.colored(Colors.RED if op in self.diagnostic.op_messages else None):
+            scope = bool(op.get_traits_of_type(IsolatedFromAbove))
+            begin_op_pos = self._current_column
+            self._print_results(op)
+            if scope:
+                self.enter_scope()
+            use_custom_format = False
+            if isinstance(op, UnregisteredOp):
+                self.print_string(f'"{op.op_name.data}"')
+            # If we print with the generic format, or the operation does not have a custom
+            # format
+            elif self.print_generic_format or Operation.print is type(op).print:
+                self.print_string(f'"{op.name}"')
+            else:
+                self.print_string(op.name)
+                use_custom_format = True
+            end_op_pos = self._current_column
+            if op in self.diagnostic.op_messages:
+                for message in self.diagnostic.op_messages[op]:
+                    self._add_message_on_next_line(message, begin_op_pos, end_op_pos)
+            if isinstance(op, UnregisteredOp):
+                op_name = op.op_name
+                del op.attributes["op_name__"]
+                self.print_op_with_default_format(op)
+                op.attributes["op_name__"] = op_name
+            elif use_custom_format:
+                op.print(self)
+            else:
+                self.print_op_with_default_format(op)
+            if scope:
+                self.exit_scope()
 
     def print_resource_handle(self, dialect: str, handle: str) -> None:
         if dialect not in self._dialect_resources:

@@ -7,6 +7,8 @@ from typing import IO, Any
 
 from typing_extensions import TypeVar
 
+from xdsl.utils.colors import RESET, Colors
+
 
 @dataclass(eq=False, repr=False)
 class BasePrinter:
@@ -15,6 +17,9 @@ class BasePrinter:
     _indent: int = field(default=0, init=False)
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
+
+    _in_color_block: bool = field(default=False, init=False)
+    syntax_highlight: bool = field(default=False)
 
     _next_line_callback: list[Callable[[], None]] = field(
         default_factory=list[Callable[[], None]], init=False
@@ -67,6 +72,17 @@ class BasePrinter:
             if i:
                 self.print_string(delimiter)
             print_fn(elem)
+
+    @contextmanager
+    def colored(self, color: Colors | None):
+        if self._in_color_block or not self.syntax_highlight or color is None:
+            yield
+        else:
+            self._in_color_block = True
+            print(color, end="", file=self.stream)
+            yield
+            print(RESET, end="", file=self.stream)
+            self._in_color_block = False
 
     @contextmanager
     def delimited(self, start: str, end: str):
