@@ -346,13 +346,13 @@ def _(ConstraintContext, IntAttr, VerifyException, irdl_to_attr_constraint):
             object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(constr))
 
         # Check that an attribute satisfies the constraints
-        def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        def verify(self, value: Attribute, constraint_context: ConstraintContext) -> None:
             # We first check that the attribute is an ArrayAttr
-            if not isa(attr, ArrayAttr[Attribute]):
+            if not isa(value, ArrayAttr[Attribute]):
                 raise VerifyException(f"expected attribute ArrayData but got {attr}")
 
             # We check the constraint for all elements in the array
-            for e in attr.data:
+            for e in value.data:
                 self.elem_constr.verify(e, constraint_context)
 
         def mapping_type_vars(self, type_var_mapping: dict[TypeVar, AttrConstraint]):
