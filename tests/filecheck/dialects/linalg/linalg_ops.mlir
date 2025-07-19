@@ -197,12 +197,12 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.copy"(%{{.*}}, %{{.*}} <{operandSegmentSizes = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32):
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}} : (f32) -> ()
-// CHECK-GENERIC-NEXT:    }) : (tensor<4x16xf32>, tensor<4x16xf32>) -> tensor<4x16xf32>
+// CHECK-GENERIC-NEXT:    }) {id} : (tensor<4x16xf32>, tensor<4x16xf32>) -> tensor<4x16xf32>
 
 // CHECK-GENERIC-NEXT:    "linalg.copy"(%{{.*}}, %{{.*}} <{operandSegmentSizes = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32):
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}} : (f32) -> ()
-// CHECK-GENERIC-NEXT:    }) : (memref<4x16xf32>, memref<4x16xf32>) -> ()
+// CHECK-GENERIC-NEXT:    }) {id} : (memref<4x16xf32>, memref<4x16xf32>) -> ()
 
 // CHECK-GENERIC-NEXT:     %{{.*}}, %{{.*}} = "test.op"() : () -> (tensor<64x9216xi8>, tensor<9216x4096xi8>)
 // CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 0 : i32}> : () -> i32
