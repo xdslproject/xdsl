@@ -4,7 +4,16 @@ import pytest
 from typing_extensions import TypeVar
 
 from xdsl.ir import Attribute
-from xdsl.irdl import AttrConstraint, ConstraintContext, RangeConstraint
+from xdsl.irdl import (
+    AnyAttr,
+    AnyInt,
+    AttrConstraint,
+    ConstraintContext,
+    IntVarConstraint,
+    RangeConstraint,
+    RangeOf,
+    VarConstraint,
+)
 
 
 class AnyRangeConstraint(RangeConstraint):
@@ -29,3 +38,9 @@ def test_failing_inference():
         ValueError, match="Cannot infer range from constraint AnyRangeConstraint()"
     ):
         AnyRangeConstraint().infer(ConstraintContext(), length=None)
+
+
+def test_range_of_variables():
+    attr_constr = VarConstraint("ATTR", AnyAttr())
+    len_constr = IntVarConstraint("LENGTH", AnyInt())
+    assert RangeOf(attr_constr, length=len_constr).variables() == {"ATTR", "LENGTH"}
