@@ -751,6 +751,48 @@ class FillOp(NamedOperation):
 
 
 @irdl_op_definition
+class CopyOp(NamedOperation):
+    """
+    Copies the tensor elementwise.
+
+    Numeric casting is performed on the input operand, promoting it to the same data type as the accumulator/output.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgcopy-linalgcopyop).
+    """
+
+    name = "linalg.copy"
+
+    PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            assert isa(outputs, Sequence[SSAValue]), "cannot infer result_types"
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            YieldOp(args[0])
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
+
+
+@irdl_op_definition
 class MaxOp(NamedOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
@@ -1365,6 +1407,7 @@ Linalg = Dialect(
         SubOp,
         SelectOp,
         FillOp,
+        CopyOp,
         MaxOp,
         MinOp,
         MulOp,
