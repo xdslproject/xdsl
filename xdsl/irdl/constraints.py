@@ -1044,6 +1044,9 @@ class RangeOf(RangeConstraint[AttributeCovT]):
     def verify_length(self, length: int, constraint_context: ConstraintContext):
         self.length.verify(length, constraint_context)
 
+    def variables(self) -> set[str]:
+        return self.constr.variables() | self.length.variables()
+
     def variables_from_length(self) -> set[str]:
         return self.length.variables()
 
