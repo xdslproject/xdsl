@@ -259,7 +259,7 @@ class AttributeOp(IRDLOperation):
     """
 
     name = "pdl.attribute"
-    value = opt_prop_def(Attribute)
+    value = opt_prop_def()
     value_type = opt_operand_def(TypeType)
     output = result_def(AttributeType)
 
@@ -853,7 +853,7 @@ class TypeOp(IRDLOperation):
     """
 
     name = "pdl.type"
-    constantType = opt_prop_def(Attribute)
+    constantType = opt_prop_def()
     result = result_def(TypeType)
 
     assembly_format = "attr-dict (`:` $constantType^)?"

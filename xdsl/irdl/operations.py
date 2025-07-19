@@ -613,7 +613,7 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: IRDLAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
@@ -631,18 +631,6 @@ def prop_def(
 @overload
 def opt_prop_def(
     constraint: IRDLAttrConstraint[AttributeInvT],
-    default_value: None = None,
-    *,
-    prop_name: str | None = None,
-    default: None = None,
-    resolver: None = None,
-    init: Literal[False] = False,
-) -> AttributeInvT | None: ...
-
-
-@overload
-def opt_prop_def(
-    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute,
     *,
     prop_name: str | None = None,
@@ -652,8 +640,20 @@ def opt_prop_def(
 ) -> AttributeInvT: ...
 
 
+@overload
 def opt_prop_def(
-    constraint: IRDLAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
+    default_value: Attribute | None = None,
+    *,
+    prop_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT | None: ...
+
+
+def opt_prop_def(
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
@@ -669,7 +669,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: IRDLAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
@@ -689,18 +689,6 @@ def attr_def(
 @overload
 def opt_attr_def(
     constraint: IRDLAttrConstraint[AttributeInvT],
-    default_value: None = None,
-    *,
-    attr_name: str | None = None,
-    default: None = None,
-    resolver: None = None,
-    init: Literal[False] = False,
-) -> AttributeInvT | None: ...
-
-
-@overload
-def opt_attr_def(
-    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute,
     *,
     attr_name: str | None = None,
@@ -710,8 +698,20 @@ def opt_attr_def(
 ) -> AttributeInvT: ...
 
 
+@overload
 def opt_attr_def(
-    constraint: IRDLAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
+    default_value: Attribute | None = None,
+    *,
+    attr_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT | None: ...
+
+
+def opt_attr_def(
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,

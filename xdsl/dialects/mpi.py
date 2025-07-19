@@ -695,7 +695,7 @@ class GetDtypeOp(MPIBaseOp):
 
     name = "mpi.get_dtype"
 
-    dtype = attr_def(Attribute)
+    dtype = attr_def()
 
     result = result_def(DataType)
 

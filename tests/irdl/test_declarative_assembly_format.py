@@ -281,7 +281,7 @@ def test_attr_dict_prop_fallback(program: str, generic_program: str):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
-        prop = opt_prop_def(Attribute)
+        prop = opt_prop_def()
         irdl_options = [ParsePropInAttrDict()]
         assembly_format = "attr-dict"
 
@@ -309,8 +309,8 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
-        prop1 = prop_def(Attribute)
-        prop2 = opt_prop_def(Attribute)
+        prop1 = prop_def()
+        prop2 = opt_prop_def()
         irdl_options = [ParsePropInAttrDict()]
         assembly_format = "$prop1 attr-dict"
 
@@ -330,7 +330,7 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
 class OpWithAttrOp(IRDLOperation):
     name = "test.one_attr"
 
-    attr = attr_def(Attribute)
+    attr = attr_def()
     assembly_format = "$attr attr-dict"
 
 
@@ -431,8 +431,8 @@ def test_missing_property_error():
     class MissingPropOp(IRDLOperation):
         name = "test.missing_prop"
 
-        prop1 = prop_def(Attribute)
-        prop2 = prop_def(Attribute)
+        prop1 = prop_def()
+        prop2 = prop_def()
         assembly_format = "$prop1 attr-dict"
 
     with pytest.raises(
@@ -457,7 +457,7 @@ def test_standard_prop_directive(program: str, generic_program: str):
     class PropOp(IRDLOperation):
         name = "test.one_prop"
 
-        prop = prop_def(Attribute)
+        prop = prop_def()
         assembly_format = "$prop attr-dict"
 
     ctx = Context()
@@ -511,7 +511,7 @@ def test_optional_property(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalPropertyOp(IRDLOperation):
         name = "test.optional_property"
-        prop = opt_prop_def(Attribute)
+        prop = opt_prop_def()
 
         assembly_format = "(`prop` $prop^)? attr-dict"
 
@@ -542,7 +542,7 @@ def test_optional_qualified_property(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalPropertyOp(IRDLOperation):
         name = "test.optional_property"
-        prop = opt_prop_def(Attribute)
+        prop = opt_prop_def()
 
         assembly_format = "($prop^)? attr-dict"
 
@@ -573,7 +573,7 @@ def test_optional_property_with_whitespace(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalPropertyOp(IRDLOperation):
         name = "test.optional_property"
-        prop = opt_prop_def(Attribute)
+        prop = opt_prop_def()
 
         assembly_format = "`(` (` ` `prop` $prop^ ` `)? `)` attr-dict"
 
@@ -666,7 +666,7 @@ def test_optional_attribute(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalAttributeOp(IRDLOperation):
         name = "test.optional_attribute"
-        attr = opt_attr_def(Attribute)
+        attr = opt_attr_def()
 
         assembly_format = "(`attr` $attr^)? attr-dict"
 

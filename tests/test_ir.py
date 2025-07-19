@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
 from xdsl.ir import (
-    Attribute,
     Block,
     ErasedSSAValue,
     Operation,
@@ -41,7 +40,7 @@ from xdsl.utils.test_value import create_ssa_value
 class TestWithPropOp(IRDLOperation):
     name = "test.op_with_prop"
 
-    prop = prop_def(Attribute)
+    prop = prop_def()
 
 
 def test_ops_accessor():
