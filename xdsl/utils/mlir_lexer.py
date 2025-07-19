@@ -64,6 +64,10 @@ class StringLiteral(Span):
 
     @property
     def bytes_contents(self) -> bytes:
+        # NOTE: Early return if no escape sequences are present.
+        if "\\" not in self.text[1:-1]:
+            return self.text[1:-1].encode()
+
         bytes_contents = bytearray()
         iter_string = iter(self.text[1:-1])
         for c0 in iter_string:
