@@ -914,6 +914,7 @@ class OpDef:
     or is already used by the operation, so we need to use a different name.
     """
     assembly_format: str | None = field(default=None)
+    custom_directives: dict[str, Any] = field(default_factory=dict[str, Any])
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
@@ -931,7 +932,8 @@ class OpDef:
 
         def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
             raise PyRDLOpDefinitionError(
-                f"{pyrdl_def.__name__}.{field_name} is neither a function, or an "
+                f"{pyrdl_def.__name__}.{field_name} is neither a function,"
+                "a custom directive, or an "
                 "operand, result, region, or attribute definition. "
                 "Operands should be defined with type hints of "
                 "operand_def(<Constraint>), results with "
@@ -1042,6 +1044,12 @@ class OpDef:
                     value, FunctionType | PropertyType | classmethod | staticmethod
                 ):
                     continue
+
+                # Collect custom directives
+                if inspect.isclass(value):
+                    op_def.custom_directives[field_name] = value
+                    continue
+
                 # Constraint variables are deprecated
                 if get_origin(value) is Annotated:
                     if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
