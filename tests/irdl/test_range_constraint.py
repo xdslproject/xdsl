@@ -46,11 +46,13 @@ def test_failing_inference():
 
 def test_range_of_variables():
     attr_constr = VarConstraint("ATTR", AnyAttr())
+    range_constr = RangeOf(attr_constr)
+    assert range_constr.variables() == {"ATTR"}
     len_constr = IntVarConstraint("LENGTH", AnyInt())
-    assert RangeOf(attr_constr).of_length(len_constr).variables() == {"ATTR", "LENGTH"}
+    assert range_constr.of_length(len_constr).variables() == {"ATTR", "LENGTH"}
 
 
-def test_verify_correct_length():
+def test_verify_range_length_constraint():
     hello = StringAttr("hello")
     world = StringAttr("world")
     attr_constr = VarConstraint("ATTR", BaseAttr(StringAttr))
@@ -84,6 +86,9 @@ def test_verify_correct_length():
 
     # variables
     assert range_len_constr.variables() == {"ATTR", "LENGTH"}
+
+    # variables_from_length
+    assert range_len_constr.variables_from_length() == {"LENGTH"}
 
     # can_infer
     assert not range_len_constr.can_infer(set(), length_known=True)
