@@ -75,6 +75,7 @@ class FortranVariableFlags(Enum):
     VALUE = "value"
     VOLATILE = "volatile"
     HOSTASSOC = "host_assoc"
+    INTERNALASSOC = "internal_assoc"
 
     @staticmethod
     def try_parse(parser: AttrParser) -> set[FortranVariableFlags] | None:
@@ -1743,8 +1744,12 @@ class GlobalOp(IRDLOperation):
     sym_name = prop_def(SymbolNameConstraint())
     symref = prop_def(SymbolRefAttr)
     type = prop_def(Attribute)
-    linkName = opt_prop_def(StringAttr)
+    initVal = opt_prop_def(Attribute)
     constant = opt_prop_def(UnitAttr)
+    target = opt_prop_def(UnitAttr)
+    linkName = opt_prop_def(StringAttr)
+    data_attr = opt_prop_def(Attribute)
+    alignment = opt_prop_def(IntegerAttr)
 
     traits = traits_def(SymbolOpInterface())
 
