@@ -47,7 +47,6 @@ from xdsl.ir.affine import (
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
-    AnyRangeOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
@@ -58,6 +57,8 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     RangeConstraint,
+    RangeOf,
+    # RangeOf,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -208,7 +209,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
             object.__setattr__(
                 self,
                 "elem_range_constraint",
-                AnyRangeOf(irdl_to_attr_constraint(constr)),
+                RangeOf(irdl_to_attr_constraint(constr)),
             )
 
     def verify(
@@ -391,61 +392,6 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> Self:
         return self
-
-
-@dataclass(frozen=True)
-class RangeOf(RangeConstraint[AttributeCovT]):
-    """
-    Constrain each element in a range to satisfy a given constraint.
-    """
-
-    constr: AttrConstraint[AttributeCovT]
-    length: IntConstraint
-
-    def verify(
-        self,
-        attrs: Sequence[Attribute],
-        constraint_context: ConstraintContext,
-    ) -> None:
-        for a in attrs:
-            self.constr.verify(a, constraint_context)
-        try:
-            self.length.verify(len(attrs), constraint_context)
-        except VerifyException as e:
-            raise VerifyException(
-                "incorrect length for range variable:\n" + str(e)
-            ) from e
-
-    def verify_length(self, length: int, constraint_context: ConstraintContext):
-        self.length.verify(length, constraint_context)
-
-    def variables_from_length(self) -> set[str]:
-        return self.length.variables()
-
-    def can_infer(
-        self, var_constraint_names: AbstractSet[str], *, length_known: bool
-    ) -> bool:
-        return (
-            length_known or self.length.can_infer(var_constraint_names)
-        ) and self.constr.can_infer(var_constraint_names)
-
-    def infer(
-        self,
-        context: ConstraintContext,
-        *,
-        length: int | None,
-    ) -> Sequence[AttributeCovT]:
-        if length is None:
-            length = self.length.infer(context)
-        attr = self.constr.infer(context)
-        return (attr,) * length
-
-    def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> RangeOf[AttributeCovT]:
-        return RangeOf(
-            self.constr.mapping_type_vars(type_var_mapping), length=self.length
-        )
 
 
 class Signedness(Enum):

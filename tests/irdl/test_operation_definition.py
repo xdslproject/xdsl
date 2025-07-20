@@ -12,7 +12,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
     IntegerType,
-    RangeOf,
     StringAttr,
     i32,
     i64,
@@ -23,7 +22,6 @@ from xdsl.irdl import (
     AnyAttr,
     AnyInt,
     AnyOf,
-    AnyRangeOf,
     AttributeDef,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
@@ -36,6 +34,7 @@ from xdsl.irdl import (
     OpDef,
     OperandDef,
     PropertyDef,
+    RangeOf,
     RangeVarConstraint,
     RegionDef,
     ResultDef,
@@ -339,12 +338,8 @@ def test_generic_constraint_var_fail_not_satisfy_constraint():
 class ConstraintRangeVarOp(IRDLOperation):
     name = "test.constraint_range_var"
 
-    operand = var_operand_def(
-        RangeVarConstraint("T", AnyRangeOf(AnyOf((i32, IndexType))))
-    )
-    result = var_result_def(
-        RangeVarConstraint("T", AnyRangeOf(AnyOf((i32, IndexType))))
-    )
+    operand = var_operand_def(RangeVarConstraint("T", RangeOf(AnyOf((i32, IndexType)))))
+    result = var_result_def(RangeVarConstraint("T", RangeOf(AnyOf((i32, IndexType)))))
 
 
 def test_range_var():
@@ -427,8 +422,8 @@ class SameLengthOp(IRDLOperation):
     name = "test.same_length"
 
     LENGTH: ClassVar = IntVarConstraint("length", AnyInt())
-    operand = var_operand_def(RangeOf(AnyAttr(), length=LENGTH))
-    result = var_result_def(RangeOf(AnyAttr(), length=LENGTH))
+    operand = var_operand_def(RangeOf(AnyAttr()).of_length(LENGTH))
+    result = var_result_def(RangeOf(AnyAttr()).of_length(LENGTH))
 
 
 def test_same_length_op():
@@ -905,7 +900,7 @@ def test_multiple_inheritance_op():
 @irdl_op_definition
 class EntryArgsOp(IRDLOperation):
     name = "test.entry_args"
-    body = opt_region_def(entry_args=AnyRangeOf(EqAttrConstraint(i32)))
+    body = opt_region_def(entry_args=RangeOf(EqAttrConstraint(i32)))
 
     traits = traits_def(NoTerminator())
 

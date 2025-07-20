@@ -6,7 +6,7 @@ from typing import ClassVar, TypeAlias
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, RangeOf, StringAttr
+from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, StringAttr
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -18,12 +18,12 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    AnyRangeOf,
     AtLeast,
     AttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     RangeConstraint,
+    RangeOf,
     RangeVarConstraint,
     VarConstraint,
     base,
@@ -247,7 +247,7 @@ class ApplyFuncOp(IRDLOperation):
 
     name = "smt.apply_func"
 
-    DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", AnyRangeOf(NonFuncSMTTypeConstr))
+    DOMAIN: ClassVar = RangeVarConstraint("DOMAIN", RangeOf(NonFuncSMTTypeConstr))
     RANGE: ClassVar = VarConstraint("RANGE", NonFuncSMTTypeConstr)
 
     func = operand_def(FuncType.constr(DOMAIN, RANGE))
@@ -315,7 +315,7 @@ class VariadicBoolOp(IRDLOperation):
     requires at least two.
     """
 
-    inputs = var_operand_def(RangeOf(base(BoolType), length=AtLeast(2)))
+    inputs = var_operand_def(RangeOf(base(BoolType)).of_length(AtLeast(2)))
     result = result_def(BoolType())
 
     traits = traits_def(Pure())
@@ -428,7 +428,7 @@ class VariadicPredicateOp(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint("T", NonFuncSMTTypeConstr)
 
-    inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
+    inputs = var_operand_def(RangeOf(T).of_length(AtLeast(2)))
     result = result_def(BoolType())
 
     traits = traits_def(Pure())

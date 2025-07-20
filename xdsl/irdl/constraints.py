@@ -961,6 +961,68 @@ class RangeConstraint(Generic[AttributeCovT], ABC):
             "Custom constraints must map type vars in nested constraints, if any."
         )
 
+    def of_length(
+        self, length_constr: IntConstraint
+    ) -> RangeLengthConstraint[AttributeCovT]:
+        return RangeLengthConstraint(self, length_constr)
+
+
+@dataclass(frozen=True)
+class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
+    """
+    Constrain an attribute range with the given length.
+    """
+
+    constraint: RangeConstraint[AttributeCovT]
+    """The constraint that the variable must satisfy."""
+
+    length: IntConstraint
+    """The length that the range must have"""
+
+    def verify(
+        self,
+        attrs: Sequence[Attribute],
+        constraint_context: ConstraintContext,
+    ) -> None:
+        self.verify_length(len(attrs), constraint_context)
+        self.constraint.verify(attrs, constraint_context)
+
+    def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
+        try:
+            self.length.verify(length, constraint_context)
+        except VerifyException as e:
+            raise VerifyException(
+                "incorrect length for range variable:\n" + str(e)
+            ) from e
+
+    def variables(self) -> set[str]:
+        return self.constraint.variables() | self.length.variables()
+
+    def variables_from_length(self) -> set[str]:
+        return self.length.variables()
+
+    def can_infer(
+        self, var_constraint_names: AbstractSet[str], *, length_known: bool
+    ) -> bool:
+        length_known = length_known or self.length.can_infer(var_constraint_names)
+        return self.constraint.can_infer(
+            var_constraint_names, length_known=length_known
+        )
+
+    def infer(
+        self, context: ConstraintContext, *, length: int | None
+    ) -> Sequence[AttributeCovT]:
+        if length is None:
+            length = self.length.infer(context)
+        return self.constraint.infer(context, length=length)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> RangeLengthConstraint[AttributeCovT]:
+        return RangeLengthConstraint(
+            self.constraint.mapping_type_vars(type_var_mapping), self.length
+        )
+
 
 @dataclass(frozen=True)
 class RangeVarConstraint(RangeConstraint[AttributeCovT]):
@@ -1018,7 +1080,7 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
 
 
 @dataclass(frozen=True)
-class AnyRangeOf(RangeConstraint[AttributeCovT]):
+class RangeOf(RangeConstraint[AttributeCovT]):
     """
     Constrain each element in a range to satisfy a given constraint.
     """
@@ -1034,6 +1096,9 @@ class AnyRangeOf(RangeConstraint[AttributeCovT]):
             self.constr.verify(a, constraint_context)
 
     def verify_length(self, length: int, constraint_context: ConstraintContext): ...
+
+    def variables(self) -> set[str]:
+        return self.constr.variables()
 
     def can_infer(
         self, var_constraint_names: AbstractSet[str], *, length_known: bool
@@ -1052,8 +1117,8 @@ class AnyRangeOf(RangeConstraint[AttributeCovT]):
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> AnyRangeOf[AttributeCovT]:
-        return AnyRangeOf(self.constr.mapping_type_vars(type_var_mapping))
+    ) -> RangeOf[AttributeCovT]:
+        return RangeOf(self.constr.mapping_type_vars(type_var_mapping))
 
 
 @dataclass(frozen=True)

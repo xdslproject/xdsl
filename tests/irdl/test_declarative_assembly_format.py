@@ -20,7 +20,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     ModuleOp,
-    RangeOf,
     StringAttr,
     SymbolNameConstraint,
     UnitAttr,
@@ -37,7 +36,6 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyInt,
-    AnyRangeOf,
     AttrConstraint,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
@@ -48,6 +46,7 @@ from xdsl.irdl import (
     IRDLOperation,
     ParamAttrConstraint,
     ParsePropInAttrDict,
+    RangeOf,
     RangeVarConstraint,
     TypedAttributeConstraint,  # pyright: ignore[reportDeprecated]
     VarConstraint,
@@ -2646,7 +2645,7 @@ def test_variadic_length_inference():
     @irdl_op_definition
     class RangeVarOp(IRDLOperation):
         name = "test.range_var"
-        T: ClassVar = RangeVarConstraint("T", AnyRangeOf(AnyAttr()))
+        T: ClassVar = RangeVarConstraint("T", RangeOf(AnyAttr()))
         ins = var_operand_def(T)
         outs = var_result_def(T)
 
@@ -2674,8 +2673,8 @@ def test_int_var_inference():
     class IntVarOp(IRDLOperation):
         name = "test.int_var"
         T: ClassVar = IntVarConstraint("T", AnyInt())
-        ins = var_operand_def(RangeOf(eq(IndexType()), length=T))
-        outs = var_result_def(RangeOf(eq(IntegerType(64)), length=T))
+        ins = var_operand_def(RangeOf(eq(IndexType())).of_length(T))
+        outs = var_result_def(RangeOf(eq(IntegerType(64))).of_length(T))
 
         assembly_format = "$ins attr-dict"
 
@@ -3475,7 +3474,7 @@ class IntAttrExtractOp(IRDLOperation):
 
     prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
-    outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
+    outs = var_result_def(RangeOf(eq(IndexType())).of_length(_I))
 
     assembly_format = "$prop attr-dict"
 
@@ -3522,7 +3521,7 @@ class IntAttrVerifyOp(IRDLOperation):
 
     prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
-    ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
+    ins = var_operand_def(RangeOf(eq(IndexType())).of_length(_I))
 
     assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
 
