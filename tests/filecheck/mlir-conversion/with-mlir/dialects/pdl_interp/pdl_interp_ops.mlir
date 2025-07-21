@@ -50,7 +50,9 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
   pdl_interp.check_type %7 is i32 -> ^bb16, ^bb1
 ^bb19:
   %attr_val = pdl_interp.get_attribute "test_attr" of %arg0
-  pdl_interp.switch_attribute %attr_val to [42 : i32, true](^bb16, ^bb1) -> ^bb1
+  pdl_interp.switch_attribute %attr_val to [42 : i32, true](^bb20, ^bb1) -> ^bb1
+^bb20:
+  %9 = pdl_interp.apply_constraint "myConstraint"(%attr_val : !pdl.attribute) : !pdl.operation {isNegated = true} -> ^bb16, ^bb1
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
@@ -119,7 +121,9 @@ module @rewriters {
 // CHECK-NEXT:       pdl_interp.check_type %7 is i32 -> ^15, ^1
 // CHECK-NEXT:     ^18:
 // CHECK-NEXT:       %9 = pdl_interp.get_attribute "test_attr" of [[arg0]]
-// CHECK-NEXT:       pdl_interp.switch_attribute %9 to [42 : i32, true](^15, ^1) -> ^1
+// CHECK-NEXT:       pdl_interp.switch_attribute %9 to [42 : i32, true](^19, ^1) -> ^1
+// CHECK-NEXT:     ^19:
+// CHECK-NEXT:       %10 = pdl_interp.apply_constraint "myConstraint"(%9 : !pdl.attribute) : !pdl.operation {isNegated = true} -> ^15, ^1
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
 // CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {
