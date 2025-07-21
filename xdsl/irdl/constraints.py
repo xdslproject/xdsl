@@ -803,6 +803,18 @@ class IntConstraint(ABC):
         """
         raise ValueError(f"Cannot infer integer from constraint {self}")
 
+    @abstractmethod
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> IntConstraint:
+        """
+        A helper function to make type vars used in attribute definitions concrete when
+        creating constraints for new attributes or operations.
+        """
+        raise NotImplementedError(
+            "Custom constraints must map type vars in nested constraints, if any."
+        )
+
 
 class AnyInt(IntConstraint):
     """
@@ -811,6 +823,11 @@ class AnyInt(IntConstraint):
 
     def verify(self, i: int, constraint_context: ConstraintContext) -> None:
         pass
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> IntConstraint:
+        return self
 
 
 @dataclass(frozen=True)
@@ -833,6 +850,11 @@ class EqIntConstraint(IntConstraint):
     def infer(self, context: ConstraintContext) -> int:
         return self.value
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> IntConstraint:
+        return self
+
 
 @dataclass(frozen=True)
 class AtLeast(IntConstraint):
@@ -844,6 +866,11 @@ class AtLeast(IntConstraint):
     def verify(self, i: int, constraint_context: ConstraintContext) -> None:
         if i < self.bound:
             raise VerifyException(f"expected integer >= {self.bound}, got {i}")
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> IntConstraint:
+        return self
 
 
 @dataclass(frozen=True)
@@ -887,6 +914,13 @@ class IntVarConstraint(IntConstraint):
         v = context.get_int_variable(self.name)
         assert isinstance(v, int)
         return v
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> IntConstraint:
+        return IntVarConstraint(
+            self.name, self.constraint.mapping_type_vars(type_var_mapping)
+        )
 
 
 @dataclass(frozen=True)
@@ -1126,7 +1160,8 @@ class RangeOf(RangeConstraint[AttributeCovT]):
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> RangeOf[AttributeCovT]:
         return RangeOf(
-            self.constr.mapping_type_vars(type_var_mapping), length=self.length
+            self.constr.mapping_type_vars(type_var_mapping),
+            length=self.length.mapping_type_vars(type_var_mapping),
         )
 
 

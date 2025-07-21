@@ -387,8 +387,10 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> Self:
-        return self
+    ) -> AttrConstraint[IntAttr]:
+        return IntAttrConstraint(
+            self.int_constraint.mapping_type_vars(type_var_mapping)
+        )
 
 
 class Signedness(Enum):
