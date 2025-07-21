@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import IO, Any, ClassVar
+from typing import IO, Any
 
 from xdsl.context import Context
 from xdsl.dialects import pdl
@@ -31,7 +31,9 @@ class PDLMatcher:
     the corresponding xDSL object.
     """
 
-    native_constraints: ClassVar[dict[str, Callable[..., bool]]] = {}
+    native_constraints: dict[str, Callable[..., bool]] = field(
+        default_factory=dict[str, Callable[..., bool]]
+    )
     """
     The functions that can be used in `pdl.apply_native_constraint`. Note that we do
     not verify that the functions are used with the correct types.
