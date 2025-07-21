@@ -206,9 +206,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
             object.__setattr__(self, "elem_range_constraint", constr)
         else:
             object.__setattr__(
-                self,
-                "elem_range_constraint",
-                RangeOf(irdl_to_attr_constraint(constr)),
+                self, "elem_range_constraint", RangeOf(irdl_to_attr_constraint(constr))
             )
 
     def verify(
