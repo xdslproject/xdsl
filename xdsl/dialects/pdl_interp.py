@@ -25,7 +25,6 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
-    i1,
 )
 from xdsl.dialects.pdl import (
     AnyPDLType,
@@ -432,15 +431,15 @@ class ApplyConstraintOp(IRDLOperation):
     traits = traits_def(IsTerminator())
     constraint_name = prop_def(StringAttr, prop_name="name")
     is_negated = prop_def(
-        BoolAttr, prop_name="isNegated", default_value=BoolAttr(False, i1)
+        BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
     args = var_operand_def(AnyPDLTypeConstr)
-    rresults = var_result_def(AnyPDLTypeConstr)
+    results_ = var_result_def(AnyPDLTypeConstr)
     true_dest = successor_def()
     false_dest = successor_def()
     irdl_options = [ParsePropInAttrDict()]
 
-    assembly_format = "$name `(` $args `:` type($args) `)` `:` type($rresults) attr-dict `->` $true_dest `, ` $false_dest"
+    assembly_format = "$name `(` $args `:` type($args) `)` (`:` type($results_)^)? attr-dict `->` $true_dest `,` $false_dest"
 
     def __init__(
         self,
@@ -449,15 +448,17 @@ class ApplyConstraintOp(IRDLOperation):
         true_dest: Block,
         false_dest: Block,
         res_types: Sequence[AnyPDLType] = (),
-        is_negated: bool = False,
+        is_negated: bool | BoolAttr = False,
     ) -> None:
         if isinstance(constraint_name, str):
             constraint_name = StringAttr(constraint_name)
+        if isinstance(is_negated, bool):
+            is_negated = BoolAttr.from_bool(is_negated)
         super().__init__(
             operands=args,
             properties={
                 "name": constraint_name,
-                "isNegated": BoolAttr(is_negated, i1),
+                "isNegated": is_negated,
             },
             result_types=res_types,
             successors=[true_dest, false_dest],
