@@ -5,6 +5,7 @@ from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    BoolAttr,
     FunctionType,
     IntegerAttr,
     ModuleOp,
@@ -811,7 +812,7 @@ def test_apply_constraint():
 
     # Test negated constraint
     apply_constraint_op_negated = pdl_interp.ApplyConstraintOp(
-        "test_constraint",
+        StringAttr("test_constraint"),
         (c0,),
         true_dest,
         false_dest,
@@ -824,3 +825,17 @@ def test_apply_constraint():
     assert negated_result.values == (43,)
     assert isinstance(negated_result.terminator_value, Successor)
     assert negated_result.terminator_value.block is false_dest
+
+    # Test with non-existent constraint
+    apply_constraint_op_nonexistent = pdl_interp.ApplyConstraintOp(
+        "non_existent_constraint",
+        (c0,),
+        true_dest,
+        false_dest,
+        (pdl.AttributeType(),),
+        is_negated=BoolAttr.from_bool(False),
+    )
+    with pytest.raises(InterpretationError):
+        pdl_interp_functions.run_apply_constraint(
+            interpreter, apply_constraint_op_nonexistent, (1,)
+        )
