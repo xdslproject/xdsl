@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     I16,
     I32,
     ArrayAttr,
+    BoolAttr,
     ContainerOf,
     DictionaryAttr,
     Float16Type,
@@ -24,8 +25,10 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
+    i1,
 )
 from xdsl.dialects.pdl import (
+    AnyPDLType,
     AnyPDLTypeConstr,
     AttributeType,
     OperationType,
@@ -50,6 +53,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintContext,
     IRDLOperation,
+    ParsePropInAttrDict,
     VarConstraint,
     base,
     irdl_op_definition,
@@ -61,6 +65,7 @@ from xdsl.irdl import (
     successor_def,
     traits_def,
     var_operand_def,
+    var_result_def,
     var_successor_def,
 )
 from xdsl.parser import Parser
@@ -415,6 +420,48 @@ class AreEqualOp(IRDLOperation):
         self, lhs: SSAValue, rhs: SSAValue, trueDest: Block, falseDest: Block
     ) -> None:
         super().__init__(operands=[lhs, rhs], successors=[trueDest, falseDest])
+
+
+@irdl_op_definition
+class ApplyConstraintOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpapply_constraint-pdl_interpapplyconstraintop).
+    """
+
+    name = "pdl_interp.apply_constraint"
+    traits = traits_def(IsTerminator())
+    constraint_name = prop_def(StringAttr, prop_name="name")
+    is_negated = prop_def(
+        BoolAttr, prop_name="isNegated", default_value=BoolAttr(False, i1)
+    )
+    args = var_operand_def(AnyPDLTypeConstr)
+    rresults = var_result_def(AnyPDLTypeConstr)
+    true_dest = successor_def()
+    false_dest = successor_def()
+    irdl_options = [ParsePropInAttrDict()]
+
+    assembly_format = "$name `(` $args `:` type($args) `)` `:` type($rresults) attr-dict `->` $true_dest `, ` $false_dest"
+
+    def __init__(
+        self,
+        constraint_name: str | StringAttr,
+        args: Sequence[SSAValue],
+        true_dest: Block,
+        false_dest: Block,
+        res_types: Sequence[AnyPDLType] = (),
+        is_negated: bool = False,
+    ) -> None:
+        if isinstance(constraint_name, str):
+            constraint_name = StringAttr(constraint_name)
+        super().__init__(
+            operands=args,
+            properties={
+                "name": constraint_name,
+                "isNegated": BoolAttr(is_negated, i1),
+            },
+            result_types=res_types,
+            successors=[true_dest, false_dest],
+        )
 
 
 @irdl_op_definition
@@ -977,6 +1024,7 @@ PDLInterp = Dialect(
         GetAttributeOp,
         CheckAttributeOp,
         AreEqualOp,
+        ApplyConstraintOp,
         RecordMatchOp,
         GetValueTypeOp,
         ReplaceOp,
