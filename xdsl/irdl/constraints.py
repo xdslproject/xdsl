@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
-from dataclasses import KW_ONLY, dataclass, field
+from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -961,6 +961,11 @@ class RangeConstraint(Generic[AttributeCovT], ABC):
             "Custom constraints must map type vars in nested constraints, if any."
         )
 
+    def of_length(
+        self, length_constr: IntConstraint
+    ) -> RangeLengthConstraint[AttributeCovT]:
+        return RangeLengthConstraint(self, length_constr)
+
 
 @dataclass(frozen=True)
 class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
@@ -992,6 +997,9 @@ class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
 
     def variables(self) -> set[str]:
         return self.constraint.variables() | self.length.variables()
+
+    def variables_from_length(self) -> set[str]:
+        return self.length.variables()
 
     def can_infer(
         self, var_constraint_names: AbstractSet[str], *, length_known: bool
@@ -1078,8 +1086,6 @@ class RangeOf(RangeConstraint[AttributeCovT]):
     """
 
     constr: AttrConstraint[AttributeCovT]
-    _: KW_ONLY
-    length: IntConstraint = field(default_factory=AnyInt)
 
     def verify(
         self,
@@ -1088,28 +1094,16 @@ class RangeOf(RangeConstraint[AttributeCovT]):
     ) -> None:
         for a in attrs:
             self.constr.verify(a, constraint_context)
-        try:
-            self.length.verify(len(attrs), constraint_context)
-        except VerifyException as e:
-            raise VerifyException(
-                "incorrect length for range variable:\n" + str(e)
-            ) from e
 
-    def verify_length(self, length: int, constraint_context: ConstraintContext):
-        self.length.verify(length, constraint_context)
+    def verify_length(self, length: int, constraint_context: ConstraintContext): ...
 
     def variables(self) -> set[str]:
-        return self.constr.variables() | self.length.variables()
-
-    def variables_from_length(self) -> set[str]:
-        return self.length.variables()
+        return self.constr.variables()
 
     def can_infer(
         self, var_constraint_names: AbstractSet[str], *, length_known: bool
     ) -> bool:
-        return (
-            length_known or self.length.can_infer(var_constraint_names)
-        ) and self.constr.can_infer(var_constraint_names)
+        return length_known and self.constr.can_infer(var_constraint_names)
 
     def infer(
         self,
@@ -1117,17 +1111,14 @@ class RangeOf(RangeConstraint[AttributeCovT]):
         *,
         length: int | None,
     ) -> Sequence[AttributeCovT]:
-        if length is None:
-            length = self.length.infer(context)
+        assert length is not None
         attr = self.constr.infer(context)
         return (attr,) * length
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
     ) -> RangeOf[AttributeCovT]:
-        return RangeOf(
-            self.constr.mapping_type_vars(type_var_mapping), length=self.length
-        )
+        return RangeOf(self.constr.mapping_type_vars(type_var_mapping))
 
 
 @dataclass(frozen=True)

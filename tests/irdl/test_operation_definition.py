@@ -422,8 +422,8 @@ class SameLengthOp(IRDLOperation):
     name = "test.same_length"
 
     LENGTH: ClassVar = IntVarConstraint("length", AnyInt())
-    operand = var_operand_def(RangeOf(AnyAttr(), length=LENGTH))
-    result = var_result_def(RangeOf(AnyAttr(), length=LENGTH))
+    operand = var_operand_def(RangeOf(AnyAttr()).of_length(LENGTH))
+    result = var_result_def(RangeOf(AnyAttr()).of_length(LENGTH))
 
 
 def test_same_length_op():

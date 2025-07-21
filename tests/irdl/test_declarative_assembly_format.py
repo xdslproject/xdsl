@@ -2673,8 +2673,8 @@ def test_int_var_inference():
     class IntVarOp(IRDLOperation):
         name = "test.int_var"
         T: ClassVar = IntVarConstraint("T", AnyInt())
-        ins = var_operand_def(RangeOf(eq(IndexType()), length=T))
-        outs = var_result_def(RangeOf(eq(IntegerType(64)), length=T))
+        ins = var_operand_def(RangeOf(eq(IndexType())).of_length(T))
+        outs = var_result_def(RangeOf(eq(IntegerType(64))).of_length(T))
 
         assembly_format = "$ins attr-dict"
 
@@ -3474,7 +3474,7 @@ class IntAttrExtractOp(IRDLOperation):
 
     prop = prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
-    outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
+    outs = var_result_def(RangeOf(eq(IndexType())).of_length(_I))
 
     assembly_format = "$prop attr-dict"
 
@@ -3521,7 +3521,7 @@ class IntAttrVerifyOp(IRDLOperation):
 
     prop2 = opt_prop_def(IntegerAttr.constr(value=_I, type=eq(IndexType())))
 
-    ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
+    ins = var_operand_def(RangeOf(eq(IndexType())).of_length(_I))
 
     assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
 
