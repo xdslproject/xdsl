@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -33,6 +34,14 @@ class PDLInterpFunctions(InterpreterFunctions):
     ctx: Context
 
     _rewriter: PatternRewriter | None = field(default=None)
+
+    native_constraints: dict[str, Callable[..., tuple[bool, tuple[Any, ...]]]] = field(
+        default_factory=dict[str, Callable[..., tuple[bool, tuple[Any, ...]]]]
+    )
+    """
+    The functions that can be used in `pdl_interp.apply_constraint`. Note that we do
+    not verify that the functions are used with the correct types.
+    """
 
     @property
     def rewriter(self) -> PatternRewriter:
@@ -402,6 +411,25 @@ class PDLInterpFunctions(InterpreterFunctions):
             self.rewriter.current_operation = root_op
 
         return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
+
+    @impl_terminator(pdl_interp.ApplyConstraintOp)
+    def run_apply_constraint(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.ApplyConstraintOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        constraint_name = op.constraint_name.data
+
+        if constraint_name not in self.native_constraints:
+            raise InterpretationError(f"Unknown constraint function: {constraint_name}")
+        passed, *results = self.native_constraints[constraint_name](
+            *args,
+        )
+        terminator = op.true_dest if passed != bool(op.is_negated) else op.false_dest
+
+        return Successor(terminator, ()), *results
 
     @impl_terminator(pdl_interp.RecordMatchOp)
     def run_recordmatch(

@@ -5,6 +5,7 @@ from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    BoolAttr,
     FunctionType,
     IntegerAttr,
     ModuleOp,
@@ -771,3 +772,73 @@ def test_get_defining_op_block_argument():
 
     # Should return None for block arguments since they are not defined by operations
     assert result == (None,)
+
+
+def test_apply_constraint():
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
+
+    # Register a simple native constraint function
+    def native_constraint(x: int):
+        return True, (x + 42,)  # Return a boolean and an additional result
+
+    pdl_interp_functions.native_constraints["test_constraint"] = native_constraint
+
+    c0 = create_ssa_value(pdl.OperationType())
+
+    true_dest = Block()
+    false_dest = Block()
+
+    apply_constraint_op = pdl_interp.ApplyConstraintOp(
+        "test_constraint",
+        (c0,),
+        true_dest,
+        false_dest,
+        (pdl.AttributeType(),),
+        is_negated=False,
+    )
+
+    result = pdl_interp_functions.run_apply_constraint(
+        interpreter, apply_constraint_op, (1,)
+    )
+
+    assert result.values == (43,)
+
+    assert isinstance(result.terminator_value, Successor)
+    assert result.terminator_value.block is true_dest
+
+    # Test negated constraint
+    apply_constraint_op_negated = pdl_interp.ApplyConstraintOp(
+        StringAttr("test_constraint"),
+        (c0,),
+        true_dest,
+        false_dest,
+        (pdl.AttributeType(),),
+        is_negated=True,
+    )
+    negated_result = pdl_interp_functions.run_apply_constraint(
+        interpreter, apply_constraint_op_negated, (1,)
+    )
+    assert negated_result.values == (43,)
+    assert isinstance(negated_result.terminator_value, Successor)
+    assert negated_result.terminator_value.block is false_dest
+
+    # Test with non-existent constraint
+    apply_constraint_op_nonexistent = pdl_interp.ApplyConstraintOp(
+        "non_existent_constraint",
+        (c0,),
+        true_dest,
+        false_dest,
+        (pdl.AttributeType(),),
+        is_negated=BoolAttr.from_bool(False),
+    )
+    with pytest.raises(
+        InterpretationError,
+        match="Unknown constraint function: non_existent_constraint",
+    ):
+        pdl_interp_functions.run_apply_constraint(
+            interpreter, apply_constraint_op_nonexistent, (1,)
+        )
