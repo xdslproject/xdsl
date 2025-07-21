@@ -58,7 +58,6 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
-    # RangeOf,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
