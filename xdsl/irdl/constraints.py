@@ -165,12 +165,10 @@ class AttrConstraint(Generic[AttributeCovT], ABC):
             return value  # pyright: ignore[reportReturnType]
         return AnyOf((self, value))
 
-    def __and__(
-        self, value: AttrConstraint[AttributeCovT], /
-    ) -> AttrConstraint[AttributeCovT]:
+    def __and__(self, value: AttrConstraint, /) -> AttrConstraint[AttributeCovT]:
         if isinstance(value, AnyAttr) or self == value:
             return self
-        return AllOf((self, value))
+        return AllOf((self, value))  # pyright: ignore[reportReturnType]
 
     @abstractmethod
     def mapping_type_vars(
@@ -194,6 +192,7 @@ TypedAttributeCovT = TypeVar("TypedAttributeCovT", bound=TypedAttribute, covaria
 TypedAttributeT = TypeVar("TypedAttributeT", bound=TypedAttribute)
 
 
+@deprecated("Please use appropriate `AnyOf` constraints instead.")
 @dataclass(frozen=True)
 class TypedAttributeConstraint(AttrConstraint[TypedAttributeCovT]):
     """
@@ -223,8 +222,8 @@ class TypedAttributeConstraint(AttrConstraint[TypedAttributeCovT]):
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> TypedAttributeConstraint[TypedAttributeCovT]:
-        return TypedAttributeConstraint(
+    ) -> TypedAttributeConstraint[TypedAttributeCovT]:  # pyright: ignore[reportDeprecated]
+        return TypedAttributeConstraint(  # pyright: ignore[reportDeprecated]
             self.attr_constraint.mapping_type_vars(type_var_mapping),
             self.type_constraint.mapping_type_vars(type_var_mapping),
         )
@@ -520,10 +519,12 @@ class AnyOf(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
         return AnyOf((*self.attr_constrs, value))
 
     def variables(self) -> set[str]:
-        if len(self.attr_constrs) == 1:
-            return self.attr_constrs[0].variables()
-        else:
+        if not self.attr_constrs:
             return set()
+        variables = self.attr_constrs[0].variables()
+        for constr in self.attr_constrs[1:]:
+            variables &= constr.variables()
+        return variables
 
     def get_bases(self) -> set[type[Attribute]] | None:
         bases = set[type[Attribute]]()
@@ -598,8 +599,8 @@ class AllOf(AttrConstraint[AttributeCovT]):
                 bases &= b
         return bases
 
-    def __and__(self, value: AttrConstraint[AttributeCovT], /) -> AllOf[AttributeCovT]:
-        return AllOf((*self.attr_constrs, value))
+    def __and__(self, value: AttrConstraint, /) -> AllOf[AttributeCovT]:
+        return AllOf((*self.attr_constrs, value))  # pyright: ignore[reportReturnType]
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -813,6 +814,27 @@ class AnyInt(IntConstraint):
 
 
 @dataclass(frozen=True)
+class EqIntConstraint(IntConstraint):
+    """Constrain an integer to a value."""
+
+    value: int
+
+    def verify(
+        self,
+        i: int,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        if self.value != i:
+            raise VerifyException(f"Invalid value {i}, expected {self.value}")
+
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
+        return True
+
+    def infer(self, context: ConstraintContext) -> int:
+        return self.value
+
+
+@dataclass(frozen=True)
 class AtLeast(IntConstraint):
     """Constrain an integer to be at least a given value."""
 
@@ -941,6 +963,60 @@ class RangeConstraint(Generic[AttributeCovT], ABC):
 
 
 @dataclass(frozen=True)
+class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
+    """
+    Constrain an attribute range with the given length.
+    """
+
+    constraint: RangeConstraint[AttributeCovT]
+    """The constraint that the variable must satisfy."""
+
+    length: IntConstraint
+    """The length that the range must have"""
+
+    def verify(
+        self,
+        attrs: Sequence[Attribute],
+        constraint_context: ConstraintContext,
+    ) -> None:
+        self.verify_length(len(attrs), constraint_context)
+        self.constraint.verify(attrs, constraint_context)
+
+    def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
+        try:
+            self.length.verify(length, constraint_context)
+        except VerifyException as e:
+            raise VerifyException(
+                "incorrect length for range variable:\n" + str(e)
+            ) from e
+
+    def variables(self) -> set[str]:
+        return self.constraint.variables() | self.length.variables()
+
+    def can_infer(
+        self, var_constraint_names: AbstractSet[str], *, length_known: bool
+    ) -> bool:
+        length_known = length_known or self.length.can_infer(var_constraint_names)
+        return self.constraint.can_infer(
+            var_constraint_names, length_known=length_known
+        )
+
+    def infer(
+        self, context: ConstraintContext, *, length: int | None
+    ) -> Sequence[AttributeCovT]:
+        if length is None:
+            length = self.length.infer(context)
+        return self.constraint.infer(context, length=length)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> RangeLengthConstraint[AttributeCovT]:
+        return RangeLengthConstraint(
+            self.constraint.mapping_type_vars(type_var_mapping), self.length
+        )
+
+
+@dataclass(frozen=True)
 class RangeVarConstraint(RangeConstraint[AttributeCovT]):
     """
     Constrain an attribute range with the given constraint, and constrain all occurences
@@ -1021,6 +1097,9 @@ class RangeOf(RangeConstraint[AttributeCovT]):
 
     def verify_length(self, length: int, constraint_context: ConstraintContext):
         self.length.verify(length, constraint_context)
+
+    def variables(self) -> set[str]:
+        return self.constr.variables() | self.length.variables()
 
     def variables_from_length(self) -> set[str]:
         return self.length.variables()

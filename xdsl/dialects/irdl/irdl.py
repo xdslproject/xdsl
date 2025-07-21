@@ -561,7 +561,7 @@ class IsOp(IRDLOperation):
 
     name = "irdl.is"
 
-    expected = attr_def(Attribute)
+    expected = attr_def()
     output = result_def(AttributeType)
 
     def __init__(self, expected: Attribute):

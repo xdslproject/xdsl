@@ -345,7 +345,7 @@ class CheckAttributeOp(IRDLOperation):
 
     name = "pdl_interp.check_attribute"
     traits = traits_def(IsTerminator())
-    constantValue = prop_def(Attribute)
+    constantValue = prop_def()
     attribute = operand_def(AttributeType)
     true_dest = successor_def()
     false_dest = successor_def()

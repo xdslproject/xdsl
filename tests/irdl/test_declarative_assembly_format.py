@@ -48,7 +48,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
-    TypedAttributeConstraint,
+    TypedAttributeConstraint,  # pyright: ignore[reportDeprecated]
     VarConstraint,
     VarOperand,
     VarOpResult,
@@ -281,7 +281,7 @@ def test_attr_dict_prop_fallback(program: str, generic_program: str):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
-        prop = opt_prop_def(Attribute)
+        prop = opt_prop_def()
         irdl_options = [ParsePropInAttrDict()]
         assembly_format = "attr-dict"
 
@@ -309,8 +309,8 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
     @irdl_op_definition
     class PropOp(IRDLOperation):
         name = "test.prop"
-        prop1 = prop_def(Attribute)
-        prop2 = opt_prop_def(Attribute)
+        prop1 = prop_def()
+        prop2 = opt_prop_def()
         irdl_options = [ParsePropInAttrDict()]
         assembly_format = "$prop1 attr-dict"
 
@@ -330,7 +330,7 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
 class OpWithAttrOp(IRDLOperation):
     name = "test.one_attr"
 
-    attr = attr_def(Attribute)
+    attr = attr_def()
     assembly_format = "$attr attr-dict"
 
 
@@ -431,8 +431,8 @@ def test_missing_property_error():
     class MissingPropOp(IRDLOperation):
         name = "test.missing_prop"
 
-        prop1 = prop_def(Attribute)
-        prop2 = prop_def(Attribute)
+        prop1 = prop_def()
+        prop2 = prop_def()
         assembly_format = "$prop1 attr-dict"
 
     with pytest.raises(
@@ -457,7 +457,7 @@ def test_standard_prop_directive(program: str, generic_program: str):
     class PropOp(IRDLOperation):
         name = "test.one_prop"
 
-        prop = prop_def(Attribute)
+        prop = prop_def()
         assembly_format = "$prop attr-dict"
 
     ctx = Context()
@@ -511,7 +511,7 @@ def test_optional_property(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalPropertyOp(IRDLOperation):
         name = "test.optional_property"
-        prop = opt_prop_def(Attribute)
+        prop = opt_prop_def()
 
         assembly_format = "(`prop` $prop^)? attr-dict"
 
@@ -542,7 +542,7 @@ def test_optional_qualified_property(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalPropertyOp(IRDLOperation):
         name = "test.optional_property"
-        prop = opt_prop_def(Attribute)
+        prop = opt_prop_def()
 
         assembly_format = "($prop^)? attr-dict"
 
@@ -573,7 +573,7 @@ def test_optional_property_with_whitespace(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalPropertyOp(IRDLOperation):
         name = "test.optional_property"
-        prop = opt_prop_def(Attribute)
+        prop = opt_prop_def()
 
         assembly_format = "`(` (` ` `prop` $prop^ ` `)? `)` attr-dict"
 
@@ -666,7 +666,7 @@ def test_optional_attribute(program: str, generic_program: str):
     @irdl_op_definition
     class OptionalAttributeOp(IRDLOperation):
         name = "test.optional_attribute"
-        attr = opt_attr_def(Attribute)
+        attr = opt_attr_def()
 
         assembly_format = "(`attr` $attr^)? attr-dict"
 
@@ -3245,16 +3245,18 @@ def test_renamed_optional_prop(program: str, output: str, generic: str):
     ],
 )
 def test_optional_property_with_extractor(program: str, generic: str):
-    @irdl_op_definition
-    class OptConstantOp(IRDLOperation):
-        name = "test.opt_constant"
-        T: ClassVar = VarConstraint("T", AnyAttr())
+    with pytest.deprecated_call():
 
-        value = opt_prop_def(TypedAttributeConstraint(IntegerAttr.constr(), T))
+        @irdl_op_definition
+        class OptConstantOp(IRDLOperation):
+            name = "test.opt_constant"
+            T: ClassVar = VarConstraint("T", AnyAttr())
 
-        res = opt_result_def(T)
+            value = opt_prop_def(TypedAttributeConstraint(IntegerAttr.constr(), T))  # pyright: ignore[reportDeprecated]
 
-        assembly_format = "(`value` $value^)? attr-dict `:` `(` type($res) `)`"
+            res = opt_result_def(T)
+
+            assembly_format = "(`value` $value^)? attr-dict `:` `(` type($res) `)`"
 
     ctx = Context()
     ctx.load_op(OptConstantOp)
@@ -3277,19 +3279,21 @@ def test_optional_property_with_extractor(program: str, generic: str):
     ],
 )
 def test_default_property_with_extractor(program: str, generic: str):
-    @irdl_op_definition
-    class DefaultConstantOp(IRDLOperation):
-        name = "test.default_constant"
-        T: ClassVar = VarConstraint("T", AnyAttr())
+    with pytest.deprecated_call():
 
-        value = prop_def(
-            TypedAttributeConstraint(IntegerAttr.constr(), T),
-            default_value=BoolAttr.from_bool(True),
-        )
+        @irdl_op_definition
+        class DefaultConstantOp(IRDLOperation):
+            name = "test.default_constant"
+            T: ClassVar = VarConstraint("T", AnyAttr())
 
-        res = result_def(T)
+            value = prop_def(
+                TypedAttributeConstraint(IntegerAttr.constr(), T),  # pyright: ignore[reportDeprecated]
+                default_value=BoolAttr.from_bool(True),
+            )
 
-        assembly_format = "(`value` $value^)? attr-dict"
+            res = result_def(T)
+
+            assembly_format = "(`value` $value^)? attr-dict"
 
     ctx = Context()
     ctx.load_op(DefaultConstantOp)

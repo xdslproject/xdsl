@@ -323,7 +323,7 @@ class VariableOp(IRDLOperation):
 
     name = "fsm.variable"
 
-    initValue = attr_def(Attribute)
+    initValue = attr_def()
     name_var = opt_attr_def(StringAttr)
 
     result = var_result_def(Attribute)

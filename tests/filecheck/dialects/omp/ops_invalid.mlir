@@ -37,7 +37,7 @@ func.func @omp_wsloop_block(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, 
     return
 }
 
-// CHECK: omp.wsloop expected to have 3 block argument(s), got 1
+// CHECK: omp.wsloop expected to have at least 3 block argument(s), got 1
 
 // -----
 
@@ -49,7 +49,7 @@ func.func @omp_parallel_block(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64
   return
 }
 
-// CHECK: omp.parallel expected to have 3 block argument(s), got 1
+// CHECK: omp.parallel expected to have at least 3 block argument(s), got 1
 
 // -----
 
@@ -62,7 +62,7 @@ func.func @omp_target_block(%host : i32, %inr1 : i32, %inr2 : i32, %map : memref
   return
 }
 
-// CHECK: omp.target expected to have 7 block argument(s), got 2
+// CHECK: omp.target expected to have at least 7 block argument(s), got 2
 
 // -----
 
@@ -78,7 +78,7 @@ func.func @omp_simd(%ub : index, %lb : index, %step : index,%p1 : f32, %r1 : mem
   func.return
 }
 
-// CHECK: omp.simd expected to have 2 block argument(s), got 0
+// CHECK: omp.simd expected to have at least 2 block argument(s), got 0
 
 // -----
 
@@ -92,7 +92,7 @@ func.func @omp_target_data(%dev : i64, %if : i1, %m : memref<1xf32>, %d1 : memre
 }
 
 
-// CHECK: omp.target_data expected to have 3 block argument(s), got 2
+// CHECK: omp.target_data expected to have at least 3 block argument(s), got 2
 
 // -----
 
@@ -321,3 +321,31 @@ func.func @reduction_too_many_blocks() {
 }
 
 // CHECK: omp.declare_reduction should have at most 1 block in alloc_region
+
+// -----
+
+func.func @omp_distribute_chunk_operand(%lb : index, %ub : index, %step : index, %chunk : i64) {
+  "omp.distribute"(%chunk) <{operandSegmentSizes = array<i32: 0, 0, 1, 0>}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^1(%iter : index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : (i64) -> ()
+  func.return
+}
+
+// CHECK: omp.distribute should have either both dist_schedule_static and dist_schedule_chunk_size, or neither.
+
+// -----
+
+func.func @omp_distribute_chunk_attr(%lb : index, %ub : index, %step : index) {
+  "omp.distribute"() <{dist_schedule_static, operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
+    "omp.loop_nest"(%lb, %ub, %step) ({
+    ^1(%iter : index):
+      omp.yield
+    }) : (index, index, index) -> ()
+  }) : () -> ()
+  func.return
+}
+
+// CHECK: omp.distribute should have either both dist_schedule_static and dist_schedule_chunk_size, or neither.

@@ -75,6 +75,7 @@ class FortranVariableFlags(Enum):
     VALUE = "value"
     VOLATILE = "volatile"
     HOSTASSOC = "host_assoc"
+    INTERNALASSOC = "internal_assoc"
 
     @staticmethod
     def try_parse(parser: AttrParser) -> set[FortranVariableFlags] | None:
@@ -582,7 +583,7 @@ class AllocmemOp(IRDLOperation):
     """
 
     name = "fir.allocmem"
-    in_type = prop_def(Attribute)
+    in_type = prop_def()
     uniq_name = opt_prop_def(StringAttr)
     bindc_name = opt_prop_def(StringAttr)
     typeparams = var_operand_def()
@@ -658,7 +659,7 @@ class AllocaOp(IRDLOperation):
     """
 
     name = "fir.alloca"
-    in_type = prop_def(Attribute)
+    in_type = prop_def()
     uniq_name = opt_prop_def(StringAttr)
     bindc_name = opt_prop_def(StringAttr)
     typeparams = var_operand_def()
@@ -1106,7 +1107,7 @@ class BoxOffsetOp(IRDLOperation):
     """
 
     name = "fir.box_offset"
-    field = prop_def(Attribute)
+    field = prop_def()
     val = operand_def()
     result_0 = result_def()
 
@@ -1177,7 +1178,7 @@ class CallOp(IRDLOperation):
     """
 
     name = "fir.call"
-    callee = prop_def(Attribute)
+    callee = prop_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result_0 = opt_result_def()
     args = var_operand_def()
@@ -1280,7 +1281,7 @@ class CoordinateOfOp(IRDLOperation):
     """
 
     name = "fir.coordinate_of"
-    baseType = prop_def(Attribute)
+    baseType = prop_def()
     ref = operand_def()
     coor = var_operand_def()
     result_0 = result_def()
@@ -1431,7 +1432,7 @@ class DoLoopOp(IRDLOperation):
     step = operand_def()
     reduceOperands = var_operand_def()
     initArgs = var_operand_def()
-    finalValue = opt_prop_def(Attribute)
+    finalValue = opt_prop_def()
     initArgs = opt_operand_def()
     _results = var_result_def()
     regs = var_region_def()
@@ -1625,7 +1626,7 @@ class ExtractValueOp(IRDLOperation):
 
     name = "fir.extract_value"
     adt = operand_def()
-    coor = opt_prop_def(Attribute)
+    coor = opt_prop_def()
     res = result_def()
     regs = var_region_def()
 
@@ -1742,9 +1743,13 @@ class GlobalOp(IRDLOperation):
     regs = var_region_def()
     sym_name = prop_def(SymbolNameConstraint())
     symref = prop_def(SymbolRefAttr)
-    type = prop_def(Attribute)
-    linkName = opt_prop_def(StringAttr)
+    type = prop_def()
+    initVal = opt_prop_def()
     constant = opt_prop_def(UnitAttr)
+    target = opt_prop_def(UnitAttr)
+    linkName = opt_prop_def(StringAttr)
+    data_attr = opt_prop_def()
+    alignment = opt_prop_def(IntegerAttr)
 
     traits = traits_def(SymbolOpInterface())
 
@@ -1840,7 +1845,7 @@ class InsertValueOp(IRDLOperation):
     name = "fir.insert_value"
     adt = operand_def()
     val = operand_def()
-    coor = opt_prop_def(Attribute)
+    coor = opt_prop_def()
     result_0 = result_def()
     regs = var_region_def()
 
