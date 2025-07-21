@@ -36,7 +36,7 @@ class PDLInterpFunctions(InterpreterFunctions):
     _rewriter: PatternRewriter | None = field(default=None)
 
     native_constraints: dict[str, Callable[..., tuple[bool, tuple[Any, ...]]]] = field(
-        default_factory=dict[str, Callable[..., tuple[bool, tuple[Any, ...]]]]
+        default_factory=lambda: {}
     )
     """
     The functions that can be used in `pdl_interp.apply_constraint`. Note that we do
