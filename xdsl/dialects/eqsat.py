@@ -68,13 +68,20 @@ class EClassOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        # Check that none of the operands are produced by another eclass op.
-        # In that case the two ops should have been merged into one.
+        if not self.operands:
+            raise VerifyException("Eclass operations must have at least one operand.")
+
         for operand in self.operands:
             if isinstance(operand.owner, EClassOp):
+                # The two ops should have been merged into one.
                 raise VerifyException(
                     "A result of an eclass operation cannot be used as an operand of "
                     "another eclass."
+                )
+
+            if len(operand.uses) != 1:
+                raise VerifyException(
+                    "Eclass operands must only be used by the eclass."
                 )
 
 
