@@ -31,10 +31,10 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AttrConstraint,
     AttrSizedOperandSegments,
     BaseAttr,
     ConstraintContext,
-    GenericAttrConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
@@ -357,8 +357,8 @@ class StencilType(
     def constr(
         cls,
         *,
-        bounds: GenericAttrConstraint[Attribute] | None = None,
-        element_type: GenericAttrConstraint[_FieldTypeElement] | None = None,
+        bounds: AttrConstraint | None = None,
+        element_type: AttrConstraint[_FieldTypeElement] | None = None,
     ) -> (
         BaseAttr[StencilType[_FieldTypeElement]]
         | ParamAttrConstraint[StencilType[_FieldTypeElement]]

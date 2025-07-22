@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
 
-from xdsl.dialects.builtin import Builtin, UnitAttr
-from xdsl.ir import Attribute, TypedAttribute
+from xdsl.dialects.builtin import Builtin, SymbolNameConstraint, UnitAttr
+from xdsl.ir import TypedAttribute
 from xdsl.irdl import (
     AttrOrPropDef,
     AttrSizedOperandSegments,
@@ -499,7 +499,7 @@ class FormatParser(BaseParser):
                 )
                 if unique_base == UnitAttr:
                     return OptionalUnitAttrVariable(
-                        variable_name, is_property, None, None
+                        variable_name, is_property, None, None, False
                     )
 
                 # Always qualify builtin attributes
@@ -527,8 +527,8 @@ class FormatParser(BaseParser):
                 if qualified:
                     unique_base = None
 
-                # Chill pyright with TypedAttribute without parameter
-                unique_base = cast(type[Attribute] | None, unique_base)
+                # We special case `SymbolNameConstr`, just as MLIR does.
+                is_symbol_name = isinstance(attr_def.constr, SymbolNameConstraint)
 
                 if attr_def.default_value is not None:
                     return DefaultValuedAttributeVariable(
@@ -536,6 +536,7 @@ class FormatParser(BaseParser):
                         is_property,
                         unique_base,
                         unique_type,
+                        is_symbol_name,
                         attr_def.default_value,
                     )
 
@@ -545,7 +546,7 @@ class FormatParser(BaseParser):
                     else AttributeVariable
                 )
                 return variable_type(
-                    variable_name, is_property, unique_base, unique_type
+                    variable_name, is_property, unique_base, unique_type, is_symbol_name
                 )
 
         self.raise_error(
@@ -596,9 +597,10 @@ class FormatParser(BaseParser):
     def parse_optional_group(self) -> FormatDirective:
         """
         Parse an optional group, with the following format:
-          group ::= `(` then-elements `)` `?`
+          group ::= `(` then-elements `)` (`:` `(` else-elements `)` )? `?`
         """
         then_elements = tuple[FormatDirective, ...]()
+        else_elements = tuple[FormatDirective, ...]()
         anchor: Directive | None = None
 
         while not self.parse_optional_punctuation(")"):
@@ -607,6 +609,12 @@ class FormatParser(BaseParser):
                 if anchor is not None:
                     self.raise_error("An optional group can only have one anchor.")
                 anchor = then_elements[-1]
+
+        if self.parse_optional_punctuation(":"):
+            self.parse_punctuation("(")
+            while not self.parse_optional_punctuation(")"):
+                else_elements += (self.parse_format_directive(),)
+
         self.parse_punctuation("?")
 
         # Pull whitespace element of front, as they are not parsed
@@ -637,6 +645,7 @@ class FormatParser(BaseParser):
             ),
             then_elements[first_non_whitespace_index],
             then_elements[first_non_whitespace_index + 1 :],
+            else_elements,
         )
 
     def parse_keyword_or_punctuation(self) -> FormatDirective:

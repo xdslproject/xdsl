@@ -294,7 +294,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return eqsat_insert_banned_rule_pruning.EqsatInsertBannedRulePruningPass
 
     def get_frontend_desymrefy():
-        from xdsl.frontend.pyast.passes.desymref import FrontendDesymrefyPass
+        from xdsl.transforms.desymref import FrontendDesymrefyPass
 
         return FrontendDesymrefyPass
 

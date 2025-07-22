@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     i1,
@@ -363,7 +364,7 @@ class IncludeOp(IRDLOperation):
     name = "transform.include"
 
     target = prop_def(SymbolRefAttr)
-    failure_propagation_mode = prop_def(Attribute)
+    failure_propagation_mode = prop_def()
     operands_input = var_operand_def(TransformHandleType)
     result = var_result_def(TransformHandleType)
 
@@ -483,7 +484,7 @@ class ParamConstantOp(IRDLOperation):
 
     name = "transform.param.constant"
 
-    value = prop_def(Attribute)
+    value = prop_def()
     param = result_def(ParamType)
 
     def __init__(self, value: Attribute, param_type: TypeAttribute):
@@ -563,7 +564,7 @@ class SequenceOp(IRDLOperation):
     name = "transform.sequence"
 
     body = region_def("single_block")
-    failure_propagation_mode = prop_def(Attribute)
+    failure_propagation_mode = prop_def()
     root = var_operand_def(AnyOpType)
     extra_bindings = var_operand_def(TransformHandleType)
 
@@ -745,7 +746,7 @@ class NamedSequenceOp(IRDLOperation):
 
     name = "transform.named_sequence"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     sym_visibility = opt_prop_def(StringAttr)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])

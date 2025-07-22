@@ -38,8 +38,8 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AttrConstraint,
     AttrSizedOperandSegments,
-    GenericAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     VarConstraint,
@@ -83,10 +83,9 @@ class ReadableStreamType(
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
-        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
         return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
             ReadableStreamType, (element_type,)
@@ -107,10 +106,9 @@ class WritableStreamType(
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
-        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
         return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
             WritableStreamType, (element_type,)
@@ -936,7 +934,7 @@ class FillOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(memref.MemRefType.constr(element_type=T))
+    memref = operand_def(memref.MemRefType.constr(T))
     value = operand_def(T)
 
     assembly_format = "$memref `with` $value attr-dict `:` type($memref)"

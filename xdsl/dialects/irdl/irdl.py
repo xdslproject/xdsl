@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IntegerAttr,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
 )
@@ -112,7 +113,7 @@ class DialectOp(IRDLOperation):
 
     name = "irdl.dialect"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     body = region_def("single_block")
 
     traits = traits_def(NoTerminator(), SymbolOpInterface(), SymbolTable())
@@ -144,7 +145,7 @@ class TypeOp(IRDLOperation):
 
     name = "irdl.type"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     body = region_def("single_block")
 
     traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
@@ -201,7 +202,7 @@ class AttributeOp(IRDLOperation):
 
     name = "irdl.attribute"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     body = region_def("single_block")
 
     traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
@@ -287,7 +288,7 @@ class OperationOp(IRDLOperation):
 
     name = "irdl.operation"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     body = region_def("single_block")
 
     traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
@@ -560,7 +561,7 @@ class IsOp(IRDLOperation):
 
     name = "irdl.is"
 
-    expected = attr_def(Attribute)
+    expected = attr_def()
     output = result_def(AttributeType)
 
     def __init__(self, expected: Attribute):

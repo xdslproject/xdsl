@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     i8,
 )
@@ -152,7 +153,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     body = region_def()
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)

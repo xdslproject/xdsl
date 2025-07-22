@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
 )
 from xdsl.dialects.utils import (
@@ -109,7 +110,7 @@ class FuncOp(IRDLOperation):
     name = "func.func"
 
     body = region_def()
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     sym_visibility = opt_prop_def(StringAttr)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])

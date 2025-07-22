@@ -142,6 +142,7 @@ ptr_xdsl.store %v6, %ptr6 : f32, !ptr_xdsl.ptr
 // CHECK-NEXT:   %idx = "test.op"() : () -> index
 // CHECK-NEXT:   %r0 = builtin.unrealized_conversion_cast %p : !ptr_xdsl.ptr to !x86.reg
 // CHECK-NEXT:   %r0_1 = builtin.unrealized_conversion_cast %idx : index to !x86.reg
-// CHECK-NEXT:   %r0_2 = x86.rs.add %r0, %r0_1 : (!x86.reg, !x86.reg) -> !x86.reg
-// CHECK-NEXT:   %r0_3 = builtin.unrealized_conversion_cast %r0_2 : !x86.reg to !ptr_xdsl.ptr
+// CHECK-NEXT:   %r0_2 = x86.ds.mov %r0 : (!x86.reg) -> !x86.reg
+// CHECK-NEXT:   %r0_3 = x86.rs.add %r0_2, %r0_1 : (!x86.reg, !x86.reg) -> !x86.reg
+// CHECK-NEXT:   %r0_4 = builtin.unrealized_conversion_cast %r0_3 : !x86.reg to !ptr_xdsl.ptr
 // CHECK-NEXT: }

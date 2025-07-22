@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     i1,
@@ -987,7 +988,7 @@ class GEPOp(IRDLOperation):
 
     ptr = operand_def(LLVMPointerType)
     ssa_indices = var_operand_def(IntegerType)
-    elem_type = opt_prop_def(Attribute)
+    elem_type = opt_prop_def()
 
     result = result_def(LLVMPointerType)
 
@@ -1079,7 +1080,7 @@ class AllocaOp(IRDLOperation):
     size = operand_def(IntegerType)
 
     alignment = opt_prop_def(IntegerAttr)
-    elem_type = opt_prop_def(Attribute)
+    elem_type = opt_prop_def()
 
     res = result_def()
 
@@ -1348,14 +1349,14 @@ class UndefOp(IRDLOperation):
 class GlobalOp(IRDLOperation):
     name = "llvm.mlir.global"
 
-    global_type = prop_def(Attribute)
+    global_type = prop_def()
     constant = opt_prop_def(UnitAttr)
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     linkage = prop_def(LinkageAttr)
     dso_local = opt_prop_def(UnitAttr)
     thread_local_ = opt_prop_def(UnitAttr)
     visibility_ = opt_prop_def(IntegerAttr[IntegerType])
-    value = opt_prop_def(Attribute)
+    value = opt_prop_def()
     alignment = opt_prop_def(IntegerAttr)
     addr_space = prop_def(IntegerAttr)
     unnamed_addr = opt_prop_def(IntegerAttr)
@@ -1506,7 +1507,7 @@ class FuncOp(IRDLOperation):
     name = "llvm.func"
 
     body = region_def()
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(LLVMFunctionType)
     CConv = prop_def(CallingConventionAttr)
     linkage = prop_def(LinkageAttr)
@@ -1565,7 +1566,7 @@ class ReturnOp(IRDLOperation):
 class ConstantOp(IRDLOperation):
     name = "llvm.mlir.constant"
     result = result_def(Attribute)
-    value = prop_def(Attribute)
+    value = prop_def()
 
     traits = traits_def(NoMemoryEffect())
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import auto
 from typing import ClassVar, cast
@@ -97,53 +97,20 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
             super().print_parameter(printer)
 
 
-@irdl_op_definition
-class GenericOp(IRDLOperation):
-    name = "linalg.generic"
+class LinalgOperation(IRDLOperation, ABC):
+    """
+    Abstract base class for linalg operations, allowing them to be processed in with a
+    unified interface.
+    """
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    body = region_def("single_block")
-
-    # Trait attributes
-    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
-    iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
-    doc = opt_prop_def(StringAttr)
-    library_call = opt_prop_def(StringAttr)
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
-
-    def __init__(
-        self,
-        inputs: Sequence[SSAValue],
-        outputs: Sequence[SSAValue],
-        body: Region,
-        indexing_maps: Sequence[AffineMapAttr] | ArrayAttr[AffineMapAttr],
-        iterator_types: Sequence[Attribute] | ArrayAttr[Attribute],
-        result_types: Sequence[Attribute] = (),
-        doc: StringAttr | None = None,
-        library_call: StringAttr | None = None,
-    ) -> None:
-        super().__init__(
-            operands=[inputs, outputs],
-            result_types=[result_types],
-            properties={
-                "indexing_maps": ArrayAttr(indexing_maps),
-                "iterator_types": ArrayAttr(iterator_types),
-                "doc": doc,
-                "library_call": library_call,
-            },
-            regions=[body],
-        )
-
-    def get_indexing_maps(self) -> list[AffineMap]:
-        return [attr.data for attr in self.indexing_maps]
+    @abstractmethod
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        """
+        Get the indexing maps corresponding to this operation's operands, in order.
+        """
 
     def get_num_loops(self) -> int:
-        return self.indexing_maps.data[0].data.num_dims
+        return self.get_indexing_maps()[0].num_dims
 
     def get_loops_to_shapes_map(self) -> AffineMap:
         """
@@ -200,6 +167,52 @@ class GenericOp(IRDLOperation):
         shapes_to_loops = self.get_shapes_to_loops_map()
         static_shapes = self.get_static_shapes()
         return shapes_to_loops.eval(static_shapes, [])
+
+
+@irdl_op_definition
+class GenericOp(LinalgOperation):
+    name = "linalg.generic"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(base(ShapedType))
+
+    res = var_result_def(AnyTensorType)
+
+    body = region_def("single_block")
+
+    # Trait attributes
+    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
+    iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
+    doc = opt_prop_def(StringAttr)
+    library_call = opt_prop_def(StringAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue],
+        body: Region,
+        indexing_maps: Sequence[AffineMapAttr] | ArrayAttr[AffineMapAttr],
+        iterator_types: Sequence[Attribute] | ArrayAttr[Attribute],
+        result_types: Sequence[Attribute] = (),
+        doc: StringAttr | None = None,
+        library_call: StringAttr | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[inputs, outputs],
+            result_types=[result_types],
+            properties={
+                "indexing_maps": ArrayAttr(indexing_maps),
+                "iterator_types": ArrayAttr(iterator_types),
+                "doc": doc,
+                "library_call": library_call,
+            },
+            regions=[body],
+        )
+
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(attr.data for attr in self.indexing_maps)
 
     def print(self, printer: Printer):
         printer.print_string(" {indexing_maps = ")
@@ -735,6 +748,48 @@ class FillOp(NamedOperation):
                 raise VerifyException(
                     f"Input type is {value.type} but must be an instance of AnyFloat or IntegerType."
                 )
+
+
+@irdl_op_definition
+class CopyOp(NamedOperation):
+    """
+    Copies the tensor elementwise.
+
+    Numeric casting is performed on the input operand, promoting it to the same data type as the accumulator/output.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgcopy-linalgcopyop).
+    """
+
+    name = "linalg.copy"
+
+    PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            assert isa(outputs, Sequence[SSAValue]), "cannot infer result_types"
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            YieldOp(args[0])
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
 
 
 @irdl_op_definition
@@ -1352,6 +1407,7 @@ Linalg = Dialect(
         SubOp,
         SelectOp,
         FillOp,
+        CopyOp,
         MaxOp,
         MinOp,
         MulOp,
