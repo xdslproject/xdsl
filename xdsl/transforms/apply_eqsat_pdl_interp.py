@@ -6,25 +6,11 @@ from xdsl.dialects import builtin, pdl_interp
 from xdsl.dialects.eqsat import EClassOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
-from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
 from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
-
-
-def check_invariant(
-    root: Operation, implementations: EqsatPDLInterpFunctions | None = None
-) -> None:
-    for _i, op in enumerate(root.walk()):
-        if isinstance(op, EClassOp) and not op.operands:
-            raise ValueError(f"EClassOp {op} has no operands")
-        for res in op.results:
-            if len(res.uses) > 1:
-                for use in res.uses:
-                    if isinstance(use.operation, EClassOp):
-                        raise ValueError(f"Operation {op} has multiple uses")
 
 
 @dataclass(frozen=True)
@@ -70,10 +56,14 @@ class ApplyEqsatPDLInterpPass(ModulePass):
         for _i in range(self.max_iterations):
             # Register matches by walking the module
             walker.rewrite_module(op)
-            check_invariant(op)
+            for eclass in op.walk():
+                if isinstance(eclass, EClassOp):
+                    op.verify()
 
             if not implementations.merge_list:
                 break
 
             implementations.apply_matches()
-            check_invariant(op)
+            for eclass in op.walk():
+                if isinstance(eclass, EClassOp):
+                    op.verify()

@@ -3,12 +3,12 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, pdl_interp
+from xdsl.dialects.eqsat import EClassOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
-from xdsl.transforms.apply_eqsat_pdl_interp import check_invariant
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 from xdsl.transforms.mlir_opt import MLIROptPass
 
@@ -61,10 +61,16 @@ class ApplyEqsatPDLPass(ModulePass):
         for _i in range(self.max_iterations):
             # Register matches by walking the module
             walker.rewrite_module(op)
-            check_invariant(op)
+
+            for eclass in op.walk():
+                if isinstance(eclass, EClassOp):
+                    op.verify()
 
             if not implementations.merge_list:
                 break
 
             implementations.apply_matches()
-            check_invariant(op)
+
+            for eclass in op.walk():
+                if isinstance(eclass, EClassOp):
+                    op.verify()
