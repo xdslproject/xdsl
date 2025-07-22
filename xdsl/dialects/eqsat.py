@@ -80,9 +80,14 @@ class EClassOp(IRDLOperation):
                 )
 
             if len(operand.uses) != 1:
-                raise VerifyException(
-                    "Eclass operands must only be used by the eclass."
-                )
+                if len(set(use.operation for use in operand.uses)) == 1:
+                    raise VerifyException(
+                        "Eclass operands must only be used once by the eclass."
+                    )
+                else:
+                    raise VerifyException(
+                        "Eclass operands must only be used by the eclass."
+                    )
 
 
 @irdl_op_definition

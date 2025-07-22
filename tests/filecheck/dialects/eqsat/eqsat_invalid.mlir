@@ -1,6 +1,5 @@
 // RUN: xdsl-opt --verify-diagnostics --split-input-file %s | filecheck %s
 
-
 %val = "test.op"() : () -> index
 %val_eq = eqsat.eclass %val : index
 %val_eq_eq = eqsat.eclass %val_eq : index
@@ -20,3 +19,10 @@
 "test.op"(%val) : (index) -> ()
 
 // CHECK: Operation does not verify: Eclass operands must only be used by the eclass.
+
+// -----
+
+%val = "test.op"() : () -> index
+%val_eq = eqsat.eclass %val, %val : index
+
+// CHECK: Operation does not verify: Eclass operands must only be used once by the eclass.
