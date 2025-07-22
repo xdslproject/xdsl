@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from ordered_set import OrderedSet
 
@@ -17,12 +18,187 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
+from xdsl.ir import Block, Operation, OpResult, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
+
+# Set up logging for the scheduler
+logger = logging.getLogger(__name__)
+
+
+class RuleScheduler(Protocol):
+    """Protocol defining the interface for rule schedulers."""
+
+    rule_stats: dict[pdl_interp.FuncOp, RuleStats]
+    current_iteration_matches: dict[pdl_interp.FuncOp, int]
+
+    def is_rule_banned(self, rule: pdl_interp.FuncOp) -> bool:
+        """Check if a rule is currently banned."""
+        ...
+
+    def are_all_rules_banned(self, rules: list[pdl_interp.FuncOp]) -> bool:
+        """Check if all rules in the list are banned."""
+        ...
+
+    def record_rule_match(self, rule: pdl_interp.FuncOp, match_count: int = 1) -> None:
+        """Record that a rule matched in this iteration."""
+        ...
+
+    def end_iteration(self) -> None:
+        """End the current iteration and apply scheduling logic."""
+        ...
+
+    def next_iteration(self) -> None:
+        """Move to the next iteration."""
+        ...
+
+    def can_stop(self) -> bool:
+        """Check if we can stop (scheduler-specific logic)."""
+        ...
+
+
+@dataclass
+class RuleStats:
+    """Statistics for a single rule in the scheduler."""
+
+    times_applied: int = 0
+    banned_until: int = 0
+    times_banned: int = 0
+    match_limit: int = 1000
+    ban_length: int = 5
+    total_matches: int = 0  # Total number of matches seen
+    last_match_count: int = 0  # Number of matches in the last application
+
+
+@dataclass
+class BackoffScheduler:
+    """
+    Exponential backoff scheduler for equality saturation rules.
+
+    Similar to egg's BackoffScheduler, this implements exponential rule backoff.
+    For each rewrite, there exists a configurable initial match limit.
+    If a rewrite search yields more than this limit, then we ban this
+    rule for a number of iterations, double its limit, and double the time
+    it will be banned next time.
+    """
+
+    default_match_limit: int = 1000
+    default_ban_length: int = 5
+    current_iteration: int = 0
+    rule_stats: dict[pdl_interp.FuncOp, RuleStats] = field(default_factory=lambda: {})
+    current_iteration_matches: dict[pdl_interp.FuncOp, int] = field(
+        default_factory=lambda: {}
+    )
+
+    def get_rule_stats(self, rule: pdl_interp.FuncOp) -> RuleStats:
+        """Get or create rule statistics for a rule."""
+        if rule not in self.rule_stats:
+            self.rule_stats[rule] = RuleStats(
+                match_limit=self.default_match_limit, ban_length=self.default_ban_length
+            )
+        return self.rule_stats[rule]
+
+    def is_rule_banned(self, rule: pdl_interp.FuncOp) -> bool:
+        """Check if a rule is currently banned."""
+        stats = self.get_rule_stats(rule)
+        return self.current_iteration < stats.banned_until
+
+    def are_all_rules_banned(self, rules: list[pdl_interp.FuncOp]) -> bool:
+        """Check if all rules in the list are banned."""
+        return all(self.is_rule_banned(rule) for rule in rules)
+
+    def with_initial_match_limit(self, limit: int) -> BackoffScheduler:
+        """Set the initial match limit after which a rule will be banned. Default: 1000"""
+        self.default_match_limit = limit
+        return self
+
+    def with_ban_length(self, ban_length: int) -> BackoffScheduler:
+        """Set the initial ban length. Default: 5 iterations"""
+        self.default_ban_length = ban_length
+        return self
+
+    def rule_match_limit(self, rule: pdl_interp.FuncOp, limit: int) -> BackoffScheduler:
+        """Set the initial match limit for a specific rule."""
+        stats = self.get_rule_stats(rule)
+        stats.match_limit = limit
+        return self
+
+    def rule_ban_length(self, rule: pdl_interp.FuncOp, length: int) -> BackoffScheduler:
+        """Set the initial ban length for a specific rule."""
+        stats = self.get_rule_stats(rule)
+        stats.ban_length = length
+        return self
+
+    def record_rule_match(self, rule: pdl_interp.FuncOp, match_count: int = 1) -> None:
+        """Record that a rule matched in this iteration."""
+        # Don't count matches for banned rules
+        if self.is_rule_banned(rule):
+            return
+
+        # Accumulate matches for this iteration
+        if rule not in self.current_iteration_matches:
+            self.current_iteration_matches[rule] = 0
+        self.current_iteration_matches[rule] += match_count
+
+        # Update total matches immediately for statistics
+        stats = self.get_rule_stats(rule)
+        stats.total_matches += match_count
+
+    def end_iteration(self) -> None:
+        """End the current iteration and apply scheduling logic."""
+        # Apply scheduling logic for rules that matched in this iteration
+        for rule_name, match_count in self.current_iteration_matches.items():
+            stats = self.get_rule_stats(rule_name)
+
+            # Calculate current threshold with exponential backoff
+            threshold = stats.match_limit * (2**stats.times_banned)
+
+            # Check if we should ban this rule
+            if match_count > threshold:
+                # Calculate new ban length with exponential backoff
+                ban_length = stats.ban_length * (2**stats.times_banned)
+
+                stats.times_banned += 1
+                stats.banned_until = self.current_iteration + ban_length + 1
+
+                # Log the ban with detailed information
+                logger.info(
+                    f"Banning rule '{rule_name}' for {ban_length} iterations: "
+                    f"{match_count} matches > {threshold} threshold "
+                    f"(ban #{stats.times_banned})"
+                )
+            else:
+                stats.times_applied += 1
+
+            # Record the match count for this iteration
+            stats.last_match_count = match_count
+
+        # Clear matches for next iteration
+        self.current_iteration_matches.clear()
+
+    def next_iteration(self) -> None:
+        """Move to the next iteration."""
+        self.current_iteration += 1
+
+        # Check for rules that are being unbanned
+        unbanned_rules: list[pdl_interp.FuncOp] = []
+        for rule, stats in self.rule_stats.items():
+            if stats.banned_until == self.current_iteration:
+                unbanned_rules.append(rule)
+
+        if unbanned_rules:
+            logger.info(
+                f"Unbanning rules at iteration {self.current_iteration}: {', '.join(str(rule) for rule in unbanned_rules)}"
+            )
+
+    def can_stop(self) -> bool:
+        """Check if we can stop (no rules are banned)."""
+        return not any(
+            self.is_rule_banned(rule_name) for rule_name in self.rule_stats.keys()
+        )
 
 
 @dataclass
@@ -53,6 +229,12 @@ class BacktrackPoint:
 
     max_index: int
     """Last valid operand index in the EClassOp (len(operands) - 1)."""
+
+    reachable_rules: ScopedDict[pdl_interp.FuncOp, bool]
+    """Set of reachable rules to restore at this point in the interpreter."""
+
+    num_reachable_rules: int
+    """Number of reachable rules at this point in the interpreter."""
 
 
 @dataclass
@@ -103,13 +285,39 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Keeps track whether the interpreter is currently in a matching context (as opposed to in a rewriting context).
     If it is, finalize behaves differently by backtracking."""
 
+    reachable_rules: ScopedDict[pdl_interp.FuncOp, bool] = field(
+        default_factory=lambda: ScopedDict[pdl_interp.FuncOp, bool](can_overwrite=True)
+    )
+    """Set of reachable rules in the current scope."""
+
+    num_reachable_rules: int = 0
+    """Number of reachable rules at this point in the interpreter."""
+
+    def initialize_reachable_rules(self, rewriters_module: ModuleOp) -> None:
+        for op in rewriters_module.regions[0].block.ops:
+            if isinstance(op, pdl_interp.FuncOp):
+                self.reachable_rules[op] = True
+
+    scheduler: RuleScheduler = field(default_factory=BackoffScheduler)
+    """Rule scheduler implementing exponential backoff for rule management."""
+
+    def next_iteration(self) -> None:
+        """Advance the scheduler to the next iteration."""
+        self.scheduler.end_iteration()
+        self.scheduler.next_iteration()
+
+    def can_stop_due_to_scheduler(self) -> bool:
+        """Check if we can stop based on scheduler state."""
+        return self.scheduler.can_stop()
+
     def modification_handler(self, op: Operation):
         """
         Keeps `known_ops` up to date.
         Whenever an operation is modified, for example when its operands are updated to a different eclass value,
         the operation is added to the hashcons `known_ops`.
         """
-        self.known_ops[op] = op
+        if not (op in self.known_ops and op.parent_block() is not None):
+            self.known_ops[op] = op
 
     def populate_known_ops(self, module: ModuleOp) -> None:
         """
@@ -227,8 +435,18 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             index = 0
             self.backtrack_stack.append(
                 BacktrackPoint(
-                    block, block_args, scope, op, index, len(eclass_op.operands) - 1
+                    block,
+                    block_args,
+                    scope,
+                    op,
+                    index,
+                    len(eclass_op.operands) - 1,
+                    self.reachable_rules,
+                    self.num_reachable_rules,
                 )
+            )
+            self.reachable_rules = ScopedDict(
+                parent=self.reachable_rules, can_overwrite=True
             )
         defining_op = eclass_op.operands[index].owner
         if not isinstance(defining_op, Operation):
@@ -328,6 +546,48 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (new_op,)
 
+    @impl(eqsat.MarkUnreachableOp)
+    def run_mark_unreachable(
+        self,
+        interpreter: Interpreter,
+        op: eqsat.MarkUnreachableOp,
+        args: tuple[Any, ...],
+    ):
+        for rule in op.rules.data:
+            rule_op = interpreter.get_op_for_symbol(rule)
+            assert isinstance(rule_op, pdl_interp.FuncOp), (
+                "Expected a pdl_interp.FuncOp as rule."
+            )
+            self.reachable_rules[rule_op] = False
+        return ()
+
+    @impl(eqsat.MarkReachableOp)
+    def run_mark_reachable(
+        self,
+        interpreter: Interpreter,
+        op: eqsat.MarkReachableOp,
+        args: tuple[Any, ...],
+    ):
+        for rule in op.rules.data:
+            rule_op = interpreter.get_op_for_symbol(rule)
+            assert isinstance(rule_op, pdl_interp.FuncOp), (
+                "Expected a pdl_interp.FuncOp as rule."
+            )
+            self.reachable_rules[rule_op] = True
+        return ()
+
+    @impl_terminator(eqsat.CheckAllUnreachableOp)
+    def run_check_all_unreachable(
+        self,
+        interpreter: Interpreter,
+        op: eqsat.CheckAllUnreachableOp,
+        args: tuple[Any, ...],
+    ):
+        if not self.reachable_rules:
+            return Successor(op.unreachable_dest, ()), ()
+        else:
+            return Successor(op.reachable_dest, ()), ()
+
     @impl_terminator(pdl_interp.RecordMatchOp)
     def run_recordmatch(
         self,
@@ -335,6 +595,13 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
+        # Record that this rule matched for scheduling purposes
+        rule = interpreter.get_op_for_symbol(op.rewriter)
+        assert isinstance(rule, pdl_interp.FuncOp)
+        self.scheduler.record_rule_match(rule)
+
+        logger.debug(f"Rule '{op.rewriter}' matched and will be applied")
+
         self.is_matching = False
         interpreter.call_op(op.rewriter, args)
         self.is_matching = True
@@ -353,27 +620,100 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 backtrack_point.index += 1
                 interpreter._ctx = backtrack_point.scope  # pyright: ignore[reportPrivateUsage]
                 self.visited = False
+                self.num_reachable_rules = backtrack_point.num_reachable_rules
+                self.reachable_rules = backtrack_point.reachable_rules
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
 
     def apply_matches(self):
-        todo = OrderedSet(
-            (self.eclass_union_find.find(todo.to_keep), todo.to_replace)
-            for todo in self.merge_list
-        )
-        self.merge_list.clear()
-        for to_keep, to_replace in todo:
-            operands = to_keep.operands
-            startlen = len(operands)
-            for i, val in enumerate(to_replace.operands):
-                val.add_use(Use(to_keep, startlen + i))
-                new_operands = (*operands, *to_replace.operands)
+        while self.merge_list:
+            todo = OrderedSet(
+                (self.eclass_union_find.find(todo.to_keep), todo.to_replace)
+                for todo in self.merge_list
+            )
+            self.merge_list.clear()
+            for to_keep, to_replace in todo:
+                if to_keep == to_replace:
+                    # If the two operations are the same, we can skip merging.
+                    continue
+                # Operands need to be deduplicated because it can happen the same operand was
+                # used by different parent eclasses after their children were merged:
+                new_operands = OrderedSet((*to_keep.operands, *to_replace.operands))
                 to_keep.operands = new_operands
 
-            for use in to_replace.result.uses:
-                if use.operation in self.known_ops:
-                    self.known_ops.pop(use.operation)
+                for use in to_replace.result.uses:
+                    # uses are removed from the hashcons before the replacement is carried out.
+                    # (because the replacement changes the operations which means we cannot find them in the hashcons anymore)
+                    if use.operation in self.known_ops:
+                        self.known_ops.pop(use.operation)
 
-            self.rewriter.replace_op(
-                to_replace, new_ops=[], new_results=to_keep.results
-            )
+                if to_replace.parent_block() is None:
+                    # If the operation has no parent block, it is not part of the IR anymore.
+                    continue
+                self.rewriter.replace_op(
+                    to_replace, new_ops=[], new_results=to_keep.results
+                )
+
+                unique_parents = KnownOps()
+
+                for op1 in set(use.operation for use in to_keep.result.uses):
+                    if not op1.results or not op1.results[0].uses:
+                        # If the operation has no results, or no uses, there is no way it needs to be merged.
+                        continue
+                    if op1 in unique_parents:
+                        # This means another parent that was processed before is identical to this one,
+                        # the corresponding eclasses need to be merged.
+                        op2 = unique_parents[op1]
+                        if op1 == op2:
+                            # If the two operations are the same, we can skip merging.
+                            continue
+
+                        assert len(op1.results[0].uses) == 1, (
+                            "Modification handler currently only supports operations with a single (EClassOp) use"
+                        )
+                        op1_use = next(iter(op1.results[0].uses))
+                        assert isinstance(eclass1 := op1_use.operation, eqsat.EClassOp)
+
+                        assert len(op2.results) == 1, (
+                            "Expected a single result for the operation being modified."
+                        )
+                        if not op2.results[0].uses:
+                            # If the operation has no uses, there is no way it needs to be merged.
+                            continue
+                        assert len(op2.results[0].uses) == 1, (
+                            "Modification handler currently only supports operations with a single (EClassOp) use"
+                        )
+                        op2_use = next(iter(op2.results[0].uses))
+                        assert isinstance(eclass2 := op2_use.operation, eqsat.EClassOp)
+
+                        self.eclass_union_find.union(
+                            eclass1,
+                            eclass2,
+                        )
+                        if self.eclass_union_find.find(eclass1) == eclass2:
+                            # In the union-find the canonical representative of the original_eclass
+                            # is now the repl_eclass, so we have to keep the repl_eclass:
+                            self.merge_list.append(MergeTodo(eclass2, eclass1))
+                            self.rewriter.replace_op(
+                                op1, new_ops=[], new_results=op2.results
+                            )
+
+                            # In order to ensure a value (e-node) is not used by multiple e-classes,
+                            # we remove the use here already. In the next iteration over the worklist,
+                            # this eclass will be merged with the other one anyway:
+                            eclass1.operands = (
+                                *eclass1.operands[: op1_use.index],
+                                *eclass1.operands[op1_use.index + 1 :],
+                            )
+                        else:
+                            # otherwise we keep the original_eclass:
+                            self.merge_list.append(MergeTodo(eclass1, eclass2))
+                            self.rewriter.replace_op(
+                                op2, new_ops=[], new_results=op1.results
+                            )
+                            eclass2.operands = (
+                                *eclass2.operands[: op2_use.index],
+                                *eclass2.operands[op2_use.index + 1 :],
+                            )
+                    else:
+                        unique_parents[op1] = op1
