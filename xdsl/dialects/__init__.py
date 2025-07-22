@@ -148,11 +148,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return IRDL
 
-    def get_list():
-        from xdsl.dialects.list import LinkedList
-
-        return LinkedList
-
     def get_llvm():
         from xdsl.dialects.llvm import LLVM
 
@@ -377,7 +372,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "hw": get_hw,
         "linalg": get_linalg,
         "irdl": get_irdl,
-        "list": get_list,
         "llvm": get_llvm,
         "ltl": get_ltl,
         "math": get_math,
