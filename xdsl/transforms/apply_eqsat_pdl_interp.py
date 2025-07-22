@@ -10,7 +10,6 @@ from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
 from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
-from xdsl.transforms.common_subexpression_elimination import cse
 
 _DEFAULT_MAX_ITERATIONS = 20
 """Default number of times to iterate over the module."""
@@ -48,9 +47,6 @@ def apply_eqsat_pdl_interp(
             break
 
         implementations.apply_matches()
-
-        # Run CSE to simplify the IR
-        cse(op)
 
 
 @dataclass(frozen=True)
