@@ -3,11 +3,12 @@ from typing import Any
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects import eqsat, pdl, pdl_interp, test
+from xdsl.dialects import arith, eqsat, func, pdl, pdl_interp, test
 from xdsl.dialects.builtin import ModuleOp, i32, i64
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
+from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions, MergeTodo
 from xdsl.ir import Operation
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
 
@@ -771,6 +772,71 @@ def test_apply_matches():
 
     # Should have merged operands from to_replace into canonical
     assert len(canonical.operands) == initial_operand_count + len(to_replace.operands)
+
+
+def test_rebuilding():
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+
+    a = create_ssa_value(i32)
+    b = create_ssa_value(i32)
+    x = create_ssa_value(i32)
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        c_a = eqsat.EClassOp(a, res_type=i32).result
+        c_b = eqsat.EClassOp(b, res_type=i32).result
+        c_x = eqsat.EClassOp(x, res_type=i32).result
+
+        c = arith.MuliOp(c_a, c_a).result
+        c_c = eqsat.EClassOp(c, res_type=i32).result
+
+        d = arith.MuliOp(c_b, c_b).result
+        c_d = eqsat.EClassOp(d, res_type=i32).result
+    a.name_hint = "a"
+    b.name_hint = "b"
+    x.name_hint = "x"
+    c_a.name_hint = "c_a"
+    c_b.name_hint = "c_b"
+    c_x.name_hint = "c_x"
+    c.name_hint = "c"
+    c_c.name_hint = "c_c"
+    d.name_hint = "d"
+    c_d.name_hint = "c_d"
+
+    ctx = Context()
+    ctx.register_dialect("func", lambda: func.Func)
+    ctx.register_dialect("eqsat", lambda: eqsat.EqSat)
+    ctx.register_dialect("arith", lambda: arith.Arith)
+    rewriter = PatternRewriter(c_b.owner)
+
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interp_functions.rewriter = rewriter
+
+    interp_functions.populate_known_ops(testmodule)
+
+    assert isinstance(c_x.owner, eqsat.EClassOp)
+    assert isinstance(c_a.owner, eqsat.EClassOp)
+    assert isinstance(c_b.owner, eqsat.EClassOp)
+    assert isinstance(c_d.owner, eqsat.EClassOp)
+
+    interp_functions.eclass_union_find.union(c_x.owner, c_d.owner)
+    interp_functions.merge_list.append(MergeTodo(c_x.owner, c_d.owner))
+
+    interp_functions.eclass_union_find.union(c_b.owner, c_a.owner)
+    interp_functions.merge_list.append(MergeTodo(c_b.owner, c_a.owner))
+
+    interp_functions.apply_matches()
+
+    assert (
+        str(testmodule)
+        == """builtin.module {
+  %c_b = eqsat.eclass %b, %a : i32
+  %c_x = eqsat.eclass %x, %d : i32
+  %d = arith.muli %c_b, %c_b : i32
+}"""
+    )
 
 
 def test_run_get_defining_op_block_argument():
