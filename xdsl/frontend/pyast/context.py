@@ -7,8 +7,8 @@ from inspect import currentframe, getsource
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
 from typing import Any, overload
 
-from xdsl.frontend.builder import PyASTBuilder
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
+from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
 from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
 from xdsl.ir import Operation, TypeAttribute
