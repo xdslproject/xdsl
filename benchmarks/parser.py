@@ -22,7 +22,7 @@ class Parser:
     WORKLOAD_LARGE_DENSE_ATTR = WorkloadBuilder.large_dense_attr()
     WORKLOAD_LARGE_DENSE_ATTR_HEX = WorkloadBuilder.large_dense_attr_hex()
     WORKLOAD_LARGE_CONSTANT_TENSOR = str(
-        WorkloadBuilder.large_constant_tensor((1, 3, 1080, 1080))
+        WorkloadBuilder.large_constant_tensor((500, 500))
     )
 
     def time_constant_100(self) -> None:
