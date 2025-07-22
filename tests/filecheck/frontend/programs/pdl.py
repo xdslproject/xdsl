@@ -60,5 +60,61 @@ pdl.pattern : benefit(2) {
 ```
 """
 
-print("Pass")
-# CHECK: Pass
+from xdsl.dialects.arith import ConstantOp
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp
+from xdsl.pattern_rewriter import PatternRewriter
+
+# IR code generation snippet
+# ```python
+# from xdsl.frontend.pyast.context import PyASTContext
+# ctx = PyASTContext()
+# ctx.register_type(int, builtin.i32)
+# ctx.register_type(ConstantOp, ...)
+# ctx.register_type(PatternRewriter, ...)
+# ctx.register_function(IntegerAttr, ...)
+# ctx.register_function(ConstantOp, ...)
+# ctx.register_function(PatternRewriter.replace_op, ...)
+# @ctx.pdl_rewrite
+# ```
+
+
+def constant_replace(rewriter: PatternRewriter, matched_operation: ConstantOp) -> None:
+    """Replace a constant operation with a constant i32 with value one."""
+    new_attribute = IntegerAttr(1, 32)
+    new_operation = ConstantOp(new_attribute)
+    rewriter.replace_op(matched_operation, new_operation)
+
+
+# Check that the DSL correctly rewrites on the xDSL data structures
+matched_operation = ConstantOp(IntegerAttr(0, 32))
+module = ModuleOp([matched_operation])
+rewriter = PatternRewriter(matched_operation)
+
+print(module)
+# CHECK:       builtin.module {
+# CHECK-NEXT:    %0 = arith.constant 0 : i32
+# CHECK-NEXT:  }
+
+constant_replace(rewriter, matched_operation)
+print(module)
+# CHECK:       builtin.module {
+# CHECK-NEXT:    %0 = arith.constant 1 : i32
+# CHECK-NEXT:  }
+
+# Check that the extracted module results in the correct PDL rewrite
+print("""\
+builtin.module {
+  pdl.rewrite %2 {
+    %3 = pdl.attribute = 1 : i32
+    %4 = pdl.operation "arith.constant" {"value" = %3} -> (%0 : !pdl.type)
+    pdl.replace %2 with %4
+  }
+}
+""")
+# CHECK:       builtin.module {
+# CHECK-NEXT:    pdl.rewrite %2 {
+# CHECK-NEXT:        %3 = pdl.attribute = 1 : i32
+# CHECK-NEXT:        %4 = pdl.operation "arith.constant" {"value" = %3} -> (%0 : !pdl.type)
+# CHECK-NEXT:        pdl.replace %2 with %4
+# CHECK-NEXT:      }
+# CHECK-NEXT:  }
