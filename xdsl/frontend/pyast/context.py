@@ -89,7 +89,7 @@ class PyASTContext:
                 function_registry=self.function_registry,
                 file=func_file,
                 globals=func_globals,
-                ast=func_ast,
+                function_ast=func_ast,
                 desymref=desymref,
             )
 

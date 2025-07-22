@@ -23,15 +23,18 @@ class CodeGeneration:
     @staticmethod
     def run_with_type_converter(
         type_converter: TypeConverter,
-        functions_and_blocks: FunctionMap,
+        functions_and_blocks: FunctionMap | ast.FunctionDef,
         file: str | None,
     ) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp([])
 
         visitor = CodeGenerationVisitor(type_converter, module, file)
-        for function_def, _ in functions_and_blocks.values():
-            visitor.visit(function_def)
+        if isinstance(functions_and_blocks, ast.FunctionDef):
+            visitor.visit(functions_and_blocks)
+        else:
+            for function_def, _ in functions_and_blocks.values():
+                visitor.visit(function_def)
         return module
 
 
