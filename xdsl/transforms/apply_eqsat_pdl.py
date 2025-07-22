@@ -62,6 +62,9 @@ class ApplyEqsatPDLPass(ModulePass):
             # Register matches by walking the module
             walker.rewrite_module(op)
 
+            # Execute all pending rewrites that were aggregated during matching
+            implementations.execute_pending_rewrites(interpreter)
+
             if not implementations.merge_list:
                 break
 
