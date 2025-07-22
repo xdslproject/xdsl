@@ -55,7 +55,7 @@ class ApplyEqsatPDLPass(ModulePass):
         listener.operation_modification_handler.append(
             implementations.modification_handler
         )
-        walker = PatternRewriteWalker(rewrite_pattern)
+        walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
         walker.listener = listener
 
         for _i in range(self.max_iterations):
