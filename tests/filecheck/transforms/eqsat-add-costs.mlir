@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p eqsat-add-costs{default=1000} --verify-diagnostics --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p eqsat-add-costs --verify-diagnostics --split-input-file %s | filecheck %s
 
 // CHECK:         func.func @trivial_arithmetic(%a : index, %b : index) -> index {
 // CHECK-NEXT:      %a_eq = eqsat.eclass %a {min_cost_index = #builtin.int<0>} : index
