@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p eqsat-add-costs --verify-diagnostics --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p eqsat-add-costs{default=1000} --verify-diagnostics --split-input-file %s | filecheck %s
 
 // CHECK:         func.func @trivial_arithmetic(%a : index, %b : index) -> index {
 // CHECK-NEXT:      %a_eq = eqsat.eclass %a {min_cost_index = #builtin.int<0>} : index
@@ -56,6 +56,24 @@ func.func @existing_cost(%a : index, %b : index) -> (index) {
     %a_times_two = arith.muli %a_eq, %two_eq : index
     %res_eq = eqsat.eclass %a_shift_one, %a_times_two : index
     func.return %res_eq : index
+}
+
+// -----
+
+//      CHECK:    func.func @recursive(%a : index) -> index {
+// CHECK-NEXT:      %a_eq = eqsat.eclass %a, %b : index
+// CHECK-NEXT:      %one = arith.constant {eqsat_cost = #builtin.int<1>} 1 : index
+// CHECK-NEXT:      %one_eq = eqsat.eclass %one {min_cost_index = #builtin.int<0>} : index
+// CHECK-NEXT:      %b = arith.muli %a_eq, %one_eq : index
+// CHECK-NEXT:      func.return %a_eq : index
+// CHECK-NEXT:    }
+
+func.func @recursive(%a : index) -> (index) {
+    %a_eq = eqsat.eclass %a, %b : index
+    %one = arith.constant 1 : index
+    %one_eq = eqsat.eclass %one : index
+    %b = arith.muli %a_eq, %one_eq : index
+    return %a_eq : index
 }
 
 // -----
