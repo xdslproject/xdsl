@@ -6,7 +6,7 @@ from typing import Any
 from ordered_set import OrderedSet
 
 from xdsl.dialects import eqsat, pdl_interp
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
 from xdsl.dialects.pdl import ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -95,6 +95,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         default_factory=lambda: DisjointSet[eqsat.EClassOp]()
     )
     """Union-find structure tracking which e-classes are equivalent and should be merged."""
+
+    pending_rewrites: list[tuple[SymbolRefAttr, Operation, tuple[Any, ...]]] = field(
+        default_factory=lambda: []
+    )
+    """List of pending rewrites to be executed. Each entry is a tuple of (rewriter, root, args)."""
 
     merge_list: list[MergeTodo] = field(default_factory=list[MergeTodo])
     """List of e-classes that should be merged by `apply_matches` after the pattern matching is done."""
@@ -335,9 +340,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
-        self.is_matching = False
-        interpreter.call_op(op.rewriter, args)
-        self.is_matching = True
+        self.pending_rewrites.append(
+            (op.rewriter, self.rewriter.current_operation, args)
+        )
         return Successor(op.dest, ()), ()
 
     @impl_terminator(pdl_interp.FinalizeOp)
@@ -377,3 +382,13 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             self.rewriter.replace_op(
                 to_replace, new_ops=[], new_results=to_keep.results
             )
+
+    def execute_pending_rewrites(self, interpreter: Interpreter):
+        """Execute all pending rewrites that were aggregated during matching."""
+        for rewriter, root, args in self.pending_rewrites:
+            self.rewriter.current_operation = root
+
+            self.is_matching = False
+            interpreter.call_op(rewriter, args)
+            self.is_matching = True
+        self.pending_rewrites.clear()
