@@ -36,7 +36,7 @@ def _(ctx, input_module_string):
     input_module = Parser(ctx, input_module_string).parse_module()
 
     xmo.module_html(input_module)
-    return (input_module,)
+    return Parser, input_module
 
 
 @app.cell(hide_code=True)
@@ -64,12 +64,13 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(ctx, eclass_module):
-    from xdsl.transforms.apply_eqsat_pdl_interp import ApplyEqsatPDLInterpPass
+def _(Parser, ctx, eclass_module, pdl_interp_module_string):
+    from xdsl.transforms.apply_eqsat_pdl_interp import apply_eqsat_pdl_interp
 
     saturated_module = eclass_module.clone()
+    pdl_interp_module = Parser(ctx, pdl_interp_module_string).parse_module()
 
-    ApplyEqsatPDLInterpPass().apply(ctx, saturated_module)
+    apply_eqsat_pdl_interp(saturated_module, ctx, pdl_interp_module)
 
     xmo.module_html(saturated_module)
     return (saturated_module,)
@@ -124,13 +125,15 @@ def _(extracted_module):
 @app.cell(hide_code=True)
 def _():
     input_module_string = """
-
     func.func @impl(%a : i32) -> i32 {
       %two   = arith.constant 2  : i32
       %mul   = arith.muli %a, %two : i32
       %div   = arith.divui %mul, %two : i32
       func.return %div : i32
     }
+    """
+
+    pdl_interp_module_string = """
 
     pdl_interp.func @matcher(%arg0: !pdl.operation) {
       %0 = pdl_interp.get_result 0 of %arg0
@@ -240,10 +243,8 @@ def _():
         pdl_interp.finalize
       }
     }
-
-
     """
-    return (input_module_string,)
+    return input_module_string, pdl_interp_module_string
 
 
 @app.cell(hide_code=True)
