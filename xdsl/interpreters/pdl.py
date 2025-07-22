@@ -219,9 +219,7 @@ class PDLRewritePattern(RewritePattern):
     functions: PDLRewriteFunctions
     pdl_rewrite_op: pdl.RewriteOp
     interpreter: Interpreter
-    native_constraints: dict[str, Callable[..., bool]] = field(
-        default_factory=lambda: {}
-    )
+    native_constraints: dict[str, Callable[..., bool]]
 
     def __init__(
         self,
