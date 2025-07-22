@@ -38,7 +38,7 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        def foo():  # pyright: ignore[reportRedeclaration]
+        def foo():
             return
 
         # CHECK: Function 'foo' is already defined
