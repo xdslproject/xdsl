@@ -43,10 +43,10 @@ def apply_eqsat_pdl_interp(
         # Execute all pending rewrites that were aggregated during matching
         implementations.execute_pending_rewrites(interpreter)
 
-        if not implementations.merge_list:
+        if not implementations.worklist:
             break
 
-        implementations.apply_matches()
+        implementations.rebuild()
 
 
 @dataclass(frozen=True)
