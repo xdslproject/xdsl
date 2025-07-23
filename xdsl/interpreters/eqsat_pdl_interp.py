@@ -427,10 +427,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                     eclass1.operands = OrderedSet(
                         eclass1.operands
                     )  # deduplicate operands
-                else:
-                    assert self.eclass_union(eclass1, eclass2), (
-                        "Expected eclasses to not already be unioned."
-                    )
+                    continue  # parents need not be processed because no eclasses were merged
+
+                assert self.eclass_union(eclass1, eclass2), (
+                    "Expected eclasses to not already be unioned."
+                )
 
                 self.worklist.append(eclass1)
             else:
