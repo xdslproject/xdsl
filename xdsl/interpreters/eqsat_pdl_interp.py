@@ -55,12 +55,6 @@ class BacktrackPoint:
     """Last valid operand index in the EClassOp (len(operands) - 1)."""
 
 
-@dataclass
-class MergeTodo:
-    to_keep: eqsat.EClassOp
-    to_replace: eqsat.EClassOp
-
-
 @register_impls
 @dataclass
 class EqsatPDLInterpFunctions(PDLInterpFunctions):
@@ -101,8 +95,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     )
     """List of pending rewrites to be executed. Each entry is a tuple of (rewriter, root, args)."""
 
-    merge_list: list[MergeTodo] = field(default_factory=list[MergeTodo])
-    """List of e-classes that should be merged by `apply_matches` after the pattern matching is done."""
+    worklist: list[eqsat.EClassOp] = field(default_factory=list[eqsat.EClassOp])
+    """Worklist of e-classes that need to be processed for matching."""
 
     is_matching: bool = True
     """Keeps track whether the interpreter is currently in a matching context (as opposed to in a rewriting context).
@@ -274,25 +268,46 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 "Replacement value must be the result of an EClassOp"
             )
 
-        repl_eclass = self.eclass_union_find.find(repl_eclass)
-        original_eclass = self.eclass_union_find.find(original_eclass)
-
-        if repl_eclass == original_eclass:
-            return ()
-
-        self.eclass_union_find.union(
-            original_eclass,
-            repl_eclass,
-        )
-        if self.eclass_union_find.find(original_eclass) == repl_eclass:
-            # In the union-find the canonical representative of the original_eclass
-            # is now the repl_eclass, so we have to keep the repl_eclass:
-            self.merge_list.append(MergeTodo(repl_eclass, original_eclass))
-        else:
-            # otherwise we keep the original_eclass:
-            self.merge_list.append(MergeTodo(original_eclass, repl_eclass))
+        if self.eclass_union(original_eclass, repl_eclass):
+            self.worklist.append(original_eclass)
 
         return ()
+
+    def eclass_union(self, a: eqsat.EClassOp, b: eqsat.EClassOp) -> bool:
+        """Unions two e-classes, merging their operands and results.
+        Returns True if the e-classes were merged, False if they were already the same."""
+        a = self.eclass_union_find.find(a)
+        b = self.eclass_union_find.find(b)
+
+        if a == b:
+            return False
+
+        self.eclass_union_find.union(
+            a,
+            b,
+        )
+
+        if self.eclass_union_find.find(a) == a:
+            to_keep = a
+            to_replace = b
+        else:
+            assert self.eclass_union_find.find(b) == b
+            to_keep = b
+            to_replace = a
+
+        # Operands need to be deduplicated because it can happen the same operand was
+        # used by different parent eclasses after their children were merged:
+        new_operands = OrderedSet((*to_keep.operands, *to_replace.operands))
+        to_keep.operands = new_operands
+
+        for use in to_replace.result.uses:
+            # uses are removed from the hashcons before the replacement is carried out.
+            # (because the replacement changes the operations which means we cannot find them in the hashcons anymore)
+            if use.operation in self.known_ops:
+                self.known_ops.pop(use.operation)
+
+        self.rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
+        return True
 
     @impl(pdl_interp.CreateOperationOp)
     def run_create_operation(
@@ -302,6 +317,17 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         has_done_action_checkpoint = self.rewriter.has_done_action
+
+        updated_operands: list[OpResult] = []
+        for arg in args[0 : len(op.input_operands)]:
+            assert isinstance(arg, OpResult), (
+                "pdl_interp.create_operation currently only supports creating operations with operands that are OpResult."
+            )
+            assert isinstance(arg.owner, eqsat.EClassOp), (
+                "pdl_interp.create_operation currently only supports creating operations with operands that are EClassOp results."
+            )
+            updated_operands.append(self.eclass_union_find.find(arg.owner).result)
+        args = (*updated_operands, *args[len(op.input_operands) :])
         (new_op,) = super().run_create_operation(interpreter, op, args).values
 
         assert isinstance(new_op, Operation)
@@ -362,96 +388,60 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
 
-    def apply_matches(self):
-        while self.merge_list:
-            todo = OrderedSet(
-                (self.eclass_union_find.find(todo.to_keep), todo.to_replace)
-                for todo in self.merge_list
-            )
-            self.merge_list.clear()
-            for to_keep, to_replace in todo:
-                if to_keep == to_replace:
+    def repair(self, eclass: eqsat.EClassOp):
+        unique_parents = KnownOps()
+        eclass = self.eclass_union_find.find(eclass)
+        for op1 in OrderedSet(use.operation for use in eclass.result.uses):
+            # if not op1.results or not op1.results[0].uses:
+            #     # If the operation has no results, or no uses, there is no way it needs to be merged.
+            #     continue
+            if op1 in unique_parents:
+                # This means another parent that was processed before is identical to this one,
+                # the corresponding eclasses need to be merged.
+                op2 = unique_parents[op1]
+                if op1 == op2:
                     # If the two operations are the same, we can skip merging.
                     continue
-                # Operands need to be deduplicated because it can happen the same operand was
-                # used by different parent eclasses after their children were merged:
-                new_operands = OrderedSet((*to_keep.operands, *to_replace.operands))
-                to_keep.operands = new_operands
 
-                for use in to_replace.result.uses:
-                    # uses are removed from the hashcons before the replacement is carried out.
-                    # (because the replacement changes the operations which means we cannot find them in the hashcons anymore)
-                    if use.operation in self.known_ops:
-                        self.known_ops.pop(use.operation)
-
-                if to_replace.parent_block() is None:
-                    # If the operation has no parent block, it is not part of the IR anymore.
-                    continue
-                self.rewriter.replace_op(
-                    to_replace, new_ops=[], new_results=to_keep.results
+                assert (op1_use := op1.results[0].first_use), (
+                    "Modification handler currently only supports operations with a single (EClassOp) use"
                 )
+                assert isinstance(eclass1 := op1_use.operation, eqsat.EClassOp)
 
-                unique_parents = KnownOps()
+                assert len(op2.results) == 1, (
+                    "Expected a single result for the operation being modified."
+                )
+                if not op2.results[0].has_single_use():
+                    # If the operation has no uses, there is no way it needs to be merged.
+                    continue
+                assert (op2_use := op2.results[0].first_use), (
+                    "Modification handler currently only supports operations with a single (EClassOp) use"
+                )
+                assert isinstance(eclass2 := op2_use.operation, eqsat.EClassOp)
 
-                for op1 in set(use.operation for use in to_keep.result.uses):
-                    if not op1.results or not op1.results[0].uses:
-                        # If the operation has no results, or no uses, there is no way it needs to be merged.
-                        continue
-                    if op1 in unique_parents:
-                        # This means another parent that was processed before is identical to this one,
-                        # the corresponding eclasses need to be merged.
-                        op2 = unique_parents[op1]
-                        if op1 == op2:
-                            # If the two operations are the same, we can skip merging.
-                            continue
+                # This temporarily breaks the invariant since eclass2 will now contain the result of op2 twice.
+                # Callling `eclass_union` will deduplicate this operand.
+                self.rewriter.replace_op(op1, new_ops=(), new_results=op2.results)
 
-                        assert (op1_use := op1.results[0].first_use), (
-                            "Modification handler currently only supports operations with a single (EClassOp) use"
-                        )
-                        assert isinstance(eclass1 := op1_use.operation, eqsat.EClassOp)
+                if eclass1 == eclass2:
+                    eclass1.operands = OrderedSet(
+                        eclass1.operands
+                    )  # deduplicate operands
+                else:
+                    assert self.eclass_union(eclass1, eclass2), (
+                        "Expected eclasses to not already be unioned."
+                    )
 
-                        assert len(op2.results) == 1, (
-                            "Expected a single result for the operation being modified."
-                        )
-                        if not op2.results[0].uses:
-                            # If the operation has no uses, there is no way it needs to be merged.
-                            continue
-                        assert (op2_use := op2.results[0].first_use), (
-                            "Modification handler currently only supports operations with a single (EClassOp) use"
-                        )
-                        assert isinstance(eclass2 := op2_use.operation, eqsat.EClassOp)
+                self.worklist.append(eclass1)
+            else:
+                unique_parents[op1] = op1
 
-                        self.eclass_union_find.union(
-                            eclass1,
-                            eclass2,
-                        )
-                        if self.eclass_union_find.find(eclass1) == eclass2:
-                            # In the union-find the canonical representative of the original_eclass
-                            # is now the repl_eclass, so we have to keep the repl_eclass:
-                            self.merge_list.append(MergeTodo(eclass2, eclass1))
-                            self.rewriter.replace_op(
-                                op1, new_ops=[], new_results=op2.results
-                            )
-
-                            # In order to ensure a value (e-node) is not used by multiple e-classes,
-                            # we remove the use here already. In the next iteration over the worklist,
-                            # this eclass will be merged with the other one anyway:
-                            eclass1.operands = (
-                                *eclass1.operands[: op1_use.index],
-                                *eclass1.operands[op1_use.index + 1 :],
-                            )
-                        else:
-                            # otherwise we keep the original_eclass:
-                            self.merge_list.append(MergeTodo(eclass1, eclass2))
-                            self.rewriter.replace_op(
-                                op2, new_ops=[], new_results=op1.results
-                            )
-                            eclass2.operands = (
-                                *eclass2.operands[: op2_use.index],
-                                *eclass2.operands[op2_use.index + 1 :],
-                            )
-                    else:
-                        unique_parents[op1] = op1
+    def rebuild(self):
+        while self.worklist:
+            todo = OrderedSet(self.eclass_union_find.find(c) for c in self.worklist)
+            self.worklist.clear()
+            for c in todo:
+                self.repair(c)
 
     def execute_pending_rewrites(self, interpreter: Interpreter):
         """Execute all pending rewrites that were aggregated during matching."""
@@ -462,4 +452,3 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             interpreter.call_op(rewriter, args)
             self.is_matching = True
         self.pending_rewrites.clear()
-
