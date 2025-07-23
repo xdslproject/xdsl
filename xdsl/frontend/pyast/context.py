@@ -42,11 +42,13 @@ class PyASTContext:
     @classmethod
     def _get_func_info(
         cls,
-        current_frame: FrameType,
+        current_frame: FrameType | None,
         func: Callable[P, R],
         decorated_func: Callable[P, R] | None,
     ) -> tuple[str, dict[str, Any], ast.FunctionDef]:
         """Get information about the decorated function."""
+        # Get the correct function frame from the call stack
+        assert current_frame is not None
         func_frame = current_frame.f_back
         if decorated_func is not None:
             assert func_frame is not None
@@ -66,6 +68,20 @@ class PyASTContext:
 
         # Return the information about the function
         return (func_file, func_globals, func_ast)
+
+    @classmethod
+    def _get_wrapped_program(
+        cls, func: Callable[P, R], builder: PyASTBuilder
+    ) -> PyASTProgram[P, R]:
+        """Return a PyAST program for this function with the builder."""
+        program = PyASTProgram[P, R](
+            name=func.__name__,
+            func=func,
+            _builder=builder,
+        )
+        functools.update_wrapper(program, func)
+        assert program.__doc__ == func.__doc__
+        return program
 
     @overload
     def parse_program(
@@ -92,14 +108,10 @@ class PyASTContext:
         """Get a program wrapper by decorating a function."""
 
         def decorator(func: Callable[P, R]) -> PyASTProgram[P, R]:
-            # Get the frame as the function is being decorated
-            current_frame = currentframe()
-            assert current_frame is not None
+            """Get a wrapped program by decorating a function."""
             func_file, func_globals, func_ast = self._get_func_info(
-                current_frame, func, decorated_func
+                currentframe(), func, decorated_func
             )
-
-            # Construct the lazy builder with this information
             builder = PyASTBuilder(
                 type_registry=self.type_registry,
                 function_registry=self.function_registry,
@@ -108,17 +120,10 @@ class PyASTContext:
                 function_ast=func_ast,
                 desymref=desymref,
             )
+            return self._get_wrapped_program(func, builder)
 
-            # Return a PyAST program for this function with the builder
-            program = PyASTProgram[P, R](
-                name=func.__name__,
-                func=func,
-                _builder=builder,
-            )
-            functools.update_wrapper(program, func)
-            assert program.__doc__ == func.__doc__
-            return program
-
+        # Handle the two invocation cases: either `@ctx.parse_program` or
+        # `@ctx.parse_program(...)`
         if decorated_func is None:
             return decorator
         return decorator(decorated_func)
