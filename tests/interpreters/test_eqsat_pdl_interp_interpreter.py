@@ -797,6 +797,80 @@ def test_rebuilding():
     )
 
 
+def test_rebuilding_parents_already_equivalent():
+    """
+    Take for example:
+    ```
+    %c_x = eqsat.eclass(%x)
+    %c_y = eqsat.eclass(%y)
+    %a = f(%c_x)
+    %b = f(%c_y)
+    eqsat.eclass(%a, %b)
+    ```
+    When `%x` and `%y` become equivalent, this becomes:
+    ```
+    %c_xy = eqsat.eclass(%x, %y)
+    %a = f(%x)
+    %b = f(%x)
+    eqsat.eclass(%a, %b)
+    ```
+    The rebuilding procedure has to deduplicate `%a` and `%b`, and the eclass should only contain `%c_xy`.
+    """
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        x = create_ssa_value(i32)
+        y = create_ssa_value(i32)
+
+        c_x = eqsat.EClassOp(x, res_type=i32).result
+        c_y = eqsat.EClassOp(y, res_type=i32).result
+
+        a = test.TestOp((c_x,), result_types=(i32,)).results[0]
+        b = test.TestOp((c_y,), result_types=(i32,)).results[0]
+
+        c_ab = eqsat.EClassOp(a, b, res_type=i32).result
+    x.name_hint = "x"
+    y.name_hint = "y"
+    c_x.name_hint = "c_x"
+    c_y.name_hint = "c_y"
+    a.name_hint = "a"
+    b.name_hint = "b"
+    c_ab.name_hint = "c_ab"
+
+    ctx = Context()
+    ctx.register_dialect("func", lambda: func.Func)
+    ctx.register_dialect("eqsat", lambda: eqsat.EqSat)
+    ctx.register_dialect("test", lambda: test.Test)
+    rewriter = PatternRewriter(c_ab.owner)
+
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interp_functions.rewriter = rewriter
+
+    interp_functions.populate_known_ops(testmodule)
+
+    assert isinstance(c_x.owner, eqsat.EClassOp)
+    assert isinstance(c_y.owner, eqsat.EClassOp)
+
+    interp_functions.eclass_union(c_x.owner, c_y.owner)
+    interp_functions.worklist.append(c_x.owner)
+
+    interp_functions.rebuild()
+
+    assert (
+        str(testmodule)
+        == """builtin.module {
+  %x = "test.op"() : () -> i32
+  %y = "test.op"() : () -> i32
+  %c_x = eqsat.eclass %x, %y : i32
+  %b = "test.op"(%c_x) : (i32) -> i32
+  %c_ab = eqsat.eclass %b : i32
+}"""
+    )
+
+
 def test_run_get_defining_op_block_argument():
     """Test that run_get_defining_op returns None for block arguments."""
     interpreter = Interpreter(ModuleOp([]))
