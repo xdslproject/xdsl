@@ -265,9 +265,6 @@ def _check_enum_constraints(
     of EnumAttribute as a base class is *not supported*.
       This simplifies type-hacking code and I don't see it being too restrictive
       anytime soon.
-    - The StrEnum values must all be parsable as identifiers. This is to keep the
-    parsing code simple and efficient. This restriction is easier to lift, but I
-    haven't yet met an example use case where it matters, so I'm keeping it simple.
     """
     orig_bases = getattr(enum_class, "__orig_bases__")
     enumattr = next(
@@ -278,12 +275,6 @@ def _check_enum_constraints(
     enum_type = get_args(enumattr)[0]
     if isinstance(enum_type, TypeVar):
         raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
-
-    for v in enum_type:
-        if MLIRLexer.bare_identifier_suffix_regex.fullmatch(v) is None:
-            raise ValueError(
-                "All StrEnum values of an EnumAttribute must be parsable as an identifer."
-            )
 
     enum_class.enum_type = enum_type
 
@@ -309,12 +300,27 @@ class EnumAttribute(Data[EnumType]):
     """
 
     enum_type: ClassVar[type[StrEnum]]
+    enum_to_string: dict[StrEnum, str]
+    """
+    The mapping from the enum values to their string representation.
+    This is used to know whether or not an enum case should be printed with
+    quotes.
+    """
 
     def __init_subclass__(cls) -> None:
         _check_enum_constraints(cls)
 
+        cls.enum_to_string = {}
+        # Create the mapping from enum values to their string representation.
+        # They only need to be quoted if they are not valid bare identifiers.
+        for value in tuple(cls.enum_type):
+            if MLIRLexer.bare_identifier_suffix_regex.fullmatch(str(value)):
+                cls.enum_to_string[value] = str(value)
+            else:
+                cls.enum_to_string[value] = f'"{str(value)}"'
+
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(self.data.value)
+        printer.print_string(self.enum_to_string[self.data])
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:

@@ -183,6 +183,11 @@ class TestNonIdentifierEnum(StrEnum):
 
 
 @irdl_attr_definition
+class TestNonIdentifierEnumAttr(EnumAttribute[TestNonIdentifierEnum]):
+    name = "test.non_identifier_enum"
+
+
+@irdl_attr_definition
 class EnumData(EnumAttribute[TestEnum], SpacedOpaqueSyntaxAttribute):
     name = "test.enum"
 
@@ -203,18 +208,6 @@ def test_indirect_enum_guard():
             EnumAttribute[EnumType]
         ):
             name = "test.indirect_enum"
-
-
-def test_identifier_enum_guard():
-    with pytest.raises(
-        ValueError,
-        match="All StrEnum values of an EnumAttribute must be parsable as an identifer.",
-    ):
-
-        class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
-            EnumAttribute[TestNonIdentifierEnum]
-        ):
-            name = "test.non_identifier_enum"
 
 
 @irdl_attr_definition(init=False)

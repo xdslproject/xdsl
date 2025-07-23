@@ -293,12 +293,19 @@ class BaseParser(GenericParser[MLIRTokenKind]):
     def parse_optional_str_enum(self, enum_type: type[_EnumType]) -> _EnumType | None:
         """Parse a string enum value, if present."""
 
-        if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
+        if self._current_token.kind == MLIRTokenKind.BARE_IDENT:
+            val = self._current_token.text
+            if val in enum_type.__members__.values():
+                self._consume_token(MLIRTokenKind.BARE_IDENT)
+                return enum_type(val)
             return None
 
-        val = self._current_token.text
+        if self._current_token.kind != MLIRTokenKind.STRING_LIT:
+            return None
+
+        val = StringLiteral.from_span(self._current_token.span).string_contents
         if val not in enum_type.__members__.values():
             return None
 
-        self._consume_token(MLIRTokenKind.BARE_IDENT)
+        self._consume_token(MLIRTokenKind.STRING_LIT)
         return enum_type(val)

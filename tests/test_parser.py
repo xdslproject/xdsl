@@ -1005,15 +1005,21 @@ class MyEnum(StrEnum):
     A = "a"
     B = "b"
     C = "c"
+    D = "d-non-keyword"
 
 
 @pytest.mark.parametrize(
     "keyword, expected",
     [
         ("a", MyEnum.A),
+        ('"a"', MyEnum.A),
         ("b", MyEnum.B),
+        ('"b"', MyEnum.B),
         ("c", MyEnum.C),
-        ("cc", None),
+        ('"c"', MyEnum.C),
+        ('"d-non-keyword"', MyEnum.D),
+        ("other", None),
+        ('"other"', None),
     ],
 )
 def test_parse_str_enum(keyword: str, expected: MyEnum | None):
@@ -1021,7 +1027,9 @@ def test_parse_str_enum(keyword: str, expected: MyEnum | None):
 
     parser = Parser(Context(), keyword)
     if expected is None:
-        with pytest.raises(ParseError, match="Expected `a`, `b`, or `c`"):
+        with pytest.raises(
+            ParseError, match="Expected `a`, `b`, `c`, or `d-non-keyword`"
+        ):
             parser.parse_str_enum(MyEnum)
     else:
         assert parser.parse_str_enum(MyEnum) == expected
