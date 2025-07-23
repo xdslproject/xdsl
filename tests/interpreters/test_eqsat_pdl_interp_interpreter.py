@@ -6,7 +6,7 @@ from xdsl.context import Context
 from xdsl.dialects import arith, eqsat, func, pdl, pdl_interp, test
 from xdsl.dialects.builtin import ModuleOp, i32, i64
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions, MergeTodo
+from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
 from xdsl.ir import Operation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
@@ -344,11 +344,11 @@ def test_run_create_operation_new_operation():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
+        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
     rewriter = PatternRewriter(root)
     interp_functions.rewriter = rewriter
 
     # Create operands and types for the operation
-    operand = create_ssa_value(i32)
     result_type = i32
 
     # Create CreateOperationOp
@@ -358,6 +358,7 @@ def test_run_create_operation_new_operation():
         input_attributes=[],
         input_result_types=[create_ssa_value(pdl.TypeType())],
     )
+    interp_functions.populate_known_ops(testmodule)
 
     # Run the create operation
     result = interp_functions.run_create_operation(
@@ -370,14 +371,13 @@ def test_run_create_operation_new_operation():
     assert isinstance(created_op, Operation)
     assert created_op.name == "test.op"
 
-    # Should add the operation to known_ops
     assert created_op in interp_functions.known_ops
     assert interp_functions.known_ops[created_op] is created_op
 
     # Should create an EClass operation and add it to eclass_union_find
     # The EClass should be created and inserted after the operation
-    assert len(interp_functions.eclass_union_find._values) == 1  # pyright: ignore[reportPrivateUsage]
-    eclass_op = interp_functions.eclass_union_find._values[0]  # pyright: ignore[reportPrivateUsage]
+    assert len(interp_functions.eclass_union_find._values) == 2  # pyright: ignore[reportPrivateUsage]
+    eclass_op = interp_functions.eclass_union_find._values[1]  # pyright: ignore[reportPrivateUsage]
     assert isinstance(eclass_op, eqsat.EClassOp)
 
 
@@ -398,18 +398,16 @@ def test_run_create_operation_existing_operation_in_use():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
+        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
+        # Create an existing operation that's identical to what we'll create
+        existing_op = test.TestOp((operand,), (i32,))
     rewriter = PatternRewriter(root)
     interp_functions.rewriter = rewriter
-
-    # Create an existing operation that's identical to what we'll create
-    operand = create_ssa_value(i32)
-    existing_op = test.TestOp((operand,), (i32,))
 
     # Create a user for the existing operation to ensure it's "in use"
     _user_op = test.TestOp((existing_op.results[0],), (i32,))
 
-    # Add the existing operation to known_ops
-    interp_functions.known_ops[existing_op] = existing_op
+    interp_functions.populate_known_ops(testmodule)
 
     # Create CreateOperationOp that will create an identical operation
     create_op = pdl_interp.CreateOperationOp(
@@ -453,12 +451,11 @@ def test_run_create_operation_existing_operation_not_in_use():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
+        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
+        # Create an existing operation with no result uses
+        existing_op = test.TestOp((operand,), (i32,))
     rewriter = PatternRewriter(root)
     interp_functions.rewriter = rewriter
-
-    # Create an existing operation with no result uses
-    operand = create_ssa_value(i32)
-    existing_op = test.TestOp((operand,), (i32,))
 
     # Verify the existing operation has no uses
     assert len(existing_op.results) > 0, "Existing operation must have results"
@@ -466,8 +463,7 @@ def test_run_create_operation_existing_operation_not_in_use():
         "Existing operation result should have no uses"
     )
 
-    # Add the existing operation to known_ops
-    interp_functions.known_ops[existing_op] = existing_op
+    interp_functions.populate_known_ops(testmodule)
 
     # Create CreateOperationOp that will create an identical operation
     create_op = pdl_interp.CreateOperationOp(
@@ -591,14 +587,20 @@ def test_run_replace():
     ctx = Context()
     interp_functions = EqsatPDLInterpFunctions(ctx)
 
-    # Create test operations
-    c0 = create_ssa_value(i32)
-    original_op = test.TestOp((c0,), (i32,))
-    replacement_op = test.TestOp((c0,), (i32,))
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
 
-    # Create EClass operations for both
-    original_eclass = eqsat.EClassOp(original_op.results[0], res_type=i32)
-    replacement_eclass = eqsat.EClassOp(replacement_op.results[0], res_type=i32)
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        # Create test operations
+        c0 = create_ssa_value(i32)
+        original_op = test.TestOp((c0,), (i32,))
+        replacement_op = test.TestOp((c0,), (i32,))
+
+        # Create EClass operations for both
+        original_eclass = eqsat.EClassOp(original_op.results[0], res_type=i32)
+        replacement_eclass = eqsat.EClassOp(replacement_op.results[0], res_type=i32)
 
     # Add both EClass operations to union-find
     interp_functions.eclass_union_find.add(original_eclass)
@@ -608,6 +610,9 @@ def test_run_replace():
     input_op_value = create_ssa_value(pdl.OperationType())
     repl_value = create_ssa_value(pdl.ValueType())
     replace_op = pdl_interp.ReplaceOp(input_op_value, [repl_value])
+
+    rewriter = PatternRewriter(original_op)
+    interp_functions.rewriter = rewriter
 
     # Call run_replace directly
     result = interp_functions.run_replace(
@@ -623,11 +628,11 @@ def test_run_replace():
     )
 
     # Should have added a merge todo
-    assert len(interp_functions.merge_list) == 1
-    merge_todo = interp_functions.merge_list[0]
+    assert len(interp_functions.worklist) == 1
+    merge_todo = interp_functions.worklist[0]
     # One of them should be the canonical representative
     canonical = interp_functions.eclass_union_find.find(original_eclass)
-    assert merge_todo.to_keep == canonical
+    assert interp_functions.eclass_union_find.find(merge_todo) == canonical
 
 
 def test_run_replace_same_eclass():
@@ -660,7 +665,7 @@ def test_run_replace_same_eclass():
     assert not result.values
 
     # Should not add any merge todos since it's the same EClass
-    assert not interp_functions.merge_list
+    assert not interp_functions.worklist
 
 
 def test_run_replace_error_not_eclass_original():
@@ -724,67 +729,17 @@ def test_run_replace_error_not_eclass_replacement():
         )
 
 
-def test_apply_matches():
-    """Test that apply_matches correctly processes merge operations."""
-    ctx = Context()
-    interp_functions = EqsatPDLInterpFunctions(ctx)
-
-    # Set up a mock rewriter
-    from xdsl.builder import ImplicitBuilder
-    from xdsl.ir import Block, Region
-    from xdsl.pattern_rewriter import PatternRewriter
-
-    # Create test operations and EClasses
-    c0 = create_ssa_value(i32)
-    c1 = create_ssa_value(i32)
-
-    testmodule = ModuleOp(Region([Block()]))
-    block = testmodule.body.first_block
-    with ImplicitBuilder(block):
-        root = test.TestOp()
-        op1 = test.TestOp((c0,), (i32,))
-        op2 = test.TestOp((c1,), (i32,))
-        eclass1 = eqsat.EClassOp(op1.results[0], res_type=i32)
-        eclass2 = eqsat.EClassOp(op2.results[0], res_type=i32)
-    rewriter = PatternRewriter(root)
-    interp_functions.rewriter = rewriter
-
-    # Add to union-find and merge them
-    interp_functions.eclass_union_find.add(eclass1)
-    interp_functions.eclass_union_find.add(eclass2)
-    interp_functions.eclass_union_find.union(eclass1, eclass2)
-
-    # Add merge todo manually (simulating what run_replace would do)
-    from xdsl.interpreters.eqsat_pdl_interp import MergeTodo
-
-    canonical = interp_functions.eclass_union_find.find(eclass1)
-    to_replace = eclass2 if canonical == eclass1 else eclass1
-    interp_functions.merge_list.append(MergeTodo(canonical, to_replace))
-
-    # Track initial operand count
-    initial_operand_count = len(canonical.operands)
-
-    # Apply the matches
-    interp_functions.apply_matches()
-
-    # Should have cleared the merge list
-    assert not interp_functions.merge_list
-
-    # Should have merged operands from to_replace into canonical
-    assert len(canonical.operands) == initial_operand_count + len(to_replace.operands)
-
-
 def test_rebuilding():
     from xdsl.builder import ImplicitBuilder
     from xdsl.ir import Block, Region
 
-    a = create_ssa_value(i32)
-    b = create_ssa_value(i32)
-    x = create_ssa_value(i32)
-
     testmodule = ModuleOp(Region([Block()]))
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
+        a = create_ssa_value(i32)
+        b = create_ssa_value(i32)
+        x = create_ssa_value(i32)
+
         c_a = eqsat.EClassOp(a, res_type=i32).result
         c_b = eqsat.EClassOp(b, res_type=i32).result
         c_x = eqsat.EClassOp(x, res_type=i32).result
@@ -821,20 +776,23 @@ def test_rebuilding():
     assert isinstance(c_b.owner, eqsat.EClassOp)
     assert isinstance(c_d.owner, eqsat.EClassOp)
 
-    interp_functions.eclass_union_find.union(c_x.owner, c_d.owner)
-    interp_functions.merge_list.append(MergeTodo(c_x.owner, c_d.owner))
+    interp_functions.eclass_union(c_x.owner, c_d.owner)
+    interp_functions.worklist.append(c_x.owner)
 
-    interp_functions.eclass_union_find.union(c_b.owner, c_a.owner)
-    interp_functions.merge_list.append(MergeTodo(c_b.owner, c_a.owner))
+    interp_functions.eclass_union(c_b.owner, c_a.owner)
+    interp_functions.worklist.append(c_b.owner)
 
-    interp_functions.apply_matches()
+    interp_functions.rebuild()
 
     assert (
         str(testmodule)
         == """builtin.module {
+  %a = "test.op"() : () -> i32
+  %b = "test.op"() : () -> i32
+  %x = "test.op"() : () -> i32
   %c_b = eqsat.eclass %b, %a : i32
-  %c_x = eqsat.eclass %x, %d : i32
-  %d = arith.muli %c_b, %c_b : i32
+  %c_x = eqsat.eclass %x, %c : i32
+  %c = arith.muli %c_b, %c_b : i32
 }"""
     )
 
