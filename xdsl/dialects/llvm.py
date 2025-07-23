@@ -1525,6 +1525,23 @@ class FramePointerKindAttr(EnumAttribute[FramePointerKind]):
             return super().parse_parameter(parser)
 
 
+@irdl_attr_definition
+class TargetFeaturesAttr(ParametrizedAttribute):
+    """
+    Represents the LLVM target features as a list that can be checked within
+    passes/rewrites.
+    """
+
+    name = "llvm.target_features"
+
+    features: ArrayAttr[StringAttr]
+
+    def verify(self):
+        for feature in self.features:
+            if not feature.data.startswith(("-", "+")):
+                raise VerifyException("target features must start with '+' or '-'")
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     name = "llvm.func"
@@ -1936,5 +1953,6 @@ LLVM = Dialect(
         LinkageAttr,
         OverflowAttr,
         TailCallKindAttr,
+        TargetFeaturesAttr,
     ],
 )
