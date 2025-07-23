@@ -205,16 +205,17 @@ def test_indirect_enum_guard():
             name = "test.indirect_enum"
 
 
-def test_identifier_enum_guard():
-    with pytest.raises(
-        ValueError,
-        match="All StrEnum values of an EnumAttribute must be parsable as an identifer.",
-    ):
+def test_attribute_def_with_non_identifier_enum():
+    """
+    Test the definition of an EnumAttribute with a non-identifier enum is
+    allowed.
+    """
 
-        class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
-            EnumAttribute[TestNonIdentifierEnum]
-        ):
-            name = "test.non_identifier_enum"
+    @irdl_attr_definition
+    class TestNonIdentifierEnumAttr(  # pyright: ignore[reportUnusedClass]
+        EnumAttribute[TestNonIdentifierEnum]
+    ):
+        name = "test.non_identifier_enum"
 
 
 @irdl_attr_definition(init=False)
