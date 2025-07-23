@@ -108,7 +108,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         Whenever an operation is modified, for example when its operands are updated to a different eclass value,
         the operation is added to the hashcons `known_ops`.
         """
-        if not (op in self.known_ops and op.parent_block() is not None):
+        if op not in self.known_ops:
             self.known_ops[op] = op
 
     def populate_known_ops(self, module: ModuleOp) -> None:
@@ -399,9 +399,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 # This means another parent that was processed before is identical to this one,
                 # the corresponding eclasses need to be merged.
                 op2 = unique_parents[op1]
-                if op1 == op2:
-                    # If the two operations are the same, we can skip merging.
-                    continue
 
                 assert (op1_use := op1.results[0].first_use), (
                     "Modification handler currently only supports operations with a single (EClassOp) use"
@@ -411,9 +408,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 assert len(op2.results) == 1, (
                     "Expected a single result for the operation being modified."
                 )
-                if not op2.results[0].has_single_use():
-                    # If the operation has no uses, there is no way it needs to be merged.
-                    continue
                 assert (op2_use := op2.results[0].first_use), (
                     "Modification handler currently only supports operations with a single (EClassOp) use"
                 )
