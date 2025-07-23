@@ -1502,6 +1502,29 @@ class CallingConventionAttr(ParametrizedAttribute):
         parser.raise_error("Unknown calling convention")
 
 
+class FramePointerKind(StrEnum):
+    NONE = "none"
+    NONLEAF = "non-leaf"
+    ALL = "all"
+    RESERVED = "reserved"
+
+
+@irdl_attr_definition
+class FramePointerKindAttr(EnumAttribute[FramePointerKind]):
+    """LLVM Frame Pointer Kind."""
+
+    name = "llvm.framePointerKind"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            super().print_parameter(printer)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> FramePointerKind:
+        with parser.in_angle_brackets():
+            return super().parse_parameter(parser)
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     name = "llvm.func"
@@ -1904,6 +1927,7 @@ LLVM = Dialect(
     [
         CallingConventionAttr,
         FastMathAttr,
+        FramePointerKindAttr,
         LLVMArrayType,
         LLVMFunctionType,
         LLVMPointerType,
