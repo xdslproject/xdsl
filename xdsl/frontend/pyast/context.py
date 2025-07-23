@@ -6,13 +6,26 @@ from dataclasses import dataclass, field
 from inspect import currentframe, getsource
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
 from types import FrameType
-from typing import Any, overload
+from typing import Any, NamedTuple, overload
 
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
 from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
 from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
 from xdsl.ir import Operation, TypeAttribute
+
+
+class FuncInfo(NamedTuple):
+    """Information about a decorated function being generated into IR."""
+
+    file: str
+    """The path of the file containing the function."""
+
+    globals: dict[str, Any]
+    """The globals defined in that file up to the point of function definition."""
+
+    ast: ast.FunctionDef
+    """The Python AST representation of the function."""
 
 
 @dataclass
@@ -45,7 +58,7 @@ class PyASTContext:
         current_frame: FrameType | None,
         func: Callable[P, R],
         decorated_func: Callable[P, R] | None,
-    ) -> tuple[str, dict[str, Any], ast.FunctionDef]:
+    ) -> FuncInfo:
         """Get information about the decorated function."""
         # Get the correct function frame from the call stack
         assert current_frame is not None
@@ -67,7 +80,7 @@ class PyASTContext:
         func_ast.decorator_list = []
 
         # Return the information about the function
-        return (func_file, func_globals, func_ast)
+        return FuncInfo(func_file, func_globals, func_ast)
 
     @classmethod
     def _get_wrapped_program(
