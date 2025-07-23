@@ -10,3 +10,10 @@
     frame_non_leaf = #llvm.framePointerKind<"non-leaf">,
     frame_reserved = #llvm.framePointerKind<reserved>
     }: () -> ()
+
+// CHECK: target_features = #llvm.target_features<["+one", "-two"]>
+// CHECK: target_features_empty = #llvm.target_features<[]>
+"test.op"() {
+    target_features = #llvm.target_features<["+one", "-two"]>,
+    target_features_empty = #llvm.target_features<[]>
+} : () -> ()
