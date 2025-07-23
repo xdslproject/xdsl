@@ -68,11 +68,27 @@ class RescaleOp(IRDLOperation):
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
 
 
+@irdl_op_definition
+class AddOp(IRDLOperation):
+    """
+    Tosa elementwise add operation
+    """
+
+    name = "tosa.add"
+
+    in1 = operand_def(TensorType)
+    in2 = operand_def(TensorType)
+    output = result_def(TensorType)
+
+    assembly_format = "$in1 `,` $in2 attr-dict `:` `(` type($in1) `,` type($in2) `)` `->` type($output)"
+
+
 TOSA = Dialect(
     "tosa",
     [
         ClampOp,
         RescaleOp,
+        AddOp,
     ],
     [],
 )
