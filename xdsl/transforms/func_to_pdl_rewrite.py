@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, func, pdl, test
+from xdsl.ir import Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -26,16 +27,20 @@ class FuncToPdlRewritePattern(RewritePattern):
     ):
         if isinstance(op, func.FuncOp):
             pdl_root = test.TestPureOp(result_types=(pdl.OperationType(),))
-            rewriter.insert_op_before_matched_op(pdl_root)
             op.detach_region(func_body := op.regions[0])
-
             rewrite_root = pdl_root.results[0]
             for arg in func_body.block.args:
                 arg.replace_by(rewrite_root)
                 func_body.block.erase_arg(arg)
 
-            rewrite_op = pdl.RewriteOp(root=rewrite_root, body=func_body)
-            rewriter.replace_matched_op(rewrite_op)
+            pdl_pattern = pdl.PatternOp(
+                benefit=1,
+                sym_name=op.sym_name.data,
+                body=Region(
+                    Block([pdl_root, pdl.RewriteOp(root=rewrite_root, body=func_body)])
+                ),
+            )
+            rewriter.replace_matched_op(pdl_pattern)
         else:
             rewriter.erase_matched_op()
 

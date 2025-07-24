@@ -64,8 +64,10 @@ print(module)
 # Check that the extracted module results in the correct PDL rewrite
 print(constant_replace.module)
 # CHECK:       builtin.module {
-# CHECK-NEXT:    %matched_operation = "test.pureop"() : () -> !pdl.operation
-# CHECK-NEXT:    pdl.rewrite %matched_operation {
-# CHECK-NEXT:      pdl.erase %matched_operation
+# CHECK-NEXT:    pdl.pattern @constant_replace : benefit(1) {
+# CHECK-NEXT:      %matched_operation = "test.pureop"() : () -> !pdl.operation
+# CHECK-NEXT:      pdl.rewrite %matched_operation {
+# CHECK-NEXT:        pdl.erase %matched_operation
+# CHECK-NEXT:      }
 # CHECK-NEXT:    }
 # CHECK-NEXT:  }
