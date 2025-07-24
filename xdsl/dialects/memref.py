@@ -68,6 +68,10 @@ from xdsl.traits import (
     IsTerminator,
     NoMemoryEffect,
     SymbolOpInterface,
+    MemoryReadEffect,
+    MemoryAllocEffect,
+    MemoryWriteEffect,
+    MemoryFreeEffect,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.exceptions import VerifyException
@@ -85,6 +89,8 @@ class LoadOp(IRDLOperation):
     memref = operand_def(MemRefType.constr(T))
     indices = var_operand_def(IndexType())
     res = result_def(T)
+
+    traits = traits_def(MemoryReadEffect())
 
     irdl_options = [ParsePropInAttrDict()]
     assembly_format = "$memref `[` $indices `]` attr-dict `:` type($memref)"
@@ -122,6 +128,8 @@ class StoreOp(IRDLOperation):
     value = operand_def(T)
     memref = operand_def(MemRefType.constr(T))
     indices = var_operand_def(IndexType())
+
+    traits = traits_def(MemoryWriteEffect())
 
     irdl_options = [ParsePropInAttrDict()]
     assembly_format = "$value `,` $memref `[` $indices `]` attr-dict `:` type($memref)"
@@ -167,7 +175,7 @@ class AllocOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(AllocOpHasCanonicalizationPatterns())
+    traits = traits_def(AllocOpHasCanonicalizationPatterns(), MemoryAllocEffect())
 
     def __init__(
         self,
@@ -316,6 +324,8 @@ class AllocaOp(IRDLOperation):
     # TODO how to constraint the IntegerAttr type?
     alignment = opt_prop_def(IntegerAttr)
 
+    traits = traits_def(MemoryAllocEffect())
+
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
@@ -368,11 +378,15 @@ class AtomicRMWOp(IRDLOperation):
 
     result = result_def(T)
 
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+
 
 @irdl_op_definition
 class DeallocOp(IRDLOperation):
     name = "memref.dealloc"
     memref = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+
+    traits = traits_def(MemoryFreeEffect())
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> DeallocOp:
@@ -411,7 +425,7 @@ class GlobalOp(IRDLOperation):
     constant = opt_prop_def(UnitAttr)
     alignment = opt_prop_def(IntegerAttr[I64])
 
-    traits = traits_def(SymbolOpInterface())
+    traits = traits_def(SymbolOpInterface(), MemoryAllocEffect())
 
     def verify_(self) -> None:
         if self.alignment is not None:
@@ -950,6 +964,8 @@ class ReinterpretCastOp(IRDLOperation):
 
     result = result_def(MemRefType)
 
+    traits = traits_def(NoMemoryEffect())
+
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
@@ -1159,6 +1175,8 @@ class DmaStartOp(IRDLOperation):
     tag = operand_def(MemRefType[IntegerType])
     tag_indices = var_operand_def(IndexType)
 
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+
     irdl_options = [AttrSizedOperandSegments()]
 
     @staticmethod
@@ -1219,6 +1237,8 @@ class DmaWaitOp(IRDLOperation):
 
     num_elements = operand_def(IndexType)
 
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+
     @staticmethod
     def get(
         tag: SSAValue | Operation,
@@ -1250,6 +1270,8 @@ class CopyOp(IRDLOperation):
     name = "memref.copy"
     source = operand_def(MemRefType)
     destination = operand_def(MemRefType)
+
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
     def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
         super().__init__(operands=[source, destination])
