@@ -2,13 +2,12 @@ import pytest
 
 from xdsl.dialects.builtin import (
     TensorType,
-    i32,
     f32,
+    i32,
 )
 from xdsl.dialects.tosa import AddOp
-from xdsl.utils.test_value import create_ssa_value
 from xdsl.utils.exceptions import VerifyException
-
+from xdsl.utils.test_value import create_ssa_value
 
 tensor_i = create_ssa_value(TensorType(i32, [1, 2, 3, 4]))
 tensor_flat = create_ssa_value(TensorType(i32, [1, 1, 1, 1]))
