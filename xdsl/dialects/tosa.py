@@ -1,6 +1,9 @@
+from typing import ClassVar
+
 from xdsl.dialects.builtin import (
     I32,
     I64,
+    AnyAttr,
     BoolAttr,
     DenseArrayBase,
     FloatAttr,
@@ -12,6 +15,7 @@ from xdsl.ir import Dialect
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
+    VarConstraint,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -19,7 +23,7 @@ from xdsl.irdl import (
     result_def,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.type import are_tosa_broadcastable
 
 
 @irdl_op_definition
@@ -78,9 +82,11 @@ class AddOp(IRDLOperation):
 
     name = "tosa.add"
 
-    in1 = operand_def(TensorType)
-    in2 = operand_def(TensorType)
-    output = result_def(TensorType)
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    in1 = operand_def(TensorType.constr(T))
+    in2 = operand_def(TensorType.constr(T))
+    output = result_def(TensorType.constr(T))
 
     assembly_format = "$in1 `,` $in2 attr-dict `:` `(` type($in1) `,` type($in2) `)` `->` type($output)"
 
@@ -94,39 +100,10 @@ class AddOp(IRDLOperation):
         t2 = self.in2.type
         t_out = self.output.type
 
-        assert isa(t1, TensorType)
-        assert isa(t2, TensorType)
-        assert isa(t_out, TensorType)
-        
-        if not (t1.get_num_dims() == t2.get_num_dims() == t_out.get_num_dims()):
+        if not are_tosa_broadcastable(t1, t2, t_out):
             raise VerifyException(
-                "'tosa.add' rank mismatch between input and output tensors"
+                "'tosa.add' Operand and result tensor shapes are not compatible"
             )
-
-        if not (
-            t1.get_element_type() == t2.get_element_type() == t_out.get_element_type()
-        ):
-            raise VerifyException(
-                "'tosa.add' element type mismatch between inputs and output tensors"
-            )
-
-        # tosa allows for implcit broadcasting (i.e. same dims but any '1' element dimension
-        # can broadcast across that dimension) so we should check for same shapes, besides
-        # '1's can appear anywhere
-        s1, s2, s_out = t1.get_shape(), t2.get_shape(), t_out.get_shape()
-
-        for dim_in1, dim_in2, dim_out in zip(s1, s2, s_out):
-            # check that the shapes are compatible or have '1' to be broadcast
-            if dim_in1 != dim_in2 and 1 not in (dim_in1, dim_in2):
-                raise VerifyException(
-                    f"'tosa.add' shapes mismatch along axis: {dim_in1} and {dim_in2}"
-                )
-
-            # check that t_out is made from only broadcasting the operand types
-            if dim_out != max(dim_in1, dim_in2):
-                raise VerifyException(
-                    "'tosa.add' incompatible result type from operand types"
-                )
 
 
 TOSA = Dialect(
