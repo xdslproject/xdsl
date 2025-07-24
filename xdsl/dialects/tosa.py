@@ -19,6 +19,7 @@ from xdsl.irdl import (
     result_def,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @irdl_op_definition
@@ -93,6 +94,10 @@ class AddOp(IRDLOperation):
         t2 = self.in2.type
         t_out = self.output.type
 
+        assert isa(t1, TensorType)
+        assert isa(t2, TensorType)
+        assert isa(t_out, TensorType)
+        
         if not (t1.get_num_dims() == t2.get_num_dims() == t_out.get_num_dims()):
             raise VerifyException(
                 "'tosa.add' rank mismatch between input and output tensors"
