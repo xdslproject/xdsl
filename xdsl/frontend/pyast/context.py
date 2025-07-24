@@ -102,6 +102,7 @@ class PyASTContext:
         decorated_func: None = None,
         *,
         desymref: bool = True,
+        pdl_rewrite: bool = False,
     ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]]: ...
 
     @overload
@@ -110,6 +111,7 @@ class PyASTContext:
         decorated_func: Callable[P, R],
         *,
         desymref: bool = True,
+        pdl_rewrite: bool = False,
     ) -> PyASTProgram[P, R]: ...
 
     def parse_program(
@@ -117,6 +119,7 @@ class PyASTContext:
         decorated_func: Callable[P, R] | None = None,
         *,
         desymref: bool = True,
+        pdl_rewrite: bool = False,
     ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]] | PyASTProgram[P, R]:
         """Get a program wrapper by decorating a function."""
 
@@ -132,6 +135,7 @@ class PyASTContext:
                 globals=func_globals,
                 function_ast=func_ast,
                 desymref=desymref,
+                pdl_rewrite=pdl_rewrite,
             )
             return self._get_wrapped_program(func, builder)
 
