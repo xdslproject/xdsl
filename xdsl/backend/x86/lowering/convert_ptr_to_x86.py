@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+from typing import cast
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, ptr, x86
+from xdsl.dialects import arith, builtin, ptr, x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
+    IntegerAttr,
     UnrealizedConversionCastOp,
     VectorType,
 )
@@ -54,10 +56,18 @@ class PtrStoreToX86(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter):
+        if isinstance(ptradd_op := op.addr.owner, ptr.PtrAddOp) and isinstance(
+            constant_op := ptradd_op.offset.owner, arith.ConstantOp
+        ):
+            addr = ptradd_op.addr
+            offset = cast(IntegerAttr, constant_op.value).value.data
+        else:
+            addr = op.addr
+            offset = 0
         value_type = op.value.type
         # Pointer casts
         addr_cast_op, x86_ptr = UnrealizedConversionCastOp.cast_one(
-            op.addr, x86.register.UNALLOCATED_GENERAL
+            addr, x86.register.UNALLOCATED_GENERAL
         )
         if isa(value_type, VectorType[FixedBitwidthType]):
             x86_vect_type = vector_type_to_register_type(value_type, self.arch)
@@ -79,12 +89,12 @@ class PtrStoreToX86(RewritePattern):
                     raise DiagnosticException(
                         "Float precision must be half, single or double."
                     )
-            mov_op = mov(x86_ptr, x86_data, memory_offset=0)
+            mov_op = mov(x86_ptr, x86_data, memory_offset=offset)
         else:
             cast_op, x86_data = UnrealizedConversionCastOp.cast_one(
                 op.value, x86.register.UNALLOCATED_GENERAL
             )
-            mov_op = x86.MS_MovOp(x86_ptr, x86_data, memory_offset=0)
+            mov_op = x86.MS_MovOp(x86_ptr, x86_data, memory_offset=offset)
 
         rewriter.replace_matched_op([addr_cast_op, cast_op, mov_op])
 
@@ -95,9 +105,17 @@ class PtrLoadToX86(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter):
+        if isinstance(ptradd_op := op.addr.owner, ptr.PtrAddOp) and isinstance(
+            constant_op := ptradd_op.offset.owner, arith.ConstantOp
+        ):
+            addr = ptradd_op.addr
+            offset = cast(IntegerAttr, constant_op.value).value.data
+        else:
+            addr = op.addr
+            offset = 0
         # Pointer cast
         x86_reg_type = x86.register.UNALLOCATED_GENERAL
-        cast_op, addr_x86 = UnrealizedConversionCastOp.cast_one(op.addr, x86_reg_type)
+        cast_op, addr_x86 = UnrealizedConversionCastOp.cast_one(addr, x86_reg_type)
 
         value_type = op.res.type
         if isa(value_type, VectorType[FixedBitwidthType]):
@@ -118,12 +136,14 @@ class PtrLoadToX86(RewritePattern):
                     )
             mov_op = mov(
                 addr_x86,
-                memory_offset=0,
+                memory_offset=offset,
                 destination=vector_type_to_register_type(value_type, self.arch),
             )
         else:
             mov_op = x86.DM_MovOp(
-                addr_x86, memory_offset=0, destination=x86.register.UNALLOCATED_GENERAL
+                addr_x86,
+                memory_offset=offset,
+                destination=x86.register.UNALLOCATED_GENERAL,
             )
 
         res_cast_op = UnrealizedConversionCastOp.get(mov_op.results, (value_type,))
@@ -146,4 +166,5 @@ class ConvertPtrToX86Pass(ModulePass):
                 ]
             ),
             apply_recursively=False,
+            walk_reverse=True,
         ).rewrite_module(op)
