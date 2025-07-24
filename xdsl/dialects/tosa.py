@@ -28,7 +28,8 @@ from xdsl.utils.exceptions import VerifyException
 
 def are_tosa_broadcastable(lhs: Attribute, rhs: Attribute, out: Attribute):
     """
-    Returns `True` if lhs and rhs have compatible shapes with broadcasting: the dimensions have to match, or one of them must be equal to 1, in which case the corresponding resulting dimension must be equal to the non-1 dimension.
+    Returns `True` if lhs and rhs have compatible shapes with broadcasting: the dimensions have to match, or one of them must be
+    equal to 1, in which case the corresponding resulting dimension must be equal to the non-1 dimension.
 
     e.g.: `[1, 2, 3] & [4, 2, 1] -> [4, 2, 3]`
     """
