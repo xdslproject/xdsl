@@ -340,6 +340,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             f"which does not overload '{python_op}'.",
         )
 
+    def visit_Expr(self, node: ast.Expr):
+        self.visit(node.value)
+
     def _generate_affine_loop_bounds(
         self, args: list[ast.expr]
     ) -> tuple[int, int, int]:
