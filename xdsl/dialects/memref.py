@@ -66,12 +66,12 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
+    MemoryAllocEffect,
+    MemoryFreeEffect,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     NoMemoryEffect,
     SymbolOpInterface,
-    MemoryReadEffect,
-    MemoryAllocEffect,
-    MemoryWriteEffect,
-    MemoryFreeEffect,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.exceptions import VerifyException
