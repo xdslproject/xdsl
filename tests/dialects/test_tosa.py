@@ -6,7 +6,6 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.tosa import AddOp, are_tosa_broadcastable
 from xdsl.utils.test_value import create_ssa_value
 
-
 t_i = TensorType(i32, [1, 2, 3, 4])
 t_f = TensorType(f32, [1, 2, 3, 4])
 t_flat = TensorType(i32, [1, 1, 1, 1])

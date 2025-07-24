@@ -12,4 +12,3 @@
 %flat = "test.op"() : () -> tensor<1x1x1x1xi32>
 %1 = tosa.add %simple, %flat : (tensor<1x2x3x4xi32>, tensor<1x1x1x1xi32>) -> tensor<1x1x1x1xi32>
 // CHECK: 'tosa.add' Operand and result tensor shapes are not compatible 
-
