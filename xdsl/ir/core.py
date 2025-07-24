@@ -1656,9 +1656,7 @@ class Block(_IRNode, IRWithUses):
 
     def predecessors(self) -> tuple[Block, ...]:
         return tuple(
-            p
-            for use in self.uses_copy()
-            if (p := use.operation.parent_block()) is not None
+            p for use in self.uses if (p := use.operation.parent_block()) is not None
         )
 
     def parent_op(self) -> Operation | None:
