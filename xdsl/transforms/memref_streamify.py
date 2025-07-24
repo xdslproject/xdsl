@@ -41,7 +41,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             for index, (i, arg) in enumerate(
                 zip(op.inputs, op.body.block.args[:input_count])
             )
-            if isinstance(i_type := i.type, memref.MemRefType) and arg.uses
+            if isinstance(i_type := i.type, memref.MemRefType) and arg.has_uses()
             if i_type.get_shape()
         )
         streamable_output_indices = tuple(
@@ -50,7 +50,7 @@ class StreamifyGenericOpPattern(RewritePattern):
                 zip(op.outputs, op.body.block.args[input_count:])
             )
             if isinstance(o_type := o.type, memref.MemRefType)
-            if index in init_indices or not arg.uses
+            if index in init_indices or not arg.has_uses()
             if o_type.get_shape()
         )
         if not streamable_input_indices and not streamable_output_indices:

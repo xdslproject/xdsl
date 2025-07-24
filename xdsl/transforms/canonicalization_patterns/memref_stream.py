@@ -29,7 +29,9 @@ class RemoveUnusedInitOperandPattern(RewritePattern):
         num_inputs = len(inputs)
 
         unused_input_indices = tuple(
-            index for index, arg in enumerate(block_args[:num_inputs]) if not arg.uses
+            index
+            for index, arg in enumerate(block_args[:num_inputs])
+            if not arg.has_uses()
         )
 
         if not unused_input_indices:

@@ -1,7 +1,6 @@
 from xdsl.context import Context
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.test import Test, TestOp
-from xdsl.ir import Use
 from xdsl.parser import Parser
 
 test_prog = """
@@ -24,8 +23,13 @@ def test_main():
     assert isinstance(module, ModuleOp)
 
     op1, op2 = list(module.ops)
-    assert op1.results[0].uses == {Use(op2, 0), Use(op2, 1)}
-    assert op2.results[0].uses == set()
+    assert any(
+        use.operation == op2 and use.index == 0 for use in set(op1.results[0].uses)
+    )
+    assert any(
+        use.operation == op2 and use.index == 1 for use in set(op1.results[0].uses)
+    )
+    assert set(op2.results[0].uses) == set()
 
     print("Done")
 

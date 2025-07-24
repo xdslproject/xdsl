@@ -98,9 +98,11 @@ def collapse_branch(
     operands = branch.operands
 
     new_operands = tuple(
-        successor_operands[operand.index]
-        if isinstance(operand, BlockArgument) and operand.owner is successor
-        else operand
+        (
+            successor_operands[operand.index]
+            if isinstance(operand, BlockArgument) and operand.owner is successor
+            else operand
+        )
         for operand in operands
     )
 
@@ -516,10 +518,8 @@ class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
         block = op.parent_block()
         if block is None:
             return
-        preds = block.uses
-        if len(preds) != 1:
+        if (pred := block.get_single_use()) is None:
             return
-        pred = next(iter(preds))
         switch = pred.operation
         if not isinstance(switch, cf.SwitchOp):
             return

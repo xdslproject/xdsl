@@ -470,7 +470,7 @@ class CslPrintContext:
         return (
             var not in self.variables
             and is_side_effect_free(var.owner)
-            and any(res.uses for res in var.owner.results)
+            and any(res.has_uses() for res in var.owner.results)
             and not any(
                 isinstance(use.operation, csl.AddressOfOp)
                 for res in var.owner.results

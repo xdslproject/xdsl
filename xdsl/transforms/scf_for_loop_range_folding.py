@@ -21,14 +21,11 @@ class ScfForLoopRangeFolding(RewritePattern):
 
         # Fold until a fixed point is reached
         while True:
-            if len(index.uses) != 1:
-                # If the induction variable is used more than once, we can't fold its
-                # arith ops into the loop range
-                return
-
-            user = next(iter(index.uses)).operation
-
-            if not isinstance(user, arith.AddiOp | arith.MuliOp):
+            # If the induction variable is used more than once, we can't fold its
+            # arith ops into the loop range
+            if not isinstance(
+                user := index.get_single_use_user(), arith.AddiOp | arith.MuliOp
+            ):
                 return
 
             if user.operands[0] is index:

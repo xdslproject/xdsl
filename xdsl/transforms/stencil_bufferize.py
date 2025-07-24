@@ -198,7 +198,7 @@ class LoadBufferFoldPattern(RewritePattern):
 
         # TODO: further analysis
         # For now, only handle usages in the same block
-        uses = op.res.uses.copy()
+        uses = op.res.uses_copy()
         block = op.parent
         if not block or any(use.operation.parent is not block for use in uses):
             return
@@ -438,9 +438,10 @@ class CombineStoreFold(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CombineOp, rewriter: PatternRewriter):
         for i, r in enumerate(op.results):
-            if len(r.uses) != 1:
+            if len(tuple(r.uses)) != 1:
                 continue
-            store = next(iter(r.uses)).operation
+            assert r.first_use is not None
+            store = r.first_use.operation
             if not isinstance(store, StoreOp):
                 continue
 

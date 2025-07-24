@@ -161,8 +161,8 @@ def test_op_operands_assign():
     op.operands = [val2, val1]
     op.verify()
 
-    assert len(val1.uses) == 1
-    assert len(val2.uses) == 1
+    assert val1.has_single_use()
+    assert val2.has_single_use()
     assert tuple(op.operands) == (val2, val1)
 
 
@@ -180,8 +180,8 @@ def test_op_operands_indexing():
     op.operands[0] = val2
     op.verify()
 
-    assert len(val1.uses) == 0
-    assert len(val2.uses) == 2
+    assert not val1.has_uses()
+    assert len(list(val2.uses)) == 2
     assert tuple(op.operands) == (val2, val2)
 
 

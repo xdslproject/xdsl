@@ -428,7 +428,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                 new_yield_args.append(yld_arg)
                 continue
             additional_args.append(arg)
-            if len(yld_arg.uses) == 1:
+            if yld_arg.has_single_use():
                 to_remove.append(yld_arg.op)
 
             arg = op.done_exchange.block.insert_arg(
@@ -514,7 +514,7 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
         for arg in op.inputs:
             # reselect outs that has no later use to avoid read-after-write conflicts
-            if len(arg.uses) == 1:
+            if arg.has_single_use():
                 # check for a `writable` input with no later uses and break immediately
                 if self.is_writable(arg):
                     out = arg

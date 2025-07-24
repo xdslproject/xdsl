@@ -648,7 +648,7 @@ class PatternRewriteWalker:
         """
         for operand in operands:
             if (
-                len(operand.uses) == 1
+                operand.has_single_use()
                 and not isinstance(operand, ErasedSSAValue)
                 and isinstance((op := operand.owner), Operation)
             ):

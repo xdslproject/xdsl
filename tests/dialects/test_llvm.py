@@ -109,7 +109,7 @@ def test_llvm_pointer_ops():
 
     module.verify()
 
-    assert len(alloc_ptr.res.uses) == 1
+    assert alloc_ptr.res.has_single_use()
     assert ptr.size is idx.result
     assert isinstance(ptr.res.type, llvm.LLVMPointerType)
     assert ptr.res.type.type == builtin.i32

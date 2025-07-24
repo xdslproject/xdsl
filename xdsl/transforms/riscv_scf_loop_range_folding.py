@@ -17,14 +17,11 @@ class HoistIndexTimesConstantOp(RewritePattern):
 
         # Fold until a fixed point is reached
         while True:
-            if len(index.uses) != 1:
-                # If the induction variable is used more than once, we can't fold its
-                # arith ops into the loop range
-                return
-
-            user = next(iter(index.uses)).operation
-
-            if not isinstance(user, riscv.AddOp | riscv.MulOp):
+            # If the induction variable is used more than once, we can't fold its
+            # arith ops into the loop range
+            if not isinstance(
+                user := index.get_single_use_user(), riscv.AddOp | riscv.MulOp
+            ):
                 return
 
             if user.rs1 is index:

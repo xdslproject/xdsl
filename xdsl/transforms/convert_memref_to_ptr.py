@@ -177,7 +177,7 @@ class LowerMemRefFuncOpPattern(RewritePattern):
             old_type = cast(memref.MemRefType, arg_type)
             arg = rewriter.replace_value_with_new_type(arg, ptr.PtrType())
 
-            if not arg.uses:
+            if not arg.has_uses():
                 continue
 
             rewriter.insert_op(

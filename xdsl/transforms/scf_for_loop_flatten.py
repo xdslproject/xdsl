@@ -83,7 +83,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
         outer_index = outer_body.args[0]
         inner_index = inner_loop.body.block.args[0]
 
-        if outer_index.uses or inner_index.uses:
+        if outer_index.has_uses() or inner_index.has_uses():
             if inner_lb != 0:
                 return
 
@@ -94,11 +94,11 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 return
 
             # If either induction variable is used, we can only fold if used exactly once
-            if len(outer_index.uses) != 1 or len(inner_index.uses) != 1:
+            outer_user = outer_index.get_single_use_user()
+            inner_user = inner_index.get_single_use_user()
+            if outer_user is None or inner_user is None:
                 return
 
-            outer_user = next(iter(outer_index.uses)).operation
-            inner_user = next(iter(inner_index.uses)).operation
             if outer_user is not inner_user:
                 return
 

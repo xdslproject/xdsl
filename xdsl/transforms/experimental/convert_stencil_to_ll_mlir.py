@@ -319,7 +319,7 @@ class BufferOpToMemRef(RewritePattern):
 
         dealloc = memref.DeallocOp.get(alloc.memref)
 
-        if not op.res.uses:
+        if not op.res.has_uses():
             rewriter.insert_op_after_matched_op(dealloc)
             rewriter.erase_matched_op()
             return
@@ -612,15 +612,12 @@ def _get_use_target(use: Use) -> SSAValue | None:
                 temp = store.results[use.index - len(store.lower) - len(store.lowerext)]
                 # If it's the nth upperext arg, the combined temp is the
                 # (lower+lowerext+n)th combined.
-            temp_uses = temp.uses
-            match len(temp_uses):
-                case 0:
-                    return None
-                case 1:
-                    target = _get_use_target(list(temp_uses)[0])
-                    return target
-                case _:
-                    raise ValueError("Each stencil result should be stored only once.")
+            if not temp.has_uses():
+                return None
+            if (single_use := temp.get_single_use()) is not None:
+                # If the temp has a single use, return the target of that use.
+                return _get_use_target(single_use)
+            raise ValueError("Each stencil result should be stored only once.")
         case _:
             # Should be unreachable
             raise ValueError(f"Unexpected store type {store}")

@@ -149,7 +149,7 @@ class CSEDriver:
                 o.replace_by(n)
 
         # If no uses remain, we can mark this operation for erasure
-        if all(not r.uses for r in op.results):
+        if all(not r.has_uses() for r in op.results):
             self._mark_erasure(op)
 
     def _simplify_operation(self, op: Operation):

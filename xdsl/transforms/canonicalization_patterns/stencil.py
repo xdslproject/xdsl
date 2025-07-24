@@ -52,7 +52,7 @@ class ApplyUnusedOperands(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
         op_args = op.region.block.args
-        unused = {a for a in op_args if not a.uses}
+        unused = {a for a in op_args if not a.has_uses()}
         if not unused:
             return
         bbargs = [a for a in op_args if a not in unused]
@@ -79,7 +79,7 @@ class ApplyUnusedResults(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
-        unused = [i for i, r in enumerate(op.res) if len(r.uses) == 0]
+        unused = [i for i, r in enumerate(op.res) if not r.has_uses()]
 
         if not unused:
             return

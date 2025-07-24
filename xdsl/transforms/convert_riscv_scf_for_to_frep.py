@@ -23,7 +23,7 @@ class ScfForLowering(RewritePattern):
     def match_and_rewrite(self, op: riscv_scf.ForOp, rewriter: PatternRewriter) -> None:
         body_block = op.body.block
         indvar = body_block.args[0]
-        if indvar.uses:
+        if indvar.has_uses():
             # 1. Induction variable is used
             return
 

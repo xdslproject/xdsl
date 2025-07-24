@@ -19,6 +19,7 @@ def _():
         region_def,
         traits_def,
     )
+
     return (
         IRDLOperation,
         ParametrizedAttribute,
@@ -356,15 +357,15 @@ def _(mo):
 def _(mo):
     _snippet = '''\
     class RewritePattern(ABC):
-        \"""
+        """
         A side-effect free rewrite pattern matching on a DAG.
-        \"""
+        """
 
         @abstractmethod
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-            \"""
+            """
             Match an operation, and optionally perform a rewrite using the rewriter.
-            \"""
+            """
             # here, determine if the operation matches our pattern
             # and define a transformation to be applied on the IR making use of the
             # `rewrite` as an API for changing the IR.
@@ -372,7 +373,7 @@ def _(mo):
     '''
 
     mo.md(
-        fr"""
+        rf"""
         ### Rewrite Patterns
 
         Rewrite pattern is a tool to transform IRs defined using xDSL.
@@ -492,6 +493,7 @@ def _(ParametrizedAttribute, irdl_attr_definition):
     @irdl_attr_definition
     class Bag(ParametrizedAttribute):
         name = "sql.bag"
+
     return (Bag,)
 
 
@@ -511,12 +513,12 @@ def _(mo):
 def _(Bag, IRDLOperation, attr_def, irdl_op_definition, result_def):
     from xdsl.dialects.builtin import StringAttr  # (1)
 
-
     @irdl_op_definition
     class SelectOp(IRDLOperation):
         name = "sql.select"
         table_name = attr_def(StringAttr)  # (1)
         result_bag = result_def(Bag)  # (3)
+
     return (SelectOp,)
 
 
@@ -570,7 +572,6 @@ def _(
 ):
     from xdsl.traits import NoTerminator
 
-
     @irdl_op_definition
     class FilterOp(IRDLOperation):
         name = "sql.filter"
@@ -578,6 +579,7 @@ def _(
         filter = region_def()
         result_bag = result_def(Bag)
         traits = traits_def(NoTerminator())
+
     return (FilterOp,)
 
 
@@ -712,7 +714,6 @@ def _(arith):
         op_type_rewrite_pattern,
     )
 
-
     class ConstantFolding(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter):
@@ -727,6 +728,7 @@ def _(arith):
                         op.lhs.op.value.type.width.data,
                     )
                 )
+
     return (
         ConstantFolding,
         PatternRewriter,
@@ -748,7 +750,6 @@ def _(ConstantFolding, filtered, printer):
         GreedyRewritePatternApplier,
     )
 
-
     walker1 = PatternRewriteWalker(
         GreedyRewritePatternApplier([ConstantFolding()]),
         walk_regions_first=True,
@@ -762,7 +763,9 @@ def _(ConstantFolding, filtered, printer):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""the above introduced some variables which are no longer used (e.g. `%3` and `%4`), therefore can be safely removed from the code.""")
+    mo.md(
+        r"""the above introduced some variables which are no longer used (e.g. `%3` and `%4`), therefore can be safely removed from the code."""
+    )
     return
 
 
@@ -780,9 +783,8 @@ def _(
     class DeadConstantElim(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter):
-            if len(op.result.uses) == 0:
+            if not op.result.has_uses():
                 rewriter.erase_matched_op()
-
 
     walker2 = PatternRewriteWalker(
         GreedyRewritePatternApplier([DeadConstantElim()]),

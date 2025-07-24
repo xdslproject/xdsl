@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp
-from xdsl.ir import ErasedSSAValue, Operation, OpResult, Use
+from xdsl.ir import ErasedSSAValue, Operation, OpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -165,13 +165,14 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
                     ## We know there is only one result, so can elide the loop
                     old_result = old_op.results[0]
                     ## There are no callbacks, so can elide `self.handle_operation_modification(use.operation)`
-                    for use in old_result.uses.copy():
+                    for use in old_result.uses_copy():
                         ## Inline `use.operation.operands.__setitem__(...)`
                         operands = use.operation._operands  # pyright: ignore[reportPrivateUsage]
+                        operand_uses = use.operation._operand_uses  # pyright: ignore[reportPrivateUsage]
                         ## Inline `operands[use.index].remove_use(Use(use.operation, use.index))`
-                        operands[use.index].uses.remove(use)
+                        operands[use.index].remove_use(operand_uses[use.index])
                         ## Inline `new_result.add_use(Use(use.operation, use.index))`
-                        new_result.uses.add(use)
+                        new_result.add_use(use)
                         new_operands = (
                             *operands[: use.index],
                             new_result,
@@ -211,9 +212,9 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
                             block._last_op = prev_op  # pyright: ignore[reportPrivateUsage]
 
                     old_op.parent = None
-                    for idx, operand in enumerate(old_op._operands):  # pyright: ignore[reportPrivateUsage]
+                    for operand, use in zip(old_op._operands, old_op._operand_uses):  # pyright: ignore[reportPrivateUsage]
                         ## Inline `operand.remove_use(Use(old_op, idx))`
-                        operand.uses.remove(Use(old_op, idx))
+                        operand.remove_use(use)
                     ## This application has no regions, so no recursive drops
 
                     for result in old_op.results:

@@ -77,7 +77,7 @@ class EClassOp(IRDLOperation):
                     "another eclass."
                 )
 
-            if len(operand.uses) != 1:
+            if not operand.has_single_use():
                 if len(set(use.operation for use in operand.uses)) == 1:
                     raise VerifyException(
                         "Eclass operands must only be used once by the eclass."

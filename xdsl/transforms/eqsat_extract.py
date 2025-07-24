@@ -11,7 +11,7 @@ def eqsat_extract(block: Block):
         if isinstance(op, eqsat.EClassOp):
             if (min_cost_index := op.min_cost_index) is not None:
                 min_cost_operand = op.operands[min_cost_index.data]
-                has_uses = bool(op.result.uses)
+                has_uses = op.result.has_uses()
                 if has_uses:
                     ops_to_erase.update(
                         operand.op

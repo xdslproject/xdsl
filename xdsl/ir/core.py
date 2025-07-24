@@ -535,7 +535,7 @@ class TypedAttribute(ParametrizedAttribute, ABC):
     def print_without_type(self, printer: Printer): ...
 
 
-@dataclass(frozen=True)
+@dataclass
 class Use:
     """The use of a SSA value."""
 
@@ -545,22 +545,87 @@ class Use:
     index: int
     """The index of the operand using the value in the operation."""
 
+    prev_use: Use | None = None
+    """The previous use of the value in the use list."""
+
+    next_use: Use | None = None
+    """The next use of the value in the use list."""
+
+    def __hash__(self) -> int:
+        return id(self)
+
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
 
 @dataclass(eq=False)
 class IRWithUses(ABC):
     """IRNode which stores a list of its uses."""
 
-    uses: set[Use] = field(init=False, default_factory=set[Use], repr=False)
-    """All uses of the value."""
+    first_use: Use | None = field(init=False, default=None, repr=False)
+    """The first use of the value in the use list."""
+
+    def has_uses(self) -> bool:
+        """Returns true if the value has uses."""
+        return self.first_use is not None
+
+    def has_single_use(self) -> bool:
+        """Check if the value has exactly one use."""
+        first_use = self.first_use
+        return first_use is not None and first_use.next_use is None
+
+    def get_single_use(self) -> Use | None:
+        """Return the single use of the value if it has exactly one use."""
+        if (first_use := self.first_use) is None:
+            return None
+        if first_use.next_use is not None:
+            return None
+        return first_use
+
+    @property
+    def uses(self) -> Iterator[Use]:
+        """
+        Return an iterator over all the uses of the value.
+        This should be used when iterating over all uses of a value.
+        """
+        use = self.first_use
+        while use is not None:
+            yield use
+            use = use.next_use
+
+    def uses_copy(self) -> Sequence[Use]:
+        """
+        Return a list with all the uses of the value.
+        This should be used when iterating over all uses of a value while
+        modifying the uses list.
+        """
+        uses = list[Use]()
+        use = self.first_use
+        while use is not None:
+            uses.append(use)
+            use = use.next_use
+        return uses
 
     def add_use(self, use: Use):
         """Add a new use of the value."""
-        self.uses.add(use)
+        first_use = self.first_use
+        use.next_use = first_use
+        use.prev_use = None
+        if first_use is not None:
+            first_use.prev_use = use
+        self.first_use = use
 
     def remove_use(self, use: Use):
         """Remove a use of the value."""
-        assert use in self.uses, "use to be removed was not in use list"
-        self.uses.remove(use)
+        prev_use = use.prev_use
+        next_use = use.next_use
+        if prev_use is not None:
+            prev_use.next_use = next_use
+        if next_use is not None:
+            next_use.prev_use = prev_use
+
+        if prev_use is None:
+            self.first_use = next_use
 
 
 @dataclass(eq=False)
@@ -640,19 +705,19 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
     def replace_by(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
-        for use in self.uses.copy():
+        for use in self.uses_copy():
             use.operation.operands[use.index] = value
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
-        assert not self.uses, "unexpected error in xdsl"
+        assert self.first_use is None, "unexpected error in xdsl"
 
     def replace_by_if(self, value: SSAValue, test: Callable[[Use], bool]):
         """
         Replace the value by another value in all its uses that pass the given test
         function.
         """
-        for use in self.uses.copy():
+        for use in self.uses_copy():
             if test(use):
                 use.operation.operands[use.index] = value
         # carry over name if possible
@@ -665,12 +730,20 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         If safe_erase is True, then check that no operations use the value anymore.
         If safe_erase is False, then replace its uses by an ErasedSSAValue.
         """
-        if safe_erase and len(self.uses) != 0:
+        if safe_erase and self.first_use is not None:
             raise ValueError(
                 "Attempting to delete SSA value that still has uses of result "
                 f"of operation:\n{self.owner}"
             )
         self.replace_by(ErasedSSAValue(self.type, self))
+
+    def get_single_use_user(self) -> Operation | None:
+        """
+        If the SSA value has exactly one use, return the operation that uses it.
+        """
+        if (single_use := self.get_single_use()) is not None:
+            return single_use.operation
+        return None
 
     def __hash__(self):
         """
@@ -698,7 +771,11 @@ class OpResult(Generic[AttributeCovT], SSAValue[AttributeCovT]):
         return self.op
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, operation: {self.op.name}, uses: {len(self.uses)}>"
+        return (
+            f"<{self.__class__.__name__}[{self.type}] "
+            f"index: {self.index}, operation: {self.op.name}, "
+            f"uses: {len(self.uses_copy())}>"
+        )
 
 
 @dataclass(eq=False)
@@ -716,7 +793,7 @@ class BlockArgument(Generic[AttributeCovT], SSAValue[AttributeCovT]):
         return self.block
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, uses: {len(self.uses)}>"
+        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, uses: {len(self.uses_copy())}>"
 
 
 @dataclass(eq=False)
@@ -794,8 +871,9 @@ class OpOperands(Sequence[SSAValue]):
 
     def __setitem__(self, idx: int, operand: SSAValue) -> None:
         operands = self._op._operands  # pyright: ignore[reportPrivateUsage]
-        operands[idx].remove_use(Use(self._op, idx))
-        operand.add_use(Use(self._op, idx))
+        operand_uses = self._op._operand_uses  # pyright: ignore[reportPrivateUsage]
+        operands[idx].remove_use(operand_uses[idx])
+        operand.add_use(operand_uses[idx])
         new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
         self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
 
@@ -861,6 +939,13 @@ class Operation(_IRNode):
     _operands: tuple[SSAValue, ...] = field(default=())
     """The operation operands."""
 
+    _operand_uses: tuple[Use, ...] = field(default=())
+    """
+    The uses for each operands.
+    They are stored separately from the operands to allow for more efficient
+    access to the operand SSAValue.
+    """
+
     results: tuple[OpResult, ...] = field(default=())
     """The results created by the operation."""
 
@@ -868,6 +953,13 @@ class Operation(_IRNode):
     """
     The basic blocks that the operation may give control to.
     This list should be empty for non-terminator operations.
+    """
+
+    _successor_uses: tuple[Use, ...] = field(default=())
+    """
+    The uses for each successor.
+    They are stored separately from the successors to allow for more efficient
+    access to the successor Block.
     """
 
     properties: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
@@ -977,11 +1069,13 @@ class Operation(_IRNode):
     @operands.setter
     def operands(self, new: Sequence[SSAValue]):
         new = tuple(new)
-        for idx, operand in enumerate(self._operands):
-            operand.remove_use(Use(self, idx))
-        for idx, operand in enumerate(new):
-            operand.add_use(Use(self, idx))
+        new_uses = tuple(Use(self, idx) for idx in range(len(new)))
+        for operand, use in zip(self._operands, self._operand_uses):
+            operand.remove_use(use)
+        for operand, use in zip(new, new_uses):
+            operand.add_use(use)
         self._operands = new
+        self._operand_uses = new_uses
 
     @property
     def successors(self) -> OpSuccessors:
@@ -990,11 +1084,13 @@ class Operation(_IRNode):
     @successors.setter
     def successors(self, new: Sequence[Block]):
         new = tuple(new)
-        for idx, successor in enumerate(self._successors):
-            successor.remove_use(Use(self, idx))
-        for idx, successor in enumerate(new):
-            successor.add_use(Use(self, idx))
+        new_uses = tuple(Use(self, idx) for idx in range(len(new)))
+        for successor, use in zip(self._successors, self._successor_uses):
+            successor.remove_use(use)
+        for successor, use in zip(new, new_uses):
+            successor.add_use(use)
         self._successors = new
+        self._successor_uses = new_uses
 
     def __post_init__(self):
         assert self.name != ""
@@ -1088,8 +1184,8 @@ class Operation(_IRNode):
         This function is called prior to deleting an operation.
         """
         self.parent = None
-        for idx, operand in enumerate(self.operands):
-            operand.remove_use(Use(self, idx))
+        for operand, use in zip(self._operands, self._operand_uses):
+            operand.remove_use(use)
         for region in self.regions:
             region.drop_all_references()
 
@@ -1560,7 +1656,9 @@ class Block(_IRNode, IRWithUses):
 
     def predecessors(self) -> tuple[Block, ...]:
         return tuple(
-            p for use in self.uses if (p := use.operation.parent_block()) is not None
+            p
+            for use in self.uses_copy()
+            if (p := use.operation.parent_block()) is not None
         )
 
     def parent_op(self) -> Operation | None:
@@ -1974,8 +2072,9 @@ class OpSuccessors(Sequence[Block]):
 
     def __setitem__(self, idx: int, successor: Block) -> None:
         successors = self._op._successors  # pyright: ignore[reportPrivateUsage]
-        successors[idx].remove_use(Use(self._op, idx))
-        successor.add_use(Use(self._op, idx))
+        successor_uses = self._op._successor_uses  # pyright: ignore[reportPrivateUsage]
+        successors[idx].remove_use(successor_uses[idx])
+        successor.add_use(successor_uses[idx])
         new_successors = (*successors[:idx], successor, *successors[idx + 1 :])
         self._op._successors = new_successors  # pyright: ignore[reportPrivateUsage]
 

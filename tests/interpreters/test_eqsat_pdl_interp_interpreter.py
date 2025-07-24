@@ -461,7 +461,7 @@ def test_run_create_operation_existing_operation_not_in_use():
 
     # Verify the existing operation has no uses
     assert len(existing_op.results) > 0, "Existing operation must have results"
-    assert len(existing_op.results[0].uses) == 0, (
+    assert not existing_op.results[0].has_uses(), (
         "Existing operation result should have no uses"
     )
 

@@ -181,7 +181,7 @@ def _insert_load_ops(
     """
     res: list[tuple[int, SSAValue]] = []
     for i, arg in enumerate(args):
-        if not arg.uses:
+        if not arg.has_uses():
             continue
         res_val = insert_load(
             i + index_increment,

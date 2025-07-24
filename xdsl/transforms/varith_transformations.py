@@ -42,9 +42,13 @@ class ArithToVarithPattern(RewritePattern):
     ):
         dest_type = ARITH_TO_VARITH_TYPE_MAP[type(op)]
 
-        if len(op.result.uses) != 1:
+        first_use = op.result.first_use
+        if first_use is None:
             return
-        if type(use_op := list(op.result.uses)[0].operation) not in (
+        # if there is more than one use of the result, we cannot merge
+        if first_use.next_use is not None:
+            return
+        if type(use_op := first_use.operation) not in (
             type(op),
             dest_type,
         ):
@@ -165,7 +169,7 @@ class MergeVarithOpsPattern(RewritePattern):
 
         # check all ops that may be erased later:
         for old_op in possibly_erased_ops:
-            if len(old_op.results[-1].uses) == 0:
+            if not old_op.results[-1].has_uses():
                 rewriter.erase_op(old_op)
 
 

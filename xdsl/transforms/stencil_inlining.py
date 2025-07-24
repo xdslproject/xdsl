@@ -326,7 +326,7 @@ class StencilInliningPattern(RewritePattern):
 
         new_operands = operands
         for arg in reversed(list(merged_block.args)):
-            if not arg.uses:
+            if not arg.has_uses():
                 new_operands.pop(arg.index)
                 merged_block.erase_arg(arg)
         new_apply = ApplyOp.get(
