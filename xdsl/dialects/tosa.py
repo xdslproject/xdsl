@@ -26,27 +26,33 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 
 
-def are_tosa_broadcastable(t_in1: Attribute, t_in2: Attribute, t_out: Attribute):
+def are_tosa_broadcastable(lhs: Attribute, rhs: Attribute, out: Attribute):
+    """
+    Returns `True` if lhs and rhs have compatible shapes with broadcasting: the dimensions have to match, or one of them must be equal to 1, in which case the corresponding resulting dimension must be equal to the non-1 dimension.
+
+    e.g.: `[1, 2, 3] & [4, 2, 1] -> [4, 2, 3]`
+    """
     if (
-        not isinstance(t_in1, ShapedType)
-        or not isinstance(t_in2, ShapedType)
-        or not isinstance(t_out, ShapedType)
+        not isinstance(lhs, ShapedType)
+        or not isinstance(rhs, ShapedType)
+        or not isinstance(out, ShapedType)
     ):
         return False
 
-    # check ranks are equal
-    if not (t_in1.get_num_dims() == t_in2.get_num_dims() == t_out.get_num_dims()):
+    lhs_shape = lhs.get_shape()
+    rhs_shape = rhs.get_shape()
+    out_shape = out.get_shape()
+
+    ranks_equal = len(lhs_shape) == len(rhs_shape) == len(out_shape)
+    if not ranks_equal:
         return False
 
-    # check ranks are broadcastable
-    in_shapes = zip(t_in1.get_shape(), t_in2.get_shape())
-
-    if not all(dim1 == dim2 or dim1 == 1 or dim2 == 1 for dim1, dim2 in in_shapes):
-        return False
-
-    # check output shape is constructed from input shapes
-    shapes = zip(t_in1.get_shape(), t_in2.get_shape(), t_out.get_shape())
-    return all(dim_out == max(dim1, dim2) for dim1, dim2, dim_out in shapes)
+    # check that expected dimensions match output dimensions
+    # and input dimensions are equal, or broadcast
+    return all(
+        l == r == o or (l == 1 and r == o) or (r == 1 and l == o)
+        for l, r, o in zip(lhs_shape, rhs_shape, out_shape)
+    )
 
 
 @irdl_op_definition
