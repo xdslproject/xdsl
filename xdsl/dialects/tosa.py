@@ -8,10 +8,11 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     FloatAttr,
     IntegerAttr,
+    ShapedType,
     StringAttr,
     TensorType,
 )
-from xdsl.ir import Dialect
+from xdsl.ir import Attribute, Dialect
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
@@ -23,7 +24,29 @@ from xdsl.irdl import (
     result_def,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.type import are_tosa_broadcastable
+
+
+def are_tosa_broadcastable(t_in1: Attribute, t_in2: Attribute, t_out: Attribute):
+    if (
+        not isinstance(t_in1, ShapedType)
+        or not isinstance(t_in2, ShapedType)
+        or not isinstance(t_out, ShapedType)
+    ):
+        return False
+
+    # check ranks are equal
+    if not (t_in1.get_num_dims() == t_in2.get_num_dims() == t_out.get_num_dims()):
+        return False
+
+    # check ranks are broadcastable
+    in_shapes = zip(t_in1.get_shape(), t_in2.get_shape())
+
+    if not all(dim1 == dim2 or dim1 == 1 or dim2 == 1 for dim1, dim2 in in_shapes):
+        return False
+
+    # check output shape is constructed from input shapes
+    shapes = zip(t_in1.get_shape(), t_in2.get_shape(), t_out.get_shape())
+    return all(dim_out == max(dim1, dim2) for dim1, dim2, dim_out in shapes)
 
 
 @irdl_op_definition

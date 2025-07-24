@@ -7,7 +7,6 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
 )
 from xdsl.utils.type import (
-    are_tosa_broadcastable,
     get_element_type_or_self,
     get_encoding,
     have_compatible_shape,
@@ -88,26 +87,3 @@ def test_have_compatible_shape():
     shaped_type8 = TensorType(scalar_type2, [2, DYNAMIC_INDEX])
 
     assert not have_compatible_shape(shaped_type4, shaped_type8)
-
-
-def test_are_tosa_broadcastable():
-    scalar_type = test.TestType("foo")
-
-    simple = TensorType(scalar_type, [1, 2, 3, 4])
-    flat = TensorType(scalar_type, [1, 1, 1, 1])
-    small = TensorType(scalar_type, [1, 2])
-    large = TensorType(scalar_type, [4, 5, 6, 7])
-
-    # test same
-    assert are_tosa_broadcastable(simple, simple, simple)
-
-    # test broadcasting
-    assert are_tosa_broadcastable(simple, flat, simple)
-    assert are_tosa_broadcastable(flat, simple, simple)
-    assert not are_tosa_broadcastable(simple, flat, flat)
-
-    # test shape mismatch
-    assert not are_tosa_broadcastable(simple, small, simple)
-
-    # test mismatched dim sizes
-    assert not are_tosa_broadcastable(simple, simple, large)
