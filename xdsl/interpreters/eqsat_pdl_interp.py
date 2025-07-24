@@ -286,18 +286,14 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             a,
             b,
         )
-
-        if self.eclass_union_find.find(a) == a:
-            to_keep = a
-            to_replace = b
-        else:
-            assert self.eclass_union_find.find(b) == b
-            to_keep = b
-            to_replace = a
+        to_keep = self.eclass_union_find.find(a)
+        to_replace = b if to_keep is a else a
 
         # Operands need to be deduplicated because it can happen the same operand was
         # used by different parent eclasses after their children were merged:
-        new_operands = OrderedSet((*to_keep.operands, *to_replace.operands))
+        new_operands: OrderedSet[SSAValue] = OrderedSet(())
+        new_operands.update(to_keep.operands)
+        new_operands.update(to_replace.operands)
         to_keep.operands = new_operands
 
         for use in to_replace.result.uses:
