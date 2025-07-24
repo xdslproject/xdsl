@@ -1,9 +1,6 @@
 import pytest
 
 from xdsl.dialects.builtin import (
-    Float32Type,
-    IntegerType,
-    Signedness,
     TensorType,
     i32,
     f32,
