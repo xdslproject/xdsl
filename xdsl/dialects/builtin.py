@@ -1986,6 +1986,8 @@ class UnrealizedConversionCastOp(IRDLOperation):
     ) -> tuple[UnrealizedConversionCastOp, SSAValue[AttributeInvT]]:
         op = UnrealizedConversionCastOp(operands=(input,), result_types=(result_type,))
         res: SSAValue[AttributeInvT] = op.results[0]  # pyright: ignore[reportAssignmentType]
+        if input.name_hint is not None:
+            res.name_hint = input.name_hint
         return op, res
 
     @classmethod
