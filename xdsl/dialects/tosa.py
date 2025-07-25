@@ -22,9 +22,10 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     result_def,
+    traits_def,
 )
-from xdsl.utils.exceptions import VerifyException
 from xdsl.traits import Commutative, Pure
+from xdsl.utils.exceptions import VerifyException
 
 
 def are_tosa_broadcastable(lhs: Attribute, rhs: Attribute, out: Attribute):
