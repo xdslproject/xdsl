@@ -13,6 +13,7 @@ from typing import (
     Annotated,
     Generic,
     TypeAlias,
+    cast,
     overload,
 )
 
@@ -213,12 +214,13 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> ArrayAttr[AttributeCovT]:
         if not isa(attr, ArrayAttr):
             raise VerifyException(
                 f"expected ArrayAttr attribute, but got '{type(attr)}'"
             )
         self.elem_range_constraint.verify(attr.data, constraint_context)
+        return cast(ArrayAttr[AttributeCovT], attr)
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.elem_range_constraint.can_infer(
@@ -261,9 +263,10 @@ class SymbolNameConstraint(AttrConstraint[StringAttr]):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> StringAttr:
         if not isinstance(attr, StringAttr):
             raise VerifyException(f"{attr} should be a string")
+        return attr
 
     def get_bases(self) -> set[type[Attribute]] | None:
         return {StringAttr}
@@ -319,11 +322,14 @@ class EmptyArrayAttrConstraint(AttrConstraint):
     Constrain attribute to be empty ArrayData
     """
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext
+    ) -> Attribute:
         if not isa(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         if attr.data:
             raise VerifyException(f"expected empty array, but got {attr}")
+        return attr
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -368,10 +374,11 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
 
     int_constraint: IntConstraint
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> IntAttr:
         if not isinstance(attr, IntAttr):
             raise VerifyException(f"attribute {attr} expected to be an IntAttr")
         self.int_constraint.verify(attr.data, constraint_context)
+        return attr
 
     def variables(self) -> set[str]:
         return self.int_constraint.variables()
@@ -1245,9 +1252,6 @@ class DictionaryAttr(_BuiltinData[immutabledict[str, Attribute]]):
     def print_builtin(self, printer: Printer):
         printer.print_attr_dict(self.data)
 
-    def verify(self) -> None:
-        return super().verify()
-
 
 @irdl_attr_definition
 class TupleType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
@@ -1480,11 +1484,13 @@ class ContainerOf(
     ) -> None:
         object.__setattr__(self, "elem_constr", irdl_to_attr_constraint(elem_constr))
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext
+    ) -> AttributeCovT | VectorType[AttributeCovT] | TensorType[AttributeCovT]:
         if isa(attr, VectorType) or isa(attr, TensorType):
-            self.elem_constr.verify(attr.element_type, constraint_context)
+            return self.elem_constr.verify(attr.element_type, constraint_context)
         else:
-            self.elem_constr.verify(attr, constraint_context)
+            return self.elem_constr.verify(attr, constraint_context)
 
     def get_bases(self) -> set[type[Attribute]] | None:
         bases = self.elem_constr.get_bases()
@@ -1513,13 +1519,16 @@ class VectorRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext
+    ) -> Attribute:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.get_num_dims() != self.expected_rank:
             raise VerifyException(
                 f"Expected vector rank to be {self.expected_rank}, got {attr.get_num_dims()}."
             )
+        return cast(VectorType, attr)
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -1536,13 +1545,16 @@ class VectorBaseTypeConstraint(AttrConstraint):
     expected_type: Attribute
     """The expected vector base type."""
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext
+    ) -> Attribute:
         if not isa(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.element_type != self.expected_type:
             raise VerifyException(
                 f"Expected vector type to be {self.expected_type}, got {attr.element_type}."
             )
+        return attr
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -1562,11 +1574,13 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext
+    ) -> Attribute:
         constraint = VectorBaseTypeConstraint(
             self.expected_type
         ) & VectorRankConstraint(self.expected_rank)
-        constraint.verify(attr, constraint_context)
+        return constraint.verify(attr, constraint_context)
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]

@@ -1208,7 +1208,9 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
             and attr.get_element_type() == other.get_element_type()
         )
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext
+    ) -> Attribute:
         ctx_attr = constraint_context.get_variable(self.name)
         if ctx_attr is not None:
             if isa(
@@ -1216,8 +1218,8 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
             ) and TensorIgnoreSizeConstraint.ranks_and_element_types_match(
                 attr, ctx_attr
             ):
-                return
-        super().verify(attr, constraint_context)
+                return attr
+        return super().verify(attr, constraint_context)
 
 
 @irdl_op_definition

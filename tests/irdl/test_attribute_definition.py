@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, ClassVar, Generic, TypeAlias
+from typing import Annotated, ClassVar, Generic, TypeAlias, cast
 
 import pytest
 from typing_extensions import TypeVar, override
@@ -58,7 +58,6 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
-from xdsl.utils.hints import isa
 
 
 def test_wrong_attribute_type():
@@ -426,13 +425,14 @@ def test_union_constraint_fail():
 
 
 class PositiveIntConstr(AttrConstraint):
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> IntData:
         if not isinstance(attr, IntData):
             raise VerifyException(
                 f"Expected {IntData.name} attribute, but got {attr.name}."
             )
         if attr.data <= 0:
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
+        return attr
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -613,8 +613,7 @@ class InformativeAttr(ParametrizedAttribute):
 
 
 def test_informative_attribute():
-    okay = InformativeAttr(NoneAttr())
-    okay.verify()
+    _ = InformativeAttr(NoneAttr())
 
     with pytest.raises(
         VerifyException,
@@ -684,13 +683,11 @@ class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
-        if not isa(attr, ListData):
-            raise VerifyException(
-                f"Expected {attr} to be instance of {ListData.__name__}"
-            )
+    ) -> ListData[AttributeInvT]:
+        attr = BaseAttr(ListData).verify(attr, constraint_context)
         for e in attr.data:
             self.elem_constr.verify(e, constraint_context)
+        return cast(ListData[AttributeInvT], attr)
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]

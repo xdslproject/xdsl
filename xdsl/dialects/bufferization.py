@@ -76,14 +76,17 @@ class TensorFromMemRefConstraint(
         memref_type = self.memref_constraint.infer(context)
         return self.memref_to_tensor(memref_type)
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext
+    ) -> TensorType[Attribute] | UnrankedTensorType[Attribute]:
         if isa(attr, TensorType | UnrankedTensorType):
             memref_type = self.tensor_to_memref(attr)
         else:
             raise VerifyException(
                 f"Expected tensor or unranked tensor type, got {attr}"
             )
-        return self.memref_constraint.verify(memref_type, constraint_context)
+        self.memref_constraint.verify(memref_type, constraint_context)
+        return attr
 
     def get_bases(self) -> set[type[Attribute]] | None:
         return {TensorType, UnrankedTensorType}
