@@ -150,7 +150,6 @@ class AddOp(ElementwiseBinaryOperation):
     name = "tosa.add"
 
     traits = traits_def(
-        Pure(),
         Commutative(),
     )
 
