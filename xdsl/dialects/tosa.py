@@ -118,7 +118,7 @@ class AddOp(IRDLOperation):
     in2 = operand_def(TensorType.constr(T))
     output = result_def(TensorType.constr(T))
 
-    assembly_format = "$in1 `,` $in2 attr-dict `:` `(` type($in1) `,` type($in2) `)` `->` type($output)"
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
     def verify_(self) -> None:
         """
