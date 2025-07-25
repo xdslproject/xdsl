@@ -30,6 +30,7 @@ from xdsl.dialects.utils import (
     split_dynamic_index_list,
     verify_dynamic_index_list,
 )
+from xdsl.dialects.utils.dynamic_index_list import DynamicIndexList
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
 from xdsl.irdl import (
@@ -331,6 +332,13 @@ class ExtractOp(IRDLOperation):
     DYNAMIC_INDEX: ClassVar = DYNAMIC_INDEX
     """This value is used to indicate that a position is a dynamic index."""
 
+    assembly_format = (
+        "$vector `` custom<DynamicIndexList>($dynamic_position, $static_position)"
+        " attr-dict `:` type($result) `from` type($vector)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
     def get_mixed_position(self) -> list[SSAValue | int]:
         """
         Returns the list of positions, represented as either an SSAValue or an int
@@ -390,55 +398,6 @@ class ExtractOp(IRDLOperation):
                 "static_position": DenseArrayBase.from_list(i64, static_positions)
             },
         )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ExtractOp:
-        # Parse the vector operand
-        vector = parser.parse_unresolved_operand()
-
-        def parse_int_or_value() -> SSAValue | int:
-            value = parser.parse_optional_unresolved_operand()
-            if value is not None:
-                return parser.resolve_operand(value, IndexType())
-            value = parser.parse_optional_integer()
-            if value is not None:
-                return value
-            parser.raise_error("Expected dimension as an integer or a value.")
-
-        # Parse the positions
-        positions = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parse_int_or_value
-        )
-
-        # parse the attribute dictionary
-        attr_dict = parser.parse_optional_attr_dict()
-
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        parser.parse_keyword("from")
-        vector_type = parser.parse_type()
-
-        vector = parser.resolve_operand(vector, vector_type)
-
-        op = ExtractOp(vector, positions, result_type)
-        op.attributes = attr_dict
-        return op
-
-    def print(self, printer: Printer) -> None:
-        # Print the vector operand
-        printer.print_string(" ")
-        printer.print_ssa_value(self.vector)
-        printer.print_string("[")
-        printer.print_list(
-            self.get_mixed_position(),
-            lambda x: printer.print_int(x)
-            if isinstance(x, int)
-            else printer.print_ssa_value(x),
-        )
-        printer.print_string("] : ")
-        printer.print_attribute(self.result.type)
-        printer.print_string(" from ")
-        printer.print_attribute(self.vector.type)
 
 
 @irdl_op_definition
