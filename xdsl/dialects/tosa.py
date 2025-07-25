@@ -24,6 +24,7 @@ from xdsl.irdl import (
     result_def,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.traits import Commutative, Pure
 
 
 def are_tosa_broadcastable(lhs: Attribute, rhs: Attribute, out: Attribute):
@@ -119,6 +120,11 @@ class AddOp(IRDLOperation):
     output = result_def(TensorType.constr(T))
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+    )
 
     def verify_(self) -> None:
         """
