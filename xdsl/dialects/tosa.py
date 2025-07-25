@@ -1,3 +1,4 @@
+from abc import ABC
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
@@ -62,6 +63,8 @@ def are_tosa_broadcastable(lhs: Attribute, rhs: Attribute, out: Attribute):
 class ClampOp(IRDLOperation):
     """
     Computes clamp(features, min, max)
+
+    https://mlir.llvm.org/docs/Dialects/TOSA/#tosaclamp-mlirtosaclampop
     """
 
     name = "tosa.clamp"
@@ -86,6 +89,8 @@ class ClampOp(IRDLOperation):
 class RescaleOp(IRDLOperation):
     """
     Tosa Rescale Operator
+
+    https://mlir.llvm.org/docs/Dialects/TOSA/#tosarescale-mlirtosarescaleop
     """
 
     name = "tosa.rescale"
@@ -106,104 +111,74 @@ class RescaleOp(IRDLOperation):
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
 
 
+class ElementwiseBinaryOperation(IRDLOperation, ABC):
+    """
+    Abstract superclass for elementwise, binary TOSA operations.
+    """
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    input1 = operand_def(TensorType.constr(T))
+    input2 = operand_def(TensorType.constr(T))
+    output = result_def(TensorType.constr(T))
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    def verify_(self) -> None:
+        t1 = self.input1.type
+        t2 = self.input2.type
+        t_out = self.output.type
+
+        if not are_tosa_broadcastable(t1, t2, t_out):
+            raise VerifyException(
+                f"'{type(self).name}' Operand and result tensor shapes are not compatible"
+            )
+
+
 @irdl_op_definition
-class AddOp(IRDLOperation):
+class AddOp(ElementwiseBinaryOperation):
     """
     Tosa elementwise add operation
+
+    https://mlir.llvm.org/docs/Dialects/TOSA/#tosaadd-mlirtosaaddop
     """
 
     name = "tosa.add"
 
-    T: ClassVar = VarConstraint("T", AnyAttr())
-
-    input1 = operand_def(TensorType.constr(T))
-    input2 = operand_def(TensorType.constr(T))
-    output = result_def(TensorType.constr(T))
-
-    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
-
     traits = traits_def(
         Pure(),
         Commutative(),
     )
 
-    def verify_(self) -> None:
-        """
-        Verify that the two input tensors are compatible, and that the result type can be constructed. For this,
-        both tensors must have the same rank. They should either have the same number of elements per dim, or
-        if there is only one element it can be broadcast implcitly.
-        """
-        t1 = self.input1.type
-        t2 = self.input2.type
-        t_out = self.output.type
-
-        if not are_tosa_broadcastable(t1, t2, t_out):
-            raise VerifyException(
-                "'tosa.add' Operand and result tensor shapes are not compatible"
-            )
-
 
 @irdl_op_definition
-class SubOp(IRDLOperation):
+class SubOp(ElementwiseBinaryOperation):
     """
     Tosa elementwise subtraction operation
+
+    https://mlir.llvm.org/docs/Dialects/TOSA/#tosasub-mlirtosasubop
     """
 
     name = "tosa.sub"
 
-    T: ClassVar = VarConstraint("T", AnyAttr())
-
-    input1 = operand_def(TensorType.constr(T))
-    input2 = operand_def(TensorType.constr(T))
-    output = result_def(TensorType.constr(T))
-
-    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
-
-    traits = traits_def(
-        Pure(),
-    )
-
-    def verify_(self) -> None:
-        t1 = self.input1.type
-        t2 = self.input2.type
-        t_out = self.output.type
-
-        if not are_tosa_broadcastable(t1, t2, t_out):
-            raise VerifyException(
-                "'tosa.sub' Operand and result tensor shapes are not compatible"
-            )
-
 
 @irdl_op_definition
-class MulOp(IRDLOperation):
+class MulOp(ElementwiseBinaryOperation):
     """
     Tosa elementwise multiplication operation (Hadamard product)
+
+    https://mlir.llvm.org/docs/Dialects/TOSA/#tosamul-mlirtosamulop
     """
 
     name = "tosa.mul"
-
-    T: ClassVar = VarConstraint("T", AnyAttr())
-
-    input1 = operand_def(TensorType.constr(T))
-    input2 = operand_def(TensorType.constr(T))
-    output = result_def(TensorType.constr(T))
-
-    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
     traits = traits_def(
         Pure(),
         Commutative(),
     )
-
-    def verify_(self) -> None:
-        t1 = self.input1.type
-        t2 = self.input2.type
-        t_out = self.output.type
-
-        if not are_tosa_broadcastable(t1, t2, t_out):
-            raise VerifyException(
-                "'tosa.mul' Operand and result tensor shapes are not compatible"
-            )
 
 
 TOSA = Dialect(
