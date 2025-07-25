@@ -21,7 +21,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IndexTypeConstr,
     IntAttr,
-    IntegerAttr,
     IntegerType,
     MemRefType,
     SignlessIntegerConstraint,
@@ -142,7 +141,7 @@ class StoreOp(IRDLOperation):
 
 
 _IntArrayConstr = irdl_to_attr_constraint(ArrayAttr[IntAttr])
-_MaskConstr = irdl_to_attr_constraint(ArrayAttr[IntegerAttr[I64]])
+_MaskConstr = irdl_to_attr_constraint(DenseArrayBase[I64])
 _V1_SHAPE = "V1_SHAPE"
 _V2_SHAPE = "V2_SHAPE"
 _MASK = "MASK"
@@ -166,7 +165,7 @@ class ShuffleResultConstraint(AttrConstraint[VectorType]):
             self.element_constr, shape=VarConstraint(_V2_SHAPE, _IntArrayConstr)
         )
 
-    def mask(self) -> AttrConstraint[ArrayAttr[IntegerAttr[I64]]]:
+    def mask(self) -> AttrConstraint[DenseArrayBase[I64]]:
         return VarConstraint(_MASK, _MaskConstr)
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
@@ -285,7 +284,7 @@ class ShuffleOp(IRDLOperation):
         v1_shape = self.v1.type.get_shape()
         v2_shape = self.v2.type.get_shape()
         result_shape = self.result.type.get_shape()
-        mask = self.mask.data
+        mask = self.mask.get_values()
 
         if not result_shape:
             raise VerifyException("Result vector type must not be 0-D.")
@@ -318,7 +317,7 @@ class ShuffleOp(IRDLOperation):
 
         dim_bound = v1_leading_dim + v2_leading_dim
         for dim in mask:
-            if not (-1 <= dim.value.data < dim_bound):
+            if not (-1 <= dim < dim_bound):
                 raise VerifyException(
                     f"Mask value {dim} out of range [-1, {dim_bound})"
                 )
