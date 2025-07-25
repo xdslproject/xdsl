@@ -11,11 +11,23 @@ where `MARKER` is a special value that indicates that the value at that position
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from typing import ClassVar
 
+from xdsl.dialects.builtin import DenseArrayBase, IntegerType, i64
 from xdsl.ir import Attribute, SSAValue
+from xdsl.irdl import IRDLOperation
+from xdsl.irdl.declarative_assembly_format import (
+    AttributeVariable,
+    CustomDirective,
+    ParsingState,
+    PrintingState,
+    VariadicOperandVariable,
+    irdl_custom_directive,
+)
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 def verify_dynamic_index_list(
@@ -143,7 +155,7 @@ def parse_dynamic_index_without_type(parser: Parser) -> int | UnresolvedOperand:
     """
     value = parser.parse_optional_unresolved_operand()
     if value is None:
-        return parser.parse_integer(allow_boolean=False, allow_negative=False)
+        return parser.parse_integer(allow_boolean=False)
     else:
         return value
 
@@ -204,3 +216,45 @@ def parse_dynamic_index_list_without_types(
             values.append(value_or_index)
 
     return values, indices
+
+
+@irdl_custom_directive
+class DynamicIndexList(CustomDirective):
+    """
+    Custom directive for parsing dynamic index list.
+    These contain a mix of indices and (untyped) ssa values.
+    """
+
+    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
+
+    dynamic_position: VariadicOperandVariable
+    static_position: AttributeVariable
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        dynamic, static = parse_dynamic_index_list_without_types(
+            parser, self.DYNAMIC_INDEX
+        )
+        state.operands[self.dynamic_position.index] = tuple(dynamic)
+        if self.static_position.is_property:
+            state.properties[self.static_position.name] = DenseArrayBase.from_list(
+                i64, static
+            )
+        else:
+            state.attributes[self.static_position.name] = DenseArrayBase.from_list(
+                i64, static
+            )
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        state.should_emit_space = False
+        state.last_was_punctuation = True
+        dynamic = getattr(op, self.dynamic_position.name)
+        if self.static_position.is_property:
+            static = op.properties.get(self.static_position.name)
+        else:
+            static = op.attributes.get(self.static_position.name)
+        assert isa(static, DenseArrayBase[IntegerType])
+
+        print_dynamic_index_list(
+            printer, self.DYNAMIC_INDEX, dynamic, static.get_values()
+        )
