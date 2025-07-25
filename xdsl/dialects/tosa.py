@@ -115,6 +115,7 @@ class ElementwiseBinaryOperation(IRDLOperation, ABC):
     """
     Abstract superclass for elementwise, binary TOSA operations.
     """
+
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     input1 = operand_def(TensorType.constr(T))

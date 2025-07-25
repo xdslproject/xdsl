@@ -3,7 +3,7 @@ from xdsl.dialects.builtin import (
     f32,
     i32,
 )
-from xdsl.dialects.tosa import AddOp, MulOp, SubOp, are_tosa_broadcastable
+from xdsl.dialects.tosa import are_tosa_broadcastable
 from xdsl.utils.test_value import create_ssa_value
 
 t_i = TensorType(i32, [1, 2, 3, 4])
@@ -33,4 +33,3 @@ def test_are_tosa_broadcastable():
 
     # test mismatched dim sizes
     assert not are_tosa_broadcastable(t_i, t_i, t_large)
-
