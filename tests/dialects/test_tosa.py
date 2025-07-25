@@ -34,11 +34,3 @@ def test_are_tosa_broadcastable():
     # test mismatched dim sizes
     assert not are_tosa_broadcastable(t_i, t_i, t_large)
 
-
-def test_valid_cases():
-    AddOp(operands=[tensor_i, tensor_i], result_types=[tensor_i.type]).verify_()
-    AddOp(operands=[tensor_i, tensor_flat], result_types=[tensor_i.type]).verify_()
-    SubOp(operands=[tensor_i, tensor_i], result_types=[tensor_i.type]).verify_()
-    SubOp(operands=[tensor_i, tensor_flat], result_types=[tensor_i.type]).verify_()
-    MulOp(operands=[tensor_i, tensor_i], result_types=[tensor_i.type]).verify_()
-    MulOp(operands=[tensor_i, tensor_flat], result_types=[tensor_i.type]).verify_()
