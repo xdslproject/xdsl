@@ -64,7 +64,7 @@ class ClampOp(IRDLOperation):
     """
     Computes clamp(features, min, max)
 
-    https://mlir.llvm.org/docs/Dialects/TOSA/#tosaclamp-mlirtosaclampop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaclamp-mlirtosaclampop)
     """
 
     name = "tosa.clamp"
@@ -90,7 +90,7 @@ class RescaleOp(IRDLOperation):
     """
     Tosa Rescale Operator
 
-    https://mlir.llvm.org/docs/Dialects/TOSA/#tosarescale-mlirtosarescaleop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosarescale-mlirtosarescaleop)
     """
 
     name = "tosa.rescale"
@@ -144,7 +144,7 @@ class AddOp(ElementwiseBinaryOperation):
     """
     Tosa elementwise add operation
 
-    https://mlir.llvm.org/docs/Dialects/TOSA/#tosaadd-mlirtosaaddop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaadd-mlirtosaaddop)
     """
 
     name = "tosa.add"
@@ -160,7 +160,7 @@ class SubOp(ElementwiseBinaryOperation):
     """
     Tosa elementwise subtraction operation
 
-    https://mlir.llvm.org/docs/Dialects/TOSA/#tosasub-mlirtosasubop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosasub-mlirtosasubop)
     """
 
     name = "tosa.sub"
@@ -171,7 +171,7 @@ class MulOp(ElementwiseBinaryOperation):
     """
     Tosa elementwise multiplication operation (Hadamard product)
 
-    https://mlir.llvm.org/docs/Dialects/TOSA/#tosamul-mlirtosamulop
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosamul-mlirtosamulop)
     """
 
     name = "tosa.mul"
