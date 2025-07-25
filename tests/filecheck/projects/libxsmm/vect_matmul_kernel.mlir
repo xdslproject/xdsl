@@ -92,7 +92,6 @@ func.func @matmul(
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm6, ymm7
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm4, ymm5
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm2, ymm3
-// CHECK-NEXT:      mov rcx, rax
-// CHECK-NEXT:      vmovapd [rcx], ymm1
+// CHECK-NEXT:      vmovapd [rax], ymm1
 // CHECK-NEXT:      vmovapd [rax+32], ymm0
 // CHECK-NEXT:      ret
