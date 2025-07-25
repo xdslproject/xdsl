@@ -1035,6 +1035,60 @@ class RSS_Operation(
         )
 
 
+class IRS_Operation(
+    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that have one immediate value, an inout register,
+    and one source register.
+    """
+
+    register_in = operand_def(R1InvT)
+    register_out = result_def(R1InvT)
+    source = operand_def(R2InvT)
+    immediate = attr_def(IntegerAttr)
+
+    def __init__(
+        self,
+        register_in: Operation | SSAValue,
+        source: Operation | SSAValue,
+        immediate: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        register_in = SSAValue.get(register_in)
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[register_in, source],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[register_in.type],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.immediate, self.register_in, self.source
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
+        attributes["immediate"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+
 # endregion
 
 
@@ -2980,6 +3034,26 @@ class DM_VbroadcastssOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]
     """
 
     name = "x86.dm.vbroadcastss"
+
+
+@irdl_op_definition
+class IRS_ShufpsOp(IRS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
+    """
+    Selects a single precision floating-point value of an input quadruplet using a
+    two-bit control and move to a designated element of the destination operand.
+    Each 64-bit element-pair of a 128-bit lane of the destination operand is interleaved
+    between the corresponding lane of the first source operand and the second source
+    operand at the granularity 128 bits. Each two bits in the imm8 byte, starting from
+    bit 0, is the select control of the corresponding element of a 128-bit lane of the
+    destination to received the shuffled result of an input quadruplet. The two lower
+    elements of a 128-bit lane in the destination receives shuffle results from the
+    quadruple of the first source operand. The next two elements of the destination
+    receives shuffle results from the quadruple of the second source operand.
+
+    See external [documentation](https://www.felixcloutier.com/x86/shufps)
+    """
+
+    name = "x86.irs.shufps"
 
 
 class GetAnyRegisterOperation(
