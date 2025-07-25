@@ -1087,6 +1087,11 @@ class IRS_Operation(
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            (self.source,), (), ((self.register_in, self.register_out),)
+        )
+
 
 # endregion
 

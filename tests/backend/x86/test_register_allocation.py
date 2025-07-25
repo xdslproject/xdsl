@@ -5,6 +5,7 @@ from xdsl.dialects.x86.ops import (
     DMI_Operation,
     DS_Operation,
     DSI_Operation,
+    IRS_Operation,
     M_Operation,
     MI_Operation,
     MS_Operation,
@@ -261,6 +262,28 @@ def test_rss_operation_register_constraints():
     assert tuple(rss_c.ins) == (rss_op.source1, rss_op.source2)
     assert rss_c.outs == ()
     assert rss_c.inouts == ((rss_op.register_in, rss_op.register_out),)
+
+
+@irdl_op_definition
+class TestIRSOperation(IRS_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """Test operation that inherits from RSS_Operation for testing register constraints."""
+
+    name = "test.rss_operation"
+
+
+def test_irs_operation_register_constraints():
+    # Create an instance of our test RSS_Operation
+    irs_op = TestIRSOperation(
+        test_value.create_ssa_value(reg_type(0)),
+        test_value.create_ssa_value(reg_type(1)),
+        5,
+    )
+
+    irs_c = irs_op.get_register_constraints()
+
+    assert tuple(irs_c.ins) == (irs_op.source,)
+    assert irs_c.outs == ()
+    assert irs_c.inouts == ((irs_op.register_in, irs_op.register_out),)
 
 
 @irdl_op_definition
