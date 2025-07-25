@@ -410,3 +410,6 @@ x86.ms.vmovups %0, %xmm1, 0 : (!x86.reg<rax>, !x86.ssereg<xmm1>) -> ()
 // CHECK-NEXT: vfmadd231ps ymm0, ymm1, ymm2
 %rrr_vfmadd231ps_avx512 = x86.rss.vfmadd231ps %zmm0, %zmm1, %zmm2 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vfmadd231ps zmm0, zmm1, zmm2
+
+%shuf_res = x86.irs.shufps %zmm0, %zmm1, 170 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>) -> !x86.avx512reg<zmm0>
+// CHECK: shufps 170, zmm0, zmm1
