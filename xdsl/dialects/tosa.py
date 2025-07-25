@@ -143,12 +143,77 @@ class AddOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class SubOp(IRDLOperation):
+    """
+    Tosa elementwise subtraction operation
+    """
+
+    name = "tosa.sub"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    input1 = operand_def(TensorType.constr(T))
+    input2 = operand_def(TensorType.constr(T))
+    output = result_def(TensorType.constr(T))
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    def verify_(self) -> None:
+        t1 = self.input1.type
+        t2 = self.input2.type
+        t_out = self.output.type
+
+        if not are_tosa_broadcastable(t1, t2, t_out):
+            raise VerifyException(
+                "'tosa.sub' Operand and result tensor shapes are not compatible"
+            )
+
+
+@irdl_op_definition
+class MulOp(IRDLOperation):
+    """
+    Tosa elementwise multiplication operation (Hadamard product)
+    """
+
+    name = "tosa.mul"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    input1 = operand_def(TensorType.constr(T))
+    input2 = operand_def(TensorType.constr(T))
+    output = result_def(TensorType.constr(T))
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+    )
+
+    def verify_(self) -> None:
+        t1 = self.input1.type
+        t2 = self.input2.type
+        t_out = self.output.type
+
+        if not are_tosa_broadcastable(t1, t2, t_out):
+            raise VerifyException(
+                "'tosa.mul' Operand and result tensor shapes are not compatible"
+            )
+
+
 TOSA = Dialect(
     "tosa",
     [
         ClampOp,
         RescaleOp,
         AddOp,
+        SubOp,
+        MulOp,
     ],
     [],
 )
