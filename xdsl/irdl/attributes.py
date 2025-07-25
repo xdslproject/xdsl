@@ -14,7 +14,6 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    ClassVar,
     Generic,
     Literal,
     NamedTuple,
@@ -29,6 +28,7 @@ from typing import (
 from typing_extensions import TypeVar, dataclass_transform
 
 from xdsl.ir import AttributeCovT
+from xdsl.utils.classvar import is_const_classvar
 
 if TYPE_CHECKING:
     from typing_extensions import TypeForm
@@ -220,13 +220,9 @@ class ParamAttrDef:
         parameters: dict[str, ParamDef] = {}
 
         for field_name, field_type in field_types.items():
-            if is_classvar(field_type):
-                if field_name.isupper():
-                    field_values.pop(field_name, None)
-                    continue
-                raise PyRDLAttrDefinitionError(
-                    f'Invalid ClassVar name "{field_name}", must be uppercase.'
-                )
+            if is_const_classvar(field_name, field_type):
+                field_values.pop(field_name, None)
+                continue
             try:
                 constraint = irdl_to_attr_constraint(field_type, allow_type_var=True)
             except TypeError as e:
@@ -583,17 +579,3 @@ def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
 ) -> RangeConstraint[AttributeCovT]:
     return SingleOf(irdl_to_attr_constraint(attr))
-
-
-def is_classvar(annotation: Any) -> bool:
-    """
-    The type annotation can be one of
-     * `ClassVar[MyType]`,
-     * `ClassVar`, or
-     * `"ClassVar[MyType]"`.
-    """
-    return (
-        get_origin(annotation) is ClassVar
-        or annotation is ClassVar
-        or (isinstance(annotation, str) and annotation.startswith("ClassVar"))
-    )

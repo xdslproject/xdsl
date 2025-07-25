@@ -1088,7 +1088,9 @@ def test_class_var_fail():
     """Test that lowercase ClassVar fields are not allowed."""
     with pytest.raises(
         PyRDLAttrDefinitionError,
-        match='Invalid ClassVar name "constant", must be uppercase.',
+        match=re.escape(
+            "Invalid field type typing.ClassVar[int] for field name constant."
+        ),
     ):
 
         @irdl_attr_definition
