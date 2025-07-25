@@ -146,6 +146,16 @@ Constraint for valid element types in EmitC arrays.
 """
 
 
+@irdl_attr_definition
+class EmitC_OpaqueAttr(ParametrizedAttribute):
+    """
+    An opaque attribute of which the value gets emitted as is.
+    """
+
+    name = "emitc.opaque"
+    value: StringAttr
+
+
 EmitCArrayElementTypeCovT = TypeVar(
     "EmitCArrayElementTypeCovT",
     bound=EmitCArrayElementType,
@@ -357,9 +367,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
             for t_arg in self.template_args.data:
                 if not isa(
                     t_arg,
-                    TypeAttribute | IntegerAttr | FloatAttr,
-                    # FIXME: uncomment and replace the line above when EmitC_OpaqueAttr is implemented
-                    # TypeAttribute | IntegerAttr | FloatAttr | EmitC_OpaqueAttr,
+                    TypeAttribute | IntegerAttr | FloatAttr | EmitC_OpaqueAttr,
                 ):
                     raise VerifyException("template argument has invalid type")
 
@@ -376,6 +384,7 @@ EmitC = Dialect(
     [
         EmitC_ArrayType,
         EmitC_LValueType,
+        EmitC_OpaqueAttr,
         EmitC_OpaqueType,
         EmitC_PointerType,
         EmitC_PtrDiffT,
