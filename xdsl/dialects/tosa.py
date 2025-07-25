@@ -114,8 +114,8 @@ class AddOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    in1 = operand_def(TensorType.constr(T))
-    in2 = operand_def(TensorType.constr(T))
+    input1 = operand_def(TensorType.constr(T))
+    input2 = operand_def(TensorType.constr(T))
     output = result_def(TensorType.constr(T))
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
@@ -126,8 +126,8 @@ class AddOp(IRDLOperation):
         both tensors must have the same rank. They should either have the same number of elements per dim, or
         if there is only one element it can be broadcast implcitly.
         """
-        t1 = self.in1.type
-        t2 = self.in2.type
+        t1 = self.input1.type
+        t2 = self.input2.type
         t_out = self.output.type
 
         if not are_tosa_broadcastable(t1, t2, t_out):
