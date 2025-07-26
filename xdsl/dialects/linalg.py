@@ -1021,7 +1021,7 @@ class TransposeOp(IRDLOperation):
             input,
             init,
             DenseArrayBase.from_list(i64, permutation),
-            result if isa(result, TensorType) else [],
+            [result] if isa(result, TensorType) else [],
         )
         return transpose
 
@@ -1392,7 +1392,7 @@ class BroadcastOp(IRDLOperation):
             input,
             init,
             DenseArrayBase.from_list(i64, dimensions),
-            result if isa(result, TensorType) else [],
+            [result] if isa(result, TensorType) else [],
         )
         return broadcast
 
