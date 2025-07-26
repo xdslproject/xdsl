@@ -1124,6 +1124,7 @@ class AttributeVariable(FormatDirective):
     """The known type of the Attribute, if any."""
     is_symbol_name: bool
     """Should this attribute be parsed and printed as a symbol name."""
+    default_value: Attribute | None = None
 
     def set(self, state: ParsingState, attr: Attribute):
         if self.is_property:
@@ -1184,26 +1185,12 @@ class AttributeVariable(FormatDirective):
             return attr.print_parameter(printer)
         raise ValueError("Attributes must be Data or ParameterizedAttribute!")
 
-
-@dataclass(frozen=True)
-class DefaultValuedAttributeVariable(AttributeVariable):
-    """
-    An attribute variable with default value, with the following format:
-      result-directive ::= dollar-ident
-    The directive will request a space to be printed right after.
-    """
-
-    default_value: Attribute
-
     def is_present(self, op: IRDLOperation) -> bool:
-        if self.is_property:
-            attr = op.properties.get(self.name)
-        else:
-            attr = op.attributes.get(self.name)
+        attr = self.get(op)
         return attr is not None and attr != self.default_value
 
     def is_anchorable(self) -> bool:
-        return True
+        return self.default_value is not None
 
 
 class OptionalAttributeVariable(AttributeVariable):
@@ -1232,11 +1219,10 @@ class OptionalAttributeVariable(AttributeVariable):
         return True
 
     def is_present(self, op: IRDLOperation) -> bool:
-        if self.is_property:
-            attr = op.properties.get(self.name)
-        else:
-            attr = op.attributes.get(self.name)
-        return attr is not None
+        attr = self.get(op)
+        return attr is not None and (
+            self.default_value is None or attr != self.default_value
+        )
 
     def is_anchorable(self) -> bool:
         return True
