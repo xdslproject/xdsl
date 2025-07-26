@@ -1122,8 +1122,6 @@ class AttributeVariable(FormatDirective):
     """The known base class of the Attribute, if any."""
     unique_type: Attribute | None
     """The known type of the Attribute, if any."""
-    is_symbol_name: bool
-    """Should this attribute be parsed and printed as a symbol name."""
     is_optional: bool
     """Is this attribute optional in the operation definition."""
     default_value: Attribute | None = None
@@ -1139,16 +1137,12 @@ class AttributeVariable(FormatDirective):
             # Only qualified optional attributes and symbol names can be optionally
             # parsed currently.
             # Other attributes are parsed as required attributes.
-            if self.is_symbol_name:
-                return parser.parse_optional_symbol_name()
-            elif self.unique_base is None:
+            if self.unique_base is None:
                 return parser.parse_optional_attribute()
 
         unique_base = self.unique_base
 
-        if self.is_symbol_name:
-            attr = parser.parse_symbol_name()
-        elif unique_base is None:
+        if unique_base is None:
             attr = parser.parse_attribute()
         elif self.unique_type is not None:
             assert issubclass(unique_base, TypedAttribute)
@@ -1178,9 +1172,6 @@ class AttributeVariable(FormatDirective):
             return op.attributes.get(self.name)
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
-        if self.is_symbol_name:
-            assert isinstance(attr, StringAttr)
-            return printer.print_symbol_name(attr.data)
         if self.unique_type is not None:
             assert isinstance(attr, TypedAttribute)
             return attr.print_without_type(printer)
@@ -1215,7 +1206,33 @@ class AttributeVariable(FormatDirective):
         return self.is_optional or self.default_value is not None
 
     def is_optional_like(self) -> bool:
-        return self.is_optional and (self.unique_base is None or self.is_symbol_name)
+        return self.is_optional and self.unique_base is None
+
+
+class SymbolNameAttributeVariable(AttributeVariable):
+    def __init__(
+        self,
+        name: str,
+        is_property: bool,
+        is_optional: bool,
+        default_value: Attribute | None,
+    ):
+        super().__init__(
+            name, is_property, StringAttr, None, is_optional, default_value
+        )
+
+    def parse_attr(self, parser: Parser) -> Attribute | None:
+        if self.is_optional:
+            return parser.parse_optional_symbol_name()
+        else:
+            return parser.parse_symbol_name()
+
+    def print_attr(self, printer: Printer, attr: Attribute) -> None:
+        assert isinstance(attr, StringAttr)
+        return printer.print_symbol_name(attr.data)
+
+    def is_optional_like(self) -> bool:
+        return self.is_optional
 
 
 class OptionalUnitAttrVariable(AttributeVariable):
@@ -1229,7 +1246,7 @@ class OptionalUnitAttrVariable(AttributeVariable):
     """
 
     def __init__(self, name: str, is_property: bool):
-        super().__init__(name, is_property, None, None, False, True)
+        super().__init__(name, is_property, None, None, True)
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         self.set(state, UnitAttr())
