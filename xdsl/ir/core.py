@@ -33,7 +33,6 @@ from typing_extensions import Self, TypeVar
 from xdsl.dialect_interfaces import DialectInterface
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.mlir_lexer import MLIRLexer
 from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
@@ -265,9 +264,6 @@ def _check_enum_constraints(
     of EnumAttribute as a base class is *not supported*.
       This simplifies type-hacking code and I don't see it being too restrictive
       anytime soon.
-    - The StrEnum values must all be parsable as identifiers. This is to keep the
-    parsing code simple and efficient. This restriction is easier to lift, but I
-    haven't yet met an example use case where it matters, so I'm keeping it simple.
     """
     orig_bases = getattr(enum_class, "__orig_bases__")
     enumattr = next(
@@ -278,12 +274,6 @@ def _check_enum_constraints(
     enum_type = get_args(enumattr)[0]
     if isinstance(enum_type, TypeVar):
         raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
-
-    for v in enum_type:
-        if MLIRLexer.bare_identifier_suffix_regex.fullmatch(v) is None:
-            raise ValueError(
-                "All StrEnum values of an EnumAttribute must be parsable as an identifer."
-            )
 
     enum_class.enum_type = enum_type
 
@@ -314,7 +304,7 @@ class EnumAttribute(Data[EnumType]):
         _check_enum_constraints(cls)
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(self.data.value)
+        printer.print_identifier_or_string_literal(self.data.value)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
