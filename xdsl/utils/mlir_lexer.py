@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import string
 from dataclasses import dataclass
 from enum import Enum
 from string import hexdigits
@@ -472,17 +473,31 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
                 )
 
             # escape character
-            # TODO: handle unicode escape
             if current_char == "\\":
                 escaped_char = self._get_chars()
-                if escaped_char not in ['"', "\\", "n", "t"]:
+                if escaped_char is None:
+                    raise ParseError(
+                        Span(start_pos, self.pos, self.input),
+                        "End of file reached before closing string literal.",
+                    )
+                if escaped_char in ['"', "\\", "n", "t"]:
+                    continue
+                bytes_token = bytes_token or escaped_char not in string.hexdigits
+                next_char = self._get_chars()
+                if next_char is None:
+                    raise ParseError(
+                        Span(start_pos, self.pos, self.input),
+                        "Unknown escape in string literal.",
+                    )
+
+                # verify if the escape sequence is unicode
+                try:
+                    int(escaped_char + next_char, 16).to_bytes(1, "big").decode()
+                except Exception:
+                    # If the escape sequence is not a valid unicode character,
+                    # assume it is a byte escape.
                     bytes_token = True
-                    next_char = self._get_chars()
-                    if escaped_char is None or next_char is None:
-                        raise ParseError(
-                            Span(start_pos, self.pos, self.input),
-                            "Unknown escape in string literal.",
-                        )
+
                     try:
                         int(escaped_char + next_char, 16)
                     except Exception:
