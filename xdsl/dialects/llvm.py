@@ -1196,11 +1196,18 @@ class LoadOp(IRDLOperation):
 
     ptr = operand_def(LLVMPointerType)
 
-    ordering = opt_prop_def(IntegerAttr[IntegerType])
+    alignment = opt_prop_def(IntegerAttr[IntegerType])
+    ordering = prop_def(IntegerAttr[IntegerType], default_value=IntegerAttr(0, i64))
 
     dereferenced_value = result_def()
 
-    def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
+    def __init__(
+        self,
+        ptr: SSAValue | Operation,
+        result_type: Attribute | None = None,
+        alignment: int | None = None,
+        ordering: int = 0,
+    ):
         if result_type is None:
             ptr = SSAValue.get(ptr, type=LLVMPointerType)
 
@@ -1210,7 +1217,14 @@ class LoadOp(IRDLOperation):
                 )
             result_type = ptr.type.type
 
-        super().__init__(operands=[ptr], result_types=[result_type])
+        props: dict[str, Attribute] = {
+            "ordering": IntegerAttr(ordering, i64),
+        }
+
+        if alignment is not None:
+            props["alignment"] = IntegerAttr(alignment, i64)
+
+        super().__init__(operands=[ptr], result_types=[result_type], properties=props)
 
 
 @irdl_op_definition
