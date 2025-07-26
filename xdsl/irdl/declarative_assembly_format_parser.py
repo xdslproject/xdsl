@@ -14,7 +14,6 @@ from typing import cast
 from xdsl.dialects.builtin import Builtin, SymbolNameConstraint, UnitAttr
 from xdsl.ir import TypedAttribute
 from xdsl.irdl import (
-    AttrOrPropDef,
     AttrSizedOperandSegments,
     AttrSizedSegments,
     ConstraintContext,
@@ -482,72 +481,64 @@ class FormatParser(BaseParser):
                 if attr_name in self.seen_properties:
                     self.raise_error(f"property '{variable_name}' is already bound")
                 self.seen_properties.add(attr_name)
+                attr_def = self.op_def.properties[attr_name]
             else:
                 if attr_name in self.seen_attributes:
                     self.raise_error(f"attribute '{variable_name}' is already bound")
                 self.seen_attributes.add(attr_name)
+                attr_def = self.op_def.attributes[attr_name]
 
-            attr_def = (
-                self.op_def.properties.get(attr_name)
-                if is_property
-                else self.op_def.attributes.get(attr_name)
+            bases = attr_def.constr.get_bases()
+            unique_base = bases.pop() if bases is not None and len(bases) == 1 else None
+            if unique_base == UnitAttr:
+                return OptionalUnitAttrVariable(
+                    variable_name, is_property, None, None, False
+                )
+
+            # Always qualify builtin attributes
+            # This is technically an approximation, but appears to be good enough
+            # for xDSL right now.
+            unique_type = None
+            if unique_base is not None and issubclass(unique_base, TypedAttribute):
+                constr = attr_def.constr
+                # TODO: generalize.
+                # https://github.com/xdslproject/xdsl/issues/2499
+                if isinstance(constr, ParamAttrConstraint):
+                    type_constraint = constr.param_constrs[unique_base.get_type_index()]
+                    if type_constraint.can_infer(set()):
+                        unique_type = type_constraint.infer(ConstraintContext())
+            if (
+                unique_base is not None
+                and unique_base in Builtin.attributes
+                and unique_type is None
+            ):
+                unique_base = None
+
+            # Ensure qualified attributes stay qualified
+            if qualified:
+                unique_base = None
+
+            # We special case `SymbolNameConstr`, just as MLIR does.
+            is_symbol_name = isinstance(attr_def.constr, SymbolNameConstraint)
+
+            if attr_def.default_value is not None:
+                return DefaultValuedAttributeVariable(
+                    variable_name,
+                    is_property,
+                    unique_base,
+                    unique_type,
+                    is_symbol_name,
+                    attr_def.default_value,
+                )
+
+            variable_type = (
+                OptionalAttributeVariable
+                if isinstance(attr_def, OptionalDef)
+                else AttributeVariable
             )
-            if isinstance(attr_def, AttrOrPropDef):
-                bases = attr_def.constr.get_bases()
-                unique_base = (
-                    bases.pop() if bases is not None and len(bases) == 1 else None
-                )
-                if unique_base == UnitAttr:
-                    return OptionalUnitAttrVariable(
-                        variable_name, is_property, None, None, False
-                    )
-
-                # Always qualify builtin attributes
-                # This is technically an approximation, but appears to be good enough
-                # for xDSL right now.
-                unique_type = None
-                if unique_base is not None and issubclass(unique_base, TypedAttribute):
-                    constr = attr_def.constr
-                    # TODO: generalize.
-                    # https://github.com/xdslproject/xdsl/issues/2499
-                    if isinstance(constr, ParamAttrConstraint):
-                        type_constraint = constr.param_constrs[
-                            unique_base.get_type_index()
-                        ]
-                        if type_constraint.can_infer(set()):
-                            unique_type = type_constraint.infer(ConstraintContext())
-                if (
-                    unique_base is not None
-                    and unique_base in Builtin.attributes
-                    and unique_type is None
-                ):
-                    unique_base = None
-
-                # Ensure qualified attributes stay qualified
-                if qualified:
-                    unique_base = None
-
-                # We special case `SymbolNameConstr`, just as MLIR does.
-                is_symbol_name = isinstance(attr_def.constr, SymbolNameConstraint)
-
-                if attr_def.default_value is not None:
-                    return DefaultValuedAttributeVariable(
-                        variable_name,
-                        is_property,
-                        unique_base,
-                        unique_type,
-                        is_symbol_name,
-                        attr_def.default_value,
-                    )
-
-                variable_type = (
-                    OptionalAttributeVariable
-                    if isinstance(attr_def, OptionalDef)
-                    else AttributeVariable
-                )
-                return variable_type(
-                    variable_name, is_property, unique_base, unique_type, is_symbol_name
-                )
+            return variable_type(
+                variable_name, is_property, unique_base, unique_type, is_symbol_name
+            )
 
         self.raise_error(
             "expected variable to refer to an operand, attribute, region, or successor",
