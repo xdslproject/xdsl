@@ -444,7 +444,7 @@ class NamedOperation(IRDLOperation, ABC):
         self,
         ins: Sequence[SSAValue],
         outs: Sequence[SSAValue],
-        result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]] | None = [],
         properties: Mapping[str, Attribute | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         hidden_region: Region | None = None,
@@ -596,7 +596,7 @@ class AddOp(NamedOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
@@ -635,7 +635,7 @@ class SubOp(NamedOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
@@ -674,7 +674,7 @@ class SelectOp(NamedOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
@@ -718,7 +718,7 @@ class FillOp(NamedOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
@@ -768,7 +768,7 @@ class CopyOp(NamedOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
@@ -806,7 +806,7 @@ class MaxOp(NamedOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
@@ -847,7 +847,7 @@ class MinOp(NamedOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
@@ -888,7 +888,7 @@ class MulOp(NamedOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
@@ -936,7 +936,7 @@ class TransposeOp(IRDLOperation):
         input: SSAValue,
         init: SSAValue,
         permutation: Attribute,
-        result: Attribute | None = None,
+        result: Attribute | None = [],
     ):
         arg_types = NamedOperation.body_arg_types((input, init))
 
@@ -1044,7 +1044,7 @@ class MatmulOp(NamedOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
@@ -1106,7 +1106,7 @@ class QuantizedMatmulOp(NamedOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
@@ -1211,7 +1211,7 @@ class ConvOperation(NamedOperation, ABC):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         arg_types = self.body_arg_types((*inputs, *outputs))
@@ -1302,7 +1302,7 @@ class BroadcastOp(IRDLOperation):
         input: SSAValue,
         init: SSAValue,
         dimensions: Attribute,
-        result: Attribute | None = None,
+        result: Attribute | None = [],
     ):
         arg_types = NamedOperation.body_arg_types((input, init))
 
