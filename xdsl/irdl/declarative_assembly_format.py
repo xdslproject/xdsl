@@ -1132,7 +1132,7 @@ class AttributeVariable(FormatDirective):
         else:
             state.attributes[self.name] = attr
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_attr(self, parser: Parser) -> Attribute | None:
         unique_base = self.unique_base
 
         if self.is_symbol_name:
@@ -1151,6 +1151,12 @@ class AttributeVariable(FormatDirective):
             attr = cast(Data[Any], unique_base.new(unique_base.parse_parameter(parser)))
         else:
             raise ValueError("Attributes must be Data or ParameterizedAttribute.")
+        return attr
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        attr = self.parse_attr(parser)
+        if attr is None:
+            return False
         self.set(state, attr)
         return True
 
@@ -1160,17 +1166,7 @@ class AttributeVariable(FormatDirective):
         else:
             return op.attributes.get(self.name)
 
-    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        attr = self.get(op)
-
-        if attr is None:
-            return
-
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
-        state.should_emit_space = True
-        state.last_was_punctuation = False
-
+    def print_attr(self, printer: Printer, attr: Attribute) -> None:
         if self.is_symbol_name:
             assert isinstance(attr, StringAttr)
             return printer.print_symbol_name(attr.data)
@@ -1185,9 +1181,24 @@ class AttributeVariable(FormatDirective):
             return attr.print_parameter(printer)
         raise ValueError("Attributes must be Data or ParameterizedAttribute!")
 
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        attr = self.get(op)
+
+        if attr is None:
+            return
+
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print_string(" ")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+        self.print_attr(printer, attr)
+
     def is_present(self, op: IRDLOperation) -> bool:
         attr = self.get(op)
-        return attr is not None and attr != self.default_value
+        return attr is not None and (
+            self.default_value is None or attr != self.default_value
+        )
 
     def is_anchorable(self) -> bool:
         return self.default_value is not None
@@ -1200,29 +1211,16 @@ class OptionalAttributeVariable(AttributeVariable):
     The directive will request a space to be printed after.
     """
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_attr(self, parser: Parser) -> Attribute | None:
         # Only qualified optional attributes and symbol names can be optionally
         # parsed currently.
         # Other attributes are parsed as required attributes.
         if self.is_symbol_name:
-            attr = parser.parse_optional_symbol_name()
+            return parser.parse_optional_symbol_name()
         elif self.unique_base is None:
-            attr = parser.parse_optional_attribute()
+            return parser.parse_optional_attribute()
         else:
-            return super().parse(parser, state)
-        if attr is None:
-            return False
-        if self.is_property:
-            state.properties[self.name] = attr
-        else:
-            state.attributes[self.name] = attr
-        return True
-
-    def is_present(self, op: IRDLOperation) -> bool:
-        attr = self.get(op)
-        return attr is not None and (
-            self.default_value is None or attr != self.default_value
-        )
+            return super().parse_attr(parser)
 
     def is_anchorable(self) -> bool:
         return True
@@ -1241,11 +1239,11 @@ class OptionalUnitAttrVariable(OptionalAttributeVariable):
     Also see: https://mlir.llvm.org/docs/DefiningDialects/Operations/#unit-attributes
     """
 
+    def __init__(self, name: str, is_property: bool):
+        super().__init__(name, is_property, None, None, False)
+
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        if self.is_property:
-            state.properties[self.name] = UnitAttr()
-        else:
-            state.attributes[self.name] = UnitAttr()
+        self.set(state, UnitAttr())
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
