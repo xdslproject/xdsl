@@ -271,6 +271,8 @@ class Directive(ABC):
     def is_anchorable(self) -> bool:
         """
         Can appear as an anchor in an optional group.
+        Anchorable directives that are not optional-like can't appear as the first
+        element in an optional group.
         """
         return False
 
@@ -1243,6 +1245,9 @@ class OptionalUnitAttrVariable(OptionalAttributeVariable):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         return
+
+    def is_optional_like(self) -> bool:
+        return False
 
 
 @dataclass(frozen=True)
