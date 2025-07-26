@@ -1222,7 +1222,7 @@ class LoadOp(IRDLOperation):
         }
 
         if alignment is not None:
-            props["alignment"] = IntegerAttr[IntegerType](alignment, i64)
+            props["alignment"] = IntegerAttr(alignment, i64)
 
         super().__init__(operands=[ptr], result_types=[result_type], properties=props)
 
