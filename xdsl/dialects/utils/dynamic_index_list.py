@@ -234,25 +234,15 @@ class DynamicIndexList(CustomDirective):
         dynamic, static = parse_dynamic_index_list_without_types(
             parser, self.DYNAMIC_INDEX
         )
-        state.operands[self.dynamic_position.index] = tuple(dynamic)
-        if self.static_position.is_property:
-            state.properties[self.static_position.name] = DenseArrayBase.from_list(
-                i64, static
-            )
-        else:
-            state.attributes[self.static_position.name] = DenseArrayBase.from_list(
-                i64, static
-            )
+        self.dynamic_position.set(state, dynamic)
+        self.static_position.set(state, DenseArrayBase.from_list(i64, static))
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.should_emit_space = False
         state.last_was_punctuation = True
-        dynamic = getattr(op, self.dynamic_position.name)
-        if self.static_position.is_property:
-            static = op.properties.get(self.static_position.name)
-        else:
-            static = op.attributes.get(self.static_position.name)
+        dynamic = self.dynamic_position.get(op)
+        static = self.static_position.get(op)
         assert isa(static, DenseArrayBase[IntegerType])
 
         print_dynamic_index_list(
