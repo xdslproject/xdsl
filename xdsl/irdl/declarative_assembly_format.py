@@ -271,8 +271,6 @@ class Directive(ABC):
     def is_anchorable(self) -> bool:
         """
         Can appear as an anchor in an optional group.
-        Anchorable directives that are not optional-like can't appear as the first
-        element in an optional group.
         """
         return False
 
@@ -286,6 +284,7 @@ class Directive(ABC):
     def is_optional_like(self) -> bool:
         """
         Directives that successfully parse the empty string.
+        The first element in an optional group must be optional-like.
         """
         return self.is_variadic_like()
 
