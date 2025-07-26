@@ -940,9 +940,9 @@ class TransposeOp(IRDLOperation):
     ):
         if result is None:
             if isa(input.type, TensorType):
-                result = (input.type,)
+                results = (input.type,)
             else:
-                result = ()
+                results = ()
 
         arg_types = NamedOperation.body_arg_types((input, init))
 
@@ -955,7 +955,7 @@ class TransposeOp(IRDLOperation):
                 "permutation": permutation,
             },
             operands=(input, init),
-            result_types=(result,),
+            result_types=(results,),
             regions=(hidden_region,),
         )
 
@@ -1312,9 +1312,9 @@ class BroadcastOp(IRDLOperation):
     ):
         if result is None:
             if isa(input.type, TensorType):
-                result = (input.type,)
+                results = (input.type,)
             else:
-                result = ()
+                results = ()
 
         arg_types = NamedOperation.body_arg_types((input, init))
 
@@ -1327,7 +1327,7 @@ class BroadcastOp(IRDLOperation):
                 "dimensions": dimensions,
             },
             operands=(input, init),
-            result_types=(result,),
+            result_types=(results,),
             regions=(hidden_region,),
         )
 
