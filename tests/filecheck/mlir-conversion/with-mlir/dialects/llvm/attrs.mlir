@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
+// RUN: mlir-opt %s --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt --print-op-generic | filecheck %s
 
 // CHECK: frame_all = #llvm.framePointerKind<all>
 // CHECK: frame_non_leaf = #llvm.framePointerKind<"non-leaf">
