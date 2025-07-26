@@ -146,3 +146,24 @@ ptr_xdsl.store %v6, %ptr6 : f32, !ptr_xdsl.ptr
 // CHECK-NEXT:   %r0_3 = x86.rs.add %r0_2, %r0_1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT:   %r0_4 = builtin.unrealized_conversion_cast %r0_3 : !x86.reg to !ptr_xdsl.ptr
 // CHECK-NEXT: }
+
+// -----
+
+// Constant offset folding
+
+// Non-constant offsets don't get folded
+%p, %i0 = "test.op"(): () -> (!ptr_xdsl.ptr, index)
+%r0 = ptr_xdsl.ptradd %p, %i0 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK:    %v0 = x86.dm.mov %r0_5, 0 : (!x86.reg) -> !x86.reg
+%v0 = ptr_xdsl.load %r0 : !ptr_xdsl.ptr -> f32
+// CHECK:    x86.ms.mov %r0_6, %v0_2, 0 : (!x86.reg, !x86.reg) -> ()
+ptr_xdsl.store %v0, %r0 : f32, !ptr_xdsl.ptr
+
+%i1 = arith.constant 30 : index
+%r1 = ptr_xdsl.ptradd %p, %i1 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK:    %v1 = x86.dm.mov %p_1, 30 : (!x86.reg) -> !x86.reg
+%v1 = ptr_xdsl.load %r1 : !ptr_xdsl.ptr -> f32
+// CHECK:    x86.ms.mov %p_2, %v1_2, 30 : (!x86.reg, !x86.reg) -> ()
+ptr_xdsl.store %v1, %r1 : f32, !ptr_xdsl.ptr
+
+// CHECK-NEXT:  }
