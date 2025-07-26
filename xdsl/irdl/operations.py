@@ -949,9 +949,9 @@ class OpDef:
             annotations = parent_cls.__annotations__
 
             for field_name in annotations:
-                if is_const_classvar(field_name, annotations[field_name]):
-                    continue
                 if field_name not in clsdict:
+                    if is_const_classvar(field_name, annotations[field_name]):
+                        continue
                     raise wrong_field_exception(field_name)
 
             for field_name in clsdict:

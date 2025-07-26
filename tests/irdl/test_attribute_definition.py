@@ -57,7 +57,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
+from xdsl.utils.exceptions import PyRDLAttrDefinitionError, PyRDLError, VerifyException
 from xdsl.utils.hints import isa
 
 
@@ -1087,10 +1087,8 @@ def test_class_var_pass():
 def test_class_var_fail():
     """Test that lowercase ClassVar fields are not allowed."""
     with pytest.raises(
-        PyRDLAttrDefinitionError,
-        match=re.escape(
-            "Invalid field type typing.ClassVar[int] for field name constant."
-        ),
+        PyRDLError,
+        match='Invalid ClassVar name "constant", must be uppercase.',
     ):
 
         @irdl_attr_definition

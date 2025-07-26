@@ -6,7 +6,7 @@ from typing import ClassVar
 import pytest
 
 from xdsl.irdl import IRDLOperation, irdl_op_definition
-from xdsl.utils.exceptions import PyRDLOpDefinitionError
+from xdsl.utils.exceptions import PyRDLError
 
 
 class MyOpWithClassVar(IRDLOperation):
@@ -26,7 +26,9 @@ def test_class_var_on_op():
 
 
 def test_class_var_on_op_invalid():
-    with pytest.raises(PyRDLOpDefinitionError, match="is neither a"):
+    with pytest.raises(
+        PyRDLError, match='Invalid ClassVar name "var", must be uppercase'
+    ):
         irdl_op_definition(MyOpWithClassVarInvalid)
 
 

@@ -19,7 +19,7 @@ from xdsl.dialects.irdl import (
 )
 from xdsl.ir import Block, Region
 from xdsl.irdl import IRDLOperation, irdl_op_definition
-from xdsl.utils.exceptions import PyRDLOpDefinitionError
+from xdsl.utils.exceptions import PyRDLError
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -147,7 +147,9 @@ def test_class_var_on_op():
 
 
 def test_class_var_on_op_invalid():
-    with pytest.raises(PyRDLOpDefinitionError, match="is neither a"):
+    with pytest.raises(
+        PyRDLError, match='Invalid ClassVar name "var", must be uppercase'
+    ):
         irdl_op_definition(MyOpWithClassVarInvalid)
 
 

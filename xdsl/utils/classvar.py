@@ -1,5 +1,7 @@
 from typing import Any, ClassVar, get_origin
 
+from xdsl.utils.exceptions import PyRDLError
+
 
 def is_classvar(annotation: Any) -> bool:
     """
@@ -24,5 +26,10 @@ def is_const_classvar(field_name: str, annotation: Any) -> bool:
      * `ClassVar[MyType]`,
      * `ClassVar`, or
      * `"ClassVar[MyType]"`.
+    This function throws an exception on a non UPPER_CASE class variable.
     """
-    return field_name.isupper() and is_classvar(annotation)
+    if not is_classvar(annotation):
+        return False
+    if not field_name.isupper():
+        raise PyRDLError(f'Invalid ClassVar name "{field_name}", must be uppercase.')
+    return True
