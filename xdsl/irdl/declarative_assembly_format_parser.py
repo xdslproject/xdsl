@@ -497,9 +497,7 @@ class FormatParser(BaseParser):
 
             if unique_base is not None:
                 if unique_base == UnitAttr:
-                    return OptionalUnitAttrVariable(
-                        variable_name, is_property, None, None, False
-                    )
+                    return OptionalUnitAttrVariable(variable_name, is_property)
 
                 if issubclass(unique_base, TypedAttribute):
                     constr = attr_def.constr
