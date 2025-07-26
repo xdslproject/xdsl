@@ -1186,10 +1186,7 @@ class AttributeVariable(FormatDirective):
         raise ValueError("Attributes must be Data or ParameterizedAttribute!")
 
     def is_present(self, op: IRDLOperation) -> bool:
-        if self.is_property:
-            attr = op.properties.get(self.name)
-        else:
-            attr = op.attributes.get(self.name)
+        attr = self.get(op)
         return attr is not None and attr != self.default_value
 
     def is_anchorable(self) -> bool:
