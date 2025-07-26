@@ -10,6 +10,7 @@ from xdsl.frontend.pyast.utils.type_conversion import (
     TypeRegistry,
 )
 from xdsl.transforms.desymref import Desymrefier
+from xdsl.transforms.func_to_pdl_rewrite import FuncToPdlRewrite
 
 
 @dataclass
@@ -34,6 +35,9 @@ class PyASTBuilder:
     desymref: bool
     """Whether to apply the desymref flag to the built module."""
 
+    pdl_rewrite: bool
+    """Whether to construct the function as a PDL rewrite block."""
+
     def build(self) -> ModuleOp:
         """Build a module from the builder state."""
         # Convert the Python AST into xDSL IR objects
@@ -53,5 +57,9 @@ class PyASTBuilder:
         if self.desymref:
             Desymrefier().desymrefy(module)
             module.verify()
+
+        # Optionally run pdl_rewritefication pass to produce pdl.rewrite
+        if self.pdl_rewrite:
+            FuncToPdlRewrite().apply(ctx=None, op=module)
 
         return module
