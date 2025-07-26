@@ -1124,6 +1124,8 @@ class AttributeVariable(FormatDirective):
     """The known type of the Attribute, if any."""
     is_symbol_name: bool
     """Should this attribute be parsed and printed as a symbol name."""
+    is_optional: bool
+    """Is this attribute optional in the operation definition."""
     default_value: Attribute | None = None
 
     def set(self, state: ParsingState, attr: Attribute):
@@ -1133,6 +1135,15 @@ class AttributeVariable(FormatDirective):
             state.attributes[self.name] = attr
 
     def parse_attr(self, parser: Parser) -> Attribute | None:
+        if self.is_optional:
+            # Only qualified optional attributes and symbol names can be optionally
+            # parsed currently.
+            # Other attributes are parsed as required attributes.
+            if self.is_symbol_name:
+                return parser.parse_optional_symbol_name()
+            elif self.unique_base is None:
+                return parser.parse_optional_attribute()
+
         unique_base = self.unique_base
 
         if self.is_symbol_name:
@@ -1201,35 +1212,13 @@ class AttributeVariable(FormatDirective):
         )
 
     def is_anchorable(self) -> bool:
-        return self.default_value is not None
-
-
-class OptionalAttributeVariable(AttributeVariable):
-    """
-    An optional attribute variable, with the following format:
-      operand-directive ::= ( percent-ident )?
-    The directive will request a space to be printed after.
-    """
-
-    def parse_attr(self, parser: Parser) -> Attribute | None:
-        # Only qualified optional attributes and symbol names can be optionally
-        # parsed currently.
-        # Other attributes are parsed as required attributes.
-        if self.is_symbol_name:
-            return parser.parse_optional_symbol_name()
-        elif self.unique_base is None:
-            return parser.parse_optional_attribute()
-        else:
-            return super().parse_attr(parser)
-
-    def is_anchorable(self) -> bool:
-        return True
+        return self.is_optional or self.default_value is not None
 
     def is_optional_like(self) -> bool:
-        return self.unique_base is None or self.is_symbol_name
+        return self.is_optional and (self.unique_base is None or self.is_symbol_name)
 
 
-class OptionalUnitAttrVariable(OptionalAttributeVariable):
+class OptionalUnitAttrVariable(AttributeVariable):
     """
     An optional UnitAttr variable that holds no value and derives its meaning from its existence. Holds a parse
     and print method to reflect this.
@@ -1240,7 +1229,7 @@ class OptionalUnitAttrVariable(OptionalAttributeVariable):
     """
 
     def __init__(self, name: str, is_property: bool):
-        super().__init__(name, is_property, None, None, False)
+        super().__init__(name, is_property, None, None, False, True)
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         self.set(state, UnitAttr())

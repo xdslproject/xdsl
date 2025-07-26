@@ -44,7 +44,6 @@ from xdsl.irdl.declarative_assembly_format import (
     OperandDirective,
     OperandsDirective,
     OperandVariable,
-    OptionalAttributeVariable,
     OptionalGroupDirective,
     OptionalOperandVariable,
     OptionalRegionVariable,
@@ -487,6 +486,8 @@ class FormatParser(BaseParser):
                 self.seen_attributes.add(attr_name)
                 attr_def = self.op_def.attributes[attr_name]
 
+            is_optional = isinstance(attr_def, OptionalDef)
+
             bases = attr_def.constr.get_bases()
             unique_base = bases.pop() if bases is not None and len(bases) == 1 else None
 
@@ -518,17 +519,13 @@ class FormatParser(BaseParser):
             # We special case `SymbolNameConstr`, just as MLIR does.
             is_symbol_name = isinstance(attr_def.constr, SymbolNameConstraint)
 
-            variable_type = (
-                OptionalAttributeVariable
-                if isinstance(attr_def, OptionalDef)
-                else AttributeVariable
-            )
-            return variable_type(
+            return AttributeVariable(
                 variable_name,
                 is_property,
                 unique_base,
                 unique_type,
                 is_symbol_name,
+                is_optional,
                 attr_def.default_value,
             )
 
