@@ -1118,13 +1118,9 @@ class AttributeVariable(FormatDirective):
     """The attribute name as it should be in the attribute or property dictionary."""
     is_property: bool
     """Should this attribute be put in the attribute or property dictionary."""
-    unique_base: type[Attribute] | None
-    """The known base class of the Attribute, if any."""
-    unique_type: Attribute | None
-    """The known type of the Attribute, if any."""
     is_optional: bool
     """Is this attribute optional in the operation definition."""
-    default_value: Attribute | None = None
+    default_value: Attribute | None
 
     def set(self, state: ParsingState, attr: Attribute):
         if self.is_property:
@@ -1134,29 +1130,9 @@ class AttributeVariable(FormatDirective):
 
     def parse_attr(self, parser: Parser) -> Attribute | None:
         if self.is_optional:
-            # Only qualified optional attributes and symbol names can be optionally
-            # parsed currently.
-            # Other attributes are parsed as required attributes.
-            if self.unique_base is None:
-                return parser.parse_optional_attribute()
-
-        unique_base = self.unique_base
-
-        if unique_base is None:
-            attr = parser.parse_attribute()
-        elif self.unique_type is not None:
-            assert issubclass(unique_base, TypedAttribute)
-            attr = unique_base.parse_with_type(parser, self.unique_type)
-        elif issubclass(
-            unique_base,
-            ParametrizedAttribute,
-        ):
-            attr = unique_base.new(unique_base.parse_parameters(parser))
-        elif issubclass(unique_base, Data):
-            attr = cast(Data[Any], unique_base.new(unique_base.parse_parameter(parser)))
+            return parser.parse_optional_attribute()
         else:
-            raise ValueError("Attributes must be Data or ParameterizedAttribute.")
-        return attr
+            return parser.parse_attribute()
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         attr = self.parse_attr(parser)
@@ -1172,16 +1148,7 @@ class AttributeVariable(FormatDirective):
             return op.attributes.get(self.name)
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
-        if self.unique_type is not None:
-            assert isinstance(attr, TypedAttribute)
-            return attr.print_without_type(printer)
-        if self.unique_base is None:
-            return printer.print_attribute(attr)
-        if isinstance(attr, ParametrizedAttribute):
-            return attr.print_parameters(printer)
-        if isinstance(attr, Data):
-            return attr.print_parameter(printer)
-        raise ValueError("Attributes must be Data or ParameterizedAttribute!")
+        return printer.print_attribute(attr)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         attr = self.get(op)
@@ -1206,21 +1173,49 @@ class AttributeVariable(FormatDirective):
         return self.is_optional or self.default_value is not None
 
     def is_optional_like(self) -> bool:
-        return self.is_optional and self.unique_base is None
+        return self.is_optional
+
+
+@dataclass(frozen=True)
+class UniqueBaseAttributeVariable(AttributeVariable):
+    unique_base: type[Attribute]
+    """The known base class of the Attribute, if any."""
+
+    def parse_attr(self, parser: Parser) -> Attribute | None:
+        unique_base = self.unique_base
+
+        if issubclass(unique_base, ParametrizedAttribute):
+            return unique_base.new(unique_base.parse_parameters(parser))
+        elif issubclass(unique_base, Data):
+            unique_base = cast(type[Data[Any]], unique_base)
+            return unique_base.new(unique_base.parse_parameter(parser))
+        else:
+            raise ValueError("Attributes must be Data or ParameterizedAttribute.")
+
+    def print_attr(self, printer: Printer, attr: Attribute) -> None:
+        if isinstance(attr, ParametrizedAttribute):
+            return attr.print_parameters(printer)
+        if isinstance(attr, Data):
+            return attr.print_parameter(printer)
+        raise ValueError("Attributes must be Data or ParameterizedAttribute!")
+
+
+@dataclass(frozen=True)
+class TypedAttributeVariable(UniqueBaseAttributeVariable):
+    unique_type: Attribute
+    """The known type of the Attribute, if any."""
+
+    def parse_attr(self, parser: Parser) -> Attribute | None:
+        unique_base = self.unique_base
+        assert issubclass(unique_base, TypedAttribute)
+        return unique_base.parse_with_type(parser, self.unique_type)
+
+    def print_attr(self, printer: Printer, attr: Attribute) -> None:
+        assert isinstance(attr, TypedAttribute)
+        return attr.print_without_type(printer)
 
 
 class SymbolNameAttributeVariable(AttributeVariable):
-    def __init__(
-        self,
-        name: str,
-        is_property: bool,
-        is_optional: bool,
-        default_value: Attribute | None,
-    ):
-        super().__init__(
-            name, is_property, StringAttr, None, is_optional, default_value
-        )
-
     def parse_attr(self, parser: Parser) -> Attribute | None:
         if self.is_optional:
             return parser.parse_optional_symbol_name()
@@ -1230,9 +1225,6 @@ class SymbolNameAttributeVariable(AttributeVariable):
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
         assert isinstance(attr, StringAttr)
         return printer.print_symbol_name(attr.data)
-
-    def is_optional_like(self) -> bool:
-        return self.is_optional
 
 
 class OptionalUnitAttrVariable(AttributeVariable):
@@ -1246,7 +1238,7 @@ class OptionalUnitAttrVariable(AttributeVariable):
     """
 
     def __init__(self, name: str, is_property: bool):
-        super().__init__(name, is_property, None, None, True)
+        super().__init__(name, is_property, True, None)
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         self.set(state, UnitAttr())
