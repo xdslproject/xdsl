@@ -936,7 +936,7 @@ class TransposeOp(IRDLOperation):
         input: SSAValue,
         init: SSAValue,
         permutation: Attribute,
-        result: Attribute | None = [],
+        result: Sequence[Attribute] | None = [],
     ):
         arg_types = NamedOperation.body_arg_types((input, init))
 
@@ -949,7 +949,7 @@ class TransposeOp(IRDLOperation):
                 "permutation": permutation,
             },
             operands=(input, init),
-            result_types=(result,),
+            result_types=result,
             regions=(hidden_region,),
         )
 
@@ -1176,7 +1176,7 @@ class PoolingNchwMaxOp(PoolingOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
+        res: Sequence[Attribute] | None = [],
         attributes: dict[str, Attribute] | None = None,
     ):
         arg_types = self.body_arg_types((*inputs, *outputs))
@@ -1302,7 +1302,7 @@ class BroadcastOp(IRDLOperation):
         input: SSAValue,
         init: SSAValue,
         dimensions: Attribute,
-        result: Attribute | None = [],
+        result: Sequence[Attribute] | None = [],
     ):
         arg_types = NamedOperation.body_arg_types((input, init))
 
@@ -1315,7 +1315,7 @@ class BroadcastOp(IRDLOperation):
                 "dimensions": dimensions,
             },
             operands=(input, init),
-            result_types=(result,),
+            result_types=result,
             regions=(hidden_region,),
         )
 
