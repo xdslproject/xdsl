@@ -3040,6 +3040,10 @@ def test_optional_group_variadic_result_anchor(
             "($mandatory_arg^)?",
             "First element of an optional group must be optionally parsable.",
         ),
+        (
+            "($optional_unit_arg^)?",
+            "First element of an optional group must be optionally parsable.",
+        ),
     ],
 )
 def test_optional_group_checkers(format: str, error: str):
@@ -3055,6 +3059,7 @@ def test_optional_group_checkers(format: str, error: str):
             args = var_operand_def()
             rets = var_result_def()
             mandatory_arg = operand_def()
+            optional_unit_arg = opt_prop_def(UnitAttr())
 
             assembly_format = format
 

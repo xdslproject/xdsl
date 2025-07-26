@@ -33,6 +33,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.traits import OpTrait
+from xdsl.utils.classvar import is_const_classvar
 from xdsl.utils.exceptions import (
     ParseError,
     PyRDLOpDefinitionError,
@@ -44,7 +45,6 @@ from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
-    is_classvar,
     range_constr_coercion,
     single_range_constr_coercion,
 )
@@ -870,19 +870,6 @@ def lazy_traits_def(future_traits: Callable[[], tuple[OpTrait, ...]]):
 _OPERATION_DICT_KEYS = {key for cls in Operation.mro()[:-1] for key in cls.__dict__}
 
 
-def _is_const_classvar(field_name: str, annotation: Any) -> bool:
-    """
-    Operation definitions may only have `*_def` fields or constant class variables,
-    where the constness is defined by convention with an UPPER_CASE name and enforced by
-    pyright.
-    The type annotation can be one of
-     * `ClassVar[MyType]`,
-     * `ClassVar`, or
-     * `"ClassVar[MyType]"`.
-    """
-    return field_name.isupper() and is_classvar(annotation)
-
-
 @dataclass(kw_only=True)
 class OpDef:
     """The internal IRDL definition of an operation."""
@@ -962,9 +949,11 @@ class OpDef:
             annotations = parent_cls.__annotations__
 
             for field_name in annotations:
-                if _is_const_classvar(field_name, annotations[field_name]):
-                    continue
                 if field_name not in clsdict:
+                    if is_const_classvar(
+                        field_name, annotations[field_name], PyRDLOpDefinitionError
+                    ):
+                        continue
                     raise wrong_field_exception(field_name)
 
             for field_name in clsdict:
@@ -976,8 +965,8 @@ class OpDef:
                 if field_name in field_names:
                     # already registered value for field name
                     continue
-                if field_name in annotations and _is_const_classvar(
-                    field_name, annotations[field_name]
+                if field_name in annotations and is_const_classvar(
+                    field_name, annotations[field_name], PyRDLOpDefinitionError
                 ):
                     continue
 
