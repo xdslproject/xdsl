@@ -12,7 +12,10 @@ from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     I32,
+    I64,
     BoolAttr,
+    DenseArrayBase,
+    Float32Type,
     Float64Type,
     FloatAttr,
     IndexType,
@@ -763,6 +766,43 @@ def test_optional_symbol_name_variable(program: str, generic_program: str):
 
     ctx = Context()
     ctx.load_op(SymbolNameOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program, format",
+    [
+        (
+            "test.symbol [1, 2] [3, 4] [5.000000e+00, 6.000000e+00]",
+            '"test.symbol"() <{i64s = array<i64: 3, 4>, f32s = array<f32: 5.000000e+00, 6.000000e+00>}> {i32s = array<i32: 1, 2>} : () -> ()',
+            "$i32s $i64s $f32s attr-dict",
+        ),
+        (
+            "test.symbol [7, 8]",
+            '"test.symbol"() <{f32s = array<f32: 9.000000e+00>}> {i32s = array<i32: 7, 8>} : () -> ()',
+            "$i32s (`i64s` $i64s^)? (`f32s` $f32s^)? attr-dict",
+        ),
+    ],
+)
+def test_dense_array_special_cases(program: str, generic_program: str, format: str):
+    @irdl_op_definition
+    class DenseArrayOp(IRDLOperation):
+        name = "test.symbol"
+
+        i32s = attr_def(DenseArrayBase[I32])
+        i64s = opt_prop_def(DenseArrayBase[I64])
+        f32s = prop_def(
+            DenseArrayBase[Float32Type()],
+            default_value=DenseArrayBase.from_list(Float32Type(), (9.0,)),
+        )
+
+        assembly_format = format
+
+    ctx = Context()
+    ctx.load_op(DenseArrayOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
