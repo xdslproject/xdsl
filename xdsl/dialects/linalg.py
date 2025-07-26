@@ -936,8 +936,14 @@ class TransposeOp(IRDLOperation):
         input: SSAValue,
         init: SSAValue,
         permutation: Attribute,
-        result: Sequence[Attribute] | None = [],
+        result: Attribute | None = None,
     ):
+        if result is None:
+            if isa(input.type, TensorType):
+                result = (input.type,)
+            else:
+                result = ()
+
         arg_types = NamedOperation.body_arg_types((input, init))
 
         @Builder.implicit_region(arg_types)
@@ -1021,7 +1027,7 @@ class TransposeOp(IRDLOperation):
             input,
             init,
             DenseArrayBase.from_list(i64, permutation),
-            [result] if isa(result, TensorType) else [],
+            (result,) if isa(result, TensorType) else None,
         )
         return transpose
 
@@ -1302,8 +1308,14 @@ class BroadcastOp(IRDLOperation):
         input: SSAValue,
         init: SSAValue,
         dimensions: Attribute,
-        result: Sequence[Attribute] | None = [],
+        result: Attribute | None = None,
     ):
+        if result is None:
+            if isa(input.type, TensorType):
+                result = (input.type,)
+            else:
+                result = ()
+
         arg_types = NamedOperation.body_arg_types((input, init))
 
         @Builder.implicit_region(arg_types)
@@ -1392,7 +1404,7 @@ class BroadcastOp(IRDLOperation):
             input,
             init,
             DenseArrayBase.from_list(i64, dimensions),
-            [result] if isa(result, TensorType) else [],
+            (result,) if isa(result, TensorType) else None,
         )
         return broadcast
 
