@@ -36,7 +36,6 @@ from xdsl.irdl import (
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
     AttributeVariable,
-    DefaultValuedAttributeVariable,
     Directive,
     FormatDirective,
     FormatProgram,
@@ -521,23 +520,18 @@ class FormatParser(BaseParser):
             # We special case `SymbolNameConstr`, just as MLIR does.
             is_symbol_name = isinstance(attr_def.constr, SymbolNameConstraint)
 
-            if attr_def.default_value is not None:
-                return DefaultValuedAttributeVariable(
-                    variable_name,
-                    is_property,
-                    unique_base,
-                    unique_type,
-                    is_symbol_name,
-                    attr_def.default_value,
-                )
-
             variable_type = (
                 OptionalAttributeVariable
                 if isinstance(attr_def, OptionalDef)
                 else AttributeVariable
             )
             return variable_type(
-                variable_name, is_property, unique_base, unique_type, is_symbol_name
+                variable_name,
+                is_property,
+                unique_base,
+                unique_type,
+                is_symbol_name,
+                attr_def.default_value,
             )
 
         self.raise_error(
