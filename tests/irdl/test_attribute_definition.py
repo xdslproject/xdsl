@@ -57,10 +57,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import (
-    PyRDLAttrDefinitionError,
-    VerifyException,
-)
+from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 from xdsl.utils.hints import isa
 
 
