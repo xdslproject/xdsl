@@ -98,21 +98,25 @@ class _ParameterDef:
     """
 
     param: AttrConstraint | None
+    converter: Callable[[Any], Attribute] | None
 
     def __init__(
         self,
         param: AttrConstraint | None,
+        converter: Callable[[Any], Attribute] | None,
     ):
         self.param = param
+        self.converter = converter
 
 
 def param_def(
     constraint: AttrConstraint[AttributeInvT] | None = None,
     *,
+    converter: Callable[[Any], AttributeInvT] | None = None,
     init: Literal[True] = True,
 ) -> AttributeInvT:
     """Defines a property of an operation."""
-    return cast(AttributeInvT, _ParameterDef(constraint))
+    return cast(AttributeInvT, _ParameterDef(constraint, converter))
 
 
 def check_attr_name(cls: type):
@@ -161,6 +165,7 @@ class ParamDef(NamedTuple):
     """
 
     constr: AttrConstraint
+    converter: Callable[[Any], Attribute] | None = None
 
 
 @dataclass
@@ -230,6 +235,8 @@ class ParamAttrDef:
                     f"Invalid field type {field_type} for field name {field_name}."
                 ) from e
 
+            converter: Callable[[Any], Attribute] | None = None
+
             if field_name in field_values:
                 value = field_values.pop(field_name)
                 if isinstance(value, _ParameterDef):
@@ -242,6 +249,8 @@ class ParamAttrDef:
                         raise PyRDLAttrDefinitionError(
                             f"Invalid constraint {value.param} for field name {field_name}."
                         ) from e
+                    if value.converter is not None:
+                        converter = value.converter
 
                 # Constraint variables are deprecated
                 elif get_origin(value) is Annotated or any(
@@ -259,7 +268,7 @@ class ParamAttrDef:
                         f"{field_name} is not a parameter definition."
                     )
 
-            parameters[field_name] = ParamDef(constraint)
+            parameters[field_name] = ParamDef(constraint, converter)
 
         for field_name, value in field_values.items():
             # Anything left is a field without an annotation or a constaint var.
