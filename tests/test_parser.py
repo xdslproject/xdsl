@@ -1155,3 +1155,26 @@ def test_metadata_parsing():
 
     element = interface.lookup("some_res")
     assert element == "0x1"
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        ("a", "a"),
+        ('"a"', "a"),
+        ("a-b", "a"),
+        ('"a-b"', "a-b"),
+        ("2a", None),
+    ],
+)
+def test_parse_identifier_or_str_literal(input: str, expected: str | None):
+    parser = Parser(Context(), input)
+    result = parser.parse_optional_identifier_or_str_literal()
+    assert result == expected
+
+    parser = Parser(Context(), input)
+    if expected is None:
+        with pytest.raises(ParseError, match="identifier or string literal expected"):
+            parser.parse_identifier_or_str_literal()
+    else:
+        assert parser.parse_identifier_or_str_literal() == expected

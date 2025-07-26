@@ -226,6 +226,26 @@ class BaseParser(GenericParser[MLIRTokenKind]):
             self.parse_optional_identifier, "identifier expected" + context_msg
         )
 
+    def parse_optional_identifier_or_str_literal(self) -> str | None:
+        """
+        Parse an identifier or a string literal, if present.
+            ident_or_str ::= ident | str_lit
+        """
+
+        if (ident := self.parse_optional_identifier()) is not None:
+            return ident
+        return self.parse_optional_str_literal()
+
+    def parse_identifier_or_str_literal(self, context_msg: str = "") -> str:
+        """
+        Parse an identifier or a string literal, if present.
+            ident_or_str ::= ident | str_lit
+        """
+        return self.expect(
+            self.parse_optional_identifier_or_str_literal,
+            "identifier or string literal expected" + context_msg,
+        )
+
     def parse_optional_keyword(self, keyword: str) -> str | None:
         """Parse a specific identifier if it is present"""
 

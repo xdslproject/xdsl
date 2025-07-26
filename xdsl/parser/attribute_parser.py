@@ -191,12 +191,7 @@ class AttrParser(BaseParser):
         attribute_entry := (bare-id | string-literal) `=` attribute
         attribute       := dialect-attribute | builtin-attribute
         """
-        if (name := self._parse_optional_token(MLIRTokenKind.BARE_IDENT)) is not None:
-            name = name.span.text
-        else:
-            name = self.parse_optional_str_literal()
-
-        if name is None:
+        if (name := self.parse_optional_identifier_or_str_literal()) is None:
             self.raise_error(
                 "Expected bare-id or string-literal here as part of attribute entry!"
             )
