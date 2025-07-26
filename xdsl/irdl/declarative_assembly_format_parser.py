@@ -57,6 +57,7 @@ from xdsl.irdl.declarative_assembly_format import (
     ResultVariable,
     SuccessorDirective,
     SuccessorVariable,
+    SymbolNameAttributeVariable,
     TypeableDirective,
     TypeDirective,
     VariadicOperandVariable,
@@ -500,6 +501,12 @@ class FormatParser(BaseParser):
                 if unique_base == UnitAttr:
                     return OptionalUnitAttrVariable(variable_name, is_property)
 
+                # We special case `SymbolNameConstr`, just as MLIR does.
+                if isinstance(attr_def.constr, SymbolNameConstraint):
+                    return SymbolNameAttributeVariable(
+                        variable_name, is_property, is_optional, attr_def.default_value
+                    )
+
                 if issubclass(unique_base, TypedAttribute):
                     constr = attr_def.constr
                     # TODO: generalize.
@@ -516,15 +523,12 @@ class FormatParser(BaseParser):
                     # for xDSL right now.
                     unique_base = None
 
-            # We special case `SymbolNameConstr`, just as MLIR does.
-            is_symbol_name = isinstance(attr_def.constr, SymbolNameConstraint)
 
             return AttributeVariable(
                 variable_name,
                 is_property,
                 unique_base,
                 unique_type,
-                is_symbol_name,
                 is_optional,
                 attr_def.default_value,
             )
