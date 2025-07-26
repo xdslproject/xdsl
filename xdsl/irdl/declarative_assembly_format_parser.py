@@ -11,7 +11,14 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
 
-from xdsl.dialects.builtin import Builtin, SymbolNameConstraint, UnitAttr
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    Builtin,
+    DenseArrayBase,
+    IntegerType,
+    SymbolNameConstraint,
+    UnitAttr,
+)
 from xdsl.ir import TypedAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -36,6 +43,7 @@ from xdsl.irdl import (
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
     AttributeVariable,
+    DenseArrayAttributeVariable,
     Directive,
     FormatDirective,
     FormatProgram,
@@ -508,11 +516,23 @@ class FormatParser(BaseParser):
                         variable_name, is_property, is_optional, attr_def.default_value
                     )
 
-                if issubclass(unique_base, TypedAttribute):
-                    constr = attr_def.constr
-                    # TODO: generalize.
-                    # https://github.com/xdslproject/xdsl/issues/2499
-                    if isinstance(constr, ParamAttrConstraint):
+                constr = attr_def.constr
+                if isinstance(constr, ParamAttrConstraint):
+                    if unique_base is DenseArrayBase and (
+                        elt_type_constr := constr.param_constrs[0]
+                    ).can_infer(set()):
+                        elt_type = elt_type_constr.infer(ConstraintContext())
+                        return DenseArrayAttributeVariable(
+                            variable_name,
+                            is_property,
+                            is_optional,
+                            attr_def.default_value,
+                            cast(IntegerType | AnyFloat, elt_type),
+                        )
+
+                    if issubclass(unique_base, TypedAttribute):
+                        # TODO: generalize.
+                        # https://github.com/xdslproject/xdsl/issues/2499
                         type_constraint = constr.param_constrs[
                             unique_base.get_type_index()
                         ]
