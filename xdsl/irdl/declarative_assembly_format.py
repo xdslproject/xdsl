@@ -284,6 +284,7 @@ class Directive(ABC):
     def is_optional_like(self) -> bool:
         """
         Directives that successfully parse the empty string.
+        The first element in an optional group must be optional-like.
         """
         return self.is_variadic_like()
 
@@ -1263,6 +1264,9 @@ class OptionalUnitAttrVariable(OptionalAttributeVariable):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         return
+
+    def is_optional_like(self) -> bool:
+        return False
 
 
 @dataclass(frozen=True)
