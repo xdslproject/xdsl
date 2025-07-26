@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic | filecheck %s
+// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | filecheck %s
 
 // CHECK: entry1 = #dlti.dl_entry<"str", i32>
 // CHECK: entry2 = #dlti.dl_entry<i32, i32>
