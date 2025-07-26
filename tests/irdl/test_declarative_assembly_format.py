@@ -91,7 +91,12 @@ from xdsl.irdl.declarative_assembly_format import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError, VerifyException
+from xdsl.utils.exceptions import (
+    ParseError,
+    PyRDLError,
+    PyRDLOpDefinitionError,
+    VerifyException,
+)
 
 ################################################################################
 # Utils for this test file                                                     #
@@ -3769,3 +3774,40 @@ def test_custom_directive_param(program: str):
     ctx.load_op(CustomDirectiveWithParamOp)
     ctx.load_dialect(Test)
     check_roundtrip(program, ctx)
+
+
+def test_non_upper_classvar():
+    with pytest.raises(
+        PyRDLError, match='Invalid ClassVar name "bad", must be uppercase.'
+    ):
+
+        @irdl_custom_directive
+        class BadClassVar(CustomDirective):  # pyright: ignore[reportUnusedClass]
+            bad: ClassVar
+
+            def parse(self, parser: Parser, state: ParsingState) -> bool:
+                raise NotImplementedError()
+
+            def print(
+                self, printer: Printer, state: PrintingState, op: IRDLOperation
+            ) -> None:
+                raise NotImplementedError()
+
+
+def test_bad_parameter():
+    with pytest.raises(
+        PyRDLError,
+        match="Custom directive BadParam has parameter int_param which is not a format directive.",
+    ):
+
+        @irdl_custom_directive
+        class BadParam(CustomDirective):  # pyright: ignore[reportUnusedClass]
+            int_param: int
+
+            def parse(self, parser: Parser, state: ParsingState) -> bool:
+                raise NotImplementedError()
+
+            def print(
+                self, printer: Printer, state: PrintingState, op: IRDLOperation
+            ) -> None:
+                raise NotImplementedError()
