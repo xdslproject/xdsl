@@ -220,7 +220,7 @@ class ParamAttrDef:
         parameters: dict[str, ParamDef] = {}
 
         for field_name, field_type in field_types.items():
-            if is_const_classvar(field_name, field_type):
+            if is_const_classvar(field_name, field_type, PyRDLAttrDefinitionError):
                 field_values.pop(field_name, None)
                 continue
             try:

@@ -17,7 +17,9 @@ def is_classvar(annotation: Any) -> bool:
     )
 
 
-def is_const_classvar(field_name: str, annotation: Any) -> bool:
+def is_const_classvar(
+    field_name: str, annotation: Any, error_type: type[PyRDLError]
+) -> bool:
     """
     Operation definitions may only have `*_def` fields or constant class variables,
     where the constness is defined by convention with an UPPER_CASE name and enforced by
@@ -31,5 +33,5 @@ def is_const_classvar(field_name: str, annotation: Any) -> bool:
     if not is_classvar(annotation):
         return False
     if not field_name.isupper():
-        raise PyRDLError(f'Invalid ClassVar name "{field_name}", must be uppercase.')
+        raise error_type(f'Invalid ClassVar name "{field_name}", must be uppercase.')
     return True

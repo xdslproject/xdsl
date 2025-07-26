@@ -950,7 +950,9 @@ class OpDef:
 
             for field_name in annotations:
                 if field_name not in clsdict:
-                    if is_const_classvar(field_name, annotations[field_name]):
+                    if is_const_classvar(
+                        field_name, annotations[field_name], PyRDLOpDefinitionError
+                    ):
                         continue
                     raise wrong_field_exception(field_name)
 
@@ -964,7 +966,7 @@ class OpDef:
                     # already registered value for field name
                     continue
                 if field_name in annotations and is_const_classvar(
-                    field_name, annotations[field_name]
+                    field_name, annotations[field_name], PyRDLOpDefinitionError
                 ):
                     continue
 
