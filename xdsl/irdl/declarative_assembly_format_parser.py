@@ -59,7 +59,9 @@ from xdsl.irdl.declarative_assembly_format import (
     SuccessorVariable,
     SymbolNameAttributeVariable,
     TypeableDirective,
+    TypedAttributeVariable,
     TypeDirective,
+    UniqueBaseAttributeVariable,
     VariadicOperandVariable,
     VariadicRegionVariable,
     VariadicResultVariable,
@@ -492,7 +494,6 @@ class FormatParser(BaseParser):
             bases = attr_def.constr.get_bases()
             unique_base = bases.pop() if bases is not None and len(bases) == 1 else None
 
-            unique_type = None
             if qualified:
                 # Ensure qualified attributes stay qualified
                 unique_base = None
@@ -517,18 +518,30 @@ class FormatParser(BaseParser):
                         ]
                         if type_constraint.can_infer(set()):
                             unique_type = type_constraint.infer(ConstraintContext())
-                if unique_base in Builtin.attributes and unique_type is None:
+                            return TypedAttributeVariable(
+                                variable_name,
+                                is_property,
+                                is_optional,
+                                attr_def.default_value,
+                                unique_base,
+                                unique_type,
+                            )
+
+                if unique_base not in Builtin.attributes:
                     # Always qualify builtin attributes
                     # This is technically an approximation, but appears to be good enough
                     # for xDSL right now.
-                    unique_base = None
-
+                    return UniqueBaseAttributeVariable(
+                        variable_name,
+                        is_property,
+                        is_optional,
+                        attr_def.default_value,
+                        unique_base,
+                    )
 
             return AttributeVariable(
                 variable_name,
                 is_property,
-                unique_base,
-                unique_type,
                 is_optional,
                 attr_def.default_value,
             )
