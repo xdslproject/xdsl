@@ -25,8 +25,8 @@ class AnyRangeConstraint(RangeConstraint):
 
     def verify(
         self, attrs: Sequence[Attribute], constraint_context: ConstraintContext
-    ) -> None:
-        return
+    ) -> Sequence[Attribute]:
+        return attrs
 
     def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
         return

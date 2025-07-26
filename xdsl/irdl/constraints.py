@@ -109,7 +109,7 @@ class AttrConstraint(Generic[AttributeCovT], ABC):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> AttributeCovT:
         """
         Check if the attribute satisfies the constraint,
         or raise an exception otherwise.
@@ -202,11 +202,14 @@ class TypedAttributeConstraint(AttrConstraint[TypedAttributeCovT]):
     attr_constraint: AttrConstraint[TypedAttributeCovT]
     type_constraint: AttrConstraint
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext
+    ) -> TypedAttributeCovT:
         if not isinstance(attr, TypedAttribute):
             raise VerifyException(f"attribute {attr} expected to be a TypedAttribute")
-        self.attr_constraint.verify(attr, constraint_context)
+        res = self.attr_constraint.verify(attr, constraint_context)
         self.type_constraint.verify(attr.get_type(), constraint_context)
+        return res
 
     def variables(self) -> set[str]:
         return self.type_constraint.variables() | self.attr_constraint.variables()
@@ -246,7 +249,7 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> AttributeCovT:
         ctx_attr = constraint_context.get_variable(self.name)
         if ctx_attr is not None:
             if attr != ctx_attr:
@@ -254,9 +257,11 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
                     f"attribute {constraint_context.get_variable(self.name)} expected from variable "
                     f"'{self.name}', but got {attr}"
                 )
+            return cast(AttributeCovT, attr)
         else:
-            self.constraint.verify(attr, constraint_context)
+            res = self.constraint.verify(attr, constraint_context)
             constraint_context.set_attr_variable(self.name, attr)
+            return res
 
     def variables(self) -> set[str]:
         return self.constraint.variables() | {self.name}
@@ -295,8 +300,8 @@ class TypeVarConstraint(AttrConstraint):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
-        self.base_constraint.verify(attr, constraint_context)
+    ) -> Attribute:
+        return self.base_constraint.verify(attr, constraint_context)
 
     def get_bases(self) -> set[type[Attribute]] | None:
         return self.base_constraint.get_bases()
@@ -336,9 +341,10 @@ class EqAttrConstraint(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> AttributeCovT:
         if attr != self.attr:
             raise VerifyException(f"Expected attribute {self.attr} but got {attr}")
+        return self.attr
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return True
@@ -369,11 +375,12 @@ class BaseAttr(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> AttributeCovT:
         if not isinstance(attr, self.attr):
             raise VerifyException(
                 f"{attr} should be of base attribute {self.attr.name}"
             )
+        return attr
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return (
@@ -419,8 +426,8 @@ class AnyAttr(AttrConstraint):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
-        pass
+    ) -> Attribute:
+        return attr
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -505,13 +512,15 @@ class AnyOf(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
             based_constrs,
         )
 
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext
+    ) -> AttributeCovT:
         if attr in self._eq_constrs:
-            return
+            return cast(AttributeCovT, attr)
         constr = self._based_constrs.get(attr.__class__)
         if constr is None:
             raise VerifyException(f"Unexpected attribute {attr}")
-        constr.verify(attr, constraint_context)
+        return constr.verify(attr, constraint_context)
 
     def __or__(
         self, value: AttrConstraint[_AttributeCovT], /
@@ -554,7 +563,7 @@ class AllOf(AttrConstraint[AttributeCovT]):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> AttributeCovT:
         exc_bucket: list[VerifyException] = []
 
         for attr_constr in self.attr_constrs:
@@ -569,6 +578,8 @@ class AllOf(AttrConstraint[AttributeCovT]):
             exc_msg = "The following constraints were not satisfied:\n"
             exc_msg += "\n".join([str(e) for e in exc_bucket])
             raise VerifyException(exc_msg)
+
+        return cast(AttributeCovT, attr)
 
     def variables(self) -> set[str]:
         vars = set[str]()
@@ -652,7 +663,7 @@ class ParamAttrConstraint(
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> ParametrizedAttributeCovT:
         if not isinstance(attr, self.base_attr):
             raise VerifyException(
                 f"{attr} should be of base attribute {self.base_attr.name}"
@@ -665,6 +676,7 @@ class ParamAttrConstraint(
             )
         for idx, param_constr in enumerate(self.param_constrs):
             param_constr.verify(parameters[idx], constraint_context)
+        return attr
 
     def variables(self) -> set[str]:
         vars = set[str]()
@@ -734,7 +746,7 @@ class MessageConstraint(AttrConstraint[AttributeCovT]):
         self,
         attr: Attribute,
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> AttributeCovT:
         try:
             return self.constr.verify(attr, constraint_context)
         except VerifyException as e:
@@ -898,7 +910,7 @@ class RangeConstraint(Generic[AttributeCovT], ABC):
         self,
         attrs: Sequence[Attribute],
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> Sequence[AttributeCovT]:
         """
         Check if the range satisfies the constraint, or raise an exception otherwise.
         """
@@ -983,9 +995,9 @@ class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
         self,
         attrs: Sequence[Attribute],
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> Sequence[AttributeCovT]:
         self.verify_length(len(attrs), constraint_context)
-        self.constraint.verify(attrs, constraint_context)
+        return self.constraint.verify(attrs, constraint_context)
 
     def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
         try:
@@ -1041,7 +1053,7 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
         self,
         attrs: Sequence[Attribute],
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> Sequence[AttributeCovT]:
         ctx_attrs = constraint_context.get_range_variable(self.name)
         if ctx_attrs is not None:
             if attrs != ctx_attrs:
@@ -1049,9 +1061,11 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
                     f"attributes {tuple(str(x) for x in ctx_attrs)} expected from range variable "
                     f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
                 )
+            return cast(Sequence[AttributeCovT], attrs)
         else:
-            self.constraint.verify(attrs, constraint_context)
+            res = self.constraint.verify(attrs, constraint_context)
             constraint_context.set_range_variable(self.name, tuple(attrs))
+            return res
 
     def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
         # It is not possible to fully verify the constraint from just the length, so we don't try.
@@ -1091,9 +1105,10 @@ class RangeOf(RangeConstraint[AttributeCovT]):
         self,
         attrs: Sequence[Attribute],
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> Sequence[AttributeCovT]:
         for a in attrs:
             self.constr.verify(a, constraint_context)
+        return cast(Sequence[AttributeCovT], attrs)
 
     def verify_length(self, length: int, constraint_context: ConstraintContext): ...
 
@@ -1133,10 +1148,11 @@ class SingleOf(RangeConstraint[AttributeCovT]):
         self,
         attrs: Sequence[Attribute],
         constraint_context: ConstraintContext,
-    ) -> None:
+    ) -> Sequence[AttributeCovT]:
         if len(attrs) != 1:
             raise VerifyException(f"Expected a single attribute, got {len(attrs)}")
         self.constr.verify(attrs[0], constraint_context)
+        return cast(Sequence[AttributeCovT], attrs)
 
     def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
         if length != 1:
