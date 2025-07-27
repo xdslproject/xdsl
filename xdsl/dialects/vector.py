@@ -10,7 +10,6 @@ from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I1,
-    I32,
     I64,
     AffineMapAttr,
     AnyFloat,
@@ -266,7 +265,7 @@ class ShuffleOp(IRDLOperation):
         self,
         v1: SSAValue,
         v2: SSAValue,
-        mask: DenseArrayBase[I32],
+        mask: DenseArrayBase[I64],
         *,
         result_type: VectorType,
     ):

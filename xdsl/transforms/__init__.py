@@ -565,6 +565,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return varith_transformations.VarithFuseRepeatedOperandsPass
 
+    def get_vector_infer_shuffles():
+        from xdsl.transforms import vector_infer_shuffles
+
+        return vector_infer_shuffles.VectorInferShufflesPass
+
     def get_x86_allocate_registers():
         from xdsl.transforms import x86_allocate_registers
 
@@ -684,5 +689,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
+        "vector-infer-shuffles": get_vector_infer_shuffles,
         "x86-allocate-registers": get_x86_allocate_registers,
     }
