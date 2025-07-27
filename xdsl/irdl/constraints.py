@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -13,7 +14,7 @@ from typing import (
     cast,
 )
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import Self, TypeVar, deprecated
 
 from xdsl.ir import (
     Attribute,
@@ -807,7 +808,7 @@ class IntConstraint(ABC):
 
     @abstractmethod
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> IntConstraint:
         """
         A helper function to make type vars used in attribute definitions concrete when
@@ -827,7 +828,7 @@ class AnyInt(IntConstraint):
         pass
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> IntConstraint:
         return self
 
@@ -853,7 +854,7 @@ class EqIntConstraint(IntConstraint):
         return self.value
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> IntConstraint:
         return self
 
@@ -880,7 +881,7 @@ class IntSetConstraint(IntConstraint):
         return next(iter(self.values))
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> IntConstraint:
         return self
 
@@ -897,7 +898,7 @@ class AtLeast(IntConstraint):
             raise VerifyException(f"expected integer >= {self.bound}, got {i}")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> IntConstraint:
         return self
 
@@ -945,7 +946,7 @@ class IntVarConstraint(IntConstraint):
         return v
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> IntConstraint:
         return IntVarConstraint(
             self.name, self.constraint.mapping_type_vars(type_var_mapping)
@@ -972,7 +973,7 @@ class IntTypeVarConstraint(IntConstraint):
         self.base_constraint.verify(i, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> IntConstraint:
         res = type_var_mapping.get(self.type_var)
         if res is None:
@@ -1252,3 +1253,9 @@ class SingleOf(RangeConstraint[AttributeCovT]):
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> SingleOf[AttributeCovT]:
         return SingleOf(self.constr.mapping_type_vars(type_var_mapping))
+
+
+class DataEnum(Enum):
+    @classmethod
+    @abstractmethod
+    def to_constr(cls, value: Self | None) -> AttrConstraint: ...

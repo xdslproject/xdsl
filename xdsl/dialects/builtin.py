@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
-from enum import Enum
 from math import prod
 from typing import (
     TYPE_CHECKING,
@@ -56,6 +55,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    DataEnum,
     EqAttrConstraint,
     GenericData,
     IntConstraint,
@@ -66,6 +66,7 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
+    TypeVarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -360,18 +361,18 @@ FlatSymbolRefAttrConstr = MessageConstraint(
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstr]
 """SymbolRef constrained to have an empty `nested_references` property."""
 
-_IntT = TypeVar("_IntT", bound=int, default=int)
+_IntCovT = TypeVar("_IntCovT", bound=int, default=int, covariant=True)
 
 
 @irdl_attr_definition
-class IntAttr(Generic[_IntT], GenericData[_IntT]):
+class IntAttr(Generic[_IntCovT], GenericData[_IntCovT]):
     name = "builtin.int"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> _IntT:
+    def parse_parameter(cls, parser: AttrParser) -> _IntCovT:
         with parser.in_angle_brackets():
             data = parser.parse_integer()
-            return cast(_IntT, data)
+            return cast(_IntCovT, data)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -382,17 +383,21 @@ class IntAttr(Generic[_IntT], GenericData[_IntT]):
         return bool(self.data)
 
     @classmethod
-    def generic_args_constraint(cls, *args: Any) -> AttrConstraint[IntAttr[_IntT]]:
+    def generic_args_constraint(
+        cls, *args: Any
+    ) -> AttrConstraint[IntAttr[_IntCovT]]:
         """
         Given the generic parameters passed to the generic attribute type,
         return the corresponding attribute constraint.
         ...
         """
         assert len(args) == 1
-        arg = cast(TypeForm[_IntT], args[0])
+        arg = cast(TypeForm[_IntCovT], args[0])
 
         if arg is int:
-            return cast(AttrConstraint[IntAttr[_IntT]], BaseAttr[IntAttr](IntAttr))
+            return cast(
+                AttrConstraint[IntAttr[_IntCovT]], BaseAttr[IntAttr](IntAttr)
+            )
         else:
             if get_origin(arg) is Literal:
                 literal_args = get_args(arg)
@@ -402,10 +407,10 @@ class IntAttr(Generic[_IntT], GenericData[_IntT]):
             elif isinstance(arg, int):
                 constr = EqAttrConstraint(IntAttr(arg))
             elif isinstance(arg, TypeVar):
-                constr = IntTypeVarConstraint(arg, AnyInt())
+                constr = IntAttrConstraint(IntTypeVarConstraint(arg, AnyInt()))
             else:
                 raise PyRDLTypeError(f"Invalid IntAttr generic argument {arg}")
-            return cast(AttrConstraint[IntAttr[_IntT]], constr)
+            return cast(AttrConstraint[IntAttr[_IntCovT]], constr)
 
 
 @dataclass(frozen=True)
@@ -435,11 +440,13 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> Self:
-        return self
+    ):
+        return IntAttrConstraint(
+            self.int_constraint.mapping_type_vars(type_var_mapping)
+        )
 
 
-class Signedness(Enum):
+class Signedness(DataEnum):
     "Signedness semantics for integer"
 
     SIGNLESS = 0
@@ -463,6 +470,14 @@ class Signedness(Enum):
                 return signed_value_range(bitwidth)
             case Signedness.UNSIGNED:
                 return unsigned_value_range(bitwidth)
+
+    @classmethod
+    def to_constr(cls, value: DataEnum | None) -> AttrConstraint:
+        if value is None:
+            return BaseAttr(SignednessAttr)
+        else:
+            assert isinstance(value, Signedness)
+            return EqAttrConstraint(SignednessAttr(value))
 
 
 SignednessCovT = TypeVar(
@@ -507,7 +522,8 @@ class SignednessAttr(Generic[SignednessCovT], GenericData[SignednessCovT]):
             assert len(values) == 1
             assert isinstance(value := values[0], Signedness)
             return EqAttrConstraint(cls(value))  # pyright: ignore[reportArgumentType]
-
+        elif isinstance(arg, TypeVar):
+            return TypeVarConstraint(arg, BaseAttr(cls))  # pyright: ignore[reportReturnType]
         return BaseAttr(cls)
 
 
@@ -636,20 +652,21 @@ Bitwidths: `<B`: 1-8, `<H`: 9-16, `<I`: 17-32, `<Q`: 33-64.
 
 @irdl_attr_definition
 class IntegerType(
-    Generic[_IntT],
+    Generic[_IntCovT, SignednessCovT],
     ParametrizedAttribute,
     StructPackableType[int],
     FixedBitwidthType,
     BuiltinAttribute,
 ):
     name = "integer_type"
-    width: IntAttr[_IntT]
-    signedness: SignednessAttr
+    width: IntAttr[_IntCovT]
+    signedness: SignednessAttr[SignednessCovT]
 
     def __init__(
         self,
-        data: _IntT | IntAttr[_IntT],
-        signedness: Signedness | SignednessAttr = Signedness.SIGNLESS,
+        data: _IntCovT | IntAttr[_IntCovT],
+        signedness: SignednessCovT
+        | SignednessAttr[SignednessCovT] = Signedness.SIGNLESS,
     ) -> None:
         if isinstance(data, int):
             data = IntAttr(data)
@@ -748,16 +765,16 @@ class IntegerType(
         return f[format_index]
 
 
-i64 = IntegerType(64)
-i32 = IntegerType(32)
-i16 = IntegerType(16)
-i8 = IntegerType(8)
-i1 = IntegerType(1)
-I64 = Annotated[IntegerType, i64]
-I32 = Annotated[IntegerType, i32]
-I16 = Annotated[IntegerType, i16]
-I8 = Annotated[IntegerType, i8]
-I1 = Annotated[IntegerType, i1]
+i64 = IntegerType[64, Signedness.SIGNLESS](64)
+i32 = IntegerType[32, Signedness.SIGNLESS](32)
+i16 = IntegerType[16, Signedness.SIGNLESS](16)
+i8 = IntegerType[8, Signedness.SIGNLESS](8)
+i1 = IntegerType[1, Signedness.SIGNLESS](1)
+I64 = IntegerType[64, Signedness.SIGNLESS]
+I32 = IntegerType[32, Signedness.SIGNLESS]
+I16 = IntegerType[16, Signedness.SIGNLESS]
+I8 = IntegerType[8, Signedness.SIGNLESS]
+I1 = IntegerType[1, Signedness.SIGNLESS]
 
 _IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
 
@@ -895,9 +912,9 @@ class IntegerAttr(
 
     @overload
     def __init__(
-        self: IntegerAttr[IntegerType],
+        self: IntegerAttr[IntegerType[_IntCovT, Literal[Signedness.SIGNLESS]]],
         value: int | IntAttr,
-        value_type: int,
+        value_type: _IntCovT,
         *,
         truncate_bits: bool = False,
     ) -> None: ...
@@ -905,7 +922,7 @@ class IntegerAttr(
     def __init__(
         self,
         value: int | IntAttr,
-        value_type: int | IntegerType | IndexType,
+        value_type: _IntCovT | IntegerType[_IntCovT] | IndexType,
         *,
         truncate_bits: bool = False,
     ) -> None:
@@ -922,7 +939,9 @@ class IntegerAttr(
         super().__init__(IntAttr(value), value_type)
 
     @staticmethod
-    def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
+    def from_int_and_width(
+        value: int, width: _IntCovT
+    ) -> IntegerAttr[IntegerType[_IntCovT, Literal[Signedness.SIGNLESS]]]:
         return IntegerAttr(value, width)
 
     @staticmethod
@@ -964,7 +983,7 @@ class IntegerAttr(
 
     @staticmethod
     def constr(
-        type: AttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
+        type: IRDLAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
         *,
         value: AttrConstraint | IntConstraint | None = None,
     ) -> AttrConstraint[IntegerAttr[_IntegerAttrType]]:

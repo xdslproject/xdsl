@@ -52,12 +52,16 @@ from xdsl.utils.runtime_final import runtime_final
 from .constraints import (  # noqa: TID251
     AllOf,
     AnyAttr,
+    AnyInt,
     AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
     ConstraintVar,
+    DataEnum,
     EqAttrConstraint,
+    EqIntConstraint,
+    IntConstraint,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -524,7 +528,7 @@ def irdl_to_attr_constraint(
         and issubclass(origin, Generic)
     ):
         args = [
-            irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)
+            irdl_to_constraint(arg, allow_type_var=allow_type_var)
             for arg in get_args(irdl)
         ]
         generic_args = get_type_var_from_generic_class(origin)
@@ -579,6 +583,38 @@ def irdl_to_attr_constraint(
         )
 
     raise PyRDLTypeError(f"Unexpected irdl constraint: {irdl}")
+
+
+def irdl_to_constraint(
+    irdl: IRDLAttrConstraint[AttributeInvT] | int | type[int] | IntConstraint,
+    *,
+    allow_type_var: bool = False,
+) -> AttrConstraint[AttributeInvT] | IntConstraint:
+    if isinstance(irdl, IntConstraint):
+        return irdl
+
+    if isclass(irdl):
+        if issubclass(irdl, int):
+            return AnyInt()
+        if issubclass(irdl, DataEnum):
+            return irdl.to_constr(None)  # pyright: ignore[reportReturnType]
+
+    if get_origin(irdl) is Literal:
+        literal_args = get_args(irdl)
+        assert len(literal_args) == 1
+        value = literal_args[0]
+        if isinstance(value, int):
+            return EqIntConstraint(value)
+        if isinstance(value, DataEnum):
+            return value.to_constr(value)  # pyright: ignore[reportReturnType]
+
+    if isinstance(irdl, int):
+        return EqIntConstraint(irdl)
+
+    if isinstance(irdl, DataEnum):
+        return irdl.to_constr(irdl)  # pyright: ignore[reportReturnType]
+
+    return irdl_to_attr_constraint(irdl, allow_type_var=allow_type_var)
 
 
 def base(irdl: type[AttributeInvT]) -> AttrConstraint[AttributeInvT]:
