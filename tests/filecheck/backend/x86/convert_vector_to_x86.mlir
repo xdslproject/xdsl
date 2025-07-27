@@ -74,6 +74,14 @@
 
 // -----
 
+
+%v4, %v8 = "test.op"() : () -> (vector<4xf32>, vector<8xf32>)
+%r4 = vector.shuffle %v4, %v4 [0, 1, 2, 3] : vector<4xf32>, vector<4xf32>
+%r8 = vector.shuffle %v8, %v8 [0, 1, 2, 3, 0, 1, 2, 3] : vector<8xf32>, vector<8xf32>
+"test.op"(%r4, %r8) : (vector<4xf32>, vector<8xf32>) -> ()
+
+// -----
+
 // CHECK: Half-precision vector broadcast is not implemented yet.
 %ptr = "test.op"(): () -> !ptr_xdsl.ptr
 %s = ptr_xdsl.load %ptr : !ptr_xdsl.ptr -> f16

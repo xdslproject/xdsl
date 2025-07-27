@@ -5,6 +5,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, vector, x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
+    Float32Type,
     UnrealizedConversionCastOp,
     VectorType,
 )
@@ -16,7 +17,8 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, PassFailedException
+from xdsl.utils.hints import isa
 
 from .helpers import vector_type_to_register_type
 
@@ -103,6 +105,62 @@ class VectorFMAToX86(RewritePattern):
         )
 
 
+@dataclass
+class LowerShuffle(RewritePattern):
+    """
+    Lower vector shuffles of 1-D vectors.
+    The shuffle mask must encode continuous 64-bit shuffles.
+    """
+
+    arch: str
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: vector.ShuffleOp, rewriter: PatternRewriter):
+        result_type = op.result.type
+        result_shape = result_type.get_shape()
+        f32 = Float32Type()
+        mask = op.mask.get_values()
+        if (
+            result_type.element_type != f32
+            or len(result_shape) != 1
+            or result_shape[0] % 2
+        ):
+            raise PassFailedException(f"Cannot lower vectors of type {result_type}")
+
+        if len(mask) == 8 and mask[:4] != mask[4:]:
+            raise PassFailedException(f"Cannot lower shuffles with mask {mask}")
+
+        if op.v1 is not op.v2:
+            raise NotImplementedError(
+                "Only shuffles of same vector currently implemented."
+            )
+
+        source = op.v1
+        source_type = source.type
+        assert isa(source_type, VectorType)
+
+        x86_vect_type = vector_type_to_register_type(source_type, self.arch)
+        source_cast_op, source_new = UnrealizedConversionCastOp.cast_one(
+            source, x86_vect_type
+        )
+
+        bits_mask = "".join(f"{i:02b}" for i in mask[:4])
+        int_mask = int(bits_mask, base=2)
+
+        move_op = x86.DS_MovapsOp(source_new, destination=x86_vect_type)
+        shuffle_op = x86.IRS_ShufpsOp(
+            move_op.destination,
+            source_new,
+            int_mask,
+            comment=f"Shuffle with indices {mask}",
+        )
+
+        res_cast_op, _ = UnrealizedConversionCastOp.cast_one(
+            shuffle_op.register_out, x86_vect_type
+        )
+        rewriter.replace_matched_op([source_cast_op, move_op, shuffle_op, res_cast_op])
+
+
 @dataclass(frozen=True)
 class ConvertVectorToX86Pass(ModulePass):
     name = "convert-vector-to-x86"
@@ -115,6 +173,7 @@ class ConvertVectorToX86Pass(ModulePass):
                 [
                     VectorFMAToX86(self.arch),
                     VectorBroadcastToX86(self.arch),
+                    LowerShuffle(self.arch),
                 ]
             ),
             apply_recursively=False,
