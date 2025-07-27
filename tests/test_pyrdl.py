@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntAttrConstraint,
     IntegerType,
+    Signedness,
     SignednessAttr,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
@@ -454,6 +455,16 @@ def test_irdl_to_attr_constraint():
             BaseAttr(SignednessAttr),
         ),
     )
+
+    assert irdl_to_attr_constraint(Signedness.SIGNED) == EqAttrConstraint(
+        SignednessAttr(Signedness.SIGNED)
+    )
+
+    assert irdl_to_attr_constraint(Signedness) == BaseAttr(SignednessAttr)
+    assert irdl_to_attr_constraint(SignednessAttr) == BaseAttr(SignednessAttr)
+    assert irdl_to_attr_constraint(
+        SignednessAttr[Signedness.SIGNED]
+    ) == EqAttrConstraint(SignednessAttr(Signedness.SIGNED))
 
 
 def test_get_constraint():

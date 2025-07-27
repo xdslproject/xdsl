@@ -52,6 +52,8 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    ConstraintConvertible,
+    EqAttrConstraint,
     GenericData,
     IntConstraint,
     IntTypeVarConstraint,
@@ -414,7 +416,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         return type(self)(self.int_constraint.mapping_type_vars(type_var_mapping))
 
 
-class Signedness(Enum):
+class Signedness(ConstraintConvertible, Enum):
     "Signedness semantics for integer"
 
     SIGNLESS = 0
@@ -439,20 +441,33 @@ class Signedness(Enum):
             case Signedness.UNSIGNED:
                 return unsigned_value_range(bitwidth)
 
+    @staticmethod
+    def base_constr() -> AttrConstraint[SignednessAttr]:
+        """The constraint for this class."""
+        return BaseAttr(SignednessAttr)
+
+    def constr(self) -> AttrConstraint[SignednessAttr]:
+        return EqAttrConstraint(SignednessAttr(self))
+
+
+SignednessCovT = TypeVar(
+    "SignednessCovT", bound=Signedness, default=Signedness, covariant=True
+)
+
 
 @irdl_attr_definition
-class SignednessAttr(Data[Signedness]):
+class SignednessAttr(Generic[SignednessCovT], GenericData[SignednessCovT]):
     name = "builtin.signedness"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> Signedness:
+    def parse_parameter(cls, parser: AttrParser) -> SignednessCovT:
         with parser.in_angle_brackets():
             if parser.parse_optional_keyword("signless") is not None:
-                return Signedness.SIGNLESS
+                return Signedness.SIGNLESS  # pyright: ignore[reportReturnType]
             if parser.parse_optional_keyword("signed") is not None:
-                return Signedness.SIGNED
+                return Signedness.SIGNED  # pyright: ignore[reportReturnType]
             if parser.parse_optional_keyword("unsigned") is not None:
-                return Signedness.UNSIGNED
+                return Signedness.UNSIGNED  # pyright: ignore[reportReturnType]
             parser.raise_error("`signless`, `signed`, or `unsigned` expected")
 
     def print_parameter(self, printer: Printer) -> None:
@@ -466,6 +481,10 @@ class SignednessAttr(Data[Signedness]):
                 printer.print_string("unsigned")
             else:
                 raise ValueError(f"Invalid signedness {data}")
+
+    @staticmethod
+    def constr() -> AttrConstraint:
+        return TypeVarConstraint(SignednessCovT, BaseAttr(SignednessAttr))
 
 
 class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
