@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -13,7 +14,7 @@ from typing import (
     cast,
 )
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import Self, TypeVar, deprecated
 
 from xdsl.ir import (
     Attribute,
@@ -1225,3 +1226,9 @@ class SingleOf(RangeConstraint[AttributeCovT]):
         self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> SingleOf[AttributeCovT]:
         return SingleOf(self.constr.mapping_type_vars(type_var_mapping))
+
+
+class DataEnum(Enum):
+    @classmethod
+    @abstractmethod
+    def to_constr(cls, value: Self | None) -> AttrConstraint: ...
