@@ -2963,7 +2963,7 @@ class RSS_Vfmadd231psOp(
 
 
 @irdl_op_definition
-class RS_VmovapdOp(RS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
+class DS_VmovapdOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to zmm2 using
     writemask k1
@@ -2971,7 +2971,7 @@ class RS_VmovapdOp(RS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/movapd).
     """
 
-    name = "x86.rs.vmovapd"
+    name = "x86.ds.vmovapd"
 
 
 @irdl_op_definition
