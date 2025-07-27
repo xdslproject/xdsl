@@ -9,8 +9,10 @@ import pytest
 from typing_extensions import Self, TypeVar
 
 from xdsl.dialects.builtin import (
+    I32,
     IntAttr,
     IntAttrConstraint,
+    IntegerAttr,
     IntegerType,
     Signedness,
     SignednessAttr,
@@ -465,6 +467,30 @@ def test_irdl_to_attr_constraint():
     assert irdl_to_attr_constraint(
         SignednessAttr[Signedness.SIGNED]
     ) == EqAttrConstraint(SignednessAttr(Signedness.SIGNED))
+
+    assert irdl_to_attr_constraint(IntegerAttr[I32]) == ParamAttrConstraint(
+        IntegerAttr,
+        (
+            BaseAttr(IntAttr),
+            ParamAttrConstraint(
+                IntegerType,
+                (
+                    IntAttrConstraint(EqIntConstraint(32)),
+                    EqAttrConstraint(SignednessAttr(Signedness.SIGNLESS)),
+                ),
+            ),
+        ),
+    )
+    assert irdl_to_attr_constraint(IntegerAttr[IntegerType[32]]) == ParamAttrConstraint(
+        IntegerAttr,
+        (
+            BaseAttr(IntAttr),
+            ParamAttrConstraint(
+                IntegerType,
+                (IntAttrConstraint(EqIntConstraint(32)), BaseAttr(SignednessAttr)),
+            ),
+        ),
+    )
 
 
 def test_get_constraint():

@@ -264,9 +264,10 @@ class FormatParser(BaseParser):
                     var_constraint_names, length_known=True
                 ):
                     self.raise_error(
-                        f"type of operand '{operand_name}' cannot be inferred, "
-                        f"consider adding a 'type(${operand_name})' directive to the "
-                        "custom assembly format"
+                        f"type of operand '{operand_name}' cannot be inferred from "
+                        f"constraint {operand_def.constr}, consider adding a "
+                        f"'type(${operand_name})' directive to the custom assembly "
+                        "format"
                     )
 
     def verify_results(self, var_constraint_names: AbstractSet[str]):
