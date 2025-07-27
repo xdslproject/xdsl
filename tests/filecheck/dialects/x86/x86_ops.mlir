@@ -351,8 +351,8 @@ func.func @funcyasm() {
 
 %rrr_vfmadd231pd_sse = x86.rss.vfmadd231pd %xmm0, %xmm1, %xmm2 : (!x86.ssereg, !x86.ssereg, !x86.ssereg) -> !x86.ssereg
 // CHECK: %{{.*}} = x86.rss.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.ssereg, !x86.ssereg, !x86.ssereg) -> !x86.ssereg
-%rr_vmovapd_sse = x86.ds.vmovapd %xmm1 : (!x86.ssereg) -> !x86.ssereg
-// CHECK-NEXT: %rr_vmovapd_sse = x86.ds.vmovapd %xmm1 : (!x86.ssereg) -> !x86.ssereg
+%rr_vmovapd_sse = x86.ds.movapd %xmm1 : (!x86.ssereg) -> !x86.ssereg
+// CHECK-NEXT: %rr_vmovapd_sse = x86.ds.movapd %xmm1 : (!x86.ssereg) -> !x86.ssereg
 x86.ms.vmovapd %0, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.ms.vmovapd %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.ssereg) -> ()
 %rm_vbroadcastsd_sse = x86.dm.vbroadcastsd %0, 8 : (!x86.reg) -> !x86.ssereg
@@ -362,8 +362,8 @@ x86.ms.vmovapd %0, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
 
 %rrr_vfmadd231pd_avx2 = x86.rss.vfmadd231pd %ymm0, %ymm1, %ymm2 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
 // CHECK: %{{.*}} = x86.rss.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
-%rr_vmovapd_avx2 = x86.ds.vmovapd %ymm1 : (!x86.avx2reg) -> !x86.avx2reg
-// CHECK-NEXT: %rr_vmovapd_avx2 = x86.ds.vmovapd %ymm1 : (!x86.avx2reg) -> !x86.avx2reg
+%rr_vmovapd_avx2 = x86.ds.movapd %ymm1 : (!x86.avx2reg) -> !x86.avx2reg
+// CHECK-NEXT: %rr_vmovapd_avx2 = x86.ds.movapd %ymm1 : (!x86.avx2reg) -> !x86.avx2reg
 x86.ms.vmovapd %0, %ymm1, 8 : (!x86.reg, !x86.avx2reg) -> ()
 // CHECK-NEXT: x86.ms.vmovapd %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.avx2reg) -> ()
 %rm_vbroadcastsd_avx2 = x86.dm.vbroadcastsd %0, 8 : (!x86.reg) -> !x86.avx2reg
@@ -377,8 +377,8 @@ x86.ms.vmovapd %0, %ymm1, 8 : (!x86.reg, !x86.avx2reg) -> ()
 
 %rrr_vfmadd231pd_avx512 = x86.rss.vfmadd231pd %zmm0, %zmm1, %zmm2 : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 // CHECK: %{{.*}} = x86.rss.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
-%rr_vmovapd_avx512 = x86.ds.vmovapd %zmm1 : (!x86.avx512reg) -> !x86.avx512reg
-// CHECK-NEXT: %rr_vmovapd_avx512 = x86.ds.vmovapd %zmm1 : (!x86.avx512reg) -> !x86.avx512reg
+%rr_vmovapd_avx512 = x86.ds.movapd %zmm1 : (!x86.avx512reg) -> !x86.avx512reg
+// CHECK-NEXT: %rr_vmovapd_avx512 = x86.ds.movapd %zmm1 : (!x86.avx512reg) -> !x86.avx512reg
 x86.ms.vmovapd %0, %zmm1, 8 : (!x86.reg, !x86.avx512reg) -> ()
 // CHECK-NEXT: x86.ms.vmovapd %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.avx512reg) -> ()
 %rm_vbroadcastsd_avx512 = x86.dm.vbroadcastsd %0, 8 : (!x86.reg) -> !x86.avx512reg
