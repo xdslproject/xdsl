@@ -5,6 +5,7 @@ from xdsl.dialects.builtin import (
     I32,
     I64,
     AnyAttr,
+    AnyFloatConstr,
     BoolAttr,
     DenseArrayBase,
     FloatAttr,
@@ -181,6 +182,45 @@ class MulOp(ElementwiseBinaryOperation):
     )
 
 
+class ElementwiseTrigOperation(IRDLOperation, ABC):
+    """
+    Abstract base class for elementwise trig operations on tensors of floating-point types
+    """
+
+    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+
+    input1 = operand_def(TensorType.constr(T))
+    result = result_def(TensorType.constr(T))
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+
+@irdl_op_definition
+class SinOp(ElementwiseTrigOperation):
+    """
+    TOSA dialect operation computing sin(x) for each element in a tensor
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosasin-mlirtosasinop)
+    """
+
+    name = "tosa.sin"
+
+
+@irdl_op_definition
+class CosOp(ElementwiseTrigOperation):
+    """
+    TOSA dialect operation computing cos(x) for each element in a tensor
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosacos-mlirtosacosop)
+    """
+
+    name = "tosa.cos"
+
+
 TOSA = Dialect(
     "tosa",
     [
@@ -189,6 +229,8 @@ TOSA = Dialect(
         AddOp,
         SubOp,
         MulOp,
+        SinOp,
+        CosOp,
     ],
     [],
 )
