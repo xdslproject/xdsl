@@ -50,36 +50,36 @@ x86_func.func @matmul(%rdi: !x86.reg<rdi>, %rsi: !x86.reg<rsi>, %rcx: !x86.reg<r
 }
 
 // CHECK:       matmul:
-// CHECK-NEXT:      vmovups ymm7, [rdi]
-// CHECK-NEXT:      vmovups ymm6, [rdi+32]
-// CHECK-NEXT:      vmovups ymm5, [rdi+64]
-// CHECK-NEXT:      vmovups ymm4, [rdi+96]
-// CHECK-NEXT:      vmovups ymm3, [rcx]
-// CHECK-NEXT:      vmovups ymm2, [rcx+32]
-// CHECK-NEXT:      vmovups ymm1, [rcx+64]
-// CHECK-NEXT:      vmovups ymm0, [rcx+96]
-// CHECK-NEXT:      vbroadcastss ymm8, [rsi]
-// CHECK-NEXT:      vfmadd231ps ymm3, ymm8, ymm7
-// CHECK-NEXT:      vfmadd231ps ymm2, ymm8, ymm6
-// CHECK-NEXT:      vfmadd231ps ymm1, ymm8, ymm5
-// CHECK-NEXT:      vfmadd231ps ymm0, ymm8, ymm4
-// CHECK-NEXT:      vbroadcastss ymm8, [rsi+4]
-// CHECK-NEXT:      vfmadd231ps ymm3, ymm8, ymm7
-// CHECK-NEXT:      vfmadd231ps ymm2, ymm8, ymm6
-// CHECK-NEXT:      vfmadd231ps ymm1, ymm8, ymm5
-// CHECK-NEXT:      vfmadd231ps ymm0, ymm8, ymm4
-// CHECK-NEXT:      vbroadcastss ymm10, [rsi+8]
-// CHECK-NEXT:      vfmadd231ps ymm3, ymm10, ymm7
-// CHECK-NEXT:      vfmadd231ps ymm2, ymm10, ymm6
-// CHECK-NEXT:      vfmadd231ps ymm1, ymm10, ymm5
-// CHECK-NEXT:      vfmadd231ps ymm0, ymm10, ymm4
-// CHECK-NEXT:      vbroadcastss ymm11, [rsi+12]
-// CHECK-NEXT:      vfmadd231ps ymm3, ymm11, ymm7
-// CHECK-NEXT:      vfmadd231ps ymm2, ymm11, ymm6
-// CHECK-NEXT:      vfmadd231ps ymm1, ymm11, ymm5
-// CHECK-NEXT:      vfmadd231ps ymm0, ymm11, ymm4
-// CHECK-NEXT:      vmovups [rcx], ymm3
-// CHECK-NEXT:      vmovups [rcx+32], ymm2
-// CHECK-NEXT:      vmovups [rcx+64], ymm1
-// CHECK-NEXT:      vmovups [rcx+96], ymm0
+// CHECK-NEXT:      vmovups %ymm7, [%rdi]
+// CHECK-NEXT:      vmovups %ymm6, [%rdi+32]
+// CHECK-NEXT:      vmovups %ymm5, [%rdi+64]
+// CHECK-NEXT:      vmovups %ymm4, [%rdi+96]
+// CHECK-NEXT:      vmovups %ymm3, [%rcx]
+// CHECK-NEXT:      vmovups %ymm2, [%rcx+32]
+// CHECK-NEXT:      vmovups %ymm1, [%rcx+64]
+// CHECK-NEXT:      vmovups %ymm0, [%rcx+96]
+// CHECK-NEXT:      vbroadcastss %ymm8, [%rsi]
+// CHECK-NEXT:      vfmadd231ps %ymm3, %ymm8, %ymm7
+// CHECK-NEXT:      vfmadd231ps %ymm2, %ymm8, %ymm6
+// CHECK-NEXT:      vfmadd231ps %ymm1, %ymm8, %ymm5
+// CHECK-NEXT:      vfmadd231ps %ymm0, %ymm8, %ymm4
+// CHECK-NEXT:      vbroadcastss %ymm8, [%rsi+4]
+// CHECK-NEXT:      vfmadd231ps %ymm3, %ymm8, %ymm7
+// CHECK-NEXT:      vfmadd231ps %ymm2, %ymm8, %ymm6
+// CHECK-NEXT:      vfmadd231ps %ymm1, %ymm8, %ymm5
+// CHECK-NEXT:      vfmadd231ps %ymm0, %ymm8, %ymm4
+// CHECK-NEXT:      vbroadcastss %ymm10, [%rsi+8]
+// CHECK-NEXT:      vfmadd231ps %ymm3, %ymm10, %ymm7
+// CHECK-NEXT:      vfmadd231ps %ymm2, %ymm10, %ymm6
+// CHECK-NEXT:      vfmadd231ps %ymm1, %ymm10, %ymm5
+// CHECK-NEXT:      vfmadd231ps %ymm0, %ymm10, %ymm4
+// CHECK-NEXT:      vbroadcastss %ymm11, [%rsi+12]
+// CHECK-NEXT:      vfmadd231ps %ymm3, %ymm11, %ymm7
+// CHECK-NEXT:      vfmadd231ps %ymm2, %ymm11, %ymm6
+// CHECK-NEXT:      vfmadd231ps %ymm1, %ymm11, %ymm5
+// CHECK-NEXT:      vfmadd231ps %ymm0, %ymm11, %ymm4
+// CHECK-NEXT:      vmovups [%rcx], %ymm3
+// CHECK-NEXT:      vmovups [%rcx+32], %ymm2
+// CHECK-NEXT:      vmovups [%rcx+64], %ymm1
+// CHECK-NEXT:      vmovups [%rcx+96], %ymm0
 // CHECK-NEXT:      ret
