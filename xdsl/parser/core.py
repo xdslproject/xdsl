@@ -18,7 +18,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import IRDLOperation
-from xdsl.utils.exceptions import MultipleSpansParseError
+from xdsl.utils.exceptions import MultipleSpansParseError, ParseError, VerifyException
 from xdsl.utils.lexer import Input, Span
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
 
@@ -708,7 +708,22 @@ class Parser(AttrParser):
             op_type = self._get_op_by_name(op_name.text)
             dialect_name = op_type.dialect_name()
             self._parser_state.dialect_stack.append(dialect_name)
-            op = op_type.parse(self)
+            op_start = self.pos
+            try:
+                op = op_type.parse(self)
+            except ParseError:
+                # If the error raised is a ParseError, let it propagate
+                raise
+            except VerifyException:
+                # If the error raised is a VerifyException, let it propagate
+                raise
+            except Exception as e:
+                # Otherwise convert errors to ParseErrors
+                op_end = self.pos
+                raise ParseError(
+                    Span(op_start, op_end, self.lexer.input),
+                    f"Error during parsing: {e}",
+                ) from e
             self._parser_state.dialect_stack.pop()
         else:
             # Generic operation format
