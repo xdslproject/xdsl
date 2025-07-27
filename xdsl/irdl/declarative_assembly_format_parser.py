@@ -523,7 +523,6 @@ class FormatParser(BaseParser):
                     # for xDSL right now.
                     unique_base = None
 
-
             return AttributeVariable(
                 variable_name,
                 is_property,
