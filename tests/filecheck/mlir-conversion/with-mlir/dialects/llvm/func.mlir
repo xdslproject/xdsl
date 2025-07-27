@@ -27,22 +27,22 @@
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    "llvm.func"() <{
-// CHECK:            CConv = #llvm.cconv<ccc>,
-// CHECK:            arg_attrs = [{llvm.noundef}, {llvm.noundef}],
-// CHECK:            frame_pointer = #llvm.framePointerKind<"non-leaf">,
-// CHECK:            function_type = !llvm.func<i32 (i32, i32)>,
-// CHECK:            linkage = #llvm.linkage<"external">,
-// CHECK:            no_inline,
-// CHECK:            no_unwind,
-// CHECK:            optimize_none,
-// CHECK:            passthrough = [["no-trapping-math", "true"]],
-// CHECK:            sym_name = "add",
-// CHECK:            target_cpu = "x86-64",
-// CHECK:            target_features = #llvm.target_features<["+mmx"]>,
-// CHECK:            tune_cpu = "generic",
-// CHECK:            unnamed_addr = 0 : i64,
-// CHECK:            visibility_ = 0 : i64
-// CHECK:         }> ({
+// CHECK-SAME:            CConv = #llvm.cconv<ccc>,
+// CHECK-SAME:            arg_attrs = [{llvm.noundef}, {llvm.noundef}],
+// CHECK-SAME:            frame_pointer = #llvm.framePointerKind<"non-leaf">,
+// CHECK-SAME:            function_type = !llvm.func<i32 (i32, i32)>,
+// CHECK-SAME:            linkage = #llvm.linkage<"external">,
+// CHECK-SAME:            no_inline,
+// CHECK-SAME:            no_unwind,
+// CHECK-SAME:            optimize_none,
+// CHECK-SAME:            passthrough = [["no-trapping-math", "true"]],
+// CHECK-SAME:            sym_name = "add",
+// CHECK-SAME:            target_cpu = "x86-64",
+// CHECK-SAME:            target_features = #llvm.target_features<["+mmx"]>,
+// CHECK-SAME:            tune_cpu = "generic",
+// CHECK-SAME:            unnamed_addr = 0 : i64,
+// CHECK-SAME:            visibility_ = 0 : i64
+// CHECK-SAME:         }> ({
 // CHECK-NEXT:    ^0(%arg0 : i32, %arg1 : i32):
 // CHECK-NEXT:      "llvm.return"(%arg0) : (i32) -> ()
 // CHECK-NEXT:    }) : () -> ()
