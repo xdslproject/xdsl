@@ -465,19 +465,24 @@ class Signedness(Enum):
                 return unsigned_value_range(bitwidth)
 
 
+SignednessCovT = TypeVar(
+    "SignednessCovT", bound=Signedness, default=Signedness, covariant=True
+)
+
+
 @irdl_attr_definition
-class SignednessAttr(Data[Signedness]):
+class SignednessAttr(Generic[SignednessCovT], GenericData[SignednessCovT]):
     name = "builtin.signedness"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> Signedness:
+    def parse_parameter(cls, parser: AttrParser) -> SignednessCovT:
         with parser.in_angle_brackets():
             if parser.parse_optional_keyword("signless") is not None:
-                return Signedness.SIGNLESS
+                return Signedness.SIGNLESS  # pyright: ignore[reportReturnType]
             if parser.parse_optional_keyword("signed") is not None:
-                return Signedness.SIGNED
+                return Signedness.SIGNED  # pyright: ignore[reportReturnType]
             if parser.parse_optional_keyword("unsigned") is not None:
-                return Signedness.UNSIGNED
+                return Signedness.UNSIGNED  # pyright: ignore[reportReturnType]
             parser.raise_error("`signless`, `signed`, or `unsigned` expected")
 
     def print_parameter(self, printer: Printer) -> None:
@@ -491,6 +496,19 @@ class SignednessAttr(Data[Signedness]):
                 printer.print_string("unsigned")
             else:
                 raise ValueError(f"Invalid signedness {data}")
+
+    @classmethod
+    def generic_args_constraint(cls, *args: Any) -> AttrConstraint[Self]:
+        assert len(args) == 1, args
+        arg = args[0]
+
+        if get_origin(arg) is Literal:
+            values = get_args(arg)
+            assert len(values) == 1
+            assert isinstance(value := values[0], Signedness)
+            return EqAttrConstraint(cls(value))  # pyright: ignore[reportArgumentType]
+
+        return BaseAttr(cls)
 
 
 class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
