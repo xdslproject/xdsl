@@ -1,11 +1,12 @@
 from abc import ABC
-from typing import ClassVar
+from typing import ClassVar, Generic
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I32,
     I64,
     AnyAttr,
-    AnyFloatConstr,
+    AnyFloat,
     BoolAttr,
     DenseArrayBase,
     FloatAttr,
@@ -187,15 +188,16 @@ class MulOp(ElementwiseBinaryOperation):
     )
 
 
-class ElementwiseUnaryOperation(ElementwiseOperation):
+TInv = TypeVar("TInv", bound=TensorType)
+
+
+class ElementwiseUnaryOperation(Generic[TInv], ElementwiseOperation):
     """
     Abstract base class for elementwise unary operations on tensors of floating-point types
     """
 
-    T: ClassVar = VarConstraint("T", AnyFloatConstr)
-
-    input1 = operand_def(TensorType.constr(T))
-    result = result_def(TensorType.constr(T))
+    input1 = operand_def(TInv)
+    result = result_def(TInv)
 
     traits = traits_def(
         Pure(),
@@ -205,7 +207,7 @@ class ElementwiseUnaryOperation(ElementwiseOperation):
 
 
 @irdl_op_definition
-class SinOp(ElementwiseUnaryOperation):
+class SinOp(ElementwiseUnaryOperation[TensorType[AnyFloat]]):
     """
     TOSA dialect operation computing sin(x) for each element in a tensor
 
@@ -216,7 +218,7 @@ class SinOp(ElementwiseUnaryOperation):
 
 
 @irdl_op_definition
-class CosOp(ElementwiseUnaryOperation):
+class CosOp(ElementwiseUnaryOperation[TensorType[AnyFloat]]):
     """
     TOSA dialect operation computing cos(x) for each element in a tensor
 
