@@ -1,7 +1,6 @@
 from xdsl.context import Context
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.test import Test, TestOp
-from xdsl.ir import Use
 from xdsl.parser import Parser
 
 test_prog = """
@@ -24,8 +23,11 @@ def test_main():
     assert isinstance(module, ModuleOp)
 
     op1, op2 = list(module.ops)
-    assert set(op1.results[0].uses) == {Use(op2, 0), Use(op2, 1)}
-    assert not op2.results[0].uses
+    assert set((use.operation, use.index) for use in op1.results[0].uses) == {
+        (op2, 0),
+        (op2, 1),
+    }
+    assert set(op2.results[0].uses) == set()
 
 
 def test_uses_methods():
@@ -58,7 +60,9 @@ def test_uses_methods():
     assert not res2.has_more_than_one_use()
 
     assert res0.get_unique_use() is None
-    assert res1.get_unique_use() == Use(op2, 0)
+    assert (use := res1.get_unique_use()) is not None
+    assert use.operation == op2
+    assert use.index == 0
     assert res2.get_unique_use() is None
 
     assert res0.get_user_of_unique_use() is None
