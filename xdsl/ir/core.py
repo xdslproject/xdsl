@@ -554,6 +554,13 @@ class IRUses(Iterable[Use]):
         """Returns `True` if there are operations in this block."""
         return bool(self.ir._uses)  # pyright: ignore[reportPrivateUsage]
 
+    def get_length(self) -> int:
+        """
+        Returns the number of uses.
+        We do not expose it as `__len__` as it is expensive to compute `O(len)`.
+        """
+        return len(self.ir._uses)  # pyright: ignore[reportPrivateUsage]
+
 
 @dataclass(eq=False)
 class IRWithUses(ABC):
@@ -575,6 +582,32 @@ class IRWithUses(ABC):
         """Remove a use of the value."""
         assert use in self._uses, "use to be removed was not in use list"
         self._uses.remove(use)
+
+    def has_one_use(self) -> bool:
+        """Returns true if the value has exactly one use."""
+        return len(self._uses) == 1
+
+    def has_more_than_one_use(self) -> bool:
+        """Returns true if the value has more than one use."""
+        return len(self._uses) > 1
+
+    def get_unique_use(self) -> Use | None:
+        """
+        Returns the single use of the value, or None if there are no uses or
+        more than one use.
+        """
+        if self.has_one_use():
+            return next(iter(self._uses))
+        return None
+
+    def get_user_of_unique_use(self) -> Operation | None:
+        """
+        Returns the user of the single use of the value.
+        If there are no uses or more than one use, returns None.
+        """
+        if (use := self.get_unique_use()) is not None:
+            return use.operation
+        return None
 
 
 @dataclass(eq=False)
@@ -679,7 +712,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         If safe_erase is True, then check that no operations use the value anymore.
         If safe_erase is False, then replace its uses by an ErasedSSAValue.
         """
-        if safe_erase and len(self.uses) != 0:
+        if safe_erase and self.uses:
             raise ValueError(
                 "Attempting to delete SSA value that still has uses of result "
                 f"of operation:\n{self.owner}"
@@ -712,7 +745,12 @@ class OpResult(Generic[AttributeCovT], SSAValue[AttributeCovT]):
         return self.op
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, operation: {self.op.name}, uses: {len(self.uses)}>"
+        return (
+            f"<{self.__class__.__name__}[{self.type}]"
+            f" index: {self.index},"
+            f" operation: {self.op.name},"
+            f" uses: {self.uses.get_length()}>"
+        )
 
 
 @dataclass(eq=False)
@@ -730,7 +768,11 @@ class BlockArgument(Generic[AttributeCovT], SSAValue[AttributeCovT]):
         return self.block
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, uses: {len(self.uses)}>"
+        return (
+            f"<{self.__class__.__name__}[{self.type}]"
+            f" index: {self.index},"
+            f" uses: {self.uses.get_length()}>"
+        )
 
 
 @dataclass(eq=False)
