@@ -737,7 +737,6 @@ class FormatParser(BaseParser):
         param_types = directive.parameters
         params = list[FormatDirective]()
         with self.in_parens():
-            self.parse_comma_separated_list
             for i, (field, ty) in enumerate(param_types.items()):
                 if i:
                     self.parse_punctuation(",")
