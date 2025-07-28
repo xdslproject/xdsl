@@ -2,6 +2,7 @@ from abc import ABC
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
+    I1,
     I32,
     I64,
     AnyAttr,
@@ -23,10 +24,19 @@ from xdsl.irdl import (
     operand_def,
     opt_prop_def,
     prop_def,
+    region_def,
     result_def,
     traits_def,
+    var_operand_def,
+    var_result_def,
 )
-from xdsl.traits import Commutative, Pure
+from xdsl.traits import (
+    Commutative,
+    IsTerminator,
+    Pure,
+    RecursiveMemoryEffect,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -221,6 +231,68 @@ class CosOp(ElementwiseTrigOperation):
     name = "tosa.cos"
 
 
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    """
+    TOSA operation for returning out of conditional and body of structured control flow
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosayield-mlirtosayieldop)
+    """
+
+    name = "tosa.yield"
+
+    inputs = var_operand_def(TensorType)
+
+    traits = traits_def(
+        IsTerminator(),
+        Pure(),
+    )
+
+
+@irdl_op_definition
+class WhileOp(IRDLOperation):
+    """
+    TOSA operation for representing the foreach or while iterative loop structure
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosawhile_loop-mlirtosawhileop)
+    """
+
+    name = "tosa.while_loop"
+
+    input_list = var_operand_def(TensorType)
+    output_list = var_result_def(TensorType)
+
+    body = region_def()
+
+    traits = traits_def(
+        RecursiveMemoryEffect(),
+        SingleBlockImplicitTerminator(YieldOp),
+    )
+
+
+@irdl_op_definition
+class IfOp(IRDLOperation):
+    """
+    TOSA operation for evaluating a bool condition and taking one of two distinct paths
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosacond_if-mlirtosaifop)
+    """
+
+    name = "tosa.cond_if"
+
+    condition = operand_def(TensorType.constr(I1))
+    input_list = var_operand_def(TensorType)
+    output_list = var_result_def(TensorType)
+
+    true_region = region_def()
+    false_region = region_def()
+
+    traits = traits_def(
+        RecursiveMemoryEffect(),
+        SingleBlockImplicitTerminator(YieldOp),
+    )
+
+
 TOSA = Dialect(
     "tosa",
     [
@@ -231,6 +303,9 @@ TOSA = Dialect(
         MulOp,
         SinOp,
         CosOp,
+        YieldOp,
+        WhileOp,
+        IfOp,
     ],
     [],
 )
