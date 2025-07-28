@@ -1,12 +1,14 @@
 from abc import ABC
-from typing import ClassVar
+from typing import ClassVar, Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I1,
     I32,
     I64,
     AnyAttr,
-    AnyFloatConstr,
+    AnyFloat,
     BoolAttr,
     DenseArrayBase,
     FloatAttr,
@@ -122,7 +124,19 @@ class RescaleOp(IRDLOperation):
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
 
 
-class ElementwiseBinaryOperation(IRDLOperation, ABC):
+class ElementwiseOperation(IRDLOperation, ABC):
+    """
+    Abstract superclass for elementwise TOSA operations
+    """
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+
+class ElementwiseBinaryOperation(ElementwiseOperation):
     """
     Abstract superclass for elementwise, binary TOSA operations.
     """
@@ -132,12 +146,6 @@ class ElementwiseBinaryOperation(IRDLOperation, ABC):
     input1 = operand_def(TensorType.constr(T))
     input2 = operand_def(TensorType.constr(T))
     output = result_def(TensorType.constr(T))
-
-    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
-
-    traits = traits_def(
-        Pure(),
-    )
 
     def verify_(self) -> None:
         t1 = self.input1.type
@@ -187,30 +195,24 @@ class MulOp(ElementwiseBinaryOperation):
     name = "tosa.mul"
 
     traits = traits_def(
-        Pure(),
         Commutative(),
     )
 
 
-class ElementwiseTrigOperation(IRDLOperation, ABC):
+TInv = TypeVar("TInv", bound=TensorType)
+
+
+class ElementwiseUnaryOperation(Generic[TInv], ElementwiseOperation):
     """
-    Abstract base class for elementwise trig operations on tensors of floating-point types
+    Abstract base class for elementwise unary operations on tensors of floating-point types
     """
 
-    T: ClassVar = VarConstraint("T", AnyFloatConstr)
-
-    input1 = operand_def(TensorType.constr(T))
-    result = result_def(TensorType.constr(T))
-
-    traits = traits_def(
-        Pure(),
-    )
-
-    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+    input1 = operand_def(TInv)
+    result = result_def(TInv)
 
 
 @irdl_op_definition
-class SinOp(ElementwiseTrigOperation):
+class SinOp(ElementwiseUnaryOperation[TensorType[AnyFloat]]):
     """
     TOSA dialect operation computing sin(x) for each element in a tensor
 
@@ -221,7 +223,7 @@ class SinOp(ElementwiseTrigOperation):
 
 
 @irdl_op_definition
-class CosOp(ElementwiseTrigOperation):
+class CosOp(ElementwiseUnaryOperation[TensorType[AnyFloat]]):
     """
     TOSA dialect operation computing cos(x) for each element in a tensor
 
