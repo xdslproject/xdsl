@@ -13,7 +13,14 @@ from typing import Any, Literal, cast
 
 from typing_extensions import TypeVar
 
-from xdsl.dialects.builtin import StringAttr, UnitAttr
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    BytesAttr,
+    DenseArrayBase,
+    IntegerType,
+    StringAttr,
+    UnitAttr,
+)
 from xdsl.ir import (
     Attribute,
     Data,
@@ -33,6 +40,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import PunctuationSpelling
 
 
@@ -1213,6 +1221,51 @@ class TypedAttributeVariable(UniqueBaseAttributeVariable):
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
         assert isinstance(attr, TypedAttribute)
         return attr.print_without_type(printer)
+
+
+@dataclass(frozen=True)
+class DenseArrayAttributeVariable(AttributeVariable):
+    elt_type: IntegerType | AnyFloat
+
+    def parse_attr(self, parser: Parser) -> Attribute | None:
+        if isinstance(self.elt_type, IntegerType):
+            if self.is_optional:
+                elements = parser.parse_optional_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_integer
+                )
+                if elements is None:
+                    return None
+            else:
+                elements = parser.parse_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_integer
+                )
+            return DenseArrayBase(
+                self.elt_type, BytesAttr(self.elt_type.pack(elements))
+            )
+        else:
+            if self.is_optional:
+                elements = parser.parse_optional_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_float
+                )
+                if elements is None:
+                    return None
+            else:
+                elements = parser.parse_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_float
+                )
+            return DenseArrayBase(
+                self.elt_type, BytesAttr(self.elt_type.pack(elements))
+            )
+
+    def print_attr(self, printer: Printer, attr: Attribute) -> None:
+        with printer.in_square_brackets():
+            if isa(attr, DenseArrayBase[IntegerType]):
+                printer.print_list(attr.iter_values(), printer.print_int)
+            elif isa(attr, DenseArrayBase[AnyFloat]):
+                printer.print_list(
+                    attr.iter_values(),
+                    lambda value: printer.print_float(value, attr.elt_type),
+                )
 
 
 class SymbolNameAttributeVariable(AttributeVariable):
