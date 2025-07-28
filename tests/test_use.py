@@ -27,7 +27,43 @@ def test_main():
     assert set(op1.results[0].uses) == {Use(op2, 0), Use(op2, 1)}
     assert not op2.results[0].uses
 
-    print("Done")
+
+def test_uses_methods():
+    ctx = Context()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
+
+    test_prog = """
+    "builtin.module"() ({
+      %0 = "test.op"() : () -> i32
+      %1 = "test.op"(%0, %0) : (i32, i32) -> i32
+      %2 = "test.op"(%1) : (i32) -> i32
+    }) : () -> ()
+    """
+
+    parser = Parser(ctx, test_prog)
+    module = parser.parse_op()
+
+    module.verify()
+    assert isinstance(module, ModuleOp)
+
+    op0, op1, op2 = list(module.ops)
+    res0, res1, res2 = op0.results[0], op1.results[0], op2.results[0]
+    assert not res0.has_one_use()
+    assert res1.has_one_use()
+    assert not res2.has_one_use()
+
+    assert res0.has_more_than_one_use()
+    assert not res1.has_more_than_one_use()
+    assert not res2.has_more_than_one_use()
+
+    assert res0.get_unique_use() is None
+    assert res1.get_unique_use() == Use(op2, 0)
+    assert res2.get_unique_use() is None
+
+    assert res0.get_user_of_unique_use() is None
+    assert res1.get_user_of_unique_use() == op2
+    assert res2.get_user_of_unique_use() is None
 
 
 test_prog_blocks = """
