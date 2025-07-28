@@ -198,7 +198,7 @@ class LoadBufferFoldPattern(RewritePattern):
 
         # TODO: further analysis
         # For now, only handle usages in the same block
-        uses = op.res.uses.copy()
+        uses = tuple(op.res.uses)
         block = op.parent
         if not block or any(use.operation.parent is not block for use in uses):
             return

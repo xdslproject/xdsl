@@ -536,21 +536,45 @@ class Use:
     """The index of the operand using the value in the operation."""
 
 
+@dataclass
+class IRUses(Iterable[Use]):
+    """
+    Multi-pass iterable of the uses of an IR value (SSAValue or Block).
+    """
+
+    ir: IRWithUses
+
+    def __iter__(self):
+        return self.ir._uses.__iter__()  # pyright: ignore[reportPrivateUsage]
+
+    def __len__(self):
+        return len(self.ir._uses)  # pyright: ignore[reportPrivateUsage]
+
+    def __bool__(self) -> bool:
+        """Returns `True` if there are operations in this block."""
+        return bool(self.ir._uses)  # pyright: ignore[reportPrivateUsage]
+
+
 @dataclass(eq=False)
 class IRWithUses(ABC):
     """IRNode which stores a list of its uses."""
 
-    uses: set[Use] = field(init=False, default_factory=set[Use], repr=False)
+    _uses: set[Use] = field(init=False, default_factory=set[Use], repr=False)
     """All uses of the value."""
+
+    @property
+    def uses(self) -> IRUses:
+        """Returns an iterable of all uses of the value."""
+        return IRUses(self)
 
     def add_use(self, use: Use):
         """Add a new use of the value."""
-        self.uses.add(use)
+        self._uses.add(use)
 
     def remove_use(self, use: Use):
         """Remove a use of the value."""
-        assert use in self.uses, "use to be removed was not in use list"
-        self.uses.remove(use)
+        assert use in self._uses, "use to be removed was not in use list"
+        self._uses.remove(use)
 
 
 @dataclass(eq=False)
@@ -630,7 +654,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
     def replace_by(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
-        for use in self.uses.copy():
+        for use in tuple(self.uses):
             use.operation.operands[use.index] = value
         # carry over name if possible
         if value.name_hint is None:
@@ -642,7 +666,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         Replace the value by another value in all its uses that pass the given test
         function.
         """
-        for use in self.uses.copy():
+        for use in tuple(self.uses):
             if test(use):
                 use.operation.operands[use.index] = value
         # carry over name if possible
