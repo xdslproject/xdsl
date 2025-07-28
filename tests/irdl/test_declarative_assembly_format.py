@@ -59,6 +59,7 @@ from xdsl.irdl import (
     eq,
     irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -776,14 +777,14 @@ def test_optional_symbol_name_variable(program: str, generic_program: str):
     "program, generic_program, format",
     [
         (
-            "test.symbol [1, 2] [3, 4] [5.000000e+00, 6.000000e+00]",
-            '"test.symbol"() <{i64s = array<i64: 3, 4>, f32s = array<f32: 5.000000e+00, 6.000000e+00>}> {i32s = array<i32: 1, 2>} : () -> ()',
-            "$i32s $i64s $f32s attr-dict",
+            "test.symbol [1, 2] [3, 4] [5.000000e+00, 6.000000e+00] [7.000000e+00]",
+            '"test.symbol"() <{i64s = array<i64: 3, 4>, f32s = array<f32: 5.000000e+00, 6.000000e+00>, f64s = array<f64: 7.000000e+00>}> {i32s = array<i32: 1, 2>} : () -> ()',
+            "$i32s $i64s $f32s $f64s attr-dict",
         ),
         (
-            "test.symbol [7, 8]",
-            '"test.symbol"() <{f32s = array<f32: 9.000000e+00>}> {i32s = array<i32: 7, 8>} : () -> ()',
-            "$i32s (`i64s` $i64s^)? (`f32s` $f32s^)? attr-dict",
+            "test.symbol [7, 8] [1.000000e+01, 1.100000e+01]",
+            '"test.symbol"() <{f32s = array<f32: 9.000000e+00>, f64s = array<f64: 1.000000e+01, 1.100000e+01>}> {i32s = array<i32: 7, 8>} : () -> ()',
+            "$i32s (`i64s` $i64s^)? (`f32s` $f32s^)? $f64s attr-dict",
         ),
     ],
 )
@@ -795,8 +796,11 @@ def test_dense_array_special_cases(program: str, generic_program: str, format: s
         i32s = attr_def(DenseArrayBase[I32])
         i64s = opt_prop_def(DenseArrayBase[I64])
         f32s = prop_def(
-            DenseArrayBase[Float32Type()],
+            DenseArrayBase[Float32Type],
             default_value=DenseArrayBase.from_list(Float32Type(), (9.0,)),
+        )
+        f64s = prop_def(
+            VarConstraint("F64S", irdl_to_attr_constraint(DenseArrayBase[Float64Type]))
         )
 
         assembly_format = format
