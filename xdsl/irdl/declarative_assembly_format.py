@@ -612,7 +612,7 @@ class VariadicOperandVariable(VariadicVariable, OperandDirective):
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         state.operand_types[self.index] = (parser.parse_type(),)
 
-    def get(self, op: IRDLOperation) -> Sequence[SSAValue] | None:
+    def get(self, op: IRDLOperation) -> Sequence[SSAValue]:
         return getattr(op, self.name)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
