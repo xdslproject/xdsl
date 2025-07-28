@@ -1258,7 +1258,6 @@ class DenseArrayAttributeVariable(AttributeVariable):
             )
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
-        assert isa(attr, DenseArrayBase), attr
         with printer.in_square_brackets():
             if isa(attr, DenseArrayBase[IntegerType]):
                 printer.print_list(attr.iter_values(), printer.print_int)
