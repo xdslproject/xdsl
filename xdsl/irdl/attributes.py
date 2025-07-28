@@ -58,7 +58,6 @@ from .constraints import (  # noqa: TID251
     BaseAttr,
     ConstraintContext,
     ConstraintVar,
-    DataEnum,
     EqAttrConstraint,
     EqIntConstraint,
     IntConstraint,
@@ -375,11 +374,29 @@ def irdl_attr_definition(
     return decorator(cls)
 
 
+# Cannot subclass ABC as it conflicts with Enum's metaclass.
+class ConstraintConvertible(Generic[AttributeCovT]):
+    """
+    Abstract superclass for values that have corresponding Attribute constraints.
+    """
+
+    @staticmethod
+    @abstractmethod
+    def base_constr() -> AttrConstraint[AttributeCovT]:
+        """The constraint for this class."""
+
+    @abstractmethod
+    def constr(self) -> AttrConstraint[AttributeCovT]:
+        """The constraint for this instance."""
+
+
 IRDLAttrConstraint: TypeAlias = (
     AttrConstraint[AttributeInvT]
     | AttributeInvT
     | type[AttributeInvT]
     | "TypeForm[AttributeInvT]"
+    | type[ConstraintConvertible[AttributeInvT]]
+    | ConstraintConvertible[AttributeInvT]
 )
 """
 Attribute constraints represented using the IRDL python frontend. Attribute constraints
@@ -388,6 +405,7 @@ can either be:
 - An instance of `Attribute` representing an equality constraint on an attribute.
 - A type representing a specific attribute class.
 - A TypeForm that can represent both unions and generic attributes.
+- An instance or subclass of AttributeData, a Python class that has a corresponding Attribute class.
 """
 
 
@@ -436,6 +454,10 @@ def irdl_to_attr_constraint(
 
     if isinstance(irdl, Attribute):
         return cast(AttrConstraint[AttributeInvT], EqAttrConstraint(irdl))
+
+    if isinstance(irdl, ConstraintConvertible):
+        value = cast(ConstraintConvertible[AttributeInvT], irdl)
+        return value.constr()
 
     # Annotated case
     # Each argument of the Annotated type corresponds to a constraint to satisfy.
@@ -539,6 +561,10 @@ def irdl_to_attr_constraint(
             return cast(AttrConstraint[AttributeInvT], AnyOf(constraints))
         return cast(AttrConstraint[AttributeInvT], constraints[0])
 
+    if isclass(irdl) and issubclass(irdl, ConstraintConvertible):
+        attr_data = cast(type[ConstraintConvertible[AttributeInvT]], irdl)
+        return attr_data.base_constr()
+
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):
         raise PyRDLTypeError(
@@ -562,8 +588,6 @@ def irdl_to_constraint(
     if isclass(irdl):
         if issubclass(irdl, int):
             return AnyInt()
-        if issubclass(irdl, DataEnum):
-            return irdl.to_constr(None)  # pyright: ignore[reportReturnType]
 
     if get_origin(irdl) is Literal:
         literal_args = get_args(irdl)
@@ -571,14 +595,9 @@ def irdl_to_constraint(
         value = literal_args[0]
         if isinstance(value, int):
             return EqIntConstraint(value)
-        if isinstance(value, DataEnum):
-            return value.to_constr(value)  # pyright: ignore[reportReturnType]
 
     if isinstance(irdl, int):
         return EqIntConstraint(irdl)
-
-    if isinstance(irdl, DataEnum):
-        return irdl.to_constr(irdl)  # pyright: ignore[reportReturnType]
 
     return irdl_to_attr_constraint(
         irdl, allow_type_var=allow_type_var, type_var_mapping=type_var_mapping

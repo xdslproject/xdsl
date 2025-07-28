@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
+from enum import Enum
 from math import prod
 from typing import (
     TYPE_CHECKING,
@@ -55,7 +56,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
-    DataEnum,
+    ConstraintConvertible,
     EqAttrConstraint,
     GenericData,
     IntConstraint,
@@ -377,9 +378,7 @@ class IntAttr(Generic[_IntCovT], GenericData[_IntCovT]):
         return bool(self.data)
 
     @classmethod
-    def generic_args_constraint(
-        cls, *args: Any
-    ) -> AttrConstraint[IntAttr[_IntCovT]]:
+    def generic_args_constraint(cls, *args: Any) -> AttrConstraint[IntAttr[_IntCovT]]:
         """
         Given the generic parameters passed to the generic attribute type,
         return the corresponding attribute constraint.
@@ -389,9 +388,7 @@ class IntAttr(Generic[_IntCovT], GenericData[_IntCovT]):
         arg = cast(TypeForm[_IntCovT], args[0])
 
         if arg is int:
-            return cast(
-                AttrConstraint[IntAttr[_IntCovT]], BaseAttr[IntAttr](IntAttr)
-            )
+            return cast(AttrConstraint[IntAttr[_IntCovT]], BaseAttr[IntAttr](IntAttr))
         else:
             if get_origin(arg) is Literal:
                 literal_args = get_args(arg)
@@ -440,7 +437,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         )
 
 
-class Signedness(DataEnum):
+class Signedness(ConstraintConvertible["SignednessAttr"], Enum):
     "Signedness semantics for integer"
 
     SIGNLESS = 0
@@ -465,13 +462,13 @@ class Signedness(DataEnum):
             case Signedness.UNSIGNED:
                 return unsigned_value_range(bitwidth)
 
-    @classmethod
-    def to_constr(cls, value: DataEnum | None) -> AttrConstraint:
-        if value is None:
-            return BaseAttr(SignednessAttr)
-        else:
-            assert isinstance(value, Signedness)
-            return EqAttrConstraint(SignednessAttr(value))
+    @staticmethod
+    def base_constr() -> AttrConstraint[SignednessAttr]:
+        return BaseAttr(SignednessAttr)
+
+    @abstractmethod
+    def constr(self) -> AttrConstraint[SignednessAttr]:
+        return EqAttrConstraint(SignednessAttr(self))
 
 
 SignednessCovT = TypeVar(
