@@ -44,9 +44,7 @@ def serialize_to_egraph(mod: builtin.ModuleOp):
                     assert len(op.results) == 1, (
                         "Only single result operations are supported"
                     )
-                    assert len(res.uses) == 1, (
-                        "Only single use operations are supported"
-                    )
+                    assert res.has_one_use(), "Only single use operations are supported"
                     eclass_id = eclass_to_id[use.operation]
         if eclass_id is None:
             continue

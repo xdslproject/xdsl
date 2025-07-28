@@ -547,9 +547,6 @@ class IRUses(Iterable[Use]):
     def __iter__(self):
         return self.ir._uses.__iter__()  # pyright: ignore[reportPrivateUsage]
 
-    def __len__(self):
-        return len(self.ir._uses)  # pyright: ignore[reportPrivateUsage]
-
     def __bool__(self) -> bool:
         """Returns `True` if there are operations in this block."""
         return bool(self.ir._uses)  # pyright: ignore[reportPrivateUsage]
