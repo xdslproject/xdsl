@@ -200,12 +200,6 @@ class ElementwiseUnaryOperation(Generic[TInv], ElementwiseOperation):
     input1 = operand_def(TInv)
     result = result_def(TInv)
 
-    traits = traits_def(
-        Pure(),
-    )
-
-    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
-
 
 @irdl_op_definition
 class SinOp(ElementwiseUnaryOperation[TensorType[AnyFloat]]):
