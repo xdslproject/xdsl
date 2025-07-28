@@ -112,7 +112,19 @@ class RescaleOp(IRDLOperation):
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
 
 
-class ElementwiseBinaryOperation(IRDLOperation, ABC):
+class ElementwiseOperation(IRDLOperation, ABC):
+    """
+    Abstract superclass for elementwise TOSA operations
+    """
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+
+class ElementwiseBinaryOperation(ElementwiseOperation):
     """
     Abstract superclass for elementwise, binary TOSA operations.
     """
@@ -122,12 +134,6 @@ class ElementwiseBinaryOperation(IRDLOperation, ABC):
     input1 = operand_def(TensorType.constr(T))
     input2 = operand_def(TensorType.constr(T))
     output = result_def(TensorType.constr(T))
-
-    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
-
-    traits = traits_def(
-        Pure(),
-    )
 
     def verify_(self) -> None:
         t1 = self.input1.type
@@ -177,14 +183,13 @@ class MulOp(ElementwiseBinaryOperation):
     name = "tosa.mul"
 
     traits = traits_def(
-        Pure(),
         Commutative(),
     )
 
 
-class ElementwiseTrigOperation(IRDLOperation, ABC):
+class ElementwiseUnaryOperation(ElementwiseOperation):
     """
-    Abstract base class for elementwise trig operations on tensors of floating-point types
+    Abstract base class for elementwise unary operations on tensors of floating-point types
     """
 
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
@@ -200,7 +205,7 @@ class ElementwiseTrigOperation(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class SinOp(ElementwiseTrigOperation):
+class SinOp(ElementwiseUnaryOperation):
     """
     TOSA dialect operation computing sin(x) for each element in a tensor
 
@@ -211,7 +216,7 @@ class SinOp(ElementwiseTrigOperation):
 
 
 @irdl_op_definition
-class CosOp(ElementwiseTrigOperation):
+class CosOp(ElementwiseUnaryOperation):
     """
     TOSA dialect operation computing cos(x) for each element in a tensor
 
