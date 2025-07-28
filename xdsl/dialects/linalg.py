@@ -939,8 +939,8 @@ class TransposeOp(IRDLOperation):
         result: Attribute | None = None,
     ):
         if result is None:
-            if isa(input.type, TensorType):
-                results = (input.type,)
+            if isa(init.type, TensorType):
+                results = (init.type,)
             else:
                 results = ()
         else:
@@ -1312,8 +1312,8 @@ class BroadcastOp(IRDLOperation):
         result: Attribute | None = None,
     ):
         if result is None:
-            if isa(input.type, TensorType):
-                results = (input.type,)
+            if isa(init.type, TensorType):
+                results = (init.type,)
             else:
                 results = ()
         else:
