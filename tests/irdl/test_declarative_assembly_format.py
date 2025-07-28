@@ -78,15 +78,25 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
+    CustomDirective,
     FormatProgram,
     OperandsDirective,
+    ParsingState,
+    PrintingState,
     PunctuationDirective,
     ResultsDirective,
     TypeDirective,
+    VariadicOperandVariable,
+    irdl_custom_directive,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError, VerifyException
+from xdsl.utils.exceptions import (
+    ParseError,
+    PyRDLError,
+    PyRDLOpDefinitionError,
+    VerifyException,
+)
 
 ################################################################################
 # Utils for this test file                                                     #
@@ -3667,3 +3677,137 @@ def test_qualified_attr():
     op = parser.parse_operation()
     assert isinstance(op, QualifiedAttrOp)
     assert op.attr == MyAttr(StringAttr("test"))
+
+
+################################################################################
+#                             Custom directives                                #
+################################################################################
+
+
+@irdl_custom_directive
+class Hello(CustomDirective):
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        parser.parse_keyword("hello")
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print_string(" ")
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+        printer.print_string("hello")
+
+
+@irdl_op_definition
+class CustomDirectiveOp(IRDLOperation):
+    name = "test.custom"
+
+    assembly_format = "custom<Hello>() attr-dict"
+
+    custom_directives = (Hello,)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.custom hello",
+        "test.custom hello {attr = 1 : i32}",
+    ],
+)
+def test_custom_directive(program: str):
+    ctx = Context()
+    ctx.load_op(CustomDirectiveOp)
+    ctx.load_dialect(Test)
+    check_roundtrip(program, ctx)
+
+
+@irdl_custom_directive
+class Bars(CustomDirective):
+    """We print the operands with bars between, because why not."""
+
+    var: VariadicOperandVariable
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        first = parser.parse_optional_unresolved_operand()
+        if first is None:
+            operands = []
+        else:
+            operands = [first]
+            while parser.parse_optional_punctuation("|"):
+                operands.append(parser.parse_unresolved_operand())
+        self.var.set(state, operands)
+        return bool(operands)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operands = self.var.get(op)
+        if not operands:
+            return
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print_string(" ")
+        printer.print_list(operands, printer.print_ssa_value, delimiter=" | ")
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+@irdl_op_definition
+class CustomDirectiveWithParamOp(IRDLOperation):
+    name = "test.custom_param"
+
+    ops = var_operand_def()
+
+    assembly_format = "custom<Bars>($ops) (`:` type($ops)^)? attr-dict"
+
+    custom_directives = (Bars,)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.custom_param",
+        "test.custom_param %0 : i32",
+        "test.custom_param %0 | %1 : i32, i32",
+        "test.custom_param %0 | %1 | %2 : i32, i32, i32",
+    ],
+)
+def test_custom_directive_param(program: str):
+    ctx = Context()
+    ctx.load_op(CustomDirectiveWithParamOp)
+    ctx.load_dialect(Test)
+    check_roundtrip(program, ctx)
+
+
+def test_non_upper_classvar():
+    with pytest.raises(
+        PyRDLError, match='Invalid ClassVar name "bad", must be uppercase.'
+    ):
+
+        @irdl_custom_directive
+        class BadClassVar(CustomDirective):  # pyright: ignore[reportUnusedClass]
+            bad: ClassVar
+
+            def parse(self, parser: Parser, state: ParsingState) -> bool:
+                raise NotImplementedError()
+
+            def print(
+                self, printer: Printer, state: PrintingState, op: IRDLOperation
+            ) -> None:
+                raise NotImplementedError()
+
+
+def test_bad_parameter():
+    with pytest.raises(
+        PyRDLError,
+        match="Custom directive BadParam has parameter int_param which is not a format directive.",
+    ):
+
+        @irdl_custom_directive
+        class BadParam(CustomDirective):  # pyright: ignore[reportUnusedClass]
+            int_param: int
+
+            def parse(self, parser: Parser, state: ParsingState) -> bool:
+                raise NotImplementedError()
+
+            def print(
+                self, printer: Printer, state: PrintingState, op: IRDLOperation
+            ) -> None:
+                raise NotImplementedError()

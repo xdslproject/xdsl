@@ -722,6 +722,32 @@ class FormatParser(BaseParser):
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
+    def parse_custom_directive(self) -> FormatDirective:
+        """
+        Parse a custom directive, with the following format:
+          custom-directive ::= custom<bare-ident>((directive (`,` directive)*)?)
+        Assumes the keyword "custom" has already been parsed.
+        """
+
+        with self.in_angle_brackets():
+            name = self.parse_identifier()
+            if name not in self.op_def.custom_directives:
+                self.raise_error(f"Custom directive {name} cannot be found.")
+        directive = self.op_def.custom_directives[name]
+        param_types = directive.parameters
+        params = list[FormatDirective]()
+        with self.in_parens():
+            for i, (field, ty) in enumerate(param_types.items()):
+                if i:
+                    self.parse_punctuation(",")
+                param = self.parse_format_directive()
+                if not isinstance(param, ty):
+                    self.raise_error(
+                        f"{name}.{field} was expected to be of type {ty}, but got {param}"
+                    )
+                params.append(param)
+        return directive(*params)
+
     def parse_format_directive(self) -> FormatDirective:
         """
         Parse a format directive, with the following format:
@@ -743,6 +769,8 @@ class FormatParser(BaseParser):
             return self.parse_functional_type_directive()
         if self.parse_optional_keyword("qualified"):
             return self.parse_qualified_directive()
+        if self.parse_optional_keyword("custom"):
+            return self.parse_custom_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
         if self.parse_optional_punctuation("("):

@@ -6,10 +6,11 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal, cast
+from typing import Any, ClassVar, Literal, cast
 
 from typing_extensions import TypeVar
 
@@ -37,9 +38,11 @@ from xdsl.irdl import (
     OptionalDef,
     Successor,
     VariadicDef,
+    is_const_classvar,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import PyRDLError
 from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import PunctuationSpelling
 
@@ -318,6 +321,35 @@ class FormatDirective(Directive, ABC):
         Used when a variable appears in an optional group which is not parsed.
         """
         return
+
+
+class CustomDirective(FormatDirective, ABC):
+    """
+    A user defined assembly format directive.
+    A custom directive can have multiple parameters, whose types should be
+    declared in the `parameters` field.
+    """
+
+    parameters: ClassVar[dict[str, type[FormatDirective]]]
+
+
+CustomDirectiveInvT = TypeVar("CustomDirectiveInvT", bound=CustomDirective)
+
+
+def irdl_custom_directive(cls: type[CustomDirectiveInvT]) -> type[CustomDirectiveInvT]:
+    """Decorator used on custom directives to define the `parameters` class variable."""
+
+    cls.parameters = {}
+    param_types = inspect.get_annotations(cls, eval_str=True)
+    for field_name, ty in param_types.items():
+        if is_const_classvar(field_name, ty, PyRDLError):
+            continue
+        if not issubclass(ty, FormatDirective):
+            raise PyRDLError(
+                f"Custom directive {cls.__name__} has parameter {field_name} which is not a format directive."
+            )
+        cls.parameters[field_name] = ty
+    return dataclass(frozen=True)(cls)
 
 
 class TypeableDirective(Directive, ABC):
