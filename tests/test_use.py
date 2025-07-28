@@ -24,8 +24,8 @@ def test_main():
     assert isinstance(module, ModuleOp)
 
     op1, op2 = list(module.ops)
-    assert op1.results[0].uses == {Use(op2, 0), Use(op2, 1)}
-    assert op2.results[0].uses == set()
+    assert set(op1.results[0].uses) == {Use(op2, 0), Use(op2, 1)}
+    assert not op2.results[0].uses
 
     print("Done")
 

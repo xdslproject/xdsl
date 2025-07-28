@@ -165,13 +165,13 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
                     ## We know there is only one result, so can elide the loop
                     old_result = old_op.results[0]
                     ## There are no callbacks, so can elide `self.handle_operation_modification(use.operation)`
-                    for use in old_result.uses.copy():
+                    for use in tuple(old_result.uses):
                         ## Inline `use.operation.operands.__setitem__(...)`
                         operands = use.operation._operands  # pyright: ignore[reportPrivateUsage]
                         ## Inline `operands[use.index].remove_use(Use(use.operation, use.index))`
-                        operands[use.index].uses.remove(use)
+                        operands[use.index]._uses.remove(use)  # pyright: ignore[reportPrivateUsage]
                         ## Inline `new_result.add_use(Use(use.operation, use.index))`
-                        new_result.uses.add(use)
+                        new_result._uses.add(use)  # pyright: ignore[reportPrivateUsage]
                         new_operands = (
                             *operands[: use.index],
                             new_result,
@@ -213,7 +213,7 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
                     old_op.parent = None
                     for idx, operand in enumerate(old_op._operands):  # pyright: ignore[reportPrivateUsage]
                         ## Inline `operand.remove_use(Use(old_op, idx))`
-                        operand.uses.remove(Use(old_op, idx))
+                        operand._uses.remove(Use(old_op, idx))  # pyright: ignore[reportPrivateUsage]
                     ## This application has no regions, so no recursive drops
 
                     for result in old_op.results:
