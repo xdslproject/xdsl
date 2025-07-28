@@ -33,6 +33,7 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
+    VarConstraint,
     VariadicDef,
     VarOperandDef,
     VarRegionDef,
@@ -517,6 +518,8 @@ class FormatParser(BaseParser):
                     )
 
                 constr = attr_def.constr
+                if isinstance(constr, VarConstraint):
+                    constr = constr.constraint
                 if isinstance(constr, ParamAttrConstraint):
                     if unique_base is DenseArrayBase and (
                         elt_type_constr := constr.param_constrs[0]
