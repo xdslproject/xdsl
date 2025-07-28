@@ -1,5 +1,6 @@
 from abc import ABC
 from typing import ClassVar, Generic
+
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
