@@ -1,3 +1,4 @@
+from abc import ABC
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
@@ -62,6 +63,8 @@ def are_tosa_broadcastable(lhs: Attribute, rhs: Attribute, out: Attribute):
 class ClampOp(IRDLOperation):
     """
     Computes clamp(features, min, max)
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaclamp-mlirtosaclampop)
     """
 
     name = "tosa.clamp"
@@ -86,6 +89,8 @@ class ClampOp(IRDLOperation):
 class RescaleOp(IRDLOperation):
     """
     Tosa Rescale Operator
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosarescale-mlirtosarescaleop)
     """
 
     name = "tosa.rescale"
@@ -106,13 +111,10 @@ class RescaleOp(IRDLOperation):
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
 
 
-@irdl_op_definition
-class AddOp(IRDLOperation):
+class ElementwiseBinaryOperation(IRDLOperation, ABC):
     """
-    Tosa elementwise add operation
+    Abstract superclass for elementwise, binary TOSA operations.
     """
-
-    name = "tosa.add"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
@@ -124,23 +126,59 @@ class AddOp(IRDLOperation):
 
     traits = traits_def(
         Pure(),
-        Commutative(),
     )
 
     def verify_(self) -> None:
-        """
-        Verify that the two input tensors are compatible, and that the result type can be constructed. For this,
-        both tensors must have the same rank. They should either have the same number of elements per dim, or
-        if there is only one element it can be broadcast implcitly.
-        """
         t1 = self.input1.type
         t2 = self.input2.type
         t_out = self.output.type
 
         if not are_tosa_broadcastable(t1, t2, t_out):
             raise VerifyException(
-                "'tosa.add' Operand and result tensor shapes are not compatible"
+                f"'{type(self).name}' Operand and result tensor shapes are not compatible"
             )
+
+
+@irdl_op_definition
+class AddOp(ElementwiseBinaryOperation):
+    """
+    Tosa elementwise add operation
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaadd-mlirtosaaddop)
+    """
+
+    name = "tosa.add"
+
+    traits = traits_def(
+        Commutative(),
+    )
+
+
+@irdl_op_definition
+class SubOp(ElementwiseBinaryOperation):
+    """
+    Tosa elementwise subtraction operation
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosasub-mlirtosasubop)
+    """
+
+    name = "tosa.sub"
+
+
+@irdl_op_definition
+class MulOp(ElementwiseBinaryOperation):
+    """
+    Tosa elementwise multiplication operation (Hadamard product)
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosamul-mlirtosamulop)
+    """
+
+    name = "tosa.mul"
+
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+    )
 
 
 TOSA = Dialect(
@@ -149,6 +187,8 @@ TOSA = Dialect(
         ClampOp,
         RescaleOp,
         AddOp,
+        SubOp,
+        MulOp,
     ],
     [],
 )

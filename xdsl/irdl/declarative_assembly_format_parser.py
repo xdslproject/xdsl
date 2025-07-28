@@ -11,7 +11,14 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import cast
 
-from xdsl.dialects.builtin import Builtin, SymbolNameConstraint, UnitAttr
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    Builtin,
+    DenseArrayBase,
+    IntegerType,
+    SymbolNameConstraint,
+    UnitAttr,
+)
 from xdsl.ir import TypedAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -36,6 +43,7 @@ from xdsl.irdl import (
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
     AttributeVariable,
+    DenseArrayAttributeVariable,
     Directive,
     FormatDirective,
     FormatProgram,
@@ -44,7 +52,6 @@ from xdsl.irdl.declarative_assembly_format import (
     OperandDirective,
     OperandsDirective,
     OperandVariable,
-    OptionalAttributeVariable,
     OptionalGroupDirective,
     OptionalOperandVariable,
     OptionalRegionVariable,
@@ -58,8 +65,11 @@ from xdsl.irdl.declarative_assembly_format import (
     ResultVariable,
     SuccessorDirective,
     SuccessorVariable,
+    SymbolNameAttributeVariable,
     TypeableDirective,
+    TypedAttributeVariable,
     TypeDirective,
+    UniqueBaseAttributeVariable,
     VariadicOperandVariable,
     VariadicRegionVariable,
     VariadicResultVariable,
@@ -487,50 +497,72 @@ class FormatParser(BaseParser):
                 self.seen_attributes.add(attr_name)
                 attr_def = self.op_def.attributes[attr_name]
 
+            is_optional = isinstance(attr_def, OptionalDef)
+
             bases = attr_def.constr.get_bases()
             unique_base = bases.pop() if bases is not None and len(bases) == 1 else None
 
-            unique_type = None
             if qualified:
                 # Ensure qualified attributes stay qualified
                 unique_base = None
 
             if unique_base is not None:
                 if unique_base == UnitAttr:
-                    return OptionalUnitAttrVariable(
-                        variable_name, is_property, None, None, False
+                    return OptionalUnitAttrVariable(variable_name, is_property)
+
+                # We special case `SymbolNameConstr`, just as MLIR does.
+                if isinstance(attr_def.constr, SymbolNameConstraint):
+                    return SymbolNameAttributeVariable(
+                        variable_name, is_property, is_optional, attr_def.default_value
                     )
 
-                if issubclass(unique_base, TypedAttribute):
-                    constr = attr_def.constr
-                    # TODO: generalize.
-                    # https://github.com/xdslproject/xdsl/issues/2499
-                    if isinstance(constr, ParamAttrConstraint):
+                constr = attr_def.constr
+                if isinstance(constr, ParamAttrConstraint):
+                    if unique_base is DenseArrayBase and (
+                        elt_type_constr := constr.param_constrs[0]
+                    ).can_infer(set()):
+                        elt_type = elt_type_constr.infer(ConstraintContext())
+                        return DenseArrayAttributeVariable(
+                            variable_name,
+                            is_property,
+                            is_optional,
+                            attr_def.default_value,
+                            cast(IntegerType | AnyFloat, elt_type),
+                        )
+
+                    if issubclass(unique_base, TypedAttribute):
+                        # TODO: generalize.
+                        # https://github.com/xdslproject/xdsl/issues/2499
                         type_constraint = constr.param_constrs[
                             unique_base.get_type_index()
                         ]
                         if type_constraint.can_infer(set()):
                             unique_type = type_constraint.infer(ConstraintContext())
-                if unique_base in Builtin.attributes and unique_type is None:
+                            return TypedAttributeVariable(
+                                variable_name,
+                                is_property,
+                                is_optional,
+                                attr_def.default_value,
+                                unique_base,
+                                unique_type,
+                            )
+
+                if unique_base not in Builtin.attributes:
                     # Always qualify builtin attributes
                     # This is technically an approximation, but appears to be good enough
                     # for xDSL right now.
-                    unique_base = None
+                    return UniqueBaseAttributeVariable(
+                        variable_name,
+                        is_property,
+                        is_optional,
+                        attr_def.default_value,
+                        unique_base,
+                    )
 
-            # We special case `SymbolNameConstr`, just as MLIR does.
-            is_symbol_name = isinstance(attr_def.constr, SymbolNameConstraint)
-
-            variable_type = (
-                OptionalAttributeVariable
-                if isinstance(attr_def, OptionalDef)
-                else AttributeVariable
-            )
-            return variable_type(
+            return AttributeVariable(
                 variable_name,
                 is_property,
-                unique_base,
-                unique_type,
-                is_symbol_name,
+                is_optional,
                 attr_def.default_value,
             )
 
