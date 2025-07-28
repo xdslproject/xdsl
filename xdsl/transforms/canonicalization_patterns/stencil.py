@@ -79,7 +79,7 @@ class ApplyUnusedResults(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
-        unused = [i for i, r in enumerate(op.res) if len(r.uses) == 0]
+        unused = [i for i, r in enumerate(op.res) if not r.uses]
 
         if not unused:
             return

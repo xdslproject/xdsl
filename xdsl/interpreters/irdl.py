@@ -120,7 +120,7 @@ class IRDLFunctions(InterpreterFunctions):
     @impl(irdl.IsOp)
     def run_is(self, interpreter: Interpreter, op: irdl.IsOp, args: PythonValues):
         constr = EqAttrConstraint(op.expected)
-        if len(op.output.uses) > 1:
+        if op.output.has_more_than_one_use():
             constr = self.variable_wrap(interpreter, constr)
         return (constr,)
 
@@ -129,14 +129,14 @@ class IRDLFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: irdl.AnyOfOp, args: PythonValues
     ):
         constr = AnyOf[Attribute](args)
-        if len(op.output.uses) > 1:
+        if op.output.has_more_than_one_use():
             constr = self.variable_wrap(interpreter, constr)
         return (constr,)
 
     @impl(irdl.AnyOp)
     def run_any(self, interpreter: Interpreter, op: irdl.AnyOp, args: PythonValues):
         constr = AnyAttr()
-        if len(op.output.uses) > 1:
+        if op.output.has_more_than_one_use():
             constr = self.variable_wrap(interpreter, constr)
         return (constr,)
 
@@ -151,7 +151,7 @@ class IRDLFunctions(InterpreterFunctions):
             )
         base_type = self.get_attr(interpreter, base_attr_op.qualified_name)
         constr = ParamAttrConstraint(base_type, args)
-        if len(op.output.uses) > 1:
+        if op.output.has_more_than_one_use():
             constr = self.variable_wrap(interpreter, constr)
         return (constr,)
 
