@@ -1018,7 +1018,7 @@ class TransposeOp(IRDLOperation):
         parser.parse_punctuation("(")
         init = parser.parse_operand()
         parser.parse_punctuation(":")
-        result = parser.parse_type()
+        parser.parse_type()
         parser.parse_punctuation(")")
         parser.parse_keyword("permutation")
         parser.parse_punctuation("=")
@@ -1029,7 +1029,6 @@ class TransposeOp(IRDLOperation):
             input,
             init,
             DenseArrayBase.from_list(i64, permutation),
-            result if isa(result, TensorType) else None,
         )
         return transpose
 
@@ -1397,7 +1396,7 @@ class BroadcastOp(IRDLOperation):
         parser.parse_punctuation("(")
         init = parser.parse_operand()
         parser.parse_punctuation(":")
-        result = parser.parse_type()
+        parser.parse_type()
         parser.parse_punctuation(")")
         parser.parse_keyword("dimensions")
         parser.parse_punctuation("=")
@@ -1408,7 +1407,6 @@ class BroadcastOp(IRDLOperation):
             input,
             init,
             DenseArrayBase.from_list(i64, dimensions),
-            result if isa(result, TensorType) else None,
         )
         return broadcast
 
