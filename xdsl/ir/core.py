@@ -430,17 +430,6 @@ class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
     def __init__(self, *parameters: Attribute):
-        if len(parameters) == 1 and isinstance(parameters[0], tuple):
-            import warnings
-
-            warnings.warn(
-                "Passing a tuple as a single argument to ParametrizedAttribute.__init__ is deprecated. "
-                "Pass the tuple elements as separate arguments instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            parameters = parameters[0]
-
         for (f, _), param in zip(
             self.get_irdl_definition().parameters, parameters, strict=True
         ):
