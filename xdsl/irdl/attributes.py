@@ -402,7 +402,7 @@ can either be:
 - An instance of `Attribute` representing an equality constraint on an attribute.
 - A type representing a specific attribute class.
 - A TypeForm that can represent both unions and generic attributes.
-- An instance or subclass of AttributeData, a Python class that has a corresponding Attribute class.
+- An instance or subclass of ConstraintConvertible.
 """
 
 
