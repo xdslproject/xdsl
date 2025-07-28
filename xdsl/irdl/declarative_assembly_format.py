@@ -1261,7 +1261,7 @@ class DenseArrayAttributeVariable(AttributeVariable):
         assert isa(attr, DenseArrayBase), attr
         with printer.in_square_brackets():
             if isa(attr, DenseArrayBase[IntegerType]):
-                printer.print_list(attr.get_values(), printer.print_int)
+                printer.print_list(attr.iter_values(), printer.print_int)
             elif isa(attr, DenseArrayBase[AnyFloat]):
                 printer.print_list(
                     attr.iter_values(),
