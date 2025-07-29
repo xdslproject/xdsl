@@ -400,6 +400,8 @@ class FormatParser(BaseParser):
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
         The variable should refer to an operand or result.
+        If `ref` is `True`, then this directive can have already in the
+        assembly format already.
         """
         start_pos = self.pos
         if self._current_token.text[0] != "$":
@@ -446,6 +448,8 @@ class FormatParser(BaseParser):
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
         The variable should refer to an operand, attribute, region, or successor.
+        If `ref` is `True`, then this directive can have already in the
+        assembly format already.
         """
         if self._current_token.text[0] != "$":
             return None
