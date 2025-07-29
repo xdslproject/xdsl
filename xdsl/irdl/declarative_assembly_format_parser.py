@@ -585,10 +585,8 @@ class FormatParser(BaseParser):
           type-directive ::= `type` `(` typeable-directive `)`
         `type` is expected to have already been parsed
         """
-        self.parse_punctuation("(")
-        inner = self.parse_typeable_directive()
-        self.parse_punctuation(")")
-        return TypeDirective(inner)
+        with self.in_parens():
+            return TypeDirective(self.parse_typeable_directive())
 
     def parse_functional_type_directive(self) -> FormatDirective:
         """
@@ -596,11 +594,10 @@ class FormatParser(BaseParser):
           functional-type-directive ::= `functional-type` `(` typeable-directive `,` typeable-directive `)`
         `functional-type` is expected to have already been parsed
         """
-        self.parse_punctuation("(")
-        operands = self.parse_typeable_directive()
-        self.parse_punctuation(",")
-        results = self.parse_typeable_directive()
-        self.parse_punctuation(")")
+        with self.in_parens():
+            operands = self.parse_typeable_directive()
+            self.parse_punctuation(",")
+            results = self.parse_typeable_directive()
         return FunctionalTypeDirective(operands, results)
 
     def parse_qualified_directive(self) -> FormatDirective:
@@ -608,14 +605,13 @@ class FormatParser(BaseParser):
         Parse a qualified attribute or type directive, with the following format:
             qualified-directive ::= `qualified` `(` variable `)`
         """
-        self.parse_punctuation("(")
-        res = self.parse_optional_variable(qualified=True)
-        if res is None:
-            self.raise_error(
-                "expected a variable after 'qualified', found "
-                f"'{self._current_token.text}'"
-            )
-        self.parse_punctuation(")")
+        with self.in_parens():
+            res = self.parse_optional_variable(qualified=True)
+            if res is None:
+                self.raise_error(
+                    "expected a variable after 'qualified', found "
+                    f"'{self._current_token.text}'"
+                )
         return res
 
     def parse_optional_group(self) -> FormatDirective:
