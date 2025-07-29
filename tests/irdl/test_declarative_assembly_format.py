@@ -456,6 +456,38 @@ def test_missing_property_error():
         irdl_op_definition(MissingPropOp)
 
 
+def test_attribute_duplicated():
+    """Test that attributes should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="attribute 'attr' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedAttributeOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_attribute_op"
+            attr = attr_def()
+
+            assembly_format = "$attr $attr attr-dict"
+
+
+def test_property_duplicated():
+    """Test that properties should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="property 'attr' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedPropertiesOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_property_op"
+            attr = prop_def()
+
+            assembly_format = "$attr $attr attr-dict"
+
+
 @pytest.mark.parametrize(
     "program, generic_program",
     [
@@ -932,6 +964,22 @@ def test_operands_missing_type():
             operand = operand_def()
 
             assembly_format = "$operand attr-dict"
+
+
+def test_operands_duplicated():
+    """Test that operands should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="operand 'operand' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedOperandOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_operand_op"
+            operand = operand_def()
+
+            assembly_format = "$operand $operand type($operand) attr-dict"
 
 
 def test_operands_duplicated_type():
@@ -2034,6 +2082,20 @@ def test_missing_region():
             assembly_format = "attr-dict-with-keyword"
 
 
+def test_region_duplicated():
+    """Test that regions should not be parsed twice"""
+    with pytest.raises(PyRDLOpDefinitionError, match="region 'r' is already bound"):
+
+        @irdl_op_definition
+        class DuplicatedRegionOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_region_op"
+            r = region_def()
+
+            assembly_format = "$r $r attr-dict"
+
+
 def test_attr_dict_directly_before_region_variable():
     """Test that regions require an 'attr-dict' directive."""
     with pytest.raises(
@@ -2308,6 +2370,22 @@ def test_missing_successor():
             successor = successor_def()
 
             assembly_format = "attr-dict-with-keyword"
+
+
+def test_successor_duplicated():
+    """Test that successors should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="successor 'succ' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedSucessorOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_successor_op"
+            succ = successor_def()
+
+            assembly_format = "$succ $succ attr-dict"
 
 
 def test_successors():
