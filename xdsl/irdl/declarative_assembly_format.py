@@ -92,6 +92,15 @@ class PrintingState:
     (for instance for some punctuations).
     """
 
+    def print_whitespace(self, printer: Printer):
+        """
+        Handles whitespace printing for the majority of format directives.
+        """
+        if self.should_emit_space or not self.last_was_punctuation:
+            printer.print_string(" ")
+        self.should_emit_space = True
+        self.last_was_punctuation = False
+
 
 @dataclass(frozen=True)
 class FormatProgram:
@@ -393,11 +402,8 @@ class TypeDirective(FormatDirective):
         types = self.inner.get_types(op)
         if not types:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_list(types, printer.print_attribute)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def is_present(self, op: IRDLOperation) -> bool:
         return self.inner.is_present(op)
@@ -569,11 +575,8 @@ class OperandVariable(VariableDirective, OperandDirective):
         return getattr(op, self.name)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_ssa_value(self.get(op))
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         return (getattr(op, self.name).type,)
@@ -619,11 +622,8 @@ class VariadicOperandVariable(VariadicVariable, OperandDirective):
         operand = self.get(op)
         if not operand:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_list(operand, printer.print_ssa_value)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         return getattr(op, self.name).types
@@ -668,11 +668,8 @@ class OptionalOperandVariable(OptionalVariable, OperandDirective):
         operand = self.get(op)
         if not operand:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_ssa_value(operand)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         operand = getattr(op, self.name)
@@ -775,12 +772,8 @@ class OperandsDirective(OperandsOrResultDirective, FormatDirective):
             parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if op.operands:
-            if state.should_emit_space or not state.last_was_punctuation:
-                printer.print_string(" ")
-            printer.print_list(op.operands, printer.print_ssa_value)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        state.print_whitespace(printer)
+        printer.print_list(op.operands, printer.print_ssa_value)
 
     def set_types_empty(self, state: ParsingState) -> None:
         state.operand_types = [() for _ in state.operand_types]
@@ -942,23 +935,18 @@ class FunctionalTypeDirective(FormatDirective):
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
-        state.should_emit_space = True
-        printer.print_string("(")
-        printer.print_list(
-            self.operand_typeable_directive.get_types(op), printer.print_attribute
-        )
-        printer.print_string(") -> ")
+        state.print_whitespace(printer)
+        with printer.in_parens():
+            printer.print_list(
+                self.operand_typeable_directive.get_types(op), printer.print_attribute
+            )
+        printer.print_string(" -> ")
         result_types = self.result_typeable_directive.get_types(op)
         if len(result_types) == 1:
             printer.print_attribute(result_types[0])
-            state.last_was_punctuation = False
         else:
-            printer.print_string("(")
-            printer.print_list(result_types, printer.print_attribute)
-            printer.print_string(")")
-            state.last_was_punctuation = True
+            with printer.in_parens():
+                printer.print_list(result_types, printer.print_attribute)
 
 
 class RegionDirective(FormatDirective, ABC):
@@ -981,11 +969,8 @@ class RegionVariable(RegionDirective, VariableDirective):
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_region(getattr(op, self.name))
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def is_anchorable(self) -> bool:
         return True
@@ -1020,11 +1005,8 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
         region = getattr(op, self.name)
         if not region:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_list(region, printer.print_region, delimiter=" ")
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.regions[self.index] = ()
@@ -1048,11 +1030,8 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
         region = getattr(op, self.name)
         if not region:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_region(region)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.regions[self.index] = ()
@@ -1080,11 +1059,8 @@ class SuccessorVariable(VariableDirective, SuccessorDirective):
         return successor is not None
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_block_name(getattr(op, self.name))
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
 
 class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
@@ -1108,11 +1084,8 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
         successor = getattr(op, self.name)
         if not successor:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_list(successor, printer.print_block_name)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.successors[self.index] = ()
@@ -1136,11 +1109,8 @@ class OptionalSuccessorVariable(OptionalVariable, SuccessorDirective):
         successor = getattr(op, self.name)
         if not successor:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_block_name(successor)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.successors[self.index] = ()
@@ -1193,21 +1163,16 @@ class AttributeVariable(FormatDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         attr = self.get(op)
 
-        if attr is None:
+        if attr is None or attr == self.default_value:
             return
 
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
-        state.should_emit_space = True
-        state.last_was_punctuation = False
+        state.print_whitespace(printer)
 
         self.print_attr(printer, attr)
 
     def is_present(self, op: IRDLOperation) -> bool:
         attr = self.get(op)
-        return attr is not None and (
-            self.default_value is None or attr != self.default_value
-        )
+        return attr is not None and attr != self.default_value
 
     def is_anchorable(self) -> bool:
         return self.is_optional or self.default_value is not None
@@ -1415,9 +1380,10 @@ class KeywordDirective(FormatDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space:
             printer.print_string(" ")
-        printer.print_string(self.keyword)
         state.should_emit_space = True
         state.last_was_punctuation = False
+
+        printer.print_string(self.keyword)
 
     def is_optional_like(self) -> bool:
         return True
