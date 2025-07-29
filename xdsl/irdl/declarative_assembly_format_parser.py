@@ -400,7 +400,7 @@ class FormatParser(BaseParser):
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
         The variable should refer to an operand or result.
-        If `ref` is `True`, then this directive can have already in the
+        If `ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         start_pos = self.pos
@@ -448,7 +448,7 @@ class FormatParser(BaseParser):
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
         The variable should refer to an operand, attribute, region, or successor.
-        If `ref` is `True`, then this directive can have already in the
+        If `ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         if self._current_token.text[0] != "$":
@@ -603,7 +603,7 @@ class FormatParser(BaseParser):
         Parse a type directive with the following format:
           type-directive ::= `type` `(` typeable-directive `)`
         `type` is expected to have already been parsed.
-        If `ref` is `True`, then this directive can have already in the
+        If `ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         with self.in_parens():
@@ -614,7 +614,7 @@ class FormatParser(BaseParser):
         Parse a functional-type directive with the following format
           functional-type-directive ::= `functional-type` `(` typeable-directive `,` typeable-directive `)`
         `functional-type` is expected to have already been parsed.
-        If `ref` is `True`, then this directive can have already in the
+        If `ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         with self.in_parens():
@@ -628,7 +628,7 @@ class FormatParser(BaseParser):
         Parse a qualified attribute or type directive, with the following format:
             qualified-directive ::= `qualified` `(` variable `)`
         `qualified` is expected to have already been parsed.
-        If `ref` is `True`, then this directive can have already in the
+        If `ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         with self.in_parens():
@@ -794,7 +794,7 @@ class FormatParser(BaseParser):
                         | type-directive
                         | keyword-or-punctuation-directive
                         | variable
-        If `ref` is `True`, then this directive can have already in the
+        If `ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         if self.parse_optional_keyword("attr-dict"):
