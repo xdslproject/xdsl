@@ -3769,10 +3769,7 @@ class Hello(CustomDirective):
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
-        state.last_was_punctuation = False
-        state.should_emit_space = True
+        state.print_whitespace(printer)
         printer.print_string("hello")
 
 
@@ -3820,11 +3817,8 @@ class Bars(CustomDirective):
         operands = self.var.get(op)
         if not operands:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_list(operands, printer.print_ssa_value, delimiter=" | ")
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
 
 @irdl_op_definition

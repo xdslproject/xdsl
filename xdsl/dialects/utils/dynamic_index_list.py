@@ -239,8 +239,8 @@ class DynamicIndexList(CustomDirective):
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        state.should_emit_space = True
-        state.last_was_punctuation = True
+        state.print_whitespace(printer)
+
         dynamic = self.dynamic_position.get(op)
         static = self.static_position.get(op)
         assert isa(static, DenseArrayBase[IntegerType])
