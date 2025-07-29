@@ -17,7 +17,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
+from xdsl.ir import Block, Operation, OpResult, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
@@ -369,11 +369,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         self.merge_list.clear()
         for to_keep, to_replace in todo:
             operands = to_keep.operands
-            startlen = len(operands)
-            for i, val in enumerate(to_replace.operands):
-                val.add_use(Use(to_keep, startlen + i))
-                new_operands = (*operands, *to_replace.operands)
-                to_keep.operands = new_operands
+            new_operands = (*operands, *to_replace.operands)
+            to_keep.operands = new_operands
 
             for use in to_replace.result.uses:
                 if use.operation in self.known_ops:

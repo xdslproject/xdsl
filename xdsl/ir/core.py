@@ -514,15 +514,37 @@ class TypedAttribute(ParametrizedAttribute, ABC):
     def print_without_type(self, printer: Printer): ...
 
 
-@dataclass(frozen=True)
+@dataclass
 class Use:
     """The use of a SSA value."""
 
-    operation: Operation
+    _operation: Operation
     """The operation using the value."""
 
-    index: int
+    _index: int
     """The index of the operand using the value in the operation."""
+
+    _prev_use: Use | None = None
+    """The previous use of the value in the use list."""
+
+    _next_use: Use | None = None
+    """The next use of the value in the use list."""
+
+    @property
+    def operation(self) -> Operation:
+        """The operation using the value."""
+        return self._operation
+
+    @property
+    def index(self) -> int:
+        """The index of the operand using the value in the operation."""
+        return self._index
+
+    def __hash__(self) -> int:
+        return id(self)
+
+    def __eq__(self, other: object) -> bool:
+        return self is other
 
 
 @dataclass
@@ -534,26 +556,29 @@ class IRUses(Iterable[Use]):
     ir: IRWithUses
 
     def __iter__(self):
-        return self.ir._uses.__iter__()  # pyright: ignore[reportPrivateUsage]
+        use = self.ir.first_use
+        while use is not None:
+            yield use
+            use = use._next_use  # pyright: ignore[reportPrivateUsage]
 
     def __bool__(self) -> bool:
         """Returns `True` if there are operations in this block."""
-        return bool(self.ir._uses)  # pyright: ignore[reportPrivateUsage]
+        return self.ir.first_use is not None
 
     def get_length(self) -> int:
         """
         Returns the number of uses.
         We do not expose it as `__len__` as it is expensive to compute `O(len)`.
         """
-        return len(self.ir._uses)  # pyright: ignore[reportPrivateUsage]
+        return len(tuple(self))
 
 
 @dataclass(eq=False)
 class IRWithUses(ABC):
     """IRNode which stores a list of its uses."""
 
-    _uses: set[Use] = field(init=False, default_factory=set[Use], repr=False)
-    """All uses of the value."""
+    first_use: Use | None = field(init=False, default=None, repr=False)
+    """The first use of the value in the use list."""
 
     @property
     def uses(self) -> IRUses:
@@ -562,29 +587,48 @@ class IRWithUses(ABC):
 
     def add_use(self, use: Use):
         """Add a new use of the value."""
-        self._uses.add(use)
+        first_use = self.first_use
+        use._next_use = first_use  # pyright: ignore[reportPrivateUsage]
+        use._prev_use = None  # pyright: ignore[reportPrivateUsage]
+        if first_use is not None:
+            first_use._prev_use = use  # pyright: ignore[reportPrivateUsage]
+        self.first_use = use
 
     def remove_use(self, use: Use):
         """Remove a use of the value."""
-        assert use in self._uses, "use to be removed was not in use list"
-        self._uses.remove(use)
+        prev_use = use._prev_use  # pyright: ignore[reportPrivateUsage]
+        next_use = use._next_use  # pyright: ignore[reportPrivateUsage]
+        if prev_use is not None:
+            prev_use._next_use = next_use  # pyright: ignore[reportPrivateUsage]
+        if next_use is not None:
+            next_use._prev_use = prev_use  # pyright: ignore[reportPrivateUsage]
+
+        if prev_use is None:
+            self.first_use = next_use
 
     def has_one_use(self) -> bool:
         """Returns true if the value has exactly one use."""
-        return len(self._uses) == 1
+        first_use = self.first_use
+        return (
+            first_use is not None and first_use._next_use is None  # pyright: ignore[reportPrivateUsage]
+        )
 
     def has_more_than_one_use(self) -> bool:
         """Returns true if the value has more than one use."""
-        return len(self._uses) > 1
+        if (first_use := self.first_use) is None:
+            return False
+        return first_use._next_use is not None  # pyright: ignore[reportPrivateUsage]
 
     def get_unique_use(self) -> Use | None:
         """
         Returns the single use of the value, or None if there are no uses or
         more than one use.
         """
-        if self.has_one_use():
-            return next(iter(self._uses))
-        return None
+        if (first_use := self.first_use) is None:
+            return None
+        if first_use._next_use is not None:  # pyright: ignore[reportPrivateUsage]
+            return None
+        return first_use
 
     def get_user_of_unique_use(self) -> Operation | None:
         """
@@ -836,8 +880,9 @@ class OpOperands(Sequence[SSAValue]):
 
     def __setitem__(self, idx: int, operand: SSAValue) -> None:
         operands = self._op._operands  # pyright: ignore[reportPrivateUsage]
-        operands[idx].remove_use(Use(self._op, idx))
-        operand.add_use(Use(self._op, idx))
+        operand_uses = self._op._operand_uses  # pyright: ignore[reportPrivateUsage]
+        operands[idx].remove_use(operand_uses[idx])
+        operand.add_use(operand_uses[idx])
         new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
         self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
 
@@ -903,6 +948,13 @@ class Operation(_IRNode):
     _operands: tuple[SSAValue, ...] = field(default=())
     """The operation operands."""
 
+    _operand_uses: tuple[Use, ...] = field(default=())
+    """
+    The uses for each operand.
+    They are stored separately from the operands to allow for more efficient
+    access to the operand SSAValue.
+    """
+
     results: tuple[OpResult, ...] = field(default=())
     """The results created by the operation."""
 
@@ -910,6 +962,13 @@ class Operation(_IRNode):
     """
     The basic blocks that the operation may give control to.
     This list should be empty for non-terminator operations.
+    """
+
+    _successor_uses: tuple[Use, ...] = field(default=())
+    """
+    The uses for each successor.
+    They are stored separately from the successors to allow for more efficient
+    access to the successor Block.
     """
 
     properties: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
@@ -1019,11 +1078,13 @@ class Operation(_IRNode):
     @operands.setter
     def operands(self, new: Sequence[SSAValue]):
         new = tuple(new)
-        for idx, operand in enumerate(self._operands):
-            operand.remove_use(Use(self, idx))
-        for idx, operand in enumerate(new):
-            operand.add_use(Use(self, idx))
+        new_uses = tuple(Use(self, idx) for idx in range(len(new)))
+        for operand, use in zip(self._operands, self._operand_uses):
+            operand.remove_use(use)
+        for operand, use in zip(new, new_uses):
+            operand.add_use(use)
         self._operands = new
+        self._operand_uses = new_uses
 
     @property
     def successors(self) -> OpSuccessors:
@@ -1032,11 +1093,13 @@ class Operation(_IRNode):
     @successors.setter
     def successors(self, new: Sequence[Block]):
         new = tuple(new)
-        for idx, successor in enumerate(self._successors):
-            successor.remove_use(Use(self, idx))
-        for idx, successor in enumerate(new):
-            successor.add_use(Use(self, idx))
+        new_uses = tuple(Use(self, idx) for idx in range(len(new)))
+        for successor, use in zip(self._successors, self._successor_uses):
+            successor.remove_use(use)
+        for successor, use in zip(new, new_uses):
+            successor.add_use(use)
         self._successors = new
+        self._successor_uses = new_uses
 
     def __post_init__(self):
         assert self.name != ""
@@ -1130,8 +1193,8 @@ class Operation(_IRNode):
         This function is called prior to deleting an operation.
         """
         self.parent = None
-        for idx, operand in enumerate(self.operands):
-            operand.remove_use(Use(self, idx))
+        for operand, use in zip(self._operands, self._operand_uses):
+            operand.remove_use(use)
         for region in self.regions:
             region.drop_all_references()
 
@@ -2016,8 +2079,9 @@ class OpSuccessors(Sequence[Block]):
 
     def __setitem__(self, idx: int, successor: Block) -> None:
         successors = self._op._successors  # pyright: ignore[reportPrivateUsage]
-        successors[idx].remove_use(Use(self._op, idx))
-        successor.add_use(Use(self._op, idx))
+        successor_uses = self._op._successor_uses  # pyright: ignore[reportPrivateUsage]
+        successors[idx].remove_use(successor_uses[idx])
+        successor.add_use(successor_uses[idx])
         new_successors = (*successors[:idx], successor, *successors[idx + 1 :])
         self._op._successors = new_successors  # pyright: ignore[reportPrivateUsage]
 
