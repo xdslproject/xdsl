@@ -369,13 +369,13 @@ class FormatParser(BaseParser):
                 )
 
     def _parse_optional_operand(
-        self, variable_name: str, top_level: bool, ref: bool
+        self, variable_name: str, inside_type: bool, inside_ref: bool
     ) -> OptionalOperandVariable | VariadicOperandVariable | OperandVariable | None:
         for idx, (operand_name, operand_def) in enumerate(self.op_def.operands):
             if variable_name != operand_name:
                 continue
-            if not ref:
-                if top_level:
+            if not inside_ref:
+                if not inside_type:
                     if self.seen_operands[idx]:
                         self.raise_error(f"operand '{variable_name}' is already bound")
                     self.seen_operands[idx] = True
@@ -395,12 +395,14 @@ class FormatParser(BaseParser):
                 case _:
                     return OperandVariable(variable_name, idx)
 
-    def parse_optional_typeable_variable(self, ref: bool) -> TypeableDirective | None:
+    def parse_optional_typeable_variable(
+        self, inside_ref: bool
+    ) -> TypeableDirective | None:
         """
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
         The variable should refer to an operand or result.
-        If `ref` is `True`, then this directive can have appeared in the
+        If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         start_pos = self.pos
@@ -412,7 +414,7 @@ class FormatParser(BaseParser):
 
         # Check if the variable is an operand
         if (
-            variable := self._parse_optional_operand(variable_name, False, ref)
+            variable := self._parse_optional_operand(variable_name, True, inside_ref)
         ) is not None:
             return variable
 
@@ -420,7 +422,7 @@ class FormatParser(BaseParser):
         for idx, (result_name, result_def) in enumerate(self.op_def.results):
             if variable_name != result_name:
                 continue
-            if not ref:
+            if not inside_ref:
                 if self.seen_result_types[idx]:
                     self.raise_error(f"type of '{variable_name}' is already bound")
                 self.seen_result_types[idx] = True
@@ -440,7 +442,7 @@ class FormatParser(BaseParser):
 
     def parse_optional_variable(
         self,
-        ref: bool,
+        inside_ref: bool,
         *,
         qualified: bool = False,
     ) -> FormatDirective | None:
@@ -448,7 +450,7 @@ class FormatParser(BaseParser):
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
         The variable should refer to an operand, attribute, region, or successor.
-        If `ref` is `True`, then this directive can have appeared in the
+        If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         if self._current_token.text[0] != "$":
@@ -460,7 +462,7 @@ class FormatParser(BaseParser):
 
         # Check if the variable is an operand
         if (
-            variable := self._parse_optional_operand(variable_name, True, ref)
+            variable := self._parse_optional_operand(variable_name, False, inside_ref)
         ) is not None:
             return variable
 
@@ -468,7 +470,7 @@ class FormatParser(BaseParser):
         for idx, (region_name, region_def) in enumerate(self.op_def.regions):
             if variable_name != region_name:
                 continue
-            if not ref:
+            if not inside_ref:
                 if self.seen_regions[idx]:
                     self.raise_error(f"region '{region_name}' is already bound")
                 self.seen_regions[idx] = True
@@ -484,7 +486,7 @@ class FormatParser(BaseParser):
         for idx, (successor_name, successor_def) in enumerate(self.op_def.successors):
             if variable_name != successor_name:
                 continue
-            if not ref:
+            if not inside_ref:
                 if self.seen_successors[idx]:
                     self.raise_error(f"successor '{successor_name}' is already bound")
                 self.seen_successors[idx] = True
@@ -507,13 +509,13 @@ class FormatParser(BaseParser):
             attr_or_prop = attr_or_prop_by_name[attr_name]
             is_property = attr_or_prop == "property"
             if is_property:
-                if not ref:
+                if not inside_ref:
                     if attr_name in self.seen_properties:
                         self.raise_error(f"property '{variable_name}' is already bound")
                     self.seen_properties.add(attr_name)
                 attr_def = self.op_def.properties[attr_name]
             else:
-                if not ref:
+                if not inside_ref:
                     if attr_name in self.seen_attributes:
                         self.raise_error(
                             f"attribute '{variable_name}' is already bound"
@@ -598,41 +600,41 @@ class FormatParser(BaseParser):
             end_position=end_pos,
         )
 
-    def parse_type_directive(self, ref: bool) -> FormatDirective:
+    def parse_type_directive(self, inside_ref: bool) -> FormatDirective:
         """
         Parse a type directive with the following format:
           type-directive ::= `type` `(` typeable-directive `)`
         `type` is expected to have already been parsed.
-        If `ref` is `True`, then this directive can have appeared in the
+        If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         with self.in_parens():
-            return TypeDirective(self.parse_typeable_directive(ref))
+            return TypeDirective(self.parse_typeable_directive(inside_ref))
 
-    def parse_functional_type_directive(self, ref: bool) -> FormatDirective:
+    def parse_functional_type_directive(self, inside_ref: bool) -> FormatDirective:
         """
         Parse a functional-type directive with the following format
           functional-type-directive ::= `functional-type` `(` typeable-directive `,` typeable-directive `)`
         `functional-type` is expected to have already been parsed.
-        If `ref` is `True`, then this directive can have appeared in the
+        If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         with self.in_parens():
-            operands = self.parse_typeable_directive(ref)
+            operands = self.parse_typeable_directive(inside_ref)
             self.parse_punctuation(",")
-            results = self.parse_typeable_directive(ref)
+            results = self.parse_typeable_directive(inside_ref)
         return FunctionalTypeDirective(operands, results)
 
-    def parse_qualified_directive(self, ref: bool) -> FormatDirective:
+    def parse_qualified_directive(self, inside_ref: bool) -> FormatDirective:
         """
         Parse a qualified attribute or type directive, with the following format:
             qualified-directive ::= `qualified` `(` variable `)`
         `qualified` is expected to have already been parsed.
-        If `ref` is `True`, then this directive can have appeared in the
+        If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         with self.in_parens():
-            res = self.parse_optional_variable(ref, qualified=True)
+            res = self.parse_optional_variable(inside_ref, qualified=True)
             if res is None:
                 self.raise_error(
                     "expected a variable after 'qualified', found "
@@ -735,16 +737,18 @@ class FormatParser(BaseParser):
         self.parse_characters("`")
         return KeywordDirective(ident)
 
-    def parse_typeable_directive(self, ref: bool) -> TypeableDirective:
+    def parse_typeable_directive(self, inside_ref: bool) -> TypeableDirective:
         """
         Parse a typeable directive, with the following format:
-          typeable-directive ::= variable
+          typeable-directive ::= variable | `operands` | `results`
+        If `inside_ref` is `True`, then this directive can have appeared in the
+        assembly format already.
         """
         if self.parse_optional_keyword("operands"):
-            return self.create_operands_directive(False, ref)
+            return self.create_operands_directive(True, inside_ref)
         if self.parse_optional_keyword("results"):
-            return self.create_results_directive(ref)
-        if variable := self.parse_optional_typeable_variable(ref):
+            return self.create_results_directive(inside_ref)
+        if variable := self.parse_optional_typeable_variable(inside_ref):
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
@@ -786,7 +790,7 @@ class FormatParser(BaseParser):
                 return self.parse_format_directive(True)
         return self.parse_format_directive(False)
 
-    def parse_format_directive(self, ref: bool) -> FormatDirective:
+    def parse_format_directive(self, inside_ref: bool) -> FormatDirective:
         """
         Parse a format directive, with the following format:
           directive ::= `attr-dict`
@@ -794,7 +798,7 @@ class FormatParser(BaseParser):
                         | type-directive
                         | keyword-or-punctuation-directive
                         | variable
-        If `ref` is `True`, then this directive can have appeared in the
+        If `inside_ref` is `True`, then this directive can have appeared in the
         assembly format already.
         """
         if self.parse_optional_keyword("attr-dict"):
@@ -802,20 +806,20 @@ class FormatParser(BaseParser):
         if self.parse_optional_keyword("attr-dict-with-keyword"):
             return self.create_attr_dict_directive(True)
         if self.parse_optional_keyword("type"):
-            return self.parse_type_directive(ref)
+            return self.parse_type_directive(inside_ref)
         if self.parse_optional_keyword("operands"):
-            return self.create_operands_directive(True, ref)
+            return self.create_operands_directive(False, inside_ref)
         if self.parse_optional_keyword("functional-type"):
-            return self.parse_functional_type_directive(ref)
+            return self.parse_functional_type_directive(inside_ref)
         if self.parse_optional_keyword("qualified"):
-            return self.parse_qualified_directive(ref)
+            return self.parse_qualified_directive(inside_ref)
         if self.parse_optional_keyword("custom"):
             return self.parse_custom_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
         if self.parse_optional_punctuation("("):
             return self.parse_optional_group()
-        if variable := self.parse_optional_variable(ref):
+        if variable := self.parse_optional_variable(inside_ref):
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
@@ -830,18 +834,18 @@ class FormatParser(BaseParser):
         )
 
     def create_operands_directive(
-        self, top_level: bool, ref: bool
+        self, inside_type: bool, inside_ref: bool
     ) -> OperandsDirective:
         """
         Create an operands directive.
-        If `top_level` is true, then we are not nested within a `type` directive.
-        If `ref` is true, we allow operands to have been previously parsed.
+        If `inside_type` is true, then we are nested within a `type` directive.
+        If `inside_ref` is true, we allow operands to have been previously parsed.
         """
         if not self.op_def.operands:
             self.raise_error("'operands' should not be used when there are no operands")
-        if not ref and top_level and any(self.seen_operands):
+        if not inside_ref and not inside_type and any(self.seen_operands):
             self.raise_error("'operands' cannot be used with other operand directives")
-        if not ref and not top_level and any(self.seen_operand_types):
+        if not inside_ref and inside_type and any(self.seen_operand_types):
             self.raise_error(
                 "'operands' cannot be used in a type directive with other operand type directives"
             )
@@ -852,8 +856,8 @@ class FormatParser(BaseParser):
         )
         if len(variadics) > 1:
             self.raise_error("'operands' is ambiguous with multiple variadic operands")
-        if not ref:
-            if top_level:
+        if not inside_ref:
+            if not inside_type:
                 self.seen_operands = [True] * len(self.seen_operands)
             else:
                 self.seen_operand_types = [True] * len(self.seen_operand_types)
@@ -861,14 +865,14 @@ class FormatParser(BaseParser):
             return OperandsDirective(None)
         return OperandsDirective(variadics[0])
 
-    def create_results_directive(self, ref: bool) -> ResultsDirective:
+    def create_results_directive(self, inside_ref: bool) -> ResultsDirective:
         """
         Create an results directive.
-        If `ref` is true, we allow results to have been previously parsed.
+        If `inside_ref` is true, we allow results to have been previously parsed.
         """
         if not self.op_def.results:
             self.raise_error("'results' should not be used when there are no results")
-        if not ref and any(self.seen_result_types):
+        if not inside_ref and any(self.seen_result_types):
             self.raise_error(
                 "'results' cannot be used in a type directive with other result type directives"
             )
@@ -879,7 +883,7 @@ class FormatParser(BaseParser):
         )
         if len(variadics) > 1:
             self.raise_error("'results' is ambiguous with multiple variadic results")
-        if not ref:
+        if not inside_ref:
             self.seen_result_types = [True] * len(self.seen_result_types)
         if not variadics:
             return ResultsDirective(None)
