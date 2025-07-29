@@ -78,13 +78,17 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
+    AttributeVariable,
     CustomDirective,
     FormatProgram,
     OperandsDirective,
+    OperandVariable,
     ParsingState,
     PrintingState,
     PunctuationDirective,
+    RegionVariable,
     ResultsDirective,
+    SuccessorVariable,
     TypeDirective,
     VariadicOperandVariable,
     irdl_custom_directive,
@@ -3883,3 +3887,60 @@ def test_bad_parameter():
                 self, printer: Printer, state: PrintingState, op: IRDLOperation
             ) -> None:
                 raise NotImplementedError()
+
+
+@irdl_custom_directive
+class EmptyDirectiveWithParams(CustomDirective):
+    op: OperandVariable
+    op_type: TypeDirective
+    res_type: TypeDirective
+    attr: AttributeVariable
+    prop: AttributeVariable
+    region: RegionVariable
+    successor: SuccessorVariable
+    operands: OperandsDirective
+    operand_types: TypeDirective
+    results: TypeDirective
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        pass
+
+
+@irdl_op_definition
+class RefDirectivesOp(IRDLOperation):
+    name = "test.ref_directives"
+
+    op = operand_def()
+    res = result_def()
+    attr = attr_def()
+    prop = prop_def()
+    region = region_def()
+    successor = successor_def()
+
+    assembly_format = (
+        "$op type($op) type($res) $attr $prop $region $successor "
+        "custom<EmptyDirectiveWithParams>("
+        "ref($op),"
+        "ref(type($op)),"
+        "ref(type($res)),"
+        "ref($attr),"
+        "ref($prop),"
+        "ref($region),"
+        "ref($successor),"
+        "ref(operands),"
+        "ref(type(operands)),"
+        "ref(type(results))"
+        ") attr-dict"
+    )
+
+    custom_directives = (EmptyDirectiveWithParams,)
+
+
+def test_ref_directives():
+    ctx = Context()
+    ctx.load_op(RefDirectivesOp)
+    ctx.load_dialect(Test)
+    check_roundtrip("%0 = test.ref_directives %1 i1 i2 i3 i4 {\n} ^0", ctx)
