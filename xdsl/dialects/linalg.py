@@ -1452,7 +1452,8 @@ class ReduceOp(IRDLOperation):
 
         if input_type.get_element_type() != init_type.get_element_type():
             raise VerifyException(
-                f"Reduction element types must be equal, but input is {input_type.get_element_type()} and init is {init_type.get_element_type()}"
+                f"Reduction element types must be equal, but input is {input_type.get_element_type()} "
+                f"and init is {init_type.get_element_type()}"
             )
 
         dimensions_shape = self.dimensions.get_values()
