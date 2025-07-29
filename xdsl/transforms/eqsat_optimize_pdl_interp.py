@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from dataclasses import dataclass, field
 
 from xdsl.context import Context
@@ -41,39 +42,55 @@ class MatcherOptimizer:
         ):
             return False
 
-        potential_check_blocks = set[Block]()
+        check_blocks = set[Block]()
+        names = set[builtin.StringAttr]()
 
         for use in gdo.input_op.uses:
             check_op = use.operation
             if isinstance(check_op, pdl_interp.SwitchOperationNameOp):
-                finalize_dest = check_op.default_dest
+                finalizes = self.is_finalize_block(check_op.default_dest), f"{check_op}"
+                names.update(check_op.case_values)
             elif isinstance(check_op, pdl_interp.CheckOperationNameOp):
-                finalize_dest = check_op.false_dest
+                finalizes = self.is_finalize_block(check_op.false_dest)
+                names.add(check_op.operation_name)
             else:
                 continue
-            if not self.is_finalize_block(finalize_dest):
-                continue
-            assert (check_block := check_op.parent_block())
-            potential_check_blocks.add(check_block)
+            if finalizes:
+                # when this `check_op` is reached, the pattern will either fail to match or
+                # the operation will be constrained to a name contained in `names`.
+                assert (check_block := check_op.parent_block())
+                check_blocks.add(check_block)
 
-        # Search for a path without branches that leads to one of the potential
-        # blocks containing an operation name check. If there is such a path that
-        # contains additional GetDefiningOpOps, we duplicate the check operation.
+        worklist: list[Block] = list(gdo_block.last_op.successors)
         additional_gdo_on_path = False
-        block = gdo_block
-        while (block := self.single_branch(block)) is not None:
+        while worklist:
+            block = worklist.pop()
             for op in block.ops:
                 if isinstance(op, pdl_interp.GetDefiningOpOp):
                     additional_gdo_on_path = True
-            if additional_gdo_on_path and block in potential_check_blocks:
-                assert isinstance(
-                    block.last_op,
-                    pdl_interp.CheckOperationNameOp | pdl_interp.SwitchOperationNameOp,
-                )
-                self.duplicate_name_constraint(block.last_op, gdo_block)
-                return True
+            if block in check_blocks:
+                continue
+            terminator = block.last_op
+            assert terminator, "Expected each block to have a terminator"
+            if isinstance(terminator, pdl_interp.RecordMatchOp):
+                # There is a rewrite that is triggered without ever constraining the operation's name.
+                # This means we cannot move a aggregate name check right after the GDO.
+                return False
+            worklist.extend(
+                terminator.successors
+            )  # This terminates since CFG is acyclic.
 
-        return False
+        # To prevent inserting too many new checks, we only insert if there is actual danger
+        # of exponential blowup due to the presence of multiple GDOs on the path.
+        if not additional_gdo_on_path:
+            return False
+
+        self.insert_name_constraint(
+            names,
+            gdo,
+        )
+
+        return True
 
     def is_finalize_block(self, block: Block) -> bool:
         if block in self.finalize_blocks:
@@ -83,44 +100,30 @@ class MatcherOptimizer:
             return True
         return False
 
-    def single_branch(self, block: Block) -> Block | None:
-        """
-        Check if the block has exactly one successor that is not a finalize block.
-        If this is the case, we return the single successor. Otherwise, we return None.
-        """
-        assert block.last_op
-        single_successor = None
-        for succ in block.last_op.successors:
-            if not self.is_finalize_block(succ):
-                if single_successor is not None:
-                    # At this point, we know that the block has more than one successor
-                    return None
-                single_successor = succ
-        return single_successor
-
-    def duplicate_name_constraint(
+    def insert_name_constraint(
         self,
-        check_op: pdl_interp.CheckOperationNameOp | pdl_interp.SwitchOperationNameOp,
-        gdo_block: Block,
+        valid_names: Collection[builtin.StringAttr],
+        gdo: pdl_interp.GetDefiningOpOp,
     ):
+        gdo_block = gdo.parent_block()
         # at this point, we also know that the false_dest of the terminator is a finalize block
+        assert gdo_block
         assert isinstance(terminator := gdo_block.last_op, pdl_interp.IsNotNullOp)
 
         continue_dest = terminator.true_dest
-        if isinstance(check_op, pdl_interp.CheckOperationNameOp):
+        if len(valid_names) == 1:
             new_check_op = pdl_interp.CheckOperationNameOp(
-                check_op.operation_name,
-                check_op.input_op,
+                next(iter(valid_names)),
+                gdo.input_op,
                 trueDest=continue_dest,
                 falseDest=terminator.false_dest,
             )
         else:
-            assert isinstance(check_op, pdl_interp.SwitchOperationNameOp)
             new_check_op = pdl_interp.SwitchOperationNameOp(
-                check_op.case_values,
-                check_op.input_op,
+                valid_names,
+                gdo.input_op,
                 default_dest=terminator.false_dest,
-                cases=[continue_dest for _ in check_op.case_values],
+                cases=[continue_dest for _ in range(len(valid_names))],
             )
         new_block = Block((new_check_op,))
         self.matcher.body.insert_block_after(new_block, gdo_block)
