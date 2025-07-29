@@ -598,7 +598,9 @@ class FormatParser(BaseParser):
         """
         Parse a type directive with the following format:
           type-directive ::= `type` `(` typeable-directive `)`
-        `type` is expected to have already been parsed
+        `type` is expected to have already been parsed.
+        If `ref` is `True`, then this directive can have already in the
+        assembly format already.
         """
         with self.in_parens():
             return TypeDirective(self.parse_typeable_directive(ref))
@@ -607,7 +609,9 @@ class FormatParser(BaseParser):
         """
         Parse a functional-type directive with the following format
           functional-type-directive ::= `functional-type` `(` typeable-directive `,` typeable-directive `)`
-        `functional-type` is expected to have already been parsed
+        `functional-type` is expected to have already been parsed.
+        If `ref` is `True`, then this directive can have already in the
+        assembly format already.
         """
         with self.in_parens():
             operands = self.parse_typeable_directive(ref)
@@ -619,6 +623,9 @@ class FormatParser(BaseParser):
         """
         Parse a qualified attribute or type directive, with the following format:
             qualified-directive ::= `qualified` `(` variable `)`
+        `qualified` is expected to have already been parsed.
+        If `ref` is `True`, then this directive can have already in the
+        assembly format already.
         """
         with self.in_parens():
             res = self.parse_optional_variable(ref, qualified=True)
@@ -727,7 +734,7 @@ class FormatParser(BaseParser):
     def parse_typeable_directive(self, ref: bool) -> TypeableDirective:
         """
         Parse a typeable directive, with the following format:
-          directive ::= variable
+          typeable-directive ::= variable
         """
         if self.parse_optional_keyword("operands"):
             return self.create_operands_directive(False, ref)
@@ -740,8 +747,10 @@ class FormatParser(BaseParser):
     def parse_custom_directive(self) -> FormatDirective:
         """
         Parse a custom directive, with the following format:
-          custom-directive ::= custom<bare-ident>((directive (`,` directive)*)?)
-        Assumes the keyword "custom" has already been parsed.
+          custom-directive ::= `custom` `<` bare-ident `>` `(`
+            (possibly-ref-directive (`,` possibly-ref-directive)*)?
+          `)`
+        Assumes the keyword `custom` has already been parsed.
         """
 
         with self.in_angle_brackets():
@@ -764,6 +773,10 @@ class FormatParser(BaseParser):
         return directive(*params)
 
     def parse_possible_ref_directive(self) -> FormatDirective:
+        """
+        Parse a ref directive or other format directive, with format:
+          possibly-ref-directive ::= `ref` `(` directive `)` | directive
+        """
         if self.parse_optional_keyword("ref"):
             with self.in_parens():
                 return self.parse_format_directive(True)
@@ -777,6 +790,8 @@ class FormatParser(BaseParser):
                         | type-directive
                         | keyword-or-punctuation-directive
                         | variable
+        If `ref` is `True`, then this directive can have already in the
+        assembly format already.
         """
         if self.parse_optional_keyword("attr-dict"):
             return self.create_attr_dict_directive(False)
@@ -813,6 +828,11 @@ class FormatParser(BaseParser):
     def create_operands_directive(
         self, top_level: bool, ref: bool
     ) -> OperandsDirective:
+        """
+        Create an operands directive.
+        If `top_level` is true, then we are not nested within a `type` directive.
+        If `ref` is true, we allow operands to have been previously parsed.
+        """
         if not self.op_def.operands:
             self.raise_error("'operands' should not be used when there are no operands")
         if not ref and top_level and any(self.seen_operands):
@@ -838,6 +858,10 @@ class FormatParser(BaseParser):
         return OperandsDirective(variadics[0])
 
     def create_results_directive(self, ref: bool) -> ResultsDirective:
+        """
+        Create an results directive.
+        If `ref` is true, we allow results to have been previously parsed.
+        """
         if not self.op_def.results:
             self.raise_error("'results' should not be used when there are no results")
         if not ref and any(self.seen_result_types):
