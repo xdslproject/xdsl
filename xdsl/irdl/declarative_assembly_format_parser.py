@@ -455,6 +455,8 @@ class FormatParser(BaseParser):
         for idx, (region_name, region_def) in enumerate(self.op_def.regions):
             if variable_name != region_name:
                 continue
+            if self.seen_regions[idx]:
+                self.raise_error(f"region '{region_name}' is already bound")
             self.seen_regions[idx] = True
             match region_def:
                 case OptRegionDef() | OptSingleBlockRegionDef():
@@ -468,6 +470,8 @@ class FormatParser(BaseParser):
         for idx, (successor_name, successor_def) in enumerate(self.op_def.successors):
             if variable_name != successor_name:
                 continue
+            if self.seen_successors[idx]:
+                self.raise_error(f"successor '{successor_name}' is already bound")
             self.seen_successors[idx] = True
             match successor_def:
                 case OptSuccessorDef():
