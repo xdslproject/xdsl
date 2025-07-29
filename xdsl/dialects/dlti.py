@@ -9,6 +9,7 @@ https://mlir.llvm.org/docs/Dialects/DLTIDialect/
 from __future__ import annotations
 
 from collections.abc import Sequence
+
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import irdl_attr_definition

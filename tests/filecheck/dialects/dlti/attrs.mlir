@@ -182,4 +182,3 @@ module attributes {
     "CPU" = #dlti.target_device_spec<"L1_cache_size_in_bytes" = 4096 : ui32>,
     "GPU" = #dlti.target_device_spec<"max_vector_op_width" = 128>
   >} {}
-
