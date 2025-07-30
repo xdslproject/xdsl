@@ -1803,7 +1803,7 @@ class BaseAccessor(ABC):
 
 
 @dataclass
-class IdSingleAccessor(BaseAccessor):
+class BeforeVariadicSingleAccessor(BaseAccessor):
     def index(self, args: Sequence[Any]) -> Any:
         return args[self.idx]
 
@@ -1909,7 +1909,7 @@ def irdl_op_arg_definition(
     if num_variadics == 0:
         # There are no variadics, so accessors just take the appropriate index
         for arg_idx, (arg_name, _) in enumerate(defs):
-            new_attrs[arg_name] = IdSingleAccessor(construct, arg_idx)
+            new_attrs[arg_name] = BeforeVariadicSingleAccessor(construct, arg_idx)
 
     elif num_variadics == 1:
         # There is one variadic, whose size is the total operands minus the number of other operands
@@ -1929,7 +1929,9 @@ def irdl_op_arg_definition(
                             construct, arg_idx, num_defs
                         )
                 else:
-                    new_attrs[arg_name] = IdSingleAccessor(construct, arg_idx)
+                    new_attrs[arg_name] = BeforeVariadicSingleAccessor(
+                        construct, arg_idx
+                    )
             else:
                 new_attrs[arg_name] = AfterVariadicSingleAccessor(
                     construct, arg_idx, num_defs
