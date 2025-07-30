@@ -516,10 +516,8 @@ class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
         block = op.parent_block()
         if block is None:
             return
-        preds = block.uses
-        if len(preds) != 1:
+        if (pred := block.get_unique_use()) is None:
             return
-        pred = next(iter(preds))
         switch = pred.operation
         if not isinstance(switch, cf.SwitchOp):
             return

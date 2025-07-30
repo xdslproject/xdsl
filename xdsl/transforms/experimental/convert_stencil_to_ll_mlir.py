@@ -612,15 +612,11 @@ def _get_use_target(use: Use) -> SSAValue | None:
                 temp = store.results[use.index - len(store.lower) - len(store.lowerext)]
                 # If it's the nth upperext arg, the combined temp is the
                 # (lower+lowerext+n)th combined.
-            temp_uses = temp.uses
-            match len(temp_uses):
-                case 0:
-                    return None
-                case 1:
-                    target = _get_use_target(list(temp_uses)[0])
-                    return target
-                case _:
-                    raise ValueError("Each stencil result should be stored only once.")
+            if not temp.uses:
+                return None
+            if (temp_use := temp.get_unique_use()) is not None:
+                return _get_use_target(temp_use)
+            raise ValueError("Each stencil result should be stored only once.")
         case _:
             # Should be unreachable
             raise ValueError(f"Unexpected store type {store}")

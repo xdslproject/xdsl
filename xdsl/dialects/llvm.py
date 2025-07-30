@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
+    DictionaryAttr,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -1568,6 +1569,19 @@ class FuncOp(IRDLOperation):
     sym_visibility = opt_prop_def(StringAttr)
     visibility_ = prop_def(IntegerAttr[IntegerType])
 
+    # The following properties are not yet verified by the xDSL verifier, but
+    # are verified to at least allow the IR to be parsed and printed correctly.
+    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    frame_pointer = opt_prop_def(FramePointerKindAttr)
+    no_inline = opt_prop_def(UnitAttr)
+    no_unwind = opt_prop_def(UnitAttr)
+    optimize_none = opt_prop_def(UnitAttr)
+    passthrough = opt_prop_def(ArrayAttr[Attribute])
+    target_cpu = opt_prop_def(StringAttr)
+    target_features = opt_prop_def(TargetFeaturesAttr)
+    tune_cpu = opt_prop_def(StringAttr)
+    unnamed_addr = opt_prop_def(IntegerAttr)
+
     def __init__(
         self,
         sym_name: str | StringAttr,
@@ -1577,6 +1591,7 @@ class FuncOp(IRDLOperation):
         visibility: int | IntegerAttr[IntegerType] = 0,
         sym_visibility: str | StringAttr | None = None,
         body: Region | None = None,
+        other_props: dict[str, Attribute | None] | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -1586,17 +1601,21 @@ class FuncOp(IRDLOperation):
             body = Region([])
         if isinstance(sym_visibility, str):
             sym_visibility = StringAttr(sym_visibility)
-        super().__init__(
-            operands=[],
-            regions=[body],
-            properties={
+        properties = other_props if other_props is not None else {}
+        properties.update(
+            {
                 "sym_name": sym_name,
                 "function_type": function_type,
                 "CConv": cconv,
                 "linkage": linkage,
                 "visibility_": visibility,
                 "sym_visibility": sym_visibility,
-            },
+            }
+        )
+        super().__init__(
+            operands=[],
+            regions=[body],
+            properties=properties,
         )
 
 

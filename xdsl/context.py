@@ -1,7 +1,5 @@
-import warnings
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any
 
 from xdsl.ir import Attribute, Dialect, Operation, TypeAttribute
 from xdsl.utils.exceptions import (
@@ -299,9 +297,3 @@ class Context:
             return self._loaded_dialects[name]
 
         return None
-
-
-class MLContext(Context):
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
-        warnings.warn("MLContext is deprecated, please use Context instead")

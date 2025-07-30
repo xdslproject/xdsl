@@ -395,13 +395,13 @@ class FuseMultiplyAddD(RewritePattern):
         if (
             isinstance(mul := op.rs2.owner, riscv.FMulDOp)
             and _has_contract_flag(mul)
-            and len(mul.rd.uses) == 1
+            and mul.rd.has_one_use()
         ):
             addend = op.rs1
         elif (
             isinstance(mul := op.rs1.owner, riscv.FMulDOp)
             and _has_contract_flag(mul)
-            and len(mul.rd.uses) == 1
+            and mul.rd.has_one_use()
         ):
             addend = op.rs2
         else:

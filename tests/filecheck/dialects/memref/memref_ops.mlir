@@ -23,7 +23,7 @@ builtin.module {
     %g = memref.load %2[%1] {nontemporal = true} : memref<1xindex>
     %5 = memref.alloc() {"alignment" = 0} : memref<10x2xindex>
     "memref.store"(%3, %5, %3, %4) : (index, memref<10x2xindex>, index, index) -> ()
-    %6 = memref.subview %5[0, 0] [1, 1] [1, 1] attributes {"hello" = "world"} : memref<10x2xindex> to memref<1x1xindex>
+    %6 = memref.subview %5[0, 0] [1, 1] [1, 1] {"hello" = "world"} : memref<10x2xindex> to memref<1x1xindex>
     %7 = "memref.cast"(%5) : (memref<10x2xindex>) -> memref<?x?xindex>
     %8 = "memref.alloca"() {operandSegmentSizes = array<i32: 0, 0>} : () -> memref<1xindex>
     %9 = "memref.memory_space_cast"(%5) : (memref<10x2xindex>) -> memref<10x2xindex, 1: i32>
@@ -75,7 +75,7 @@ builtin.module {
 // CHECK-NEXT:     %{{.*}} = memref.load %{{.*}}[%{{.*}}] {nontemporal = true} : memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = memref.alloc() {alignment = 0 : i64} : memref<10x2xindex>
 // CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}, %{{.*}}] : memref<10x2xindex>
-// CHECK-NEXT:     %{{.*}} = memref.subview %{{.*}}[0, 0] [1, 1] [1, 1] attributes {hello = "world"} : memref<10x2xindex> to memref<1x1xindex>
+// CHECK-NEXT:     %{{.*}} = memref.subview %{{.*}}[0, 0] [1, 1] [1, 1] {hello = "world"} : memref<10x2xindex> to memref<1x1xindex>
 // CHECK-NEXT:     %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x2xindex>) -> memref<?x?xindex>
 // CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = "memref.memory_space_cast"(%{{.*}}) : (memref<10x2xindex>) -> memref<10x2xindex, 1 : i32>

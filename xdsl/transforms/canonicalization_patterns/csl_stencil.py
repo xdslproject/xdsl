@@ -18,14 +18,14 @@ class RedundantAccumulatorInitialisation(RewritePattern):
     def match_and_rewrite(
         self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter
     ) -> None:
-        if len(op.accumulator.uses) > 1:
+        if op.accumulator.has_more_than_one_use():
             return
 
         next_apply = op
         while (next_apply := next_apply.next_op) is not None:
             if (
                 isinstance(next_apply, csl_stencil.ApplyOp)
-                and len(next_apply.accumulator.uses) == 1
+                and next_apply.accumulator.has_one_use()
                 and isinstance(next_apply.accumulator, OpResult)
                 and isinstance(next_apply.accumulator.op, tensor.EmptyOp)
                 and op.accumulator.type == next_apply.accumulator.type

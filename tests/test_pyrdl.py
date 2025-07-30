@@ -1,7 +1,7 @@
 """Unit tests for IRDL."""
 
 from dataclasses import dataclass
-from enum import StrEnum, auto
+from enum import auto
 from typing import Literal
 
 import pytest
@@ -36,6 +36,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLTypeError, VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
 @irdl_attr_definition

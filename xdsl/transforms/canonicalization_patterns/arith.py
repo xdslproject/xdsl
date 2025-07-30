@@ -117,8 +117,7 @@ class FoldConstsByReassociation(RewritePattern):
 
         if (
             not isinstance(const1, arith.ConstantOp)
-            or len(op.result.uses) != 1
-            or not isinstance(u := list(op.result.uses)[0].operation, type(op))
+            or not isinstance(u := op.result.get_user_of_unique_use(), type(op))
             or not isinstance(
                 const2 := u.lhs.owner if u.rhs == op.result else u.rhs.owner,
                 arith.ConstantOp,

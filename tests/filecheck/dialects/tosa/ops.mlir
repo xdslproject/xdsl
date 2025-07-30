@@ -10,6 +10,9 @@
 %7 = tosa.sub %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
 %8 = tosa.mul %0, %0 : (tensor<12x34xi32>, tensor<12x34xi32>) -> tensor<12x34xi32>
 %9 = tosa.mul %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
+%10 = "test.op"() : () -> tensor<12x13xf32>
+%11 = tosa.sin %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
+%12 = tosa.cos %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
 
 
 // CHECK: builtin.module {
@@ -23,4 +26,7 @@
 // CHECK-NEXT:   %7 = tosa.sub %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
 // CHECK-NEXT:   %8 = tosa.mul %0, %0 : (tensor<12x34xi32>, tensor<12x34xi32>) -> tensor<12x34xi32>
 // CHECK-NEXT:   %9 = tosa.mul %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
+// CHECK-NEXT:   %10 = "test.op"() : () -> tensor<12x13xf32>
+// CHECK-NEXT:   %11 = tosa.sin %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
+// CHECK-NEXT:   %12 = tosa.cos %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
 // CHECK-NEXT: }
