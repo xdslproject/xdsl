@@ -39,7 +39,7 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
     """
     Many DLTI dialect operations contain arrays of DataLayoutEntryInterface,
     with these representing different things such as data layout or information
-    about the target hardware. This is the base class that these operations extend
+    about the target hardware. This is the base class that these operations extend.
     """
 
     # In MLIR, this is a DataLayoutEntryInterface.
