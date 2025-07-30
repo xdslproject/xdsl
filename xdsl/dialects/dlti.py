@@ -35,7 +35,7 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
             raise VerifyException("key must be a string or a type attribute")
 
 
-class DLTIEntryMap(ParametrizedAttribute):
+class DLTIEntryMap(ParametrizedAttribute, ABC):
     """
     Many DLTI dialect operations contain arrays of DataLayoutEntryInterface,
     with these representing different things such as data layout or information
