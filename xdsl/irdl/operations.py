@@ -1447,65 +1447,6 @@ def get_variadic_sizes(
     return [variadic_args // len(variadic_defs)] * len(variadic_defs)
 
 
-def get_operand_result_or_region(
-    op: Operation,
-    op_def: OpDef,
-    arg_def_idx: int,
-    previous_var_args: int,
-    construct: VarIRConstruct,
-) -> (
-    None
-    | Operand
-    | VarOperand
-    | OptOperand
-    | OpResult
-    | VarOpResult
-    | OptOpResult
-    | Sequence[SSAValue]
-    | Sequence[OpResult]
-    | Region
-    | Sequence[Region]
-    | Successor
-    | Sequence[Successor]
-):
-    """
-    Get an operand, result, or region.
-    In the case of a variadic definition, return a list of elements.
-    :param op: The operation we want to get argument of.
-    :param arg_def_idx: The index of the argument in the irdl definition.
-    :param previous_var_args: The number of previous variadic definitions
-           before this definition.
-    :param arg_type: The type of the argument we want
-           (i.e. operand, result, or region)
-    :return:
-    """
-    defs = get_construct_defs(op_def, construct)
-    args = get_op_constructs(op, construct)
-
-    variadic_sizes = get_variadic_sizes(op, op_def, construct)
-
-    begin_arg = (
-        arg_def_idx - previous_var_args + sum(variadic_sizes[:previous_var_args])
-    )
-    if isinstance(defs[arg_def_idx][1], OptionalDef):
-        arg_size = variadic_sizes[previous_var_args]
-        if arg_size == 0:
-            return None
-        else:
-            return args[begin_arg]
-    if isinstance(defs[arg_def_idx][1], VariadicDef):
-        arg_size = variadic_sizes[previous_var_args]
-        values = args[begin_arg : begin_arg + arg_size]
-        if isinstance(defs[arg_def_idx][1], OperandDef):
-            return VarOperand(cast(Sequence[Operand], values))
-        elif isinstance(defs[arg_def_idx][1], ResultDef):
-            return VarOpResult(cast(Sequence[OpResult], values))
-        else:
-            return values
-    else:
-        return args[begin_arg]
-
-
 def irdl_op_verify_regions(
     op: Operation, op_def: OpDef, constraint_context: ConstraintContext
 ):
