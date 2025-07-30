@@ -13,6 +13,12 @@
 %10 = "test.op"() : () -> tensor<12x13xf32>
 %11 = tosa.sin %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
 %12 = tosa.cos %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
+%cond = "test.op"() : () -> tensor<i1>
+%13 = tosa.cond_if %cond : tensor<i1> -> tensor<12x13xf32> {
+  tosa.yield %10 : tensor<12x13xf32>
+} else {
+  tosa.yield %10 : tensor<12x13xf32>
+}
 
 
 // CHECK: builtin.module {
@@ -29,4 +35,10 @@
 // CHECK-NEXT:   %10 = "test.op"() : () -> tensor<12x13xf32>
 // CHECK-NEXT:   %11 = tosa.sin %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
 // CHECK-NEXT:   %12 = tosa.cos %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
+// CHECK-NEXT:   %cond = "test.op"() : () -> tensor<i1>
+// CHECK-NEXT:   %13 = tosa.cond_if %cond : tensor<i1> -> tensor<12x13xf32> {
+// CHECK-NEXT:     tosa.yield %10 : tensor<12x13xf32>
+// CHECK-NEXT:   } else {
+// CHECK-NEXT:     tosa.yield %10 : tensor<12x13xf32>
+// CHECK-NEXT:   }
 // CHECK-NEXT: }
