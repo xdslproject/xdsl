@@ -223,6 +223,70 @@ class CosOp(ElementwiseUnaryOperation[TensorType[AnyFloat]]):
     name = "tosa.cos"
 
 
+@irdl_op_definition
+class MatMulOp(IRDLOperation):
+    """
+    TOSA dialect operation for computing 2D matmuls. Expects 3D tensors as input with leading rank of 1 element, e.g.
+
+    `tosa.matmul %m0, %m1, %0, %0 : (tensor<1x14x19xf32>, tensor<1x19x28xf32>, tensor<1xf32>, tensor<1xf32>) -> tensor<1x14x28xf32>`
+
+    The following two operands are the zero-point which are used for quantized operations, can be set to 0.0 for no effect.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosamul-mlirtosamulop).
+    """
+
+    name = "tosa.matmul"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    a = operand_def(TensorType.constr(T))
+    b = operand_def(TensorType.constr(T))
+    a_zp = operand_def(TensorType.constr(T))
+    b_zp = operand_def(TensorType.constr(T))
+
+    output = result_def(TensorType.constr(T))
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    def verify_(self) -> None:
+        if not (
+            isinstance(self.a.type, ShapedType)
+            and isinstance(self.b.type, ShapedType)
+            and isinstance(self.a_zp.type, ShapedType)
+            and isinstance(self.b_zp.type, ShapedType)
+        ):
+            raise VerifyException("'tosa.matmul' Expected operands to be shaped types")
+
+        sa = self.a.type.get_shape()
+        sb = self.b.type.get_shape()
+        s_az = self.a_zp.type.get_shape()
+        s_bz = self.b_zp.type.get_shape()
+
+        if len(sa) != 3 or len(sb) != 3:
+            raise VerifyException("'tosa.matmul' Expected operand tensors of rank 3")
+
+        if sa[0] != 1 or sb[0] != 1:
+            raise VerifyException(
+                "'tosa.matmul' Expected leading rank of input tensors to be 1"
+            )
+
+        # expect m x n ... n x k
+        if sa[2] != sb[1]:
+            raise VerifyException(
+                "'tosa.matmul' Incompatible shapes for performing matrix multiplication"
+            )
+
+        # check that zero-points are unranked or scalar
+        if not len(s_az) in [0, 1] or not len(s_bz) in [0, 1]:
+            raise VerifyException(
+                "'tosa.matmul' Expected zero-point operands to be unranked or scalar tensors"
+            )
+
+
 TOSA = Dialect(
     "tosa",
     [
@@ -233,6 +297,7 @@ TOSA = Dialect(
         MulOp,
         SinOp,
         CosOp,
+        MatMulOp,
     ],
     [],
 )
