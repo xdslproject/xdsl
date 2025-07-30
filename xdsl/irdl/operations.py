@@ -1850,7 +1850,7 @@ class SameVariadicAccessor(BaseAccessor):
 
 
 @dataclass
-class AfterUniqueVariadicAccessor(SameVariadicAccessor):
+class SameVariadicSingleAccessor(SameVariadicAccessor):
     def index(self, args: Sequence[Any]) -> Any:
         variadic_diff = (len(args) - self.num_defs) // self.num_variadics
         start = self.idx + self.variadics_encountered * variadic_diff
@@ -1959,7 +1959,7 @@ def irdl_op_arg_definition(
                     )
                 variadics_encountered += 1
             else:
-                new_attrs[arg_name] = AfterUniqueVariadicAccessor(
+                new_attrs[arg_name] = SameVariadicSingleAccessor(
                     construct, arg_idx, num_defs, num_variadics, variadics_encountered
                 )
 
