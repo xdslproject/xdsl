@@ -68,3 +68,12 @@
 %zero_p = "test.op"() : () -> tensor<f32>
 %0 = tosa.matmul %a, %b, %zero_p, %zero_p : (tensor<1x13x16xf32>, tensor<1x23x16xf32>, tensor<f32>, tensor<f32>) -> tensor<1x16x23xf32>
 // CHECK: 'tosa.matmul' Incompatible shapes for performing matrix multiplication
+
+// -----
+
+
+%a = "test.op"() : () -> tensor<1x13x16xf32>
+%b = "test.op"() : () -> tensor<1x16x23xf32>
+%zero_p = "test.op"() : () -> tensor<1x1xf32>
+%0 = tosa.matmul %a, %b, %zero_p, %zero_p : (tensor<1x13x16xf32>, tensor<1x16x23xf32>, tensor<1x1xf32>, tensor<1x1xf32>) -> tensor<1x13x23xf32>
+// CHECK: 'tosa.matmul' Expected zero-point operands to be unranked or scalar tensors
