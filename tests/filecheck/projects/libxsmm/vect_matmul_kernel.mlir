@@ -68,26 +68,25 @@ func.func @matmul(
 // CHECK-NEXT:      vmovupd ymm7, [r10+32]
 // CHECK-NEXT:      vmovupd ymm5, [r10+64]
 // CHECK-NEXT:      vmovupd ymm3, [r10+96]
-// CHECK-NEXT:      mov r10, [rcx]
-// CHECK-NEXT:      mov rbx, [rcx+8]
-// CHECK-NEXT:      mov r8, [rcx+16]
-// CHECK-NEXT:      mov r9, [rcx+24]
-// CHECK-NEXT:      vpbroadcastq ymm2, r10
-// CHECK-NEXT:      vpbroadcastq ymm4, rbx
-// CHECK-NEXT:      vpbroadcastq ymm6, r8
-// CHECK-NEXT:      vpbroadcastq ymm8, r9
+// CHECK-NEXT:      mov r10, rcx
+// CHECK-NEXT:      mov rbx, rcx
+// CHECK-NEXT:      mov r8, rcx
+// CHECK-NEXT:      mov r9, rcx
+// CHECK-NEXT:      vbroadcastsd ymm2, [r10]
+// CHECK-NEXT:      vbroadcastsd ymm4, [rbx+8]
+// CHECK-NEXT:      vbroadcastsd ymm6, [r8+16]
+// CHECK-NEXT:      vbroadcastsd ymm8, [r9+24]
 // CHECK-NEXT:      vfmadd231pd ymm1, ymm2, ymm9
 // CHECK-NEXT:      vfmadd231pd ymm1, ymm4, ymm7
 // CHECK-NEXT:      vfmadd231pd ymm1, ymm6, ymm5
 // CHECK-NEXT:      vfmadd231pd ymm1, ymm8, ymm3
-// CHECK-NEXT:      mov r9, [rcx+32]
-// CHECK-NEXT:      mov r8, [rcx+40]
-// CHECK-NEXT:      mov rbx, [rcx+48]
-// CHECK-NEXT:      mov rcx, [rcx+56]
-// CHECK-NEXT:      vpbroadcastq ymm8, r9
-// CHECK-NEXT:      vpbroadcastq ymm6, r8
-// CHECK-NEXT:      vpbroadcastq ymm4, rbx
-// CHECK-NEXT:      vpbroadcastq ymm2, rcx
+// CHECK-NEXT:      mov r9, rcx
+// CHECK-NEXT:      mov r8, rcx
+// CHECK-NEXT:      mov rbx, rcx
+// CHECK-NEXT:      vbroadcastsd ymm8, [r9+32]
+// CHECK-NEXT:      vbroadcastsd ymm6, [r8+40]
+// CHECK-NEXT:      vbroadcastsd ymm4, [rbx+48]
+// CHECK-NEXT:      vbroadcastsd ymm2, [rcx+56]
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm8, ymm9
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm6, ymm7
 // CHECK-NEXT:      vfmadd231pd ymm0, ymm4, ymm5

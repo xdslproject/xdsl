@@ -63,6 +63,19 @@
 
 // -----
 
+%ptr = "test.op"(): () -> !ptr_xdsl.ptr
+%s = ptr_xdsl.load %ptr : !ptr_xdsl.ptr -> f64
+%broadcast = vector.broadcast %s: f64 to vector<4xf64>
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %ptr = "test.op"() : () -> !ptr_xdsl.ptr
+// CHECK-NEXT:    %s = ptr_xdsl.load %ptr : !ptr_xdsl.ptr -> f64
+// CHECK-NEXT:    %ptr_1 = builtin.unrealized_conversion_cast %ptr : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:    %broadcast = x86.dm.vbroadcastsd %ptr_1, 0 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT:    %broadcast_1 = builtin.unrealized_conversion_cast %broadcast : !x86.avx2reg to vector<4xf64>
+// CHECK-NEXT:  }
+
+// -----
+
 %s = "test.op"(): () -> f32
 %broadcast = vector.broadcast %s: f32 to vector<8xf32>
 // CHECK:      builtin.module {

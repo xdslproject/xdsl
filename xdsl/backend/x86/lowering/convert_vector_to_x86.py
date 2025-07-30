@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, vector, x86
+from xdsl.dialects import builtin, ptr, vector, x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
     UnrealizedConversionCastOp,
@@ -27,31 +27,49 @@ class VectorBroadcastToX86(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: vector.BroadcastOp, rewriter: PatternRewriter):
-        # Get the register to be broadcasted
-        source_cast_op, source_x86 = UnrealizedConversionCastOp.cast_one(
-            op.source, x86.register.UNALLOCATED_GENERAL
-        )
+        mem = isinstance(load_op := op.source.owner, ptr.LoadOp)
+        if mem:
+            # Cheeky
+            source_cast_op, source_x86 = UnrealizedConversionCastOp.cast_one(
+                load_op.addr, x86.register.UNALLOCATED_GENERAL
+            )
+        else:
+            source_cast_op, source_x86 = UnrealizedConversionCastOp.cast_one(
+                op.source, x86.register.UNALLOCATED_GENERAL
+            )
+
         # Actually broadcast the register
         element_type = op.source.type
         assert isinstance(element_type, FixedBitwidthType)
         element_size = element_type.bitwidth
+        register_type = vector_type_to_register_type(op.vector.type, self.arch)
         match element_size:
             case 16:
                 raise DiagnosticException(
                     "Half-precision vector broadcast is not implemented yet."
                 )
             case 32:
-                broadcast = x86.ops.DS_VpbroadcastdOp
+                if mem:
+                    broadcast_op = x86.ops.DM_VbroadcastssOp(
+                        source_x86, 0, destination=register_type
+                    )
+                else:
+                    broadcast_op = x86.ops.DS_VpbroadcastdOp(
+                        source=source_x86, destination=register_type
+                    )
             case 64:
-                broadcast = x86.ops.DS_VpbroadcastqOp
+                if mem:
+                    broadcast_op = x86.ops.DM_VbroadcastsdOp(
+                        source_x86, 0, destination=register_type
+                    )
+                else:
+                    broadcast_op = x86.ops.DS_VpbroadcastqOp(
+                        source=source_x86, destination=register_type
+                    )
             case _:
                 raise DiagnosticException(
                     "Float precision must be half, single or double."
                 )
-        broadcast_op = broadcast(
-            source=source_x86,
-            destination=vector_type_to_register_type(op.vector.type, self.arch),
-        )
         # Get back the abstract vector
         dest_cast_op, _ = UnrealizedConversionCastOp.cast_one(
             broadcast_op.destination, op.vector.type
@@ -118,4 +136,5 @@ class ConvertVectorToX86Pass(ModulePass):
                 ]
             ),
             apply_recursively=False,
+            walk_reverse=True,
         ).rewrite_module(op)
