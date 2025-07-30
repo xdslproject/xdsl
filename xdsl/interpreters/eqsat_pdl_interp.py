@@ -17,7 +17,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
+from xdsl.ir import Block, Operation, OpResult, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
@@ -148,10 +148,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         if result is None:
             return (None,)
 
-        if len(result.uses) == 1:
-            if isinstance(
-                eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
-            ):
+        if result.has_one_use():
+            if isinstance(eclass_op := result.get_user_of_unique_use(), eqsat.EClassOp):
                 result = eclass_op.result
         elif result.uses:  # multiple uses
             for use in result.uses:
@@ -179,9 +177,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         results: list[OpResult] = []
         for result in src_op.results:
-            if len(result.uses) == 1:
+            if result.has_one_use():
                 if isinstance(
-                    eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
+                    eclass_op := result.get_user_of_unique_use(), eqsat.EClassOp
                 ):
                     assert len(eclass_op.results) == 1
                     result = eclass_op.results[0]
@@ -356,7 +354,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 self.backtrack_stack.pop()
             else:
                 backtrack_point.index += 1
-                interpreter._ctx = backtrack_point.scope  # pyright: ignore[reportPrivateUsage]
+                interpreter._ctx = (  # pyright: ignore[reportPrivateUsage]
+                    backtrack_point.scope
+                )
                 self.visited = False
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
@@ -369,11 +369,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         self.merge_list.clear()
         for to_keep, to_replace in todo:
             operands = to_keep.operands
-            startlen = len(operands)
-            for i, val in enumerate(to_replace.operands):
-                val.add_use(Use(to_keep, startlen + i))
-                new_operands = (*operands, *to_replace.operands)
-                to_keep.operands = new_operands
+            new_operands = (*operands, *to_replace.operands)
+            to_keep.operands = new_operands
 
             for use in to_replace.result.uses:
                 if use.operation in self.known_ops:

@@ -59,6 +59,7 @@ from xdsl.irdl import (
     eq,
     irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -77,15 +78,29 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
+    AttributeVariable,
+    CustomDirective,
     FormatProgram,
     OperandsDirective,
+    OperandVariable,
+    ParsingState,
+    PrintingState,
     PunctuationDirective,
+    RegionVariable,
     ResultsDirective,
+    SuccessorVariable,
     TypeDirective,
+    VariadicOperandVariable,
+    irdl_custom_directive,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError, VerifyException
+from xdsl.utils.exceptions import (
+    ParseError,
+    PyRDLError,
+    PyRDLOpDefinitionError,
+    VerifyException,
+)
 
 ################################################################################
 # Utils for this test file                                                     #
@@ -445,6 +460,38 @@ def test_missing_property_error():
         irdl_op_definition(MissingPropOp)
 
 
+def test_attribute_duplicated():
+    """Test that attributes should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="attribute 'attr' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedAttributeOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_attribute_op"
+            attr = attr_def()
+
+            assembly_format = "$attr $attr attr-dict"
+
+
+def test_property_duplicated():
+    """Test that properties should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="property 'attr' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedPropertiesOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_property_op"
+            attr = prop_def()
+
+            assembly_format = "$attr $attr attr-dict"
+
+
 @pytest.mark.parametrize(
     "program, generic_program",
     [
@@ -776,14 +823,14 @@ def test_optional_symbol_name_variable(program: str, generic_program: str):
     "program, generic_program, format",
     [
         (
-            "test.symbol [1, 2] [3, 4] [5.000000e+00, 6.000000e+00]",
-            '"test.symbol"() <{i64s = array<i64: 3, 4>, f32s = array<f32: 5.000000e+00, 6.000000e+00>}> {i32s = array<i32: 1, 2>} : () -> ()',
-            "$i32s $i64s $f32s attr-dict",
+            "test.symbol [1, 2] [3, 4] [5.000000e+00, 6.000000e+00] [7.000000e+00]",
+            '"test.symbol"() <{i64s = array<i64: 3, 4>, f32s = array<f32: 5.000000e+00, 6.000000e+00>, f64s = array<f64: 7.000000e+00>}> {i32s = array<i32: 1, 2>} : () -> ()',
+            "$i32s $i64s $f32s $f64s attr-dict",
         ),
         (
-            "test.symbol [7, 8]",
-            '"test.symbol"() <{f32s = array<f32: 9.000000e+00>}> {i32s = array<i32: 7, 8>} : () -> ()',
-            "$i32s (`i64s` $i64s^)? (`f32s` $f32s^)? attr-dict",
+            "test.symbol [7, 8] [1.000000e+01, 1.100000e+01]",
+            '"test.symbol"() <{f32s = array<f32: 9.000000e+00>, f64s = array<f64: 1.000000e+01, 1.100000e+01>}> {i32s = array<i32: 7, 8>} : () -> ()',
+            "$i32s (`i64s` $i64s^)? (`f32s` $f32s^)? $f64s attr-dict",
         ),
     ],
 )
@@ -795,8 +842,11 @@ def test_dense_array_special_cases(program: str, generic_program: str, format: s
         i32s = attr_def(DenseArrayBase[I32])
         i64s = opt_prop_def(DenseArrayBase[I64])
         f32s = prop_def(
-            DenseArrayBase[Float32Type()],
+            DenseArrayBase[Float32Type],
             default_value=DenseArrayBase.from_list(Float32Type(), (9.0,)),
+        )
+        f64s = prop_def(
+            VarConstraint("F64S", irdl_to_attr_constraint(DenseArrayBase[Float64Type]))
         )
 
         assembly_format = format
@@ -918,6 +968,22 @@ def test_operands_missing_type():
             operand = operand_def()
 
             assembly_format = "$operand attr-dict"
+
+
+def test_operands_duplicated():
+    """Test that operands should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="operand 'operand' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedOperandOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_operand_op"
+            operand = operand_def()
+
+            assembly_format = "$operand $operand type($operand) attr-dict"
 
 
 def test_operands_duplicated_type():
@@ -2020,6 +2086,20 @@ def test_missing_region():
             assembly_format = "attr-dict-with-keyword"
 
 
+def test_region_duplicated():
+    """Test that regions should not be parsed twice"""
+    with pytest.raises(PyRDLOpDefinitionError, match="region 'r' is already bound"):
+
+        @irdl_op_definition
+        class DuplicatedRegionOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_region_op"
+            r = region_def()
+
+            assembly_format = "$r $r attr-dict"
+
+
 def test_attr_dict_directly_before_region_variable():
     """Test that regions require an 'attr-dict' directive."""
     with pytest.raises(
@@ -2294,6 +2374,22 @@ def test_missing_successor():
             successor = successor_def()
 
             assembly_format = "attr-dict-with-keyword"
+
+
+def test_successor_duplicated():
+    """Test that successors should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="successor 'succ' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedSucessorOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_successor_op"
+            succ = successor_def()
+
+            assembly_format = "$succ $succ attr-dict"
 
 
 def test_successors():
@@ -3663,3 +3759,188 @@ def test_qualified_attr():
     op = parser.parse_operation()
     assert isinstance(op, QualifiedAttrOp)
     assert op.attr == MyAttr(StringAttr("test"))
+
+
+################################################################################
+#                             Custom directives                                #
+################################################################################
+
+
+@irdl_custom_directive
+class Hello(CustomDirective):
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        parser.parse_keyword("hello")
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        state.print_whitespace(printer)
+        printer.print_string("hello")
+
+
+@irdl_op_definition
+class CustomDirectiveOp(IRDLOperation):
+    name = "test.custom"
+
+    assembly_format = "custom<Hello>() attr-dict"
+
+    custom_directives = (Hello,)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.custom hello",
+        "test.custom hello {attr = 1 : i32}",
+    ],
+)
+def test_custom_directive(program: str):
+    ctx = Context()
+    ctx.load_op(CustomDirectiveOp)
+    ctx.load_dialect(Test)
+    check_roundtrip(program, ctx)
+
+
+@irdl_custom_directive
+class Bars(CustomDirective):
+    """We print the operands with bars between, because why not."""
+
+    var: VariadicOperandVariable
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        first = parser.parse_optional_unresolved_operand()
+        if first is None:
+            operands = []
+        else:
+            operands = [first]
+            while parser.parse_optional_punctuation("|"):
+                operands.append(parser.parse_unresolved_operand())
+        self.var.set(state, operands)
+        return bool(operands)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operands = self.var.get(op)
+        if not operands:
+            return
+        state.print_whitespace(printer)
+        printer.print_list(operands, printer.print_ssa_value, delimiter=" | ")
+
+
+@irdl_op_definition
+class CustomDirectiveWithParamOp(IRDLOperation):
+    name = "test.custom_param"
+
+    ops = var_operand_def()
+
+    assembly_format = "custom<Bars>($ops) (`:` type($ops)^)? attr-dict"
+
+    custom_directives = (Bars,)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.custom_param",
+        "test.custom_param %0 : i32",
+        "test.custom_param %0 | %1 : i32, i32",
+        "test.custom_param %0 | %1 | %2 : i32, i32, i32",
+    ],
+)
+def test_custom_directive_param(program: str):
+    ctx = Context()
+    ctx.load_op(CustomDirectiveWithParamOp)
+    ctx.load_dialect(Test)
+    check_roundtrip(program, ctx)
+
+
+def test_non_upper_classvar():
+    with pytest.raises(
+        PyRDLError, match='Invalid ClassVar name "bad", must be uppercase.'
+    ):
+
+        @irdl_custom_directive
+        class BadClassVar(CustomDirective):  # pyright: ignore[reportUnusedClass]
+            bad: ClassVar
+
+            def parse(self, parser: Parser, state: ParsingState) -> bool:
+                raise NotImplementedError()
+
+            def print(
+                self, printer: Printer, state: PrintingState, op: IRDLOperation
+            ) -> None:
+                raise NotImplementedError()
+
+
+def test_bad_parameter():
+    with pytest.raises(
+        PyRDLError,
+        match="Custom directive BadParam has parameter int_param which is not a format directive.",
+    ):
+
+        @irdl_custom_directive
+        class BadParam(CustomDirective):  # pyright: ignore[reportUnusedClass]
+            int_param: int
+
+            def parse(self, parser: Parser, state: ParsingState) -> bool:
+                raise NotImplementedError()
+
+            def print(
+                self, printer: Printer, state: PrintingState, op: IRDLOperation
+            ) -> None:
+                raise NotImplementedError()
+
+
+@irdl_custom_directive
+class EmptyDirectiveWithParams(CustomDirective):
+    op: OperandVariable
+    op_type: TypeDirective
+    res_type: TypeDirective
+    attr: AttributeVariable
+    prop: AttributeVariable
+    region: RegionVariable
+    successor: SuccessorVariable
+    operands: OperandsDirective
+    operand_types: TypeDirective
+    results: TypeDirective
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        pass
+
+
+@irdl_op_definition
+class RefDirectivesOp(IRDLOperation):
+    name = "test.ref_directives"
+
+    op = operand_def()
+    res = result_def()
+    attr = attr_def()
+    prop = prop_def()
+    region = region_def()
+    successor = successor_def()
+
+    assembly_format = (
+        "$op type($op) type($res) $attr $prop $region $successor "
+        "custom<EmptyDirectiveWithParams>("
+        "ref($op),"
+        "ref(type($op)),"
+        "ref(type($res)),"
+        "ref($attr),"
+        "ref($prop),"
+        "ref($region),"
+        "ref($successor),"
+        "ref(operands),"
+        "ref(type(operands)),"
+        "ref(type(results))"
+        ") attr-dict"
+    )
+
+    custom_directives = (EmptyDirectiveWithParams,)
+
+
+def test_ref_directives():
+    ctx = Context()
+    ctx.load_op(RefDirectivesOp)
+    ctx.load_dialect(Test)
+    check_roundtrip("%0 = test.ref_directives %1 i1 i2 i3 i4 {\n} ^0", ctx)
