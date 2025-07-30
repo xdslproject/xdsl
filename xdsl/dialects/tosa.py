@@ -228,7 +228,7 @@ class MatMulOp(IRDLOperation):
     """
     TOSA dialect operation for computing 2D matmuls. Expects 3D tensors as input with leading rank of 1 element, e.g.
 
-    `tosa.matmul %m0, %m1, %0, %0 : (tensor<1x14x19xf32>, tensor<1x19x28xf32>, tensor<1xf32>, tensor<1xf32>) -> tensor<1x14x28xf32>`
+    `tensor<1x14x19xf32> * tensor<1x19x28xf32> -> tensor<1x14x28xf32>`
 
     The following two operands are the zero-point which are used for quantized operations, can be set to 0.0 for no effect.
 
@@ -281,7 +281,7 @@ class MatMulOp(IRDLOperation):
             )
 
         # check that zero-points are unranked or scalar
-        if not len(s_az) in [0, 1] or not len(s_bz) in [0, 1]:
+        if len(s_az) not in [0, 1] or len(s_bz) not in [0, 1]:
             raise VerifyException(
                 "'tosa.matmul' Expected zero-point operands to be unranked or scalar tensors"
             )
