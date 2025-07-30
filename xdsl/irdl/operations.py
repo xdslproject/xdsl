@@ -1904,42 +1904,10 @@ def irdl_op_arg_definition(
 ) -> None:
     defs = get_construct_defs(op_def, construct)
 
-    num_variadics = sum(isinstance(d, VariadicDef) for _, d in defs)
-
-    if num_variadics == 0:
-        # There are no variadics, so accessors just take the appropriate index
-        for arg_idx, (arg_name, _) in enumerate(defs):
-            new_attrs[arg_name] = BeforeVariadicSingleAccessor(construct, arg_idx)
-
-    elif num_variadics == 1:
-        # There is one variadic, whose size is the total operands minus the number of other operands
-        before_variadic = True
-        num_defs = len(defs)
-
-        for arg_idx, (arg_name, arg_def) in enumerate(defs):
-            if before_variadic:
-                if isinstance(arg_def, VariadicDef):
-                    before_variadic = False
-                    if isinstance(arg_def, OptionalDef):
-                        new_attrs[arg_name] = SameOptionalAccessor(
-                            construct, arg_idx, num_defs
-                        )
-                    else:
-                        new_attrs[arg_name] = UniqueVariadicAccessor(
-                            construct, arg_idx, num_defs
-                        )
-                else:
-                    new_attrs[arg_name] = BeforeVariadicSingleAccessor(
-                        construct, arg_idx
-                    )
-            else:
-                new_attrs[arg_name] = AfterVariadicSingleAccessor(
-                    construct, arg_idx, num_defs
-                )
-
-    elif any(
+    if any(
         isinstance(o, get_same_variadic_size_option(construct)) for o in op_def.options
     ):
+        num_variadics = sum(isinstance(d, VariadicDef) for _, d in defs)
         variadics_encountered = 0
         num_defs = len(defs)
 
@@ -1962,8 +1930,8 @@ def irdl_op_arg_definition(
                 new_attrs[arg_name] = SameVariadicSingleAccessor(
                     construct, arg_idx, num_defs, num_variadics, variadics_encountered
                 )
-
-    elif (
+        return
+    if (
         option := next(
             (
                 o
@@ -1980,15 +1948,39 @@ def irdl_op_arg_definition(
                 new_attrs[arg_name] = VariadicAttrAccessor(construct, arg_idx, option)
             else:
                 new_attrs[arg_name] = SingleAttrAccessor(construct, arg_idx, option)
-    else:
-        variadics_option = get_multiple_variadic_options(construct)
-        names = list(option.__name__ for option in variadics_option)
-        names, last_name = names[:-1], names[-1]
-        raise PyRDLOpDefinitionError(
-            f"Operation {op_def.name} defines more than two variadic "
-            f"{get_construct_name(construct)}s, but do not define any of "
-            f"{', '.join(names)} or {last_name} PyRDL options."
-        )
+        return
+
+    before_variadic = True
+    num_defs = len(defs)
+
+    for arg_idx, (arg_name, arg_def) in enumerate(defs):
+        if before_variadic:
+            if isinstance(arg_def, VariadicDef):
+                before_variadic = False
+                if isinstance(arg_def, OptionalDef):
+                    new_attrs[arg_name] = SameOptionalAccessor(
+                        construct, arg_idx, num_defs
+                    )
+                else:
+                    new_attrs[arg_name] = UniqueVariadicAccessor(
+                        construct, arg_idx, num_defs
+                    )
+            else:
+                new_attrs[arg_name] = BeforeVariadicSingleAccessor(construct, arg_idx)
+        else:
+            if isinstance(arg_def, VariadicDef):
+                # We've hit a second variadic
+                variadics_option = get_multiple_variadic_options(construct)
+                names = list(option.__name__ for option in variadics_option)
+                names, last_name = names[:-1], names[-1]
+                raise PyRDLOpDefinitionError(
+                    f"Operation {op_def.name} defines more than two variadic "
+                    f"{get_construct_name(construct)}s, but do not define any of "
+                    f"{', '.join(names)} or {last_name} PyRDL options."
+                )
+            new_attrs[arg_name] = AfterVariadicSingleAccessor(
+                construct, arg_idx, num_defs
+            )
 
 
 def _optional_attribute_field(attribute_name: str, default_value: Attribute | None):
