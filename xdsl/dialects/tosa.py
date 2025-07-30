@@ -1,7 +1,9 @@
 from abc import ABC
+from collections.abc import Sequence
 from typing import ClassVar, Generic
 
-from typing_extensions import TypeVar
+
+from typing_extensions import Self, TypeVar
 
 from xdsl.dialects.builtin import (
     I1,
@@ -17,12 +19,14 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
 )
-from xdsl.ir import Attribute, Dialect
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir.core import Block
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     prop_def,
@@ -32,8 +36,10 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import Parser
 from xdsl.traits import (
     Commutative,
+    HasParent,
     IsTerminator,
     Pure,
     RecursiveMemoryEffect,
@@ -245,10 +251,15 @@ class YieldOp(IRDLOperation):
 
     inputs = var_operand_def(TensorType)
 
-    traits = traits_def(
-        IsTerminator(),
-        Pure(),
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(WhileOp, IfOp),
+            Pure(),
+        )
     )
+
+    assembly_format = "$inputs attr-dict `:` type($inputs)"
 
 
 @irdl_op_definition
@@ -293,6 +304,74 @@ class IfOp(IRDLOperation):
         RecursiveMemoryEffect(),
         SingleBlockImplicitTerminator(YieldOp),
     )
+
+    def __init__(
+        self,
+        cond: SSAValue | Operation,
+        input_list: Sequence[SSAValue | Operation],
+        return_types: Sequence[Attribute],
+        true_region: Region | Sequence[Block] | Sequence[Operation],
+        false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
+        attr_dict: dict[str, Attribute] | None = None
+    ):
+        if false_region is None:
+            false_region = Region()
+
+        super().__init__(
+            operands=[cond, input_list],
+            result_types=[return_types],
+            regions=[true_region, false_region],
+            attributes=attr_dict,
+        )
+
+
+    @staticmethod
+    def parse_region_with_yield(parser: Parser) -> Region:
+        region = parser.parse_region()
+        block = region.blocks.last
+        if block is None:
+            block = Block()
+            region.add_block(block)
+
+        last_op = block.last_op
+        if last_op is not None and last_op.has_trait(IsTerminator):
+            return region
+
+        block.add_op(YieldOp())
+
+        return region
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        cond = parser.parse_operand()
+
+#        if parser.parse_optional_punctuation("("):
+#            while not parser.parse_optional_punctuation(")"):
+#                parser.parse_operand()
+#                parser.parse_optional_punctuation("=")
+#                parser.parse_operand()
+#                parser.parse_optional_punctuation(",")
+
+        return_types: Sequence[Attribute] = []
+        parser.parse_punctuation(":")
+        _ = parser.parse_type()
+
+        parser.parse_punctuation("->")
+        return_types += [parser.parse_type()]
+
+        then_region = cls.parse_region_with_yield(parser)
+        else_region = cls.parse_region_with_yield(parser) if parser.parse_optional_keyword("else") else Region()
+
+        attr_dict = parser.parse_optional_attr_dict()
+
+        return cls(
+            cond,
+            [],
+            return_types,
+            then_region,
+            else_region,
+            attr_dict,
+        )
 
 
 TOSA = Dialect(
