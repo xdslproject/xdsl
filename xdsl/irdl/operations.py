@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
@@ -1789,144 +1789,114 @@ def irdl_op_init(
     )
 
 
-def _get_single_accessor(construct: VarIRConstruct, idx: int):
-    def fun(self: Operation):
-        return get_op_constructs(self, construct)[idx]
+@dataclass
+class BaseAccessor(ABC):
+    construct: VarIRConstruct
+    idx: int
 
-    return property(fun)
+    @abstractmethod
+    def index(self, args: Sequence[Any]) -> Any: ...
 
-
-def _get_unique_variadic_accessor(
-    construct: VarIRConstruct, num_defs: int, arg_def: Any, idx: int
-):
-    if isinstance(arg_def, OptionalDef):
-
-        def fun_opt(self: Operation):
-            args = get_op_constructs(self, construct)
-            if len(args) == num_defs:
-                return args[idx]
-            else:
-                return None
-
-        return property(fun_opt)
-    else:
-
-        def fun_var(self: Operation):
-            args = get_op_constructs(self, construct)
-            return get_op_wrapper(construct, args[idx : idx + len(args) - num_defs + 1])
-
-        return property(fun_var)
+    def __get__(self, obj: Operation, objtype=None) -> Any:
+        args = get_op_constructs(obj, self.construct)
+        return self.index(args)
 
 
-def _get_unique_single_accessor(construct: VarIRConstruct, num_defs: int, idx: int):
-    def fun(self: Operation):
-        args = get_op_constructs(self, construct)
-        return args[len(args) - num_defs + idx]
-
-    return property(fun)
+@dataclass
+class IdSingleAccessor(BaseAccessor):
+    def index(self, args: Sequence[Any]) -> Any:
+        return args[self.idx]
 
 
-def _get_same_variadic_accessor(
-    construct: VarIRConstruct,
-    num_variadics: int,
-    num_defs: int,
-    arg_def: Any,
-    variadics_encountered: int,
-    idx: int,
-):
-    if isinstance(arg_def, OptionalDef):
+@dataclass
+class AfterVariadicSingleAccessor(BaseAccessor):
+    num_defs: int
 
-        def fun_opt(self: Operation):
-            args = get_op_constructs(self, construct)
-            if len(args) == num_defs:
-                return args[idx]
-            else:
-                return None
-
-        return property(fun_opt)
-    else:
-
-        def fun_var(self: Operation):
-            args = get_op_constructs(self, construct)
-            variadic_diff = (len(args) - num_defs) // num_variadics
-            start = idx + variadics_encountered * variadic_diff
-            end = start + 1 + variadic_diff
-            return get_op_wrapper(construct, args[start:end])
-
-        return property(fun_var)
+    def index(self, args: Sequence[Any]) -> Any:
+        return args[len(args) - self.num_defs + self.idx]
 
 
-def _get_same_single_accessor(
-    construct: VarIRConstruct,
-    num_variadics: int,
-    num_defs: int,
-    variadics_encountered: int,
-    idx: int,
-):
-    def fun(self: Operation):
-        args = get_op_constructs(self, construct)
-        variadic_diff = (len(args) - num_defs) // num_variadics
-        start = idx + variadics_encountered * variadic_diff
+@dataclass
+class SameOptionalAccessor(BaseAccessor):
+    num_defs: int
+
+    def index(self, args: Sequence[Any]) -> Any:
+        if len(args) == self.num_defs:
+            return args[self.idx]
+        return None
+
+
+@dataclass
+class UniqueVariadicAccessor(BaseAccessor):
+    num_defs: int
+
+    def index(self, args: Sequence[Any]) -> Any:
+        return get_op_wrapper(
+            self.construct, args[self.idx : self.idx + len(args) - self.num_defs + 1]
+        )
+
+
+@dataclass
+class SameVariadicAccessor(BaseAccessor):
+    num_defs: int
+    num_variadics: int
+    variadics_encountered: int
+
+    def index(self, args: Sequence[Any]) -> Any:
+        variadic_diff = (len(args) - self.num_defs) // self.num_variadics
+        start = self.idx + self.variadics_encountered * variadic_diff
+        end = start + 1 + variadic_diff
+        return get_op_wrapper(self.construct, args[start:end])
+
+
+@dataclass
+class AfterUniqueVariadicAccessor(SameVariadicAccessor):
+    def index(self, args: Sequence[Any]) -> Any:
+        variadic_diff = (len(args) - self.num_defs) // self.num_variadics
+        start = self.idx + self.variadics_encountered * variadic_diff
         return args[start]
 
-    return property(fun)
+
+@dataclass
+class BaseAttrAccessor(ABC):
+    construct: VarIRConstruct
+    idx: int
+    option: (
+        AttrSizedOperandSegments
+        | AttrSizedResultSegments
+        | AttrSizedRegionSegments
+        | AttrSizedSuccessorSegments
+    )
+
+    @abstractmethod
+    def index(self, values: tuple[int, ...], args: Sequence[Any]) -> Any: ...
+
+    def __get__(self, obj: Operation, objtype=None):
+        attr = (
+            obj.properties[self.option.attribute_name]
+            if self.option.as_property
+            else obj.attributes[self.option.attribute_name]
+        )
+        args = get_op_constructs(obj, self.construct)
+        return self.index(attr.get_values(), args)  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue,reportUnknownArgumentType]
 
 
-def _get_attr_accessor(
-    option: AttrSizedOperandSegments
-    | AttrSizedResultSegments
-    | AttrSizedRegionSegments
-    | AttrSizedSuccessorSegments,
-    construct: VarIRConstruct,
-    arg_def: Any,
-    idx: int,
-):
-    if isinstance(arg_def, VariadicDef):
-        if isinstance(arg_def, OptionalDef):
+class SingleAttrAccessor(BaseAttrAccessor):
+    def index(self, values: tuple[int, ...], args: Sequence[Any]) -> Any:
+        return args[sum(values[: self.idx])]
 
-            def fun_opt(self: Operation):
-                args = get_op_constructs(self, construct)
-                attr = (
-                    self.properties[option.attribute_name]
-                    if option.as_property
-                    else self.attributes[option.attribute_name]
-                )
-                values = cast(tuple[int, ...], attr.get_values())  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue]
-                if values[idx]:
-                    return args[sum(values[0:idx])]
-                else:
-                    return None
 
-            return property(fun_opt)
-        else:
+class VariadicAttrAccessor(BaseAttrAccessor):
+    def index(self, values: tuple[int, ...], args: Sequence[Any]) -> Any:
+        start = sum(values[: self.idx])
+        return get_op_wrapper(self.construct, args[start : start + values[self.idx]])
 
-            def fun_var(self: Operation):
-                args = get_op_constructs(self, construct)
-                attr = (
-                    self.properties[option.attribute_name]
-                    if option.as_property
-                    else self.attributes[option.attribute_name]
-                )
-                values = cast(tuple[int, ...], attr.get_values())  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue]
-                start = sum(values[0:idx])
-                end = start + values[idx]
-                return get_op_wrapper(construct, args[start:end])
 
-            return property(fun_var)
-    else:
-
-        def fun(self: Operation):
-            args = get_op_constructs(self, construct)
-            attr = (
-                self.properties[option.attribute_name]
-                if option.as_property
-                else self.attributes[option.attribute_name]
-            )
-            values = cast(tuple[int, ...], attr.get_values())  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue]
-            start = sum(values[0:idx])
-            return args[start]
-
-        return property(fun)
+class OptionalAttrAccessor(BaseAttrAccessor):
+    def index(self, values: tuple[int, ...], args: Sequence[Any]) -> Any:
+        if values[self.idx]:
+            return args[sum(values[: self.idx])]
+        return None
 
 
 def irdl_op_arg_definition(
@@ -1939,7 +1909,7 @@ def irdl_op_arg_definition(
     if num_variadics == 0:
         # There are no variadics, so accessors just take the appropriate index
         for arg_idx, (arg_name, _) in enumerate(defs):
-            new_attrs[arg_name] = _get_single_accessor(construct, arg_idx)
+            new_attrs[arg_name] = IdSingleAccessor(construct, arg_idx)
 
     elif num_variadics == 1:
         # There is one variadic, whose size is the total operands minus the number of other operands
@@ -1950,14 +1920,19 @@ def irdl_op_arg_definition(
             if before_variadic:
                 if isinstance(arg_def, VariadicDef):
                     before_variadic = False
-                    new_attrs[arg_name] = _get_unique_variadic_accessor(
-                        construct, num_defs, arg_def, arg_idx
-                    )
+                    if isinstance(arg_def, OptionalDef):
+                        new_attrs[arg_name] = SameOptionalAccessor(
+                            construct, arg_idx, num_defs
+                        )
+                    else:
+                        new_attrs[arg_name] = UniqueVariadicAccessor(
+                            construct, arg_idx, num_defs
+                        )
                 else:
-                    new_attrs[arg_name] = _get_single_accessor(construct, arg_idx)
+                    new_attrs[arg_name] = IdSingleAccessor(construct, arg_idx)
             else:
-                new_attrs[arg_name] = _get_unique_single_accessor(
-                    construct, num_defs, arg_idx
+                new_attrs[arg_name] = AfterVariadicSingleAccessor(
+                    construct, arg_idx, num_defs
                 )
 
     elif any(
@@ -1968,18 +1943,22 @@ def irdl_op_arg_definition(
 
         for arg_idx, (arg_name, arg_def) in enumerate(defs):
             if isinstance(arg_def, VariadicDef):
-                new_attrs[arg_name] = _get_same_variadic_accessor(
-                    construct,
-                    num_variadics,
-                    num_defs,
-                    arg_def,
-                    variadics_encountered,
-                    arg_idx,
-                )
+                if isinstance(arg_def, OptionalDef):
+                    new_attrs[arg_name] = SameOptionalAccessor(
+                        construct, arg_idx, num_defs
+                    )
+                else:
+                    new_attrs[arg_name] = SameVariadicAccessor(
+                        construct,
+                        arg_idx,
+                        num_defs,
+                        num_variadics,
+                        variadics_encountered,
+                    )
                 variadics_encountered += 1
             else:
-                new_attrs[arg_name] = _get_same_single_accessor(
-                    construct, num_variadics, num_defs, variadics_encountered, arg_idx
+                new_attrs[arg_name] = AfterUniqueVariadicAccessor(
+                    construct, arg_idx, num_defs, num_variadics, variadics_encountered
                 )
 
     elif (
@@ -1993,10 +1972,12 @@ def irdl_op_arg_definition(
         )
     ) is not None:
         for arg_idx, (arg_name, arg_def) in enumerate(defs):
-            new_attrs[arg_name] = _get_attr_accessor(
-                option, construct, arg_def, arg_idx
-            )
-
+            if isinstance(arg_def, OptionalDef):
+                new_attrs[arg_name] = OptionalAttrAccessor(construct, arg_idx, option)
+            elif isinstance(arg_def, VariadicDef):
+                new_attrs[arg_name] = VariadicAttrAccessor(construct, arg_idx, option)
+            else:
+                new_attrs[arg_name] = SingleAttrAccessor(construct, arg_idx, option)
     else:
         variadics_option = get_multiple_variadic_options(construct)
         names = list(option.__name__ for option in variadics_option)
