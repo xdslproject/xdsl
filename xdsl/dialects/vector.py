@@ -153,7 +153,10 @@ class ShuffleResultConstraint(AttrConstraint[VectorType]):
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         # We can only verify the element type here, and not the relations to other shapes
-        return VectorType.constr(self.element_constr).verify(attr, constraint_context)
+        VectorType.constr(self.element_constr).verify(attr, constraint_context)
+        attr = cast(VectorType, attr)
+        if not attr.shape.data:
+            raise VerifyException("Result vector type must not be 0-D.")
 
     def v1(self) -> AttrConstraint[VectorType]:
         return VectorType.constr(
@@ -196,8 +199,13 @@ class ShuffleResultConstraint(AttrConstraint[VectorType]):
             result_trailing = v1_shape.data[1:]
 
         element_type = self.element_constr.infer(context)
-        shape = ArrayAttr((IntAttr(len(mask)), *result_trailing))
-        return VectorType(element_type, shape)
+        result_leading = len(mask)
+        shape = (
+            (IntAttr(result_leading), *result_trailing)
+            if result_leading
+            else result_trailing
+        )
+        return VectorType(element_type, ArrayAttr(shape))
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -285,9 +293,6 @@ class ShuffleOp(IRDLOperation):
         v2_shape = self.v2.type.get_shape()
         result_shape = self.result.type.get_shape()
         mask = self.mask.get_values()
-
-        if not mask:
-            raise VerifyException("Result vector type must not be 0-D.")
 
         result_leading_dim = result_shape[0]
 

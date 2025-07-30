@@ -3,7 +3,7 @@
 %a = "test.op"() : () -> (vector<2xf32>)
 
 %0 = vector.shuffle %a, %a [] : vector<2xf32>, vector<2xf32>
-// CHECK: Operation does not verify: Result vector type must not be 0-D.
+// CHECK: Result vector type must not be 0-D.
 
 // -----
 
