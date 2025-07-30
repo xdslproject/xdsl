@@ -50,8 +50,9 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position
@@ -311,6 +312,14 @@ class CreateMaskOp(IRDLOperation):
         )
 
 
+class ExtractOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.vector import VectorExtractToLoad
+
+        return (VectorExtractToLoad(),)
+
+
 @irdl_op_definition
 class ExtractOp(IRDLOperation):
     name = "vector.extract"
@@ -327,7 +336,7 @@ class ExtractOp(IRDLOperation):
 
     result = result_def(VectorType.constr(_T) | _T)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), ExtractOpHasCanonicalizationPatterns())
 
     DYNAMIC_INDEX: ClassVar = DYNAMIC_INDEX
     """This value is used to indicate that a position is a dynamic index."""
