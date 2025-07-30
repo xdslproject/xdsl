@@ -1266,6 +1266,19 @@ def get_op_constructs(
     assert_never(construct)
 
 
+def get_op_wrapper(
+    construct: VarIRConstruct,
+    args: Sequence[SSAValue] | Sequence[Region] | Sequence[Successor],
+) -> VarOperand | VarOpResult | Sequence[Region] | Sequence[Successor]:
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return VarOperand(args)  # pyright: ignore[reportArgumentType]
+        case VarIRConstruct.RESULT:
+            return VarOpResult(args)  # pyright: ignore[reportArgumentType]
+        case _:
+            return args  # pyright: ignore[reportReturnType]
+
+
 def get_attr_size_option(
     construct: VarIRConstruct,
 ) -> type[
@@ -1835,30 +1848,216 @@ def irdl_op_init(
     )
 
 
+def _get_single_accessor(construct: VarIRConstruct, idx: int):
+    def fun(self: Operation):
+        return get_op_constructs(self, construct)[idx]
+
+    return property(fun)
+
+
+def _get_unique_variadic_accessor(
+    construct: VarIRConstruct, num_defs: int, arg_def: Any, idx: int
+):
+    if isinstance(arg_def, OptionalDef):
+
+        def fun_opt(self: Operation):
+            args = get_op_constructs(self, construct)
+            if len(args) == num_defs:
+                return args[idx]
+            else:
+                return None
+
+        return property(fun_opt)
+    else:
+
+        def fun_var(self: Operation):
+            args = get_op_constructs(self, construct)
+            return get_op_wrapper(construct, args[idx : idx + len(args) - num_defs + 1])
+
+        return property(fun_var)
+
+
+def _get_unique_single_accessor(construct: VarIRConstruct, num_defs: int, idx: int):
+    def fun(self: Operation):
+        args = get_op_constructs(self, construct)
+        return args[len(args) - num_defs + idx]
+
+    return property(fun)
+
+
+def _get_same_variadic_accessor(
+    construct: VarIRConstruct,
+    num_variadics: int,
+    num_defs: int,
+    arg_def: Any,
+    variadics_encountered: int,
+    idx: int,
+):
+    if isinstance(arg_def, OptionalDef):
+
+        def fun_opt(self: Operation):
+            args = get_op_constructs(self, construct)
+            if len(args) == num_defs:
+                return args[idx]
+            else:
+                return None
+
+        return property(fun_opt)
+    else:
+
+        def fun_var(self: Operation):
+            args = get_op_constructs(self, construct)
+            variadic_diff = (len(args) - num_defs) // num_variadics
+            start = idx + variadics_encountered * variadic_diff
+            end = start + 1 + variadic_diff
+            return get_op_wrapper(construct, args[start:end])
+
+        return property(fun_var)
+
+
+def _get_same_single_accessor(
+    construct: VarIRConstruct,
+    num_variadics: int,
+    num_defs: int,
+    variadics_encountered: int,
+    idx: int,
+):
+    def fun(self: Operation):
+        args = get_op_constructs(self, construct)
+        variadic_diff = (len(args) - num_defs) // num_variadics
+        start = idx + variadics_encountered * variadic_diff
+        return args[start]
+
+    return property(fun)
+
+
+def _get_attr_accessor(
+    option: AttrSizedOperandSegments
+    | AttrSizedResultSegments
+    | AttrSizedRegionSegments
+    | AttrSizedSuccessorSegments,
+    construct: VarIRConstruct,
+    arg_def: Any,
+    idx: int,
+):
+    if isinstance(arg_def, VariadicDef):
+        if isinstance(arg_def, OptionalDef):
+
+            def fun_opt(self: Operation):
+                args = get_op_constructs(self, construct)
+                attr = (
+                    self.properties[option.attribute_name]
+                    if option.as_property
+                    else self.attributes[option.attribute_name]
+                )
+                values = cast(tuple[int, ...], attr.get_values())  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue]
+                if values[idx]:
+                    return args[sum(values[0:idx])]
+                else:
+                    return None
+
+            return property(fun_opt)
+        else:
+
+            def fun_var(self: Operation):
+                args = get_op_constructs(self, construct)
+                attr = (
+                    self.properties[option.attribute_name]
+                    if option.as_property
+                    else self.attributes[option.attribute_name]
+                )
+                values = cast(tuple[int, ...], attr.get_values())  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue]
+                start = sum(values[0:idx])
+                end = start + values[idx]
+                return get_op_wrapper(construct, args[start:end])
+
+            return property(fun_var)
+    else:
+
+        def fun(self: Operation):
+            args = get_op_constructs(self, construct)
+            attr = (
+                self.properties[option.attribute_name]
+                if option.as_property
+                else self.attributes[option.attribute_name]
+            )
+            values = cast(tuple[int, ...], attr.get_values())  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue]
+            start = sum(values[0:idx])
+            return args[start]
+
+        return property(fun)
+
+
 def irdl_op_arg_definition(
     new_attrs: dict[str, Any], construct: VarIRConstruct, op_def: OpDef
 ) -> None:
-    previous_variadics = 0
     defs = get_construct_defs(op_def, construct)
-    for arg_idx, (arg_name, arg_def) in enumerate(defs):
 
-        def fun(self: Any, idx: int = arg_idx, previous_vars: int = previous_variadics):
-            return get_operand_result_or_region(
-                self, op_def, idx, previous_vars, construct
+    num_variadics = sum(isinstance(d, VariadicDef) for _, d in defs)
+
+    if num_variadics == 0:
+        # There are no variadics, so accessors just take the appropriate index
+        for arg_idx, (arg_name, _) in enumerate(defs):
+            new_attrs[arg_name] = _get_single_accessor(construct, arg_idx)
+
+    elif num_variadics == 1:
+        # There is one variadic, whose size is the total operands minus the number of other operands
+        before_variadic = True
+        num_defs = len(defs)
+
+        for arg_idx, (arg_name, arg_def) in enumerate(defs):
+            if before_variadic:
+                if isinstance(arg_def, VariadicDef):
+                    before_variadic = False
+                    new_attrs[arg_name] = _get_unique_variadic_accessor(
+                        construct, num_defs, arg_def, arg_idx
+                    )
+                else:
+                    new_attrs[arg_name] = _get_single_accessor(construct, arg_idx)
+            else:
+                new_attrs[arg_name] = _get_unique_single_accessor(
+                    construct, num_defs, arg_idx
+                )
+
+    elif any(
+        isinstance(o, get_same_variadic_size_option(construct)) for o in op_def.options
+    ):
+        variadics_encountered = 0
+        num_defs = len(defs)
+
+        for arg_idx, (arg_name, arg_def) in enumerate(defs):
+            if isinstance(arg_def, VariadicDef):
+                new_attrs[arg_name] = _get_same_variadic_accessor(
+                    construct,
+                    num_variadics,
+                    num_defs,
+                    arg_def,
+                    variadics_encountered,
+                    arg_idx,
+                )
+                variadics_encountered += 1
+            else:
+                new_attrs[arg_name] = _get_same_single_accessor(
+                    construct, num_variadics, num_defs, variadics_encountered, arg_idx
+                )
+
+    elif (
+        option := next(
+            (
+                o
+                for o in op_def.options
+                if isinstance(o, get_attr_size_option(construct))
+            ),
+            None,
+        )
+    ) is not None:
+        for arg_idx, (arg_name, arg_def) in enumerate(defs):
+            new_attrs[arg_name] = _get_attr_accessor(
+                option, construct, arg_def, arg_idx
             )
 
-        new_attrs[arg_name] = property(fun)
-        if isinstance(arg_def, VariadicDef):
-            previous_variadics += 1
-
-    # If we have multiple variadics, check that we have an
-    # attribute that holds the variadic sizes.
-    variadics_option = get_multiple_variadic_options(construct)
-    if previous_variadics > 1 and (
-        not any(
-            isinstance(o, option) for o in op_def.options for option in variadics_option
-        )
-    ):
+    else:
+        variadics_option = get_multiple_variadic_options(construct)
         names = list(option.__name__ for option in variadics_option)
         names, last_name = names[:-1], names[-1]
         raise PyRDLOpDefinitionError(
