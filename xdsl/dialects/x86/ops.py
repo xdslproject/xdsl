@@ -3132,6 +3132,18 @@ class DS_VmovapdOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
+class DS_VmovapsOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from zmm1 to zmm2 using
+    writemask k1
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.ds.vmovaps"
+
+
+@irdl_op_definition
 class MS_VmovapdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to m512 using writemask k1
