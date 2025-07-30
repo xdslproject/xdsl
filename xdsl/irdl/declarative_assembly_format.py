@@ -579,7 +579,7 @@ class OperandVariable(VariableDirective, OperandDirective):
         printer.print_ssa_value(self.get(op))
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
-        return (getattr(op, self.name).type,)
+        return (self.get(op).type,)
 
 
 @dataclass(frozen=True)
@@ -672,7 +672,7 @@ class OptionalOperandVariable(OptionalVariable, OperandDirective):
         printer.print_ssa_value(operand)
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
-        operand = getattr(op, self.name)
+        operand = self.get(op)
         if operand:
             return (operand.type,)
         return ()
@@ -963,23 +963,28 @@ class RegionVariable(RegionDirective, VariableDirective):
     The directive will request a space to be printed after.
     """
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
-        region = parser.parse_region()
+    def set(self, state: ParsingState, region: Region):
         state.regions[self.index] = region
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        self.set(state, parser.parse_region())
         return True
+
+    def get(self, op: IRDLOperation) -> Region:
+        return getattr(op, self.name)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
-        printer.print_region(getattr(op, self.name))
+        printer.print_region(self.get(op))
 
     def is_anchorable(self) -> bool:
         return True
 
     def set_empty(self, state: ParsingState):
-        state.regions[self.index] = Region()
+        self.set(state, Region())
 
     def is_present(self, op: IRDLOperation) -> bool:
-        return bool(op.regions[self.index].blocks)
+        return bool(self.get(op).blocks)
 
 
 @dataclass(frozen=True)
@@ -991,6 +996,9 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
     The directive will request a space to be printed after.
     """
 
+    def set(self, state: ParsingState, region: Sequence[Region]):
+        state.regions[self.index] = region
+
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         regions: list[Region] = []
         current_region = parser.parse_optional_region()
@@ -998,18 +1006,21 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
             regions.append(current_region)
             current_region = parser.parse_optional_region()
 
-        state.regions[self.index] = regions
+        self.set(state, regions)
         return bool(regions)
 
+    def get(self, op: IRDLOperation) -> Sequence[Region]:
+        return getattr(op, self.name)
+
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        region = getattr(op, self.name)
+        region = self.get(op)
         if not region:
             return
         state.print_whitespace(printer)
         printer.print_list(region, printer.print_region, delimiter=" ")
 
     def set_empty(self, state: ParsingState):
-        state.regions[self.index] = ()
+        self.set(state, ())
 
 
 class OptionalRegionVariable(RegionDirective, OptionalVariable):
@@ -1019,22 +1030,26 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
     The directive will request a space to be printed after.
     """
 
+    def set(self, state: ParsingState, region: Region | None):
+        state.regions[self.index] = () if region is None else region
+
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         region = parser.parse_optional_region()
-        if region is None:
-            region = list[Region]()
-        state.regions[self.index] = region
-        return bool(region)
+        self.set(state, region)
+        return region is not None
+
+    def get(self, op: IRDLOperation) -> Region | None:
+        return getattr(op, self.name)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        region = getattr(op, self.name)
+        region = self.get(op)
         if not region:
             return
         state.print_whitespace(printer)
         printer.print_region(region)
 
     def set_empty(self, state: ParsingState):
-        state.regions[self.index] = ()
+        self.set(state, None)
 
 
 class SuccessorDirective(FormatDirective, ABC):
@@ -1051,16 +1066,22 @@ class SuccessorVariable(VariableDirective, SuccessorDirective):
     The directive will request a space to be printed after.
     """
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
-        successor = parser.parse_optional_successor()
-
+    def set(self, state: ParsingState, successor: Successor):
         state.successors[self.index] = successor
 
-        return successor is not None
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        successor = parser.parse_successor()
+
+        self.set(state, successor)
+
+        return True
+
+    def get(self, op: IRDLOperation) -> Successor:
+        return getattr(op, self.name)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
-        printer.print_block_name(getattr(op, self.name))
+        printer.print_block_name(self.get(op))
 
 
 class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
@@ -1070,25 +1091,33 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
     The directive will request a space to be printed after.
     """
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
-        successors = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_successor, parser.parse_successor
-        )
-        if successors is None:
-            successors = []
+    def set(self, state: ParsingState, successors: Sequence[Successor]):
         state.successors[self.index] = successors
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        successors = (
+            parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_successor, parser.parse_successor
+            )
+            or []
+        )
+
+        self.set(state, successors)
 
         return bool(successors)
 
+    def get(self, op: IRDLOperation) -> Sequence[Successor]:
+        return getattr(op, self.name)
+
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        successor = getattr(op, self.name)
+        successor = self.get(op)
         if not successor:
             return
         state.print_whitespace(printer)
         printer.print_list(successor, printer.print_block_name)
 
     def set_empty(self, state: ParsingState):
-        state.successors[self.index] = ()
+        self.set(state, ())
 
 
 class OptionalSuccessorVariable(OptionalVariable, SuccessorDirective):
@@ -1098,22 +1127,26 @@ class OptionalSuccessorVariable(OptionalVariable, SuccessorDirective):
     The directive will request a space to be printed after.
     """
 
+    def set(self, state: ParsingState, successor: Successor | None):
+        state.successors[self.index] = () if successor is None else successor
+
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         successor = parser.parse_optional_successor()
-        if successor is None:
-            successor = list[Successor]()
-        state.successors[self.index] = successor
-        return bool(successor)
+        self.set(state, successor)
+        return successor is not None
+
+    def get(self, op: IRDLOperation) -> Successor | None:
+        return getattr(op, self.name)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        successor = getattr(op, self.name)
+        successor = self.get(op)
         if not successor:
             return
         state.print_whitespace(printer)
         printer.print_block_name(successor)
 
     def set_empty(self, state: ParsingState):
-        state.successors[self.index] = ()
+        self.set(state, None)
 
 
 @dataclass(frozen=True)
