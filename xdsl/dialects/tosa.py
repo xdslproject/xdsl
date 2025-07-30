@@ -37,6 +37,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
     HasParent,
@@ -372,6 +373,32 @@ class IfOp(IRDLOperation):
             else_region,
             attr_dict,
         )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.condition)
+
+        printer.print_string(" : ")
+        printer.print_attribute(self.condition.type)
+        printer.print_string(" -> ")
+        printer.print_list(self.result_types, printer.print_attribute)
+        printer.print_string(" ")
+        printer.print_region(
+            self.true_region,
+            print_entry_block_args=False,
+            print_block_terminators=True,
+        )
+
+        if bool(self.false_region.blocks):
+            printer.print_string(" else ")
+            printer.print_region(
+                self.false_region,
+                print_entry_block_args=False,
+                print_block_terminators=True,
+            )
+
+        if bool(self.attributes.keys()):
+            printer.print_attr_dict(self.attributes)
 
 
 TOSA = Dialect(
