@@ -69,12 +69,8 @@ class DLTIEntryMap(ParametrizedAttribute):
             printer.print_list(self.entries, print_entry)
 
     def verify(self) -> None:
-        keys: Sequence[Attribute] = []
-        for entry in self.entries:
-            entry.verify()
-            if entry.key in keys:
-                raise VerifyException("duplicate DLTI entry key")
-            keys.append(entry.key)
+        if len(set(self.entries)) != len(self.entries):
+            raise VerifyException("duplicate DLTI entry key")
 
 
 @irdl_attr_definition
