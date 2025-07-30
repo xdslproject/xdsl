@@ -780,7 +780,7 @@ def _(
     class DeadConstantElim(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter):
-            if len(op.result.uses) == 0:
+            if not op.result.uses:
                 rewriter.erase_matched_op()
 
 

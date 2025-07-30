@@ -168,9 +168,7 @@ class LaunchOp(IRDLOperation):
             )
 
         # that the token is used
-        if len(self.token.uses) != 1 or not isinstance(
-            next(iter(self.token.uses)).operation, AwaitOp
-        ):
+        if not isinstance(self.token.get_user_of_unique_use(), AwaitOp):
             raise VerifyException("Launch token must be used by exactly one await op")
 
         # that len(values) == len(param_names)

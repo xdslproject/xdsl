@@ -6,14 +6,22 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal, cast
+from typing import Any, ClassVar, Literal, cast
 
 from typing_extensions import TypeVar
 
-from xdsl.dialects.builtin import StringAttr, UnitAttr
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    BytesAttr,
+    DenseArrayBase,
+    IntegerType,
+    StringAttr,
+    UnitAttr,
+)
 from xdsl.ir import (
     Attribute,
     Data,
@@ -30,9 +38,12 @@ from xdsl.irdl import (
     OptionalDef,
     Successor,
     VariadicDef,
+    is_const_classvar,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import PyRDLError
+from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import PunctuationSpelling
 
 
@@ -80,6 +91,15 @@ class PrintingState:
     Depending on the directive, the space might not be printed
     (for instance for some punctuations).
     """
+
+    def print_whitespace(self, printer: Printer):
+        """
+        Handles whitespace printing for the majority of format directives.
+        """
+        if self.should_emit_space or not self.last_was_punctuation:
+            printer.print_string(" ")
+        self.should_emit_space = True
+        self.last_was_punctuation = False
 
 
 @dataclass(frozen=True)
@@ -312,6 +332,35 @@ class FormatDirective(Directive, ABC):
         return
 
 
+class CustomDirective(FormatDirective, ABC):
+    """
+    A user defined assembly format directive.
+    A custom directive can have multiple parameters, whose types should be
+    declared in the `parameters` field.
+    """
+
+    parameters: ClassVar[dict[str, type[FormatDirective]]]
+
+
+CustomDirectiveInvT = TypeVar("CustomDirectiveInvT", bound=CustomDirective)
+
+
+def irdl_custom_directive(cls: type[CustomDirectiveInvT]) -> type[CustomDirectiveInvT]:
+    """Decorator used on custom directives to define the `parameters` class variable."""
+
+    cls.parameters = {}
+    param_types = inspect.get_annotations(cls, eval_str=True)
+    for field_name, ty in param_types.items():
+        if is_const_classvar(field_name, ty, PyRDLError):
+            continue
+        if not issubclass(ty, FormatDirective):
+            raise PyRDLError(
+                f"Custom directive {cls.__name__} has parameter {field_name} which is not a format directive."
+            )
+        cls.parameters[field_name] = ty
+    return dataclass(frozen=True)(cls)
+
+
 class TypeableDirective(Directive, ABC):
     """
     Directives which can be used to set or get types.
@@ -353,11 +402,8 @@ class TypeDirective(FormatDirective):
         types = self.inner.get_types(op)
         if not types:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_list(types, printer.print_attribute)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def is_present(self, op: IRDLOperation) -> bool:
         return self.inner.is_present(op)
@@ -529,11 +575,8 @@ class OperandVariable(VariableDirective, OperandDirective):
         return getattr(op, self.name)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_ssa_value(self.get(op))
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         return (getattr(op, self.name).type,)
@@ -572,18 +615,15 @@ class VariadicOperandVariable(VariadicVariable, OperandDirective):
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         state.operand_types[self.index] = (parser.parse_type(),)
 
-    def get(self, op: IRDLOperation) -> Sequence[SSAValue] | None:
+    def get(self, op: IRDLOperation) -> Sequence[SSAValue]:
         return getattr(op, self.name)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operand = self.get(op)
         if not operand:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_list(operand, printer.print_ssa_value)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         return getattr(op, self.name).types
@@ -628,11 +668,8 @@ class OptionalOperandVariable(OptionalVariable, OperandDirective):
         operand = self.get(op)
         if not operand:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_ssa_value(operand)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         operand = getattr(op, self.name)
@@ -735,12 +772,8 @@ class OperandsDirective(OperandsOrResultDirective, FormatDirective):
             parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if op.operands:
-            if state.should_emit_space or not state.last_was_punctuation:
-                printer.print_string(" ")
-            printer.print_list(op.operands, printer.print_ssa_value)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        state.print_whitespace(printer)
+        printer.print_list(op.operands, printer.print_ssa_value)
 
     def set_types_empty(self, state: ParsingState) -> None:
         state.operand_types = [() for _ in state.operand_types]
@@ -902,23 +935,18 @@ class FunctionalTypeDirective(FormatDirective):
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
-        state.should_emit_space = True
-        printer.print_string("(")
-        printer.print_list(
-            self.operand_typeable_directive.get_types(op), printer.print_attribute
-        )
-        printer.print_string(") -> ")
+        state.print_whitespace(printer)
+        with printer.in_parens():
+            printer.print_list(
+                self.operand_typeable_directive.get_types(op), printer.print_attribute
+            )
+        printer.print_string(" -> ")
         result_types = self.result_typeable_directive.get_types(op)
         if len(result_types) == 1:
             printer.print_attribute(result_types[0])
-            state.last_was_punctuation = False
         else:
-            printer.print_string("(")
-            printer.print_list(result_types, printer.print_attribute)
-            printer.print_string(")")
-            state.last_was_punctuation = True
+            with printer.in_parens():
+                printer.print_list(result_types, printer.print_attribute)
 
 
 class RegionDirective(FormatDirective, ABC):
@@ -941,11 +969,8 @@ class RegionVariable(RegionDirective, VariableDirective):
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_region(getattr(op, self.name))
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def is_anchorable(self) -> bool:
         return True
@@ -980,11 +1005,8 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
         region = getattr(op, self.name)
         if not region:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_list(region, printer.print_region, delimiter=" ")
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.regions[self.index] = ()
@@ -1008,11 +1030,8 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
         region = getattr(op, self.name)
         if not region:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_region(region)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.regions[self.index] = ()
@@ -1040,11 +1059,8 @@ class SuccessorVariable(VariableDirective, SuccessorDirective):
         return successor is not None
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_block_name(getattr(op, self.name))
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
 
 class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
@@ -1068,11 +1084,8 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
         successor = getattr(op, self.name)
         if not successor:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_list(successor, printer.print_block_name)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.successors[self.index] = ()
@@ -1096,11 +1109,8 @@ class OptionalSuccessorVariable(OptionalVariable, SuccessorDirective):
         successor = getattr(op, self.name)
         if not successor:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_block_name(successor)
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.successors[self.index] = ()
@@ -1118,13 +1128,9 @@ class AttributeVariable(FormatDirective):
     """The attribute name as it should be in the attribute or property dictionary."""
     is_property: bool
     """Should this attribute be put in the attribute or property dictionary."""
-    unique_base: type[Attribute] | None
-    """The known base class of the Attribute, if any."""
-    unique_type: Attribute | None
-    """The known type of the Attribute, if any."""
     is_optional: bool
     """Is this attribute optional in the operation definition."""
-    default_value: Attribute | None = None
+    default_value: Attribute | None
 
     def set(self, state: ParsingState, attr: Attribute):
         if self.is_property:
@@ -1134,29 +1140,9 @@ class AttributeVariable(FormatDirective):
 
     def parse_attr(self, parser: Parser) -> Attribute | None:
         if self.is_optional:
-            # Only qualified optional attributes and symbol names can be optionally
-            # parsed currently.
-            # Other attributes are parsed as required attributes.
-            if self.unique_base is None:
-                return parser.parse_optional_attribute()
-
-        unique_base = self.unique_base
-
-        if unique_base is None:
-            attr = parser.parse_attribute()
-        elif self.unique_type is not None:
-            assert issubclass(unique_base, TypedAttribute)
-            attr = unique_base.parse_with_type(parser, self.unique_type)
-        elif issubclass(
-            unique_base,
-            ParametrizedAttribute,
-        ):
-            attr = unique_base.new(unique_base.parse_parameters(parser))
-        elif issubclass(unique_base, Data):
-            attr = cast(Data[Any], unique_base.new(unique_base.parse_parameter(parser)))
+            return parser.parse_optional_attribute()
         else:
-            raise ValueError("Attributes must be Data or ParameterizedAttribute.")
-        return attr
+            return parser.parse_attribute()
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         attr = self.parse_attr(parser)
@@ -1172,55 +1158,114 @@ class AttributeVariable(FormatDirective):
             return op.attributes.get(self.name)
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
-        if self.unique_type is not None:
-            assert isinstance(attr, TypedAttribute)
-            return attr.print_without_type(printer)
-        if self.unique_base is None:
-            return printer.print_attribute(attr)
+        return printer.print_attribute(attr)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        attr = self.get(op)
+
+        if attr is None or attr == self.default_value:
+            return
+
+        state.print_whitespace(printer)
+
+        self.print_attr(printer, attr)
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        attr = self.get(op)
+        return attr is not None and attr != self.default_value
+
+    def is_anchorable(self) -> bool:
+        return self.is_optional or self.default_value is not None
+
+    def is_optional_like(self) -> bool:
+        return self.is_optional
+
+
+@dataclass(frozen=True)
+class UniqueBaseAttributeVariable(AttributeVariable):
+    unique_base: type[Attribute]
+    """The known base class of the Attribute, if any."""
+
+    def parse_attr(self, parser: Parser) -> Attribute | None:
+        unique_base = self.unique_base
+
+        if issubclass(unique_base, ParametrizedAttribute):
+            return unique_base.new(unique_base.parse_parameters(parser))
+        elif issubclass(unique_base, Data):
+            unique_base = cast(type[Data[Any]], unique_base)
+            return unique_base.new(unique_base.parse_parameter(parser))
+        else:
+            raise ValueError("Attributes must be Data or ParameterizedAttribute.")
+
+    def print_attr(self, printer: Printer, attr: Attribute) -> None:
         if isinstance(attr, ParametrizedAttribute):
             return attr.print_parameters(printer)
         if isinstance(attr, Data):
             return attr.print_parameter(printer)
         raise ValueError("Attributes must be Data or ParameterizedAttribute!")
 
-    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        attr = self.get(op)
 
-        if attr is None:
-            return
+@dataclass(frozen=True)
+class TypedAttributeVariable(UniqueBaseAttributeVariable):
+    unique_type: Attribute
+    """The known type of the Attribute, if any."""
 
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
-        state.should_emit_space = True
-        state.last_was_punctuation = False
+    def parse_attr(self, parser: Parser) -> Attribute | None:
+        unique_base = self.unique_base
+        assert issubclass(unique_base, TypedAttribute)
+        return unique_base.parse_with_type(parser, self.unique_type)
 
-        self.print_attr(printer, attr)
+    def print_attr(self, printer: Printer, attr: Attribute) -> None:
+        assert isinstance(attr, TypedAttribute)
+        return attr.print_without_type(printer)
 
-    def is_present(self, op: IRDLOperation) -> bool:
-        attr = self.get(op)
-        return attr is not None and (
-            self.default_value is None or attr != self.default_value
-        )
 
-    def is_anchorable(self) -> bool:
-        return self.is_optional or self.default_value is not None
+@dataclass(frozen=True)
+class DenseArrayAttributeVariable(AttributeVariable):
+    elt_type: IntegerType | AnyFloat
 
-    def is_optional_like(self) -> bool:
-        return self.is_optional and self.unique_base is None
+    def parse_attr(self, parser: Parser) -> Attribute | None:
+        if isinstance(self.elt_type, IntegerType):
+            if self.is_optional:
+                elements = parser.parse_optional_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_integer
+                )
+                if elements is None:
+                    return None
+            else:
+                elements = parser.parse_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_integer
+                )
+            return DenseArrayBase(
+                self.elt_type, BytesAttr(self.elt_type.pack(elements))
+            )
+        else:
+            if self.is_optional:
+                elements = parser.parse_optional_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_float
+                )
+                if elements is None:
+                    return None
+            else:
+                elements = parser.parse_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_float
+                )
+            return DenseArrayBase(
+                self.elt_type, BytesAttr(self.elt_type.pack(elements))
+            )
+
+    def print_attr(self, printer: Printer, attr: Attribute) -> None:
+        with printer.in_square_brackets():
+            if isa(attr, DenseArrayBase[IntegerType]):
+                printer.print_list(attr.iter_values(), printer.print_int)
+            elif isa(attr, DenseArrayBase[AnyFloat]):
+                printer.print_list(
+                    attr.iter_values(),
+                    lambda value: printer.print_float(value, attr.elt_type),
+                )
 
 
 class SymbolNameAttributeVariable(AttributeVariable):
-    def __init__(
-        self,
-        name: str,
-        is_property: bool,
-        is_optional: bool,
-        default_value: Attribute | None,
-    ):
-        super().__init__(
-            name, is_property, StringAttr, None, is_optional, default_value
-        )
-
     def parse_attr(self, parser: Parser) -> Attribute | None:
         if self.is_optional:
             return parser.parse_optional_symbol_name()
@@ -1230,9 +1275,6 @@ class SymbolNameAttributeVariable(AttributeVariable):
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
         assert isinstance(attr, StringAttr)
         return printer.print_symbol_name(attr.data)
-
-    def is_optional_like(self) -> bool:
-        return self.is_optional
 
 
 class OptionalUnitAttrVariable(AttributeVariable):
@@ -1246,7 +1288,7 @@ class OptionalUnitAttrVariable(AttributeVariable):
     """
 
     def __init__(self, name: str, is_property: bool):
-        super().__init__(name, is_property, None, None, True)
+        super().__init__(name, is_property, True, None)
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         self.set(state, UnitAttr())
@@ -1338,9 +1380,10 @@ class KeywordDirective(FormatDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space:
             printer.print_string(" ")
-        printer.print_string(self.keyword)
         state.should_emit_space = True
         state.last_was_punctuation = False
+
+        printer.print_string(self.keyword)
 
     def is_optional_like(self) -> bool:
         return True

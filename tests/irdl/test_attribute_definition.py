@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
+    StringAttr,
     i32,
 )
 from xdsl.ir import (
@@ -797,13 +798,6 @@ def test_irdl_definition():
     )
 
 
-def test_deprecated_tuple_init():
-    with pytest.deprecated_call():
-        assert ParamAttrDefAttr(StringData(""), BoolData(True)) == ParamAttrDefAttr(
-            (StringData(""), BoolData(True))  # pyright: ignore[reportCallIssue]
-        )
-
-
 @irdl_attr_definition
 class ParamAttrDefAttr2(ParametrizedAttribute):
     name = "test.param_attr_def_attr"
@@ -1097,3 +1091,39 @@ def test_class_var_fail():
             name = "test.invalid_class_var"
             constant: ClassVar[int]  # Should be uppercase
             param: IntData
+
+
+################################################################################
+# Converters
+################################################################################
+
+
+@irdl_attr_definition
+class ConverterAttr(ParametrizedAttribute):
+    name = "test.converters"
+
+    string: StringAttr = param_def(converter=StringAttr.get)
+
+    i: IntAttr = param_def(converter=IntAttr.get)
+
+
+def test_converters():
+    string = "My string"
+    string_attr = StringAttr(string)
+
+    i = 2
+    i_attr = IntAttr(i)
+
+    attr_no_convertion = ConverterAttr(string_attr, i_attr)
+    assert attr_no_convertion.i == i_attr
+    assert attr_no_convertion.string == string_attr
+
+    attr_some_convertion = ConverterAttr(string_attr, i)
+    assert attr_some_convertion.i == i_attr
+    assert attr_some_convertion.string == string_attr
+    assert attr_no_convertion == attr_some_convertion
+
+    attr_all_convertion = ConverterAttr(string, i)
+    assert attr_all_convertion.i == i_attr
+    assert attr_all_convertion.string == string_attr
+    assert attr_no_convertion == attr_all_convertion
