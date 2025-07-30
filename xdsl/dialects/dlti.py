@@ -69,7 +69,7 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
             printer.print_list(self.entries, print_entry)
 
     def verify(self) -> None:
-        if len(set(self.entries)) != len(self.entries):
+        if len({entry.key for entry in self.entries}) != len(self.entries):
             raise VerifyException("duplicate DLTI entry key")
 
 
