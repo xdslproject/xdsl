@@ -59,38 +59,38 @@ func.func @matmul(
 }
 
 // CHECK:       matmul:
-// CHECK-NEXT:      mov %rcx, %rdi
-// CHECK-NEXT:      mov %r10, %rsi
-// CHECK-NEXT:      mov %rax, %rdx
-// CHECK-NEXT:      vmovupd %ymm1, [%rax]
-// CHECK-NEXT:      vmovupd %ymm0, [%rax+32]
-// CHECK-NEXT:      vmovupd %ymm9, [%r10]
-// CHECK-NEXT:      vmovupd %ymm7, [%r10+32]
-// CHECK-NEXT:      vmovupd %ymm5, [%r10+64]
-// CHECK-NEXT:      vmovupd %ymm3, [%r10+96]
-// CHECK-NEXT:      mov %r10, %rcx
-// CHECK-NEXT:      mov %rbx, %rcx
-// CHECK-NEXT:      mov %r8, %rcx
-// CHECK-NEXT:      mov %r9, %rcx
-// CHECK-NEXT:      vbroadcastsd %ymm2, [%r10]
-// CHECK-NEXT:      vbroadcastsd %ymm4, [%rbx+8]
-// CHECK-NEXT:      vbroadcastsd %ymm6, [%r8+16]
-// CHECK-NEXT:      vbroadcastsd %ymm8, [%r9+24]
-// CHECK-NEXT:      vfmadd231pd %ymm1, %ymm2, %ymm9
-// CHECK-NEXT:      vfmadd231pd %ymm1, %ymm4, %ymm7
-// CHECK-NEXT:      vfmadd231pd %ymm1, %ymm6, %ymm5
-// CHECK-NEXT:      vfmadd231pd %ymm1, %ymm8, %ymm3
-// CHECK-NEXT:      mov %r9, %rcx
-// CHECK-NEXT:      mov %r8, %rcx
-// CHECK-NEXT:      mov %rbx, %rcx
-// CHECK-NEXT:      vbroadcastsd %ymm8, [%r9+32]
-// CHECK-NEXT:      vbroadcastsd %ymm6, [%r8+40]
-// CHECK-NEXT:      vbroadcastsd %ymm4, [%rbx+48]
-// CHECK-NEXT:      vbroadcastsd %ymm2, [%rcx+56]
-// CHECK-NEXT:      vfmadd231pd %ymm0, %ymm8, %ymm9
-// CHECK-NEXT:      vfmadd231pd %ymm0, %ymm6, %ymm7
-// CHECK-NEXT:      vfmadd231pd %ymm0, %ymm4, %ymm5
-// CHECK-NEXT:      vfmadd231pd %ymm0, %ymm2, %ymm3
-// CHECK-NEXT:      vmovapd [%rax], %ymm1
-// CHECK-NEXT:      vmovapd [%rax+32], %ymm0
+// CHECK-NEXT:      mov rcx, rdi
+// CHECK-NEXT:      mov r10, rsi
+// CHECK-NEXT:      mov rax, rdx
+// CHECK-NEXT:      vmovupd ymm1, [rax]
+// CHECK-NEXT:      vmovupd ymm0, [rax+32]
+// CHECK-NEXT:      vmovupd ymm9, [r10]
+// CHECK-NEXT:      vmovupd ymm7, [r10+32]
+// CHECK-NEXT:      vmovupd ymm5, [r10+64]
+// CHECK-NEXT:      vmovupd ymm3, [r10+96]
+// CHECK-NEXT:      mov r10, rcx
+// CHECK-NEXT:      mov rbx, rcx
+// CHECK-NEXT:      mov r8, rcx
+// CHECK-NEXT:      mov r9, rcx
+// CHECK-NEXT:      vbroadcastsd ymm2, [r10]
+// CHECK-NEXT:      vbroadcastsd ymm4, [rbx+8]
+// CHECK-NEXT:      vbroadcastsd ymm6, [r8+16]
+// CHECK-NEXT:      vbroadcastsd ymm8, [r9+24]
+// CHECK-NEXT:      vfmadd231pd ymm1, ymm2, ymm9
+// CHECK-NEXT:      vfmadd231pd ymm1, ymm4, ymm7
+// CHECK-NEXT:      vfmadd231pd ymm1, ymm6, ymm5
+// CHECK-NEXT:      vfmadd231pd ymm1, ymm8, ymm3
+// CHECK-NEXT:      mov r9, rcx
+// CHECK-NEXT:      mov r8, rcx
+// CHECK-NEXT:      mov rbx, rcx
+// CHECK-NEXT:      vbroadcastsd ymm8, [r9+32]
+// CHECK-NEXT:      vbroadcastsd ymm6, [r8+40]
+// CHECK-NEXT:      vbroadcastsd ymm4, [rbx+48]
+// CHECK-NEXT:      vbroadcastsd ymm2, [rcx+56]
+// CHECK-NEXT:      vfmadd231pd ymm0, ymm8, ymm9
+// CHECK-NEXT:      vfmadd231pd ymm0, ymm6, ymm7
+// CHECK-NEXT:      vfmadd231pd ymm0, ymm4, ymm5
+// CHECK-NEXT:      vfmadd231pd ymm0, ymm2, ymm3
+// CHECK-NEXT:      vmovapd [rax], ymm1
+// CHECK-NEXT:      vmovapd [rax+32], ymm0
 // CHECK-NEXT:      ret

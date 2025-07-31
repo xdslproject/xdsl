@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TypeAlias
 
-from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
 from xdsl.ir import SSAValue
 from xdsl.parser import Parser
@@ -10,26 +9,40 @@ from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
 from .attributes import LabelAttr
+from .register import GeneralRegisterType, RFLAGSRegisterType, X86VectorRegisterType
 
 AssemblyInstructionArg: TypeAlias = (
-    IntegerAttr | SSAValue | RegisterType | str | int | LabelAttr
+    IntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
 )
 
 
 def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     if isa(arg, IntegerAttr):
-        return f"${arg.value.data}"
+        return f"{arg.value.data}"
     elif isinstance(arg, int):
         return f"{arg}"
     elif isinstance(arg, str):
         return arg
+    elif isinstance(arg, GeneralRegisterType):
+        return arg.register_name.data
+    elif isinstance(arg, RFLAGSRegisterType):
+        return arg.register_name.data
+    elif isinstance(arg, X86VectorRegisterType):
+        return arg.register_name.data
     elif isinstance(arg, LabelAttr):
         return arg.data
-    elif isinstance(arg, RegisterType):
-        return f"%{arg.register_name.data}"
     else:
-        assert isinstance(arg.type, RegisterType)
-        return f"%{arg.type.register_name.data}"
+        if isinstance(arg.type, GeneralRegisterType):
+            reg = arg.type.register_name
+            return reg.data
+        elif isinstance(arg.type, RFLAGSRegisterType):
+            reg = arg.type.register_name
+            return reg.data
+        elif isinstance(arg.type, X86VectorRegisterType):
+            reg = arg.type.register_name
+            return reg.data
+        else:
+            raise ValueError(f"Unexpected register type {arg.type}")
 
 
 def parse_immediate_value(
@@ -64,7 +77,7 @@ def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
 def memory_access_str(register: AssemblyInstructionArg, offset: IntegerAttr) -> str:
     register_str = assembly_arg_str(register)
     if offset.value.data != 0:
-        offset_str = assembly_arg_str(offset.value.data)
+        offset_str = assembly_arg_str(offset)
         if offset.value.data > 0:
             mem_acc_str = f"[{register_str}+{offset_str}]"
         else:
