@@ -9,15 +9,15 @@
 
 %rr_add = x86.rs.add %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK: %{{.*}} = x86.rs.add %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_sub = x86.rs.sub %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_sub = x86.rs.sub %rr_add, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.sub %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_mul = x86.rs.imul %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_mul = x86.rs.imul %rr_sub, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.imul %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_and = x86.rs.and %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_and = x86.rs.and %rr_mul, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.and %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_or = x86.rs.or %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_or = x86.rs.or %rr_and, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.or %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_xor = x86.rs.xor %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_xor = x86.rs.xor %rr_or, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.xor %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
 %ds_mov = x86.ds.mov %0 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %ds_mov = x86.ds.mov %{{.*}} : (!x86.reg) -> !x86.reg
@@ -28,13 +28,13 @@
 // CHECK-NEXT: %{{.*}} = x86.s.push %rsp, %{{.*}} : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
 %r_poprsp, %r_pop = x86.d.pop %rsp : (!x86.reg<rsp>) -> (!x86.reg<rsp>, !x86.reg)
 // CHECK-NEXT: %{{.*}}, %{{.*}} = x86.d.pop %{{.*}} : (!x86.reg<rsp>) -> (!x86.reg<rsp>, !x86.reg)
-%r_not = x86.r.not %0 : (!x86.reg) -> !x86.reg
+%r_not = x86.r.not %r_pop: (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.r.not %{{.*}} : (!x86.reg) -> !x86.reg
-%r_neg = x86.r.neg %0 : (!x86.reg) -> !x86.reg
+%r_neg = x86.r.neg %r_not : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.r.neg %{{.*}} : (!x86.reg) -> !x86.reg
-%r_inc = x86.r.inc %0 : (!x86.reg) -> !x86.reg
+%r_inc = x86.r.inc %r_neg : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.r.inc %{{.*}} : (!x86.reg) -> !x86.reg
-%r_dec = x86.r.dec %0 : (!x86.reg) -> !x86.reg
+%r_dec = x86.r.dec %r_inc : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.r.dec %{{.*}} : (!x86.reg) -> !x86.reg
 
 %r_idiv_rdx, %r_idiv_rax = x86.s.idiv %0, %rdx, %rax : (!x86.reg, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
