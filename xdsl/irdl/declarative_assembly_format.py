@@ -37,7 +37,6 @@ from xdsl.irdl import (
     OpDef,
     OptionalDef,
     Successor,
-    VariadicDef,
     is_const_classvar,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -55,11 +54,11 @@ class ParsingState:
     It contains the elements that have already been parsed.
     """
 
-    operands: list[UnresolvedOperand | None | Sequence[UnresolvedOperand]]
-    operand_types: list[Attribute | None | Sequence[Attribute]]
-    result_types: list[Attribute | None | Sequence[Attribute]]
-    regions: list[Region | None | Sequence[Region]]
-    successors: list[Successor | None | Sequence[Successor]]
+    operands: list[None | Sequence[UnresolvedOperand]]
+    operand_types: list[None | Sequence[Attribute]]
+    result_types: list[None | Sequence[Attribute]]
+    regions: list[None | Sequence[Region]]
+    successors: list[None | Sequence[Successor]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     context: ConstraintContext
@@ -141,32 +140,18 @@ class FormatProgram:
         self.resolve_constraint_variables(state, op_def)
 
         # Infer operand types that should be inferred
-        unresolved_operands = state.operands
-        self.resolve_operand_types(state, op_def)
-        operand_types = state.operand_types
-        assert None not in operand_types
+        assert None not in state.operands
+        unresolved_operands = cast(list[Sequence[UnresolvedOperand]], state.operands)
+        operand_types = self.resolve_operand_types(state, op_def)
 
         # Infer result types that should be inferred
-        self.resolve_result_types(state, op_def)
-        result_types = state.result_types
-        assert None not in result_types
+        result_types = self.resolve_result_types(state, op_def)
 
         # Resolve all operands
-        operands: Sequence[SSAValue | Sequence[SSAValue]] = []
-        for uo, ot in zip(unresolved_operands, operand_types, strict=True):
-            assert uo is not None
-            if isinstance(uo, UnresolvedOperand):
-                assert isinstance(ot, Attribute), (
-                    "Something went wrong with the declarative assembly format parser."
-                )
-                "Single operand has no type or variadic/optional type"
-                operands.append(parser.resolve_operand(uo, ot))
-            else:
-                assert isinstance(ot, Sequence), (
-                    f"Something went wrong with the declarative assembly format parser. {type(ot)} {ot}"
-                )
-                "Variadic or optional operand has no type or a single type "
-                operands.append(parser.resolve_operands(uo, ot, parser.pos))
+        operands = tuple(
+            parser.resolve_operands(uo, ot, parser.pos)
+            for uo, ot in zip(unresolved_operands, operand_types, strict=True)
+        )
 
         return op_type.build(
             result_types=result_types,
@@ -220,52 +205,43 @@ class FormatProgram:
                 continue
             attr_def.constr.verify(attr, ctx)
 
-    def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
+    def resolve_operand_types(
+        self, state: ParsingState, op_def: OpDef
+    ) -> Sequence[Sequence[Attribute]]:
         """
         Use the inferred type resolutions to fill missing operand types from other parsed
         types.
         """
-        for i, (operand_type, (_, operand_def)) in enumerate(
-            zip(state.operand_types, op_def.operands, strict=True)
-        ):
-            if operand_type is None:
-                operand = state.operands[i]
-                range_length = len(operand) if isinstance(operand, Sequence) else 1
-                operand_type = operand_def.constr.infer(
-                    state.context,
-                    length=range_length,
-                )
-                resolved_operand_type: Attribute | Sequence[Attribute]
-                if isinstance(operand_def, OptionalDef):
-                    resolved_operand_type = operand_type[0] if operand_type else ()
-                elif isinstance(operand_def, VariadicDef):
-                    resolved_operand_type = operand_type
-                else:
-                    resolved_operand_type = operand_type[0]
-                state.operand_types[i] = resolved_operand_type
+        return tuple(
+            operand_def.constr.infer(
+                state.context,
+                length=len(cast(Sequence[Any], operand)),
+            )
+            if operand_type is None
+            else operand_type
+            for operand_type, operand, (_, operand_def) in zip(
+                state.operand_types, state.operands, op_def.operands, strict=True
+            )
+        )
 
-    def resolve_result_types(self, state: ParsingState, op_def: OpDef) -> None:
+    def resolve_result_types(
+        self, state: ParsingState, op_def: OpDef
+    ) -> Sequence[Sequence[Attribute]]:
         """
         Use the inferred type resolutions to fill missing result types from other parsed
         types.
         """
-        for i, (result_type, (_, result_def)) in enumerate(
-            zip(state.result_types, op_def.results, strict=True)
-        ):
-            if result_type is None:
-                inferred_result_types = result_def.constr.infer(
-                    state.context, length=None
-                )
-                resolved_result_type: Attribute | Sequence[Attribute]
-                if isinstance(result_def, OptionalDef):
-                    resolved_result_type = (
-                        inferred_result_types[0] if inferred_result_types else ()
-                    )
-                elif isinstance(result_def, VariadicDef):
-                    resolved_result_type = inferred_result_types
-                else:
-                    resolved_result_type = inferred_result_types[0]
-                state.result_types[i] = resolved_result_type
+        return tuple(
+            result_def.constr.infer(
+                state.context,
+                length=None,
+            )
+            if result_type is None
+            else result_type
+            for result_type, (_, result_def) in zip(
+                state.result_types, op_def.results, strict=True
+            )
+        )
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """
@@ -557,7 +533,7 @@ class OperandVariable(VariableDirective, OperandDirective):
     """
 
     def set(self, state: ParsingState, operand: UnresolvedOperand):
-        state.operands[self.index] = operand
+        state.operands[self.index] = (operand,)
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         operand = parser.parse_unresolved_operand()
@@ -565,7 +541,7 @@ class OperandVariable(VariableDirective, OperandDirective):
         return True
 
     def parse_types(self, parser: Parser, state: ParsingState) -> bool:
-        state.operand_types[self.index] = parser.parse_type()
+        state.operand_types[self.index] = (parser.parse_type(),)
         return True
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
@@ -643,7 +619,7 @@ class OptionalOperandVariable(OptionalVariable, OperandDirective):
     """
 
     def set(self, state: ParsingState, operand: UnresolvedOperand | None):
-        state.operands[self.index] = operand or ()
+        state.operands[self.index] = () if operand is None else (operand,)
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         operand = parser.parse_optional_unresolved_operand()
@@ -652,14 +628,11 @@ class OptionalOperandVariable(OptionalVariable, OperandDirective):
 
     def parse_types(self, parser: Parser, state: ParsingState) -> bool:
         type = parser.parse_optional_type()
-        ret = type is None
-        if ret:
-            type = ()
-        state.operand_types[self.index] = type
-        return ret
+        state.operand_types[self.index] = () if type is None else (type,)
+        return type is not None
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
-        state.operand_types[self.index] = parser.parse_type()
+        state.operand_types[self.index] = (parser.parse_type(),)
 
     def get(self, op: IRDLOperation) -> SSAValue | None:
         return getattr(op, self.name)
@@ -707,14 +680,14 @@ class OperandsOrResultDirective(TypeableDirective, ABC):
 
     def _set_using_variadic_index(
         self,
-        field: list[_T | None | Sequence[_T]],
+        field: list[None | Sequence[_T]],
         field_name: str,
         set_to: Sequence[_T],
     ) -> str | None:
         if self.variadic_index is None:
             if len(set_to) != len(field):
                 return f"Expected {len(field)} {field_name} but found {len(set_to)}"
-            field[:] = set_to
+            field[:] = ((x,) for x in set_to)
             return
 
         is_optional, var_position = self.variadic_index
@@ -723,9 +696,9 @@ class OperandsOrResultDirective(TypeableDirective, ABC):
             return f"Expected at least {len(field) - 1} {field_name} but found {len(set_to)}"
         if var_length > 1 and is_optional:
             return f"Expected at most {len(field)} {field_name} but found {len(set_to)}"
-        field[:var_position] = set_to[:var_position]
+        field[:var_position] = ((x,) for x in set_to[:var_position])
         field[var_position] = set_to[var_position : var_position + var_length]
-        field[var_position + 1 :] = set_to[var_position + var_length :]
+        field[var_position + 1 :] = ((x,) for x in set_to[var_position + var_length :])
 
 
 class OperandsDirective(OperandsOrResultDirective, FormatDirective):
@@ -798,7 +771,7 @@ class ResultVariable(VariableDirective, TypeableDirective):
     """
 
     def parse_types(self, parser: Parser, state: ParsingState) -> bool:
-        state.result_types[self.index] = parser.parse_type()
+        state.result_types[self.index] = (parser.parse_type(),)
         return True
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
@@ -847,11 +820,8 @@ class OptionalResultVariable(OptionalVariable, TypeableDirective):
 
     def parse_types(self, parser: Parser, state: ParsingState) -> bool:
         type = parser.parse_optional_type()
-        ret = type is None
-        if ret:
-            type = ()
-        state.result_types[self.index] = type
-        return ret
+        state.result_types[self.index] = () if type is None else (type,)
+        return type is not None
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         state.result_types[self.index] = (parser.parse_type(),)
@@ -964,7 +934,7 @@ class RegionVariable(RegionDirective, VariableDirective):
     """
 
     def set(self, state: ParsingState, region: Region):
-        state.regions[self.index] = region
+        state.regions[self.index] = (region,)
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         self.set(state, parser.parse_region())
@@ -1031,7 +1001,7 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
     """
 
     def set(self, state: ParsingState, region: Region | None):
-        state.regions[self.index] = () if region is None else region
+        state.regions[self.index] = () if region is None else (region,)
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         region = parser.parse_optional_region()
@@ -1067,7 +1037,7 @@ class SuccessorVariable(VariableDirective, SuccessorDirective):
     """
 
     def set(self, state: ParsingState, successor: Successor):
-        state.successors[self.index] = successor
+        state.successors[self.index] = (successor,)
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         successor = parser.parse_successor()
@@ -1128,7 +1098,7 @@ class OptionalSuccessorVariable(OptionalVariable, SuccessorDirective):
     """
 
     def set(self, state: ParsingState, successor: Successor | None):
-        state.successors[self.index] = () if successor is None else successor
+        state.successors[self.index] = () if successor is None else (successor,)
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         successor = parser.parse_optional_successor()

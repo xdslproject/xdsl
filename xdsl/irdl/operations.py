@@ -1624,12 +1624,13 @@ def irdl_build_arg_list(
                 )
             arg_sizes.append(0)
         elif isinstance(arg, Sequence):
-            if not isinstance(arg_def, VariadicDef):
+            arg = cast(Sequence[_T], arg)
+
+            if not isinstance(arg_def, VariadicDef) and len(arg) != 1:
                 raise ValueError(
                     error_prefix
                     + f"passed Sequence to non-variadic {construct} {arg_idx} '{arg_name}'"
                 )
-            arg = cast(Sequence[_T], arg)
 
             # Check we have at most one argument for optional defintions.
             if isinstance(arg_def, OptionalDef) and len(arg) > 1:
