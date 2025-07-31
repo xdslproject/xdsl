@@ -271,7 +271,7 @@ class MatMulOp(IRDLOperation):
 
         if sa[0] != 1 or sb[0] != 1:
             raise VerifyException(
-                "'tosa.matmul' Expected leading rank of input tensors to be 1"
+                "'tosa.matmul' Expected leading dimension of input tensors to be 1"
             )
 
         # expect m x n ... n x k
