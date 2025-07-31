@@ -26,7 +26,9 @@ def test_class_var_on_op():
 
 
 def test_class_var_on_op_invalid():
-    with pytest.raises(PyRDLOpDefinitionError, match="is neither a"):
+    with pytest.raises(
+        PyRDLOpDefinitionError, match='Invalid ClassVar name "var", must be uppercase'
+    ):
         irdl_op_definition(MyOpWithClassVarInvalid)
 
 

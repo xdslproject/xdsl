@@ -1253,12 +1253,7 @@ class DictionaryAttr(_BuiltinData[immutabledict[str, Attribute]]):
 class TupleType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
     name = "tuple"
 
-    types: ArrayAttr[TypeAttribute]
-
-    def __init__(self, types: list[TypeAttribute] | ArrayAttr[TypeAttribute]) -> None:
-        if isinstance(types, list):
-            types = ArrayAttr(types)
-        super().__init__(types)
+    types: ArrayAttr[TypeAttribute] = param_def(converter=ArrayAttr[TypeAttribute].get)
 
     def print_builtin(self, printer: Printer):
         printer.print_string("tuple")
@@ -1986,6 +1981,8 @@ class UnrealizedConversionCastOp(IRDLOperation):
     ) -> tuple[UnrealizedConversionCastOp, SSAValue[AttributeInvT]]:
         op = UnrealizedConversionCastOp(operands=(input,), result_types=(result_type,))
         res: SSAValue[AttributeInvT] = op.results[0]  # pyright: ignore[reportAssignmentType]
+        if input.name_hint is not None:
+            res.name_hint = input.name_hint
         return op, res
 
     @classmethod

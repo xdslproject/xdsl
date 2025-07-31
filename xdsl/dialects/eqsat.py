@@ -2,11 +2,9 @@
 An embedding of equivalence classes in IR, for use in equality saturation with
 non-destructive rewrites.
 
-Please see the Equality Saturation Project for details:
-https://github.com/orgs/xdslproject/projects/23
+Please see the [Equality Saturation Project](https://github.com/orgs/xdslproject/projects/23) for details.
 
-TODO: add documentation once we have end-to-end flow working:
-https://github.com/xdslproject/xdsl/issues/3174
+See the overview [notebook](https://xdsl.readthedocs.io/stable/marimo/eqsat.html).
 """
 
 from __future__ import annotations
@@ -79,7 +77,7 @@ class EClassOp(IRDLOperation):
                     "another eclass."
                 )
 
-            if len(operand.uses) != 1:
+            if not operand.has_one_use():
                 if len(set(use.operation for use in operand.uses)) == 1:
                     raise VerifyException(
                         "Eclass operands must only be used once by the eclass."

@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
+    DictionaryAttr,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -1196,11 +1197,18 @@ class LoadOp(IRDLOperation):
 
     ptr = operand_def(LLVMPointerType)
 
-    ordering = opt_prop_def(IntegerAttr[IntegerType])
+    alignment = opt_prop_def(IntegerAttr[IntegerType])
+    ordering = prop_def(IntegerAttr[IntegerType], default_value=IntegerAttr(0, i64))
 
     dereferenced_value = result_def()
 
-    def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
+    def __init__(
+        self,
+        ptr: SSAValue | Operation,
+        result_type: Attribute | None = None,
+        alignment: int | None = None,
+        ordering: int = 0,
+    ):
         if result_type is None:
             ptr = SSAValue.get(ptr, type=LLVMPointerType)
 
@@ -1210,7 +1218,14 @@ class LoadOp(IRDLOperation):
                 )
             result_type = ptr.type.type
 
-        super().__init__(operands=[ptr], result_types=[result_type])
+        props: dict[str, Attribute] = {
+            "ordering": IntegerAttr(ordering, i64),
+        }
+
+        if alignment is not None:
+            props["alignment"] = IntegerAttr(alignment, i64)
+
+        super().__init__(operands=[ptr], result_types=[result_type], properties=props)
 
 
 @irdl_op_definition
@@ -1502,6 +1517,46 @@ class CallingConventionAttr(ParametrizedAttribute):
         parser.raise_error("Unknown calling convention")
 
 
+class FramePointerKind(StrEnum):
+    NONE = "none"
+    NONLEAF = "non-leaf"
+    ALL = "all"
+    RESERVED = "reserved"
+
+
+@irdl_attr_definition
+class FramePointerKindAttr(EnumAttribute[FramePointerKind]):
+    """LLVM Frame Pointer Kind."""
+
+    name = "llvm.framePointerKind"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            super().print_parameter(printer)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> FramePointerKind:
+        with parser.in_angle_brackets():
+            return super().parse_parameter(parser)
+
+
+@irdl_attr_definition
+class TargetFeaturesAttr(ParametrizedAttribute):
+    """
+    Represents the LLVM target features as a list that can be checked within
+    passes/rewrites.
+    """
+
+    name = "llvm.target_features"
+
+    features: ArrayAttr[StringAttr]
+
+    def verify(self):
+        for feature in self.features:
+            if not feature.data.startswith(("-", "+")):
+                raise VerifyException("target features must start with '+' or '-'")
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     name = "llvm.func"
@@ -1514,6 +1569,19 @@ class FuncOp(IRDLOperation):
     sym_visibility = opt_prop_def(StringAttr)
     visibility_ = prop_def(IntegerAttr[IntegerType])
 
+    # The following properties are not yet verified by the xDSL verifier, but
+    # are verified to at least allow the IR to be parsed and printed correctly.
+    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    frame_pointer = opt_prop_def(FramePointerKindAttr)
+    no_inline = opt_prop_def(UnitAttr)
+    no_unwind = opt_prop_def(UnitAttr)
+    optimize_none = opt_prop_def(UnitAttr)
+    passthrough = opt_prop_def(ArrayAttr[Attribute])
+    target_cpu = opt_prop_def(StringAttr)
+    target_features = opt_prop_def(TargetFeaturesAttr)
+    tune_cpu = opt_prop_def(StringAttr)
+    unnamed_addr = opt_prop_def(IntegerAttr)
+
     def __init__(
         self,
         sym_name: str | StringAttr,
@@ -1523,6 +1591,7 @@ class FuncOp(IRDLOperation):
         visibility: int | IntegerAttr[IntegerType] = 0,
         sym_visibility: str | StringAttr | None = None,
         body: Region | None = None,
+        other_props: dict[str, Attribute | None] | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -1532,17 +1601,21 @@ class FuncOp(IRDLOperation):
             body = Region([])
         if isinstance(sym_visibility, str):
             sym_visibility = StringAttr(sym_visibility)
-        super().__init__(
-            operands=[],
-            regions=[body],
-            properties={
+        properties = other_props if other_props is not None else {}
+        properties.update(
+            {
                 "sym_name": sym_name,
                 "function_type": function_type,
                 "CConv": cconv,
                 "linkage": linkage,
                 "visibility_": visibility,
                 "sym_visibility": sym_visibility,
-            },
+            }
+        )
+        super().__init__(
+            operands=[],
+            regions=[body],
+            properties=properties,
         )
 
 
@@ -1904,6 +1977,7 @@ LLVM = Dialect(
     [
         CallingConventionAttr,
         FastMathAttr,
+        FramePointerKindAttr,
         LLVMArrayType,
         LLVMFunctionType,
         LLVMPointerType,
@@ -1912,5 +1986,6 @@ LLVM = Dialect(
         LinkageAttr,
         OverflowAttr,
         TailCallKindAttr,
+        TargetFeaturesAttr,
     ],
 )

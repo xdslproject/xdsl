@@ -33,6 +33,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.traits import OpTrait
+from xdsl.utils.classvar import is_const_classvar
 from xdsl.utils.exceptions import (
     ParseError,
     PyRDLOpDefinitionError,
@@ -44,7 +45,6 @@ from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
-    is_classvar,
     range_constr_coercion,
     single_range_constr_coercion,
 )
@@ -58,6 +58,7 @@ from .constraints import (  # noqa: TID251
 )
 
 if TYPE_CHECKING:
+    from xdsl.irdl.declarative_assembly_format import CustomDirective
     from xdsl.parser import Parser
     from xdsl.printer import Printer
 
@@ -81,6 +82,7 @@ IRDLOperationContrT = TypeVar(
 @dataclass(init=False)
 class IRDLOperation(Operation):
     assembly_format: ClassVar[str | None] = None
+    custom_directives: ClassVar[tuple[type[CustomDirective], ...]] = ()
 
     def __init__(
         self: IRDLOperation,
@@ -870,19 +872,6 @@ def lazy_traits_def(future_traits: Callable[[], tuple[OpTrait, ...]]):
 _OPERATION_DICT_KEYS = {key for cls in Operation.mro()[:-1] for key in cls.__dict__}
 
 
-def _is_const_classvar(field_name: str, annotation: Any) -> bool:
-    """
-    Operation definitions may only have `*_def` fields or constant class variables,
-    where the constness is defined by convention with an UPPER_CASE name and enforced by
-    pyright.
-    The type annotation can be one of
-     * `ClassVar[MyType]`,
-     * `ClassVar`, or
-     * `"ClassVar[MyType]"`.
-    """
-    return field_name.isupper() and is_classvar(annotation)
-
-
 @dataclass(kw_only=True)
 class OpDef:
     """The internal IRDL definition of an operation."""
@@ -914,6 +903,9 @@ class OpDef:
     or is already used by the operation, so we need to use a different name.
     """
     assembly_format: str | None = field(default=None)
+    custom_directives: dict[str, type[CustomDirective]] = field(
+        default_factory=lambda: {}
+    )
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
@@ -931,7 +923,7 @@ class OpDef:
 
         def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
             raise PyRDLOpDefinitionError(
-                f"{pyrdl_def.__name__}.{field_name} is neither a function, or an "
+                f"{pyrdl_def.__name__}.{field_name} is neither a function,"
                 "operand, result, region, or attribute definition. "
                 "Operands should be defined with type hints of "
                 "operand_def(<Constraint>), results with "
@@ -962,13 +954,15 @@ class OpDef:
             annotations = parent_cls.__annotations__
 
             for field_name in annotations:
-                if _is_const_classvar(field_name, annotations[field_name]):
-                    continue
                 if field_name not in clsdict:
+                    if is_const_classvar(
+                        field_name, annotations[field_name], PyRDLOpDefinitionError
+                    ):
+                        continue
                     raise wrong_field_exception(field_name)
 
             for field_name in clsdict:
-                if field_name in ("name", "assembly_format"):
+                if field_name in ("name", "assembly_format", "custom_directives"):
                     continue
                 if field_name in _OPERATION_DICT_KEYS:
                     # Fields that are already in Operation (i.e. operands, results, ...)
@@ -976,8 +970,8 @@ class OpDef:
                 if field_name in field_names:
                     # already registered value for field name
                     continue
-                if field_name in annotations and _is_const_classvar(
-                    field_name, annotations[field_name]
+                if field_name in annotations and is_const_classvar(
+                    field_name, annotations[field_name], PyRDLOpDefinitionError
                 ):
                     continue
 
@@ -1139,6 +1133,9 @@ class OpDef:
                 raise wrong_field_exception(field_name)
 
         op_def.assembly_format = pyrdl_def.assembly_format
+        op_def.custom_directives = {
+            directive.__name__: directive for directive in pyrdl_def.custom_directives
+        }
         assert inspect.ismethod(Operation.parse)
         if op_def.assembly_format is not None and (
             pyrdl_def.print != Operation.print
@@ -1627,12 +1624,13 @@ def irdl_build_arg_list(
                 )
             arg_sizes.append(0)
         elif isinstance(arg, Sequence):
-            if not isinstance(arg_def, VariadicDef):
+            arg = cast(Sequence[_T], arg)
+
+            if not isinstance(arg_def, VariadicDef) and len(arg) != 1:
                 raise ValueError(
                     error_prefix
                     + f"passed Sequence to non-variadic {construct} {arg_idx} '{arg_name}'"
                 )
-            arg = cast(Sequence[_T], arg)
 
             # Check we have at most one argument for optional defintions.
             if isinstance(arg_def, OptionalDef) and len(arg) > 1:

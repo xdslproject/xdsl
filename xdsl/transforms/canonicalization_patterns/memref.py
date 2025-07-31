@@ -72,8 +72,6 @@ class MemRefSubviewOfSubviewFolding(RewritePattern):
 class ElideUnusedAlloc(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
-        if len(op.memref.uses) == 1 and isinstance(
-            only_use := tuple(op.memref.uses)[0].operation, memref.DeallocOp
-        ):
+        if isinstance(only_use := op.memref.get_user_of_unique_use(), memref.DeallocOp):
             rewriter.erase_op(only_use)
             rewriter.erase_matched_op()
