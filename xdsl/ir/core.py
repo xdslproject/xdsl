@@ -723,7 +723,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
-        assert not self.uses, "unexpected error in xdsl"
+        assert self.first_use is None, "unexpected error in xdsl"
 
     def replace_by_if(self, value: SSAValue, test: Callable[[Use], bool]):
         """
@@ -743,7 +743,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         If safe_erase is True, then check that no operations use the value anymore.
         If safe_erase is False, then replace its uses by an ErasedSSAValue.
         """
-        if safe_erase and self.uses:
+        if safe_erase and self.first_use is not None:
             raise ValueError(
                 "Attempting to delete SSA value that still has uses of result "
                 f"of operation:\n{self.owner}"
