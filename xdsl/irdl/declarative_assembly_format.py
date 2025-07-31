@@ -687,7 +687,7 @@ class OperandsOrResultDirective(TypeableDirective, ABC):
         if self.variadic_index is None:
             if len(set_to) != len(field):
                 return f"Expected {len(field)} {field_name} but found {len(set_to)}"
-            field[:] = tuple((x,) for x in set_to)
+            field[:] = ((x,) for x in set_to)
             return
 
         is_optional, var_position = self.variadic_index
@@ -696,11 +696,9 @@ class OperandsOrResultDirective(TypeableDirective, ABC):
             return f"Expected at least {len(field) - 1} {field_name} but found {len(set_to)}"
         if var_length > 1 and is_optional:
             return f"Expected at most {len(field)} {field_name} but found {len(set_to)}"
-        field[:var_position] = map(lambda x: (x,), set_to[:var_position])
+        field[:var_position] = ((x,) for x in set_to[:var_position])
         field[var_position] = set_to[var_position : var_position + var_length]
-        field[var_position + 1 :] = map(
-            lambda x: (x,), set_to[var_position + var_length :]
-        )
+        field[var_position + 1 :] = ((x,) for x in set_to[var_position + var_length :])
 
 
 class OperandsDirective(OperandsOrResultDirective, FormatDirective):
