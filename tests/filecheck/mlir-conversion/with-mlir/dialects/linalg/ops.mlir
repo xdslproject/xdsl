@@ -129,6 +129,22 @@ linalg.broadcast ins(%48 : memref<f32>) outs(%1 : memref<1x256xf32>) dimensions 
 
 linalg.transpose ins(%49 : memref<16x64xf32>) outs(%50 : memref<64x16xf32>) permutation = [1, 0]
 
+%51 = "test.op"() : () -> (memref<16xf32>)
+
+linalg.reduce ins(%49:memref<16x64xf32>) outs(%51:memref<16xf32>) dimensions = [1]
+(%52 : f32, %53 : f32) {
+    %54 = arith.addf %52, %53 : f32
+    linalg.yield %54 : f32
+}
+
+%55, %56 = "test.op"(): () ->  (tensor<100x50xi32>, tensor<i32>)
+
+%reduced = linalg.reduce ins(%55:tensor<100x50xi32>) outs(%56:tensor<i32>) dimensions = [0, 1]
+(%57 : i32, %58 : i32) {
+    %59 = arith.addi %57, %58 : i32
+    linalg.yield %59 : i32
+}
+
 // CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
 // CHECK-NEXT:  #map1 = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-NEXT:  module {
@@ -198,4 +214,16 @@ linalg.transpose ins(%49 : memref<16x64xf32>) outs(%50 : memref<64x16xf32>) perm
 // CHECK-NEXT:    linalg.broadcast ins(%38 : memref<f32>) outs(%0#1 : memref<1x256xf32>) dimensions = [0, 1]
 // CHECK-NEXT:    %39:2 = "test.op"() : () -> (memref<16x64xf32>, memref<64x16xf32>)
 // CHECK-NEXT:    linalg.transpose ins(%39#0 : memref<16x64xf32>) outs(%39#1 : memref<64x16xf32>) permutation = [1, 0]
+// CHECK-NEXT:    %40 = "test.op"() : () -> memref<16xf32>
+// CHECK-NEXT:    linalg.reduce ins(%39#0 : memref<16x64xf32>) outs(%40 : memref<16xf32>) dimensions = [1]
+// CHECK-NEXT:    (%in: f32, %init: f32) {
+// CHECK-NEXT:        %42 = arith.addf %in, %init : f32
+// CHECK-NEXT:        linalg.yield %42 : f32
+// CHECK-NEXT:    }
+// CHECK-NEXT:    %41:2 = "test.op"() : () -> (tensor<100x50xi32>, tensor<i32>)
+// CHECK-NEXT:    %reduced = linalg.reduce ins(%41#0 : tensor<100x50xi32>) outs(%41#1 : tensor<i32>) dimensions = [0, 1]
+// CHECK-NEXT:    (%in: i32, %init: i32) {
+// CHECK-NEXT:        %42 = arith.addi %in, %init : i32
+// CHECK-NEXT:        linalg.yield %42 : i32
+// CHECK-NEXT:    }
 // CHECK-NEXT:  }
