@@ -3012,6 +3012,7 @@ class GetAVXRegisterOp(GetAnyRegisterOperation[X86VectorRegisterType]):
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
     printer = AssemblyPrinter(stream=output)
+    print(".intel_syntax noprefix", file=output)
     printer.print_module(module)
 
 
