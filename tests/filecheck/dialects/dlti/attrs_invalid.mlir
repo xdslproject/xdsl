@@ -36,9 +36,18 @@ module attributes {
 // -----
 
 // CHECK: duplicate DLTI entry key
-
 module attributes {
   dlti.target_system_spec = #dlti.target_system_spec<
     "CPU" = #dlti.target_device_spec<"L1_cache_size_in_bytes" = 4096,
                                      "L1_cache_size_in_bytes" = 8192>
   >} {}
+
+// -----
+
+// CHECK: empty string as DLTI key is not allowed
+"test.op"() { test.unknown_attr = #dlti.map<"" = 42> } : () -> ()
+
+// -----
+// CHECK: duplicate DLTI entry key
+"test.op"() { test.unknown_attr = #dlti.map<
+  i32 = 42, i32 = 19> } : () -> ()

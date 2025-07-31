@@ -182,3 +182,53 @@ module attributes {
     "CPU" = #dlti.target_device_spec<"L1_cache_size_in_bytes" = 4096 : ui32>,
     "GPU" = #dlti.target_device_spec<"max_vector_op_width" = 128>
   >} {}
+
+// -----
+
+// CHECK:      module attributes {
+// CHECK-SAME:   dlti.map = #dlti.map<
+// CHECK-SAME:     "magic_num" = 42 : i32,
+// CHECK-SAME:     "magic_num_float" = 4.242000e+01 : f32,
+// CHECK-SAME:     "magic_type" = i32,
+// CHECK-SAME:     i32 = #dlti.map<"bitwidth" = 32 : i32>
+// CHECK:        >} {
+// CHECK:      }
+module attributes {
+  dlti.map = #dlti.map<"magic_num" = 42 : i32,
+                       "magic_num_float" = 42.42 : f32,
+                       "magic_type" = i32,
+                        i32 = #dlti.map<"bitwidth" = 32 : i32>>
+  } {}
+
+// -----
+
+// CHECK:      module attributes {
+// CHECK-SAME:   dlti.map = #dlti.map<
+// CHECK-SAME:     "CPU" = #dlti.map<"L1_cache_size_in_bytes" = 4096 : i32>,
+// CHECK-SAME:     "GPU" = #dlti.map<"max_vector_op_width" = 128 : i32>
+// CHECK-SAME:   >} {
+// CHECK:      }
+module attributes {
+  dlti.map = #dlti.map<
+    "CPU" = #dlti.map<"L1_cache_size_in_bytes" = 4096 : i32>,
+    "GPU" = #dlti.map<"max_vector_op_width" = 128 : i32>
+  >} {}
+
+// -----
+
+// CHECK:      module attributes {
+// CHECK-SAME:   dlti.target_system_spec = #dlti.target_system_spec<
+// CHECK-SAME:     "CPU" = #dlti.target_device_spec<
+// CHECK-SAME:       "key" = #dlti.map<"V1" = 22 : i32, "V2" = 100 : i32,
+// CHECK-SAME:                          "V3" = 22 : i32>>,
+// CHECK-SAME:     "GPU" = #dlti.target_device_spec<
+// CHECK-SAME:       "key" = #dlti.map<"V1" = 24 : i32, "V2" = 16 : i32,
+// CHECK-SAME:                          "V3" = 9.920000e+01 : f32>>
+// CHECK-SAME:   >} {
+// CHECK:      }
+
+module attributes {
+  dlti.target_system_spec = #dlti.target_system_spec<
+    "CPU" = #dlti.target_device_spec<"key" = #dlti.map<"V1" = 22 : i32, "V2" = 100 : i32, "V3" = 22 : i32>>,
+    "GPU" = #dlti.target_device_spec<"key" = #dlti.map<"V1" = 24 : i32, "V2" = 16 : i32, "V3" = 99.2 : f32>>
+  >} {}
