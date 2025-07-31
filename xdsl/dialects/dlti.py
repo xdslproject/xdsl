@@ -33,6 +33,8 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
     def verify(self) -> None:
         if not isinstance(self.key, StringAttr | TypeAttribute):
             raise VerifyException("key must be a string or a type attribute")
+        if isinstance(self.key, StringAttr) and not self.key.data:
+            raise VerifyException("empty string as DLTI key is not allowed")
 
 
 class DLTIEntryMap(ParametrizedAttribute, ABC):
@@ -118,12 +120,27 @@ class TargetSystemSpecAttr(DLTIEntryMap):
     name = "dlti.target_system_spec"
 
 
+@irdl_attr_definition
+class MapAttr(DLTIEntryMap):
+    """
+    A mapping of DLTI-information by way of key-value pairs
+
+    A Data Layout and Target Information map is a list of entries effectively
+    encoding a dictionary, mapping DLTI-related keys to DLTI-related values.
+
+    https://mlir.llvm.org/docs/Dialects/DLTIDialect/#mapattr
+    """
+
+    name = "dlti.map"
+
+
 DLTI = Dialect(
     "dlti",
     [],
     [
         DataLayoutEntryAttr,
         DataLayoutSpecAttr,
+        MapAttr,
         TargetDeviceSpecAttr,
         TargetSystemSpecAttr,
     ],
