@@ -58,7 +58,7 @@
 %not_dim_1 = "test.op"() : () -> tensor<2x5x5xf32>
 %zero_p = "test.op"() : () -> tensor<f32>
 %0 = tosa.matmul %not_dim_1, %not_dim_1, %zero_p, %zero_p : (tensor<2x5x5xf32>, tensor<2x5x5xf32>, tensor<f32>, tensor<f32>) -> tensor<2x5x5xf32>
-// CHECK: 'tosa.matmul' Expected leading rank of input tensors to be 1
+// CHECK: 'tosa.matmul' Expected leading dimension of input tensors to be 1
 
 // -----
 
