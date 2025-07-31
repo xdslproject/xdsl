@@ -346,19 +346,30 @@ class IfOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         cond = parser.parse_operand()
 
-#        if parser.parse_optional_punctuation("("):
-#            while not parser.parse_optional_punctuation(")"):
-#                parser.parse_operand()
-#                parser.parse_optional_punctuation("=")
-#                parser.parse_operand()
-#                parser.parse_optional_punctuation(",")
+        input_list: Sequence[SSAValue] = []
+        if parser.parse_optional_punctuation("("):
+            while not parser.parse_optional_punctuation(")"):
+                parser.parse_unresolved_operand()
+                parser.parse_optional_punctuation("=")
+                input_list += [parser.parse_operand()]
+                parser.parse_optional_punctuation(",")
 
         return_types: Sequence[Attribute] = []
         parser.parse_punctuation(":")
-        _ = parser.parse_type()
+        parser.parse_type()
+
+        if parser.parse_optional_punctuation("("):
+            while not parser.parse_optional_punctuation(")"):
+                parser.parse_type()
+                parser.parse_optional_punctuation(",")
 
         parser.parse_punctuation("->")
-        return_types += [parser.parse_type()]
+        if parser.parse_optional_punctuation("("):
+            while not parser.parse_optional_punctuation(")"):
+                return_types += [parser.parse_type()]
+                parser.parse_optional_punctuation(",")
+        else:
+            return_types += [parser.parse_type()]
 
         then_region = cls.parse_region_with_yield(parser)
         else_region = cls.parse_region_with_yield(parser) if parser.parse_optional_keyword("else") else Region()
@@ -367,7 +378,7 @@ class IfOp(IRDLOperation):
 
         return cls(
             cond,
-            [],
+            input_list,
             return_types,
             then_region,
             else_region,
