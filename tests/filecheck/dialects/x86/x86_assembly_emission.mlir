@@ -1,5 +1,7 @@
 // RUN: xdsl-opt -t x86-asm %s | filecheck %s
 
+// CHECK-NEXT: .intel_syntax noprefix
+
 %0 = x86.get_register : () -> !x86.reg<rax>
 %1 = x86.get_register : () -> !x86.reg<rdx>
 %2 = x86.get_register : () -> !x86.reg<rcx>
@@ -7,7 +9,7 @@
 %rax = x86.get_register : () -> !x86.reg<rax>
 
 %rr_add = x86.rs.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
-// CHECK: add rax, rdx
+// CHECK-NEXT: add rax, rdx
 %rr_sub = x86.rs.sub %rr_add, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: sub rax, rdx
 %rr_imul = x86.rs.imul %rr_sub, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
