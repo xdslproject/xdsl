@@ -7,8 +7,8 @@ from typing import Any, Final, Generic, ParamSpec
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.frontend.pyast.builder import PyASTBuilder
 from xdsl.frontend.pyast.code_generation import CodeGeneration
-from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 from xdsl.frontend.pyast.utils.python_code_check import FunctionMap
 from xdsl.frontend.pyast.utils.type_conversion import (

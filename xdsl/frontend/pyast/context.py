@@ -8,8 +8,8 @@ from sys import _getframe  # pyright: ignore[reportPrivateUsage]
 from types import FrameType
 from typing import Any, NamedTuple, overload
 
+from xdsl.frontend.pyast.builder import PyASTBuilder
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
-from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
 from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
 from xdsl.ir import Operation, TypeAttribute
@@ -140,25 +140,6 @@ class PyASTContext:
         if decorated_func is None:
             return decorator
         return decorator(decorated_func)
-
-    def pdl_rewrite(
-        self,
-        decorated_func: Callable[P, R],
-    ) -> PyASTProgram[P, R]:
-        """Get a program wrapper for a PDL rewrite by decorating a function."""
-        func_file, func_globals, func_ast = self._get_func_info(
-            currentframe(), decorated_func, None
-        )
-        builder = PyASTBuilder(
-            type_registry=self.type_registry,
-            function_registry=self.function_registry,
-            file=func_file,
-            globals=func_globals,
-            function_ast=func_ast,
-            desymref=True,
-            pdl_rewrite=True,
-        )
-        return self._get_wrapped_program(decorated_func, builder)
 
 
 @dataclass

@@ -26,7 +26,7 @@ pdl.pattern : benefit(2) {
 """
 
 from xdsl.dialects import arith, builtin, pdl
-from xdsl.frontend.pyast.context import PyASTContext
+from xdsl.frontend.pypdl.context import PyPDLContext
 from xdsl.ir import Operation
 from xdsl.rewriter import Rewriter
 
@@ -36,7 +36,7 @@ def erase_op(operation: Operation) -> None:
     return Rewriter.erase_op(operation)
 
 
-ctx = PyASTContext()
+ctx = PyPDLContext()
 ctx.register_type(arith.ConstantOp, pdl.OperationType())
 ctx.register_function(erase_op, pdl.EraseOp)
 

@@ -304,7 +304,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return function_transformations.FunctionPersistArgNamesPass
 
     def get_func_to_pdl_rewrite():
-        from xdsl.transforms import func_to_pdl_rewrite
+        from xdsl.frontend.pypdl.transforms import func_to_pdl_rewrite
 
         return func_to_pdl_rewrite.FuncToPdlRewrite
 
