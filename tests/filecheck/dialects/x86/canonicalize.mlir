@@ -18,14 +18,15 @@
 %c0_0 = x86.ds.mov %c0 : (!x86.reg) -> !x86.reg
 %c32 = x86.di.mov 32 : () -> !x86.reg
 
-// CHECK-NEXT:    %moved_i = x86.ds.mov %i0 : (!x86.reg<rdi>) -> !x86.reg<rbx>
-// CHECK-NEXT:    "test.op"(%moved_i) : (!x86.reg<rbx>) -> ()
-%moved_i = x86.ds.mov %i0 : (!x86.reg<rdi>) -> !x86.reg<rbx>
-%add_immediate_zero_reg = x86.rs.add %moved_i, %c0 : (!x86.reg<rbx>, !x86.reg) -> !x86.reg<rbx>
+// CHECK-NEXT:    %moved_i0 = x86.ds.mov %i0 : (!x86.reg<rdi>) -> !x86.reg<rbx>
+// CHECK-NEXT:    "test.op"(%moved_i0) : (!x86.reg<rbx>) -> ()
+%moved_i0 = x86.ds.mov %i0 : (!x86.reg<rdi>) -> !x86.reg<rbx>
+%add_immediate_zero_reg = x86.rs.add %moved_i0, %c0 : (!x86.reg<rbx>, !x86.reg) -> !x86.reg<rbx>
 "test.op"(%add_immediate_zero_reg) : (!x86.reg<rbx>) -> ()
 
 // Constant memory offsets get optimized out
-%offset_ptr = x86.rs.add %moved_i, %c32 : (!x86.reg<rbx>, !x86.reg) -> !x86.reg<rbx>
+%moved_i1 = x86.ds.mov %i0 : (!x86.reg<rdi>) -> !x86.reg<rbx>
+%offset_ptr = x86.rs.add %moved_i1, %c32 : (!x86.reg<rbx>, !x86.reg) -> !x86.reg<rbx>
 
 // CHECK-NEXT:     %rm_mov = x86.dm.mov %i0, 40 : (!x86.reg<rdi>) -> !x86.reg<rax>
 // CHECK-NEXT:     x86.ms.mov %i0, %rm_mov, 40 : (!x86.reg<rdi>, !x86.reg<rax>) -> ()
