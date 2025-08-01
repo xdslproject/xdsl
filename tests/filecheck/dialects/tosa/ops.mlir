@@ -13,6 +13,10 @@
 %10 = "test.op"() : () -> tensor<12x13xf32>
 %11 = tosa.sin %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
 %12 = tosa.cos %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
+%m = "test.op"() : () -> tensor<1x4x27xf32>
+%n = "test.op"() : () -> tensor<1x27x15xf32>
+%z = "test.op"() : () -> tensor<1xf32>
+%13 = tosa.matmul %m, %n, %z, %z : (tensor<1x4x27xf32>, tensor<1x27x15xf32>, tensor<1xf32>, tensor<1xf32>) -> tensor<1x4x15xf32>
 
 
 // CHECK: builtin.module {
@@ -29,4 +33,8 @@
 // CHECK-NEXT:   %10 = "test.op"() : () -> tensor<12x13xf32>
 // CHECK-NEXT:   %11 = tosa.sin %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
 // CHECK-NEXT:   %12 = tosa.cos %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
+// CHECK-NEXT:   %m = "test.op"() : () -> tensor<1x4x27xf32>
+// CHECK-NEXT:   %n = "test.op"() : () -> tensor<1x27x15xf32>
+// CHECK-NEXT:   %z = "test.op"() : () -> tensor<1xf32>
+// CHECK-NEXT:   %13 = tosa.matmul %m, %n, %z, %z : (tensor<1x4x27xf32>, tensor<1x27x15xf32>, tensor<1xf32>, tensor<1xf32>) -> tensor<1x4x15xf32>
 // CHECK-NEXT: }
