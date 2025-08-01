@@ -34,12 +34,12 @@ class MS_Operation_ConstantOffset(RewritePattern):
             isinstance(op, x86.ops.MS_Operation)
             and isinstance(add_op := op.memory.owner, x86.RS_AddOp)
             and ((value := get_constant_value(add_op.source)) is not None)
+            # The addition is in-place, so we have to get the original value
+            and isinstance(mov_op := add_op.register_in.owner, x86.DS_MovOp)
         ):
             op = cast(x86.ops.MS_Operation[X86RegisterType, X86RegisterType], op)
             new_offset = op.memory_offset.value.data + value.value.data
-            rewriter.replace_matched_op(
-                type(op)(add_op.register_in, op.source, new_offset)
-            )
+            rewriter.replace_matched_op(type(op)(mov_op.source, op.source, new_offset))
 
 
 class DM_Operation_ConstantOffset(RewritePattern):
@@ -48,13 +48,13 @@ class DM_Operation_ConstantOffset(RewritePattern):
             isinstance(op, x86.ops.DM_Operation)
             and isinstance(add_op := op.memory.owner, x86.RS_AddOp)
             and ((value := get_constant_value(add_op.source)) is not None)
+            # The addition is in-place, so we have to get the original value
+            and isinstance(mov_op := add_op.register_in.owner, x86.DS_MovOp)
         ):
             op = cast(x86.ops.DM_Operation[X86RegisterType, X86RegisterType], op)
             new_offset = op.memory_offset.value.data + value.value.data
             rewriter.replace_matched_op(
-                type(op)(
-                    add_op.register_in, new_offset, destination=op.destination.type
-                )
+                type(op)(mov_op.source, new_offset, destination=op.destination.type)
             )
 
 
