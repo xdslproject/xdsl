@@ -314,33 +314,12 @@ class YieldOp(IRDLOperation):
     traits = lazy_traits_def(
         lambda: (
             IsTerminator(),
-            HasParent(WhileOp, IfOp),
+            HasParent(IfOp),
             Pure(),
         )
     )
 
     assembly_format = "$inputs attr-dict `:` type($inputs)"
-
-
-@irdl_op_definition
-class WhileOp(IRDLOperation):
-    """
-    TOSA operation for representing the foreach or while iterative loop structure
-
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosawhile_loop-mlirtosawhileop)
-    """
-
-    name = "tosa.while_loop"
-
-    input_list = var_operand_def(TensorType)
-    output_list = var_result_def(TensorType)
-
-    body = region_def()
-
-    traits = traits_def(
-        RecursiveMemoryEffect(),
-        SingleBlockImplicitTerminator(YieldOp),
-    )
 
 
 @irdl_op_definition
@@ -448,14 +427,43 @@ class IfOp(IRDLOperation):
         printer.print_string(" ")
         printer.print_operand(self.condition)
 
+        block = self.true_region.blocks.first
+        assert block is not None
+
+        block_args = block.args
+
+        if len(self.input_list) >= 1:
+            printer.print_string(" (")
+
+            def print_fn(operands: tuple[SSAValue, SSAValue]):
+                printer.print_operand(operands[0])
+                printer.print_string(" = ")
+                printer.print_operand(operands[1])
+
+            printer.print_list(
+                zip(block_args, self.input_list),
+                print_fn
+            )
+
+            printer.print_string(")")
+
         printer.print_string(" : ")
         printer.print_attribute(self.condition.type)
+
+        if len(self.input_list) >= 1:
+            def print_type(op: SSAValue):
+                printer.print_attribute(op.type)
+
+            printer.print_string(" (")
+            printer.print_list(self.input_list, print_type)
+            printer.print_string(")")
+
         printer.print_string(" -> ")
         printer.print_list(self.result_types, printer.print_attribute)
         printer.print_string(" ")
         printer.print_region(
             self.true_region,
-            print_entry_block_args=False,
+            print_entry_block_args=True,
             print_block_terminators=True,
         )
 
@@ -463,7 +471,7 @@ class IfOp(IRDLOperation):
             printer.print_string(" else ")
             printer.print_region(
                 self.false_region,
-                print_entry_block_args=False,
+                print_entry_block_args=True,
                 print_block_terminators=True,
             )
 
@@ -482,7 +490,6 @@ TOSA = Dialect(
         CosOp,
         MatMulOp,
         YieldOp,
-        WhileOp,
         IfOp,
     ],
     [],
