@@ -2,7 +2,10 @@ from dataclasses import dataclass
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.utils.builder import PyASTBuilder
-from xdsl.frontend.pypdl.transforms.func_to_pdl_rewrite import FuncToPdlRewrite
+from xdsl.frontend.pypdl.transforms.func_to_pdl_rewrite import (
+    FuncToPdlRewritePattern,
+    PatternRewriteWalker,
+)
 
 
 @dataclass
@@ -12,5 +15,5 @@ class PyPDLRewriteBuilder(PyASTBuilder):
     def build(self) -> ModuleOp:
         """Build a PDL rewrite from the builder state."""
         module = super().build()
-        FuncToPdlRewrite().apply(ctx=None, op=module)
+        PatternRewriteWalker(FuncToPdlRewritePattern()).rewrite_module(module)
         return module

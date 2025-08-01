@@ -5,13 +5,10 @@ inputs are constant, replacing the computation with a constant value.
 
 from dataclasses import dataclass
 
-from xdsl.context import Context
-from xdsl.dialects import builtin, func, pdl, test
+from xdsl.dialects import func, pdl, test
 from xdsl.ir import Block, Region
-from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
-    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
@@ -43,16 +40,3 @@ class FuncToPdlRewritePattern(RewritePattern):
             rewriter.replace_matched_op(pdl_pattern)
         else:
             rewriter.erase_matched_op()
-
-
-class FuncToPdlRewrite(ModulePass):
-    """
-    A pass that transforms a function into a PDL rewrite operation.
-    """
-
-    name = "func-to-pdl-rewrite"
-
-    def apply(self, ctx: Context | None, op: builtin.ModuleOp) -> None:
-        """Apply the pass."""
-        pattern = FuncToPdlRewritePattern()
-        PatternRewriteWalker(pattern).rewrite_module(op)
