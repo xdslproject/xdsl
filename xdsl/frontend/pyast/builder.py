@@ -31,7 +31,7 @@ class PyASTBuilder:
     function_ast: ast.FunctionDef
     """The AST tree for the function being built."""
 
-    desymref: bool = True
+    desymref: bool
     """Whether to apply the desymref flag to the built module."""
 
     def build(self) -> ModuleOp:
