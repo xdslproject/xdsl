@@ -910,12 +910,18 @@ class OpTraits(Iterable[OpTrait]):
     An operation's traits.
     Some operations have mutually recursive traits, such as one is always the parent
     operation of the other.
-    For this case, the operation's traits can be declared lazily, and resolved only
-    at the first use.
+    For this case, the operation's traits can be declared lazily and resolved only at
+    the first use.
     """
 
     gen_traits: Callable[[], tuple[OpTrait, ...]]
+    """
+    Factory method that lazily populates the traits on first use.
+    """
     _traits: frozenset[OpTrait] | None
+    """
+    The traits of this operation, can be updated via `add_trait`.
+    """
 
     def __init__(self, gen_traits: Callable[[], tuple[OpTrait, ...]]) -> None:
         self.gen_traits = gen_traits
