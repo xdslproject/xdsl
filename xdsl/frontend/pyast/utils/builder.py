@@ -32,10 +32,10 @@ class PyASTBuilder:
     function_ast: ast.FunctionDef
     """The AST tree for the function being built."""
 
-    desymref: bool
+    desymref: bool = True
     """Whether to apply the desymref flag to the built module."""
 
-    pdl_rewrite: bool
+    pdl_rewrite: bool = False
     """Whether to construct the function as a PDL rewrite block."""
 
     def build(self) -> ModuleOp:

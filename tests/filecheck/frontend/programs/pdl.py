@@ -41,7 +41,7 @@ ctx.register_type(arith.ConstantOp, pdl.OperationType())
 ctx.register_function(erase_op, pdl.EraseOp)
 
 
-@ctx.parse_program(pdl_rewrite=True)
+@ctx.pdl_rewrite
 def constant_replace(matched_operation: arith.ConstantOp) -> arith.ConstantOp:
     erase_op(matched_operation)
     return matched_operation
