@@ -351,7 +351,7 @@ class IfOp(IRDLOperation):
         return_types: Sequence[Attribute],
         true_region: Region | Sequence[Block] | Sequence[Operation],
         false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
-        attr_dict: dict[str, Attribute] | None = None
+        attr_dict: dict[str, Attribute] | None = None,
     ):
         if false_region is None:
             false_region = Region()
@@ -362,7 +362,6 @@ class IfOp(IRDLOperation):
             regions=[true_region, false_region],
             attributes=attr_dict,
         )
-
 
     @staticmethod
     def parse_region_with_yield(parser: Parser) -> Region:
@@ -410,7 +409,11 @@ class IfOp(IRDLOperation):
             return_types += [parser.parse_type()]
 
         then_region = cls.parse_region_with_yield(parser)
-        else_region = cls.parse_region_with_yield(parser) if parser.parse_optional_keyword("else") else Region()
+        else_region = (
+            cls.parse_region_with_yield(parser)
+            if parser.parse_optional_keyword("else")
+            else Region()
+        )
 
         attr_dict = parser.parse_optional_attr_dict()
 
@@ -440,10 +443,7 @@ class IfOp(IRDLOperation):
                 printer.print_string(" = ")
                 printer.print_operand(operands[1])
 
-            printer.print_list(
-                zip(block_args, self.input_list),
-                print_fn
-            )
+            printer.print_list(zip(block_args, self.input_list), print_fn)
 
             printer.print_string(")")
 
@@ -451,6 +451,7 @@ class IfOp(IRDLOperation):
         printer.print_attribute(self.condition.type)
 
         if len(self.input_list) >= 1:
+
             def print_type(op: SSAValue):
                 printer.print_attribute(op.type)
 
@@ -477,6 +478,7 @@ class IfOp(IRDLOperation):
 
         if bool(self.attributes.keys()):
             printer.print_attr_dict(self.attributes)
+
 
 TOSA = Dialect(
     "tosa",
