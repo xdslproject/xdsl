@@ -25,6 +25,5 @@ class PyPDLContext(PyASTContext):
             file=func_file,
             globals=func_globals,
             function_ast=func_ast,
-            desymref=True,
         )
         return self._get_wrapped_program(decorated_func, builder)

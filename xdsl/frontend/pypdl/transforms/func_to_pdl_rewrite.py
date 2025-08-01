@@ -57,7 +57,7 @@ class FuncToPdlRewrite(ModulePass):
 
     name = "func-to-pdl-rewrite"
 
-    def apply(self, ctx: Context | None, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         """Apply the pass."""
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
