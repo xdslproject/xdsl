@@ -54,6 +54,7 @@ from xdsl.traits import (
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
@@ -1319,8 +1320,7 @@ class TruncIOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         if not self.result.type.width.data < self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be smaller than the input bit-width"
@@ -1342,8 +1342,7 @@ class ExtSIOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         if not self.result.type.width.data > self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be larger than the input bit-width"
@@ -1363,8 +1362,7 @@ class ExtUIOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         if not self.result.type.width.data > self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be larger than the input bit-width"

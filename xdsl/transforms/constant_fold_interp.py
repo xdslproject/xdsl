@@ -69,7 +69,7 @@ class ConstantFoldInterpPattern(RewritePattern):
     ) -> Operation | None:
         match (value, value_type):
             case int(), IntegerType():
-                attr = IntegerAttr(value, value_type)
+                attr = IntegerAttr(value, cast(IntegerType, value_type))
                 return arith.ConstantOp(attr)
             case _:
                 return None

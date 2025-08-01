@@ -262,7 +262,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
             return self.info.MPI_FLOAT
         if isinstance(mpi_type, builtin.Float64Type):
             return self.info.MPI_DOUBLE
-        if isinstance(mpi_type, IntegerType):
+        if isa(mpi_type, IntegerType):
             width: int = mpi_type.width.data
             if mpi_type.signedness.data == Signedness.UNSIGNED:
                 # unsigned branch

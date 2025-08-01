@@ -221,10 +221,7 @@ def _is_supported_integer_type(type_attr: Attribute) -> bool:
     Check if an IntegerType is supported by EmitC.
     See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
     """
-    return (
-        isinstance(type_attr, IntegerType)
-        and type_attr.width.data in _SUPPORTED_BITWIDTHS
-    )
+    return isa(type_attr, IntegerType) and type_attr.width.data in _SUPPORTED_BITWIDTHS
 
 
 def is_supported_float_type(type_attr: Attribute) -> bool:
@@ -272,7 +269,7 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
     """
     match type_attr:
         case IntegerType():
-            return _is_supported_integer_type(type_attr)
+            return _is_supported_integer_type(cast(IntegerType, type_attr))
         case IndexType():
             return True
         case EmitC_OpaqueType():

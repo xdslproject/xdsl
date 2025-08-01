@@ -35,6 +35,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 ICMP_COMPARISON_OPERATIONS = [
     "eq",
@@ -416,7 +417,7 @@ class ExtractOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         assert isinstance(self.result.type, IntegerType)
         if (
             self.low_bit.value.data + self.result.type.width.data
@@ -440,7 +441,7 @@ class ExtractOp(IRDLOperation):
             parser.raise_error(
                 "expected exactly one input and exactly one output types"
             )
-        if not isinstance(result_type.outputs.data[0], IntegerType):
+        if not isa(result_type.outputs.data[0], IntegerType):
             parser.raise_error(
                 f"expected output to be an integer type, got '{result_type.outputs.data[0]}'"
             )
@@ -461,7 +462,7 @@ def _get_sum_of_int_width(int_types: Sequence[Attribute]) -> int | None:
     """
     sum_of_width = 0
     for typ in int_types:
-        if not isinstance(typ, IntegerType):
+        if not isa(typ, IntegerType):
             return None
         sum_of_width += typ.width.data
     return sum_of_width

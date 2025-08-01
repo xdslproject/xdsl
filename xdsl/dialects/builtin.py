@@ -11,13 +11,18 @@ from math import prod
 from typing import (
     TYPE_CHECKING,
     Annotated,
+    Any,
     Generic,
+    Literal,
     TypeAlias,
+    cast,
+    get_args,
+    get_origin,
     overload,
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeVar, deprecated, override
+from typing_extensions import Self, TypeForm, TypeVar, deprecated
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.ir import (
@@ -46,18 +51,23 @@ from xdsl.ir.affine import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AnyInt,
     AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    ConstraintConvertible,
+    EqAttrConstraint,
     GenericData,
     IntConstraint,
+    IntTypeVarConstraint,
     IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
+    TypeVarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -83,7 +93,7 @@ from xdsl.utils.comparisons import (
     unsigned_upper_bound,
     unsigned_value_range,
 )
-from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.exceptions import DiagnosticException, PyRDLTypeError, VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
@@ -176,18 +186,24 @@ class ArrayAttr(
         with printer.in_square_brackets():
             printer.print_list(self.data, printer.print_attribute)
 
-    @staticmethod
-    @override
-    def constr(
-        constr: IRDLAttrConstraint[AttributeInvT] | RangeConstraint[AttributeInvT],
-    ) -> ArrayOfConstraint[AttributeInvT]:
-        return ArrayOfConstraint(constr)
+    @classmethod
+    def generic_args_constraint(
+        cls, *args: Any
+    ) -> AttrConstraint[ArrayAttr[AttributeCovT]]:
+        assert len(args) == 1
+        return ArrayOfConstraint(RangeOf(irdl_to_attr_constraint(args[0])))
 
     def __len__(self):
         return len(self.data)
 
     def __iter__(self) -> Iterator[AttributeCovT]:
         return iter(self.data)
+
+    @staticmethod
+    def constr(
+        constr: (IRDLAttrConstraint[AttributeInvT] | RangeConstraint[AttributeInvT]),
+    ) -> AttrConstraint[ArrayAttr[AttributeInvT]]:
+        return ArrayOfConstraint(constr)
 
 
 @dataclass(frozen=True)
@@ -235,7 +251,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
         return self.elem_range_constraint.variables()
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[ArrayAttr[AttributeCovT]]:
         return ArrayOfConstraint(
             self.elem_range_constraint.mapping_type_vars(type_var_mapping)
@@ -269,7 +285,7 @@ class SymbolNameConstraint(AttrConstraint[StringAttr]):
         return {StringAttr}
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[StringAttr]:
         return self
 
@@ -326,7 +342,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
             raise VerifyException(f"expected empty array, but got {attr}")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> EmptyArrayAttrConstraint:
         return self
 
@@ -340,16 +356,18 @@ FlatSymbolRefAttrConstr = MessageConstraint(
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstr]
 """SymbolRef constrained to have an empty `nested_references` property."""
 
+_IntCovT = TypeVar("_IntCovT", bound=int, default=int, covariant=True)
+
 
 @irdl_attr_definition
-class IntAttr(Data[int]):
+class IntAttr(Generic[_IntCovT], GenericData[_IntCovT]):
     name = "builtin.int"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> int:
+    def parse_parameter(cls, parser: AttrParser) -> _IntCovT:
         with parser.in_angle_brackets():
             data = parser.parse_integer()
-            return data
+            return cast(_IntCovT, data)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -358,6 +376,32 @@ class IntAttr(Data[int]):
     def __bool__(self) -> bool:
         """Returns True if value is non-zero."""
         return bool(self.data)
+
+    @classmethod
+    def generic_args_constraint(cls, *args: Any) -> AttrConstraint[IntAttr[_IntCovT]]:
+        """
+        Given the generic parameters passed to the generic attribute type,
+        return the corresponding attribute constraint.
+        ...
+        """
+        assert len(args) == 1
+        arg = cast(TypeForm[_IntCovT], args[0])
+
+        if arg is int:
+            return cast(AttrConstraint[IntAttr[_IntCovT]], BaseAttr[IntAttr](IntAttr))
+        else:
+            if get_origin(arg) is Literal:
+                literal_args = get_args(arg)
+                assert len(literal_args) == 1
+                assert isinstance(value := literal_args[0], int)
+                constr = EqAttrConstraint(IntAttr(value))
+            elif isinstance(arg, int):
+                constr = EqAttrConstraint(IntAttr(arg))
+            elif isinstance(arg, TypeVar):
+                constr = IntAttrConstraint(IntTypeVarConstraint(arg, AnyInt()))
+            else:
+                raise PyRDLTypeError(f"Invalid IntAttr generic argument {arg}")
+            return cast(AttrConstraint[IntAttr[_IntCovT]], constr)
 
 
 @dataclass(frozen=True)
@@ -369,7 +413,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     int_constraint: IntConstraint
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, IntAttr):
+        if not isa(attr, IntAttr):
             raise VerifyException(f"attribute {attr} expected to be an IntAttr")
         self.int_constraint.verify(attr.data, constraint_context)
 
@@ -386,12 +430,14 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         return {IntAttr}
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> Self:
-        return self
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
+    ):
+        return IntAttrConstraint(
+            self.int_constraint.mapping_type_vars(type_var_mapping)
+        )
 
 
-class Signedness(Enum):
+class Signedness(ConstraintConvertible["SignednessAttr"], Enum):
     "Signedness semantics for integer"
 
     SIGNLESS = 0
@@ -416,20 +462,33 @@ class Signedness(Enum):
             case Signedness.UNSIGNED:
                 return unsigned_value_range(bitwidth)
 
+    @staticmethod
+    def base_constr() -> AttrConstraint[SignednessAttr]:
+        return BaseAttr(SignednessAttr)
+
+    @abstractmethod
+    def constr(self) -> AttrConstraint[SignednessAttr]:
+        return EqAttrConstraint(SignednessAttr(self))
+
+
+SignednessCovT = TypeVar(
+    "SignednessCovT", bound=Signedness, default=Signedness, covariant=True
+)
+
 
 @irdl_attr_definition
-class SignednessAttr(Data[Signedness]):
+class SignednessAttr(Generic[SignednessCovT], GenericData[SignednessCovT]):
     name = "builtin.signedness"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> Signedness:
+    def parse_parameter(cls, parser: AttrParser) -> SignednessCovT:
         with parser.in_angle_brackets():
             if parser.parse_optional_keyword("signless") is not None:
-                return Signedness.SIGNLESS
+                return Signedness.SIGNLESS  # pyright: ignore[reportReturnType]
             if parser.parse_optional_keyword("signed") is not None:
-                return Signedness.SIGNED
+                return Signedness.SIGNED  # pyright: ignore[reportReturnType]
             if parser.parse_optional_keyword("unsigned") is not None:
-                return Signedness.UNSIGNED
+                return Signedness.UNSIGNED  # pyright: ignore[reportReturnType]
             parser.raise_error("`signless`, `signed`, or `unsigned` expected")
 
     def print_parameter(self, printer: Printer) -> None:
@@ -443,6 +502,20 @@ class SignednessAttr(Data[Signedness]):
                 printer.print_string("unsigned")
             else:
                 raise ValueError(f"Invalid signedness {data}")
+
+    @classmethod
+    def generic_args_constraint(cls, *args: Any) -> AttrConstraint[Self]:
+        assert len(args) == 1, args
+        arg = args[0]
+
+        if get_origin(arg) is Literal:
+            values = get_args(arg)
+            assert len(values) == 1
+            assert isinstance(value := values[0], Signedness)
+            return EqAttrConstraint(cls(value))  # pyright: ignore[reportArgumentType]
+        elif isinstance(arg, TypeVar):
+            return TypeVarConstraint(arg, BaseAttr(cls))  # pyright: ignore[reportReturnType]
+        return BaseAttr(cls)
 
 
 class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
@@ -570,16 +643,21 @@ Bitwidths: `<B`: 1-8, `<H`: 9-16, `<I`: 17-32, `<Q`: 33-64.
 
 @irdl_attr_definition
 class IntegerType(
-    ParametrizedAttribute, StructPackableType[int], FixedBitwidthType, BuiltinAttribute
+    Generic[_IntCovT, SignednessCovT],
+    ParametrizedAttribute,
+    StructPackableType[int],
+    FixedBitwidthType,
+    BuiltinAttribute,
 ):
     name = "integer_type"
-    width: IntAttr
-    signedness: SignednessAttr
+    width: IntAttr[_IntCovT]
+    signedness: SignednessAttr[SignednessCovT]
 
     def __init__(
         self,
-        data: int | IntAttr,
-        signedness: Signedness | SignednessAttr = Signedness.SIGNLESS,
+        data: _IntCovT | IntAttr[_IntCovT],
+        signedness: SignednessCovT
+        | SignednessAttr[SignednessCovT] = Signedness.SIGNLESS,
     ) -> None:
         if isinstance(data, int):
             data = IntAttr(data)
@@ -678,16 +756,16 @@ class IntegerType(
         return f[format_index]
 
 
-i64 = IntegerType(64)
-i32 = IntegerType(32)
-i16 = IntegerType(16)
-i8 = IntegerType(8)
-i1 = IntegerType(1)
-I64 = Annotated[IntegerType, i64]
-I32 = Annotated[IntegerType, i32]
-I16 = Annotated[IntegerType, i16]
-I8 = Annotated[IntegerType, i8]
-I1 = Annotated[IntegerType, i1]
+i64 = IntegerType[64, Signedness.SIGNLESS](64)
+i32 = IntegerType[32, Signedness.SIGNLESS](32)
+i16 = IntegerType[16, Signedness.SIGNLESS](16)
+i8 = IntegerType[8, Signedness.SIGNLESS](8)
+i1 = IntegerType[1, Signedness.SIGNLESS](1)
+I64 = IntegerType[64, Signedness.SIGNLESS]
+I32 = IntegerType[32, Signedness.SIGNLESS]
+I16 = IntegerType[16, Signedness.SIGNLESS]
+I8 = IntegerType[8, Signedness.SIGNLESS]
+I1 = IntegerType[1, Signedness.SIGNLESS]
 
 _IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
 
@@ -825,9 +903,9 @@ class IntegerAttr(
 
     @overload
     def __init__(
-        self: IntegerAttr[IntegerType],
+        self: IntegerAttr[IntegerType[_IntCovT, Literal[Signedness.SIGNLESS]]],
         value: int | IntAttr,
-        value_type: int,
+        value_type: _IntCovT,
         *,
         truncate_bits: bool = False,
     ) -> None: ...
@@ -835,13 +913,13 @@ class IntegerAttr(
     def __init__(
         self,
         value: int | IntAttr,
-        value_type: int | IntegerType | IndexType,
+        value_type: _IntCovT | IntegerType[_IntCovT] | IndexType,
         *,
         truncate_bits: bool = False,
     ) -> None:
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
-        if isinstance(value, IntAttr):
+        if not isinstance(value, int):
             value = value.data
         if not isinstance(value_type, IndexType):
             normalized_value = value_type.normalized_value(
@@ -852,7 +930,9 @@ class IntegerAttr(
         super().__init__(IntAttr(value), value_type)
 
     @staticmethod
-    def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
+    def from_int_and_width(
+        value: int, width: _IntCovT
+    ) -> IntegerAttr[IntegerType[_IntCovT, Literal[Signedness.SIGNLESS]]]:
         return IntegerAttr(value, width)
 
     @staticmethod
@@ -865,13 +945,7 @@ class IntegerAttr(
 
     def print_builtin(self, printer: Printer) -> None:
         # boolean shorthands
-        if (
-            isinstance(
-                (ty := self.get_type()),
-                IntegerType,
-            )
-            and ty.width.data == 1
-        ):
+        if isa((ty := self.get_type()), IntegerType) and ty.width.data == 1:
             printer.print_string("true" if self.value.data else "false")
         else:
             self.print_without_type(printer)
@@ -889,7 +963,7 @@ class IntegerAttr(
         parser: AttrParser,
         type: Attribute,
     ) -> TypedAttribute:
-        assert isinstance(type, IntegerType | IndexType)
+        assert isa(type, IntegerType | IndexType)
         return IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type)
 
     def print_without_type(self, printer: Printer):
@@ -900,7 +974,7 @@ class IntegerAttr(
 
     @staticmethod
     def constr(
-        type: AttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
+        type: IRDLAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
         *,
         value: AttrConstraint | IntConstraint | None = None,
     ) -> AttrConstraint[IntegerAttr[_IntegerAttrType]]:
@@ -1487,7 +1561,7 @@ class ContainerOf(
             return {*bases, TensorType, VectorType}
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> ContainerOf[AttributeCovT]:
         return ContainerOf(self.elem_constr.mapping_type_vars(type_var_mapping))
 
@@ -1517,7 +1591,7 @@ class VectorRankConstraint(AttrConstraint):
             )
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> VectorRankConstraint:
         return self
 
@@ -1540,7 +1614,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
             )
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> VectorBaseTypeConstraint:
         return self
 
@@ -1564,7 +1638,7 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
         constraint.verify(attr, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: dict[TypeVar, AttrConstraint | IntConstraint]
     ) -> VectorBaseTypeAndRankConstraint:
         return self
 
