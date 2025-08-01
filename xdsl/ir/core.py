@@ -914,18 +914,18 @@ class OpTraits(Iterable[OpTrait]):
     at the first use.
     """
 
-    _traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
+    gen_traits: Callable[[], tuple[OpTrait, ...]]
+    _traits: frozenset[OpTrait] | None
 
-    def __init__(
-        self, traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
-    ) -> None:
-        self._traits = traits
+    def __init__(self, gen_traits: Callable[[], tuple[OpTrait, ...]]) -> None:
+        self.gen_traits = gen_traits
+        self._traits = None
 
     @property
     def traits(self) -> frozenset[OpTrait]:
         """Returns a copy of this instance's traits."""
-        if callable(self._traits):
-            self._traits = frozenset(self._traits())
+        if self._traits is None:
+            self._traits = frozenset(self.gen_traits())
         return self._traits
 
     def add_trait(self, trait: OpTrait):
@@ -936,7 +936,7 @@ class OpTraits(Iterable[OpTrait]):
         return iter(self.traits)
 
     def __eq__(self, value: object, /) -> bool:
-        return isinstance(value, OpTraits) and self._traits == value._traits
+        return isinstance(value, OpTraits) and self.traits == value.traits
 
 
 @dataclass(eq=False, unsafe_hash=False)
