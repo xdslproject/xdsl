@@ -44,6 +44,7 @@ ctx.register_function(erase_op, pdl.EraseOp)
 @ctx.pdl_rewrite
 def constant_replace(matched_operation: arith.ConstantOp) -> arith.ConstantOp:
     erase_op(matched_operation)
+    # NOTE: A value is returned due to limitations of PyAST's current function implementation
     return matched_operation
 
 
