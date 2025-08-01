@@ -10,7 +10,7 @@ class PyPDLRewriteBuilder(PyASTBuilder):
     """Builder for PDL rewrites from aspects of a Python function."""
 
     def build(self) -> ModuleOp:
-        """Build a module from the builder state."""
+        """Build a PDL rewrite from the builder state."""
         module = super().build()
         FuncToPdlRewrite().apply(ctx=None, op=module)
         return module
