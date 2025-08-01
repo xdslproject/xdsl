@@ -2,24 +2,24 @@
 %a = "test.op"() : () -> !x86.reg<rax>
 // CHECK: %{{.*}} = "test.op"() : () -> !x86.reg<rax>
 
-%0, %1 = "test.op"() : () -> (!x86.reg, !x86.reg)
+%0, %1, %2 = "test.op"() : () -> (!x86.reg, !x86.reg, !x86.reg)
 %rsp = "test.op"() : () -> !x86.reg<rsp>
 %rax = "test.op"() : () -> !x86.reg<rax>
 %rdx = "test.op"() : () -> !x86.reg<rdx>
 
 %rr_add = x86.rs.add %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK: %{{.*}} = x86.rs.add %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_sub = x86.rs.sub %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_sub = x86.rs.sub %rr_add, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.sub %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_mul = x86.rs.imul %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_mul = x86.rs.imul %rr_sub, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.imul %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_and = x86.rs.and %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_and = x86.rs.and %rr_mul, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.and %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_or = x86.rs.or %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_or = x86.rs.or %rr_and, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.or %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_xor = x86.rs.xor %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_xor = x86.rs.xor %rr_or, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.xor %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%ds_mov = x86.ds.mov %0 : (!x86.reg) -> !x86.reg
+%ds_mov = x86.ds.mov %1 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %ds_mov = x86.ds.mov %{{.*}} : (!x86.reg) -> !x86.reg
 %rr_cmp = x86.ss.cmp %0, %1 : (!x86.reg, !x86.reg) -> !x86.rflags<rflags>
 // CHECK: %{{.*}} = x86.ss.cmp %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.rflags
@@ -28,13 +28,13 @@
 // CHECK-NEXT: %{{.*}} = x86.s.push %rsp, %{{.*}} : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
 %r_poprsp, %r_pop = x86.d.pop %rsp : (!x86.reg<rsp>) -> (!x86.reg<rsp>, !x86.reg)
 // CHECK-NEXT: %{{.*}}, %{{.*}} = x86.d.pop %{{.*}} : (!x86.reg<rsp>) -> (!x86.reg<rsp>, !x86.reg)
-%r_not = x86.r.not %0 : (!x86.reg) -> !x86.reg
+%r_not = x86.r.not %r_pop: (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.r.not %{{.*}} : (!x86.reg) -> !x86.reg
-%r_neg = x86.r.neg %0 : (!x86.reg) -> !x86.reg
+%r_neg = x86.r.neg %r_not : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.r.neg %{{.*}} : (!x86.reg) -> !x86.reg
-%r_inc = x86.r.inc %0 : (!x86.reg) -> !x86.reg
+%r_inc = x86.r.inc %r_neg : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.r.inc %{{.*}} : (!x86.reg) -> !x86.reg
-%r_dec = x86.r.dec %0 : (!x86.reg) -> !x86.reg
+%r_dec = x86.r.dec %r_inc : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.r.dec %{{.*}} : (!x86.reg) -> !x86.reg
 
 %r_idiv_rdx, %r_idiv_rax = x86.s.idiv %0, %rdx, %rax : (!x86.reg, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
@@ -42,19 +42,19 @@
 %r_imul_rdx, %r_imul_rax = x86.s.imul %0, %rax : (!x86.reg, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
 // CHECK-NEXT: %{{.*}}, %{{.*}} = x86.s.imul %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
 
-%rm_add_no_offset  = x86.rm.add %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rm_add_no_offset  = x86.rm.add %r_dec, %2 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rm.add %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rm_add = x86.rm.add %0, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
+%rm_add = x86.rm.add %rm_add_no_offset, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK: %{{.*}} = x86.rm.add %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.reg
-%rm_sub = x86.rm.sub %0, %1, -8 : (!x86.reg, !x86.reg) -> !x86.reg
+%rm_sub = x86.rm.sub %rm_add, %1, -8 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rm.sub %{{.*}}, %{{.*}}, -8 : (!x86.reg, !x86.reg) -> !x86.reg
-%rm_imul = x86.rm.imul %0, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
+%rm_imul = x86.rm.imul %rm_sub, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rm.imul %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.reg
-%rm_and = x86.rm.and %0, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
+%rm_and = x86.rm.and %rm_imul, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rm.and %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.reg
-%rm_or = x86.rm.or %0, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
+%rm_or = x86.rm.or %rm_and, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rm.or %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.reg
-%rm_xor = x86.rm.xor %0, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
+%rm_xor = x86.rm.xor %rm_or, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rm.xor %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.reg
 %rm_mov = x86.dm.mov %1, 8 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.dm.mov %{{.*}}, 8 : (!x86.reg) -> !x86.reg
@@ -63,15 +63,15 @@
 %dm_lea = x86.dm.lea %0, 8 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.dm.lea %{{.*}}, 8 : (!x86.reg) -> !x86.reg
 
-%ri_add = x86.ri.add %0, 2 : (!x86.reg) -> !x86.reg
+%ri_add = x86.ri.add %rm_xor, 2 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.ri.add %{{.*}}, 2 : (!x86.reg) -> !x86.reg
-%ri_sub = x86.ri.sub %0, 2 : (!x86.reg) -> !x86.reg
+%ri_sub = x86.ri.sub %ri_add, 2 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.ri.sub %{{.*}}, 2 : (!x86.reg) -> !x86.reg
-%ri_and = x86.ri.and %0, 2 : (!x86.reg) -> !x86.reg
+%ri_and = x86.ri.and %ri_sub, 2 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.ri.and %{{.*}}, 2 : (!x86.reg) -> !x86.reg
-%ri_or = x86.ri.or %0, 2 : (!x86.reg) -> !x86.reg
+%ri_or = x86.ri.or %ri_and, 2 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.ri.or %{{.*}}, 2 : (!x86.reg) -> !x86.reg
-%ri_xor = x86.ri.xor %0, 2 : (!x86.reg) -> !x86.reg
+%ri_xor = x86.ri.xor %ri_or, 2 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.ri.xor %{{.*}}, 2 : (!x86.reg) -> !x86.reg
 %di_mov = x86.di.mov 2 : () -> !x86.reg
 // CHECK-NEXT: %di_mov = x86.di.mov 2 : () -> !x86.reg
@@ -152,8 +152,8 @@ x86.label "label"
 // CHECK-NEXT: x86.label "label"
 
 func.func @funcyasm() {
-    %2, %3 = "test.op"() : () -> (!x86.reg, !x86.reg)
-    %rflags = x86.ss.cmp %2, %3 : (!x86.reg, !x86.reg) -> !x86.rflags<rflags>
+    %3, %4 = "test.op"() : () -> (!x86.reg, !x86.reg)
+    %rflags = x86.ss.cmp %3, %4 : (!x86.reg, !x86.reg) -> !x86.rflags<rflags>
     // CHECK: %{{.*}} = x86.ss.cmp %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.rflags
 
     x86.c.jmp ^then(%arg : !x86.reg)
@@ -351,7 +351,7 @@ func.func @funcyasm() {
 
 %rrr_vfmadd231pd_sse = x86.rss.vfmadd231pd %xmm0, %xmm1, %xmm2 : (!x86.ssereg, !x86.ssereg, !x86.ssereg) -> !x86.ssereg
 // CHECK: %{{.*}} = x86.rss.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.ssereg, !x86.ssereg, !x86.ssereg) -> !x86.ssereg
-%rr_vmovapd_sse = x86.rs.vmovapd %xmm0, %xmm1 : (!x86.ssereg, !x86.ssereg) -> !x86.ssereg
+%rr_vmovapd_sse = x86.rs.vmovapd %rrr_vfmadd231pd_sse, %xmm1 : (!x86.ssereg, !x86.ssereg) -> !x86.ssereg
 // CHECK-NEXT: x86.rs.vmovapd %{{.*}}, %{{.*}} : (!x86.ssereg, !x86.ssereg) -> !x86.ssereg
 x86.ms.vmovapd %0, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.ms.vmovapd %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.ssereg) -> ()
@@ -362,7 +362,7 @@ x86.ms.vmovapd %0, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
 
 %rrr_vfmadd231pd_avx2 = x86.rss.vfmadd231pd %ymm0, %ymm1, %ymm2 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
 // CHECK: %{{.*}} = x86.rss.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
-%rr_vmovapd_avx2 = x86.rs.vmovapd %ymm0, %ymm1 : (!x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
+%rr_vmovapd_avx2 = x86.rs.vmovapd %rrr_vfmadd231pd_avx2, %ymm1 : (!x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
 // CHECK-NEXT: x86.rs.vmovapd %{{.*}}, %{{.*}} : (!x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
 x86.ms.vmovapd %0, %ymm1, 8 : (!x86.reg, !x86.avx2reg) -> ()
 // CHECK-NEXT: x86.ms.vmovapd %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.avx2reg) -> ()
@@ -377,7 +377,7 @@ x86.ms.vmovapd %0, %ymm1, 8 : (!x86.reg, !x86.avx2reg) -> ()
 
 %rrr_vfmadd231pd_avx512 = x86.rss.vfmadd231pd %zmm0, %zmm1, %zmm2 : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 // CHECK: %{{.*}} = x86.rss.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
-%rr_vmovapd_avx512 = x86.rs.vmovapd %zmm0, %zmm1 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+%rr_vmovapd_avx512 = x86.rs.vmovapd %rrr_vfmadd231pd_avx512, %zmm1 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 // CHECK-NEXT: x86.rs.vmovapd %{{.*}}, %{{.*}} : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 x86.ms.vmovapd %0, %zmm1, 8 : (!x86.reg, !x86.avx512reg) -> ()
 // CHECK-NEXT: x86.ms.vmovapd %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.avx512reg) -> ()
@@ -408,9 +408,9 @@ x86.ms.vmovups %0, %ymm1, 0 : (!x86.reg, !x86.avx2reg) -> ()
 x86.ms.vmovups %0, %xmm1, 0 : (!x86.reg, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.ms.vmovups %{{.*}}, %{{.*}} : (!x86.reg, !x86.ssereg) -> ()
 
-%rrr_vfmadd231ps_sse = x86.rss.vfmadd231ps %xmm0, %xmm1, %xmm2 : (!x86.ssereg, !x86.ssereg, !x86.ssereg) -> !x86.ssereg
+%rrr_vfmadd231ps_sse = x86.rss.vfmadd231ps %rr_vmovapd_sse, %xmm1, %xmm2 : (!x86.ssereg, !x86.ssereg, !x86.ssereg) -> !x86.ssereg
 // CHECK: %{{.*}} = x86.rss.vfmadd231ps %{{.*}}, %{{.*}}, %{{.*}} : (!x86.ssereg, !x86.ssereg, !x86.ssereg) -> !x86.ssereg
-%rrr_vfmadd231ps_avx2 = x86.rss.vfmadd231ps %ymm0, %ymm1, %ymm2 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
+%rrr_vfmadd231ps_avx2 = x86.rss.vfmadd231ps %rr_vmovapd_avx2, %ymm1, %ymm2 : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
 // CHECK: %{{.*}} = x86.rss.vfmadd231ps %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
-%rrr_vfmadd231ps_avx512 = x86.rss.vfmadd231ps %zmm0, %zmm1, %zmm2 : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+%rrr_vfmadd231ps_avx512 = x86.rss.vfmadd231ps %rr_vmovapd_avx512, %zmm1, %zmm2 : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 // CHECK: %{{.*}} = x86.rss.vfmadd231ps %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg

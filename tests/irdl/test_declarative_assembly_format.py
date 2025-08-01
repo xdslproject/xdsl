@@ -78,13 +78,17 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
+    AttributeVariable,
     CustomDirective,
     FormatProgram,
     OperandsDirective,
+    OperandVariable,
     ParsingState,
     PrintingState,
     PunctuationDirective,
+    RegionVariable,
     ResultsDirective,
+    SuccessorVariable,
     TypeDirective,
     VariadicOperandVariable,
     irdl_custom_directive,
@@ -454,6 +458,38 @@ def test_missing_property_error():
         match="prop2 properties are missing",
     ):
         irdl_op_definition(MissingPropOp)
+
+
+def test_attribute_duplicated():
+    """Test that attributes should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="attribute 'attr' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedAttributeOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_attribute_op"
+            attr = attr_def()
+
+            assembly_format = "$attr $attr attr-dict"
+
+
+def test_property_duplicated():
+    """Test that properties should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="property 'attr' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedPropertiesOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_property_op"
+            attr = prop_def()
+
+            assembly_format = "$attr $attr attr-dict"
 
 
 @pytest.mark.parametrize(
@@ -932,6 +968,22 @@ def test_operands_missing_type():
             operand = operand_def()
 
             assembly_format = "$operand attr-dict"
+
+
+def test_operands_duplicated():
+    """Test that operands should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="operand 'operand' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedOperandOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_operand_op"
+            operand = operand_def()
+
+            assembly_format = "$operand $operand type($operand) attr-dict"
 
 
 def test_operands_duplicated_type():
@@ -2034,6 +2086,20 @@ def test_missing_region():
             assembly_format = "attr-dict-with-keyword"
 
 
+def test_region_duplicated():
+    """Test that regions should not be parsed twice"""
+    with pytest.raises(PyRDLOpDefinitionError, match="region 'r' is already bound"):
+
+        @irdl_op_definition
+        class DuplicatedRegionOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_region_op"
+            r = region_def()
+
+            assembly_format = "$r $r attr-dict"
+
+
 def test_attr_dict_directly_before_region_variable():
     """Test that regions require an 'attr-dict' directive."""
     with pytest.raises(
@@ -2308,6 +2374,22 @@ def test_missing_successor():
             successor = successor_def()
 
             assembly_format = "attr-dict-with-keyword"
+
+
+def test_successor_duplicated():
+    """Test that successors should not be parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="successor 'succ' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedSucessorOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_successor_op"
+            succ = successor_def()
+
+            assembly_format = "$succ $succ attr-dict"
 
 
 def test_successors():
@@ -3691,10 +3773,7 @@ class Hello(CustomDirective):
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
-        state.last_was_punctuation = False
-        state.should_emit_space = True
+        state.print_whitespace(printer)
         printer.print_string("hello")
 
 
@@ -3742,11 +3821,8 @@ class Bars(CustomDirective):
         operands = self.var.get(op)
         if not operands:
             return
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print_string(" ")
+        state.print_whitespace(printer)
         printer.print_list(operands, printer.print_ssa_value, delimiter=" | ")
-        state.last_was_punctuation = False
-        state.should_emit_space = True
 
 
 @irdl_op_definition
@@ -3811,3 +3887,60 @@ def test_bad_parameter():
                 self, printer: Printer, state: PrintingState, op: IRDLOperation
             ) -> None:
                 raise NotImplementedError()
+
+
+@irdl_custom_directive
+class EmptyDirectiveWithParams(CustomDirective):
+    op: OperandVariable
+    op_type: TypeDirective
+    res_type: TypeDirective
+    attr: AttributeVariable
+    prop: AttributeVariable
+    region: RegionVariable
+    successor: SuccessorVariable
+    operands: OperandsDirective
+    operand_types: TypeDirective
+    results: TypeDirective
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        pass
+
+
+@irdl_op_definition
+class RefDirectivesOp(IRDLOperation):
+    name = "test.ref_directives"
+
+    op = operand_def()
+    res = result_def()
+    attr = attr_def()
+    prop = prop_def()
+    region = region_def()
+    successor = successor_def()
+
+    assembly_format = (
+        "$op type($op) type($res) $attr $prop $region $successor "
+        "custom<EmptyDirectiveWithParams>("
+        "ref($op),"
+        "ref(type($op)),"
+        "ref(type($res)),"
+        "ref($attr),"
+        "ref($prop),"
+        "ref($region),"
+        "ref($successor),"
+        "ref(operands),"
+        "ref(type(operands)),"
+        "ref(type(results))"
+        ") attr-dict"
+    )
+
+    custom_directives = (EmptyDirectiveWithParams,)
+
+
+def test_ref_directives():
+    ctx = Context()
+    ctx.load_op(RefDirectivesOp)
+    ctx.load_dialect(Test)
+    check_roundtrip("%0 = test.ref_directives %1 i1 i2 i3 i4 {\n} ^0", ctx)

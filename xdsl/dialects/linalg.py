@@ -1411,6 +1411,121 @@ class BroadcastOp(IRDLOperation):
         return broadcast
 
 
+@irdl_op_definition
+class ReduceOp(IRDLOperation):
+    name = "linalg.reduce"
+
+    input = operand_def(base(MemRefType) | base(AnyTensorType))
+    init = operand_def(base(MemRefType) | base(AnyTensorType))
+    result = var_result_def(AnyTensorType)
+
+    region: Region = region_def("single_block")
+
+    dimensions = prop_def(DenseArrayBase.constr(i64))
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    def __init__(
+        self,
+        input: SSAValue,
+        init: SSAValue,
+        dimensions: Attribute,
+        region: Region,
+    ):
+        if isa(init.type, TensorType):
+            result = (init.type,)
+        else:
+            result = ()
+
+        super().__init__(
+            properties={
+                "dimensions": dimensions,
+            },
+            operands=(input, init),
+            regions=[region],
+            result_types=[result],
+        )
+
+    def verify_(self) -> None:
+        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
+        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+
+        if input_type.get_element_type() != init_type.get_element_type():
+            raise VerifyException(
+                f"Reduction element types must be equal, but input is {input_type.get_element_type()} "
+                f"and init is {init_type.get_element_type()}"
+            )
+
+        dimensions_shape = self.dimensions.get_values()
+        input_shape = input_type.get_shape()
+        init_shape = init_type.get_shape()
+
+        if len(init_shape) != len(input_shape) - len(dimensions_shape):
+            raise VerifyException(
+                "Output rank must equal input rank minus number of dimensions being reduced over"
+            )
+
+        init_index = 0
+        for input_index in range(len(input_shape)):
+            if input_index not in dimensions_shape:
+                if input_shape[input_index] != init_shape[init_index]:
+                    raise VerifyException(
+                        f"Non-reduced input dimension {input_index} must equal output dimension {init_index}"
+                    )
+                init_index += 1
+
+    def print(self, printer: Printer):
+        printer.print_string(" ins")
+        with printer.in_parens():
+            printer.print_ssa_value(self.input)
+            printer.print_string(":")
+            printer.print_attribute(self.input.type)
+        printer.print_string(" outs")
+        with printer.in_parens():
+            printer.print_ssa_value(self.init)
+            printer.print_string(":")
+            printer.print_attribute(self.init.type)
+        printer.print_string(" dimensions = ")
+        with printer.in_square_brackets():
+            printer.print_list(self.dimensions.get_values(), printer.print_int)
+        printer.print_string("\n")
+        with printer.in_parens():
+            printer.print_list(self.region.blocks[0].args, printer.print_block_argument)
+        printer.print_string(" ")
+        printer.print_region(self.region, print_entry_block_args=False)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        parser.parse_characters("ins")
+        parser.parse_punctuation("(")
+        input = parser.parse_operand()
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        parser.parse_punctuation(")")
+        parser.parse_characters("outs")
+        parser.parse_punctuation("(")
+        init = parser.parse_operand()
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        parser.parse_punctuation(")")
+        parser.parse_keyword("dimensions")
+        parser.parse_punctuation("=")
+        dimensions = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        entry_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_argument
+        )
+        region = parser.parse_region(entry_args)
+        reduction = cls(
+            input,
+            init,
+            DenseArrayBase.from_list(i64, dimensions),
+            region,
+        )
+        return reduction
+
+
 Linalg = Dialect(
     "linalg",
     [
@@ -1436,6 +1551,7 @@ Linalg = Dialect(
         Conv2DNgchwFgchwOp,
         Conv2DNhwc_FhwcOp,
         BroadcastOp,
+        ReduceOp,
     ],
     [
         IteratorTypeAttr,

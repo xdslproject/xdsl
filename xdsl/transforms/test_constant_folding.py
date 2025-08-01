@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp
-from xdsl.ir import ErasedSSAValue, Operation, OpResult, Use
+from xdsl.ir import ErasedSSAValue, Operation, OpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -169,9 +169,23 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
                         ## Inline `use.operation.operands.__setitem__(...)`
                         operands = use.operation._operands  # pyright: ignore[reportPrivateUsage]
                         ## Inline `operands[use.index].remove_use(Use(use.operation, use.index))`
-                        operands[use.index]._uses.remove(use)  # pyright: ignore[reportPrivateUsage]
+                        old_use = use.operation._operand_uses[use.index]  # pyright: ignore[reportPrivateUsage]
+                        prev_use = old_use._prev_use  # pyright: ignore[reportPrivateUsage]
+                        next_use = old_use._next_use  # pyright: ignore[reportPrivateUsage]
+                        if prev_use is not None:
+                            prev_use._next_use = next_use  # pyright: ignore[reportPrivateUsage]
+                        if next_use is not None:
+                            next_use._prev_use = prev_use  # pyright: ignore[reportPrivateUsage]
+
+                        if prev_use is None:
+                            operands[use.index].first_use = next_use
                         ## Inline `new_result.add_use(Use(use.operation, use.index))`
-                        new_result._uses.add(use)  # pyright: ignore[reportPrivateUsage]
+                        first_use = new_result.first_use
+                        use._next_use = first_use  # pyright: ignore[reportPrivateUsage]
+                        use._prev_use = None  # pyright: ignore[reportPrivateUsage]
+                        if first_use is not None:
+                            first_use._prev_use = use  # pyright: ignore[reportPrivateUsage]
+                        new_result.first_use = use
                         new_operands = (
                             *operands[: use.index],
                             new_result,
@@ -211,9 +225,17 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
                             block._last_op = prev_op  # pyright: ignore[reportPrivateUsage]
 
                     old_op.parent = None
-                    for idx, operand in enumerate(old_op._operands):  # pyright: ignore[reportPrivateUsage]
+                    for operand, use in zip(old_op._operands, old_op._operand_uses):  # pyright: ignore[reportPrivateUsage]
                         ## Inline `operand.remove_use(Use(old_op, idx))`
-                        operand._uses.remove(Use(old_op, idx))  # pyright: ignore[reportPrivateUsage]
+                        prev_use = use._prev_use  # pyright: ignore[reportPrivateUsage]
+                        next_use = use._next_use  # pyright: ignore[reportPrivateUsage]
+                        if prev_use is not None:
+                            prev_use._next_use = next_use  # pyright: ignore[reportPrivateUsage]
+                        if next_use is not None:
+                            next_use._prev_use = prev_use  # pyright: ignore[reportPrivateUsage]
+
+                        if prev_use is None:
+                            operand.first_use = next_use
                     ## This application has no regions, so no recursive drops
 
                     for result in old_op.results:
