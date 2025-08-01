@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.frontend.pyast.builder import PyASTBuilder
+from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pypdl.transforms.func_to_pdl_rewrite import FuncToPdlRewrite
 
 

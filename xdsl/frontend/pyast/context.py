@@ -8,8 +8,8 @@ from sys import _getframe  # pyright: ignore[reportPrivateUsage]
 from types import FrameType
 from typing import Any, NamedTuple, overload
 
-from xdsl.frontend.pyast.builder import PyASTBuilder
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
+from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
 from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
 from xdsl.ir import Operation, TypeAttribute
