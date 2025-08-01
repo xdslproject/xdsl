@@ -151,7 +151,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         if result.has_one_use():
             if isinstance(eclass_op := result.get_user_of_unique_use(), eqsat.EClassOp):
                 result = eclass_op.result
-        elif result.uses:  # multiple uses
+        else:
             for use in result.uses:
                 if isinstance(use.operation, eqsat.EClassOp):
                     raise InterpretationError(
@@ -183,7 +183,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 ):
                     assert len(eclass_op.results) == 1
                     result = eclass_op.results[0]
-            elif result.uses:  # multiple uses
+            else:
                 for use in result.uses:
                     if isinstance(use.operation, eqsat.EClassOp):
                         raise InterpretationError(
@@ -308,7 +308,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         # Check if an identical operation already exists in our known_ops map
         if existing_op := self.known_ops.get(new_op):
             # CSE can have removed the existing operation, here we check if it is still in use:
-            if existing_op.results and existing_op.results[0].uses:
+            if existing_op.results and existing_op.results[0].first_use is not None:
                 self.rewriter.erase_op(new_op)
                 self.rewriter.has_done_action = has_done_action_checkpoint
                 return (existing_op,)
