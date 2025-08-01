@@ -58,6 +58,7 @@ from .constraints import (  # noqa: TID251
 )
 
 if TYPE_CHECKING:
+    from xdsl.irdl.declarative_assembly_format import CustomDirective
     from xdsl.parser import Parser
     from xdsl.printer import Printer
 
@@ -81,6 +82,7 @@ IRDLOperationContrT = TypeVar(
 @dataclass(init=False)
 class IRDLOperation(Operation):
     assembly_format: ClassVar[str | None] = None
+    custom_directives: ClassVar[tuple[type[CustomDirective], ...]] = ()
 
     def __init__(
         self: IRDLOperation,
@@ -901,6 +903,9 @@ class OpDef:
     or is already used by the operation, so we need to use a different name.
     """
     assembly_format: str | None = field(default=None)
+    custom_directives: dict[str, type[CustomDirective]] = field(
+        default_factory=lambda: {}
+    )
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
@@ -918,7 +923,7 @@ class OpDef:
 
         def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
             raise PyRDLOpDefinitionError(
-                f"{pyrdl_def.__name__}.{field_name} is neither a function, or an "
+                f"{pyrdl_def.__name__}.{field_name} is neither a function,"
                 "operand, result, region, or attribute definition. "
                 "Operands should be defined with type hints of "
                 "operand_def(<Constraint>), results with "
@@ -957,7 +962,7 @@ class OpDef:
                     raise wrong_field_exception(field_name)
 
             for field_name in clsdict:
-                if field_name in ("name", "assembly_format"):
+                if field_name in ("name", "assembly_format", "custom_directives"):
                     continue
                 if field_name in _OPERATION_DICT_KEYS:
                     # Fields that are already in Operation (i.e. operands, results, ...)
@@ -1128,6 +1133,9 @@ class OpDef:
                 raise wrong_field_exception(field_name)
 
         op_def.assembly_format = pyrdl_def.assembly_format
+        op_def.custom_directives = {
+            directive.__name__: directive for directive in pyrdl_def.custom_directives
+        }
         assert inspect.ismethod(Operation.parse)
         if op_def.assembly_format is not None and (
             pyrdl_def.print != Operation.print
@@ -1616,12 +1624,13 @@ def irdl_build_arg_list(
                 )
             arg_sizes.append(0)
         elif isinstance(arg, Sequence):
-            if not isinstance(arg_def, VariadicDef):
+            arg = cast(Sequence[_T], arg)
+
+            if not isinstance(arg_def, VariadicDef) and len(arg) != 1:
                 raise ValueError(
                     error_prefix
                     + f"passed Sequence to non-variadic {construct} {arg_idx} '{arg_name}'"
                 )
-            arg = cast(Sequence[_T], arg)
 
             # Check we have at most one argument for optional defintions.
             if isinstance(arg_def, OptionalDef) and len(arg) > 1:

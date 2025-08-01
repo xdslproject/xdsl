@@ -31,11 +31,12 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import (
-    parse_dynamic_index_list_without_types,
-    print_dynamic_index_list,
     split_dynamic_index_list,
 )
-from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
+from xdsl.dialects.utils.dynamic_index_list import (
+    DynamicIndexList,
+    verify_dynamic_index_list,
+)
 from xdsl.dialects.utils.reshape_ops_utils import (
     ContiguousArrayOfIntArray,
 )
@@ -528,60 +529,13 @@ class ExpandShapeOp(AlterShapeOperation):
 
     static_output_shape = prop_def(DenseArrayBase.constr(i64))
 
-    @classmethod
-    def parse(cls, parser: Parser) -> ExpandShapeOp:
-        src = parser.parse_unresolved_operand()
-        reassociation = parser.parse_attribute()
-        parser.parse_keyword("output_shape")
-        parser.parse_punctuation("[")
-        output_shape: list[SSAValue] = []
-        static_output_shape: list[int] = []
-        while (
-            x := parser.parse_optional_operand() or parser.parse_optional_integer()
-        ) is not None:
-            if isinstance(x, int):
-                static_output_shape.append(x)
-            else:
-                output_shape.append(x)
-            parser.parse_optional_punctuation(",")
-        parser.parse_punctuation("]")
-        attr_dict = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        src = parser.resolve_operand(src, parser.parse_type())
-        parser.parse_keyword("into")
-        result_type = parser.parse_type()
+    assembly_format = (
+        "$src $reassociation `output_shape`"
+        "custom<DynamicIndexList>($output_shape, $static_output_shape) attr-dict `:`"
+        "type($src) `into` type($result)"
+    )
 
-        return cls(
-            operands=[src, output_shape],
-            properties={
-                "reassociation": reassociation,
-                "static_output_shape": DenseArrayBase.from_list(
-                    IntegerType(64), static_output_shape
-                ),
-            },
-            attributes=attr_dict,
-            result_types=[result_type],
-        )
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_operand(self.src)
-        printer.print_string(" ")
-        printer.print_attribute(self.reassociation)
-        printer.print_string(" output_shape [")
-        printer.print_list(self.output_shape, printer.print_operand)
-        t = self.static_output_shape.get_values()
-        if self.output_shape and t:
-            printer.print_string(", ")
-        printer.print_list(t, lambda x: printer.print_string(str(x)))
-        printer.print_string("]")
-        if self.attributes:
-            printer.print_string(" ")
-            printer.print_attr_dict(self.attributes)
-        printer.print_string(" : ")
-        printer.print_attribute(self.src.type)
-        printer.print_string(" into ")
-        printer.print_attribute(self.result.type)
+    custom_directives = (DynamicIndexList,)
 
 
 @irdl_op_definition
@@ -676,6 +630,16 @@ class SubviewOp(IRDLOperation):
     traits = lazy_traits_def(
         lambda: (MemRefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
     )
+
+    assembly_format = (
+        "$source ``"
+        "custom<DynamicIndexList>($offsets, $static_offsets)"
+        "custom<DynamicIndexList>($sizes, $static_sizes)"
+        "custom<DynamicIndexList>($strides, $static_strides)"
+        "attr-dict `:` type($source) `to` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
 
     def verify_(self) -> None:
         static_offsets = self.static_offsets.get_values()
@@ -810,81 +774,6 @@ class SubviewOp(IRDLOperation):
             return_type,
         )
 
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        print_dynamic_index_list(
-            printer,
-            SubviewOp.DYNAMIC_INDEX,
-            self.offsets,
-            self.static_offsets.get_values(),
-        )
-        printer.print_string(" ")
-        print_dynamic_index_list(
-            printer,
-            SubviewOp.DYNAMIC_INDEX,
-            self.sizes,
-            self.static_sizes.get_values(),
-        )
-        printer.print_string(" ")
-        print_dynamic_index_list(
-            printer,
-            SubviewOp.DYNAMIC_INDEX,
-            self.strides,
-            self.static_strides.get_values(),
-        )
-        printer.print_op_attributes(self.attributes, print_keyword=True)
-        printer.print_string(" : ")
-        printer.print_attribute(self.source.type)
-        printer.print_string(" to ")
-        printer.print_attribute(self.result.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> SubviewOp:
-        index = IndexType()
-        unresolved_source = parser.parse_unresolved_operand()
-        pos = parser.pos
-        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        pos = parser.pos
-        dynamic_offsets = parser.resolve_operands(
-            dynamic_offsets, (index,) * len(dynamic_offsets), pos
-        )
-        pos = parser.pos
-        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_sizes = parser.resolve_operands(
-            dynamic_sizes, (index,) * len(dynamic_sizes), pos
-        )
-        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_strides = parser.resolve_operands(
-            dynamic_strides, (index,) * len(dynamic_strides), pos
-        )
-        attrs = parser.parse_optional_attr_dict_with_keyword()
-        parser.parse_punctuation(":")
-        operand_type = parser.parse_attribute()
-        source = parser.resolve_operand(unresolved_source, operand_type)
-        parser.parse_characters("to")
-        res_type = parser.parse_attribute()
-
-        op = SubviewOp(
-            source,
-            dynamic_offsets,
-            dynamic_sizes,
-            dynamic_strides,
-            static_offsets,
-            static_sizes,
-            static_strides,
-            res_type,
-        )
-        if attrs is not None:
-            op.attributes |= attrs.data
-        return op
-
 
 @irdl_op_definition
 class CastOp(IRDLOperation):
@@ -968,6 +857,18 @@ class ReinterpretCastOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
+    assembly_format = (
+        "$source `to` `offset` `` `:`"
+        "custom<DynamicIndexList>($offsets, $static_offsets)"
+        "`` `,` `sizes` `` `:`"
+        "custom<DynamicIndexList>($sizes, $static_sizes)"
+        "`` `,` `strides` `` `:`"
+        "custom<DynamicIndexList>($strides, $static_strides)"
+        "attr-dict `:` type($source) `to` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
     def __init__(
         self,
         source: SSAValue | Operation,
@@ -1026,98 +927,6 @@ class ReinterpretCastOp(IRDLOperation):
             static_strides,
             result_type,
         )
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        printer.print_string(" to offset: ")
-        print_dynamic_index_list(
-            printer,
-            ReinterpretCastOp.DYNAMIC_INDEX,
-            self.offsets,
-            self.static_offsets.get_values(),
-        )
-        printer.print_string(", sizes: ")
-        print_dynamic_index_list(
-            printer,
-            ReinterpretCastOp.DYNAMIC_INDEX,
-            self.sizes,
-            self.static_sizes.get_values(),
-        )
-        printer.print_string(", strides: ")
-        print_dynamic_index_list(
-            printer,
-            ReinterpretCastOp.DYNAMIC_INDEX,
-            self.strides,
-            self.static_strides.get_values(),
-        )
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" : ")
-        printer.print_attribute(self.source.type)
-        printer.print_string(" to ")
-        printer.print_attribute(self.result.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ReinterpretCastOp:
-        index = IndexType()
-        unresolved_source = parser.parse_unresolved_operand()
-
-        parser.parse_keyword("to")
-
-        # offsets
-        parser.parse_keyword("offset")
-        parser.parse_punctuation(":")
-        pos = parser.pos
-        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        pos = parser.pos
-        dynamic_offsets = parser.resolve_operands(
-            dynamic_offsets, (index,) * len(dynamic_offsets), pos
-        )
-        pos = parser.pos
-        parser.parse_punctuation(",")
-
-        # sizes
-        parser.parse_keyword("sizes")
-        parser.parse_punctuation(":")
-        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_sizes = parser.resolve_operands(
-            dynamic_sizes, (index,) * len(dynamic_sizes), pos
-        )
-        parser.parse_punctuation(",")
-
-        # strides
-        parser.parse_keyword("strides")
-        parser.parse_punctuation(":")
-        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_strides = parser.resolve_operands(
-            dynamic_strides, (index,) * len(dynamic_strides), pos
-        )
-        attrs = parser.parse_optional_attr_dict_with_keyword()
-        parser.parse_punctuation(":")
-        operand_type = parser.parse_attribute()
-        source = parser.resolve_operand(unresolved_source, operand_type)
-        parser.parse_characters("to")
-        result_type = parser.parse_attribute()
-
-        op = ReinterpretCastOp(
-            source,
-            dynamic_offsets,
-            dynamic_sizes,
-            dynamic_strides,
-            static_offsets,
-            static_sizes,
-            static_strides,
-            result_type,
-        )
-        if attrs is not None:
-            op.attributes |= attrs.data
-        return op
 
     def verify_(self):
         static_offsets = self.static_offsets.get_values()

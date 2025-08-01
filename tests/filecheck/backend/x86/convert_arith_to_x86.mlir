@@ -2,7 +2,7 @@
 
 %i0 = "test.op"(): () -> i32
 %i1 = "test.op"(): () -> i32
-%i2 = arith.addi %i0,%i1: i32
+%i2 = arith.addi %i0, %i1: i32
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %i0 = "test.op"() : () -> i32
@@ -11,7 +11,7 @@
 // CHECK-NEXT:   %i1_1 = builtin.unrealized_conversion_cast %i1 : i32 to !x86.reg
 // CHECK-NEXT:   %i2 = x86.ds.mov %i1_1 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT:   %i2_1 = x86.rs.add %i2, %i0_1 : (!x86.reg, !x86.reg) -> !x86.reg
-// CHECK-NEXT:   %i2_2 = builtin.unrealized_conversion_cast %i2 : !x86.reg to i32
+// CHECK-NEXT:   %i2_2 = builtin.unrealized_conversion_cast %i2_1 : !x86.reg to i32
 // CHECK-NEXT: }
 
 // -----
@@ -19,13 +19,13 @@
 // CHECK: Lowering of arith.addi not implemented for ShapedType
 %i0 = "test.op"(): () -> tensor<2xi32>
 %i1 = "test.op"(): () -> tensor<2xi32>
-%i2 = arith.addi %i0,%i1: tensor<2xi32>
+%i2 = arith.addi %i0, %i1: tensor<2xi32>
 
 // -----
 
 %i0 = "test.op"(): () -> i32
 %i1 = "test.op"(): () -> i32
-%i2 = arith.muli %i0,%i1: i32
+%i2 = arith.muli %i0, %i1: i32
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %i0 = "test.op"() : () -> i32
@@ -34,7 +34,7 @@
 // CHECK-NEXT:   %i1_1 = builtin.unrealized_conversion_cast %i1 : i32 to !x86.reg
 // CHECK-NEXT:   %i2 = x86.ds.mov %i1_1 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT:   %i2_1 = x86.rs.imul %i2, %i0_1 : (!x86.reg, !x86.reg) -> !x86.reg
-// CHECK-NEXT:   %i2_2 = builtin.unrealized_conversion_cast %i2 : !x86.reg to i32
+// CHECK-NEXT:   %i2_2 = builtin.unrealized_conversion_cast %i2_1 : !x86.reg to i32
 // CHECK-NEXT: }
 
 // -----
