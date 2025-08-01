@@ -230,7 +230,7 @@ class MatMulOp(IRDLOperation):
 
     `tensor<1x14x19xf32> * tensor<1x19x28xf32> -> tensor<1x14x28xf32>`
 
-    The following two operands are the zero-point which are used for quantized operations, can be set to 0.0 for no effect.
+    The operands `a_zp` and `b_zp` are the zero-point which are used for quantized operations, can be set to 0.0 for no effect.
 
     See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosamul-mlirtosamulop).
     """
@@ -253,13 +253,10 @@ class MatMulOp(IRDLOperation):
     )
 
     def verify_(self) -> None:
-        if not (
-            isinstance(self.a.type, ShapedType)
-            and isinstance(self.b.type, ShapedType)
-            and isinstance(self.a_zp.type, ShapedType)
-            and isinstance(self.b_zp.type, ShapedType)
-        ):
-            raise VerifyException("'tosa.matmul' Expected operands to be shaped types")
+        assert isinstance(self.a.type, ShapedType)
+        assert isinstance(self.b.type, ShapedType)
+        assert isinstance(self.a_zp.type, ShapedType)
+        assert isinstance(self.b_zp.type, ShapedType)
 
         sa = self.a.type.get_shape()
         sb = self.b.type.get_shape()
