@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t riscv-asm --split-input-file --verify-diagnostics %s | filecheck %s
+// RUN: xdsl-opt -t x86-asm --split-input-file --verify-diagnostics %s | filecheck %s
 
 
 riscv_func.func @noarg_void() {
