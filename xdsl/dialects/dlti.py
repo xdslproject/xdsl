@@ -10,7 +10,14 @@ from __future__ import annotations
 
 from abc import ABC
 
-from xdsl.dialects.builtin import ArrayAttr, StringAttr
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    StringAttr,
+    IntegerAttr,
+    i32,
+    FloatAttr,
+    Float32Type,
+)
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
@@ -30,6 +37,23 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
     key: Attribute
     value: Attribute
 
+    def __init__(
+        self,
+        key: StringAttr | TypeAttribute | str,
+        value: Attribute | str | int | float,
+    ):
+        if isinstance(key, str):
+            key = StringAttr(key)
+
+        if isinstance(value, str):
+            value = StringAttr(value)
+        elif isinstance(value, int):
+            value = IntegerAttr(value, i32)
+        elif isinstance(value, float):
+            value = FloatAttr(value, Float32Type())
+
+        super().__init__(key, value)
+
     def verify(self) -> None:
         if not isinstance(self.key, StringAttr | TypeAttribute):
             raise VerifyException("key must be a string or a type attribute")
@@ -47,6 +71,23 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
     # In MLIR, this is a DataLayoutEntryInterface.
     entries: ArrayAttr[DataLayoutEntryAttr]
 
+    def __init__(
+        self,
+        contents: ArrayAttr
+        | list[DataLayoutEntryAttr]
+        | dict[StringAttr | TypeAttribute | str, Attribute | str | int | float],
+    ):
+        if isinstance(contents, dict):
+            contents = ArrayAttr(
+                [DataLayoutEntryAttr(k, v) for k, v in contents.items()]
+            )
+        elif isinstance(contents, list):
+            contents = ArrayAttr(contents)
+
+        assert isinstance(contents, ArrayAttr)
+
+        super().__init__(contents)
+
     @classmethod
     def parse_parameters(
         cls, parser: AttrParser
@@ -55,6 +96,11 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
             entry = parser.parse_attribute()
             parser.parse_punctuation("=")
             value = parser.parse_attribute()
+            assert (
+                isinstance(entry, str)
+                or isinstance(entry, StringAttr)
+                or isinstance(entry, TypeAttribute)
+            )
             return DataLayoutEntryAttr(entry, value)
 
         entries = parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_entry)
