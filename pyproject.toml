@@ -10,6 +10,8 @@ dependencies = [
     "immutabledict<4.2.2",
     "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
+    "matplotlib>=3.10.3",
+    "pandas>=2.3.0",
 ]
 dynamic = ["version"]
 
