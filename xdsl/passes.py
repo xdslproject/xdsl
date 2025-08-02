@@ -101,9 +101,13 @@ class ModulePass(ABC):
                 raise ValueError(f'Pass {cls.name} requires argument "{op_field.name}"')
 
             # convert pass arg to the correct type:
+            field_type = op_field.type
+            if isinstance(field_type, str):
+                # If the type was provided as a string, eval the string to get the type
+                field_type = eval(field_type, None)
             arg_dict[op_field.name] = _convert_pass_arg_to_type(
                 spec_arguments_dict.pop(op_field.name),
-                op_field.type,
+                field_type,
             )
             # we use .pop here to also remove the arg from the dict
 
