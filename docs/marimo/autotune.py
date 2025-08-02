@@ -468,10 +468,10 @@ def _(memref_stream_module, mo):
 
 @app.cell
 def _(mo, msg_factors):
-    from xdsl.transforms.memref_stream_unroll_and_jam import MemrefStreamUnrollAndJamPass
+    from xdsl.transforms.memref_stream_interleave import MemRefStreamInterleavePass
 
     uaj_passes = tuple(
-        MemrefStreamUnrollAndJamPass(0, index, factor)
+        MemRefStreamInterleavePass(0, index, factor)
         for index, factor in msg_factors
     )
 
@@ -484,7 +484,7 @@ def _(mo, msg_factors):
     {_passes_str}
     ```
     """)
-    return MemrefStreamUnrollAndJamPass, uaj_passes
+    return MemRefStreamInterleavePass, uaj_passes
 
 
 @app.cell(hide_code=True)
@@ -590,7 +590,7 @@ def _(Attribute, DenseIntOrFPElementsAttr, Random, f64):
 def _(
     Context,
     LensCostModel,
-    MemrefStreamUnrollAndJamPass,
+    MemRefStreamInterleavePass,
     ModuleOp,
     ModulePass,
     Random,
@@ -617,7 +617,7 @@ def _(
             msg_op = msg_ops[0]
 
             passes = tuple(
-                MemrefStreamUnrollAndJamPass(0, index, factor)
+                MemRefStreamInterleavePass(0, index, factor)
                 for index, factor in msg_factors
             )
 

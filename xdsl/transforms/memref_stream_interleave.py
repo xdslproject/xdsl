@@ -181,9 +181,9 @@ class PipelineGenericPattern(RewritePattern):
         # The new bounds are the same, except there is one more bound
         new_bounds = list(op.bounds)
         new_bounds.append(IntegerAttr.from_index_int_value(interleave_factor))
-        iterator_ub = op.bounds.data[interleave_bound_index].value.data
+        interleave_bound = op.bounds.data[interleave_bound_index].value.data
         new_bounds[interleave_bound_index] = IntegerAttr.from_index_int_value(
-            iterator_ub // interleave_factor
+            interleave_bound // interleave_factor
         )
 
         rewriter.replace_matched_op(
@@ -223,9 +223,15 @@ class MemRefStreamInterleavePass(ModulePass):
     name = "memref-stream-interleave"
 
     pipeline_depth: int = field(default=4)
+    iterator_index: int | None = field(default=None)
+    unroll_factor: int | None = field(default=None)
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            PipelineGenericPattern(self.pipeline_depth),
+            PipelineGenericPattern(
+                self.pipeline_depth,
+                self.iterator_index,
+                self.unroll_factor,
+            ),
             apply_recursively=False,
         ).rewrite_module(op)
