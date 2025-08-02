@@ -208,10 +208,10 @@ class ApplyOpBufferize(RewritePattern):
         way bufferization works, causing it to use `iter_arg` as an accumulator
         and avoiding having an extra alloc + memref.copy.
         """
-        linalg_op: linalg.NamedOpBase | None = None
+        linalg_op: linalg.NamedOperation | None = None
         for curr_op in op.receive_chunk.block.ops:
             if (
-                isinstance(curr_op, linalg.NamedOpBase)
+                isinstance(curr_op, linalg.NamedOperation)
                 and len(curr_op.outputs) > 0
                 and curr_op.outputs.types[0] == chunk_type
             ):
@@ -419,7 +419,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                 or not isinstance(yld_arg.op.tensor, OpResult)
                 or not isinstance(
                     linalg_op := yld_arg.op.tensor.op,
-                    linalg.NamedOpBase | linalg.GenericOp,
+                    linalg.NamedOperation | linalg.GenericOp,
                 )
                 or not isa(arg_t := arg.type, MemRefType)
                 or not isa(yld_arg.type, MemRefType)
@@ -428,7 +428,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                 new_yield_args.append(yld_arg)
                 continue
             additional_args.append(arg)
-            if len(yld_arg.uses) == 1:
+            if yld_arg.has_one_use():
                 to_remove.append(yld_arg.op)
 
             arg = op.done_exchange.block.insert_arg(
@@ -499,7 +499,7 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: linalg.NamedOpBase | linalg.GenericOp, rewriter: PatternRewriter, /
+        self, op: linalg.NamedOperation | linalg.GenericOp, rewriter: PatternRewriter, /
     ):
         # only apply rewrite when re-selecting `outs` from `ins`
         if (
@@ -514,7 +514,7 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
         for arg in op.inputs:
             # reselect outs that has no later use to avoid read-after-write conflicts
-            if len(arg.uses) == 1:
+            if arg.has_one_use():
                 # check for a `writable` input with no later uses and break immediately
                 if self.is_writable(arg):
                     out = arg
@@ -522,7 +522,7 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
                 # check for a linalg op input with no later uses and keep looking
                 if isinstance(arg, OpResult) and isinstance(
-                    arg.op, linalg.NamedOpBase | linalg.GenericOp
+                    arg.op, linalg.NamedOperation | linalg.GenericOp
                 ):
                     out = arg
 

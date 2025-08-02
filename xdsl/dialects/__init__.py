@@ -88,6 +88,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return CSL_WRAPPER
 
+    def get_dlti():
+        from xdsl.dialects.dlti import DLTI
+
+        return DLTI
+
     def get_dmp():
         from xdsl.dialects.experimental.dmp import DMP
 
@@ -294,7 +299,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return Stim
 
     def get_symref():
-        from xdsl.frontend.pyast.symref import Symref
+        from xdsl.dialects.symref import Symref
 
         return Symref
 
@@ -360,6 +365,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl": get_csl,
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
+        "dlti": get_dlti,
         "dmp": get_dmp,
         "emitc": get_emitc,
         "eqsat": get_eqsat,

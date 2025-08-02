@@ -50,7 +50,7 @@ class ArithAddiToX86(RewritePattern):
         )
         add_op = x86.RS_AddOp(source=lhs_x86, register_in=rhs_copy_op.destination)
         result_cast_op, _ = UnrealizedConversionCastOp.cast_one(
-            add_op.register_in, op.lhs.type
+            add_op.register_out, op.lhs.type
         )
         rewriter.replace_matched_op([rhs_copy_op, add_op, result_cast_op])
 
@@ -69,7 +69,7 @@ class ArithMuliToX86(RewritePattern):
         )
         add_op = x86.RS_ImulOp(source=lhs_x86, register_in=rhs_copy_op.destination)
         result_cast_op, _ = UnrealizedConversionCastOp.cast_one(
-            add_op.register_in, op.lhs.type
+            add_op.register_out, op.lhs.type
         )
         rewriter.replace_matched_op([rhs_copy_op, add_op, result_cast_op])
 

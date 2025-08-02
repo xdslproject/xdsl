@@ -33,6 +33,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.traits import OpTrait
+from xdsl.utils.classvar import is_const_classvar
 from xdsl.utils.exceptions import (
     ParseError,
     PyRDLOpDefinitionError,
@@ -42,7 +43,6 @@ from xdsl.utils.hints import PropertyType, get_type_var_mapping
 
 from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
-    IRDLGenericAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
     range_constr_coercion,
@@ -53,13 +53,12 @@ from .constraints import (  # noqa: TID251
     AttrConstraint,
     ConstraintContext,
     ConstraintVar,
-    GenericRangeConstraint,
     RangeConstraint,
     RangeOf,
 )
-from .error import IRDLAnnotations  # noqa: TID251
 
 if TYPE_CHECKING:
+    from xdsl.irdl.declarative_assembly_format import CustomDirective
     from xdsl.parser import Parser
     from xdsl.printer import Printer
 
@@ -83,6 +82,7 @@ IRDLOperationContrT = TypeVar(
 @dataclass(init=False)
 class IRDLOperation(Operation):
     assembly_format: ClassVar[str | None] = None
+    custom_directives: ClassVar[tuple[type[CustomDirective], ...]] = ()
 
     def __init__(
         self: IRDLOperation,
@@ -328,7 +328,7 @@ class OptionalDef(VariadicDef):
 class OperandDef(OperandOrResultDef):
     """An IRDL operand definition."""
 
-    constr: GenericRangeConstraint[Attribute]
+    constr: RangeConstraint
     """The operand constraint."""
 
     def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
@@ -367,13 +367,13 @@ OptOperand: TypeAlias = SSAValue | None
 class ResultDef(OperandOrResultDef):
     """An IRDL result definition."""
 
-    constr: GenericRangeConstraint[Attribute]
+    constr: RangeConstraint
     """The result constraint."""
 
     def __init__(
         self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
     ):
-        assert not isinstance(attr, GenericRangeConstraint)
+        assert not isinstance(attr, RangeConstraint)
         self.constr = single_range_constr_coercion(attr)
 
 
@@ -407,9 +407,7 @@ class RegionDef:
     An IRDL region definition.
     """
 
-    entry_args: GenericRangeConstraint[Attribute] = field(
-        default_factory=lambda: RangeOf(AnyAttr())
-    )
+    entry_args: RangeConstraint = field(default_factory=lambda: RangeOf(AnyAttr()))
 
 
 @dataclass
@@ -437,15 +435,6 @@ class VarSingleBlockRegionDef(RegionDef, VariadicDef):
 
 class OptSingleBlockRegionDef(RegionDef, OptionalDef):
     """An IRDL optional region definition that expects exactly one block."""
-
-
-SingleBlockRegion: TypeAlias = Annotated[Region, IRDLAnnotations.SingleBlockRegionAnnot]
-VarSingleBlockRegion: TypeAlias = Annotated[
-    list[Region], IRDLAnnotations.SingleBlockRegionAnnot
-]
-OptSingleBlockRegion: TypeAlias = Annotated[
-    Region | None, IRDLAnnotations.SingleBlockRegionAnnot
-]
 
 
 @dataclass
@@ -565,12 +554,12 @@ class _PropertyFieldDef(_AttrOrPropFieldDef[PropertyDef]):
 
 
 class _RegionFieldDef(_OpDefField[RegionDef]):
-    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint
+    entry_args: RangeConstraint | IRDLAttrConstraint
 
     def __init__(
         self,
         cls: type[RegionDef],
-        entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint,
+        entry_args: RangeConstraint | IRDLAttrConstraint,
     ):
         super().__init__(cls)
         self.entry_args = entry_args
@@ -583,7 +572,7 @@ class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
 
 
 def result_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT] = Attribute,
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -597,7 +586,7 @@ def result_def(
 
 def var_result_def(
     constraint: (
-        GenericRangeConstraint[AttributeInvT] | IRDLGenericAttrConstraint[AttributeInvT]
+        RangeConstraint[AttributeInvT] | IRDLAttrConstraint[AttributeInvT]
     ) = Attribute,
     *,
     default: None = None,
@@ -612,7 +601,7 @@ def var_result_def(
 
 def opt_result_def(
     constraint: (
-        GenericRangeConstraint[AttributeInvT] | IRDLGenericAttrConstraint[AttributeInvT]
+        RangeConstraint[AttributeInvT] | IRDLAttrConstraint[AttributeInvT]
     ) = Attribute,
     *,
     default: None = None,
@@ -626,7 +615,7 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
@@ -643,19 +632,7 @@ def prop_def(
 
 @overload
 def opt_prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
-    default_value: None = None,
-    *,
-    prop_name: str | None = None,
-    default: None = None,
-    resolver: None = None,
-    init: Literal[False] = False,
-) -> AttributeInvT | None: ...
-
-
-@overload
-def opt_prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute,
     *,
     prop_name: str | None = None,
@@ -665,8 +642,20 @@ def opt_prop_def(
 ) -> AttributeInvT: ...
 
 
+@overload
 def opt_prop_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
+    default_value: Attribute | None = None,
+    *,
+    prop_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT | None: ...
+
+
+def opt_prop_def(
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
@@ -682,7 +671,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
@@ -701,19 +690,7 @@ def attr_def(
 
 @overload
 def opt_attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
-    default_value: None = None,
-    *,
-    attr_name: str | None = None,
-    default: None = None,
-    resolver: None = None,
-    init: Literal[False] = False,
-) -> AttributeInvT | None: ...
-
-
-@overload
-def opt_attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT],
     default_value: Attribute,
     *,
     attr_name: str | None = None,
@@ -723,8 +700,20 @@ def opt_attr_def(
 ) -> AttributeInvT: ...
 
 
+@overload
 def opt_attr_def(
-    constraint: IRDLGenericAttrConstraint[AttributeInvT],
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
+    default_value: Attribute | None = None,
+    *,
+    attr_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT | None: ...
+
+
+def opt_attr_def(
+    constraint: IRDLAttrConstraint[AttributeInvT] = Attribute,
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
@@ -783,9 +772,7 @@ def opt_operand_def(
 def region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(
-        AnyAttr()
-    ),
+    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -800,9 +787,7 @@ def region_def(
 def var_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(
-        AnyAttr()
-    ),
+    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -817,9 +802,7 @@ def var_region_def(
 def opt_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(
-        AnyAttr()
-    ),
+    entry_args: RangeConstraint | IRDLAttrConstraint = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -889,23 +872,6 @@ def lazy_traits_def(future_traits: Callable[[], tuple[OpTrait, ...]]):
 _OPERATION_DICT_KEYS = {key for cls in Operation.mro()[:-1] for key in cls.__dict__}
 
 
-def _is_const_classvar(field_name: str, annotation: Any) -> bool:
-    """
-    Operation definitions may only have `*_def` fields or constant class variables,
-    where the constness is defined by convention with an UPPER_CASE name and enforced by
-    pyright.
-    The type annotation can be one of
-     * `ClassVar[MyType]`,
-     * `ClassVar`, or
-     * `"ClassVar[MyType]"`.
-    """
-    return field_name.isupper() and (
-        get_origin(annotation) is ClassVar
-        or annotation is ClassVar
-        or (isinstance(annotation, str) and annotation.startswith("ClassVar"))
-    )
-
-
 @dataclass(kw_only=True)
 class OpDef:
     """The internal IRDL definition of an operation."""
@@ -937,6 +903,9 @@ class OpDef:
     or is already used by the operation, so we need to use a different name.
     """
     assembly_format: str | None = field(default=None)
+    custom_directives: dict[str, type[CustomDirective]] = field(
+        default_factory=lambda: {}
+    )
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
@@ -954,7 +923,7 @@ class OpDef:
 
         def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
             raise PyRDLOpDefinitionError(
-                f"{pyrdl_def.__name__}.{field_name} is neither a function, or an "
+                f"{pyrdl_def.__name__}.{field_name} is neither a function,"
                 "operand, result, region, or attribute definition. "
                 "Operands should be defined with type hints of "
                 "operand_def(<Constraint>), results with "
@@ -985,13 +954,15 @@ class OpDef:
             annotations = parent_cls.__annotations__
 
             for field_name in annotations:
-                if _is_const_classvar(field_name, annotations[field_name]):
-                    continue
                 if field_name not in clsdict:
+                    if is_const_classvar(
+                        field_name, annotations[field_name], PyRDLOpDefinitionError
+                    ):
+                        continue
                     raise wrong_field_exception(field_name)
 
             for field_name in clsdict:
-                if field_name in ("name", "assembly_format"):
+                if field_name in ("name", "assembly_format", "custom_directives"):
                     continue
                 if field_name in _OPERATION_DICT_KEYS:
                     # Fields that are already in Operation (i.e. operands, results, ...)
@@ -999,8 +970,8 @@ class OpDef:
                 if field_name in field_names:
                     # already registered value for field name
                     continue
-                if field_name in annotations and _is_const_classvar(
-                    field_name, annotations[field_name]
+                if field_name in annotations and is_const_classvar(
+                    field_name, annotations[field_name], PyRDLOpDefinitionError
                 ):
                     continue
 
@@ -1065,9 +1036,16 @@ class OpDef:
                     value, FunctionType | PropertyType | classmethod | staticmethod
                 ):
                     continue
-                # Constraint variables are allowed
+                # Constraint variables are deprecated
                 if get_origin(value) is Annotated:
                     if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
+                        import warnings
+
+                        warnings.warn(
+                            "The use of `ConstraintVar` is deprecated, please use `VarConstraint`",
+                            DeprecationWarning,
+                            stacklevel=2,
+                        )
                         continue
 
                 # Get attribute constraints from a list of pyrdl constraints
@@ -1086,7 +1064,7 @@ class OpDef:
                 def get_range_constraint(
                     pyrdl_constr: RangeConstraint | IRDLAttrConstraint,
                 ) -> RangeConstraint:
-                    if isinstance(pyrdl_constr, GenericRangeConstraint):
+                    if isinstance(pyrdl_constr, RangeConstraint):
                         # Pyright does not know the type of the generic range constraint
                         return cast(RangeConstraint, pyrdl_constr)
                     return RangeOf(get_constraint(pyrdl_constr))
@@ -1096,7 +1074,7 @@ class OpDef:
                 match value:
                     case _ResultFieldDef():
                         if not issubclass(value.cls, VariadicDef):
-                            if isinstance(value.param, GenericRangeConstraint):
+                            if isinstance(value.param, RangeConstraint):
                                 raise TypeError(
                                     "Cannot use a RangeConstraint in result_def, use an "
                                     "AttrConstraint or var_result_def or "
@@ -1111,7 +1089,7 @@ class OpDef:
                         continue
                     case _OperandFieldDef():
                         if not issubclass(value.cls, VariadicDef):
-                            if isinstance(value.param, GenericRangeConstraint):
+                            if isinstance(value.param, RangeConstraint):
                                 raise TypeError(
                                     "Cannot use a RangeConstraint in operand_def, use an "
                                     "AttrConstraint or var_operand_def or "
@@ -1155,6 +1133,9 @@ class OpDef:
                 raise wrong_field_exception(field_name)
 
         op_def.assembly_format = pyrdl_def.assembly_format
+        op_def.custom_directives = {
+            directive.__name__: directive for directive in pyrdl_def.custom_directives
+        }
         assert inspect.ismethod(Operation.parse)
         if op_def.assembly_format is not None and (
             pyrdl_def.print != Operation.print
@@ -1356,7 +1337,7 @@ def get_variadic_sizes_from_attr(
             f"Expected {size_attribute_name} {container_name} in {op.name} operation."
         )
     attribute = container[size_attribute_name]
-    if not DenseArrayBase.constr(i32).verifies(attribute):
+    if not isinstance(attribute, DenseArrayBase) or attribute.elt_type != i32:  # pyright: ignore[reportUnknownMemberType]
         raise VerifyException(
             f"{size_attribute_name} {container_name} is expected "
             "to be a DenseArrayBase of i32."
@@ -1643,12 +1624,13 @@ def irdl_build_arg_list(
                 )
             arg_sizes.append(0)
         elif isinstance(arg, Sequence):
-            if not isinstance(arg_def, VariadicDef):
+            arg = cast(Sequence[_T], arg)
+
+            if not isinstance(arg_def, VariadicDef) and len(arg) != 1:
                 raise ValueError(
                     error_prefix
                     + f"passed Sequence to non-variadic {construct} {arg_idx} '{arg_name}'"
                 )
-            arg = cast(Sequence[_T], arg)
 
             # Check we have at most one argument for optional defintions.
             if isinstance(arg_def, OptionalDef) and len(arg) > 1:

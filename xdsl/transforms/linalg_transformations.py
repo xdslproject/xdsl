@@ -21,7 +21,7 @@ def build_generic_fma(
     inputs = (mul_op1, mul_op2, add_op)
     outputs = (out,)
 
-    arg_types = linalg.NamedOpBase.body_arg_types((*inputs, *outputs))
+    arg_types = linalg.NamedOperation.body_arg_types((*inputs, *outputs))
 
     @Builder.implicit_region(arg_types)
     def body(args: tuple[BlockArgument, ...]) -> None:
@@ -79,7 +79,7 @@ class FuseMultiplyAddPass(RewritePattern):
 
             # replace in position of the add op
             rewriter.replace_op(add, fma)
-            if len(mul.res[0].uses) == 0:
+            if not mul.res[0].uses:
                 rewriter.erase_matched_op()
 
     @staticmethod

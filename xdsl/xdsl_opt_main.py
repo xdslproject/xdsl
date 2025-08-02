@@ -9,13 +9,12 @@ from typing import IO, Any
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
 from xdsl.utils.lexer import Span
-from xdsl.utils.parse_pipeline import parse_pipeline
 
 
 class xDSLOptMain(CommandLineTool):
@@ -30,7 +29,7 @@ class xDSLOptMain(CommandLineTool):
     stream.
     """
 
-    pipeline: PipelinePass
+    pipeline: PassPipeline
     """ The pass-pipeline to be applied. """
 
     def __init__(
@@ -315,12 +314,9 @@ class xDSLOptMain(CommandLineTool):
                 printer.print_op(module)
                 print("\n\n\n")
 
-        self.pipeline = PipelinePass(
-            tuple(
-                PipelinePass.iter_passes(
-                    self.available_passes, parse_pipeline(self.args.passes)
-                )
-            ),
+        self.pipeline = PassPipeline.parse_spec(
+            self.available_passes,
+            self.args.passes,
             callback,
         )
 
@@ -352,7 +348,7 @@ class xDSLOptMain(CommandLineTool):
         if file_extension not in self.available_frontends:
             for chunk, _ in chunks:
                 chunk.close()
-            raise Exception(f"Unrecognized file extension '{file_extension}'")
+            raise ValueError(f"Unrecognized file extension '{file_extension}'")
 
         return chunks, file_extension
 
@@ -374,9 +370,6 @@ class xDSLOptMain(CommandLineTool):
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
         output = StringIO()
-        if self.args.target not in self.available_targets:
-            raise Exception(f"Unknown target {self.args.target}")
-
         self.available_targets[self.args.target](prog, output)
         return output.getvalue()
 

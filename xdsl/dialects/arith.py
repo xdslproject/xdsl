@@ -31,9 +31,8 @@ from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
-    BaseAttr,
     IRDLOperation,
-    TypedAttributeConstraint,
+    ParamAttrConstraint,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -133,13 +132,10 @@ class ConstantOp(IRDLOperation):
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
     value = prop_def(
-        TypedAttributeConstraint(
-            IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
-            | BaseAttr(FloatAttr)
-            | BaseAttr(DenseIntOrFPElementsAttr)
-            | BaseAttr(DenseResourceAttr),
-            _T,
-        )
+        IntegerAttr.constr((SignlessIntegerConstraint | IndexTypeConstr) & _T)
+        | ParamAttrConstraint(FloatAttr, (AnyAttr(), _T))
+        | ParamAttrConstraint(DenseIntOrFPElementsAttr, (_T, AnyAttr()))
+        | ParamAttrConstraint(DenseResourceAttr, (AnyAttr(), _T))
     )
 
     traits = traits_def(ConstantLike(), Pure())

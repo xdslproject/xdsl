@@ -2,33 +2,37 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import cast
+from typing import ClassVar, cast
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
-    I64,
-    Annotated,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
     DenseArrayBase,
     IndexType,
     IntegerAttr,
+    ShapedType,
     TensorType,
     UnrankedTensorType,
     i64,
 )
+from xdsl.dialects.utils.dynamic_index_list import (
+    parse_dynamic_index_list_without_types,
+    print_dynamic_index_list,
+)
+from xdsl.dialects.utils.reshape_ops_utils import (
+    ContiguousArrayOfIntArray,
+    verify_reshape_like_types,
+)
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    AtLeast,
-    AttrConstraint,
+    AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintContext,
-    ConstraintVar,
     IRDLOperation,
     Operand,
+    VarConstraint,
     base,
     irdl_op_definition,
     operand_def,
@@ -41,37 +45,6 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import NoMemoryEffect
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
-
-
-@dataclass(frozen=True)
-class ContiguousArrayOfIntArray(AttrConstraint):
-    """
-    Enforce an ArrayAttr of ArrayAttr[IntegerAttr] to contain contiguous integer values across all inner arrays.
-    For example: [[0, 1], [2, 3]] is valid, but [[3, 4], [0, 1]] is not.
-    An empty inner array is considered contiguous.
-    """
-
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
-        if not isa(attr, ArrayAttr[ArrayAttr[IntegerAttr]]):
-            raise VerifyException(
-                f"Expected ArrayAttr but got {getattr(attr, 'name', type(attr))}"
-            )
-
-        # Flatten all integer values from all inner arrays
-        flat_values = [e.value.data for inner in attr.data for e in inner.data]
-        # Check that the flattened list is contiguous
-        for prev, curr in zip(flat_values, flat_values[1:]):
-            if curr != prev + 1:
-                raise VerifyException(f"All inner arrays must be contiguous: {attr}")
-
-    def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> ContiguousArrayOfIntArray:
-        # No type variables to map in this constraint
-        return self
 
 
 @irdl_op_definition
@@ -216,26 +189,13 @@ class EmptyOp(IRDLOperation):
         return empty
 
 
-ReassociationAttr = Annotated[
-    ArrayAttr[
-        ArrayAttr[
-            Annotated[
-                IntegerAttr[I64],
-                IntegerAttr.constr(value=AtLeast(0)),
-            ]
-        ]
-    ],
-    ContiguousArrayOfIntArray(),
-]
-
-
 @irdl_op_definition
 class CollapseShapeOp(IRDLOperation):
     name = "tensor.collapse_shape"
 
     src = operand_def(TensorType[Attribute])
     result = result_def(TensorType[Attribute])
-    reassociation = prop_def(ReassociationAttr)
+    reassociation = prop_def(ContiguousArrayOfIntArray())
     assembly_format = (
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
     )
@@ -334,6 +294,120 @@ class ReshapeOp(IRDLOperation):
             raise VerifyException(
                 "length of shape operand differs from the result's tensor rank"
             )
+
+
+@irdl_op_definition
+class ExpandShapeOp(IRDLOperation):
+    """
+    Operation to produce a tensor with a higher rank
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorexpand_shape-tensorexpandshapeop)
+    """
+
+    # Constant value used to denote dynamic indices in offsets, sizes, and strides.
+    # Same constant as in MLIR.
+    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
+
+    name = "tensor.expand_shape"
+
+    src = operand_def(TensorType)
+    dynamic_output_shape = var_operand_def(IndexType)
+
+    reassociation = prop_def(ContiguousArrayOfIntArray())
+
+    static_output_shape = prop_def(DenseArrayBase.constr(i64))
+
+    result = result_def(TensorType[Attribute])
+
+    def __init__(
+        self,
+        src: SSAValue | Operation,
+        dynamic_output_shape: Sequence[SSAValue],
+        reassociation: ArrayAttr[ArrayAttr[IntegerAttr]],
+        static_output_shape: Sequence[int] | DenseArrayBase,
+        result_type: TensorType[Attribute],
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if not isinstance(static_output_shape, DenseArrayBase):
+            static_output_shape = DenseArrayBase.from_list(i64, static_output_shape)
+
+        super().__init__(
+            operands=[src, dynamic_output_shape],
+            result_types=[result_type],
+            properties={
+                "reassociation": reassociation,
+                "static_output_shape": static_output_shape,
+            },
+            attributes=attributes,
+        )
+
+    def verify_(self):
+        assert isinstance(self.src.type, ShapedType)
+        assert isinstance(self.result.type, ShapedType)
+
+        # make sure the static output shape matches the result type
+        if len(self.static_output_shape) != len(self.result.type.get_shape()):
+            raise VerifyException(
+                "expected number of static shape dims to be equal to the output rank "
+                f"({len(self.result.type.get_shape())}) but found {len(self.static_output_shape)} inputs instead"
+            )
+
+        verify_reshape_like_types(
+            collapsed_type=self.src.type,
+            expanded_type=self.result.type,
+            reassociation=self.reassociation,
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        src_operand = parser.parse_unresolved_operand()
+
+        reassociation = parser.parse_attribute()
+        parser.parse_characters("output_shape")
+        index = IndexType()
+
+        # Parse shape: mixture of ints and SSA values
+        dyn_shape, static_shape = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=cls.DYNAMIC_INDEX
+        )
+
+        dyn_shape = parser.resolve_operands(
+            dyn_shape, (index,) * len(dyn_shape), parser.pos
+        )
+
+        attributes = parser.parse_optional_attr_dict()
+
+        parser.parse_punctuation(":")
+        src_type = parser.parse_type()
+        parser.parse_characters("into")
+        result_type = parser.parse_type()
+        src = parser.resolve_operand(src_operand, src_type)
+
+        shape_attr = DenseArrayBase.from_list(i64, static_shape)
+
+        reassociation = cast(ArrayAttr[ArrayAttr[IntegerAttr]], reassociation)
+        result_type = cast(TensorType[Attribute], result_type)
+
+        return cls(src, dyn_shape, reassociation, shape_attr, result_type, attributes)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.src)
+        printer.print_string(" ")
+        printer.print_attribute(self.reassociation)
+        printer.print_string(" output_shape ")
+        print_dynamic_index_list(
+            printer,
+            self.DYNAMIC_INDEX,
+            self.dynamic_output_shape,
+            self.static_output_shape.get_values(),
+        )
+
+        printer.print_op_attributes(attributes=self.attributes)
+
+        printer.print_string(" : ")
+        printer.print_attribute(self.src.type)
+        printer.print_string(" into ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
@@ -564,10 +638,10 @@ class InsertOp(IRDLOperation):
 class FromElementsOp(IRDLOperation):
     name = "tensor.from_elements"
 
-    ElementType = Annotated[Attribute, ConstraintVar("ElementType")]
+    ELEMENT_TYPE: ClassVar = VarConstraint("ELEMENT_TYPE", AnyAttr())
 
-    elements = var_operand_def(ElementType)
-    result = result_def(TensorType[ElementType])
+    elements = var_operand_def(ELEMENT_TYPE)
+    result = result_def(TensorType.constr(ELEMENT_TYPE))
     assembly_format = "$elements attr-dict `:` type($result)"
 
 
@@ -577,6 +651,7 @@ Tensor = Dialect(
         CastOp,
         DimOp,
         EmptyOp,
+        ExpandShapeOp,
         ExtractSliceOp,
         InsertSliceOp,
         ReshapeOp,

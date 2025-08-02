@@ -67,8 +67,14 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import (
+    HasCanonicalizationPatternsTrait,
+    IsTerminator,
+    MemoryReadEffect,
+    Pure,
+)
 from xdsl.utils.exceptions import VerifyException
 
 from .assembly import (
@@ -414,6 +420,16 @@ class RM_Operation(
         )
 
 
+class DM_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.x86 import (
+            DM_Operation_ConstantOffset,
+        )
+
+        return (DM_Operation_ConstantOffset(),)
+
+
 class DM_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
@@ -424,6 +440,11 @@ class DM_Operation(
     destination = result_def(R1InvT)
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    traits = traits_def(
+        DM_OperationHasCanonicalizationPatterns(),
+        MemoryReadEffect(),
+    )
 
     def __init__(
         self,
@@ -569,6 +590,16 @@ class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
         return RegisterConstraints((), (), ((self.register_in, self.register_out),))
 
 
+class MS_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.x86 import (
+            MS_Operation_ConstantOffset,
+        )
+
+        return (MS_Operation_ConstantOffset(),)
+
+
 class MS_Operation(
     Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
@@ -580,6 +611,8 @@ class MS_Operation(
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     source = operand_def(R2InvT)
+
+    traits = traits_def(MS_OperationHasCanonicalizationPatterns())
 
     def __init__(
         self,
@@ -1012,6 +1045,14 @@ class RSS_Operation(
 # endregion
 
 
+class RS_AddOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.x86 import RS_Add_Zero
+
+        return (RS_Add_Zero(),)
+
+
 @irdl_op_definition
 class RS_AddOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
@@ -1024,6 +1065,8 @@ class RS_AddOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.rs.add"
+
+    traits = traits_def(Pure(), RS_AddOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
@@ -1096,6 +1139,14 @@ class RS_XorOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     name = "x86.rs.xor"
 
 
+class DS_MovOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.x86 import RemoveRedundantDS_Mov
+
+        return (RemoveRedundantDS_Mov(),)
+
+
 @irdl_op_definition
 class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
     """
@@ -1108,6 +1159,8 @@ class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
     """
 
     name = "x86.ds.mov"
+
+    traits = traits_def(Pure(), DS_MovOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
@@ -1552,6 +1605,8 @@ class DI_MovOp(DI_Operation[GeneralRegisterType]):
     """
 
     name = "x86.di.mov"
+
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -2965,6 +3020,7 @@ class GetAVXRegisterOp(GetAnyRegisterOperation[X86VectorRegisterType]):
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
     printer = AssemblyPrinter(stream=output)
+    print(".intel_syntax noprefix", file=output)
     printer.print_module(module)
 
 

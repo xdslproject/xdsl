@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import auto
 from typing import ClassVar, cast
@@ -97,53 +97,20 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
             super().print_parameter(printer)
 
 
-@irdl_op_definition
-class GenericOp(IRDLOperation):
-    name = "linalg.generic"
+class LinalgOperation(IRDLOperation, ABC):
+    """
+    Abstract base class for linalg operations, allowing them to be processed in with a
+    unified interface.
+    """
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    body = region_def("single_block")
-
-    # Trait attributes
-    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
-    iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
-    doc = opt_prop_def(StringAttr)
-    library_call = opt_prop_def(StringAttr)
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
-
-    def __init__(
-        self,
-        inputs: Sequence[SSAValue],
-        outputs: Sequence[SSAValue],
-        body: Region,
-        indexing_maps: Sequence[AffineMapAttr] | ArrayAttr[AffineMapAttr],
-        iterator_types: Sequence[Attribute] | ArrayAttr[Attribute],
-        result_types: Sequence[Attribute] = (),
-        doc: StringAttr | None = None,
-        library_call: StringAttr | None = None,
-    ) -> None:
-        super().__init__(
-            operands=[inputs, outputs],
-            result_types=[result_types],
-            properties={
-                "indexing_maps": ArrayAttr(indexing_maps),
-                "iterator_types": ArrayAttr(iterator_types),
-                "doc": doc,
-                "library_call": library_call,
-            },
-            regions=[body],
-        )
-
-    def get_indexing_maps(self) -> list[AffineMap]:
-        return [attr.data for attr in self.indexing_maps]
+    @abstractmethod
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        """
+        Get the indexing maps corresponding to this operation's operands, in order.
+        """
 
     def get_num_loops(self) -> int:
-        return self.indexing_maps.data[0].data.num_dims
+        return self.get_indexing_maps()[0].num_dims
 
     def get_loops_to_shapes_map(self) -> AffineMap:
         """
@@ -200,6 +167,52 @@ class GenericOp(IRDLOperation):
         shapes_to_loops = self.get_shapes_to_loops_map()
         static_shapes = self.get_static_shapes()
         return shapes_to_loops.eval(static_shapes, [])
+
+
+@irdl_op_definition
+class GenericOp(LinalgOperation):
+    name = "linalg.generic"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(base(ShapedType))
+
+    res = var_result_def(AnyTensorType)
+
+    body = region_def("single_block")
+
+    # Trait attributes
+    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
+    iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
+    doc = opt_prop_def(StringAttr)
+    library_call = opt_prop_def(StringAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue],
+        body: Region,
+        indexing_maps: Sequence[AffineMapAttr] | ArrayAttr[AffineMapAttr],
+        iterator_types: Sequence[Attribute] | ArrayAttr[Attribute],
+        result_types: Sequence[Attribute] = (),
+        doc: StringAttr | None = None,
+        library_call: StringAttr | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[inputs, outputs],
+            result_types=[result_types],
+            properties={
+                "indexing_maps": ArrayAttr(indexing_maps),
+                "iterator_types": ArrayAttr(iterator_types),
+                "doc": doc,
+                "library_call": library_call,
+            },
+            regions=[body],
+        )
+
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(attr.data for attr in self.indexing_maps)
 
     def print(self, printer: Printer):
         printer.print_string(" {indexing_maps = ")
@@ -411,7 +424,7 @@ class IndexOp(IRDLOperation):
         super().__init__(properties={"dim": dim_attr}, result_types=[IndexType()])
 
 
-class NamedOpBase(IRDLOperation, ABC):
+class NamedOperation(IRDLOperation, ABC):
     """
     Abstract base class for named ops with hidden region.
     """
@@ -570,7 +583,7 @@ class NamedOpBase(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class AddOp(NamedOpBase):
+class AddOp(NamedOperation):
     """
     Adds two tensors elementwise.
 
@@ -609,7 +622,7 @@ class AddOp(NamedOpBase):
 
 
 @irdl_op_definition
-class SubOp(NamedOpBase):
+class SubOp(NamedOperation):
     """
     Subtracts two tensors elementwise.
 
@@ -648,7 +661,7 @@ class SubOp(NamedOpBase):
 
 
 @irdl_op_definition
-class SelectOp(NamedOpBase):
+class SelectOp(NamedOperation):
     """
     Chooses one value based on a binary condition supplied as its first operand.
 
@@ -686,7 +699,7 @@ class SelectOp(NamedOpBase):
 
 
 @irdl_op_definition
-class FillOp(NamedOpBase):
+class FillOp(NamedOperation):
     """
     Fills the output tensor with the given value.
 
@@ -738,7 +751,49 @@ class FillOp(NamedOpBase):
 
 
 @irdl_op_definition
-class MaxOp(NamedOpBase):
+class CopyOp(NamedOperation):
+    """
+    Copies the tensor elementwise.
+
+    Numeric casting is performed on the input operand, promoting it to the same data type as the accumulator/output.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgcopy-linalgcopyop).
+    """
+
+    name = "linalg.copy"
+
+    PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            assert isa(outputs, Sequence[SSAValue]), "cannot infer result_types"
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            YieldOp(args[0])
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
+
+
+@irdl_op_definition
+class MaxOp(NamedOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -779,7 +834,7 @@ class MaxOp(NamedOpBase):
 
 
 @irdl_op_definition
-class MinOp(NamedOpBase):
+class MinOp(NamedOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -820,7 +875,7 @@ class MinOp(NamedOpBase):
 
 
 @irdl_op_definition
-class MulOp(NamedOpBase):
+class MulOp(NamedOperation):
     """
     Multiplies two tensors elementwise.
 
@@ -883,7 +938,15 @@ class TransposeOp(IRDLOperation):
         permutation: Attribute,
         result: Attribute | None = None,
     ):
-        arg_types = NamedOpBase.body_arg_types((input, init))
+        if result is None:
+            if isa(init.type, TensorType):
+                results = (init.type,)
+            else:
+                results = ()
+        else:
+            results = (result,)
+
+        arg_types = NamedOperation.body_arg_types((input, init))
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -894,7 +957,7 @@ class TransposeOp(IRDLOperation):
                 "permutation": permutation,
             },
             operands=(input, init),
-            result_types=(result,),
+            result_types=(results,),
             regions=(hidden_region,),
         )
 
@@ -955,7 +1018,7 @@ class TransposeOp(IRDLOperation):
         parser.parse_punctuation("(")
         init = parser.parse_operand()
         parser.parse_punctuation(":")
-        result = parser.parse_type()
+        parser.parse_type()
         parser.parse_punctuation(")")
         parser.parse_keyword("permutation")
         parser.parse_punctuation("=")
@@ -966,13 +1029,12 @@ class TransposeOp(IRDLOperation):
             input,
             init,
             DenseArrayBase.from_list(i64, permutation),
-            result,
         )
         return transpose
 
 
 @irdl_op_definition
-class MatmulOp(NamedOpBase):
+class MatmulOp(NamedOperation):
     """
     Performs a matrix multiplication of two 2D inputs.
 
@@ -1036,7 +1098,7 @@ class MatmulOp(NamedOpBase):
 
 
 @irdl_op_definition
-class QuantizedMatmulOp(NamedOpBase):
+class QuantizedMatmulOp(NamedOperation):
     """
     Performs a matrix multiplication of two 2D inputs.
 
@@ -1098,7 +1160,7 @@ class QuantizedMatmulOp(NamedOpBase):
         )
 
 
-class PoolingOpsBase(NamedOpBase, ABC):
+class PoolingOperation(NamedOperation, ABC):
     """Base class for linalg pooling operations."""
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
@@ -1108,7 +1170,7 @@ class PoolingOpsBase(NamedOpBase, ABC):
 
 
 @irdl_op_definition
-class PoolingNchwMaxOp(PoolingOpsBase):
+class PoolingNchwMaxOp(PoolingOperation):
     """
     Performs max pooling
 
@@ -1144,7 +1206,7 @@ class PoolingNchwMaxOp(PoolingOpsBase):
         )
 
 
-class ConvOpsBase(NamedOpBase, ABC):
+class ConvOperation(NamedOperation, ABC):
     """Base class for linalg convolution operations."""
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
@@ -1189,7 +1251,7 @@ class ConvOpsBase(NamedOpBase, ABC):
 
 
 @irdl_op_definition
-class Conv2DNchwFchwOp(ConvOpsBase):
+class Conv2DNchwFchwOp(ConvOperation):
     """
     Performs 2-D convolution
 
@@ -1200,27 +1262,27 @@ class Conv2DNchwFchwOp(ConvOpsBase):
 
 
 @irdl_op_definition
-class Conv2DNgchwFgchwOp(ConvOpsBase):
+class Conv2DNgchwFgchwOp(ConvOperation):
     name = "linalg.conv_2d_ngchw_fgchw"
 
 
 @irdl_op_definition
-class Conv2DNgchwGfchwOp(ConvOpsBase):
+class Conv2DNgchwGfchwOp(ConvOperation):
     name = "linalg.conv_2d_ngchw_gfchw"
 
 
 @irdl_op_definition
-class Conv2DNhwc_FhwcOp(ConvOpsBase):
+class Conv2DNhwc_FhwcOp(ConvOperation):
     name = "linalg.conv_2d_nhwc_fhwc"
 
 
 @irdl_op_definition
-class Conv2DNhwc_HwcfOp(ConvOpsBase):
+class Conv2DNhwc_HwcfOp(ConvOperation):
     name = "linalg.conv_2d_nhwc_hwcf"
 
 
 @irdl_op_definition
-class Conv2DNhwgcGfhwcOp(ConvOpsBase):
+class Conv2DNhwgcGfhwcOp(ConvOperation):
     name = "linalg.conv_2d_nhwgc_gfhwc"
 
 
@@ -1249,7 +1311,15 @@ class BroadcastOp(IRDLOperation):
         dimensions: Attribute,
         result: Attribute | None = None,
     ):
-        arg_types = NamedOpBase.body_arg_types((input, init))
+        if result is None:
+            if isa(init.type, TensorType):
+                results = (init.type,)
+            else:
+                results = ()
+        else:
+            results = (result,)
+
+        arg_types = NamedOperation.body_arg_types((input, init))
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -1260,7 +1330,7 @@ class BroadcastOp(IRDLOperation):
                 "dimensions": dimensions,
             },
             operands=(input, init),
-            result_types=(result,),
+            result_types=(results,),
             regions=(hidden_region,),
         )
 
@@ -1326,7 +1396,7 @@ class BroadcastOp(IRDLOperation):
         parser.parse_punctuation("(")
         init = parser.parse_operand()
         parser.parse_punctuation(":")
-        result = parser.parse_type()
+        parser.parse_type()
         parser.parse_punctuation(")")
         parser.parse_keyword("dimensions")
         parser.parse_punctuation("=")
@@ -1337,9 +1407,123 @@ class BroadcastOp(IRDLOperation):
             input,
             init,
             DenseArrayBase.from_list(i64, dimensions),
-            result,
         )
         return broadcast
+
+
+@irdl_op_definition
+class ReduceOp(IRDLOperation):
+    name = "linalg.reduce"
+
+    input = operand_def(base(MemRefType) | base(AnyTensorType))
+    init = operand_def(base(MemRefType) | base(AnyTensorType))
+    result = var_result_def(AnyTensorType)
+
+    region: Region = region_def("single_block")
+
+    dimensions = prop_def(DenseArrayBase.constr(i64))
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    def __init__(
+        self,
+        input: SSAValue,
+        init: SSAValue,
+        dimensions: Attribute,
+        region: Region,
+    ):
+        if isa(init.type, TensorType):
+            result = (init.type,)
+        else:
+            result = ()
+
+        super().__init__(
+            properties={
+                "dimensions": dimensions,
+            },
+            operands=(input, init),
+            regions=[region],
+            result_types=[result],
+        )
+
+    def verify_(self) -> None:
+        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
+        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+
+        if input_type.get_element_type() != init_type.get_element_type():
+            raise VerifyException(
+                f"Reduction element types must be equal, but input is {input_type.get_element_type()} "
+                f"and init is {init_type.get_element_type()}"
+            )
+
+        dimensions_shape = self.dimensions.get_values()
+        input_shape = input_type.get_shape()
+        init_shape = init_type.get_shape()
+
+        if len(init_shape) != len(input_shape) - len(dimensions_shape):
+            raise VerifyException(
+                "Output rank must equal input rank minus number of dimensions being reduced over"
+            )
+
+        init_index = 0
+        for input_index in range(len(input_shape)):
+            if input_index not in dimensions_shape:
+                if input_shape[input_index] != init_shape[init_index]:
+                    raise VerifyException(
+                        f"Non-reduced input dimension {input_index} must equal output dimension {init_index}"
+                    )
+                init_index += 1
+
+    def print(self, printer: Printer):
+        printer.print_string(" ins")
+        with printer.in_parens():
+            printer.print_ssa_value(self.input)
+            printer.print_string(":")
+            printer.print_attribute(self.input.type)
+        printer.print_string(" outs")
+        with printer.in_parens():
+            printer.print_ssa_value(self.init)
+            printer.print_string(":")
+            printer.print_attribute(self.init.type)
+        printer.print_string(" dimensions = ")
+        with printer.in_square_brackets():
+            printer.print_list(self.dimensions.get_values(), printer.print_int)
+        printer.print_string("\n")
+        with printer.in_parens():
+            printer.print_list(self.region.blocks[0].args, printer.print_block_argument)
+        printer.print_string(" ")
+        printer.print_region(self.region, print_entry_block_args=False)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        parser.parse_characters("ins")
+        parser.parse_punctuation("(")
+        input = parser.parse_operand()
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        parser.parse_punctuation(")")
+        parser.parse_characters("outs")
+        parser.parse_punctuation("(")
+        init = parser.parse_operand()
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        parser.parse_punctuation(")")
+        parser.parse_keyword("dimensions")
+        parser.parse_punctuation("=")
+        dimensions = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        entry_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_argument
+        )
+        region = parser.parse_region(entry_args)
+        reduction = cls(
+            input,
+            init,
+            DenseArrayBase.from_list(i64, dimensions),
+            region,
+        )
+        return reduction
 
 
 Linalg = Dialect(
@@ -1352,6 +1536,7 @@ Linalg = Dialect(
         SubOp,
         SelectOp,
         FillOp,
+        CopyOp,
         MaxOp,
         MinOp,
         MulOp,
@@ -1366,6 +1551,7 @@ Linalg = Dialect(
         Conv2DNgchwFgchwOp,
         Conv2DNhwc_FhwcOp,
         BroadcastOp,
+        ReduceOp,
     ],
     [
         IteratorTypeAttr,

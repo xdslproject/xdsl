@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     LocationAttr,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
 )
 from xdsl.ir import (
@@ -34,7 +35,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    SingleBlockRegion,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -812,12 +812,12 @@ class HWModuleOp(IRDLOperation):
 
     name = "hw.module"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     module_type = attr_def(ModuleType)
     sym_visibility = opt_attr_def(StringAttr)
     parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
-    body: SingleBlockRegion = region_def("single_block")
+    body = region_def("single_block")
 
     traits = lazy_traits_def(
         lambda: (
@@ -929,7 +929,7 @@ class HWModuleExternOp(IRDLOperation):
 
     name = "hw.module.extern"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     module_type = attr_def(ModuleType)
     sym_visibility = opt_attr_def(StringAttr)
     parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])

@@ -1,7 +1,7 @@
 # RUN: python -m toy %s --emit=toy | filecheck %s
 # RUN: python -m toy %s --emit=toy-opt | filecheck %s
 # RUN: python -m toy %s --emit=toy-inline | filecheck %s
-# RUN: python -m toy %s --emit=toy-infer-shapes | filecheck %s
+# RUN: python -m toy %s --emit=shape-inference | filecheck %s
 # RUN: python -m toy %s --emit=affine | filecheck %s
 # RUN: python -m toy %s --emit=scf | filecheck %s
 # RUN: python -m toy %s --emit=riscv | filecheck %s

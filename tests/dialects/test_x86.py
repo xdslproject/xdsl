@@ -1,7 +1,9 @@
 import pytest
 
 from xdsl.dialects import x86
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.builtin import IntegerAttr, i32
+from xdsl.ir import Block
+from xdsl.transforms.canonicalization_patterns.x86 import get_constant_value
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -38,14 +40,16 @@ def test_unallocated_register():
         (x86.register.RBP, "rbp"),
         (x86.register.RSI, "rsi"),
         (x86.register.RDI, "rdi"),
-        (x86.register.EAX, "eax"),
-        (x86.register.ECX, "ecx"),
-        (x86.register.EDX, "edx"),
-        (x86.register.EBX, "ebx"),
-        (x86.register.ESP, "esp"),
-        (x86.register.EBP, "ebp"),
-        (x86.register.ESI, "esi"),
-        (x86.register.EDI, "edi"),
+        # Currently don't support 32-bit registers
+        # https://github.com/xdslproject/xdsl/issues/4737
+        # (x86.register.EAX, "eax"),
+        # (x86.register.ECX, "ecx"),
+        # (x86.register.EDX, "edx"),
+        # (x86.register.EBX, "ebx"),
+        # (x86.register.ESP, "esp"),
+        # (x86.register.EBP, "ebp"),
+        # (x86.register.ESI, "esi"),
+        # (x86.register.EDI, "edi"),
         (x86.register.R8, "r8"),
         (x86.register.R9, "r9"),
         (x86.register.R10, "r10"),
@@ -268,3 +272,18 @@ def test_rm_vops(
     op = OpClass(memory=input, destination=dest, memory_offset=IntegerAttr(0, 64))
     assert op.memory.type == src
     assert op.destination.type == dest
+
+
+def test_get_constant_value():
+    U = x86.register.UNALLOCATED_GENERAL
+    unknown_value = create_ssa_value(U)
+    assert get_constant_value(unknown_value) is None
+    known_value = x86.DI_MovOp(42, destination=U).destination
+    assert get_constant_value(known_value) == IntegerAttr(42, i32)
+    moved_once = x86.DS_MovOp(known_value, destination=U).destination
+    assert get_constant_value(moved_once) == IntegerAttr(42, i32)
+    moved_twice = x86.DS_MovOp(known_value, destination=U).destination
+    assert get_constant_value(moved_twice) == IntegerAttr(42, i32)
+
+    block = Block(arg_types=(U,))
+    assert get_constant_value(block.args[0]) is None

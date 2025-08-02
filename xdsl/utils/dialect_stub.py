@@ -136,7 +136,7 @@ class DialectStubGenerator:
         # Generate the parameters' stubs, if any
         attr_def = attr.get_irdl_definition()
         for name, param in attr_def.parameters:
-            yield f'    {name} : "{self._generate_constraint_type(param)}"'
+            yield f'    {name} : "{self._generate_constraint_type(param.constr)}"'
         # Otherwise, generate a pass for Python's indentation
         if not attr_def.parameters:
             yield "    pass"

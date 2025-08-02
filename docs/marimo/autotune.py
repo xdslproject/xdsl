@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.8"
+__generated_with = "0.14.16"
 app = marimo.App(width="full")
 
 
@@ -149,22 +149,22 @@ def _(MemRefType, a_shape, b_shape, build_matmul, c_shape, mo, xmo):
 
 @app.cell(hide_code=True)
 def _():
-    from xdsl.context import MLContext
+    from xdsl.context import Context
     from xdsl.dialects import get_all_dialects
 
-    linalg_ctx = MLContext()
+    linalg_ctx = Context()
 
     for dialect_name, dialect_factory in get_all_dialects().items():
         linalg_ctx.register_dialect(dialect_name, dialect_factory)
-    return MLContext, linalg_ctx
+    return Context, linalg_ctx
 
 
 @app.cell(hide_code=True)
 def _(linalg_ctx, linalg_module, xmo):
-    from xdsl.passes import PipelinePass
+    from xdsl.passes import PassPipeline
     from xdsl.transforms import arith_add_fastmath, convert_linalg_to_memref_stream
 
-    memref_stream_passes = PipelinePass(
+    memref_stream_passes = PassPipeline(
         [
             convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),
@@ -179,7 +179,7 @@ def _(linalg_ctx, linalg_module, xmo):
 
     memref_stream_html
     return (
-        PipelinePass,
+        PassPipeline,
         memref_stream_ctx,
         memref_stream_module,
         memref_stream_passes,
@@ -187,14 +187,14 @@ def _(linalg_ctx, linalg_module, xmo):
 
 
 @app.cell
-def _(PipelinePass, memref_stream_ctx, memref_stream_module, mo, xmo):
+def _(PassPipeline, memref_stream_ctx, memref_stream_module, mo, xmo):
     from xdsl.transforms import convert_memref_stream_to_loops
     from xdsl.transforms.test_lower_linalg_to_snitch import (
         LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
         LOWER_SNITCH_STREAM_TO_ASM_PASSES,
     )
 
-    riscv_passes = PipelinePass(
+    riscv_passes = PassPipeline(
         [
             convert_memref_stream_to_loops.ConvertMemRefStreamToLoopsPass(),
             *LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
@@ -289,7 +289,7 @@ def _(ModuleOp, abc):
 
 
 @app.cell
-def _(CostModel, MLContext, ModuleOp):
+def _(Context, CostModel, ModuleOp):
     from xdsl.passes import ModulePass
 
     class LensCostModel(CostModel):
@@ -300,7 +300,7 @@ def _(CostModel, MLContext, ModuleOp):
             self.inner = inner
             self.pass_pipeline = pass_pipeline
 
-        def estimate_cost(self, module: ModuleOp, ctx: MLContext) -> int | None:
+        def estimate_cost(self, module: ModuleOp, ctx: Context) -> int | None:
             module_copy = module.clone()
             ctx_copy = ctx.clone()
 
@@ -312,7 +312,7 @@ def _(CostModel, MLContext, ModuleOp):
 
 
 @app.cell
-def _(CostModel, Interpreter, MLContext, ModuleOp, SnitchCycleEstimator):
+def _(Context, CostModel, Interpreter, ModuleOp, SnitchCycleEstimator):
     from xdsl.interpreters import register_implementations
     from xdsl.traits import CallableOpInterface
     from xdsl.ir import Attribute
@@ -325,7 +325,7 @@ def _(CostModel, Interpreter, MLContext, ModuleOp, SnitchCycleEstimator):
             self.func_name = func_name
             self.params = params
 
-        def estimate_cost(self, module: ModuleOp, ctx: MLContext) -> int | None:
+        def estimate_cost(self, module: ModuleOp, ctx: Context) -> int | None:
             snitch_cycle_estimator = SnitchCycleEstimator()
             interpreter = Interpreter(module, listeners=(snitch_cycle_estimator,))
 
@@ -488,8 +488,8 @@ def _(mo, msg_factors):
 
 
 @app.cell(hide_code=True)
-def _(MLContext, ModuleOp, ModulePass):
-    def apply(p: ModulePass, ctx: MLContext, op: ModuleOp) -> ModuleOp:
+def _(Context, ModuleOp, ModulePass):
+    def apply(p: ModulePass, ctx: Context, op: ModuleOp) -> ModuleOp:
         op = op.clone()
         ctx = ctx.clone()
         p.apply(ctx, op)
@@ -588,8 +588,8 @@ def _(Attribute, DenseIntOrFPElementsAttr, Random, f64):
 
 @app.cell
 def _(
+    Context,
     LensCostModel,
-    MLContext,
     MemrefStreamUnrollAndJamPass,
     ModuleOp,
     ModulePass,
@@ -606,7 +606,7 @@ def _(
 
         name = "automatic-unroll-and-jam"
 
-        def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        def apply(self, ctx: Context, op: ModuleOp) -> None:
             msg_ops = tuple(child for child in op.walk() if isinstance(child, memref_stream.GenericOp))
 
             if not msg_ops:

@@ -24,15 +24,15 @@ class Diagnostic:
         f = StringIO()
         p = Printer(stream=f, diagnostic=self, print_generic_format=True)
         toplevel = ir.get_toplevel_object()
-        if isinstance(toplevel, Operation):
-            p.print_op(toplevel)
-            p.print_string("\n")
-        elif isinstance(toplevel, Block):
-            p.print_block(toplevel)
-        elif isinstance(toplevel, Region):
-            p.print_region(toplevel)
-        else:
-            assert "xDSL internal error: get_toplevel_object returned unknown construct"
+        match toplevel:
+            case Operation():
+                p.print_op(toplevel)
+                p.print_string("\n")
+            case Block():
+                p.print_block(toplevel)
+                p.print_string("\n")
+            case Region():
+                p.print_region(toplevel)
 
         # __notes__ only in 3.11 and above
         if hasattr(underlying_error, "add_note"):

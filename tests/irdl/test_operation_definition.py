@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.test import TestType
-from xdsl.ir import Attribute, Block, Region
+from xdsl.ir import Block, Region
 from xdsl.irdl import (
     AnyAttr,
     AnyInt,
@@ -78,8 +78,8 @@ class OpDefTestOp(IRDLOperation):
 
     operand = operand_def()
     result = result_def()
-    prop = prop_def(Attribute)
-    attr = attr_def(Attribute)
+    prop = prop_def()
+    attr = attr_def()
     region = region_def()
 
     # Check that we can define methods in operation definitions
@@ -168,16 +168,17 @@ def test_attr_verify():
         op.verify()
 
 
-# TODO: remove this test once the Annotated API is deprecated
-@irdl_op_definition
-class ConstraintVarOp(IRDLOperation):
-    name = "test.constraint_var_op"
+with pytest.deprecated_call():
+    # TODO: remove this test once the Annotated API is deprecated
+    @irdl_op_definition
+    class ConstraintVarOp(IRDLOperation):
+        name = "test.constraint_var_op"
 
-    T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
+        T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
 
-    operand = operand_def(T)
-    result = result_def(T)
-    attribute = attr_def(T)
+        operand = operand_def(T)
+        result = result_def(T)
+        attribute = attr_def(T)
 
 
 def test_constraint_var():
@@ -421,8 +422,8 @@ class SameLengthOp(IRDLOperation):
     name = "test.same_length"
 
     LENGTH: ClassVar = IntVarConstraint("length", AnyInt())
-    operand = var_operand_def(RangeOf(AnyAttr(), length=LENGTH))
-    result = var_result_def(RangeOf(AnyAttr(), length=LENGTH))
+    operand = var_operand_def(RangeOf(AnyAttr()).of_length(LENGTH))
+    result = var_result_def(RangeOf(AnyAttr()).of_length(LENGTH))
 
 
 def test_same_length_op():
@@ -451,7 +452,7 @@ def test_same_length_op():
 class WithoutPropOp(IRDLOperation):
     name = "test.op_without_prop"
 
-    prop1 = prop_def(Attribute)
+    prop1 = prop_def()
 
 
 # Check that an operation cannot accept properties that are not defined
@@ -859,7 +860,7 @@ def test_generic_op(cls: type[StringFooOp | StringFoo2Op]):
 
 
 class OtherParentOp(IRDLOperation):
-    other_attr = attr_def(Attribute)
+    other_attr = attr_def()
 
 
 @irdl_op_definition

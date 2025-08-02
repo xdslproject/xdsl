@@ -57,7 +57,7 @@ class AddHaloExchangeOps(RewritePattern):
         swap_op = dmp.SwapOp.get(op.res, self.strategy)
         assert swap_op.swapped_values
         rewriter.insert_op_after_matched_op(swap_op)
-        for use in op.res.uses.copy():
+        for use in tuple(op.res.uses):
             if use.operation is swap_op:
                 continue
             use.operation.operands[use.index] = swap_op.swapped_values
@@ -73,7 +73,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         exchanges = list(op.swaps)
 
-        input_type = cast(ContainerType[Attribute], op.input_stencil.type)
+        input_type = cast(ContainerType, op.input_stencil.type)
 
         rewriter.replace_matched_op(
             list(

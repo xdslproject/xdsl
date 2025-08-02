@@ -10,7 +10,7 @@ from typing import Union, final, get_args, get_origin
 
 from typing_extensions import TypeVar
 
-from xdsl.builder import Builder, BuilderListener
+from xdsl.builder import Builder, BuilderListener, InsertOpInvT
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -23,7 +23,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.irdl import GenericAttrConstraint, base
+from xdsl.irdl import AttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.utils.hints import isa
 
@@ -100,25 +100,21 @@ class PatternRewriter(Builder, PatternRewriterListener):
         Builder.__init__(self, InsertPoint.before(current_operation))
 
     def insert_op(
-        self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
-    ):
+        self,
+        op: InsertOpInvT,
+        insertion_point: InsertPoint | None = None,
+    ) -> InsertOpInvT:
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
-        op = (op,) if isinstance(op, Operation) else op
-        if not op:
-            return
-        Rewriter.insert_op(op, insertion_point)
+        return super().insert_op(op, insertion_point)
 
-        for op_ in op:
-            self.handle_operation_insertion(op_)
-
-    def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
+    def insert_op_before_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations before the matched operation."""
-        self.insert_op(op, InsertPoint.before(self.current_operation))
+        return self.insert_op(op, InsertPoint.before(self.current_operation))
 
-    def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
+    def insert_op_after_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations after the matched operation."""
-        self.insert_op(op, InsertPoint.after(self.current_operation))
+        return self.insert_op(op, InsertPoint.after(self.current_operation))
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
@@ -493,7 +489,7 @@ _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
 def attr_constr_rewrite_pattern(
-    constr: GenericAttrConstraint[_AttributeT],
+    constr: AttrConstraint[_AttributeT],
 ) -> Callable[
     [Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None]],
     Callable[[_TypeConversionPatternT, Attribute], Attribute | None],
@@ -652,7 +648,7 @@ class PatternRewriteWalker:
         """
         for operand in operands:
             if (
-                len(operand.uses) == 1
+                operand.has_one_use()
                 and not isinstance(operand, ErasedSSAValue)
                 and isinstance((op := operand.owner), Operation)
             ):

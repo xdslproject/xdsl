@@ -6,7 +6,7 @@ from typing import Any
 from ordered_set import OrderedSet
 
 from xdsl.dialects import eqsat, pdl_interp
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
 from xdsl.dialects.pdl import ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -17,7 +17,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
+from xdsl.ir import Block, Operation, OpResult, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
@@ -96,8 +96,17 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     )
     """Union-find structure tracking which e-classes are equivalent and should be merged."""
 
+    pending_rewrites: list[tuple[SymbolRefAttr, Operation, tuple[Any, ...]]] = field(
+        default_factory=lambda: []
+    )
+    """List of pending rewrites to be executed. Each entry is a tuple of (rewriter, root, args)."""
+
     merge_list: list[MergeTodo] = field(default_factory=list[MergeTodo])
     """List of e-classes that should be merged by `apply_matches` after the pattern matching is done."""
+
+    is_matching: bool = True
+    """Keeps track whether the interpreter is currently in a matching context (as opposed to in a rewriting context).
+    If it is, finalize behaves differently by backtracking."""
 
     def modification_handler(self, op: Operation):
         """
@@ -139,10 +148,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         if result is None:
             return (None,)
 
-        if len(result.uses) == 1:
-            if isinstance(
-                eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
-            ):
+        if result.has_one_use():
+            if isinstance(eclass_op := result.get_user_of_unique_use(), eqsat.EClassOp):
                 result = eclass_op.result
         elif result.uses:  # multiple uses
             for use in result.uses:
@@ -170,9 +177,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         results: list[OpResult] = []
         for result in src_op.results:
-            if len(result.uses) == 1:
+            if result.has_one_use():
                 if isinstance(
-                    eclass_op := next(iter(result.uses)).operation, eqsat.EClassOp
+                    eclass_op := result.get_user_of_unique_use(), eqsat.EClassOp
                 ):
                     assert len(eclass_op.results) == 1
                     result = eclass_op.results[0]
@@ -324,16 +331,32 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (new_op,)
 
+    @impl_terminator(pdl_interp.RecordMatchOp)
+    def run_recordmatch(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.RecordMatchOp,
+        args: tuple[Any, ...],
+    ):
+        self.pending_rewrites.append(
+            (op.rewriter, self.rewriter.current_operation, args)
+        )
+        return Successor(op.dest, ()), ()
+
     @impl_terminator(pdl_interp.FinalizeOp)
     def run_finalize(
         self, interpreter: Interpreter, _: pdl_interp.FinalizeOp, args: tuple[Any, ...]
     ):
+        if not self.is_matching:
+            return ReturnedValues(()), ()
         for backtrack_point in reversed(self.backtrack_stack):
             if backtrack_point.index >= backtrack_point.max_index:
                 self.backtrack_stack.pop()
             else:
                 backtrack_point.index += 1
-                interpreter._ctx = backtrack_point.scope  # pyright: ignore[reportPrivateUsage]
+                interpreter._ctx = (  # pyright: ignore[reportPrivateUsage]
+                    backtrack_point.scope
+                )
                 self.visited = False
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
@@ -346,11 +369,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         self.merge_list.clear()
         for to_keep, to_replace in todo:
             operands = to_keep.operands
-            startlen = len(operands)
-            for i, val in enumerate(to_replace.operands):
-                val.add_use(Use(to_keep, startlen + i))
-                new_operands = (*operands, *to_replace.operands)
-                to_keep.operands = new_operands
+            new_operands = (*operands, *to_replace.operands)
+            to_keep.operands = new_operands
 
             for use in to_replace.result.uses:
                 if use.operation in self.known_ops:
@@ -359,3 +379,13 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             self.rewriter.replace_op(
                 to_replace, new_ops=[], new_results=to_keep.results
             )
+
+    def execute_pending_rewrites(self, interpreter: Interpreter):
+        """Execute all pending rewrites that were aggregated during matching."""
+        for rewriter, root, args in self.pending_rewrites:
+            self.rewriter.current_operation = root
+
+            self.is_matching = False
+            interpreter.call_op(rewriter, args)
+            self.is_matching = True
+        self.pending_rewrites.clear()

@@ -71,7 +71,9 @@ uv run benchmarks/lexer.py Lexer.empty_program dis
         importlib.reload(xdsl.dialects.newdialect)
     ```
 
-2. Associate the method with a name in the main code at the bottom of the file
+2. If the test operates on an xDSL operation or other workload which needs to be set up, this is best added in `benchmarks/workloads.py` as a new class method on `WorkloadBuilder`.
+
+3. Associate the method with a name in the main code at the bottom of the file
    
    For example, to add this new method, you might write
 

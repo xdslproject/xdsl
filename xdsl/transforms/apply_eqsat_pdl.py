@@ -55,12 +55,15 @@ class ApplyEqsatPDLPass(ModulePass):
         listener.operation_modification_handler.append(
             implementations.modification_handler
         )
-        walker = PatternRewriteWalker(rewrite_pattern)
+        walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
         walker.listener = listener
 
         for _i in range(self.max_iterations):
             # Register matches by walking the module
             walker.rewrite_module(op)
+
+            # Execute all pending rewrites that were aggregated during matching
+            implementations.execute_pending_rewrites(interpreter)
 
             if not implementations.merge_list:
                 break

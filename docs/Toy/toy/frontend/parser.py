@@ -5,7 +5,6 @@ from xdsl.parser import GenericParser, ParserState
 from xdsl.utils.lexer import Input
 
 from .lexer import ToyLexer, ToyToken, ToyTokenKind
-from .location import loc
 from .toy_ast import (
     BinaryExprAST,
     CallExprAST,
@@ -27,11 +26,7 @@ class ToyParser(GenericParser[ToyTokenKind]):
     def __init__(self, file: Path, program: str):
         super().__init__(ParserState(ToyLexer(Input(program, str(file)))))
 
-    def getToken(self):
-        """Returns current token in parser"""
-        return self._current_token
-
-    def getTokenPrecedence(self) -> int:
+    def get_token_precedence(self) -> int:
         """Returns precedence if the current token is a binary operation, -1 otherwise"""
         PRECEDENCE = {
             "-": 20,
@@ -42,178 +37,127 @@ class ToyParser(GenericParser[ToyTokenKind]):
 
         return PRECEDENCE.get(op, -1)
 
-    def peek(self, pattern: str | ToyTokenKind) -> ToyToken | None:
+    def _peek(self, expected_kind: ToyTokenKind) -> ToyToken | None:
         """
-        Returns token matching pattern or None
+        Returns token matching pattern or None.
         """
         token = self._current_token
+        if token.kind == expected_kind:
+            return token
 
-        if isinstance(pattern, str):
-            if token.text == pattern:
-                return token
-        else:
-            if token.kind == pattern:
-                return token
-
-    def check(self, pattern: str | ToyTokenKind) -> bool:
-        """
-        Verifies that the current token fits the pattern,
-        returns False otherwise
-        """
-        return self.peek(pattern) is not None
-
-    def pop(self) -> ToyToken:
-        return self._consume_token()
-
-    def pop_pattern(self, pattern: str) -> ToyToken:
-        """
-        Verifies that the current token fits the pattern,
-        raises ParseError otherwise
-        """
-        token = self._consume_token()
-        if token.text != pattern:
-            self.raise_error(f"Expected '{pattern}'", token.span.start, token.span.end)
-        return token
-
-    def pop_token(self, tokenType: ToyTokenKind) -> ToyToken:
+    def _pop(self, expected_kind: ToyTokenKind) -> ToyToken:
         """
         Verifies that the current token is of expected type,
-        raises ParseError otherwise
+        raises ParseError otherwise.
         """
-        return self._consume_token(tokenType)
+        return self._parse_token(expected_kind, f"Expected {expected_kind}")
 
-    def parseModule(self):
+    def parse_module(self):
         """
         Parse a full Module. A module is a list of function definitions.
         """
         functions: list[FunctionAST] = []
 
-        while not self.check(ToyTokenKind.EOF):
-            functions.append(self.parseDefinition())
-
-        # If we didn't reach EOF, there was an error during parsing
-        self.pop_token(ToyTokenKind.EOF)
+        while self._parse_optional_token(ToyTokenKind.EOF) is None:
+            functions.append(self.parse_definition())
 
         return ModuleAST(tuple(functions))
 
-    def parseReturn(self):
+    def parse_return(self):
         """
         Parse a return statement.
         return :== return ; | return expr ;
         """
-        returnToken = self.pop_pattern("return")
+        return_token = self._pop(ToyTokenKind.RETURN)
         expr = None
 
         # Return takes an optional argument
-        if not self.check(";"):
-            expr = self.parseExpression()
+        if self._parse_optional_token(ToyTokenKind.SEMICOLON) is None:
+            expr = self.parse_expression()
 
-        return ReturnExprAST(loc(returnToken), expr)
+        return ReturnExprAST(return_token.span.get_location(), expr)
 
-    def parseNumberExpr(self):
+    def parse_number_expr(self):
         """
         Parse a literal number.
         numberexpr ::= number
         """
-        numberToken = self.pop_token(ToyTokenKind.NUMBER)
-        return NumberExprAST(loc(numberToken), float(numberToken.span.text))
+        number_token = self._pop(ToyTokenKind.NUMBER)
+        return NumberExprAST(
+            number_token.span.get_location(), float(number_token.span.text)
+        )
 
-    def parseTensorLiteralExpr(self) -> LiteralExprAST | NumberExprAST:
+    def parse_tensor_literal_expr(self) -> LiteralExprAST | NumberExprAST:
         """
         Parse a literal array expression.
         tensorLiteral ::= [ literalList ] | number
         literalList ::= tensorLiteral | tensorLiteral, literalList
         """
-        if self.check(ToyTokenKind.NUMBER):
-            return self.parseNumberExpr()
+        if self._peek(ToyTokenKind.NUMBER):
+            return self.parse_number_expr()
 
-        openBracket = self.pop_pattern("[")
+        open_bracket = self._current_token
 
         # Hold the list of values at this nesting level.
-        values: list[LiteralExprAST | NumberExprAST] = []
+        values = self.parse_comma_separated_list(
+            self.Delimiter.SQUARE, self.parse_tensor_literal_expr
+        )
+
         # Hold the dimensions for all the nesting inside this level.
-        dims: list[int] = []
-
-        while True:
-            # We can have either another nested array or a number literal.
-            if self.check("["):
-                values.append(self.parseTensorLiteralExpr())
-            else:
-                if not self.check(ToyTokenKind.NUMBER):
-                    self.raise_error("Expected <num> or [ in literal expression")
-                values.append(self.parseNumberExpr())
-
-            # End of this list on ']'
-            if self.check("]"):
-                break
-
-            # Elements are separated by a comma.
-            self.pop_pattern(",")
-
-        self.pop_pattern("]")
-
         # Fill in the dimensions now. First the current nesting level:
-        dims.append(len(values))
+        dims = [len(values)]
 
         # If there is any nested array, process all of them and ensure
         # that dimensions are uniform.
         if any(type(val) is LiteralExprAST for val in values):
-            allTensors = all(type(val) is LiteralExprAST for val in values)
-            if not allTensors:
+            all_tensors = all(type(val) is LiteralExprAST for val in values)
+            if not all_tensors:
                 self.raise_error(
                     "Expected uniform well-nested dimensions inside literal expression"
                 )
 
             tensor_values = cast(list[LiteralExprAST], values)
             first = tensor_values[0].dims
-            allEqual = all(val.dims == first for val in tensor_values)
-            if not allEqual:
+            all_equal = all(val.dims == first for val in tensor_values)
+            if not all_equal:
                 self.raise_error(
                     "Expected uniform well-nested dimensions inside literal expression"
                 )
 
             dims += first
 
-        return LiteralExprAST(loc(openBracket), values, dims)
+        return LiteralExprAST(open_bracket.span.get_location(), values, dims)
 
-    def parseParenExpr(self) -> ExprAST:
+    def parse_paren_expr(self) -> ExprAST:
         "parenexpr ::= '(' expression ')'"
-        self.pop_pattern("(")
-        v = self.parseExpression()
-        self.pop_pattern(")")
-        return v
+        with self.in_parens():
+            return self.parse_expression()
 
-    def parseIdentifierExpr(self):
+    def parse_identifier_expr(self):
         """
         identifierexpr
         ::= identifier
         ::= identifier '(' expression ')'
         """
-        name = self.pop_token(ToyTokenKind.IDENTIFIER)
-        if not self.check("("):
+        name = self._pop(ToyTokenKind.IDENTIFIER)
+        args = self.parse_optional_comma_separated_list(
+            self.Delimiter.PAREN, self.parse_expression
+        )
+        if args is None:
             # Simple variable ref.
-            return VariableExprAST(loc(name), name.text)
+            return VariableExprAST(name.span.get_location(), name.text)
 
         # This is a function call.
-        self.pop_pattern("(")
-        args: list[ExprAST] = []
-        while True:
-            args.append(self.parseExpression())
-            if self.check(")"):
-                break
-            self.pop_pattern(",")
-        self.pop_pattern(")")
-
         if name.text == "print":
             # It can be a builtin call to print
             if len(args) != 1:
                 self.raise_error("Expected <single arg> as argument to print()")
 
-            return PrintExprAST(loc(name), args[0])
+            return PrintExprAST(name.span.get_location(), args[0])
 
-        return CallExprAST(loc(name), name.text, args)
+        return CallExprAST(name.span.get_location(), name.text, args)
 
-    def parsePrimary(self) -> ExprAST | None:
+    def parse_primary(self) -> ExprAST | None:
         """
         primary
         ::= identifierexpr
@@ -223,21 +167,21 @@ class ToyParser(GenericParser[ToyTokenKind]):
         """
         current = self._current_token
         if current.kind == ToyTokenKind.IDENTIFIER:
-            return self.parseIdentifierExpr()
+            return self.parse_identifier_expr()
         elif current.kind == ToyTokenKind.NUMBER:
-            return self.parseNumberExpr()
-        elif current.text == "(":
-            return self.parseParenExpr()
-        elif current.text == "[":
-            return self.parseTensorLiteralExpr()
-        elif current.text == ";":
+            return self.parse_number_expr()
+        elif current.kind == ToyTokenKind.PARENTHESE_OPEN:
+            return self.parse_paren_expr()
+        elif current.kind == ToyTokenKind.SBRACKET_OPEN:
+            return self.parse_tensor_literal_expr()
+        elif current.kind == ToyTokenKind.SEMICOLON:
             return None
-        elif current.text == "}":
+        elif current.kind == ToyTokenKind.BRACKET_CLOSE:
             return None
         else:
             self.raise_error("Expected expression or one of `;`, `}`")
 
-    def parsePrimaryNotNone(self) -> ExprAST:
+    def parse_primary_not_none(self) -> ExprAST:
         """
         primary
         ::= identifierexpr
@@ -247,17 +191,17 @@ class ToyParser(GenericParser[ToyTokenKind]):
         """
         current = self._current_token
         if current.kind == ToyTokenKind.IDENTIFIER:
-            return self.parseIdentifierExpr()
+            return self.parse_identifier_expr()
         elif current.kind == ToyTokenKind.NUMBER:
-            return self.parseNumberExpr()
-        elif current.text == "(":
-            return self.parseParenExpr()
-        elif current.text == "[":
-            return self.parseTensorLiteralExpr()
+            return self.parse_number_expr()
+        elif current.kind == ToyTokenKind.PARENTHESE_OPEN:
+            return self.parse_paren_expr()
+        elif current.kind == ToyTokenKind.SBRACKET_OPEN:
+            return self.parse_tensor_literal_expr()
         else:
             self.raise_error("Expected expression")
 
-    def parseBinOpRHS(self, exprPrec: int, lhs: ExprAST) -> ExprAST:
+    def parse_bin_op_rhs(self, expr_precedence: int, lhs: ExprAST) -> ExprAST:
         """
         Recursively parse the right hand side of a binary expression, the ExprPrec
         argument indicates the precedence of the current binary operator.
@@ -266,74 +210,63 @@ class ToyParser(GenericParser[ToyTokenKind]):
         """
         # If this is a binop, find its precedence.
         while True:
-            tokPrec = self.getTokenPrecedence()
+            tok_precedence = self.get_token_precedence()
 
             # If this is a binop that binds at least as tightly as the current binop,
             # consume it, otherwise we are done.
-            if tokPrec < exprPrec:
+            if tok_precedence < expr_precedence:
                 return lhs
 
             # Okay, we know this is a binop.
-            binOp = self.pop_token(ToyTokenKind.OPERATOR).text
+            binOp = self._pop(ToyTokenKind.OPERATOR).text
 
             # Parse the primary expression after the binary operator.
-            rhs = self.parsePrimary()
+            rhs = self.parse_primary()
 
             if rhs is None:
                 self.raise_error("Expected expression to complete binary operator")
 
             # If BinOp binds less tightly with rhs than the operator after rhs, let
             # the pending operator take rhs as its lhs.
-            nextPrec = self.getTokenPrecedence()
-            if tokPrec < nextPrec:
-                rhs = self.parseBinOpRHS(tokPrec + 1, rhs)
+            next_precedence = self.get_token_precedence()
+            if tok_precedence < next_precedence:
+                rhs = self.parse_bin_op_rhs(tok_precedence + 1, rhs)
 
             # Merge lhs/rhs
             lhs = BinaryExprAST(rhs.loc, binOp, lhs, rhs)
 
-    def parseExpression(self) -> ExprAST:
+    def parse_expression(self) -> ExprAST:
         """expression::= primary binop rhs"""
-        lhs = self.parsePrimaryNotNone()
-        return self.parseBinOpRHS(0, lhs)
+        lhs = self.parse_primary_not_none()
+        return self.parse_bin_op_rhs(0, lhs)
 
-    def parseType(self):
+    def parse_type(self):
         """
         type ::= < shape_list >
         shape_list ::= num | num , shape_list
         """
-        self.pop_pattern("<")
-        shape: list[int] = []
+        return VarType(
+            self.parse_comma_separated_list(
+                self.Delimiter.ANGLE,
+                lambda: int(self._pop(ToyTokenKind.NUMBER).text),
+            )
+        )
 
-        while token := self.pop_token(ToyTokenKind.NUMBER):
-            shape.append(int(token.span.text))
-            if self.parse_optional_characters(">"):
-                break
-            self.pop_pattern(",")
-
-        return VarType(shape)
-
-    def parseDeclaration(self):
+    def parse_declaration(self):
         """
         Parse a variable declaration, it starts with a `var` keyword followed by
         and identifier and an optional type (shape specification) before the
         initializer.
         decl ::= var identifier [ type ] = expr
         """
-        var = self.pop_pattern("var")
-        name = self.pop_token(ToyTokenKind.IDENTIFIER).text
+        var = self._pop(ToyTokenKind.VAR)
+        name = self._pop(ToyTokenKind.IDENTIFIER).text
+        var_type = self.parse_type() if self._peek(ToyTokenKind.LT) else VarType([])
+        self._pop(ToyTokenKind.EQ)
+        expr = self.parse_expression()
+        return VarDeclExprAST(var.span.get_location(), name, var_type, expr)
 
-        # Type is optional, it can be inferred
-        if self.check("<"):
-            varType = self.parseType()
-        else:
-            varType = VarType([])
-
-        self.pop_pattern("=")
-
-        expr = self.parseExpression()
-        return VarDeclExprAST(loc(var), name, varType, expr)
-
-    def parseBlock(self) -> tuple[ExprAST, ...]:
+    def parse_block(self) -> tuple[ExprAST, ...]:
         """
         Parse a block: a list of expression separated by semicolons and wrapped in
         curly braces.
@@ -342,63 +275,54 @@ class ToyParser(GenericParser[ToyTokenKind]):
         expression_list ::= block_expr ; expression_list
         block_expr ::= decl | "return" | expr
         """
-        self.pop_pattern("{")
-        exprList: list[ExprAST] = []
+        self._pop(ToyTokenKind.BRACKET_OPEN)
+        exprs: list[ExprAST] = []
 
         # Ignore empty expressions: swallow sequences of semicolons.
-        while self.check(";"):
-            self.pop_pattern(";")
+        while self._parse_optional_token(ToyTokenKind.SEMICOLON):
+            continue
 
-        while not self.check("}"):
-            if self.check("var"):
+        while not self._parse_optional_token(ToyTokenKind.BRACKET_CLOSE):
+            if self._peek(ToyTokenKind.VAR):
                 # Variable declaration
-                exprList.append(self.parseDeclaration())
-            elif self.check("return"):
+                exprs.append(self.parse_declaration())
+            elif self._peek(ToyTokenKind.RETURN):
                 # Return statement
-                exprList.append(self.parseReturn())
+                exprs.append(self.parse_return())
             else:
                 # General expression
-                exprList.append(self.parseExpression())
+                exprs.append(self.parse_expression())
 
             # Ensure that elements are separated by a semicolon.
-            self.pop_pattern(";")
+            self._pop(ToyTokenKind.SEMICOLON)
 
             # Ignore empty expressions: swallow sequences of semicolons.
-            while self.check(";"):
-                self.pop_pattern(";")
+            while self._parse_optional_token(ToyTokenKind.SEMICOLON):
+                continue
 
-        self.pop_pattern("}")
+        return tuple(exprs)
 
-        return tuple(exprList)
+    def _parse_arg(self) -> VariableExprAST:
+        arg = self._pop(ToyTokenKind.IDENTIFIER)
+        return VariableExprAST(arg.span.get_location(), arg.text)
 
-    def parsePrototype(self):
+    def parse_prototype(self):
         """
         prototype ::= def id '(' decl_list ')'
         decl_list ::= identifier | identifier, decl_list
         """
-        defToken = self.pop_pattern("def")
-        fnName = self.pop_token(ToyTokenKind.IDENTIFIER).text
-        self.pop_pattern("(")
+        def_token = self._pop(ToyTokenKind.DEF)
+        name = self._pop(ToyTokenKind.IDENTIFIER).text
+        args = self.parse_comma_separated_list(self.Delimiter.PAREN, self._parse_arg)
+        return PrototypeAST(def_token.span.get_location(), name, args)
 
-        args: list[VariableExprAST] = []
-        if not self.check(")"):
-            while True:
-                arg = self.pop_token(ToyTokenKind.IDENTIFIER)
-                args.append(VariableExprAST(loc(arg), arg.text))
-                if not self.check(","):
-                    break
-                self.pop_pattern(",")
-
-        self.pop_pattern(")")
-        return PrototypeAST(loc(defToken), fnName, args)
-
-    def parseDefinition(self):
+    def parse_definition(self):
         """
         Parse a function definition, we expect a prototype initiated with the
         `def` keyword, followed by a block containing a list of expressions.
 
         definition ::= prototype block
         """
-        proto = self.parsePrototype()
-        block = self.parseBlock()
+        proto = self.parse_prototype()
+        block = self.parse_block()
         return FunctionAST(proto.loc, proto, block)

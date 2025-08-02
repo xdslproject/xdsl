@@ -85,7 +85,29 @@ builtin.module {
 
 // -----
 
-// CHECK: The following constraints were not satisfied:
-// CHECK-NEXT: expected integer >= 0, got -2
-// CHECK-NEXT: All inner arrays must be contiguous: [[-2 : i64, 3 : i64], [0 : i64, 1 : i64]]
+// CHECK: expected integer >= 0, got -2
 %res_collapse2 = tensor.collapse_shape %t0 [ [-2, 3], [0, 1] ] : tensor<4x1xf32> into tensor<4x1xf32>
+
+// -----
+
+%0 = "test.op"() : () -> (tensor<2x3x20xf32>)
+// CHECK: expected dimension 2 of collapsed type to be static value of 40
+%illegal_expanding_reshape_static_tensor = tensor.expand_shape %0 [[0], [1], [2, 3, 4]] output_shape [2, 3, 2, 4, 5]
+      : tensor<2x3x20xf32> into tensor<2x3x2x4x5xf32>
+
+// -----
+
+%sz0 = "test.op"() : () -> (index)
+%0 = "test.op"() : () -> (tensor<?x?xf32>)
+// CHECK: expected dimension 1 of collapsed type to be static value of 5
+%illegal_expanding_reshape_mixed_tensor = tensor.expand_shape %0 [[0, 1], [2]] output_shape [%sz0, 4, 5]
+    : tensor<?x?xf32> into tensor<?x4x5xf32>
+
+
+// -----
+
+%sz0 = "test.op"() : () -> (index)
+%0 = "test.op"() : () -> (tensor<?x?xf32>)
+// CHECK: expected dimension 1 of collapsed type to be static value of 20
+%illegal_expanding_reshape_mixed_tensor_2 = tensor.expand_shape %0 [[0], [1, 2]] output_shape [%sz0, 4, 5]
+      : tensor<?x?xf32> into tensor<?x4x5xf32>

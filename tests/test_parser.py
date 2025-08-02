@@ -11,13 +11,14 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     Builtin,
     DictionaryAttr,
+    FileLineColLoc,
     FloatAttr,
     IntAttr,
     IntegerAttr,
     IntegerType,
-    LocationAttr,
     StringAttr,
     SymbolRefAttr,
+    UnknownLoc,
     i32,
 )
 from xdsl.dialects.test import Test
@@ -970,7 +971,13 @@ def test_properties_retrocompatibility():
 def test_parse_location():
     ctx = Context()
     attr = Parser(ctx, "loc(unknown)").parse_optional_location()
-    assert attr == LocationAttr()
+    assert attr == UnknownLoc()
+
+    attr = Parser(ctx, 'loc("one":2:3)').parse_optional_location()
+    assert attr == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
+
+    with pytest.raises(ParseError, match="Unexpected location syntax."):
+        Parser(ctx, "loc(unexpected)").parse_optional_location()
 
 
 @pytest.mark.parametrize(
@@ -998,26 +1005,56 @@ class MyEnum(StrEnum):
     A = "a"
     B = "b"
     C = "c"
+    D = "d-non-keyword"
 
 
 @pytest.mark.parametrize(
     "keyword, expected",
     [
         ("a", MyEnum.A),
+        ('"a"', MyEnum.A),
         ("b", MyEnum.B),
+        ('"b"', MyEnum.B),
         ("c", MyEnum.C),
-        ("cc", None),
+        ('"c"', MyEnum.C),
+        ('"d-non-keyword"', MyEnum.D),
+        ("other", None),
+        ('"other"', None),
     ],
 )
-def test_parse_str_enum(keyword: str, expected: MyEnum | None):
-    assert Parser(Context(), keyword).parse_optional_str_enum(MyEnum) == expected
+def test_parse_str_enum_right_token(keyword: str, expected: MyEnum | None):
+    """
+    Test parsing of string enums where the next
+    token is a keyword or a string literal.
+    """
+    if expected is None:
+        with pytest.raises(
+            ParseError, match="Expected `a`, `b`, `c`, or `d-non-keyword`"
+        ):
+            Parser(Context(), keyword).parse_optional_str_enum(MyEnum)
+    else:
+        assert Parser(Context(), keyword).parse_optional_str_enum(MyEnum) == expected
 
     parser = Parser(Context(), keyword)
     if expected is None:
-        with pytest.raises(ParseError, match="Expected `a`, `b`, or `c`"):
+        with pytest.raises(
+            ParseError, match="Expected `a`, `b`, `c`, or `d-non-keyword`"
+        ):
             parser.parse_str_enum(MyEnum)
     else:
         assert parser.parse_str_enum(MyEnum) == expected
+
+
+@pytest.mark.parametrize("keyword", ["2", "-"])
+def test_parse_str_enum_wrong_token(keyword: str):
+    """
+    Test parsing of string enums where the next
+    token is a keyword or a string literal.
+    """
+    assert Parser(Context(), keyword).parse_optional_str_enum(MyEnum) is None
+
+    with pytest.raises(ParseError, match="Expected `a`, `b`, `c`, or `d-non-keyword`"):
+        Parser(Context(), keyword).parse_str_enum(MyEnum)
 
 
 @pytest.mark.parametrize("value", ["(1., 2)", "(1, 2.)"])
@@ -1148,3 +1185,26 @@ def test_metadata_parsing():
 
     element = interface.lookup("some_res")
     assert element == "0x1"
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        ("a", "a"),
+        ('"a"', "a"),
+        ("a-b", "a"),
+        ('"a-b"', "a-b"),
+        ("2a", None),
+    ],
+)
+def test_parse_identifier_or_str_literal(input: str, expected: str | None):
+    parser = Parser(Context(), input)
+    result = parser.parse_optional_identifier_or_str_literal()
+    assert result == expected
+
+    parser = Parser(Context(), input)
+    if expected is None:
+        with pytest.raises(ParseError, match="identifier or string literal expected"):
+            parser.parse_identifier_or_str_literal()
+    else:
+        assert parser.parse_identifier_or_str_literal() == expected
