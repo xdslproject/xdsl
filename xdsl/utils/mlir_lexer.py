@@ -64,26 +64,48 @@ class StringLiteral(Span):
 
     @property
     def bytes_contents(self) -> bytes:
-        bytes_contents = bytearray()
-        iter_string = iter(self.text[1:-1])
-        for c0 in iter_string:
-            if c0 != "\\":
-                bytes_contents += c0.encode()
-            else:
-                c0 = next(iter_string)
-                match c0:
-                    case "n":
-                        bytes_contents += b"\n"
-                    case "t":
-                        bytes_contents += b"\t"
-                    case "\\":
-                        bytes_contents += b"\\"
-                    case '"':
-                        bytes_contents += b'"'
-                    case _:
-                        c1 = next(iter_string)
-                        bytes_contents += int(c0 + c1, 16).to_bytes(1, "big")
+        # NOTE: This function is used to convert the string literal into a bytes object and
+        # handle escape sequences. There are two types of escape sequences we process:
+        # 1. Known escape sequences like \n, \t, \\, and \"
+        # 2. Hexadecimal escape sequences like \x00, \x01, etc.
 
+        # Precompile regex for escape sequences
+        escape_sequence_pattern = re.compile(r'\\(n|t|\\|"|[0-9a-fA-F]{2})')
+
+        def _decode_matched_escape(match: re.Match[str]) -> bytes:
+            esc = match.group(1)
+            match esc:
+                case "n":
+                    return b"\n"
+                case "t":
+                    return b"\t"
+                case "\\":
+                    return b"\\"
+                case '"':
+                    return b'"'
+                case _ if len(esc) == 2 and all(c in hexdigits for c in esc):
+                    # If it's a two-digit hex escape, convert it to bytes
+                    return int(esc, 16).to_bytes(1, "big")
+                case _:
+                    raise ParseError(self, f"Invalid escape sequence: \\{esc}")
+
+        # Exclude the surrounding quotes
+        text_contents = self.text[1:-1]
+        # Decode escape sequences while preserving non-escaped text
+        bytes_contents = bytearray()
+
+        # Track the last end position to handle non-escaped text
+        last_end = 0
+
+        for match in escape_sequence_pattern.finditer(text_contents):
+            # Add the non-escaped text before the match
+            bytes_contents.extend(text_contents[last_end : match.start()].encode())
+            # Add the decoded escape sequence
+            bytes_contents.extend(_decode_matched_escape(match))
+            last_end = match.end()
+
+        # Add any remaining non-escaped text after the last match
+        bytes_contents.extend(text_contents[last_end:].encode())
         return bytes(bytes_contents)
 
 
