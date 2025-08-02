@@ -12,11 +12,11 @@ from abc import ABC
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    StringAttr,
-    IntegerAttr,
-    i32,
     FloatAttr,
     Float32Type,
+    IntegerAttr,
+    StringAttr,
+    i32,
 )
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import irdl_attr_definition
@@ -93,14 +93,19 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
         cls, parser: AttrParser
     ) -> tuple[ArrayAttr[DataLayoutEntryAttr]]:
         def parse_entry() -> DataLayoutEntryAttr:
+            pos = parser.pos
             entry = parser.parse_attribute()
-            parser.parse_punctuation("=")
-            value = parser.parse_attribute()
-            assert (
+            end_pos = parser.pos
+            if not (
                 isinstance(entry, str)
                 or isinstance(entry, StringAttr)
                 or isinstance(entry, TypeAttribute)
-            )
+            ):
+                parser.raise_error(
+                    "key must be a string or a type attribute", pos, end_pos
+                )
+            parser.parse_punctuation("=")
+            value = parser.parse_attribute()
             return DataLayoutEntryAttr(entry, value)
 
         entries = parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_entry)

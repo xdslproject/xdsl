@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s --strict-whitespace
+// RUN: xdsl-opt %s --parsing-diagnostics --verify-diagnostics --split-input-file | filecheck %s --strict-whitespace
 
 // CHECK: key must be a string or a type attribute
 "test.op"() {
