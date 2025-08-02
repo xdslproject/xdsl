@@ -64,30 +64,69 @@ class StringLiteral(Span):
 
     @property
     def bytes_contents(self) -> bytes:
-        # NOTE: Early return if no escape sequences are present.
-        if "\\" not in self.text[1:-1]:
-            return self.text[1:-1].encode()
+        # NOTE: This function is used to convert the string literal into a bytes object and
+        # handle escape sequences. There are two types of escape sequences we process:
+        # 1. Known escape sequences like \n, \t, \\, and \"
+        # 2. Hexadecimal escape sequences like \x00, \x01, etc.
 
+        # We will use a mapping for the known escape sequences.
+        escape_str_mapping = {
+            "\\n": b"\n",
+            "\\t": b"\t",
+            "\\\\": b"\\",
+            '\\"': b'"',
+        }
+
+        text_contents = self.text[1:-1]
         bytes_contents = bytearray()
-        iter_string = iter(self.text[1:-1])
-        for c0 in iter_string:
-            if c0 != "\\":
-                bytes_contents += c0.encode()
-            else:
-                c0 = next(iter_string)
-                match c0:
-                    case "n":
-                        bytes_contents += b"\n"
-                    case "t":
-                        bytes_contents += b"\t"
-                    case "\\":
-                        bytes_contents += b"\\"
-                    case '"':
-                        bytes_contents += b'"'
-                    case _:
-                        c1 = next(iter_string)
-                        bytes_contents += int(c0 + c1, 16).to_bytes(1, "big")
 
+        curr_idx = 0
+        # We use the last_end to keep track of the last index where we added
+        # bytes to the bytes_contents.
+        last_end = 0
+
+        while curr_idx < len(text_contents):
+            char = text_contents[curr_idx]
+
+            # If the current character is not a backslash, we can just continue
+            if char != "\\":
+                curr_idx += 1
+                continue
+
+            # If we reach a backslash, we need to handle the escape sequence.
+            # Add the previous part of the string to the bytes_contents.
+            bytes_contents.extend(text_contents[last_end:curr_idx].encode())
+
+            # Now handle the escape sequence
+            if len(text_contents) <= curr_idx + 1:
+                raise ParseError(self, "Incomplete escape sequence at end of string.")
+
+            if text_contents[curr_idx : curr_idx + 2] in escape_str_mapping:
+                # If the escape sequence is a known escape, we add it directly.
+                bytes_contents += escape_str_mapping[
+                    text_contents[curr_idx : curr_idx + 2]
+                ]
+                curr_idx += 2
+            elif len(text_contents) > curr_idx + 2 and all(
+                c in hexdigits for c in text_contents[curr_idx + 1 : curr_idx + 3]
+            ):
+                # If the escape sequence is a hex escape, we parse it.
+                hex_contents = text_contents[curr_idx + 1 : curr_idx + 3]
+                bytes_contents += int(hex_contents, 16).to_bytes(1, "big")
+                curr_idx += 3
+            else:
+                # If the escape sequence is not recognized, we raise an error.
+                raise ParseError(
+                    self,
+                    f"Invalid escape sequence: {text_contents[curr_idx : curr_idx + 2]}",
+                )
+
+            # Update the last_end to the current index after processing the escape sequence.
+            last_end = curr_idx
+
+        # Add the remaining part of the string after the last escape sequence.
+        if last_end < len(text_contents):
+            bytes_contents.extend(text_contents[last_end:].encode())
         return bytes(bytes_contents)
 
 
