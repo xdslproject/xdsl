@@ -12,8 +12,8 @@ from abc import ABC
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    FloatAttr,
     Float32Type,
+    FloatAttr,
     IntegerAttr,
     StringAttr,
     i32,

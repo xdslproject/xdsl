@@ -1,12 +1,12 @@
 import pytest
 
 from xdsl.dialects.builtin import (
-    StringAttr,
-    IntegerAttr,
-    FloatAttr,
     ArrayAttr,
-    i32,
     Float32Type,
+    FloatAttr,
+    IntegerAttr,
+    StringAttr,
+    i32,
 )
 from xdsl.dialects.dlti import (
     DataLayoutEntryAttr,
@@ -16,7 +16,7 @@ from xdsl.dialects.dlti import (
     TargetDeviceSpecAttr,
     TargetSystemSpecAttr,
 )
-from xdsl.ir import TypeAttribute, Attribute
+from xdsl.ir import Attribute, TypeAttribute
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -120,7 +120,7 @@ def generic_test_entry_equals_defn(
             else comparison_entry_value
         )
     else:
-        pytest.fail()
+        pytest.fail("Unknown comparison type")
 
 
 def generic_specification_test(
