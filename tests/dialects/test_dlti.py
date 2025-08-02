@@ -1,13 +1,5 @@
 import pytest
 
-from xdsl.dialects.dlti import (
-    DataLayoutEntryAttr,
-    DataLayoutSpecAttr,
-    DLTIEntryMap,
-    TargetDeviceSpecAttr,
-    TargetSystemSpecAttr,
-    MapAttr,
-)
 from xdsl.dialects.builtin import (
     StringAttr,
     IntegerAttr,
@@ -16,8 +8,15 @@ from xdsl.dialects.builtin import (
     i32,
     Float32Type,
 )
+from xdsl.dialects.dlti import (
+    DataLayoutEntryAttr,
+    DataLayoutSpecAttr,
+    DLTIEntryMap,
+    MapAttr,
+    TargetDeviceSpecAttr,
+    TargetSystemSpecAttr,
+)
 from xdsl.ir import TypeAttribute, Attribute
-from typing import Type
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -121,11 +120,11 @@ def generic_test_entry_equals_defn(
             else comparison_entry_value
         )
     else:
-        assert False
+        pytest.fail()
 
 
 def generic_specification_test(
-    dlti_class: Type[DLTIEntryMap],
+    dlti_class: type[DLTIEntryMap],
     contents: ArrayAttr
     | list[DataLayoutEntryAttr]
     | dict[StringAttr | TypeAttribute | str, Attribute | str | int | float],
