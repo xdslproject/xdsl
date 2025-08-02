@@ -6,15 +6,21 @@ from xdsl.transforms.memref_stream_interleave import (
 )
 
 
-def test_factors():
-    assert factors(-1) == ()
-    assert factors(0) == ()
-    assert factors(1) == (1,)
-    assert factors(2) == (1, 2)
-    assert factors(3) == (1, 3)
-    assert factors(4) == (1, 2, 4)
-    assert factors(6) == (1, 2, 3, 6)
-    assert factors(24) == (1, 2, 3, 4, 6, 8, 12, 24)
+@pytest.mark.parametrize(
+    "num,expected_factors",
+    [
+        (-1, ()),
+        (0, ()),
+        (1, (1,)),
+        (2, (1, 2)),
+        (3, (1, 3)),
+        (4, (1, 2, 4)),
+        (6, (1, 2, 3, 6)),
+        (24, (1, 2, 3, 4, 6, 8, 12, 24)),
+    ],
+)
+def test_factors_parametrized(num: int, expected_factors: tuple[int, ...]):
+    assert factors(num) == expected_factors
 
 
 @pytest.mark.parametrize(
