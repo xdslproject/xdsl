@@ -69,64 +69,43 @@ class StringLiteral(Span):
         # 1. Known escape sequences like \n, \t, \\, and \"
         # 2. Hexadecimal escape sequences like \x00, \x01, etc.
 
-        # We will use a mapping for the known escape sequences.
-        escape_str_mapping = {
-            "\\n": b"\n",
-            "\\t": b"\t",
-            "\\\\": b"\\",
-            '\\"': b'"',
-        }
+        # Precompile regex for escape sequences
+        escape_sequence_pattern = re.compile(r'\\(n|t|\\|"|[0-9a-fA-F]{2})')
 
+        def _decode_matched_escape(match: re.Match[str]) -> bytes:
+            esc = match.group(1)
+            match esc:
+                case "n":
+                    return b"\n"
+                case "t":
+                    return b"\t"
+                case "\\":
+                    return b"\\"
+                case '"':
+                    return b'"'
+                case _ if len(esc) == 2 and all(c in hexdigits for c in esc):
+                    # If it's a two-digit hex escape, convert it to bytes
+                    return int(esc, 16).to_bytes(1, "big")
+                case _:
+                    raise ParseError(self, f"Invalid escape sequence: \\{esc}")
+
+        # Exclude the surrounding quotes
         text_contents = self.text[1:-1]
+        # Decode escape sequences while preserving non-escaped text
         bytes_contents = bytearray()
 
-        curr_idx = 0
-        # We use the last_end to keep track of the last index where we added
-        # bytes to the bytes_contents.
+        # Track the last end position to handle non-escaped text
         last_end = 0
 
-        while curr_idx < len(text_contents):
-            char = text_contents[curr_idx]
+        for match in escape_sequence_pattern.finditer(text_contents):
+            # Add the non-escaped text before the match
+            bytes_contents.extend(text_contents[last_end : match.start()].encode())
+            # Add the decoded escape sequence
+            bytes_contents.extend(_decode_matched_escape(match))
+            last_end = match.end()
 
-            # If the current character is not a backslash, we can just continue
-            if char != "\\":
-                curr_idx += 1
-                continue
-
-            # If we reach a backslash, we need to handle the escape sequence.
-            # Add the previous part of the string to the bytes_contents.
-            bytes_contents.extend(text_contents[last_end:curr_idx].encode())
-
-            # Now handle the escape sequence
-            if len(text_contents) <= curr_idx + 1:
-                raise ParseError(self, "Incomplete escape sequence at end of string.")
-
-            if text_contents[curr_idx : curr_idx + 2] in escape_str_mapping:
-                # If the escape sequence is a known escape, we add it directly.
-                bytes_contents += escape_str_mapping[
-                    text_contents[curr_idx : curr_idx + 2]
-                ]
-                curr_idx += 2
-            elif len(text_contents) > curr_idx + 2 and all(
-                c in hexdigits for c in text_contents[curr_idx + 1 : curr_idx + 3]
-            ):
-                # If the escape sequence is a hex escape, we parse it.
-                hex_contents = text_contents[curr_idx + 1 : curr_idx + 3]
-                bytes_contents += int(hex_contents, 16).to_bytes(1, "big")
-                curr_idx += 3
-            else:
-                # If the escape sequence is not recognized, we raise an error.
-                raise ParseError(
-                    self,
-                    f"Invalid escape sequence: {text_contents[curr_idx : curr_idx + 2]}",
-                )
-
-            # Update the last_end to the current index after processing the escape sequence.
-            last_end = curr_idx
-
-        # Add the remaining part of the string after the last escape sequence.
-        if last_end < len(text_contents):
-            bytes_contents.extend(text_contents[last_end:].encode())
+        # Add any remaining non-escaped text after the last match
+        bytes_contents.extend(text_contents[last_end:].encode())
         return bytes(bytes_contents)
 
 
