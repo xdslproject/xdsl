@@ -302,7 +302,7 @@ class DS_Operation(
     register.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     source = operand_def(R2InvT)
 
     def __init__(
@@ -1232,6 +1232,16 @@ class DS_VpbroadcastdOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]
     name = "x86.ds.vpbroadcastd"
 
 
+class DS_VpbroadcastqOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.x86 import (
+            DS_VpbroadcastqOpScalarLoad,
+        )
+
+        return (DS_VpbroadcastqOpScalarLoad(),)
+
+
 @irdl_op_definition
 class DS_VpbroadcastqOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
@@ -1244,6 +1254,8 @@ class DS_VpbroadcastqOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]
     """
 
     name = "x86.ds.vpbroadcastq"
+
+    traits = traits_def(DS_VpbroadcastqOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition

@@ -68,8 +68,7 @@ func.func @matmul(
 // CHECK-NEXT:      vmovupd ymm7, [rbx+32]
 // CHECK-NEXT:      vmovupd ymm5, [rbx+64]
 // CHECK-NEXT:      vmovupd ymm3, [rbx+96]
-// CHECK-NEXT:      mov rbx, rcx
-// CHECK-NEXT:      vbroadcastsd ymm2, [rbx]
+// CHECK-NEXT:      vbroadcastsd ymm2, [rcx]
 // CHECK-NEXT:      vbroadcastsd ymm4, [rcx+8]
 // CHECK-NEXT:      vbroadcastsd ymm6, [rcx+16]
 // CHECK-NEXT:      vbroadcastsd ymm8, [rcx+24]

@@ -2,6 +2,7 @@ from typing import cast
 
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.x86.ops import DM_VbroadcastsdOp
 from xdsl.dialects.x86.register import X86RegisterType
 from xdsl.ir import Operation, OpResult, SSAValue
 from xdsl.pattern_rewriter import (
@@ -55,6 +56,19 @@ class DM_Operation_ConstantOffset(RewritePattern):
             new_offset = op.memory_offset.value.data + value.value.data
             rewriter.replace_matched_op(
                 type(op)(mov_op.source, new_offset, destination=op.destination.type)
+            )
+
+
+class DS_VpbroadcastqOpScalarLoad(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: x86.DS_VpbroadcastqOp, rewriter: PatternRewriter
+    ) -> None:
+        if isinstance(mov_op := op.source.owner, x86.ops.DM_MovOp):
+            rewriter.replace_matched_op(
+                DM_VbroadcastsdOp(
+                    mov_op.memory, mov_op.memory_offset, destination=op.destination.type
+                )
             )
 
 
