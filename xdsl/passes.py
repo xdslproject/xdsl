@@ -12,6 +12,7 @@ from typing import (
     Union,
     get_args,
     get_origin,
+    get_type_hints,
 )
 
 from typing_extensions import Self, TypeVar
@@ -88,6 +89,8 @@ class ModulePass(ABC):
 
         required_fields = cls.required_fields()
 
+        field_types = get_type_hints(cls)
+
         # iterate over all fields of the dataclass
         for op_field in fields:
             # ignore the name field and everything that's not used by __init__
@@ -101,10 +104,7 @@ class ModulePass(ABC):
                 raise ValueError(f'Pass {cls.name} requires argument "{op_field.name}"')
 
             # convert pass arg to the correct type:
-            field_type = op_field.type
-            if isinstance(field_type, str):
-                # If the type was provided as a string, eval the string to get the type
-                field_type = eval(field_type, None)
+            field_type = field_types[op_field.name]
             arg_dict[op_field.name] = _convert_pass_arg_to_type(
                 spec_arguments_dict.pop(op_field.name),
                 field_type,
