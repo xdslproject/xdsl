@@ -1,4 +1,5 @@
 import pytest
+from typing import TypeAlias
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -18,6 +19,10 @@ from xdsl.dialects.dlti import (
 )
 from xdsl.ir import Attribute, TypeAttribute
 from xdsl.utils.exceptions import VerifyException
+
+DictValueType: TypeAlias = dict[
+    StringAttr | TypeAttribute | str, "Attribute | str | int | float | DictValueType"
+]
 
 
 def test_data_layout_entry():
@@ -59,8 +64,6 @@ def test_data_layout_entry():
 
 def test_incorrect_data_layout_entry():
     with pytest.raises(VerifyException):
-        entry = DataLayoutEntryAttr(12, "V")  # pyright: ignore
-        entry.verify()
         entry = DataLayoutEntryAttr("", "V")
         entry.verify()
 
@@ -68,7 +71,7 @@ def test_incorrect_data_layout_entry():
 def generic_test_entry_equals_defn(
     dlti_entry: DataLayoutEntryAttr,
     comparison_entry: tuple[
-        StringAttr | TypeAttribute | str, Attribute | str | int | float
+        StringAttr | TypeAttribute | str, Attribute | str | int | float | DictValueType
     ],
 ):
     assert isinstance(dlti_entry, DataLayoutEntryAttr)
@@ -125,9 +128,7 @@ def generic_test_entry_equals_defn(
 
 def generic_specification_test(
     dlti_class: type[DLTIEntryMap],
-    contents: ArrayAttr
-    | list[DataLayoutEntryAttr]
-    | dict[StringAttr | TypeAttribute | str, Attribute | str | int | float],
+    contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
     comparison_entries: list[
         tuple[StringAttr | TypeAttribute | str, Attribute | str | int | float]
     ],
@@ -252,19 +253,41 @@ def test_map_attr(
     )
 
 
-def test_duplicate_spec_entries():
+def test_map_attr_embedded_dict():
+    m = MapAttr({"key": {"key": {"key": "value"}}})
+    m.verify()
+    assert isinstance(m.entries.data[0].value, MapAttr)
+    assert isinstance(m.entries.data[0].value.entries.data[0].value, MapAttr)
+    embedded_contents = m.entries.data[0].value.entries.data[0].value
+    assert isinstance(embedded_contents.entries.data[0].key, StringAttr)
+    assert isinstance(embedded_contents.entries.data[0].value, StringAttr)
+
+
+def test_duplicate_data_layout_spec_entries():
     with pytest.raises(VerifyException):
         entry = DataLayoutSpecAttr(
-            [DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]  # pyright: ignore
+            [DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]
         )
         entry.verify()
+
+
+def test_duplicate_target_device_spec_entries():
+    with pytest.raises(VerifyException):
         entry = TargetDeviceSpecAttr(
-            [DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]  # pyright: ignore
+            [DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]
         )
         entry.verify()
+
+
+def test_duplicate_system_spec_entries():
+    with pytest.raises(VerifyException):
         entry = TargetSystemSpecAttr(
-            [DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]  # pyright: ignore
+            [DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]
         )
         entry.verify()
-        entry = MapAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])  # pyright: ignore
+
+
+def test_duplicate_map_attr_entries():
+    with pytest.raises(VerifyException):
+        entry = MapAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])
         entry.verify()

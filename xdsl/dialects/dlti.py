@@ -9,6 +9,7 @@ https://mlir.llvm.org/docs/Dialects/DLTIDialect/
 from __future__ import annotations
 
 from abc import ABC
+from typing import cast, TypeAlias
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -23,6 +24,10 @@ from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+
+DictValueType: TypeAlias = dict[
+    StringAttr | TypeAttribute | str, "Attribute | str | int | float | DictValueType"
+]
 
 
 @irdl_attr_definition
@@ -40,7 +45,7 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
     def __init__(
         self,
         key: StringAttr | TypeAttribute | str,
-        value: Attribute | str | int | float,
+        value: Attribute | str | int | float | DictValueType,
     ):
         if isinstance(key, str):
             key = StringAttr(key)
@@ -51,6 +56,8 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
             value = IntegerAttr(value, i32)
         elif isinstance(value, float):
             value = FloatAttr(value, Float32Type())
+        elif isinstance(value, dict):
+            value = MapAttr(value)
 
         super().__init__(key, value)
 
@@ -73,9 +80,7 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
 
     def __init__(
         self,
-        contents: ArrayAttr
-        | list[DataLayoutEntryAttr]
-        | dict[StringAttr | TypeAttribute | str, Attribute | str | int | float],
+        contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
     ):
         if isinstance(contents, dict):
             contents = ArrayAttr(
@@ -93,17 +98,8 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
         cls, parser: AttrParser
     ) -> tuple[ArrayAttr[DataLayoutEntryAttr]]:
         def parse_entry() -> DataLayoutEntryAttr:
-            pos = parser.pos
             entry = parser.parse_attribute()
-            end_pos = parser.pos
-            if not (
-                isinstance(entry, str)
-                or isinstance(entry, StringAttr)
-                or isinstance(entry, TypeAttribute)
-            ):
-                parser.raise_error(
-                    "key must be a string or a type attribute", pos, end_pos
-                )
+            entry = cast(StringAttr | TypeAttribute, entry)
             parser.parse_punctuation("=")
             value = parser.parse_attribute()
             return DataLayoutEntryAttr(entry, value)
@@ -140,6 +136,12 @@ class DataLayoutSpecAttr(DLTIEntryMap):
 
     name = "dlti.dl_spec"
 
+    def __init__(
+        self,
+        contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
+    ):
+        return super().__init__(contents)
+
 
 @irdl_attr_definition
 class TargetDeviceSpecAttr(DLTIEntryMap):
@@ -154,6 +156,12 @@ class TargetDeviceSpecAttr(DLTIEntryMap):
     """
 
     name = "dlti.target_device_spec"
+
+    def __init__(
+        self,
+        contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
+    ):
+        return super().__init__(contents)
 
 
 @irdl_attr_definition
@@ -170,6 +178,12 @@ class TargetSystemSpecAttr(DLTIEntryMap):
 
     name = "dlti.target_system_spec"
 
+    def __init__(
+        self,
+        contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
+    ):
+        return super().__init__(contents)
+
 
 @irdl_attr_definition
 class MapAttr(DLTIEntryMap):
@@ -183,6 +197,12 @@ class MapAttr(DLTIEntryMap):
     """
 
     name = "dlti.map"
+
+    def __init__(
+        self,
+        contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
+    ):
+        return super().__init__(contents)
 
 
 DLTI = Dialect(
