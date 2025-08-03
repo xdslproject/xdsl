@@ -1,9 +1,11 @@
 from abc import ABC
+from collections.abc import Sequence
 from typing import ClassVar, Generic
 
-from typing_extensions import TypeVar
+from typing_extensions import Self, TypeVar
 
 from xdsl.dialects.builtin import (
+    I1,
     I32,
     I64,
     AnyAttr,
@@ -16,19 +18,33 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
 )
-from xdsl.ir import Attribute, Dialect
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir.core import Block
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     prop_def,
+    region_def,
     result_def,
     traits_def,
+    var_operand_def,
+    var_result_def,
 )
-from xdsl.traits import Commutative, Pure
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.traits import (
+    Commutative,
+    HasParent,
+    IsTerminator,
+    Pure,
+    RecursiveMemoryEffect,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -284,6 +300,187 @@ class MatMulOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    """
+    TOSA operation for returning out of conditional and body of structured control flow
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosayield-mlirtosayieldop)
+    """
+
+    name = "tosa.yield"
+
+    inputs = var_operand_def(TensorType)
+
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(IfOp),
+            Pure(),
+        )
+    )
+
+    assembly_format = "$inputs attr-dict `:` type($inputs)"
+
+
+@irdl_op_definition
+class IfOp(IRDLOperation):
+    """
+    TOSA operation for evaluating a bool condition and taking one of two distinct paths
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosacond_if-mlirtosaifop)
+    """
+
+    name = "tosa.cond_if"
+
+    condition = operand_def(TensorType.constr(I1))
+    input_list = var_operand_def(TensorType)
+    output_list = var_result_def(TensorType)
+
+    true_region = region_def()
+    false_region = region_def()
+
+    traits = traits_def(
+        RecursiveMemoryEffect(),
+        SingleBlockImplicitTerminator(YieldOp),
+    )
+
+    def __init__(
+        self,
+        cond: SSAValue | Operation,
+        input_list: Sequence[SSAValue | Operation],
+        return_types: Sequence[Attribute],
+        true_region: Region | Sequence[Block] | Sequence[Operation],
+        false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
+        attr_dict: dict[str, Attribute] | None = None,
+    ):
+        if false_region is None:
+            false_region = Region()
+
+        super().__init__(
+            operands=[cond, input_list],
+            result_types=[return_types],
+            regions=[true_region, false_region],
+            attributes=attr_dict,
+        )
+
+    @staticmethod
+    def parse_region_with_yield(parser: Parser) -> Region:
+        region = parser.parse_region()
+        block = region.blocks.last
+        if block is None:
+            block = Block()
+            region.add_block(block)
+
+        last_op = block.last_op
+        if last_op is not None and last_op.has_trait(IsTerminator):
+            return region
+
+        block.add_op(YieldOp())
+
+        return region
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        cond = parser.parse_operand()
+
+        input_list: Sequence[SSAValue] = []
+        if parser.parse_optional_punctuation("("):
+            while not parser.parse_optional_punctuation(")"):
+                parser.parse_unresolved_operand()
+                parser.parse_optional_punctuation("=")
+                input_list += [parser.parse_operand()]
+                parser.parse_optional_punctuation(",")
+
+        return_types: Sequence[Attribute] = []
+        parser.parse_punctuation(":")
+        parser.parse_type()
+
+        if parser.parse_optional_punctuation("("):
+            while not parser.parse_optional_punctuation(")"):
+                parser.parse_type()
+                parser.parse_optional_punctuation(",")
+
+        parser.parse_punctuation("->")
+        if parser.parse_optional_punctuation("("):
+            while not parser.parse_optional_punctuation(")"):
+                return_types += [parser.parse_type()]
+                parser.parse_optional_punctuation(",")
+        else:
+            return_types += [parser.parse_type()]
+
+        then_region = cls.parse_region_with_yield(parser)
+        else_region = (
+            cls.parse_region_with_yield(parser)
+            if parser.parse_optional_keyword("else")
+            else Region()
+        )
+
+        attr_dict = parser.parse_optional_attr_dict()
+
+        return cls(
+            cond,
+            input_list,
+            return_types,
+            then_region,
+            else_region,
+            attr_dict,
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.condition)
+
+        block = self.true_region.blocks.first
+        assert block is not None
+
+        block_args = block.args
+
+        if len(self.input_list) >= 1:
+            printer.print_string(" (")
+
+            def print_fn(operands: tuple[SSAValue, SSAValue]):
+                printer.print_operand(operands[0])
+                printer.print_string(" = ")
+                printer.print_operand(operands[1])
+
+            printer.print_list(zip(block_args, self.input_list), print_fn)
+
+            printer.print_string(")")
+
+        printer.print_string(" : ")
+        printer.print_attribute(self.condition.type)
+
+        if len(self.input_list) >= 1:
+
+            def print_type(op: SSAValue):
+                printer.print_attribute(op.type)
+
+            printer.print_string(" (")
+            printer.print_list(self.input_list, print_type)
+            printer.print_string(")")
+
+        printer.print_string(" -> ")
+        printer.print_list(self.result_types, printer.print_attribute)
+        printer.print_string(" ")
+        printer.print_region(
+            self.true_region,
+            print_entry_block_args=True,
+            print_block_terminators=True,
+        )
+
+        if bool(self.false_region.blocks):
+            printer.print_string(" else ")
+            printer.print_region(
+                self.false_region,
+                print_entry_block_args=True,
+                print_block_terminators=True,
+            )
+
+        if bool(self.attributes.keys()):
+            printer.print_attr_dict(self.attributes)
+
+
 TOSA = Dialect(
     "tosa",
     [
@@ -295,6 +492,8 @@ TOSA = Dialect(
         SinOp,
         CosOp,
         MatMulOp,
+        YieldOp,
+        IfOp,
     ],
     [],
 )
