@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     Float32Type,
     FloatAttr,
-    IntegerAttr,
+    IntAttr,
     StringAttr,
     i32,
 )
@@ -24,7 +24,7 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 DictValueType: TypeAlias = Mapping[
-    StringAttr | TypeAttribute | str, "Attribute | str | int | float | DictValueType"
+    StringAttr | TypeAttribute | str, "Attribute | str | int | DictValueType"
 ]
 
 
@@ -40,11 +40,11 @@ def test_data_layout_entry():
     entry = DataLayoutEntryAttr("test2", 12)
     assert isinstance(entry.key, StringAttr)
     assert entry.key.data == "test2"
-    assert isinstance(entry.value, IntegerAttr)
-    assert entry.value.value.data == 12  # pyright: ignore
+    assert isinstance(entry.value, IntAttr)
+    assert entry.value.data == 12
 
     # Test passing string for key and float for value
-    entry = DataLayoutEntryAttr("test3", 99.45)
+    entry = DataLayoutEntryAttr("test3", FloatAttr(99.45, Float32Type()))
     assert isinstance(entry.key, StringAttr)
     assert isinstance(entry.value, FloatAttr)
     assert entry.key.data == "test3"
@@ -74,7 +74,7 @@ def test_incorrect_data_layout_entry():
 def generic_test_entry_equals_defn(
     dlti_entry: DataLayoutEntryAttr,
     comparison_entry: tuple[
-        StringAttr | TypeAttribute | str, Attribute | str | int | float | DictValueType
+        StringAttr | TypeAttribute | str, Attribute | str | int | DictValueType
     ],
 ):
     assert isinstance(dlti_entry, DataLayoutEntryAttr)
@@ -108,23 +108,17 @@ def generic_test_entry_equals_defn(
             else comparison_entry_value
         )
     elif isinstance(comparison_entry_value, int) or isinstance(
-        comparison_entry_value, IntegerAttr
+        comparison_entry_value, IntAttr
     ):
-        assert isinstance(dlti_entry_value, IntegerAttr)
+        assert isinstance(dlti_entry_value, IntAttr)
         assert (
-            dlti_entry_value.value.data == dlti_entry_value.value.data
-            if isinstance(comparison_entry_value, IntegerAttr)
+            dlti_entry_value.data == dlti_entry_value.data
+            if isinstance(comparison_entry_value, IntAttr)
             else comparison_entry_value
         )
-    elif isinstance(comparison_entry_value, float) or isinstance(
-        comparison_entry_value, FloatAttr
-    ):
+    elif isinstance(comparison_entry_value, FloatAttr):
         assert isinstance(dlti_entry_value, FloatAttr)
-        assert (
-            dlti_entry_value.value.data == dlti_entry_value.value.data
-            if isinstance(comparison_entry_value, FloatAttr)
-            else comparison_entry_value
-        )
+        assert dlti_entry_value.value.data == dlti_entry_value.value.data
     else:
         pytest.fail("Unknown comparison type")
 
@@ -133,7 +127,7 @@ def generic_specification_test(
     dlti_class: type[DLTIEntryMap],
     contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
     comparison_entries: list[
-        tuple[StringAttr | TypeAttribute | str, Attribute | str | int | float]
+        tuple[StringAttr | TypeAttribute | str, Attribute | str | int]
     ],
 ):
     spec = dlti_class(contents)
@@ -147,14 +141,12 @@ def generic_specification_test(
 @pytest.mark.parametrize(
     "entries",
     [
-        [("key1", "value1"), ("key2", 23), (i32, 9.4)],
-        [("k", IntegerAttr(23, i32)), (i32, FloatAttr(2.4, Float32Type()))],
+        [("key1", "value1"), ("key2", 23), (i32, 43)],
+        [("k", IntAttr(23)), (i32, FloatAttr(2.4, Float32Type()))],
     ],
 )
 def test_data_layout_spec(
-    entries: list[
-        tuple[StringAttr | TypeAttribute | str, Attribute | str | int | float]
-    ],
+    entries: list[tuple[StringAttr | TypeAttribute | str, Attribute | str | int]],
 ):
     # Test initialisation from a dictionary
     generic_specification_test(
@@ -171,14 +163,12 @@ def test_data_layout_spec(
 @pytest.mark.parametrize(
     "entries",
     [
-        [("key1", "value1"), ("key2", 23), (i32, 9.4)],
-        [("k", IntegerAttr(23, i32)), (i32, FloatAttr(2.4, Float32Type()))],
+        [("key1", "value1"), ("key2", 23), (i32, FloatAttr(9.3, Float32Type()))],
+        [("k", IntAttr(23)), (i32, FloatAttr(2.4, Float32Type()))],
     ],
 )
 def test_target_device_spec(
-    entries: list[
-        tuple[StringAttr | TypeAttribute | str, Attribute | str | int | float]
-    ],
+    entries: list[tuple[StringAttr | TypeAttribute | str, Attribute | str | int]],
 ):
     # Test initialisation from a dictionary
     generic_specification_test(
@@ -195,14 +185,12 @@ def test_target_device_spec(
 @pytest.mark.parametrize(
     "entries",
     [
-        [("key1", "value1"), ("key2", 23), (i32, 9.4)],
-        [("k", IntegerAttr(23, i32)), (i32, FloatAttr(2.4, Float32Type()))],
+        [("key1", "value1"), ("key2", 23), (i32, "test")],
+        [("k", IntAttr(23)), (i32, FloatAttr(2.4, Float32Type()))],
     ],
 )
 def test_target_system_spec(
-    entries: list[
-        tuple[StringAttr | TypeAttribute | str, Attribute | str | int | float]
-    ],
+    entries: list[tuple[StringAttr | TypeAttribute | str, Attribute | str | int]],
 ):
     # Test initialisation from a dictionary
     generic_specification_test(
@@ -219,14 +207,12 @@ def test_target_system_spec(
 @pytest.mark.parametrize(
     "entries",
     [
-        [("key1", "value1"), ("key2", 23), (i32, 9.4)],
-        [("k", IntegerAttr(23, i32)), (i32, FloatAttr(2.4, Float32Type()))],
+        [("key1", "value1"), ("key2", 23), (i32, 17)],
+        [("k", IntAttr(23)), (i32, FloatAttr(2.4, Float32Type()))],
     ],
 )
 def test_map_attr(
-    entries: list[
-        tuple[StringAttr | TypeAttribute | str, Attribute | str | int | float]
-    ],
+    entries: list[tuple[StringAttr | TypeAttribute | str, Attribute | str | int]],
 ):
     # Test initialisation from a dictionary
     generic_specification_test(MapAttr, {e[0]: e[1] for e in entries}, entries)

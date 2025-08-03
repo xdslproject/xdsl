@@ -14,11 +14,8 @@ from typing import TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    Float32Type,
-    FloatAttr,
-    IntegerAttr,
+    IntAttr,
     StringAttr,
-    i32,
 )
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import irdl_attr_definition
@@ -28,7 +25,7 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 DictValueType: TypeAlias = Mapping[
-    StringAttr | TypeAttribute | str, "Attribute | str | int | float | DictValueType"
+    StringAttr | TypeAttribute | str, "Attribute | str | int | DictValueType"
 ]
 
 
@@ -47,7 +44,7 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
     def __init__(
         self,
         key: StringAttr | TypeAttribute | str,
-        value: Attribute | str | int | float | DictValueType,
+        value: Attribute | str | int | DictValueType,
     ):
         if isinstance(key, str):
             key = StringAttr(key)
@@ -55,9 +52,7 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
         if isinstance(value, str):
             value = StringAttr(value)
         elif isinstance(value, int):
-            value = IntegerAttr(value, i32)
-        elif isinstance(value, float):
-            value = FloatAttr(value, Float32Type())
+            value = IntAttr(value)
         elif isinstance(value, dict):
             value = MapAttr(value)
 
