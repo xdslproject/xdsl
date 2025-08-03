@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from itertools import repeat
+from typing import NamedTuple
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
@@ -36,49 +39,46 @@ def factors(num: int) -> tuple[int, ...]:
     return tuple(factor for factor in range(1, num + 1) if not num % factor)
 
 
-def unroll_and_jam_bound_indices_and_factors(
-    op: memref_stream.GenericOp,
-) -> tuple[tuple[int, int], ...]:
-    parallel_indices = tuple(
-        index
-        for index, iterator_type in enumerate(op.iterator_types)
-        if iterator_type == memref_stream.IteratorTypeAttr.parallel()
-    )
-    parallel_bounds = tuple(
-        op.bounds.data[index].value.data for index in parallel_indices
-    )
-    return tuple(
-        (index, factor)
-        for index, bound in zip(parallel_indices, parallel_bounds)
-        for factor in factors(bound)
-    )
+class IndexAndFactor(NamedTuple):
+    """
+    Helper data structure holding an option for which index of a `memref_stream.generic`
+    operation to interleave and with which factor.
+    """
 
+    iterator_index: int
+    factor: int
 
-def interleave_index_and_factor(
-    indices_and_factors: Sequence[tuple[int, int]], pipeline_depth: int
-) -> tuple[int, int] | None:
-    if not indices_and_factors:
-        return None
-    # Filter for innermost parallel index
-    max_index = max(index for index, _ in indices_and_factors)
-    indices_and_factors = tuple(
-        (index, factor) for index, factor in indices_and_factors if index == max_index
-    )
+    @staticmethod
+    def choose(
+        indices_and_factors: Sequence[IndexAndFactor], pipeline_depth: int
+    ) -> IndexAndFactor | None:
+        """
+        A heuristic to choose the interleave index and factor automatically given the
+        pipeline depth of floating-point operations on the processor.
+        The higher the factor chosen, the higher the instruction-level parallelism, but
+        also the more registers need to be used at the same time, potentially leading to
+        spilling.
+        """
+        if not indices_and_factors:
+            return None
+        # Filter for innermost parallel index
+        max_index = max(index for index, _ in indices_and_factors)
+        indices_and_factors = tuple(
+            t for t in indices_and_factors if t.iterator_index == max_index
+        )
 
-    # Want the biggest number for maximal instruction-level parallelism, less than
-    # 2 * pipeline depth as a heuristic to limit register pressure.
-    indices_and_factors = tuple(
-        (index, factor)
-        for index, factor in indices_and_factors
-        if factor < pipeline_depth * 2
-    )
-    if not indices_and_factors:
-        return None
+        # Want the biggest number for maximal instruction-level parallelism, less than
+        # 2 * pipeline depth as a heuristic to limit register pressure.
+        indices_and_factors = tuple(
+            t for t in indices_and_factors if t.factor < pipeline_depth * 2
+        )
+        if not indices_and_factors:
+            return None
 
-    sorted_indices_and_factors = sorted(indices_and_factors, key=lambda x: x[1])
+        sorted_indices_and_factors = sorted(indices_and_factors, key=lambda x: x[1])
 
-    # Greatest number less than double of pipeline depth.
-    return sorted_indices_and_factors[-1]
+        # Greatest number less than double of pipeline depth.
+        return sorted_indices_and_factors[-1]
 
 
 @dataclass(frozen=True)
@@ -86,6 +86,28 @@ class PipelineGenericPattern(RewritePattern):
     pipeline_depth: int
     iterator_index: int | None = field(default=None)
     unroll_factor: int | None = field(default=None)
+
+    @staticmethod
+    def indices_and_factors(
+        op: memref_stream.GenericOp,
+    ) -> tuple[IndexAndFactor, ...]:
+        """
+        Given a `memref_stream.generic` operation, returns all the possible options for
+        unrolling.
+        """
+        parallel_indices = tuple(
+            index
+            for index, iterator_type in enumerate(op.iterator_types)
+            if iterator_type == memref_stream.IteratorTypeAttr.parallel()
+        )
+        parallel_bounds = tuple(
+            op.bounds.data[index].value.data for index in parallel_indices
+        )
+        return tuple(
+            IndexAndFactor(index, factor)
+            for index, bound in zip(parallel_indices, parallel_bounds)
+            for factor in factors(bound)
+        )
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -99,7 +121,7 @@ class PipelineGenericPattern(RewritePattern):
             # No reduction
             return
 
-        indices_and_factors = unroll_and_jam_bound_indices_and_factors(op)
+        indices_and_factors = self.indices_and_factors(op)
         if not indices_and_factors:
             return
 
@@ -109,7 +131,7 @@ class PipelineGenericPattern(RewritePattern):
             interleave_bound_index = self.iterator_index
             interleave_factor = self.unroll_factor
         else:
-            t = interleave_index_and_factor(indices_and_factors, self.pipeline_depth)
+            t = IndexAndFactor.choose(indices_and_factors, self.pipeline_depth)
             if t is None:
                 return
 

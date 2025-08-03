@@ -1,9 +1,6 @@
 import pytest
 
-from xdsl.transforms.memref_stream_interleave import (
-    factors,
-    interleave_index_and_factor,
-)
+from xdsl.transforms.memref_stream_interleave import IndexAndFactor, factors
 
 
 @pytest.mark.parametrize(
@@ -34,8 +31,11 @@ def test_factors_parametrized(num: int, expected_factors: tuple[int, ...]):
         (((0, 1), (0, 3), (1, 4), (1, 11), (1, 44)), (1, 4)),
     ],
 )
-def test_index_and_factor(
+def test_choose_index_and_factor(
     indices_and_factors: tuple[tuple[int, int], ...],
     expected_res: tuple[int, int] | None,
 ):
-    assert interleave_index_and_factor(indices_and_factors, 4) == expected_res
+    named_tuples = tuple(
+        IndexAndFactor(index, factor) for index, factor in indices_and_factors
+    )
+    assert IndexAndFactor.choose(named_tuples, 4) == expected_res

@@ -452,11 +452,11 @@ def _(
 @app.cell
 def _(memref_stream_module, mo):
     from xdsl.dialects import memref_stream
-    from xdsl.transforms.memref_stream_interleave import unroll_and_jam_bound_indices_and_factors
+    from xdsl.transforms.memref_stream_interleave import PipelineGenericPattern
 
     msg_op = next(child for child in memref_stream_module.walk() if isinstance(child, memref_stream.GenericOp))
 
-    msg_factors = unroll_and_jam_bound_indices_and_factors(msg_op)
+    msg_factors = PipelineGenericPattern.indices_and_factors(msg_op)
 
     mo.md(f"""
     We can also find the possible range of indices and factors to unroll-and-jam manually:
