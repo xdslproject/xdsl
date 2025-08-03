@@ -19,7 +19,6 @@ from xdsl.dialects.builtin import (
     TensorType,
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.ir.core import Block
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
