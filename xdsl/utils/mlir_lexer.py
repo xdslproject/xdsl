@@ -119,7 +119,7 @@ class StringLiteral(Span):
                 )
 
         # Add the remaining part of the string after the last escape sequence.
-        if last_index < len(text_contents):
+        if last_index < text_contents_len:
             bytes_contents.extend(text_contents[last_index:].encode())
         return bytes(bytes_contents)
 
