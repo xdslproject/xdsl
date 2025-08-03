@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Mapping
-from typing import TypeAlias, cast
+from typing import TypeAlias
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -93,10 +93,9 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
     ) -> tuple[ArrayAttr[DataLayoutEntryAttr]]:
         def parse_entry() -> DataLayoutEntryAttr:
             entry = parser.parse_attribute()
-            entry = cast(StringAttr | TypeAttribute, entry)
             parser.parse_punctuation("=")
             value = parser.parse_attribute()
-            return DataLayoutEntryAttr(entry, value)
+            return DataLayoutEntryAttr.new((entry, value))
 
         entries = parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_entry)
 
