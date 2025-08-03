@@ -28,7 +28,7 @@ def test_string_litreal_bytes_constents(input_string: str, expected_bytes: bytes
 
 
 def test_invalid_escape_in_string_literal():
-    """Test that an invalid escape sequence raises a ValueError."""
+    """Test that an invalid escape sequence raises a ParseError."""
 
     input_string = '"hello world!\\"'
     string_literal = StringLiteral(
