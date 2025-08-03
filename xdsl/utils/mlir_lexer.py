@@ -64,11 +64,15 @@ class StringLiteral(Span):
 
     @property
     def bytes_contents(self) -> bytes:
-        # NOTE: This function is used to convert the string literal into a bytes object and
-        # handle escape sequences. There are two types of escape sequences we process:
-        # 1. Known escape sequences like \n, \t, \\, and \"
-        # 2. Hexadecimal escape sequences like \x00, \x0E, \00, \0E, etc.
+        """
+        Convert the string literal into a bytes object and handle escape sequences.
 
+        There are two types of escape sequences we process:
+
+            1. Known escape sequences like \n, \t, \\, and \"
+
+            2. Hexadecimal escape sequences like \x00, \x0e, \00, \0E, etc.
+        """
         # We use a mapping for the known escape sequences.
         escape_str_mapping = {
             "\\n": b"\n",
@@ -82,12 +86,13 @@ class StringLiteral(Span):
 
         # Initialize the last index to track where the last escape sequence ended.
         last_index = 0
+        text_contents_len = len(text_contents)
 
         # Scan through the string literal text to find escape sequences.
         while (backslash_index := text_contents.find("\\", last_index)) > -1:
             bytes_contents += text_contents[last_index:backslash_index].encode()
 
-            if len(text_contents) <= backslash_index + 1:
+            if text_contents_len <= backslash_index + 1:
                 raise ParseError(self, "Incomplete escape sequence at end of string.")
 
             if (
@@ -98,7 +103,7 @@ class StringLiteral(Span):
                 excape_str = text_contents[backslash_index : backslash_index + 2]
                 bytes_contents += escape_str_mapping[excape_str]
                 last_index = backslash_index + 2
-            elif len(text_contents) > backslash_index + 2 and all(
+            elif text_contents_len > backslash_index + 2 and all(
                 c in hexdigits
                 for c in text_contents[backslash_index + 1 : backslash_index + 3]
             ):
