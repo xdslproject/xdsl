@@ -9,6 +9,7 @@ https://mlir.llvm.org/docs/Dialects/DLTIDialect/
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Mapping
 from typing import TypeAlias, cast
 
 from xdsl.dialects.builtin import (
@@ -24,8 +25,9 @@ from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
-DictValueType: TypeAlias = dict[
+DictValueType: TypeAlias = Mapping[
     StringAttr | TypeAttribute | str, "Attribute | str | int | float | DictValueType"
 ]
 
@@ -80,16 +82,13 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
 
     def __init__(
         self,
-        contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
+        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
     ):
-        if isinstance(contents, dict):
+        if not isa(contents, ArrayAttr[DataLayoutEntryAttr]):
+            assert isinstance(contents, Mapping)
             contents = ArrayAttr(
                 [DataLayoutEntryAttr(k, v) for k, v in contents.items()]
             )
-        elif isinstance(contents, list):
-            contents = ArrayAttr(contents)
-
-        assert isinstance(contents, ArrayAttr)
 
         super().__init__(contents)
 
@@ -138,7 +137,7 @@ class DataLayoutSpecAttr(DLTIEntryMap):
 
     def __init__(
         self,
-        contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
+        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
     ):
         return super().__init__(contents)
 
@@ -159,7 +158,7 @@ class TargetDeviceSpecAttr(DLTIEntryMap):
 
     def __init__(
         self,
-        contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
+        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
     ):
         return super().__init__(contents)
 
@@ -180,7 +179,7 @@ class TargetSystemSpecAttr(DLTIEntryMap):
 
     def __init__(
         self,
-        contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
+        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
     ):
         return super().__init__(contents)
 
@@ -200,7 +199,7 @@ class MapAttr(DLTIEntryMap):
 
     def __init__(
         self,
-        contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
+        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
     ):
         return super().__init__(contents)
 

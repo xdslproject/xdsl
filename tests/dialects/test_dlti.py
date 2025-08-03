@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import TypeAlias
 
 import pytest
@@ -20,8 +21,9 @@ from xdsl.dialects.dlti import (
 )
 from xdsl.ir import Attribute, TypeAttribute
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
-DictValueType: TypeAlias = dict[
+DictValueType: TypeAlias = Mapping[
     StringAttr | TypeAttribute | str, "Attribute | str | int | float | DictValueType"
 ]
 
@@ -129,13 +131,13 @@ def generic_test_entry_equals_defn(
 
 def generic_specification_test(
     dlti_class: type[DLTIEntryMap],
-    contents: ArrayAttr | list[DataLayoutEntryAttr] | DictValueType,
+    contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
     comparison_entries: list[
         tuple[StringAttr | TypeAttribute | str, Attribute | str | int | float]
     ],
 ):
     spec = dlti_class(contents)
-    assert isinstance(spec.entries, ArrayAttr)
+    assert isa(spec.entries, ArrayAttr[DataLayoutEntryAttr])
     assert len(spec.entries) == len(comparison_entries)
 
     for dlti_entry, comparison in zip(spec.entries.data, comparison_entries):
@@ -157,10 +159,6 @@ def test_data_layout_spec(
     # Test initialisation from a dictionary
     generic_specification_test(
         DataLayoutSpecAttr, {e[0]: e[1] for e in entries}, entries
-    )
-    # Test initialisation from a list of data layout entries
-    generic_specification_test(
-        DataLayoutSpecAttr, [DataLayoutEntryAttr(e[0], e[1]) for e in entries], entries
     )
     # Test initialisation from an array attribute of data layout entries
     generic_specification_test(
@@ -186,12 +184,6 @@ def test_target_device_spec(
     generic_specification_test(
         TargetDeviceSpecAttr, {e[0]: e[1] for e in entries}, entries
     )
-    # Test initialisation from a list of data layout entries
-    generic_specification_test(
-        TargetDeviceSpecAttr,
-        [DataLayoutEntryAttr(e[0], e[1]) for e in entries],
-        entries,
-    )
     # Test initialisation from an array attribute of data layout entries
     generic_specification_test(
         TargetDeviceSpecAttr,
@@ -216,12 +208,6 @@ def test_target_system_spec(
     generic_specification_test(
         TargetSystemSpecAttr, {e[0]: e[1] for e in entries}, entries
     )
-    # Test initialisation from a list of data layout entries
-    generic_specification_test(
-        TargetSystemSpecAttr,
-        [DataLayoutEntryAttr(e[0], e[1]) for e in entries],
-        entries,
-    )
     # Test initialisation from an array attribute of data layout entries
     generic_specification_test(
         TargetSystemSpecAttr,
@@ -244,10 +230,6 @@ def test_map_attr(
 ):
     # Test initialisation from a dictionary
     generic_specification_test(MapAttr, {e[0]: e[1] for e in entries}, entries)
-    # Test initialisation from a list of data layout entries
-    generic_specification_test(
-        MapAttr, [DataLayoutEntryAttr(e[0], e[1]) for e in entries], entries
-    )
     # Test initialisation from an array attribute of data layout entries
     generic_specification_test(
         MapAttr, ArrayAttr([DataLayoutEntryAttr(e[0], e[1]) for e in entries]), entries
@@ -267,7 +249,7 @@ def test_map_attr_embedded_dict():
 def test_duplicate_data_layout_spec_entries():
     with pytest.raises(VerifyException):
         entry = DataLayoutSpecAttr(
-            [DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]
+            ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])
         )
         entry.verify()
 
@@ -275,7 +257,7 @@ def test_duplicate_data_layout_spec_entries():
 def test_duplicate_target_device_spec_entries():
     with pytest.raises(VerifyException):
         entry = TargetDeviceSpecAttr(
-            [DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]
+            ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])
         )
         entry.verify()
 
@@ -283,12 +265,14 @@ def test_duplicate_target_device_spec_entries():
 def test_duplicate_system_spec_entries():
     with pytest.raises(VerifyException):
         entry = TargetSystemSpecAttr(
-            [DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]
+            ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])
         )
         entry.verify()
 
 
 def test_duplicate_map_attr_entries():
     with pytest.raises(VerifyException):
-        entry = MapAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])
+        entry = MapAttr(
+            ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])
+        )
         entry.verify()
