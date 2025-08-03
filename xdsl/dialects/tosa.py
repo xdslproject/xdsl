@@ -300,6 +300,7 @@ class MatMulOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
 class YieldOp(IRDLOperation):
     """
     TOSA operation for returning out of conditional and body of structured control flow
