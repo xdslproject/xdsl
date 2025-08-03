@@ -10,8 +10,6 @@ dependencies = [
     "immutabledict<4.2.2",
     "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
-    "matplotlib>=3.10.3",
-    "pandas>=2.3.0",
 ]
 dynamic = ["version"]
 
@@ -42,6 +40,10 @@ docs = [
     "mkdocstrings[python]>=0.27.0",
     "pymdown-extensions>=10.7",
     "lzstring2",
+    "matplotlib>=3.10.3",
+    "pandas>=2.3.0",
+    "python-lsp-server>=1.13.0",
+    "basedpyright>=1.31.0",
 ]
 gui = ["textual>=5,<6", "pyclip==0.7"]
 jax = ["jax==0.6.0", "numpy==2.2.6"]
