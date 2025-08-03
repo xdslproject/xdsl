@@ -1,5 +1,6 @@
-import pytest
 from typing import TypeAlias
+
+import pytest
 
 from xdsl.dialects.builtin import (
     ArrayAttr,

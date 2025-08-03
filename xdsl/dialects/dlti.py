@@ -9,7 +9,7 @@ https://mlir.llvm.org/docs/Dialects/DLTIDialect/
 from __future__ import annotations
 
 from abc import ABC
-from typing import cast, TypeAlias
+from typing import TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
