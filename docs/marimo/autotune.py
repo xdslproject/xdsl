@@ -229,7 +229,53 @@ def _():
 
 
 @app.cell
-def _(dataclass, field):
+def _():
+    from collections.abc import Iterable
+
+    class CycleResourceQueue:
+
+        cycles_by_resource: dict[object, int]
+
+        def __init__(self):
+            self.cycles_by_resource = {}
+
+        def enqueue(self, cycles_by_resource: dict[object, int]):
+            assert not self.cycles_by_resource.keys() & cycles_by_resource
+            self.cycles_by_resource |= cycles_by_resource
+
+        def advance(self, cycles: int = 1):
+            new_cycles_by_resource = {}
+
+            for r, c in self.cycles_by_resource.items():
+                if c > cycles:
+                    new_cycles_by_resource[r] = c - cycles
+
+            self.cycles_by_resource = new_cycles_by_resource
+
+        def wait(self, resources: Iterable[object]) -> int:
+            max_cycles = max((
+                cycles
+                for resource in resources
+                if (cycles := self.cycles_by_resource.get(resource)) is not None),
+                default=0
+            )
+            self.advance(max_cycles)
+            return max_cycles
+    return (CycleResourceQueue,)
+
+
+@app.cell
+def _(CycleResourceQueue):
+    _queue = CycleResourceQueue()
+    _queue.enqueue({"f0": 3, "f1": 2})
+    print(_queue.wait(("f1",)))
+    print(_queue.wait(("f2",)))
+    _queue.cycles_by_resource
+    return
+
+
+@app.cell
+def _(CycleResourceQueue, dataclass, field):
     from xdsl.dialects import riscv, riscv_cf, riscv_func
     from xdsl.interpreter import Interpreter, PythonValues
     from xdsl.ir import Operation
@@ -247,9 +293,9 @@ def _(dataclass, field):
         riscv.LiOp: 1,
         riscv.AddOp: 1,
         riscv.FLdOp: 1,
-        riscv.FMulDOp: 1,
-        riscv.FAddDOp: 1,
-        riscv.FMAddDOp: 1,
+        riscv.FMulDOp: 3,
+        riscv.FAddDOp: 3,
+        riscv.FMAddDOp: 3,
         riscv.FSdOp: 1,
         riscv.AddiOp: 1,
         riscv_cf.BltOp: 1,
@@ -260,11 +306,24 @@ def _(dataclass, field):
     @dataclass
     class SnitchCycleEstimator(Interpreter.Listener):
         cycles: int = field(default=0)
+        queue: CycleResourceQueue = field(default_factory=CycleResourceQueue)
 
         def will_interpret_op(self, op: Operation, args: PythonValues):
             if type(op) in SKIPPED_OPS:
                 return
-            self.cycles += CYCLES_PER_OP[type(op)]
+            self.cycles += self.queue.wait(op.operand_types)
+
+        def did_interpret_op(self, op: Operation, results: PythonValues):
+            if type(op) in SKIPPED_OPS:
+                return
+            self.cycles += 1
+            self.queue.advance()
+            cycles = CYCLES_PER_OP[type(op)]
+            self.queue.enqueue({
+                t: cycles
+                for t in op.result_types
+            })
+
     return Interpreter, SnitchCycleEstimator
 
 
@@ -284,7 +343,7 @@ def _():
 def _(ModuleOp, abc):
     class CostModel(abc.ABC):
         @abc.abstractmethod
-        def estimate_cost(self, module: ModuleOp) -> int | None: ...
+        def estimate_cost(self, module: ModuleOp) -> float | None: ...
     return (CostModel,)
 
 
