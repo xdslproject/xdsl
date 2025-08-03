@@ -67,7 +67,7 @@ class StringLiteral(Span):
         # NOTE: This function is used to convert the string literal into a bytes object and
         # handle escape sequences. There are two types of escape sequences we process:
         # 1. Known escape sequences like \n, \t, \\, and \"
-        # 2. Hexadecimal escape sequences like \x00, \x01, etc.
+        # 2. Hexadecimal escape sequences like \x00, \x0E, \00, \0E, etc.
 
         # We use a mapping for the known escape sequences.
         escape_str_mapping = {
