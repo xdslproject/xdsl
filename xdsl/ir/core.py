@@ -1681,7 +1681,7 @@ class Block(_IRNode, IRWithUses):
     def __repr__(self) -> str:
         return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
 
-    def permute(self, orderings: list[int]) -> None:
+    def permute(self, orderings: Sequence[int]) -> None:
         list_ops: list[Operation] = []
         for op in self.ops:
             op.detach()
