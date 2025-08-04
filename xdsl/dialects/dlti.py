@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import TypeAlias
 
 from xdsl.dialects.builtin import (
@@ -65,6 +66,7 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
             raise VerifyException("empty string as DLTI key is not allowed")
 
 
+@dataclass(frozen=True)
 class DLTIEntryMap(ParametrizedAttribute, ABC):
     """
     Many DLTI dialect operations contain arrays of DataLayoutEntryInterface,
@@ -115,7 +117,7 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
             raise VerifyException("duplicate DLTI entry key")
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class DataLayoutSpecAttr(DLTIEntryMap):
     """
     An attribute to represent a data layout specification.
@@ -129,14 +131,8 @@ class DataLayoutSpecAttr(DLTIEntryMap):
 
     name = "dlti.dl_spec"
 
-    def __init__(
-        self,
-        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
-    ):
-        return super().__init__(contents)
 
-
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class TargetDeviceSpecAttr(DLTIEntryMap):
     """
     An attribute to represent target device specification.
@@ -150,14 +146,8 @@ class TargetDeviceSpecAttr(DLTIEntryMap):
 
     name = "dlti.target_device_spec"
 
-    def __init__(
-        self,
-        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
-    ):
-        return super().__init__(contents)
 
-
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class TargetSystemSpecAttr(DLTIEntryMap):
     """
     An attribute to represent target system specification.
@@ -171,14 +161,8 @@ class TargetSystemSpecAttr(DLTIEntryMap):
 
     name = "dlti.target_system_spec"
 
-    def __init__(
-        self,
-        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
-    ):
-        return super().__init__(contents)
 
-
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class MapAttr(DLTIEntryMap):
     """
     A mapping of DLTI-information by way of key-value pairs
@@ -190,12 +174,6 @@ class MapAttr(DLTIEntryMap):
     """
 
     name = "dlti.map"
-
-    def __init__(
-        self,
-        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
-    ):
-        return super().__init__(contents)
 
 
 DLTI = Dialect(
