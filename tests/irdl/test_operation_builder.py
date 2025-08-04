@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+from xdsl.dialects import test
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.test import TestTermOp
@@ -759,3 +760,24 @@ def test_parent_pointers():
     assert block.parent_block() is block_2
 
     assert block_2.parent_block() is None
+
+
+def test_permute_block_ops():
+    # Operations on these constants
+    a = test.TestOp()
+    b = test.TestOp()
+    c = test.TestOp()
+    d = test.TestOp()
+    e = test.TestOp()
+    f = test.TestOp()
+
+    # Create Block from operations
+    block0 = Block([a, b, c, d, e, f])
+    orderings = [2, 5, 0, 4, 1, 3]
+    block0.permute(orderings)
+
+    expected_order = [c, f, a, e, b, d]
+    expected_iter = iter(expected_order)
+    for actual_op in block0.ops:
+        expected_op = next(expected_iter)
+        assert actual_op is expected_op
