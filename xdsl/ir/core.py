@@ -1683,6 +1683,9 @@ class Block(_IRNode, IRWithUses):
 
     def permute(self, orderings: Sequence[int]) -> None:
         tuple_ops = tuple(self.ops)
+        assert sorted(orderings) == list(range(len(tuple_ops))), (
+            "Invalid permutation provided"
+        )
         for op in self.ops:
             op.detach()
         for i in orderings:

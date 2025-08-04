@@ -781,3 +781,11 @@ def test_permute_block_ops():
     for actual_op in block0.ops:
         expected_op = next(expected_iter)
         assert actual_op is expected_op
+
+    with pytest.raises(AssertionError, match="Invalid permutation provided"):
+        a = test.TestOp()
+        b = test.TestOp()
+        c = test.TestOp()
+        block1 = Block([a, b, c])
+        orderings_invalid = [2, 5, 6]
+        block1.permute(orderings_invalid)
