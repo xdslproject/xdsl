@@ -565,6 +565,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return varith_transformations.VarithFuseRepeatedOperandsPass
 
+    def get_vector_split_load_extract():
+        from xdsl.transforms import vector_split_load_extract
+
+        return vector_split_load_extract.VectorSplitLoadExtractPass
+
     def get_x86_allocate_registers():
         from xdsl.transforms import x86_allocate_registers
 
@@ -689,6 +694,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
+        "vector-split-load-extract": get_vector_split_load_extract,
         "x86-allocate-registers": get_x86_allocate_registers,
         "x86-infer-broadcast": get_x86_infer_broadcast,
     }

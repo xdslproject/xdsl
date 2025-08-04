@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-vector-to-ptr,convert-memref-to-ptr{lower_func=true},convert-ptr-type-offsets,canonicalize,convert-func-to-x86-func,convert-vector-to-x86{arch=avx2},convert-ptr-to-x86{arch=avx2},convert-arith-to-x86,reconcile-unrealized-casts,canonicalize,x86-infer-broadcast,x86-allocate-registers,canonicalize -t x86-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-vector-to-ptr,convert-memref-to-ptr{lower_func=true},convert-ptr-type-offsets,vector-split-load-extract,canonicalize,convert-func-to-x86-func,convert-vector-to-x86{arch=avx2},convert-ptr-to-x86{arch=avx2},convert-arith-to-x86,reconcile-unrealized-casts,canonicalize,x86-infer-broadcast,x86-allocate-registers,canonicalize -t x86-asm %s | filecheck %s
 
 func.func @matmul(
   %A: memref<2x4xf64>,
@@ -21,12 +21,15 @@ func.func @matmul(
   %b_line1 = vector.load %B[%k1,%j0]: memref<4x4xf64>, vector<4xf64>
   %b_line2 = vector.load %B[%k2,%j0]: memref<4x4xf64>, vector<4xf64>
   %b_line3 = vector.load %B[%k3,%j0]: memref<4x4xf64>, vector<4xf64>
+  // Load A lines
+  %a_line0 = vector.load %A[%i0,%k0]: memref<2x4xf64>, vector<4xf64>
+  %a_line1 = vector.load %A[%i1,%k0]: memref<2x4xf64>, vector<4xf64>
 
   // Load column 0 of A
-  %a_00_scal = memref.load %A[%i0, %k0] : memref<2x4xf64>
-  %a_01_scal = memref.load %A[%i0, %k1] : memref<2x4xf64>
-  %a_02_scal = memref.load %A[%i0, %k2] : memref<2x4xf64>
-  %a_03_scal = memref.load %A[%i0, %k3] : memref<2x4xf64>
+  %a_00_scal = vector.extract %a_line0[0] : f64 from vector<4xf64>
+  %a_01_scal = vector.extract %a_line0[1] : f64 from vector<4xf64>
+  %a_02_scal = vector.extract %a_line0[2] : f64 from vector<4xf64>
+  %a_03_scal = vector.extract %a_line0[3] : f64 from vector<4xf64>
   %a_00 = vector.broadcast %a_00_scal: f64 to vector<4xf64>
   %a_01 = vector.broadcast %a_01_scal: f64 to vector<4xf64>
   %a_02 = vector.broadcast %a_02_scal: f64 to vector<4xf64>
@@ -38,10 +41,10 @@ func.func @matmul(
   %c_line0_acc3 = vector.fma %a_03, %b_line3, %c_line0_acc2: vector<4xf64>
 
   // Load column 1 of A
-  %a_10_scal = memref.load %A[%i1, %k0] : memref<2x4xf64>
-  %a_11_scal = memref.load %A[%i1, %k1] : memref<2x4xf64>
-  %a_12_scal = memref.load %A[%i1, %k2] : memref<2x4xf64>
-  %a_13_scal = memref.load %A[%i1, %k3] : memref<2x4xf64>
+  %a_10_scal = vector.extract %a_line1[0] : f64 from vector<4xf64>
+  %a_11_scal = vector.extract %a_line1[1] : f64 from vector<4xf64>
+  %a_12_scal = vector.extract %a_line1[2] : f64 from vector<4xf64>
+  %a_13_scal = vector.extract %a_line1[3] : f64 from vector<4xf64>
   %a_10 = vector.broadcast %a_10_scal: f64 to vector<4xf64>
   %a_11 = vector.broadcast %a_11_scal: f64 to vector<4xf64>
   %a_12 = vector.broadcast %a_12_scal: f64 to vector<4xf64>
