@@ -570,6 +570,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return x86_allocate_registers.X86AllocateRegisters
 
+    def get_x86_infer_broadcast():
+        from xdsl.transforms import x86_infer_broadcast
+
+        return x86_infer_broadcast.X86InferBroadcast
+
     # Please insert pass and `get_` function in alphabetical order
 
     return {
@@ -685,4 +690,5 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
         "x86-allocate-registers": get_x86_allocate_registers,
+        "x86-infer-broadcast": get_x86_infer_broadcast,
     }
