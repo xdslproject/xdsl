@@ -1685,8 +1685,8 @@ class Block(_IRNode, IRWithUses):
         tuple_ops: tuple(self.ops)
         for op in self.ops:
             op.detach()
-        for op in reordered_ops:
-            self.add_op(op)
+        for i in orderings:
+            self.add_op(tuple_ops[i])
 
     @property
     def args(self) -> tuple[BlockArgument, ...]:
