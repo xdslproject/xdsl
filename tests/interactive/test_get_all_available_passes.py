@@ -77,10 +77,8 @@ def test_get_all_available_passes():
         },
     )
 
-    assert res == tuple(
-        (
-            AvailablePass(module_pass=BCPass()),
-            AvailablePass(module_pass=BDPass()),
-            AvailablePass(module_pass=ApplyIndividualRewritePass(1, "test.op", "be")),
-        )
+    assert res == (
+        AvailablePass(BCPass()),
+        AvailablePass(BDPass()),
+        AvailablePass(ApplyIndividualRewritePass(1, "test.op", "be")),
     )
