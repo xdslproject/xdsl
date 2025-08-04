@@ -36,8 +36,8 @@ from xdsl.irdl import (
     IRDLOperationInvT,
     OpDef,
     OptionalDef,
+    SSAValues,
     Successor,
-    VarOperand,
     is_const_classvar,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -608,7 +608,7 @@ class VariadicOperandVariable(VariadicVariable, OperandDirective):
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         state.operand_types[self.index] = (parser.parse_type(),)
 
-    def get(self, op: IRDLOperation) -> VarOperand:
+    def get(self, op: IRDLOperation) -> SSAValues:
         return getattr(op, self.name)
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:

@@ -28,7 +28,6 @@ from xdsl.dialects.llvm import (
 )
 from xdsl.dialects.scf import ForOp, ParallelOp, YieldOp
 from xdsl.ir import Block, Operation, OpResult, Region, Use
-from xdsl.irdl import VarOperand, VarOpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -327,10 +326,10 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
         ii = ConstantOp.from_int_and_width(1, i32)
         hls_pipeline_op: Operation = PragmaPipelineOp(ii)
 
-        lb: VarOperand = op.lowerBound
-        ub: VarOperand = op.upperBound
-        step: VarOperand = op.step
-        res: VarOpResult = op.res
+        lb = op.lowerBound
+        ub = op.upperBound
+        step = op.step
+        res = op.res
 
         for i in range(len(lb)):
             cast(OpResult, lb[i]).op.detach()
