@@ -31,6 +31,7 @@ from xdsl.ir import (
     OpTraits,
     Region,
     SSAValue,
+    SSAValues,
 )
 from xdsl.traits import OpTrait
 from xdsl.utils.classvar import is_const_classvar
@@ -349,12 +350,6 @@ class VarOperandDef(OperandDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-class VarOperand(tuple[Operand, ...]):
-    @property
-    def types(self):
-        return tuple(o.type for o in self)
-
-
 @dataclass(init=False)
 class OptOperandDef(VarOperandDef, OptionalDef):
     """An IRDL optional operand definition."""
@@ -385,12 +380,6 @@ class VarResultDef(ResultDef, VariadicDef):
         self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
     ):
         self.constr = range_constr_coercion(attr)
-
-
-class VarOpResult(Generic[AttributeInvT], tuple[OpResult[AttributeInvT], ...]):
-    @property
-    def types(self):
-        return tuple(r.type for r in self)
 
 
 @dataclass(init=False)
@@ -592,11 +581,13 @@ def var_result_def(
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> VarOpResult[AttributeInvT]:
+) -> SSAValues[OpResult[AttributeInvT]]:
     """
     Defines a variadic result of an operation.
     """
-    return cast(VarOpResult[AttributeInvT], _ResultFieldDef(VarResultDef, constraint))
+    return cast(
+        SSAValues[OpResult[AttributeInvT]], _ResultFieldDef(VarResultDef, constraint)
+    )
 
 
 def opt_result_def(
@@ -749,11 +740,11 @@ def var_operand_def(
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> VarOperand:
+) -> SSAValues:
     """
     Defines a variadic operand of an operation.
     """
-    return cast(VarOperand, _OperandFieldDef(VarOperandDef, constraint))
+    return cast(SSAValues, _OperandFieldDef(VarOperandDef, constraint))
 
 
 def opt_operand_def(
@@ -1443,10 +1434,9 @@ def get_operand_result_or_region(
 ) -> (
     None
     | Operand
-    | VarOperand
+    | SSAValues
     | OptOperand
     | OpResult
-    | VarOpResult
     | OptOpResult
     | Sequence[SSAValue]
     | Sequence[OpResult]
@@ -1484,9 +1474,9 @@ def get_operand_result_or_region(
         arg_size = variadic_sizes[previous_var_args]
         values = args[begin_arg : begin_arg + arg_size]
         if isinstance(defs[arg_def_idx][1], OperandDef):
-            return VarOperand(cast(Sequence[Operand], values))
+            return SSAValues(cast(Sequence[Operand], values))
         elif isinstance(defs[arg_def_idx][1], ResultDef):
-            return VarOpResult(cast(Sequence[OpResult], values))
+            return SSAValues(cast(Sequence[OpResult], values))
         else:
             return values
     else:
