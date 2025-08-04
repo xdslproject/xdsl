@@ -776,11 +776,7 @@ def test_permute_block_ops():
     orderings = [2, 5, 0, 4, 1, 3]
     block0.permute(orderings)
 
-    expected_order = [c, f, a, e, b, d]
-    expected_iter = iter(expected_order)
-    for actual_op in block0.ops:
-        expected_op = next(expected_iter)
-        assert actual_op is expected_op
+    assert tuple(block0.ops) == (c, f, a, e, b, d)
 
     with pytest.raises(AssertionError, match="Invalid permutation provided"):
         a = test.TestOp()
