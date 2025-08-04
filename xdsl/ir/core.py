@@ -866,6 +866,10 @@ SSAValueCovT = TypeVar(
 
 
 class SSAValues(Generic[SSAValueCovT], tuple[SSAValueCovT, ...]):
+    """
+    A helper data structure for a sequence of SSAValues.
+    """
+
     @property
     def types(self):
         return tuple(o.type for o in self)
