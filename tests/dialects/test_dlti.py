@@ -21,7 +21,6 @@ from xdsl.dialects.dlti import (
 )
 from xdsl.ir import Attribute, TypeAttribute
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 DictValueType: TypeAlias = Mapping[
     StringAttr | TypeAttribute | str, "Attribute | str | int | DictValueType"
@@ -62,18 +61,35 @@ def test_incorrect_data_layout_entry():
 
 def generic_specification_test(
     dlti_class: type[DLTIEntryMap],
-    contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
     comparison_entries: list[Attribute],
 ):
-    spec = dlti_class(contents)
-    assert isa(spec.entries, ArrayAttr[DataLayoutEntryAttr])
-    assert len(spec.entries) == len(comparison_entries)
+    # Comparison
+    comparison_attr = dlti_class.new(
+        (
+            ArrayAttr(
+                [
+                    DataLayoutEntryAttr("key_" + str(idx), e)
+                    for idx, e in enumerate(comparison_entries)
+                ]
+            ),
+        )
+    )
 
-    for idx, (dlti_entry, comparison_entry) in enumerate(
-        zip(spec.entries.data, comparison_entries)
-    ):
-        assert dlti_entry.key == StringAttr("key_" + str(idx))
-        assert dlti_entry.value == comparison_entry
+    # Test initialisation from a dictionary
+    attr_one = dlti_class(
+        {"key_" + str(idx): e for idx, e in enumerate(comparison_entries)}
+    )
+    assert comparison_attr == attr_one
+    # Test initialisation from an array attribute of data layout entries
+    attr_two = dlti_class(
+        ArrayAttr(
+            [
+                DataLayoutEntryAttr("key_" + str(idx), e)
+                for idx, e in enumerate(comparison_entries)
+            ]
+        )
+    )
+    assert comparison_attr == attr_two
 
 
 @pytest.mark.parametrize(
@@ -86,20 +102,7 @@ def generic_specification_test(
 def test_data_layout_spec(
     entries: list[Attribute],
 ):
-    # Test initialisation from a dictionary
-    generic_specification_test(
-        DataLayoutSpecAttr,
-        {"key_" + str(idx): e for idx, e in enumerate(entries)},
-        entries,
-    )
-    # Test initialisation from an array attribute of data layout entries
-    generic_specification_test(
-        DataLayoutSpecAttr,
-        ArrayAttr(
-            [DataLayoutEntryAttr("key_" + str(idx), e) for idx, e in enumerate(entries)]
-        ),
-        entries,
-    )
+    generic_specification_test(DataLayoutSpecAttr, entries)
 
 
 @pytest.mark.parametrize(
@@ -112,20 +115,7 @@ def test_data_layout_spec(
 def test_target_device_spec(
     entries: list[Attribute],
 ):
-    # Test initialisation from a dictionary
-    generic_specification_test(
-        TargetDeviceSpecAttr,
-        {"key_" + str(idx): e for idx, e in enumerate(entries)},
-        entries,
-    )
-    # Test initialisation from an array attribute of data layout entries
-    generic_specification_test(
-        TargetDeviceSpecAttr,
-        ArrayAttr(
-            [DataLayoutEntryAttr("key_" + str(idx), e) for idx, e in enumerate(entries)]
-        ),
-        entries,
-    )
+    generic_specification_test(TargetDeviceSpecAttr, entries)
 
 
 @pytest.mark.parametrize(
@@ -138,20 +128,7 @@ def test_target_device_spec(
 def test_target_system_spec(
     entries: list[Attribute],
 ):
-    # Test initialisation from a dictionary
-    generic_specification_test(
-        TargetSystemSpecAttr,
-        {"key_" + str(idx): e for idx, e in enumerate(entries)},
-        entries,
-    )
-    # Test initialisation from an array attribute of data layout entries
-    generic_specification_test(
-        TargetSystemSpecAttr,
-        ArrayAttr(
-            [DataLayoutEntryAttr("key_" + str(idx), e) for idx, e in enumerate(entries)]
-        ),
-        entries,
-    )
+    generic_specification_test(TargetSystemSpecAttr, entries)
 
 
 @pytest.mark.parametrize(
@@ -164,18 +141,7 @@ def test_target_system_spec(
 def test_map_attr(
     entries: list[Attribute],
 ):
-    # Test initialisation from a dictionary
-    generic_specification_test(
-        MapAttr, {"key_" + str(idx): e for idx, e in enumerate(entries)}, entries
-    )
-    # Test initialisation from an array attribute of data layout entries
-    generic_specification_test(
-        MapAttr,
-        ArrayAttr(
-            [DataLayoutEntryAttr("key_" + str(idx), e) for idx, e in enumerate(entries)]
-        ),
-        entries,
-    )
+    generic_specification_test(MapAttr, entries)
 
 
 def test_map_attr_embedded_dict():
