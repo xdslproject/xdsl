@@ -59,89 +59,42 @@ def test_incorrect_data_layout_entry():
         DataLayoutEntryAttr("", "V")
 
 
-def generic_specification_test(
-    dlti_class: type[DLTIEntryMap],
-    comparison_entries: list[Attribute],
+@pytest.mark.parametrize(
+    "cls", [DataLayoutSpecAttr, TargetDeviceSpecAttr, TargetSystemSpecAttr, MapAttr]
+)
+@pytest.mark.parametrize(
+    "entries",
+    [
+        [StringAttr("value1"), IntAttr(23), IntAttr(43)],
+        [IntAttr(23), FloatAttr(2.4, Float32Type())],
+    ],
+)
+def test_entry_maps(
+    cls: type[DLTIEntryMap],
+    entries: list[Attribute],
 ):
     # Comparison
-    comparison_attr = dlti_class.new(
+    comparison_attr = cls.new(
         (
             ArrayAttr(
                 [
                     DataLayoutEntryAttr("key_" + str(idx), e)
-                    for idx, e in enumerate(comparison_entries)
+                    for idx, e in enumerate(entries)
                 ]
             ),
         )
     )
 
     # Test initialisation from a dictionary
-    attr_one = dlti_class(
-        {"key_" + str(idx): e for idx, e in enumerate(comparison_entries)}
-    )
+    attr_one = cls({"key_" + str(idx): e for idx, e in enumerate(entries)})
     assert comparison_attr == attr_one
     # Test initialisation from an array attribute of data layout entries
-    attr_two = dlti_class(
+    attr_two = cls(
         ArrayAttr(
-            [
-                DataLayoutEntryAttr("key_" + str(idx), e)
-                for idx, e in enumerate(comparison_entries)
-            ]
+            [DataLayoutEntryAttr("key_" + str(idx), e) for idx, e in enumerate(entries)]
         )
     )
     assert comparison_attr == attr_two
-
-
-@pytest.mark.parametrize(
-    "entries",
-    [
-        [StringAttr("value1"), IntAttr(23), IntAttr(43)],
-        [IntAttr(23), FloatAttr(2.4, Float32Type())],
-    ],
-)
-def test_data_layout_spec(
-    entries: list[Attribute],
-):
-    generic_specification_test(DataLayoutSpecAttr, entries)
-
-
-@pytest.mark.parametrize(
-    "entries",
-    [
-        [StringAttr("value1"), IntAttr(23), IntAttr(43)],
-        [IntAttr(23), FloatAttr(2.4, Float32Type())],
-    ],
-)
-def test_target_device_spec(
-    entries: list[Attribute],
-):
-    generic_specification_test(TargetDeviceSpecAttr, entries)
-
-
-@pytest.mark.parametrize(
-    "entries",
-    [
-        [StringAttr("value1"), IntAttr(23), IntAttr(43)],
-        [IntAttr(23), FloatAttr(2.4, Float32Type())],
-    ],
-)
-def test_target_system_spec(
-    entries: list[Attribute],
-):
-    generic_specification_test(TargetSystemSpecAttr, entries)
-
-
-@pytest.mark.parametrize(
-    "entries",
-    [
-        [StringAttr("value1"), IntAttr(23), IntAttr(43)],
-        [IntAttr(23), FloatAttr(2.4, Float32Type())],
-    ],
-)
-def test_map_attr(
-    entries: list[Attribute],
-):
-    generic_specification_test(MapAttr, entries)
 
 
 def test_map_attr_embedded_dict():
@@ -153,29 +106,11 @@ def test_map_attr_embedded_dict():
     assert isinstance(embedded_contents.entries.data[0].value, StringAttr)
 
 
-def test_duplicate_data_layout_spec_entries():
+@pytest.mark.parametrize(
+    "cls", [DataLayoutSpecAttr, TargetDeviceSpecAttr, TargetSystemSpecAttr, MapAttr]
+)
+def test_duplicate_data_layout_map_entries(
+    cls: type[DLTIEntryMap],
+):
     with pytest.raises(VerifyException):
-        DataLayoutSpecAttr(
-            ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])
-        )
-
-
-def test_duplicate_target_device_spec_entries():
-    with pytest.raises(VerifyException):
-        TargetDeviceSpecAttr(
-            ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])
-        )
-
-
-def test_duplicate_system_spec_entries():
-    with pytest.raises(VerifyException):
-        TargetSystemSpecAttr(
-            ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])
-        )
-
-
-def test_duplicate_map_attr_entries():
-    with pytest.raises(VerifyException):
-        MapAttr(
-            ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)])
-        )
+        cls(ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]))
