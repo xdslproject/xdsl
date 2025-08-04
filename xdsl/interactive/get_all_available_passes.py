@@ -29,14 +29,15 @@ def get_available_pass_list(
 
     PassPipeline(pass_pipeline).apply(ctx, current_module)
 
-    # get all individual rewrites
-    individual_rewrites = get_all_possible_rewrites(
-        current_module,
-        rewrite_by_names_dict,
-    )
     # merge rewrite passes with "other" pass list
     if condense_mode:
         pass_list = get_condensed_pass_list(current_module, all_passes)
+        # get all individual rewrites
+        individual_rewrites = get_all_possible_rewrites(
+            current_module,
+            rewrite_by_names_dict,
+        )
+        pass_list += tuple(individual_rewrites)
     else:
         pass_list = tuple(AvailablePass(p) for _, p in all_passes)
-    return pass_list + tuple(individual_rewrites)
+    return pass_list
