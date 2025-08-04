@@ -1681,6 +1681,15 @@ class Block(_IRNode, IRWithUses):
     def __repr__(self) -> str:
         return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
 
+    def permute(self, orderings: list[int]) -> None:
+        list_ops: list[Operation] = []
+        for op in self.ops:
+            op.detach()
+            list_ops.append(op)
+        reordered_ops = [list_ops[i] for i in orderings]
+        for op in reordered_ops:
+            self.add_op(op)
+
     @property
     def args(self) -> tuple[BlockArgument, ...]:
         """Returns the block arguments."""
