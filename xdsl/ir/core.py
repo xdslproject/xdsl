@@ -860,6 +860,21 @@ class _IRNode(ABC):
         return id(self)
 
 
+SSAValueCovT = TypeVar(
+    "SSAValueCovT", bound=SSAValue[Attribute], default=SSAValue[Attribute]
+)
+
+
+class SSAValues(Generic[SSAValueCovT], tuple[SSAValueCovT, ...]):
+    """
+    A helper data structure for a sequence of SSAValues.
+    """
+
+    @property
+    def types(self):
+        return tuple(o.type for o in self)
+
+
 @dataclass
 class OpOperands(Sequence[SSAValue]):
     """
