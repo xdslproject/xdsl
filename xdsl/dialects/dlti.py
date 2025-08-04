@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
-from xdsl.irdl import irdl_attr_definition
+from xdsl.irdl import irdl_attr_definition, param_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -27,6 +27,43 @@ from xdsl.utils.exceptions import VerifyException
 DictValueType: TypeAlias = Mapping[
     StringAttr | TypeAttribute | str, "Attribute | str | int | DictValueType"
 ]
+
+
+class DLTITypeConverters:
+    """
+    Type converter for DLTIEntryMap and DataLayoutEntryAttr parameters
+    """
+
+    @staticmethod
+    def convert_entry_map_type(
+        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
+    ) -> ArrayAttr[DataLayoutEntryAttr]:
+        if isinstance(contents, Mapping):
+            return ArrayAttr([DataLayoutEntryAttr(k, v) for k, v in contents.items()])
+        else:
+            return contents
+
+    @staticmethod
+    def convert_entry_attr_key_type(
+        key: StringAttr | TypeAttribute | str,
+    ) -> Attribute:
+        if isinstance(key, str):
+            return StringAttr(key)
+        else:
+            return key
+
+    @staticmethod
+    def convert_entry_attr_value_type(
+        value: Attribute | str | int | DictValueType,
+    ) -> Attribute:
+        if isinstance(value, str):
+            return StringAttr(value)
+        elif isinstance(value, int):
+            return IntAttr(value)
+        elif isinstance(value, Mapping):
+            return MapAttr(value)
+        else:
+            return value
 
 
 @irdl_attr_definition
@@ -38,24 +75,16 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
 
     name = "dlti.dl_entry"
 
-    key: Attribute
-    value: Attribute
+    key: Attribute = param_def(converter=DLTITypeConverters.convert_entry_attr_key_type)
+    value: Attribute = param_def(
+        converter=DLTITypeConverters.convert_entry_attr_value_type
+    )
 
     def __init__(
         self,
         key: StringAttr | TypeAttribute | str,
         value: Attribute | str | int | DictValueType,
     ):
-        if isinstance(key, str):
-            key = StringAttr(key)
-
-        if isinstance(value, str):
-            value = StringAttr(value)
-        elif isinstance(value, int):
-            value = IntAttr(value)
-        elif isinstance(value, Mapping):
-            value = MapAttr(value)
-
         super().__init__(key, value)
 
     def verify(self) -> None:
@@ -74,17 +103,14 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
     """
 
     # In MLIR, this is a DataLayoutEntryInterface.
-    entries: ArrayAttr[DataLayoutEntryAttr]
+    entries: ArrayAttr[DataLayoutEntryAttr] = param_def(
+        converter=DLTITypeConverters.convert_entry_map_type
+    )
 
     def __init__(
         self,
         contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
     ):
-        if isinstance(contents, Mapping):
-            contents = ArrayAttr(
-                [DataLayoutEntryAttr(k, v) for k, v in contents.items()]
-            )
-
         super().__init__(contents)
 
     @classmethod
