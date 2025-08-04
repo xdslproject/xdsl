@@ -80,13 +80,6 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
         converter=DLTITypeConverters.convert_entry_attr_value_type
     )
 
-    def __init__(
-        self,
-        key: StringAttr | TypeAttribute | str,
-        value: Attribute | str | int | DictValueType,
-    ):
-        super().__init__(key, value)
-
     def verify(self) -> None:
         if not isinstance(self.key, StringAttr | TypeAttribute):
             raise VerifyException("key must be a string or a type attribute")
