@@ -316,7 +316,6 @@ async def test_rewrites():
         await pilot.click("#condense_button")
 
         addi_pass = AvailablePass(
-            display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:SignlessIntegerBinaryOperationZeroOrUnitRight",
             module_pass=individual_rewrite.ApplyIndividualRewritePass(
                 3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
             ),
@@ -524,7 +523,7 @@ async def test_apply_individual_rewrite():
         """
         )
         app.passes_tree.root.expand()
-        await pilot.pause()
+        await pilot.click("#condense_button")
 
         node = None
         for n in app.passes_tree.root.children:

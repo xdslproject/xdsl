@@ -250,7 +250,7 @@ class InputApp(App[None]):
         """
         match self.current_module:
             case None:
-                return tuple(AvailablePass(p.name, p) for _, p in self.all_passes)
+                return tuple(AvailablePass(p) for _, p in self.all_passes)
             case Exception():
                 return ()
             case ModuleOp():
@@ -339,10 +339,10 @@ class InputApp(App[None]):
         # remove potential children nodes in case expand node has been clicked multiple times on the same node
         expanded_pass.remove_children()
 
-        for pass_name, value in child_pass_list:
+        for value in child_pass_list:
             expanded_pass.add(
-                label=pass_name,
-                data=value,
+                label=str(value),
+                data=value.module_pass,
             )
 
     def update_root_of_passes_tree(self) -> None:

@@ -24,6 +24,7 @@ from typing_extensions import Self, TypeVar, assert_never
 
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     Block,
     Operation,
@@ -31,6 +32,7 @@ from xdsl.ir import (
     OpTraits,
     Region,
     SSAValue,
+    SSAValues,
 )
 from xdsl.traits import OpTrait
 from xdsl.utils.classvar import is_const_classvar
@@ -349,10 +351,7 @@ class VarOperandDef(OperandDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-class VarOperand(tuple[Operand, ...]):
-    @property
-    def types(self):
-        return tuple(o.type for o in self)
+VarOperand = SSAValues[SSAValue[AttributeCovT]]
 
 
 @dataclass(init=False)
@@ -387,10 +386,7 @@ class VarResultDef(ResultDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-class VarOpResult(Generic[AttributeInvT], tuple[OpResult[AttributeInvT], ...]):
-    @property
-    def types(self):
-        return tuple(r.type for r in self)
+VarOpResult = SSAValues[OpResult[AttributeCovT]]
 
 
 @dataclass(init=False)

@@ -35,7 +35,6 @@ def get_all_possible_rewrites(
             if rewriter.has_done_action:
                 res.append(
                     AvailablePass(
-                        f"{cloned_op}:{cloned_op.name}:{pattern_name}",
                         individual_rewrite.ApplyIndividualRewritePass(
                             op_idx, cloned_op.name, pattern_name
                         ),
