@@ -27,9 +27,8 @@ from typing import (
     get_origin,
     overload,
 )
-from warnings import deprecated
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self, TypeVar, deprecated
 
 from xdsl.dialect_interfaces import DialectInterface
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
