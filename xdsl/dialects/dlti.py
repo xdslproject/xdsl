@@ -23,7 +23,6 @@ from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 DictValueType: TypeAlias = Mapping[
     StringAttr | TypeAttribute | str, "Attribute | str | int | DictValueType"
@@ -54,7 +53,7 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
             value = StringAttr(value)
         elif isinstance(value, int):
             value = IntAttr(value)
-        elif isinstance(value, dict):
+        elif isinstance(value, Mapping):
             value = MapAttr(value)
 
         super().__init__(key, value)
@@ -81,8 +80,7 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
         self,
         contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
     ):
-        if not isa(contents, ArrayAttr[DataLayoutEntryAttr]):
-            assert isinstance(contents, Mapping)
+        if isinstance(contents, Mapping):
             contents = ArrayAttr(
                 [DataLayoutEntryAttr(k, v) for k, v in contents.items()]
             )
