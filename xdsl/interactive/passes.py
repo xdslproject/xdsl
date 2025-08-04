@@ -14,8 +14,14 @@ class AvailablePass(NamedTuple):
     pass, the module pass and pass spec.
     """
 
-    display_name: str
     module_pass: type[ModulePass] | ModulePass
+
+    def __str__(self) -> str:
+        module_pass = self.module_pass
+        if isinstance(module_pass, ModulePass):
+            return str(module_pass.pipeline_pass_spec())
+        else:
+            return module_pass.name
 
 
 def get_new_registered_context(
@@ -42,7 +48,7 @@ def iter_condensed_passes(
     for _, pass_type in all_passes:
         if pass_type is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
-            yield AvailablePass(pass_type.name, pass_type), None
+            yield AvailablePass(pass_type)
             continue
         cloned_module = input.clone()
         cloned_ctx = ctx.clone()
@@ -53,7 +59,7 @@ def iter_condensed_passes(
                 continue
         except Exception:
             continue
-        yield AvailablePass(pass_type.name, pass_instance), cloned_module
+        yield AvailablePass(pass_instance)
 
 
 def get_condensed_pass_list(
@@ -64,4 +70,4 @@ def get_condensed_pass_list(
     Function that returns the condensed pass list for a given ModuleOp, i.e. the passes that
     change the ModuleOp.
     """
-    return tuple(ap for ap, _ in iter_condensed_passes(input, all_passes))
+    return tuple(iter_condensed_passes(input, all_passes))

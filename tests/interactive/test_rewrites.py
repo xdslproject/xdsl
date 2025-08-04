@@ -42,12 +42,10 @@ def test_get_all_possible_rewrite():
 
     expected_res = [
         AvailablePass(
-            display_name='TestOp("test.op"() {label = "a"} : () -> ()):test.op:TestRewrite',
-            module_pass=ApplyIndividualRewritePass(1, "test.op", "TestRewrite"),
+            module_pass=ApplyIndividualRewritePass(1, "test.op", "TestRewrite")
         ),
         AvailablePass(
-            display_name='TestOp("test.op"() {label = "a"} : () -> ()):test.op:TestRewrite',
-            module_pass=ApplyIndividualRewritePass(2, "test.op", "TestRewrite"),
+            module_pass=ApplyIndividualRewritePass(2, "test.op", "TestRewrite")
         ),
     ]
 
