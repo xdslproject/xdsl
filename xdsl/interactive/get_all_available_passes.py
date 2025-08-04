@@ -39,5 +39,5 @@ def get_available_pass_list(
         )
         pass_list += tuple(individual_rewrites)
     else:
-        pass_list = tuple(AvailablePass(p.name, p) for _, p in all_passes)
+        pass_list = tuple(AvailablePass(p) for _, p in all_passes)
     return pass_list
