@@ -51,9 +51,10 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
-    SSAValues,
     TypedAttributeConstraint,  # pyright: ignore[reportDeprecated]
     VarConstraint,
+    VarOperand,
+    VarOpResult,
     attr_def,
     eq,
     irdl_attr_definition,
@@ -2844,7 +2845,9 @@ def test_int_var_inference():
         (var_result_def, "type($variadic) `,` attr-dict"),
     ],
 )
-def test_variadic_comma_safeguard(variadic_def: Callable[[], SSAValues], format: str):
+def test_variadic_comma_safeguard(
+    variadic_def: Callable[[], VarOperand | VarOpResult], format: str
+):
     with pytest.raises(
         PyRDLOpDefinitionError,
         match="A variadic directive cannot be followed by a comma literal.",
@@ -2884,8 +2887,8 @@ def test_variadic_comma_safeguard(variadic_def: Callable[[], SSAValues], format:
     ],
 )
 def test_chained_variadic_types_safeguard(
-    variadic_def_one: Callable[[], SSAValues],
-    variadic_def_two: Callable[[], SSAValues],
+    variadic_def_one: Callable[[], VarOperand | VarOpResult],
+    variadic_def_two: Callable[[], VarOperand | VarOpResult],
     format: str,
 ):
     with pytest.raises(
@@ -2907,8 +2910,8 @@ def test_chained_variadic_types_safeguard(
 @pytest.mark.parametrize("variadic_def_one", [var_operand_def, opt_operand_def])
 @pytest.mark.parametrize("variadic_def_two", [var_operand_def, opt_operand_def])
 def test_chained_variadic_operands_safeguard(
-    variadic_def_one: Callable[[], SSAValues],
-    variadic_def_two: Callable[[], SSAValues],
+    variadic_def_one: Callable[[], VarOperand | VarOpResult],
+    variadic_def_two: Callable[[], VarOperand | VarOpResult],
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,

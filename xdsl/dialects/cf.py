@@ -18,6 +18,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Successor,
+    VarOperand,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -394,11 +395,11 @@ class SwitchOp(IRDLOperation):
         )
 
     @property
-    def case_operand(self) -> tuple[Sequence[SSAValue], ...]:
-        cases: list[Sequence[SSAValue]] = []
+    def case_operand(self) -> tuple[VarOperand, ...]:
+        cases: list[VarOperand] = []
         prev = 0
         for size in self.case_operand_segments.get_values():
-            cases.append(self.case_operands[prev : prev + size])
+            cases.append(VarOperand(self.case_operands[prev : prev + size]))
             prev += size
 
         return tuple(cases)

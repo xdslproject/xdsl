@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from collections.abc import Sequence
 from enum import IntFlag, auto
 from typing import ClassVar
 
@@ -28,7 +27,6 @@ from xdsl.ir import (
     EnumAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
-    SSAValue,
     StrEnum,
     TypeAttribute,
 )
@@ -43,6 +41,7 @@ from xdsl.irdl import (
     Operation,
     RangeOf,
     SameVariadicOperandSize,
+    VarOperand,
     base,
     eq,
     irdl_attr_definition,
@@ -135,7 +134,7 @@ class OpenMPOffloadMappingFlags(IntFlag):
 
 
 def verify_map_vars(
-    vars: Sequence[SSAValue],
+    vars: VarOperand,
     op_name: str,
     *,
     disallowed_types: OpenMPOffloadMappingFlags = OpenMPOffloadMappingFlags.NONE,

@@ -164,8 +164,8 @@ class DialectStubGenerator:
             had_body = True
             match o:
                 case VarOperandDef(_):
-                    self._import(xdsl.irdl, "SSAValues")
-                    yield f"    {name} : SSAValues[OpOperand]"
+                    self._import(xdsl.irdl, "VarOperand")
+                    yield f"    {name} : VarOperand"
                 case OptOperandDef(_):
                     self._import(xdsl.irdl, "OptOperand")
                     yield f"    {name} : OptOperand"
@@ -176,8 +176,8 @@ class DialectStubGenerator:
             had_body = True
             match o:
                 case VarResultDef():
-                    self._import(xdsl.irdl, "SSAValues")
-                    yield f"    {name} : SSAValues[OpResult]"
+                    self._import(xdsl.irdl, "VarOpResult")
+                    yield f"    {name} : VarOpResult"
                 case OptResultDef():
                     self._import(xdsl.irdl, "OptOpResult")
                     yield f"    {name} : OptOpResult"
