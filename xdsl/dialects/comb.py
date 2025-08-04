@@ -10,7 +10,7 @@ See external [documentation](https://circt.llvm.org/docs/Dialects/Comb/).
 """
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
@@ -454,7 +454,7 @@ class ExtractOp(IRDLOperation):
         printer.print_function_type([self.input.type], [self.result.type])
 
 
-def _get_sum_of_int_width(int_types: Sequence[Attribute]) -> int | None:
+def _get_sum_of_int_width(int_types: Iterable[Attribute]) -> int | None:
     """
     Gets the sum of the width of the provided integer types. Returns None
     if one of the provided attributes is not an integer type.
@@ -493,7 +493,7 @@ class ConcatOp(IRDLOperation):
         return ConcatOp(inputs, IntegerType(sum_of_width))
 
     def verify_(self) -> None:
-        sum_of_width = _get_sum_of_int_width(self.inputs.types)
+        sum_of_width = _get_sum_of_int_width(o.type for o in self.inputs)
         assert sum_of_width is not None
         assert isinstance(self.result.type, IntegerType)
         if sum_of_width != self.result.type.width.data:
@@ -522,7 +522,7 @@ class ConcatOp(IRDLOperation):
         printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
         printer.print_string(" : ")
-        printer.print_list(self.inputs.types, printer.print_attribute)
+        printer.print_list((o.type for o in self.inputs), printer.print_attribute)
 
 
 @irdl_op_definition

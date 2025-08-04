@@ -261,7 +261,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             )
 
         repl_values = (
-            (args[1],) if isinstance(op.repl_values.types[0], ValueType) else args[1]
+            (args[1],) if isinstance(op.repl_values[0].type, ValueType) else args[1]
         )
         assert len(repl_values) == 1, (
             "pdl_interp.replace currently only a supports replacing with a single e-class result."

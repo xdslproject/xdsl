@@ -157,9 +157,8 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
         allocator.allocate_value(self.step)
 
         # Reserve the loop carried variables for allocation within the body
-        regs = self.iter_args.types
-        assert all(isinstance(reg, RISCVRegisterType) for reg in regs)
-        regs = cast(tuple[RISCVRegisterType, ...], regs)
+        assert all(isinstance(reg.type, RISCVRegisterType) for reg in self.iter_args)
+        regs = tuple(cast(RISCVRegisterType, o.type) for o in self.iter_args)
         with allocator.available_registers.reserve_registers(regs):
             allocator.allocate_block(self.body.block)
 

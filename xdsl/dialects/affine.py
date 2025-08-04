@@ -148,7 +148,7 @@ class ForOp(IRDLOperation):
             raise VerifyException(
                 "Expected as many upper bound operands as upper bound dimensions and symbols."
             )
-        iter_types = self.inits.types
+        iter_types = tuple(o.type for o in self.inits)
         if iter_types != self.result_types:
             raise VerifyException(
                 "Expected all operands and result pairs to have matching types"

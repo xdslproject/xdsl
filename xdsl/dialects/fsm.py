@@ -441,13 +441,17 @@ class TriggerOp(IRDLOperation):
         if m is None:
             raise VerifyException("Machine definition does not exist.")
 
-        if self.inputs.types != tuple(result for result in m.function_type.inputs):
+        if tuple(i.type for i in self.inputs) != tuple(
+            result for result in m.function_type.inputs
+        ):
             raise VerifyException(
                 "TriggerOp input types must be consistent with the machine "
                 + str(m.sym_name)
             )
 
-        if self.outputs.types != tuple(result for result in m.function_type.outputs):
+        if tuple(o.type for o in self.outputs) != tuple(
+            result for result in m.function_type.outputs
+        ):
             raise VerifyException(
                 "TriggerOp output types must be consistent with the machine "
                 + str(m.sym_name)
@@ -501,14 +505,16 @@ class HWInstanceOp(IRDLOperation):
     def verify_(self):
         m = SymbolTable.lookup_symbol(self, self.machine)
         if isinstance(m, MachineOp):
-            if self.inputs.types != tuple(result for result in m.function_type.inputs):
+            if tuple(i.type for i in self.inputs) != tuple(
+                result for result in m.function_type.inputs
+            ):
                 raise VerifyException(
                     "HWInstanceOp "
                     + str(self.sym_name)
                     + " input type must be consistent with the machine "
                     + str(m.sym_name)
                 )
-            if self.outputs.types != tuple(
+            if tuple(o.type for o in self.outputs) != tuple(
                 result for result in m.function_type.outputs
             ):
                 raise VerifyException(

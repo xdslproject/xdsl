@@ -612,7 +612,7 @@ class VariadicOperandVariable(VariadicVariable, OperandDirective):
         return getattr(op, self.name)
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
-        return self.get(op).types
+        return tuple(o.type for o in self.get(op))
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operand = self.get(op)
@@ -819,7 +819,7 @@ class VariadicResultVariable(VariadicVariable, TypeableDirective):
         state.result_types[self.index] = (parser.parse_type(),)
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
-        return getattr(op, self.name).types
+        return tuple(o.type for o in getattr(op, self.name))
 
 
 class OptionalResultVariable(OptionalVariable, TypeableDirective):

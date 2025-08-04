@@ -267,7 +267,7 @@ class ApplyOp(IRDLOperation):
         else:
             printer.print_string(" -> ")
             with printer.in_parens():
-                printer.print_list(self.res.types, printer.print_attribute)
+                printer.print_list((r.type for r in self.res), printer.print_attribute)
 
         printer.print_string(" ")
         with printer.in_angle_brackets():

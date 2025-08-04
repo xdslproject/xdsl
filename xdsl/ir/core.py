@@ -27,6 +27,7 @@ from typing import (
     get_origin,
     overload,
 )
+from warnings import deprecated
 
 from typing_extensions import Self, TypeVar
 
@@ -871,6 +872,7 @@ class SSAValues(Generic[SSAValueCovT], tuple[SSAValueCovT, ...]):
     """
 
     @property
+    @deprecated("Please use `o.type for o in values` instead of `values.types`")
     def types(self):
         return tuple(o.type for o in self)
 

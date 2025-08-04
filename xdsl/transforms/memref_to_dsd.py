@@ -319,8 +319,8 @@ class LowerUnrealizedConversionCastOpPass(RewritePattern):
     def match_and_rewrite(
         self, op: UnrealizedConversionCastOp, rewriter: PatternRewriter, /
     ):
-        if all(isa(t, csl.DsdType) for t in op.inputs.types) and all(
-            isa(t, MemRefType) for t in op.outputs.types
+        if all(isa(t.type, csl.DsdType) for t in op.inputs) and all(
+            isa(t.type, MemRefType) for t in op.outputs
         ):
             rewriter.replace_matched_op([], new_results=op.inputs)
 

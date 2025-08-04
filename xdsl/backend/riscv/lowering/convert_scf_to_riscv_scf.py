@@ -22,12 +22,12 @@ class ScfForLowering(RewritePattern):
         lb, ub, step, *args = cast_operands_to_regs(rewriter)
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         cast_block_args_to_regs(new_region.block, rewriter)
-        mv_ops, values = move_to_unallocated_regs(args, op.iter_args.types)
+        mv_ops, values = move_to_unallocated_regs(args, (o.type for o in op.iter_args))
         rewriter.insert_op_before_matched_op(mv_ops)
         cast_matched_op_results(rewriter)
         new_op = riscv_scf.ForOp(lb, ub, step, values, new_region)
         mv_res_ops, res_values = move_to_unallocated_regs(
-            new_op.results, op.iter_args.types
+            new_op.results, (o.type for o in op.iter_args)
         )
 
         rewriter.replace_matched_op((new_op, *mv_res_ops), res_values)

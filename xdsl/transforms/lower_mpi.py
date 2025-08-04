@@ -764,7 +764,7 @@ def add_external_func_defs(module: builtin.ModuleOp):
         if op.callee.string_value() not in mpi_func_call_names:
             continue
         funcs_to_emit[op.callee.string_value()] = (
-            op.arguments.types,
+            tuple(a.type for a in op.arguments),
             op.result_types,
         )
 

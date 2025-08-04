@@ -286,9 +286,9 @@ class PDLInterpFunctions(InterpreterFunctions):
         # Get replacement values (if any)
         repl_values: list[SSAValue] = []
         for i in range(0, len(args) - 1):
-            if isa(op.repl_values.types[i], ValueType):
+            if isa(op.repl_values[i].type, ValueType):
                 repl_values.append(args[i + 1])
-            elif isa(op.repl_values.types[i], RangeType[ValueType]):
+            elif isa(op.repl_values[i].type, RangeType[ValueType]):
                 repl_values.extend(args[i + 1])
 
         if len(input_op.results) != len(repl_values):

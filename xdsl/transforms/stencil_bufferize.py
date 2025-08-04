@@ -107,7 +107,7 @@ class ApplyBufferizePattern(RewritePattern):
         new = ApplyOp(
             operands=[args, op.dest],
             regions=[op.detach_region(0)],
-            result_types=[op.res.types],
+            result_types=[tuple(r.type for r in op.res)],
             properties={"bounds": bounds},
         )
 
@@ -347,7 +347,7 @@ class UpdateApplyArgs(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
-        new_arg_types = op.args.types
+        new_arg_types = tuple(a.type for a in op.args)
         if new_arg_types == op.region.block.arg_types:
             return
 

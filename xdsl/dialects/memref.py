@@ -307,7 +307,7 @@ class AllocaScopeReturnOp(IRDLOperation):
 
     def verify_(self) -> None:
         parent = cast(AllocaScopeOp, self.parent_op())
-        if self.ops.types != parent.result_types:
+        if tuple(o.type for o in self.ops) != parent.result_types:
             raise VerifyException(
                 "Expected operand types to match parent's return types."
             )

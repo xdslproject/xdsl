@@ -117,7 +117,7 @@ class ApplyOpBufferize(RewritePattern):
                 op.args_dexchng,
                 op.dest,
             ],
-            result_types=op.res.types or [[]],
+            result_types=tuple(o.type for o in op.res) or [[]],
             regions=[
                 self._get_empty_bufferized_region(op.receive_chunk.block.args),
                 self._get_empty_bufferized_region(op.done_exchange.block.args),
@@ -213,7 +213,7 @@ class ApplyOpBufferize(RewritePattern):
             if (
                 isinstance(curr_op, linalg.NamedOperation)
                 and len(curr_op.outputs) > 0
-                and curr_op.outputs.types[0] == chunk_type
+                and curr_op.outputs[0].type == chunk_type
             ):
                 linalg_op = curr_op
                 break
@@ -481,7 +481,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                         [*op.args_dexchng, *additional_args],
                         [*op.dest],
                     ],
-                    result_types=op.res.types or [[]],
+                    result_types=tuple(r.type for r in op.res) or [[]],
                     regions=[op.detach_region(r) for r in op.regions],
                     properties=op.properties,
                     attributes=op.attributes,

@@ -261,7 +261,7 @@ class IfOp(IRDLOperation):
         print_block_terminators = False
         if bool(self.output):
             printer.print_string(" -> (")
-            printer.print_list(self.output.types, printer.print_attribute)
+            printer.print_list((o.type for o in self.output), printer.print_attribute)
             printer.print_string(")")
             print_block_terminators = True
 

@@ -69,7 +69,7 @@ def _try_remove_cast_chain(
         # because types are homogeneous (e.g. {A -> B, B -> A})
         # otherwise it means the cast is not unifiable with its uses
         assert len(cast.results) == len(op.inputs)
-        has_trivial_cycle = cast.result_types == op.inputs.types
+        has_trivial_cycle = cast.result_types == tuple(i.type for i in op.inputs)
         if is_live and not has_trivial_cycle:
             if warn_on_failure:
                 warn(

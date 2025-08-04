@@ -173,7 +173,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
             iv := csl.VariableOp.from_value(IntegerAttr(op.lb.op.value.value, i32)),
             InsertPoint.before(parent_func),
         )
-        iter_vars = [csl.VariableOp.from_type(arg_t) for arg_t in op.iter_args.types]
+        iter_vars = [csl.VariableOp.from_type(arg_t.type) for arg_t in op.iter_args]
         rewriter.insert_op(iter_vars, InsertPoint.before(parent_func))
 
         iv.res.name_hint = "iteration"

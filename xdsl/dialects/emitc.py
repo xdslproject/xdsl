@@ -373,8 +373,8 @@ class EmitC_CallOpaqueOp(IRDLOperation):
                 ):
                     raise VerifyException("template argument has invalid type")
 
-        for res_type in self.res.types:
-            if isinstance(res_type, EmitC_ArrayType):
+        for res in self.res:
+            if isinstance(res.type, EmitC_ArrayType):
                 raise VerifyException("cannot return array type")
 
 
