@@ -132,6 +132,10 @@ class StoreOp(IRDLOperation):
 
 @irdl_op_definition
 class BroadcastOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Vector/#vectorbroadcast-vectorbroadcastop).
+    """
+
     name = "vector.broadcast"
     source = operand_def()
     vector = result_def(VectorType)
@@ -140,9 +144,12 @@ class BroadcastOp(IRDLOperation):
     assembly_format = "$source attr-dict `:` type($source) `to` type($vector)"
 
     def verify_(self):
-        assert isa(self.vector.type, VectorType[Attribute])
+        if isa(self.source.type, VectorType):
+            element_type = self.source.type.element_type
+        else:
+            element_type = self.source.type
 
-        if self.source.type != self.vector.type.element_type:
+        if element_type != self.vector.type.element_type:
             raise VerifyException(
                 "Source operand and result vector must have the same element type."
             )
