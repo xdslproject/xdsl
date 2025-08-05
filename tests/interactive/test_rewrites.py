@@ -1,16 +1,23 @@
+from dataclasses import dataclass
+from typing import ClassVar
+
 from xdsl import traits
 from xdsl.context import Context
 from xdsl.dialects.builtin import (
     Builtin,
+    ModuleOp,
     StringAttr,
 )
+from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Dialect
 from xdsl.irdl import IRDLOperation, irdl_op_definition, traits_def
 from xdsl.parser import Parser
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
@@ -33,17 +40,17 @@ class MyTestOp(IRDLOperation):
 class Rewrite(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: MyTestOp, rewriter: PatternRewriter):
-        if op.attributes["label"] != StringAttr("a"):
+        if op.attributes["label"] != StringAttr("b"):
             return
         rewriter.replace_matched_op(MyTestOp(attributes={"label": StringAttr("c")}))
 
 
-def test_get_all_possible_rewrite():
+def test_get_all_possible_rewrites():
     # build module
     prog = """
     builtin.module {
     "test.rewrites"() {"label" = "a"} : () -> ()
-    "test.rewrites"() {"label" = "a"} : () -> ()
+    "test.rewrites"() {"label" = "b"} : () -> ()
     "test.rewrites"() {"label" = "b"} : () -> ()
     }
     """
@@ -57,29 +64,15 @@ def test_get_all_possible_rewrite():
 
     expected_res = [
         AvailablePass(
-            module_pass=ApplyIndividualRewritePass(1, "test.rewrites", "Rewrite")
+            module_pass=ApplyIndividualRewritePass(2, "test.rewrites", "Rewrite")
         ),
         AvailablePass(
-            module_pass=ApplyIndividualRewritePass(2, "test.rewrites", "Rewrite")
+            module_pass=ApplyIndividualRewritePass(3, "test.rewrites", "Rewrite")
         ),
     ]
 
     res = get_all_possible_rewrites(module)
     assert res == expected_res
-
-
-from dataclasses import dataclass
-from typing import ClassVar
-
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.interactive.get_all_available_passes import get_available_pass_list
-from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
 
 
 @dataclass
@@ -89,9 +82,9 @@ class ReplacePattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: MyTestOp, rewriter: PatternRewriter):
-        if op.attributes["key"] == StringAttr(self.before):
+        if op.attributes["label"] == StringAttr(self.before):
             rewriter.replace_matched_op(
-                MyTestOp(attributes={"key": StringAttr(self.after)})
+                MyTestOp(attributes={"label": StringAttr(self.after)})
             )
 
 
@@ -129,9 +122,9 @@ class BDPass(ReplacePass):
 
 def test_get_all_available_passes():
     res = get_available_pass_list(
-        ((MyTestOp.name, lambda: Dialect("test", [MyTestOp])),),
+        (("test", lambda: Dialect("test", [MyTestOp])),),
         tuple((p.name, p) for p in (ABPass, ACPass, BCPass, BDPass)),
-        '"test.rewrites"() {key="a"} : () -> ()',
+        '"test.rewrites"() {label="a"} : () -> ()',
         # Transforms the above op from "a" to "b" before testing passes
         (ABPass(),),
         condense_mode=True,
@@ -140,5 +133,5 @@ def test_get_all_available_passes():
     assert res == (
         AvailablePass(BCPass()),
         AvailablePass(BDPass()),
-        AvailablePass(ApplyIndividualRewritePass(1, "test.op", "be")),
+        AvailablePass(ApplyIndividualRewritePass(1, "test.rewrites", "Rewrite")),
     )
