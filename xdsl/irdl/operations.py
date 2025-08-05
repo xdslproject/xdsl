@@ -1451,10 +1451,9 @@ def get_operand_result_or_region(
 ) -> (
     None
     | Operand
-    | VarOperand
+    | SSAValues
     | OptOperand
     | OpResult
-    | VarOpResult
     | OptOpResult
     | Sequence[SSAValue]
     | Sequence[OpResult]
@@ -1491,12 +1490,7 @@ def get_operand_result_or_region(
     if isinstance(defs[arg_def_idx][1], VariadicDef):
         arg_size = variadic_sizes[previous_var_args]
         values = args[begin_arg : begin_arg + arg_size]
-        if isinstance(defs[arg_def_idx][1], OperandDef):
-            return VarOperand(cast(Sequence[Operand], values))
-        elif isinstance(defs[arg_def_idx][1], ResultDef):
-            return VarOpResult(cast(Sequence[OpResult], values))
-        else:
-            return values
+        return values
     else:
         return args[begin_arg]
 

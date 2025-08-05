@@ -2,7 +2,7 @@ from collections.abc import Callable
 from typing import NamedTuple
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, get_all_dialects
+from xdsl.dialects import builtin
 from xdsl.ir import Dialect
 from xdsl.passes import ModulePass
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -37,14 +37,10 @@ def get_new_registered_context(
 
 
 def iter_condensed_passes(
+    ctx: Context,
     input: builtin.ModuleOp,
     all_passes: tuple[tuple[str, type[ModulePass]], ...],
 ):
-    ctx = Context(True)
-
-    for dialect_name, dialect_factory in get_all_dialects().items():
-        ctx.register_dialect(dialect_name, dialect_factory)
-
     for _, pass_type in all_passes:
         if pass_type is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
@@ -55,6 +51,7 @@ def iter_condensed_passes(
 
 
 def get_condensed_pass_list(
+    ctx: Context,
     input: builtin.ModuleOp,
     all_passes: tuple[tuple[str, type[ModulePass]], ...],
 ) -> tuple[AvailablePass, ...]:
@@ -62,4 +59,4 @@ def get_condensed_pass_list(
     Function that returns the condensed pass list for a given ModuleOp, i.e. the passes that
     change the ModuleOp.
     """
-    return tuple(iter_condensed_passes(input, all_passes))
+    return tuple(iter_condensed_passes(ctx, input, all_passes))

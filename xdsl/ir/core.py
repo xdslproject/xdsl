@@ -874,6 +874,20 @@ class SSAValues(Generic[SSAValueCovT], tuple[SSAValueCovT, ...]):
     def types(self):
         return tuple(o.type for o in self)
 
+    @overload
+    def __getitem__(self, idx: int) -> SSAValueCovT: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> SSAValues[SSAValueCovT]: ...
+
+    def __getitem__(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, idx: int | slice
+    ) -> SSAValueCovT | SSAValues[SSAValueCovT]:
+        if isinstance(idx, int):
+            return super().__getitem__(idx)
+        else:
+            return SSAValues(super().__getitem__(idx))
+
 
 @dataclass
 class OpOperands(Sequence[SSAValue]):
@@ -899,7 +913,7 @@ class OpOperands(Sequence[SSAValue]):
         operand_uses = self._op._operand_uses  # pyright: ignore[reportPrivateUsage]
         operands[idx].remove_use(operand_uses[idx])
         operand.add_use(operand_uses[idx])
-        new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
+        new_operands = SSAValues((*operands[:idx], operand, *operands[idx + 1 :]))
         self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
 
     def __iter__(self) -> Iterator[SSAValue]:
@@ -967,7 +981,7 @@ class Operation(_IRNode):
     name: ClassVar[str] = field(repr=False)
     """The operation name. Should be a static member of the class"""
 
-    _operands: tuple[SSAValue, ...] = field(default=())
+    _operands: SSAValues = field(default=SSAValues())
     """The operation operands."""
 
     _operand_uses: tuple[Use, ...] = field(default=())
@@ -977,7 +991,7 @@ class Operation(_IRNode):
     access to the operand SSAValue.
     """
 
-    results: tuple[OpResult, ...] = field(default=())
+    results: SSAValues[OpResult] = field(default=SSAValues())
     """The results created by the operation."""
 
     _successors: tuple[Block, ...] = field(default=())
@@ -1099,7 +1113,7 @@ class Operation(_IRNode):
 
     @operands.setter
     def operands(self, new: Sequence[SSAValue]):
-        new = tuple(new)
+        new = SSAValues(new)
         new_uses = tuple(Use(self, idx) for idx in range(len(new)))
         for operand, use in zip(self._operands, self._operand_uses):
             operand.remove_use(use)
@@ -1142,7 +1156,7 @@ class Operation(_IRNode):
         # This is assumed to exist by Operation.operand setter.
         self.operands = operands
 
-        self.results = tuple(
+        self.results = SSAValues(
             OpResult(result_type, self, idx)
             for (idx, result_type) in enumerate(result_types)
         )

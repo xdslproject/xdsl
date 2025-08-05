@@ -45,19 +45,6 @@ class DivisionOfSameVariableToOne(RewritePattern):
             rewriter.replace_matched_op([], [mul_op.lhs])
 
 
-INDIVIDUAL_REWRITE_PATTERNS_BY_NAME: dict[str, dict[str, RewritePattern]] = {
-    arith.AddiOp.name: {
-        AdditionOfSameVariablesToMultiplyByTwo.__name__: AdditionOfSameVariablesToMultiplyByTwo()
-    },
-    arith.DivUIOp.name: {
-        DivisionOfSameVariableToOne.__name__: DivisionOfSameVariableToOne()
-    },
-}
-"""
-Extra rewrite patterns available to ApplyIndividualRewritePass
-"""
-
-
 def _get_canonicalization_pattern(
     op: Operation, pattern_name: str
 ) -> RewritePattern | None:
@@ -100,16 +87,10 @@ class ApplyIndividualRewritePass(ModulePass):
 
         # Check individual rewrites first
         if (
-            individual_rewrites := INDIVIDUAL_REWRITE_PATTERNS_BY_NAME.get(
-                self.operation_name
+            pattern := _get_canonicalization_pattern(
+                matched_operation, self.pattern_name
             )
-        ) is not None and (p := individual_rewrites.get(self.pattern_name)) is not None:
-            pattern = p
-        elif (
-            p := _get_canonicalization_pattern(matched_operation, self.pattern_name)
-        ) is not None:
-            pattern = p
-        else:
+        ) is None:
             raise ValueError(
                 f"Pattern name {self.pattern_name} not found for the provided operation name."
             )
@@ -126,6 +107,5 @@ class ApplyIndividualRewritePass(ModulePass):
         return tuple(
             get_all_possible_rewrites(
                 module_op,
-                INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
             )
         )

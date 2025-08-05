@@ -9,13 +9,60 @@ https://mlir.llvm.org/docs/Dialects/DLTIDialect/
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Mapping
+from typing import TypeAlias
 
-from xdsl.dialects.builtin import ArrayAttr, StringAttr
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    IntAttr,
+    StringAttr,
+)
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
-from xdsl.irdl import irdl_attr_definition
+from xdsl.irdl import irdl_attr_definition, param_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+
+DictValueType: TypeAlias = Mapping[
+    StringAttr | TypeAttribute | str, "Attribute | str | int | DictValueType"
+]
+
+
+class DLTITypeConverters:
+    """
+    Type converter for DLTIEntryMap and DataLayoutEntryAttr parameters
+    """
+
+    @staticmethod
+    def convert_entry_map_type(
+        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
+    ) -> ArrayAttr[DataLayoutEntryAttr]:
+        if isinstance(contents, Mapping):
+            return ArrayAttr([DataLayoutEntryAttr(k, v) for k, v in contents.items()])
+        else:
+            return contents
+
+    @staticmethod
+    def convert_entry_attr_key_type(
+        key: StringAttr | TypeAttribute | str,
+    ) -> Attribute:
+        if isinstance(key, str):
+            return StringAttr(key)
+        else:
+            return key
+
+    @staticmethod
+    def convert_entry_attr_value_type(
+        value: Attribute | str | int | DictValueType,
+    ) -> Attribute:
+        if isinstance(value, str):
+            return StringAttr(value)
+        elif isinstance(value, int):
+            return IntAttr(value)
+        elif isinstance(value, Mapping):
+            return MapAttr(value)
+        else:
+            return value
 
 
 @irdl_attr_definition
@@ -27,8 +74,10 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
 
     name = "dlti.dl_entry"
 
-    key: Attribute
-    value: Attribute
+    key: Attribute = param_def(converter=DLTITypeConverters.convert_entry_attr_key_type)
+    value: Attribute = param_def(
+        converter=DLTITypeConverters.convert_entry_attr_value_type
+    )
 
     def verify(self) -> None:
         if not isinstance(self.key, StringAttr | TypeAttribute):
@@ -45,7 +94,18 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
     """
 
     # In MLIR, this is a DataLayoutEntryInterface.
-    entries: ArrayAttr[DataLayoutEntryAttr]
+    entries: ArrayAttr[DataLayoutEntryAttr] = param_def(
+        converter=DLTITypeConverters.convert_entry_map_type
+    )
+
+    def __getitem__(self, key: StringAttr | TypeAttribute | str) -> Attribute:
+        if isinstance(key, str):
+            key = StringAttr(key)
+        for entry in self.entries:
+            if entry.key == key:
+                return entry.value
+
+        raise KeyError
 
     @classmethod
     def parse_parameters(
@@ -55,7 +115,7 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
             entry = parser.parse_attribute()
             parser.parse_punctuation("=")
             value = parser.parse_attribute()
-            return DataLayoutEntryAttr(entry, value)
+            return DataLayoutEntryAttr.new((entry, value))
 
         entries = parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_entry)
 
@@ -75,7 +135,7 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
             raise VerifyException("duplicate DLTI entry key")
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class DataLayoutSpecAttr(DLTIEntryMap):
     """
     An attribute to represent a data layout specification.
@@ -90,7 +150,7 @@ class DataLayoutSpecAttr(DLTIEntryMap):
     name = "dlti.dl_spec"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class TargetDeviceSpecAttr(DLTIEntryMap):
     """
     An attribute to represent target device specification.
@@ -105,7 +165,7 @@ class TargetDeviceSpecAttr(DLTIEntryMap):
     name = "dlti.target_device_spec"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class TargetSystemSpecAttr(DLTIEntryMap):
     """
     An attribute to represent target system specification.
@@ -120,7 +180,7 @@ class TargetSystemSpecAttr(DLTIEntryMap):
     name = "dlti.target_system_spec"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class MapAttr(DLTIEntryMap):
     """
     A mapping of DLTI-information by way of key-value pairs
