@@ -273,7 +273,7 @@ builtin.module {
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
         ctx = get_new_registered_context(app.all_dialects)
-        rewrites = individual_rewrite.ApplyIndividualRewritePass.applicable_params(
+        rewrites = individual_rewrite.ApplyIndividualRewritePass.schedule_space(
             ctx, expected_module
         )
         assert app.available_pass_list == get_condensed_pass_list(

@@ -61,7 +61,7 @@ def test_get_all_possible_rewrites():
     parser = Parser(ctx, prog)
     module = parser.parse_module()
 
-    assert ApplyIndividualRewritePass.applicable_params(ctx, module) == (
+    assert ApplyIndividualRewritePass.schedule_space(ctx, module) == (
         ApplyIndividualRewritePass(2, "test.rewrites", "Rewrite"),
         ApplyIndividualRewritePass(3, "test.rewrites", "Rewrite"),
     )

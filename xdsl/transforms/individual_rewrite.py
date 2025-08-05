@@ -55,7 +55,7 @@ class ApplyIndividualRewritePass(ModulePass):
         )
 
     @classmethod
-    def applicable_params(cls, ctx: Context, module_op: ModuleOp):
+    def schedule_space(cls, ctx: Context, module_op: ModuleOp):
         res: list[ApplyIndividualRewritePass] = []
 
         for op_idx, matched_op in enumerate(module_op.walk()):

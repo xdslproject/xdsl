@@ -167,14 +167,17 @@ class ModulePass(ABC):
         return PipelinePassSpec(self.name, args)
 
     @classmethod
-    def applicable_params(
+    def schedule_space(
         cls, ctx: Context, module_op: builtin.ModuleOp
     ) -> tuple[Self, ...]:
         """
         Returns a tuple of `Self` that can be applied to rewrite the given module with
         the given context without error.
-        By default returns a single instance for passes that don't have non-default
-        parameters, if it runs successfully.
+        The default implementation attempts to construct an instance with no parameters,
+        and run it on the module_op; if the module_op is mutated then the pass instance
+        is returned.
+        Parametrizable passes should override this implementation to provide a full
+        schedule space of transformations.
         """
         cloned_module = module_op.clone()
         cloned_ctx = ctx.clone()

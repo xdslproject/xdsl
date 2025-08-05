@@ -46,7 +46,7 @@ def iter_condensed_passes(
             # Always keep MLIROptPass as an option in condensed list
             yield AvailablePass(pass_type)
             continue
-        for p in pass_type.applicable_params(ctx, input):
+        for p in pass_type.schedule_space(ctx, input):
             yield AvailablePass(p)
 
 
