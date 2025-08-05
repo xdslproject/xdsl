@@ -4,7 +4,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.dialects.test import Test, TestOp
-from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
@@ -41,12 +40,8 @@ def test_get_all_possible_rewrite():
     module = parser.parse_module()
 
     expected_res = [
-        AvailablePass(
-            module_pass=ApplyIndividualRewritePass(1, "test.op", "TestRewrite")
-        ),
-        AvailablePass(
-            module_pass=ApplyIndividualRewritePass(2, "test.op", "TestRewrite")
-        ),
+        ApplyIndividualRewritePass(1, "test.op", "TestRewrite"),
+        ApplyIndividualRewritePass(2, "test.op", "TestRewrite"),
     ]
 
     res = get_all_possible_rewrites(module, {"test.op": {"TestRewrite": Rewrite()}})

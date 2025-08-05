@@ -5,7 +5,6 @@ from xdsl.interactive.passes import (
     get_condensed_pass_list,
     get_new_registered_context,
 )
-from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Dialect
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PassPipeline
@@ -32,12 +31,6 @@ def get_available_pass_list(
     # merge rewrite passes with "other" pass list
     if condense_mode:
         pass_list = get_condensed_pass_list(current_module, all_passes)
-        # get all individual rewrites
-        individual_rewrites = get_all_possible_rewrites(
-            current_module,
-            rewrite_by_names_dict,
-        )
-        pass_list += tuple(individual_rewrites)
     else:
         pass_list = tuple(AvailablePass(p) for _, p in all_passes)
     return pass_list

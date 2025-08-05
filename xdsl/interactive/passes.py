@@ -50,16 +50,8 @@ def iter_condensed_passes(
             # Always keep MLIROptPass as an option in condensed list
             yield AvailablePass(pass_type)
             continue
-        cloned_module = input.clone()
-        cloned_ctx = ctx.clone()
-        try:
-            pass_instance = pass_type()
-            pass_instance.apply(cloned_ctx, cloned_module)
-            if input.is_structurally_equivalent(cloned_module):
-                continue
-        except Exception:
-            continue
-        yield AvailablePass(pass_instance)
+        for p in pass_type.applicable_params(ctx, input):
+            yield AvailablePass(p)
 
 
 def get_condensed_pass_list(

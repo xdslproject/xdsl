@@ -5,7 +5,6 @@ from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.dialects.test import Test, TestOp
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
-from xdsl.interactive.passes import AvailablePass
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -78,7 +77,7 @@ def test_get_all_available_passes():
     )
 
     assert res == (
-        AvailablePass(BCPass()),
-        AvailablePass(BDPass()),
-        AvailablePass(ApplyIndividualRewritePass(1, "test.op", "be")),
+        BCPass(),
+        BDPass(),
+        ApplyIndividualRewritePass(1, "test.op", "be"),
     )

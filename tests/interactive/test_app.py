@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
 from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
-from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
+from xdsl.interactive.passes import get_condensed_pass_list
 from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
@@ -315,19 +315,11 @@ async def test_rewrites():
         # press "Condense" button
         await pilot.click("#condense_button")
 
-        addi_pass = AvailablePass(
-            module_pass=individual_rewrite.ApplyIndividualRewritePass(
-                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
-            ),
-        )
-
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
         assert app.condense_mode is True
         assert isinstance(app.current_module, ModuleOp)
-        condensed_list = get_condensed_pass_list(app.current_module, app.all_passes) + (
-            addi_pass,
-        )
+        condensed_list = get_condensed_pass_list(app.current_module, app.all_passes)
         assert app.available_pass_list == condensed_list
 
         # Select a rewrite

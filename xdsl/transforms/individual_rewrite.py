@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from xdsl.context import Context
 from xdsl.dialects import arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, ModuleOp
+from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -119,3 +120,12 @@ class ApplyIndividualRewritePass(ModulePass):
                 f"Invalid rewrite ({self.pattern_name}) for operation "
                 f"({matched_operation}) at location {self.matched_operation_index}."
             )
+
+    @classmethod
+    def applicable_params(cls, ctx: Context, module_op: ModuleOp):
+        return tuple(
+            get_all_possible_rewrites(
+                module_op,
+                INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
+            )
+        )

@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.interactive.passes import AvailablePass
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.traits import HasCanonicalizationPatternsTrait
 from xdsl.transforms import individual_rewrite
@@ -10,14 +10,14 @@ from xdsl.transforms import individual_rewrite
 def get_all_possible_rewrites(
     module: ModuleOp,
     rewrite_by_name: dict[str, dict[str, RewritePattern]],
-) -> Sequence[AvailablePass]:
+) -> Sequence[ModulePass]:
     """
     Function that takes a sequence of IndividualRewrite Patterns and a ModuleOp, and
     returns the possible rewrites.
     Issue filed: https://github.com/xdslproject/xdsl/issues/2162
     """
 
-    res: list[AvailablePass] = []
+    res: list[individual_rewrite.ApplyIndividualRewritePass] = []
 
     for op_idx, matched_op in enumerate(module.walk()):
         pattern_by_name = rewrite_by_name.get(matched_op.name, {}).copy()
@@ -34,11 +34,9 @@ def get_all_possible_rewrites(
             pattern.match_and_rewrite(cloned_op, rewriter)
             if rewriter.has_done_action:
                 res.append(
-                    AvailablePass(
-                        individual_rewrite.ApplyIndividualRewritePass(
-                            op_idx, cloned_op.name, pattern_name
-                        ),
-                    )
+                    individual_rewrite.ApplyIndividualRewritePass(
+                        op_idx, cloned_op.name, pattern_name
+                    ),
                 )
 
     return res
