@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Mapping
-from dataclasses import dataclass
 from typing import TypeAlias
 
 from xdsl.dialects.builtin import (
@@ -87,7 +86,6 @@ class DataLayoutEntryAttr(ParametrizedAttribute):
             raise VerifyException("empty string as DLTI key is not allowed")
 
 
-@dataclass(frozen=True)
 class DLTIEntryMap(ParametrizedAttribute, ABC):
     """
     Many DLTI dialect operations contain arrays of DataLayoutEntryInterface,
@@ -99,12 +97,6 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
     entries: ArrayAttr[DataLayoutEntryAttr] = param_def(
         converter=DLTITypeConverters.convert_entry_map_type
     )
-
-    def __init__(
-        self,
-        contents: ArrayAttr[DataLayoutEntryAttr] | DictValueType,
-    ):
-        super().__init__(contents)
 
     @classmethod
     def parse_parameters(
