@@ -19,10 +19,7 @@ class EqsatOptimizePDLInterp(ModulePass):
         assert matcher is not None, "matcher function not found"
 
         mo = MatcherOptimizer(matcher)
-
-        for gdo in matcher.walk():
-            if isinstance(gdo, pdl_interp.GetDefiningOpOp):
-                mo.optimize_gdo(gdo)
+        mo.optimize()
 
 
 @dataclass
@@ -31,7 +28,12 @@ class MatcherOptimizer:
 
     finalize_blocks: set[Block] = field(default_factory=set[Block])
 
-    def optimize_gdo(
+    def optimize(self):
+        for gdo in self.matcher.walk():
+            if isinstance(gdo, pdl_interp.GetDefiningOpOp):
+                self.optimize_name_constraints(gdo)
+
+    def optimize_name_constraints(
         self,
         gdo: pdl_interp.GetDefiningOpOp,
     ) -> bool:
