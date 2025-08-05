@@ -46,7 +46,7 @@ from xdsl.ir import Dialect
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
-from xdsl.transforms import get_all_passes, individual_rewrite
+from xdsl.transforms import get_all_passes
 
 from ._pasteboard import pyclip_copy
 
@@ -260,7 +260,6 @@ class InputApp(App[None]):
                     self.input_text_area.text,
                     self.pass_pipeline,
                     self.condense_mode,
-                    individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
                 )
 
     def watch_available_pass_list(
@@ -471,7 +470,6 @@ class InputApp(App[None]):
             self.input_text_area.text,
             child_pass_pipeline,
             self.condense_mode,
-            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
         )
 
         self.expand_node(expanded_node, child_pass_list)

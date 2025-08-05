@@ -5,6 +5,7 @@ from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.dialects.test import Test, TestOp
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
+from xdsl.interactive.passes import AvailablePass
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -12,7 +13,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
 
 
 @dataclass
@@ -68,16 +68,9 @@ def test_get_all_available_passes():
         # Transforms the above op from "a" to "b" before testing passes
         (ABPass(),),
         condense_mode=True,
-        rewrite_by_names_dict={
-            "test.op": {
-                "ae": ReplacePattern("a", "e"),
-                "be": ReplacePattern("b", "e"),
-            }
-        },
     )
 
     assert res == (
-        BCPass(),
-        BDPass(),
-        ApplyIndividualRewritePass(1, "test.op", "be"),
+        AvailablePass(BCPass()),
+        AvailablePass(BDPass()),
     )

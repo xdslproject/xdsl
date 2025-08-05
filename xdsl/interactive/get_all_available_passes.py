@@ -8,7 +8,6 @@ from xdsl.interactive.passes import (
 from xdsl.ir import Dialect
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PassPipeline
-from xdsl.pattern_rewriter import RewritePattern
 
 
 def get_available_pass_list(
@@ -17,7 +16,6 @@ def get_available_pass_list(
     input_text: str,
     pass_pipeline: tuple[ModulePass, ...],
     condense_mode: bool,
-    rewrite_by_names_dict: dict[str, dict[str, RewritePattern]],
 ) -> tuple[AvailablePass, ...]:
     """
     This function returns the available pass list file based on an input text string, pass_pipeline and condense_mode.
