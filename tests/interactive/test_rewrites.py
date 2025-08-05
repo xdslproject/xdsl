@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.passes import AvailablePass
-from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Dialect
 from xdsl.irdl import IRDLOperation, irdl_op_definition, traits_def
 from xdsl.parser import Parser
@@ -62,13 +61,10 @@ def test_get_all_possible_rewrites():
     parser = Parser(ctx, prog)
     module = parser.parse_module()
 
-    expected_res = [
+    assert ApplyIndividualRewritePass.applicable_params(ctx, module) == (
         ApplyIndividualRewritePass(2, "test.rewrites", "Rewrite"),
         ApplyIndividualRewritePass(3, "test.rewrites", "Rewrite"),
-    ]
-
-    res = get_all_possible_rewrites(module)
-    assert res == expected_res
+    )
 
 
 @dataclass

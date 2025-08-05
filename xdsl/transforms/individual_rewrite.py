@@ -1,59 +1,10 @@
 from dataclasses import dataclass, field
 
 from xdsl.context import Context
-from xdsl.dialects import arith
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, ModuleOp
-from xdsl.interactive.rewrites import get_all_possible_rewrites
-from xdsl.ir import Operation
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.traits import HasCanonicalizationPatternsTrait
-
-
-class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter) -> None:
-        if op.lhs == op.rhs:
-            assert isinstance(type := op.lhs.type, IntegerType | IndexType)
-            rewriter.replace_matched_op(
-                [
-                    li_op := arith.ConstantOp(IntegerAttr(2, type, truncate_bits=True)),
-                    arith.MuliOp(op.lhs, li_op),
-                ]
-            )
-
-
-class DivisionOfSameVariableToOne(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.DivUIOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(mul_op := op.lhs.owner, Operation)
-            and isinstance(mul_op, arith.MuliOp)
-            and (op.lhs in mul_op.results)
-            # and mul_op.rhs == op.rhs
-            and isinstance(mul_op.rhs.owner, arith.ConstantOp)
-            and isinstance(mul_rhs_value := mul_op.rhs.owner.value, IntegerAttr)
-            and isinstance(op.rhs.owner, arith.ConstantOp)
-            and isinstance(value := op.rhs.owner.value, IntegerAttr)
-            and mul_rhs_value.value.data == value.value.data
-            and value.value.data != 0
-        ):
-            rewriter.replace_matched_op([], [mul_op.lhs])
-
-
-def _get_canonicalization_pattern(
-    op: Operation, pattern_name: str
-) -> RewritePattern | None:
-    if (trait := op.get_trait(HasCanonicalizationPatternsTrait)) is None:
-        return None
-
-    for pattern in trait.get_canonicalization_patterns():
-        if type(pattern).__name__ == pattern_name:
-            return pattern
 
 
 @dataclass(frozen=True)
@@ -85,27 +36,48 @@ class ApplyIndividualRewritePass(ModulePass):
                 f"{self.matched_operation_index} does not match {self.operation_name}"
             )
 
-        # Check individual rewrites first
-        if (
-            pattern := _get_canonicalization_pattern(
-                matched_operation, self.pattern_name
-            )
-        ) is None:
-            raise ValueError(
-                f"Pattern name {self.pattern_name} not found for the provided operation name."
-            )
+        for trait in matched_operation.get_traits_of_type(
+            HasCanonicalizationPatternsTrait
+        ):
+            for pattern in trait.get_canonicalization_patterns():
+                if type(pattern).__name__ == self.pattern_name:
+                    pattern.match_and_rewrite(matched_operation, rewriter)
+                    if not rewriter.has_done_action:
+                        raise ValueError(
+                            f"Invalid rewrite ({self.pattern_name}) for operation "
+                            f"({matched_operation}) at location "
+                            f"{self.matched_operation_index}."
+                        )
+                    return
 
-        pattern.match_and_rewrite(matched_operation, rewriter)
-        if not rewriter.has_done_action:
-            raise ValueError(
-                f"Invalid rewrite ({self.pattern_name}) for operation "
-                f"({matched_operation}) at location {self.matched_operation_index}."
-            )
+        raise ValueError(
+            f"Pattern name {self.pattern_name} not found for the provided operation name."
+        )
 
     @classmethod
     def applicable_params(cls, ctx: Context, module_op: ModuleOp):
-        return tuple(
-            get_all_possible_rewrites(
-                module_op,
-            )
-        )
+        res: list[ApplyIndividualRewritePass] = []
+
+        for op_idx, matched_op in enumerate(module_op.walk()):
+            if (
+                trait := matched_op.get_trait(HasCanonicalizationPatternsTrait)
+            ) is None:
+                continue
+
+            pattern_by_name = {
+                type(pattern).__name__: pattern
+                for pattern in trait.get_canonicalization_patterns()
+            }
+
+            for pattern_name, pattern in pattern_by_name.items():
+                cloned_op = tuple(module_op.clone().walk())[op_idx]
+                rewriter = PatternRewriter(cloned_op)
+                pattern.match_and_rewrite(cloned_op, rewriter)
+                if rewriter.has_done_action:
+                    res.append(
+                        ApplyIndividualRewritePass(
+                            op_idx, cloned_op.name, pattern_name
+                        ),
+                    )
+
+        return tuple(res)

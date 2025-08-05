@@ -20,7 +20,6 @@ from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import get_condensed_pass_list, get_new_registered_context
-from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
     get_all_passes,
@@ -273,9 +272,12 @@ builtin.module {
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        rewrites = get_all_possible_rewrites(expected_module)
+        ctx = get_new_registered_context(app.all_dialects)
+        rewrites = individual_rewrite.ApplyIndividualRewritePass.applicable_params(
+            ctx, expected_module
+        )
         assert app.available_pass_list == get_condensed_pass_list(
-            get_new_registered_context(app.all_dialects),
+            ctx,
             expected_module,
             app.all_passes,
         ) + tuple(rewrites)
