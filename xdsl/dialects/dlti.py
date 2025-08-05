@@ -98,6 +98,15 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
         converter=DLTITypeConverters.convert_entry_map_type
     )
 
+    def __getitem__(self, key: StringAttr | TypeAttribute | str) -> Attribute:
+        if isinstance(key, str):
+            key = StringAttr(key)
+        for entry in self.entries:
+            if entry.key == key:
+                return entry.value
+
+        raise IndexError
+
     @classmethod
     def parse_parameters(
         cls, parser: AttrParser
