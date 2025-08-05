@@ -105,7 +105,7 @@ class DLTIEntryMap(ParametrizedAttribute, ABC):
             if entry.key == key:
                 return entry.value
 
-        raise IndexError
+        raise KeyError
 
     @classmethod
     def parse_parameters(

@@ -123,10 +123,8 @@ def test_duplicate_data_layout_map_entries(
 def test_not_found_map_entry_lookup(
     cls: type[DLTIEntryMap],
 ):
-    with pytest.raises(IndexError):
-        attr = cls(
-            ArrayAttr(
-                [DataLayoutEntryAttr("key1", "v"), DataLayoutEntryAttr("key2", 12)]
-            )
-        )
+    attr = cls(
+        ArrayAttr([DataLayoutEntryAttr("key1", "v"), DataLayoutEntryAttr("key2", 12)])
+    )
+    with pytest.raises(KeyError):
         attr["key3"]
