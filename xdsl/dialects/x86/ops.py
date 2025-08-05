@@ -51,6 +51,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Operation,
+    OpResult,
     SSAValue,
 )
 from xdsl.irdl import (
@@ -301,7 +302,7 @@ class DS_Operation(
     register.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     source = operand_def(R2InvT)
 
     def __init__(
