@@ -24,6 +24,7 @@ from typing_extensions import Self, TypeVar, assert_never
 
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     Block,
     Operation,
@@ -31,6 +32,7 @@ from xdsl.ir import (
     OpTraits,
     Region,
     SSAValue,
+    SSAValues,
 )
 from xdsl.traits import OpTrait
 from xdsl.utils.classvar import is_const_classvar
@@ -349,10 +351,7 @@ class VarOperandDef(OperandDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-class VarOperand(tuple[Operand, ...]):
-    @property
-    def types(self):
-        return tuple(o.type for o in self)
+VarOperand = SSAValues[SSAValue[AttributeCovT]]
 
 
 @dataclass(init=False)
@@ -387,10 +386,7 @@ class VarResultDef(ResultDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-class VarOpResult(Generic[AttributeInvT], tuple[OpResult[AttributeInvT], ...]):
-    @property
-    def types(self):
-        return tuple(r.type for r in self)
+VarOpResult = SSAValues[OpResult[AttributeCovT]]
 
 
 @dataclass(init=False)
@@ -856,8 +852,9 @@ def opt_successor_def(
 def traits_def(*traits: OpTrait):
     """
     Defines the traits of an operation.
+    Note that `traits_def` from parent superclasses get included automatically.
     """
-    return OpTraits(frozenset(traits))
+    return OpTraits(lambda: traits)
 
 
 def lazy_traits_def(future_traits: Callable[[], tuple[OpTrait, ...]]):
@@ -935,9 +932,12 @@ class OpDef:
 
         op_def = OpDef(pyrdl_def.name)
 
-        # If an operation subclass overrides a superclass field, only keep the definition
-        # of the subclass.
+        # If an operation subclass overrides a superclass field, only keep the
+        # definition of the subclass, with the exception of `traits`, which are
+        # processed for all superclasses.
         field_names = set[str]()
+
+        traits_defs: list[OpTraits] = []
 
         # Get all fields of the class, including the parent classes
         for parent_cls in pyrdl_def.mro():
@@ -1014,14 +1014,13 @@ class OpDef:
 
                 if field_name == "traits":
                     traits = value
-                    field_names.add("traits")
                     if not isinstance(traits, OpTraits):
                         raise PyRDLOpDefinitionError(
                             f"pyrdl operation definition '{pyrdl_def.__name__}' "
                             "traits field should be an instance of"
                             f"'{OpTraits.__name__}'."
                         )
-                    op_def.traits = traits
+                    traits_defs.append(traits)
                     continue
 
                 # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
@@ -1132,6 +1131,15 @@ class OpDef:
 
                 raise wrong_field_exception(field_name)
 
+        if traits_defs:
+            if len(traits_defs) == 1:
+                op_def.traits = traits_defs[0]
+            else:
+                op_def.traits = OpTraits(
+                    lambda: tuple(
+                        trait for traits in traits_defs for trait in traits.gen_traits()
+                    )
+                )
         op_def.assembly_format = pyrdl_def.assembly_format
         op_def.custom_directives = {
             directive.__name__: directive for directive in pyrdl_def.custom_directives
@@ -1624,12 +1632,13 @@ def irdl_build_arg_list(
                 )
             arg_sizes.append(0)
         elif isinstance(arg, Sequence):
-            if not isinstance(arg_def, VariadicDef):
+            arg = cast(Sequence[_T], arg)
+
+            if not isinstance(arg_def, VariadicDef) and len(arg) != 1:
                 raise ValueError(
                     error_prefix
                     + f"passed Sequence to non-variadic {construct} {arg_idx} '{arg_name}'"
                 )
-            arg = cast(Sequence[_T], arg)
 
             # Check we have at most one argument for optional defintions.
             if isinstance(arg_def, OptionalDef) and len(arg) > 1:

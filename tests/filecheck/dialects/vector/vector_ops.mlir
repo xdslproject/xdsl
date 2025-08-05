@@ -7,9 +7,10 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
   vector.store %load_nontemporal, %base[%i, %i] {"nontemporal" = false} : memref<4x4xindex>, vector<2xindex>
   %load_nontemporal_1 = vector.load %base[%i, %i] {"nontemporal" = true} : memref<4x4xindex>, vector<2xindex>
   vector.store %load_nontemporal_1, %base[%i, %i] {"nontemporal" = true} : memref<4x4xindex>, vector<2xindex>
-  %broadcast = vector.broadcast %i : index to vector<1xindex>
+  %broadcast_scalar = vector.broadcast %i : index to vector<1xindex>
+  %broadcast_vector = vector.broadcast %broadcast_scalar : vector<1xindex> to vector<4x1xindex>
   %fma = vector.fma %fvec, %fvec, %fvec : vector<2xf32>
-  %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
+  %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast_scalar : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
   vector.maskedstore %base[%i, %i], %vec, %masked_load : memref<4x4xindex>, vector<1xi1>, vector<1xindex>
   "vector.print"(%masked_load) : (vector<1xindex>) -> ()
   %mask = vector.create_mask %i : vector<2xi1>
@@ -27,9 +28,10 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
 // CHECK-NEXT:     vector.store %load_nontemporal, %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
 // CHECK-NEXT:     %load_nontemporal_1 = vector.load %base[%i, %i] {nontemporal = true} : memref<4x4xindex>, vector<2xindex>
 // CHECK-NEXT:     vector.store %load_nontemporal_1, %base[%i, %i] {nontemporal = true} : memref<4x4xindex>, vector<2xindex>
-// CHECK-NEXT:     %broadcast = vector.broadcast %i : index to vector<1xindex>
+// CHECK-NEXT:     %broadcast_scalar = vector.broadcast %i : index to vector<1xindex>
+// CHECK-NEXT:     %broadcast_vector = vector.broadcast %broadcast_scalar : vector<1xindex> to vector<4x1xindex>
 // CHECK-NEXT:     %fma = vector.fma %fvec, %fvec, %fvec : vector<2xf32>
-// CHECK-NEXT:     %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
+// CHECK-NEXT:     %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast_scalar : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
 // CHECK-NEXT:     vector.maskedstore %base[%i, %i], %vec, %masked_load : memref<4x4xindex>, vector<1xi1>, vector<1xindex>
 // CHECK-NEXT:     "vector.print"(%masked_load) : (vector<1xindex>) -> ()
 // CHECK-NEXT:     %mask = vector.create_mask %i : vector<2xi1>

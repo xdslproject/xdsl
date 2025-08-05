@@ -51,6 +51,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Operation,
+    OpResult,
     SSAValue,
 )
 from xdsl.irdl import (
@@ -69,7 +70,12 @@ from xdsl.irdl import (
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator, Pure
+from xdsl.traits import (
+    HasCanonicalizationPatternsTrait,
+    IsTerminator,
+    MemoryReadEffect,
+    Pure,
+)
 from xdsl.utils.exceptions import VerifyException
 
 from .assembly import (
@@ -296,7 +302,7 @@ class DS_Operation(
     register.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     source = operand_def(R2InvT)
 
     def __init__(
@@ -436,7 +442,10 @@ class DM_Operation(
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
-    traits = traits_def(DM_OperationHasCanonicalizationPatterns())
+    traits = traits_def(
+        DM_OperationHasCanonicalizationPatterns(),
+        MemoryReadEffect(),
+    )
 
     def __init__(
         self,
@@ -3012,6 +3021,7 @@ class GetAVXRegisterOp(GetAnyRegisterOperation[X86VectorRegisterType]):
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
     printer = AssemblyPrinter(stream=output)
+    print(".intel_syntax noprefix", file=output)
     printer.print_module(module)
 
 

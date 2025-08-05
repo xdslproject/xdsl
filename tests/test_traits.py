@@ -30,7 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, Operation, OpTrait, OpTraits, SSAValue
+from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
 from xdsl.irdl import (
     Block,
     IRDLOperation,
@@ -193,15 +193,18 @@ class LargerOperandOp(IRDLOperation, ABC):
 class TestCopyOp(LargerOperandOp):
     name = "test.test_copy"
 
-    traits = OpTraits(LargerOperandOp.traits.traits | {BitwidthSumLessThanTrait(64)})
+    traits = traits_def(BitwidthSumLessThanTrait(64))
 
 
 def test_trait_inheritance():
     """
     Check that traits are correctly inherited from parent classes.
     """
-    assert TestCopyOp.traits == traits_def(
-        LargerOperandTrait(), BitwidthSumLessThanTrait(64)
+    assert TestCopyOp.traits.traits == frozenset(
+        (
+            LargerOperandTrait(),
+            BitwidthSumLessThanTrait(64),
+        )
     )
 
 
