@@ -29,7 +29,7 @@ def get_available_pass_list(
 
     # merge rewrite passes with "other" pass list
     if condense_mode:
-        pass_list = get_condensed_pass_list(current_module, all_passes)
+        pass_list = get_condensed_pass_list(ctx, current_module, all_passes)
         # get all individual rewrites
         individual_rewrites = get_all_possible_rewrites(current_module)
         pass_list += tuple(individual_rewrites)
