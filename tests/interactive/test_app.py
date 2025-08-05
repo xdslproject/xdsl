@@ -277,10 +277,7 @@ builtin.module {
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        rewrites = get_all_possible_rewrites(
-            expected_module,
-            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
-        )
+        rewrites = get_all_possible_rewrites(expected_module)
         assert app.available_pass_list == get_condensed_pass_list(
             get_new_registered_context(app.all_dialects),
             expected_module,
