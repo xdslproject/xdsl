@@ -98,12 +98,13 @@ def test_entry_maps(
 
 
 def test_map_attr_embedded_dict():
-    m = MapAttr({"key": {"key": {"key": "value"}}})
-    assert isinstance(m.entries.data[0].value, MapAttr)
-    assert isinstance(m.entries.data[0].value.entries.data[0].value, MapAttr)
-    embedded_contents = m.entries.data[0].value.entries.data[0].value
-    assert isinstance(embedded_contents.entries.data[0].key, StringAttr)
-    assert isinstance(embedded_contents.entries.data[0].value, StringAttr)
+    first_map = MapAttr({"key": {"key": {"key": "value", i32: 21}}})
+    second_map = first_map["key"]
+    assert isinstance(second_map, MapAttr)
+    third_map = second_map["key"]
+    assert isinstance(third_map, MapAttr)
+    assert third_map["key"] == StringAttr("value")
+    assert third_map[i32] == IntAttr(21)
 
 
 @pytest.mark.parametrize(
@@ -114,3 +115,16 @@ def test_duplicate_data_layout_map_entries(
 ):
     with pytest.raises(VerifyException):
         cls(ArrayAttr([DataLayoutEntryAttr("k", "v"), DataLayoutEntryAttr("k", 12)]))
+
+
+@pytest.mark.parametrize(
+    "cls", [DataLayoutSpecAttr, TargetDeviceSpecAttr, TargetSystemSpecAttr, MapAttr]
+)
+def test_not_found_map_entry_lookup(
+    cls: type[DLTIEntryMap],
+):
+    attr = cls(
+        ArrayAttr([DataLayoutEntryAttr("key1", "v"), DataLayoutEntryAttr("key2", 12)])
+    )
+    with pytest.raises(KeyError):
+        attr["key3"]
