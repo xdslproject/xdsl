@@ -24,7 +24,7 @@ theme:
     - navigation.indexes
   palette:
     - media: "(prefers-color-scheme: light)"
-      scheme: xdsl-light
+      scheme: xdsl
       primary: custom
       accent: custom
       toggle:
