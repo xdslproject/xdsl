@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 from xdsl.frontend.pyast.context import PyASTContext
-from xdsl.frontend.pypdl.transforms.func_to_pdl_rewrite import FuncToPdlRewrite
 from xdsl.transforms.desymref import FrontendDesymrefyPass
+from xdsl.transforms.experimental.func_to_pdl_rewrite import FuncToPdlRewrite
 
 
 @dataclass
