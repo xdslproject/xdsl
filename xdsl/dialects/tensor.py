@@ -645,6 +645,34 @@ class FromElementsOp(IRDLOperation):
     assembly_format = "$elements attr-dict `:` type($result)"
 
 
+@irdl_op_definition
+class SplatOp(IRDLOperation):
+    name = "tensor.splat"
+
+    SPLAT_TYPE: ClassVar = VarConstraint("SPLAT_TYPE", AnyAttr())
+
+    input = operand_def(SPLAT_TYPE)
+    dynamicSizes = var_operand_def(IndexType)
+    result = result_def(TensorType.constr(SPLAT_TYPE))
+    assembly_format = "$input (`[` $dynamicSizes^ `]`)? attr-dict `:` type($result)"
+
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        input: SSAValue,
+        dynamicSizes: Sequence[SSAValue | Operation],
+        result_type: TensorType[Attribute],
+    ):
+        super().__init__(operands=(input, dynamicSizes), result_types=(result_type,))
+
+    def verify_(self):
+        if self.result.type.get_shape().count(-1) != len(self.dynamicSizes):
+            raise VerifyException(
+                "number of dynamic sizes must equal number of unknown dimensions in result tensor"
+            )
+
+
 Tensor = Dialect(
     "tensor",
     [
@@ -659,6 +687,7 @@ Tensor = Dialect(
         ExtractOp,
         InsertOp,
         FromElementsOp,
+        SplatOp,
     ],
     [],
 )
