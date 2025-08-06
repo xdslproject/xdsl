@@ -723,7 +723,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
-        assert not self.uses, "unexpected error in xdsl"
+        assert self.first_use is None, "unexpected error in xdsl"
 
     def replace_by_if(self, value: SSAValue, test: Callable[[Use], bool]):
         """
@@ -743,7 +743,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         If safe_erase is True, then check that no operations use the value anymore.
         If safe_erase is False, then replace its uses by an ErasedSSAValue.
         """
-        if safe_erase and self.uses:
+        if safe_erase and self.first_use is not None:
             raise ValueError(
                 "Attempting to delete SSA value that still has uses of result "
                 f"of operation:\n{self.owner}"
@@ -860,6 +860,35 @@ class _IRNode(ABC):
         return id(self)
 
 
+SSAValueCovT = TypeVar(
+    "SSAValueCovT", bound=SSAValue[Attribute], default=SSAValue[Attribute]
+)
+
+
+class SSAValues(Generic[SSAValueCovT], tuple[SSAValueCovT, ...]):
+    """
+    A helper data structure for a sequence of SSAValues.
+    """
+
+    @property
+    def types(self):
+        return tuple(o.type for o in self)
+
+    @overload
+    def __getitem__(self, idx: int) -> SSAValueCovT: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> SSAValues[SSAValueCovT]: ...
+
+    def __getitem__(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, idx: int | slice
+    ) -> SSAValueCovT | SSAValues[SSAValueCovT]:
+        if isinstance(idx, int):
+            return super().__getitem__(idx)
+        else:
+            return SSAValues(super().__getitem__(idx))
+
+
 @dataclass
 class OpOperands(Sequence[SSAValue]):
     """
@@ -884,7 +913,7 @@ class OpOperands(Sequence[SSAValue]):
         operand_uses = self._op._operand_uses  # pyright: ignore[reportPrivateUsage]
         operands[idx].remove_use(operand_uses[idx])
         operand.add_use(operand_uses[idx])
-        new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
+        new_operands = SSAValues((*operands[:idx], operand, *operands[idx + 1 :]))
         self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
 
     def __iter__(self) -> Iterator[SSAValue]:
@@ -910,22 +939,28 @@ class OpTraits(Iterable[OpTrait]):
     An operation's traits.
     Some operations have mutually recursive traits, such as one is always the parent
     operation of the other.
-    For this case, the operation's traits can be declared lazily, and resolved only
-    at the first use.
+    For this case, the operation's traits can be declared lazily and resolved only at
+    the first use.
     """
 
-    _traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
+    gen_traits: Callable[[], tuple[OpTrait, ...]]
+    """
+    Factory method that lazily populates the traits on first use.
+    """
+    _traits: frozenset[OpTrait] | None
+    """
+    The traits of this operation, can be updated via `add_trait`.
+    """
 
-    def __init__(
-        self, traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
-    ) -> None:
-        self._traits = traits
+    def __init__(self, gen_traits: Callable[[], tuple[OpTrait, ...]]) -> None:
+        self.gen_traits = gen_traits
+        self._traits = None
 
     @property
     def traits(self) -> frozenset[OpTrait]:
         """Returns a copy of this instance's traits."""
-        if callable(self._traits):
-            self._traits = frozenset(self._traits())
+        if self._traits is None:
+            self._traits = frozenset(self.gen_traits())
         return self._traits
 
     def add_trait(self, trait: OpTrait):
@@ -936,7 +971,7 @@ class OpTraits(Iterable[OpTrait]):
         return iter(self.traits)
 
     def __eq__(self, value: object, /) -> bool:
-        return isinstance(value, OpTraits) and self._traits == value._traits
+        return isinstance(value, OpTraits) and self.traits == value.traits
 
 
 @dataclass(eq=False, unsafe_hash=False)
@@ -946,7 +981,7 @@ class Operation(_IRNode):
     name: ClassVar[str] = field(repr=False)
     """The operation name. Should be a static member of the class"""
 
-    _operands: tuple[SSAValue, ...] = field(default=())
+    _operands: SSAValues = field(default=SSAValues())
     """The operation operands."""
 
     _operand_uses: tuple[Use, ...] = field(default=())
@@ -956,7 +991,7 @@ class Operation(_IRNode):
     access to the operand SSAValue.
     """
 
-    results: tuple[OpResult, ...] = field(default=())
+    results: SSAValues[OpResult] = field(default=SSAValues())
     """The results created by the operation."""
 
     _successors: tuple[Block, ...] = field(default=())
@@ -1078,7 +1113,7 @@ class Operation(_IRNode):
 
     @operands.setter
     def operands(self, new: Sequence[SSAValue]):
-        new = tuple(new)
+        new = SSAValues(new)
         new_uses = tuple(Use(self, idx) for idx in range(len(new)))
         for operand, use in zip(self._operands, self._operand_uses):
             operand.remove_use(use)
@@ -1121,7 +1156,7 @@ class Operation(_IRNode):
         # This is assumed to exist by Operation.operand setter.
         self.operands = operands
 
-        self.results = tuple(
+        self.results = SSAValues(
             OpResult(result_type, self, idx)
             for (idx, result_type) in enumerate(result_types)
         )

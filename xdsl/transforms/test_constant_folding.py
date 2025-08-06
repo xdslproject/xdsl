@@ -9,6 +9,7 @@ from xdsl.context import Context
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp
 from xdsl.ir import ErasedSSAValue, Operation, OpResult
+from xdsl.irdl import SSAValues
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -129,8 +130,10 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
                     object.__setattr__(integer_attr, "value", int_attr)
                     object.__setattr__(integer_attr, "type", result_type)
                     folded_op = ConstantOp.__new__(ConstantOp)
-                    folded_op._operands = tuple()  # pyright: ignore[reportPrivateUsage]
-                    folded_op.results = (OpResult(result_type, folded_op, 0),)
+                    folded_op._operands = SSAValues()  # pyright: ignore[reportPrivateUsage]
+                    folded_op.results = SSAValues(
+                        (OpResult(result_type, folded_op, 0),)
+                    )
                     folded_op.properties = {"value": integer_attr}
                     folded_op.attributes = {}
                     folded_op._successors = tuple()  # pyright: ignore[reportPrivateUsage]
@@ -186,10 +189,12 @@ class TestSpecialisedConstantFoldingPass(ModulePass):
                         if first_use is not None:
                             first_use._prev_use = use  # pyright: ignore[reportPrivateUsage]
                         new_result.first_use = use
-                        new_operands = (
-                            *operands[: use.index],
-                            new_result,
-                            *operands[use.index + 1 :],
+                        new_operands = SSAValues(
+                            (
+                                *operands[: use.index],
+                                new_result,
+                                *operands[use.index + 1 :],
+                            )
                         )
                         use.operation._operands = new_operands  # pyright: ignore[reportPrivateUsage]
                     new_result.name_hint = old_result.name_hint

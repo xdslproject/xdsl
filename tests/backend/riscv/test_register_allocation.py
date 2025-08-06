@@ -17,7 +17,7 @@ from xdsl.utils.exceptions import DiagnosticException
 
 
 def test_default_reserved_registers():
-    available_registers = RiscvRegisterStack()
+    available_registers = RiscvRegisterStack(allow_infinite=True)
 
     unallocated = riscv.Registers.UNALLOCATED_INT
 
@@ -96,7 +96,7 @@ def test_allocate_with_inout_constraints():
                 (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
             )
 
-    available_registers = RiscvRegisterStack()
+    available_registers = RiscvRegisterStack(allow_infinite=True)
     register_allocator = RegisterAllocatorLivenessBlockNaive(available_registers)
 
     # All new registers. The result register is reused by the allocator for the operand.

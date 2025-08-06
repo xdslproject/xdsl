@@ -46,7 +46,7 @@ from xdsl.ir import Dialect
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
-from xdsl.transforms import get_all_passes, individual_rewrite
+from xdsl.transforms import get_all_passes
 
 from ._pasteboard import pyclip_copy
 
@@ -250,7 +250,7 @@ class InputApp(App[None]):
         """
         match self.current_module:
             case None:
-                return tuple(AvailablePass(p.name, p) for _, p in self.all_passes)
+                return tuple(AvailablePass(p) for _, p in self.all_passes)
             case Exception():
                 return ()
             case ModuleOp():
@@ -260,7 +260,6 @@ class InputApp(App[None]):
                     self.input_text_area.text,
                     self.pass_pipeline,
                     self.condense_mode,
-                    individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
                 )
 
     def watch_available_pass_list(
@@ -339,10 +338,10 @@ class InputApp(App[None]):
         # remove potential children nodes in case expand node has been clicked multiple times on the same node
         expanded_pass.remove_children()
 
-        for pass_name, value in child_pass_list:
+        for value in child_pass_list:
             expanded_pass.add(
-                label=pass_name,
-                data=value,
+                label=str(value),
+                data=value.module_pass,
             )
 
     def update_root_of_passes_tree(self) -> None:
@@ -471,7 +470,6 @@ class InputApp(App[None]):
             self.input_text_area.text,
             child_pass_pipeline,
             self.condense_mode,
-            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
         )
 
         self.expand_node(expanded_node, child_pass_list)

@@ -34,7 +34,9 @@ def is_trivially_dead(op: Operation):
     """
     Returns if the operation has no observable effect.
     """
-    return all(not result.uses for result in op.results) and would_be_trivially_dead(op)
+    return all(
+        result.first_use is None for result in op.results
+    ) and would_be_trivially_dead(op)
 
 
 def result_only_effects(rootOp: Operation) -> bool:
