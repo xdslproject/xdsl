@@ -9,6 +9,7 @@ from types import FrameType
 from typing import Any, NamedTuple
 
 from xdsl.context import Context
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
 from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
@@ -46,6 +47,9 @@ class PyASTContext:
     )
     """An ordered list of passes to apply to the built module."""
 
+    post_callback: Callable[[ModulePass, ModuleOp, ModulePass], None] | None = None
+    """Callback to run between post transforms."""
+
     ir_context: Context = field(
         default_factory=lambda: Context(allow_unregistered=True)
     )
@@ -72,6 +76,11 @@ class PyASTContext:
     def register_dialect(self, dialect: Dialect) -> None:
         """Add a dialect to the context used for transformation."""
         self.ir_context.load_dialect(dialect)
+
+    @property
+    def pass_pipeline(self) -> PassPipeline:
+        """Get a pass pipeline from the context state."""
+        return PassPipeline(tuple(self.post_transforms), self.post_callback)
 
     @classmethod
     def _get_func_info(
@@ -123,7 +132,7 @@ class PyASTContext:
             globals=func_globals,
             function_ast=func_ast,
             build_context=self.ir_context,
-            post_transforms=PassPipeline(tuple(self.post_transforms)),
+            post_transforms=self.pass_pipeline,
         )
         return self._get_wrapped_program(func, builder)
 
