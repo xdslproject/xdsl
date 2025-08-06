@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.passes import AvailablePass
-from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Dialect
 from xdsl.irdl import IRDLOperation, irdl_op_definition, traits_def
 from xdsl.parser import Parser
@@ -62,17 +61,10 @@ def test_get_all_possible_rewrites():
     parser = Parser(ctx, prog)
     module = parser.parse_module()
 
-    expected_res = [
-        AvailablePass(
-            module_pass=ApplyIndividualRewritePass(2, "test.rewrites", "Rewrite")
-        ),
-        AvailablePass(
-            module_pass=ApplyIndividualRewritePass(3, "test.rewrites", "Rewrite")
-        ),
-    ]
-
-    res = get_all_possible_rewrites(module)
-    assert res == expected_res
+    assert ApplyIndividualRewritePass.schedule_space(ctx, module) == (
+        ApplyIndividualRewritePass(2, "test.rewrites", "Rewrite"),
+        ApplyIndividualRewritePass(3, "test.rewrites", "Rewrite"),
+    )
 
 
 @dataclass
@@ -123,7 +115,10 @@ class BDPass(ReplacePass):
 def test_get_all_available_passes():
     res = get_available_pass_list(
         (("test", lambda: Dialect("test", [MyTestOp])),),
-        tuple((p.name, p) for p in (ABPass, ACPass, BCPass, BDPass)),
+        tuple(
+            (p.name, p)
+            for p in (ABPass, ACPass, BCPass, BDPass, ApplyIndividualRewritePass)
+        ),
         '"test.rewrites"() {label="a"} : () -> ()',
         # Transforms the above op from "a" to "b" before testing passes
         (ABPass(),),
