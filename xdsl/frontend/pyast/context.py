@@ -32,6 +32,13 @@ class FuncInfo(NamedTuple):
     """The Python AST representation of the function."""
 
 
+def default_pipeline_callback(
+    _previous_pass: ModulePass, module: ModuleOp, _next_pass: ModulePass
+) -> None:
+    """Default callback to verify the module after each transformation pass."""
+    module.verify()
+
+
 @dataclass
 class PyASTContext:
     """Encapsulate the mapping between Python and IR types and operations."""
@@ -47,7 +54,9 @@ class PyASTContext:
     )
     """An ordered list of passes to apply to the built module."""
 
-    post_callback: Callable[[ModulePass, ModuleOp, ModulePass], None] | None = None
+    post_callback: Callable[[ModulePass, ModuleOp, ModulePass], None] | None = (
+        default_pipeline_callback
+    )
     """Callback to run between post transforms."""
 
     ir_context: Context = field(
