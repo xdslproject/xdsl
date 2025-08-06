@@ -125,13 +125,19 @@ class PyASTContext:
             func_file, func_globals, func_ast = self._get_func_info(
                 currentframe(), func, decorated_func
             )
+
+            # Override default post transforms if desymref is unset
+            kwargs: dict[str, Any] = {}
+            if not desymref:
+                kwargs["post_transforms"] = []
+
             builder = PyASTBuilder(
                 type_registry=self.type_registry,
                 function_registry=self.function_registry,
                 file=func_file,
                 globals=func_globals,
                 function_ast=func_ast,
-                desymref=desymref,
+                **kwargs,
             )
             return self._get_wrapped_program(func, builder)
 
