@@ -8,11 +8,14 @@ from sys import _getframe  # pyright: ignore[reportPrivateUsage]
 from types import FrameType
 from typing import Any, NamedTuple, overload
 
+from xdsl.context import Context
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
-from xdsl.frontend.pyast.utils.builder import PyASTBuilder
+from xdsl.frontend.pyast.utils.builder import PostTransform, PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
 from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
-from xdsl.ir import Operation, TypeAttribute
+from xdsl.ir import Dialect, Operation, TypeAttribute
+from xdsl.passes import ModulePass
+from xdsl.transforms.desymref import FrontendDesymrefyPass
 
 
 class FuncInfo(NamedTuple):
@@ -38,6 +41,16 @@ class PyASTContext:
     function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between functions and their operation types."""
 
+    post_transforms: list[PostTransform] = field(
+        default_factory=lambda: [PostTransform(FrontendDesymrefyPass(), True)]
+    )
+    """An ordered list of passes to apply to the built module."""
+
+    ir_context: Context = field(
+        default_factory=lambda: Context(allow_unregistered=True)
+    )
+    """The xDSL context to use when applying transformations to the built module."""
+
     def register_type(
         self,
         source_type: type,
@@ -51,6 +64,16 @@ class PyASTContext:
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
         self.function_registry.insert(function, ir_constructor)
+
+    def register_post_transform(
+        self, transform: ModulePass, verify: bool = True
+    ) -> None:
+        """Add a module pass to be run on the generated IR."""
+        self.post_transforms.append(PostTransform(transform, verify))
+
+    def register_dialect(self, dialect: Dialect) -> None:
+        """Add a dialect to the context used for transformation."""
+        self.ir_context.load_dialect(dialect)
 
     @classmethod
     def _get_func_info(
@@ -120,16 +143,14 @@ class PyASTContext:
     ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]] | PyASTProgram[P, R]:
         """Get a program wrapper by decorating a function."""
 
+        if not desymref:
+            raise DeprecationWarning("Desymref flag no longer supported!")
+
         def decorator(func: Callable[P, R]) -> PyASTProgram[P, R]:
             """Get a wrapped program by decorating a function."""
             func_file, func_globals, func_ast = self._get_func_info(
                 currentframe(), func, decorated_func
             )
-
-            # Override default post transforms if desymref is unset
-            kwargs: dict[str, Any] = {}
-            if not desymref:
-                kwargs["post_transforms"] = []
 
             builder = PyASTBuilder(
                 type_registry=self.type_registry,
@@ -137,7 +158,8 @@ class PyASTContext:
                 file=func_file,
                 globals=func_globals,
                 function_ast=func_ast,
-                **kwargs,
+                build_context=self.ir_context,
+                post_transforms=self.post_transforms,
             )
             return self._get_wrapped_program(func, builder)
 

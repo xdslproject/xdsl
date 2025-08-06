@@ -1,6 +1,6 @@
 import ast
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, NamedTuple
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
@@ -11,7 +11,16 @@ from xdsl.frontend.pyast.utils.type_conversion import (
     TypeRegistry,
 )
 from xdsl.passes import ModulePass
-from xdsl.transforms.desymref import FrontendDesymrefyPass
+
+
+class PostTransform(NamedTuple):
+    """Transformation to apply to built IR."""
+
+    module_pass: ModulePass
+    """The module pass to apply."""
+
+    verify: bool
+    """Whether to verify the result of the pass."""
 
 
 @dataclass
@@ -33,16 +42,11 @@ class PyASTBuilder:
     function_ast: ast.FunctionDef
     """The AST tree for the function being built."""
 
-    build_context: Context = field(default_factory=Context)
+    build_context: Context
     """The xDSL context to use when applying transformations to the built module."""
 
-    post_transforms: list[ModulePass] = field(
-        default_factory=lambda: [FrontendDesymrefyPass()]
-    )
+    post_transforms: list[PostTransform]
     """An ordered list of passes to apply to the built module."""
-
-    post_verify: bool = True
-    """Whether to verify each post processing transformation pass."""
 
     def build(self) -> ModuleOp:
         """Build a module from the builder state."""
@@ -60,9 +64,9 @@ class PyASTBuilder:
         module.verify()
 
         context = self.build_context.clone()
-        for transform in self.post_transforms:
+        for transform, verify in self.post_transforms:
             transform.apply(context, module)
-            if self.post_verify:
+            if verify:
                 module.verify()
 
         return module

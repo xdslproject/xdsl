@@ -22,8 +22,11 @@ def test_arith(x: float, y: float, z: float) -> float:
 print(test_arith(1.0, 2.0, 3.0))
 # CHECK: 7.0
 
-# But the wrapper also provides a property to get an IR representation
-print(test_arith.module)
+# But the wrapper also provides a property to get an IR representation, which
+# is built only once, then cached
+module = test_arith.module
+assert module is test_arith.module
+print(module)
 # CHECK:       builtin.module {
 # CHECK-NEXT:  func.func @test_arith(%x : f64, %y : f64, %z : f64) -> f64 {
 # CHECK-NEXT:    %0 = arith.mulf %y, %z : f64
@@ -33,16 +36,17 @@ print(test_arith.module)
 # CHECK-NEXT:}
 
 
-# The `ctx.parse_program` decorator can also be invoked with arguments
-@ctx.parse_program(desymref=False)
+# The context can be modified after instantiation, for example to remove default
+# post processing passes
+ctx.post_transforms = []
+
+
+@ctx.parse_program
 def test_add(x: float, y: float) -> float:
     return x + y
 
 
-# And the extracted module is built only once, then cached
-module = test_add.module
-assert module is test_add.module
-print(module)
+print(test_add.module)
 # CHECK:       builtin.module {
 # CHECK-NEXT:    func.func @test_add(%x : f64, %y : f64) -> f64 {
 # CHECK-NEXT:      symref.declare "x"
