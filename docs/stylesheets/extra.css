@@ -27,6 +27,10 @@ h2 {
   --md-primary-fg-color--light: #0F52BA;
   --md-primary-fg-color--dark: #002147;
 
+  --md-default-fg-color: #F1F3F5;
+  --md-default-fg-color--light: #F8F9Fa;
+  --md-default-fg-color--lighter: #F8F9FACC;
+
   --md-accent-fg-color: hsla(302, 75%, 72%, 1);
   --md-accent-fg-color--transparent: hsla(302, 75%, 72%, 0.1);
 
