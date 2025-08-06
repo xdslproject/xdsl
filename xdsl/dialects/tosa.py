@@ -16,8 +16,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
 )
-from xdsl.ir import Attribute, Dialect
-from xdsl.ir.core import TypeAttribute
+from xdsl.ir import Attribute, Dialect, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
