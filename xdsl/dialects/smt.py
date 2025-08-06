@@ -19,10 +19,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     AtLeast,
-    GenericAttrConstraint,
-    GenericRangeConstraint,
+    AttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
+    RangeConstraint,
     RangeOf,
     RangeVarConstraint,
     VarConstraint,
@@ -134,9 +134,9 @@ class FuncType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def constr(
-        domain: GenericRangeConstraint[NonFuncSMTType],
-        range: GenericAttrConstraint[NonFuncSMTType],
-    ) -> GenericAttrConstraint[FuncType]:
+        domain: RangeConstraint[NonFuncSMTType],
+        range: AttrConstraint[NonFuncSMTType],
+    ) -> AttrConstraint[FuncType]:
         return ParamAttrConstraint(FuncType, (ArrayAttr.constr(domain), range))
 
 
@@ -169,13 +169,13 @@ class BitVectorAttr(TypedAttribute):
 
     @staticmethod
     def constr(
-        type_constraint: GenericAttrConstraint[BitVectorType],
-    ) -> GenericAttrConstraint[BitVectorAttr]:
+        type: AttrConstraint[BitVectorType],
+    ) -> AttrConstraint[BitVectorAttr]:
         return ParamAttrConstraint(
             BitVectorAttr,
             (
                 AnyAttr(),
-                type_constraint,
+                type,
             ),
         )
 
@@ -315,7 +315,7 @@ class VariadicBoolOp(IRDLOperation):
     requires at least two.
     """
 
-    inputs = var_operand_def(RangeOf(base(BoolType), length=AtLeast(2)))
+    inputs = var_operand_def(RangeOf(base(BoolType)).of_length(AtLeast(2)))
     result = result_def(BoolType())
 
     traits = traits_def(Pure())
@@ -428,7 +428,7 @@ class VariadicPredicateOp(IRDLOperation, ABC):
 
     T: ClassVar = VarConstraint("T", NonFuncSMTTypeConstr)
 
-    inputs = var_operand_def(RangeOf(T, length=AtLeast(2)))
+    inputs = var_operand_def(RangeOf(T).of_length(AtLeast(2)))
     result = result_def(BoolType())
 
     traits = traits_def(Pure())

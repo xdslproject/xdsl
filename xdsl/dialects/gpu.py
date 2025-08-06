@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     i32,
@@ -343,7 +344,7 @@ class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
     body = region_def("single_block")
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
 
     traits = traits_def(
         IsolatedFromAbove(),
@@ -361,7 +362,7 @@ class FuncOp(IRDLOperation):
     name = "gpu.func"
 
     body = region_def()
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     kernel = opt_prop_def(UnitAttr)
     known_block_size = opt_attr_def(

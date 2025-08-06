@@ -3,10 +3,12 @@ from collections.abc import Sequence
 import pytest
 
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     ArrayAttr,
     BoolAttr,
     IndexType,
     IntAttr,
+    IntegerAttr,
     MemRefType,
     TensorType,
     VectorType,
@@ -27,10 +29,12 @@ from xdsl.dialects.vector import (
     MaskedStoreOp,
     PrintOp,
     StoreOp,
+    TransferReadOp,
+    TransferWriteOp,
     VectorTransferOperation,
 )
 from xdsl.ir import Attribute, OpResult, SSAValue
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -731,3 +735,60 @@ def test_get_transfer_minor_identity_map(
         shaped_type, vector_type
     )
     assert result_map == expected_map
+
+
+def test_vector_transfer_write_construction():
+    x = AffineExpr.dimension(0)
+    vector_type = VectorType(IndexType(), [3])
+    memref_type = MemRefType(IndexType(), [3, 3])
+    # (x, y) -> x
+    permutation_map = AffineMapAttr(AffineMap(2, 0, (x,)))
+    in_bounds = ArrayAttr([IntegerAttr.from_bool(False)] * vector_type.get_num_dims())
+
+    vector = create_ssa_value(vector_type)
+    source = create_ssa_value(memref_type)
+    index = create_ssa_value(IndexType())
+
+    transfer_write = TransferWriteOp(
+        vector,
+        source,
+        [index, index],
+        in_bounds,
+        permutation_map=permutation_map,
+    )
+
+    transfer_write.verify()
+
+    assert transfer_write.vector is vector
+    assert transfer_write.source is source
+    assert len(transfer_write.indices) == 2
+    assert transfer_write.indices[0] is index
+    assert transfer_write.permutation_map is permutation_map
+
+
+def test_vector_transfer_read_construction():
+    x = AffineExpr.dimension(0)
+    vector_type = VectorType(IndexType(), [3])
+    memref_type = MemRefType(IndexType(), [3, 3])
+    permutation_map = AffineMapAttr(AffineMap(2, 0, (x,)))
+    in_bounds = ArrayAttr([IntegerAttr.from_bool(False)] * vector_type.get_num_dims())
+
+    source = create_ssa_value(memref_type)
+    index = create_ssa_value(IndexType())
+    padding = create_ssa_value(IndexType())
+
+    transfer_read = TransferReadOp(
+        source,
+        [index, index],
+        padding,
+        vector_type,
+        in_bounds,
+        permutation_map=permutation_map,
+    )
+
+    transfer_read.verify()
+
+    assert transfer_read.source is source
+    assert len(transfer_read.indices) == 2
+    assert transfer_read.indices[0] is index
+    assert transfer_read.permutation_map is permutation_map

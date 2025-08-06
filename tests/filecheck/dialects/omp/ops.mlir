@@ -110,12 +110,6 @@ builtin.module {
         omp.yield
       }) : (index, index, index) -> ()
     }) : () -> ()
-    "omp.wsloop"() <{"inclusive", operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
-      "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
-      ^14(%arg7_9 : index):
-        omp.yield
-      }) : (index, index, index) -> ()
-    }) : () -> ()
     "omp.wsloop"() <{"nowait", operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
       "omp.loop_nest"(%arg0_2, %arg1_2, %arg2_2) ({
       ^15(%arg7_10 : index):
@@ -131,7 +125,8 @@ builtin.module {
     func.return
   }
   func.func @omp_target(%dep : memref<6xf32>, %dev : i64, %host : i32, %if : i1, %p1 : memref<10xi8>, %p2 : f64, %tlimit : i32) {
-    "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, in_reduction_syms = [@rsym1, @rsym2], private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend (taskdependinout)>]}> ({
+    "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, private_maps = array<i64: 0, 1>, in_reduction_syms = [@rsym1, @rsym2], in_reduction_byref = array<i1: true, false>, private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend (taskdependinout)>]}> ({
+      ^0(%host_arg : i32, %p1_arg : memref<10xi8>, %p2_arg : f64):
       "omp.terminator"() : () -> ()
     }) : (memref<6xf32>, i64, i32, i1, memref<10xi8>, f64, i32) -> ()
     func.return
@@ -191,6 +186,109 @@ builtin.module {
     "omp.target_enter_data"(%dep, %dev, %if, %to)         <{operandSegmentSizes = array<i32: 1, 1, 1, 1>, "nowait", depend_kinds=[#omp<clause_task_depend(taskdependin)>]}>: (memref<1xi32>, i32, i1, memref<1xf32>) -> ()
     "omp.target_update"    (%dep, %dev, %if, %to, %from)  <{operandSegmentSizes = array<i32: 1, 1, 1, 2>, "nowait", depend_kinds=[#omp<clause_task_depend(taskdependin)>]}>: (memref<1xi32>, i32, i1, memref<1xf32>, memref<1xf32>) -> ()
     "omp.target_exit_data" (%dep, %dev, %if, %from, %del) <{operandSegmentSizes = array<i32: 1, 1, 1, 2>, "nowait", depend_kinds=[#omp<clause_task_depend(taskdependin)>]}>: (memref<1xi32>, i32, i1, memref<1xf32>, memref<1xf32>) -> ()
+    func.return
+  }
+  func.func @omp_wsloop_simd(%lb : i32, %ub : i32, %step : i32) {
+    "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 0 : i64, reduction_mod=#omp<reduction_modifier (task)>}> ({
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^0(%arg7 : i32):
+        omp.yield
+      }) : (i32, i32, i32) -> ()
+    }) : () -> ()
+    func.return
+  }
+  func.func @omp_wsloop_private(%lb : i32, %ub : i32, %step : i32) {
+    "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 0 : i64, private_needs_barrier, private_syms=[@p]}> ({
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^0(%arg7 : i32):
+        omp.yield
+      }) : (i32, i32, i32) -> ()
+    }) : () -> ()
+    func.return
+  }
+  func.func @omp_loop_nest_inclusive(%lb : index, %ub : index, %step : index) {
+    "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, schedule_simd}> ({
+      "omp.loop_nest"(%lb, %ub, %step) <{loop_inclusive}> ({
+      ^0(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : () -> ()
+    func.return
+  }
+  func.func @omp_simd_order(%ub : index, %lb : index, %step : index) {
+    "omp.simd"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, order_mod = #omp<order_mod reproducible>}> ({
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^0(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : () -> ()
+    func.return
+  }
+  omp.private {type = private} @p1 : i32 alloc {
+  ^0(%p1_arg : i32):
+    %out = arith.constant 0 : i32
+    omp.yield(%out : i32)
+  }
+  omp.declare_reduction @r1 : i32 init {
+  ^0(%r1_arg : i32):
+    %out = arith.constant 0 : i32
+    omp.yield(%out : i32)
+  } combiner {
+  ^1(%r1_acc : i32, %r1 : i32):
+    %acc = arith.addi %r1_acc, %r1 : i32
+    omp.yield(%acc : i32)
+  }
+  func.func @omp_wsloop_byref(%lb : index, %ub : index, %step : index, %r : memref<1xi32>) {
+    "omp.wsloop"(%r) <{reduction_byref = array<i1: false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0>}> ({
+    ^bb0(%r_arg : memref<1xi32>):
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^0(%arg7 : i32):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : (memref<1xi32>) -> ()
+    func.return
+  }
+  func.func @parallel_byref(%r : memref<1xi32>) {
+    "omp.parallel"(%r) <{reduction_byref = array<i1: true>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1>}> ({
+    ^bb0(%r_arg : memref<1xi32>):
+      "omp.terminator"() : () -> ()
+    }) : (memref<1xi32>) -> ()
+    func.return
+  }
+  func.func @simd_byref(%lb : index, %ub : index, %step : index, %r : memref<1xi32>) {
+    "omp.simd"(%r) <{reduction_byref = array<i1: false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 1>, order_mod = #omp<order_mod reproducible>}> ({
+    ^bb0(%r_arg : memref<1xi32>):
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^0(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : (memref<1xi32>) -> ()
+    func.return
+  }
+  func.func @omp_distribute(%lb : index, %ub : index, %step : index, %a1 : i32, %a2 : i32, %p1 : i32) {
+    "omp.distribute"(%a1, %a2, %p1) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>}> ({
+    ^0(%p1_arg : i32):
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^1(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : (i32, i32, i32) -> ()
+    func.return
+  }
+  func.func @omp_distribute_chunk(%lb : index, %ub : index, %step : index, %chunk : i64) {
+    "omp.distribute"(%chunk) <{operandSegmentSizes = array<i32: 0, 0, 1, 0>, dist_schedule_static}> ({
+      "omp.loop_nest"(%lb, %ub, %step) ({
+      ^1(%iter : index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : (i64) -> ()
+    func.return
+  }
+  func.func @omp_teams(%a1 : i32, %a2 : i32, %if : i1, %p1 : i32, %r1 : memref<1xi32>, %low : i64, %hi : i64, %tlim : i64) {
+    "omp.teams"(%a1, %a2, %if, %low, %hi, %p1, %r1, %tlim) <{private_syms = [@p1], reduction_mod=#omp<reduction_modifier (task)>, reduction_byref = array<i1: false>, reduction_syms = [@r1], operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1, 1>}> ({
+    ^0(%p_arg : i32, %r_arg : memref<1xi32>):
+      "omp.terminator"() : () -> ()
+    }) : (i32, i32, i1, i64, i64, i32, memref<1xi32>, i64) -> ()
     func.return
   }
 }
@@ -305,28 +403,23 @@ builtin.module {
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "omp.wsloop"() <{inclusive, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^6(%arg7_6 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "omp.wsloop"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
-// CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
-// CHECK-NEXT:        ^7(%arg7_7 : index):
-// CHECK-NEXT:          omp.yield
-// CHECK-NEXT:        }) : (index, index, index) -> ()
-// CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      "omp.wsloop"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, order = #omp<orderkind concurrent>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
-// CHECK-NEXT:        ^8(%arg7_8 : index):
+// CHECK-NEXT:        ^7(%arg7_7 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_target(%dep : memref<6xf32>, %dev : i64, %host : i32, %if : i1, %p1 : memref<10xi8>, %p2 : f64, %tlimit : i32) {
-// CHECK-NEXT:      "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, in_reduction_syms = [@rsym1, @rsym2], private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend (taskdependinout)>]}> ({
+// CHECK-NEXT:      "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, private_maps = array<i64: 0, 1>, in_reduction_syms = [@rsym1, @rsym2], in_reduction_byref = array<i1: true, false>, private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend (taskdependinout)>]}> ({
+// CHECK-NEXT:      ^0(%host_arg : i32, %p1_arg : memref<10xi8>, %p2_arg : f64):
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<6xf32>, i64, i32, i1, memref<10xi8>, f64, i32) -> ()
 // CHECK-NEXT:      func.return
@@ -380,6 +473,109 @@ builtin.module {
 // CHECK-NEXT:      "omp.target_enter_data"(%dep, %dev, %if, %to) <{operandSegmentSizes = array<i32: 1, 1, 1, 1>, nowait, depend_kinds = [#omp<clause_task_depend (taskdependin)>]}> : (memref<1xi32>, i32, i1, memref<1xf32>) -> ()
 // CHECK-NEXT:      "omp.target_update"(%dep, %dev, %if, %to, %from) <{operandSegmentSizes = array<i32: 1, 1, 1, 2>, nowait, depend_kinds = [#omp<clause_task_depend (taskdependin)>]}> : (memref<1xi32>, i32, i1, memref<1xf32>, memref<1xf32>) -> ()
 // CHECK-NEXT:      "omp.target_exit_data"(%dep, %dev, %if, %from, %del) <{operandSegmentSizes = array<i32: 1, 1, 1, 2>, nowait, depend_kinds = [#omp<clause_task_depend (taskdependin)>]}> : (memref<1xi32>, i32, i1, memref<1xf32>, memref<1xf32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_wsloop_simd(%lb : i32, %ub : i32, %step : i32) {
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 0 : i64, reduction_mod = #omp<reduction_modifier (task)>}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^0(%arg7 : i32):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (i32, i32, i32) -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_wsloop_private(%lb : i32, %ub : i32, %step : i32) {
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 0 : i64, private_needs_barrier, private_syms = [@p]}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^0(%arg7 : i32):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (i32, i32, i32) -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_loop_nest_inclusive(%lb : index, %ub : index, %step : index) {
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, schedule_simd}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) <{loop_inclusive}> ({
+// CHECK-NEXT:        ^0(%iter : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_simd_order(%ub : index, %lb : index, %step : index) {
+// CHECK-NEXT:      "omp.simd"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, order_mod = #omp<order_mod reproducible>}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^0(%iter : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    omp.private {type = private} @p1 : i32 alloc {
+// CHECK-NEXT:    ^0(%p1_arg : i32):
+// CHECK-NEXT:      %out = arith.constant 0 : i32
+// CHECK-NEXT:      omp.yield(%out : i32)
+// CHECK-NEXT:    }
+// CHECK-NEXT:    omp.declare_reduction @r1 : i32 init {
+// CHECK-NEXT:    ^0(%r1_arg : i32):
+// CHECK-NEXT:      %out = arith.constant 0 : i32
+// CHECK-NEXT:      omp.yield(%out : i32)
+// CHECK-NEXT:    } combiner {
+// CHECK-NEXT:    ^1(%r1_acc : i32, %r1 : i32):
+// CHECK-NEXT:      %acc = arith.addi %r1_acc, %r1 : i32
+// CHECK-NEXT:      omp.yield(%acc : i32)
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_wsloop_byref(%lb : index, %ub : index, %step : index, %r : memref<1xi32>) {
+// CHECK-NEXT:      "omp.wsloop"(%r) <{reduction_byref = array<i1: false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0>}> ({
+// CHECK-NEXT:      ^0(%r_arg : memref<1xi32>):
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^1(%arg7 : i32):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @parallel_byref(%r : memref<1xi32>) {
+// CHECK-NEXT:      "omp.parallel"(%r) <{reduction_byref = array<i1: true>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1>}> ({
+// CHECK-NEXT:      ^0(%r_arg : memref<1xi32>):
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : (memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @simd_byref(%lb : index, %ub : index, %step : index, %r : memref<1xi32>) {
+// CHECK-NEXT:      "omp.simd"(%r) <{reduction_byref = array<i1: false>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 1>, order_mod = #omp<order_mod reproducible>}> ({
+// CHECK-NEXT:      ^0(%r_arg : memref<1xi32>):
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^1(%iter : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_distribute(%lb : index, %ub : index, %step : index, %a1 : i32, %a2 : i32, %p1 : i32) {
+// CHECK-NEXT:      "omp.distribute"(%a1, %a2, %p1) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>}> ({
+// CHECK-NEXT:      ^0(%p1_arg : i32):
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^1(%iter : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (i32, i32, i32) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_distribute_chunk(%lb : index, %ub : index, %step : index, %chunk : i64) {
+// CHECK-NEXT:      "omp.distribute"(%chunk) <{operandSegmentSizes = array<i32: 0, 0, 1, 0>, dist_schedule_static}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) ({
+// CHECK-NEXT:        ^0(%iter : index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : (i64) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_teams(%a1 : i32, %a2 : i32, %if : i1, %p1 : i32, %r1 : memref<1xi32>, %low : i64, %hi : i64, %tlim : i64) {
+// CHECK-NEXT:      "omp.teams"(%a1, %a2, %if, %low, %hi, %p1, %r1, %tlim) <{private_syms = [@p1], reduction_mod = #omp<reduction_modifier (task)>, reduction_byref = array<i1: false>, reduction_syms = [@r1], operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1, 1>}> ({
+// CHECK-NEXT:      ^0(%p_arg : i32, %r_arg : memref<1xi32>):
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : (i32, i32, i1, i64, i64, i32, memref<1xi32>, i64) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }

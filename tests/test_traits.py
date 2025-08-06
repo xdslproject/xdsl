@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
     MemRefType,
     NoneAttr,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
     UnrankedTensorType,
@@ -29,7 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, Operation, OpTrait, OpTraits, SSAValue
+from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
 from xdsl.irdl import (
     Block,
     IRDLOperation,
@@ -192,15 +193,18 @@ class LargerOperandOp(IRDLOperation, ABC):
 class TestCopyOp(LargerOperandOp):
     name = "test.test_copy"
 
-    traits = OpTraits(LargerOperandOp.traits.traits | {BitwidthSumLessThanTrait(64)})
+    traits = traits_def(BitwidthSumLessThanTrait(64))
 
 
 def test_trait_inheritance():
     """
     Check that traits are correctly inherited from parent classes.
     """
-    assert TestCopyOp.traits == traits_def(
-        LargerOperandTrait(), BitwidthSumLessThanTrait(64)
+    assert TestCopyOp.traits.traits == frozenset(
+        (
+            LargerOperandTrait(),
+            BitwidthSumLessThanTrait(64),
+        )
     )
 
 
@@ -328,7 +332,7 @@ def test_symbol_op_interface():
     class SymNameOp(IRDLOperation):
         name = "sym_name"
 
-        sym_name = attr_def(StringAttr)
+        sym_name = attr_def(SymbolNameConstraint())
         traits = traits_def(SymbolOpInterface())
 
     op2 = SymNameOp(attributes={"sym_name": StringAttr("symbol_name")})
@@ -367,7 +371,7 @@ def test_optional_symbol_op_interface():
 class SymbolOp(IRDLOperation):
     name = "test.symbol"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
 
     traits = traits_def(SymbolOpInterface())
 
@@ -379,7 +383,7 @@ class SymbolOp(IRDLOperation):
 class PropSymbolOp(IRDLOperation):
     name = "test.symbol"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
 
     traits = traits_def(SymbolOpInterface())
 

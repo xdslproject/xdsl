@@ -90,6 +90,25 @@ def test_linalg_generic():
 
     assert c.data == [1, 4, 9, 16, 25, 36]
 
+    tensor_op = linalg.GenericOp(
+        (
+            create_ssa_value(TensorType(i32, [2, 3])),
+            create_ssa_value(TensorType(i32, [3, 2])),
+        ),
+        (create_ssa_value(TensorType(i32, [1, 6])),),
+        op.body.clone(),
+        op.indexing_maps,
+        op.iterator_types,
+        (TensorType(i32, [1, 6]),),
+    )
+
+    c_in = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
+
+    (c_out,) = interpreter.run_op(tensor_op, (a, b, c_in))
+
+    assert c_in.data == [-1, -1, -1, -1, -1, -1]
+    assert c_out.data == [1, 4, 9, 16, 25, 36]
+
 
 def test_linalg_generic_scalar():
     interpreter = Interpreter(ModuleOp([]))

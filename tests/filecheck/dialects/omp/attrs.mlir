@@ -45,7 +45,7 @@
                 // CHECK-SAME: #omp<procbindkind close>
                 #omp<procbindkind spread>,
                 // CHECK-SAME: #omp<procbindkind spread>
-                
+
                 #omp<orderkind concurrent>,
                 // CHECK-SAME: #omp<orderkind concurrent>
 
@@ -82,8 +82,21 @@
 
                 #omp.data_sharing_type {type = private},
                 // CHECK-SAME: #omp<data_sharing_type {type = private}>
-                #omp.data_sharing_type {type = firstprivate}
+                #omp.data_sharing_type {type = firstprivate},
                 // CHECK-SAME: #omp<data_sharing_type {type = firstprivate}>
+
+                #omp<order_mod reproducible>,
+                // CHECK-SAME: #omp<order_mod reproducible>
+                #omp<order_mod unconstrained>,
+                // CHECK-SAME: #omp<order_mod unconstrained>
+
+                #omp<reduction_modifier (defaultmod)>,
+                // CHECK-SAME: #omp<reduction_modifier (defaultmod)>
+                #omp<reduction_modifier (inscan)>,
+                // CHECK-SAME: #omp<reduction_modifier (inscan)>
+                #omp<reduction_modifier (task)>
+                // CHECK-SAME: #omp<reduction_modifier (task)>
+
 
             ]}: () -> !omp.map_bounds_ty
                 // CHECK-SAME: !omp.map_bounds_ty

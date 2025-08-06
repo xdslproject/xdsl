@@ -573,7 +573,10 @@ class _InterpreterFunctionImpls:
                 f"Could not find interpretation function for op {op.name}"
             )
         ft, impl = self._impl_dict[type(op)]
-        return impl(ft, interpreter, op, args)
+        try:
+            return impl(ft, interpreter, op, args)
+        except Exception as e:
+            op.emit_error("Error while interpreting op", e)
 
     def cast(
         self,

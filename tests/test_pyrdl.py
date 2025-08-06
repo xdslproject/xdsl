@@ -1,6 +1,7 @@
 """Unit tests for IRDL."""
 
 from dataclasses import dataclass
+from enum import auto
 
 import pytest
 from typing_extensions import Self, TypeVar
@@ -12,6 +13,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    ConstraintConvertible,
     EqAttrConstraint,
     ParamAttrConstraint,
     VarConstraint,
@@ -22,6 +24,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLTypeError, VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
 @irdl_attr_definition
@@ -377,11 +380,40 @@ def test_data_with_generic_missing_generic_data_failure():
         irdl_to_attr_constraint(MissingGenericDataData[int])
 
 
+class TestEnum(ConstraintConvertible["TestEnumAttr"], StrEnum):
+    A = auto()
+    B = auto()
+
+    @staticmethod
+    def base_constr() -> AttrConstraint["TestEnumAttr"]:
+        return BaseAttr(TestEnumAttr)
+
+    def constr(self) -> AttrConstraint["TestEnumAttr"]:
+        return EqAttrConstraint(TestEnumAttr(self))
+
+
+class TestEnumAttr(Data[TestEnum]):
+    name = "test.enum"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> TestEnum: ...
+    def print_parameter(self, printer: Printer) -> None: ...
+
+
 def test_irdl_to_attr_constraint():
     with pytest.raises(
         PyRDLTypeError, match="Unexpected irdl constraint: <class 'int'>"
     ):
         irdl_to_attr_constraint(int)  # pyright: ignore[reportArgumentType]
+
+    assert irdl_to_attr_constraint(TestEnumAttr) == BaseAttr(TestEnumAttr)
+    assert irdl_to_attr_constraint(TestEnumAttr(TestEnum.A)) == EqAttrConstraint(
+        TestEnumAttr(TestEnum.A)
+    )
+    assert irdl_to_attr_constraint(TestEnum) == BaseAttr(TestEnumAttr)
+    assert irdl_to_attr_constraint(TestEnum.A) == EqAttrConstraint(
+        TestEnumAttr(TestEnum.A)
+    )
 
 
 # endregion

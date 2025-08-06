@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
+    StringAttr,
     i32,
 )
 from xdsl.ir import (
@@ -44,11 +45,11 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
-    GenericAttrConstraint,
     GenericData,
     MessageConstraint,
     ParamAttrConstraint,
     ParamAttrDef,
+    ParamDef,
     TypeVarConstraint,
     VarConstraint,
     base,
@@ -205,16 +206,17 @@ def test_indirect_enum_guard():
             name = "test.indirect_enum"
 
 
-def test_identifier_enum_guard():
-    with pytest.raises(
-        ValueError,
-        match="All StrEnum values of an EnumAttribute must be parsable as an identifer.",
-    ):
+def test_attribute_def_with_non_identifier_enum():
+    """
+    Test the definition of an EnumAttribute with a non-identifier enum is
+    allowed.
+    """
 
-        class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
-            EnumAttribute[TestNonIdentifierEnum]
-        ):
-            name = "test.non_identifier_enum"
+    @irdl_attr_definition
+    class TestNonIdentifierEnumAttr(  # pyright: ignore[reportUnusedClass]
+        EnumAttribute[TestNonIdentifierEnum]
+    ):
+        name = "test.non_identifier_enum"
 
 
 @irdl_attr_definition(init=False)
@@ -659,7 +661,7 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
     @staticmethod
     @override
     def constr(
-        constr: GenericAttrConstraint[AttributeCovT],
+        constr: AttrConstraint[AttributeCovT],
     ) -> DataListAttr[AttributeCovT]:
         return DataListAttr(constr)
 
@@ -672,13 +674,13 @@ AnyListData: TypeAlias = ListData[Attribute]
 
 
 @dataclass(frozen=True)
-class DataListAttr(GenericAttrConstraint[ListData[AttributeInvT]]):
+class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
     """
     A constraint that enforces that the elements of a ListData all respect
     a constraint.
     """
 
-    elem_constr: GenericAttrConstraint[AttributeInvT]
+    elem_constr: AttrConstraint[AttributeInvT]
 
     def verify(
         self,
@@ -791,15 +793,9 @@ class ParamAttrDefAttr(ParametrizedAttribute):
 def test_irdl_definition():
     """Test that we can get the IRDL definition of a parametrized attribute."""
     assert ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef(
-        "test.param_attr_def_attr", [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))]
+        "test.param_attr_def_attr",
+        [("arg1", ParamDef(AnyAttr())), ("arg2", ParamDef(BaseAttr(BoolData)))],
     )
-
-
-def test_deprecated_tuple_init():
-    with pytest.deprecated_call():
-        assert ParamAttrDefAttr(StringData(""), BoolData(True)) == ParamAttrDefAttr(
-            (StringData(""), BoolData(True))  # pyright: ignore[reportCallIssue]
-        )
 
 
 @irdl_attr_definition
@@ -819,7 +815,10 @@ def test_irdl_definition2():
 
     assert ParamAttrDefAttr2.get_irdl_definition() == ParamAttrDef(
         "test.param_attr_def_attr",
-        [("arg1", AnyAttr() & BaseAttr(IntAttr)), ("arg2", BaseAttr(BoolData))],
+        [
+            ("arg1", ParamDef(AnyAttr() & BaseAttr(IntAttr))),
+            ("arg2", ParamDef(BaseAttr(BoolData))),
+        ],
     )
 
 
@@ -893,9 +892,11 @@ def test_generic_attr():
         [
             (
                 "param",
-                TypeVarConstraint(
-                    type_var=AttributeInvT,
-                    base_constraint=AnyAttr(),
+                ParamDef(
+                    TypeVarConstraint(
+                        type_var=AttributeInvT,
+                        base_constraint=AnyAttr(),
+                    )
                 ),
             )
         ],
@@ -1090,3 +1091,39 @@ def test_class_var_fail():
             name = "test.invalid_class_var"
             constant: ClassVar[int]  # Should be uppercase
             param: IntData
+
+
+################################################################################
+# Converters
+################################################################################
+
+
+@irdl_attr_definition
+class ConverterAttr(ParametrizedAttribute):
+    name = "test.converters"
+
+    string: StringAttr = param_def(converter=StringAttr.get)
+
+    i: IntAttr = param_def(converter=IntAttr.get)
+
+
+def test_converters():
+    string = "My string"
+    string_attr = StringAttr(string)
+
+    i = 2
+    i_attr = IntAttr(i)
+
+    attr_no_convertion = ConverterAttr(string_attr, i_attr)
+    assert attr_no_convertion.i == i_attr
+    assert attr_no_convertion.string == string_attr
+
+    attr_some_convertion = ConverterAttr(string_attr, i)
+    assert attr_some_convertion.i == i_attr
+    assert attr_some_convertion.string == string_attr
+    assert attr_no_convertion == attr_some_convertion
+
+    attr_all_convertion = ConverterAttr(string, i)
+    assert attr_all_convertion.i == i_attr
+    assert attr_all_convertion.string == string_attr
+    assert attr_no_convertion == attr_all_convertion
