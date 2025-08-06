@@ -291,8 +291,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         # Operands need to be deduplicated because it can happen the same operand was
         # used by different parent eclasses after their children were merged:
-        new_operands: OrderedSet[SSAValue] = OrderedSet(())
-        new_operands.update(to_keep.operands)
+        new_operands = OrderedSet(to_keep.operands)
         new_operands.update(to_replace.operands)
         to_keep.operands = new_operands
 
@@ -388,9 +387,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         unique_parents = KnownOps()
         eclass = self.eclass_union_find.find(eclass)
         for op1 in OrderedSet(use.operation for use in eclass.result.uses):
-            # if not op1.results or not op1.results[0].uses:
-            #     # If the operation has no results, or no uses, there is no way it needs to be merged.
-            #     continue
             if op1 in unique_parents:
                 # This means another parent that was processed before is identical to this one,
                 # the corresponding eclasses need to be merged.
