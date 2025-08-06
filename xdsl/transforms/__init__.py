@@ -278,6 +278,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return eqsat_create_eclasses.EqsatCreateEclassesPass
 
+    def get_eqsat_create_egraphs():
+        from xdsl.transforms import eqsat_create_egraphs
+
+        return eqsat_create_egraphs.EqsatCreateEgraphsPass
+
     def get_eqsat_serialize_egraph():
         from xdsl.transforms import eqsat_serialize_egraph
 
@@ -637,6 +642,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "empty-tensor-to-alloc-tensor": get_empty_tensor_to_alloc_tensor,
         "eqsat-add-costs": get_eqsat_add_costs,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
+        "eqsat-create-egraphs": get_eqsat_create_egraphs,
         "eqsat-serialize-egraph": get_eqsat_serialize_egraph,
         "eqsat-extract": get_eqsat_extract,
         "frontend-desymrefy": get_frontend_desymrefy,
