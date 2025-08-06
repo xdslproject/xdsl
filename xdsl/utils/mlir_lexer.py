@@ -427,8 +427,8 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         # literal string case
         if current_char == '"':
-            token = self._lex_string_literal(start_pos)
-            return self._form_token(MLIRTokenKind.AT_IDENT, token.span.start)
+            self._lex_string_literal(start_pos + 1)  # + 1 to skip the '@'
+            return self._form_token(MLIRTokenKind.AT_IDENT, start_pos)
 
         raise ParseError(
             Span(start_pos, self.pos, self.input),
@@ -478,57 +478,35 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         return self._form_token(kind, start_pos)
 
-    _unescaped_characters_regex = re.compile(r'[^"\\\n\v\f]*')
+    _unescaped_characters_regex = re.compile(r'"(?:\\.|[^"\\\n\v\f])*"')
 
     def _lex_string_literal(self, start_pos: Position) -> MLIRToken:
         """
-        Lex a string literal.
-        The first character `"` is expected to have already been parsed.
+        Lex a string literal. Return STRING_LIT when the payload can be decoded
+        as UTF‑8, otherwise BYTES_LIT.
         """
+        m = self._unescaped_characters_regex.match(self.input.content, start_pos)
+        if m is None:
+            raise ParseError(
+                Span(start_pos, self.pos, self.input),
+                "End of file reached before closing string literal.",
+            )
 
-        bytes_token = False
-        while self._is_in_bounds():
-            self._consume_regex(self._unescaped_characters_regex)
-            current_char = self._get_chars()
+        self.pos = m.end()  # advance cursor to the end of the string literal
+        span = Span(start_pos, self.pos, self.input)
 
-            # end of string literal
-            if current_char == '"':
-                if bytes_token:
-                    return self._form_token(MLIRTokenKind.BYTES_LIT, start_pos)
-                else:
-                    return self._form_token(MLIRTokenKind.STRING_LIT, start_pos)
+        if span.text == '""':
+            return MLIRToken(MLIRTokenKind.STRING_LIT, span)  # empty string literal
 
-            # newline character in string literal (not allowed)
-            if current_char in ["\n", "\v", "\f"]:
-                raise ParseError(
-                    Span(start_pos, self.pos, self.input),
-                    "Newline character not allowed in string literal.",
-                )
+        lit = StringLiteral.from_span(span)
 
-            # escape character
-            # TODO: handle unicode escape
-            if current_char == "\\":
-                escaped_char = self._get_chars()
-                if escaped_char not in ['"', "\\", "n", "t"]:
-                    bytes_token = True
-                    next_char = self._get_chars()
-                    if escaped_char is None or next_char is None:
-                        raise ParseError(
-                            Span(start_pos, self.pos, self.input),
-                            "Unknown escape in string literal.",
-                        )
-                    try:
-                        int(escaped_char + next_char, 16)
-                    except Exception:
-                        raise ParseError(
-                            Span(start_pos, self.pos, self.input),
-                            "Unknown escape in string literal.",
-                        )
+        try:
+            lit.bytes_contents.decode()  # UTF‑8 by default
+            kind = MLIRTokenKind.STRING_LIT
+        except UnicodeDecodeError:
+            kind = MLIRTokenKind.BYTES_LIT
 
-        raise ParseError(
-            Span(start_pos, self.pos, self.input),
-            "End of file reached before closing string literal.",
-        )
+        return MLIRToken(kind, span)
 
     _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
     _digits_star_regex = re.compile(r"[0-9]*")
