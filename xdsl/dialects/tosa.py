@@ -294,12 +294,13 @@ class MaxPool2DOp(IRDLOperation):
 
     name = "tosa.max_pool2d"
 
-    input = operand_def(TensorType)
-    output = result_def(TensorType)
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    input = operand_def(TensorType.constr(T))
+    output = result_def(TensorType.constr(T))
 
-    kernel = prop_def(DenseArrayBase)
-    stride = prop_def(DenseArrayBase)
-    pad = prop_def(DenseArrayBase)
+    kernel = prop_def(DenseArrayBase[I64])
+    stride = prop_def(DenseArrayBase[I64])
+    pad = prop_def(DenseArrayBase[I64])
     nan_mode = opt_prop_def(StringAttr)
 
     def _verify_(self) -> None:
