@@ -74,7 +74,7 @@ class Builder(BuilderListener):
         if not ops:
             return ops
 
-        implicit_builder = _implicit_builder.builder
+        implicit_builder = _current_builder.builder
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
                 "Cannot insert operation explicitly when an implicit builder exists."
@@ -252,7 +252,7 @@ class Builder(BuilderListener):
 
     @staticmethod
     def assert_implicit():
-        if _implicit_builder.builder is None:
+        if _current_builder.builder is None:
             raise ValueError(
                 "op_builder must be called within an implicit builder block"
             )
@@ -262,16 +262,16 @@ class Builder(BuilderListener):
 
 
 @dataclass
-class _ImplicitBuilder(threading.local):
+class _ThreadLocalBuilder(threading.local):
     """
-    Stores the stack of implicit builders for use in @Builder.implicit_region, empty by
-    default. There is a stack per thread, guaranteed by inheriting from `threading.local`.
+    Stores the implicit builder for use in ImplicitBuilder, None by default.
+    There is a builder per thread, guaranteed by inheriting from `threading.local`.
     """
 
     builder: Builder | None = None
 
 
-_implicit_builder = _ImplicitBuilder()
+_current_builder = _ThreadLocalBuilder()
 
 
 @contextlib.contextmanager
@@ -311,16 +311,16 @@ def ImplicitBuilder(
         case Builder():
             builder = arg
 
-    old_builder = _implicit_builder.builder
+    old_builder = _current_builder.builder
     old_post_init = None
     if old_builder is None:
         old_post_init = _override_operation_post_init()
 
-    _implicit_builder.builder = builder
+    _current_builder.builder = builder
     try:
         yield builder.insertion_point.block.args
     finally:
-        _implicit_builder.builder = old_builder
+        _current_builder.builder = old_builder
         if old_builder is None:
             Operation.__post_init__ = old_post_init  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -332,7 +332,7 @@ _CallableImplicitRegionFuncType: TypeAlias = Callable[[tuple[BlockArgument, ...]
 
 
 def _op_init_callback(op: Operation):
-    if (b := _implicit_builder.builder) is not None:
+    if (b := _current_builder.builder) is not None:
         b.insert(op)
 
 
