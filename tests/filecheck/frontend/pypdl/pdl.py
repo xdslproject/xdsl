@@ -25,6 +25,11 @@ pdl.pattern : benefit(2) {
 ```
 """
 
+# TODO:
+# - Add None type support
+# - Add if..else support
+# - Add method support
+
 from xdsl.dialects import arith, builtin, pdl
 from xdsl.frontend import pypdl
 from xdsl.ir import Operation
