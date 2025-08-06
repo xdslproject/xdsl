@@ -1,7 +1,7 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.dialects.arith import AddfOp, MulfOp
-from xdsl.dialects.builtin import f64
+from xdsl.dialects.arith import AddfOp, Arith, MulfOp
+from xdsl.dialects.builtin import Builtin, f64
 from xdsl.frontend.pyast.context import PyASTContext
 
 # `FrontendContext` encapsulates the mapping from Python to xDSL constructs
@@ -9,6 +9,8 @@ ctx = PyASTContext()
 ctx.register_type(float, f64)
 ctx.register_function(float.__add__, AddfOp)
 ctx.register_function(float.__mul__, MulfOp)
+ctx.register_dialect(Arith)
+ctx.register_dialect(Builtin)
 
 
 # Functions can be parsed in a context to yield a lazy wrapper for the IR
