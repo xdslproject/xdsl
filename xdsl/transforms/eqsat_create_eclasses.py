@@ -1,11 +1,6 @@
-from collections.abc import Sequence
-from itertools import chain
-
-from ordered_set import OrderedSet
-
 from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat, func
-from xdsl.ir import Block, Region, SSAValue
+from xdsl.ir import Block
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -16,62 +11,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.exceptions import DiagnosticException
-
-
-def create_egraph_op(
-    f: func.FuncOp, entries: Sequence[SSAValue], exits: Sequence[SSAValue]
-) -> eqsat.EGraphOp:
-    exits_set = set(exits)
-    egraph_block = Block()
-    egraph_body = Region(egraph_block)
-
-    for val in chain(entries, exits):
-        assert val.owner.parent_op() == f
-
-    for entry in entries:
-        eclass_op = eqsat.EClassOp(entry)
-        egraph_block.add_op(eclass_op)
-        entry.replace_by_if(eclass_op.results[0], lambda u: u.operation != eclass_op)
-
-    egraph_results: OrderedSet[SSAValue] = OrderedSet([])
-
-    for op in f.body.block.ops:
-        if op.regions:
-            raise DiagnosticException("Ops with regions not handled")
-        if all(
-            not isinstance(arg.owner, eqsat.EClassOp) or (arg in egraph_results)
-            for arg in op.operands
-        ):
-            continue
-
-        # move op to egraph body:
-        op.detach()
-        egraph_block.add_op(op)
-
-        if len(op.results) > 1:
-            raise DiagnosticException("Ops with multiple results not handled")
-        for res in op.results:
-            eclassop = eqsat.EClassOp(res)
-
-            if res in exits_set:
-                egraph_results.append(eclassop.results[0])
-
-            insertion_point = InsertPoint.after(op)
-            Rewriter.insert_op(eclassop, insertion_point)
-            res.replace_by_if(eclassop.results[0], lambda u: u.operation != eclassop)
-
-    egraph_block.add_op(
-        yield_op := eqsat.YieldOp(
-            *egraph_results,
-        )
-    )
-    egraph_op = eqsat.EGraphOp(yield_op.values.types, egraph_body)
-    for i, res in enumerate(egraph_results):
-        res.replace_by_if(
-            egraph_op.results[i], lambda u: u.operation.parent_op() != egraph_op
-        )
-
-    return egraph_op
 
 
 def insert_eclass_ops(block: Block):
