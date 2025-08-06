@@ -73,7 +73,8 @@ def _(k, m, mo, n):
 def _():
     from xdsl.dialects.builtin import MemRefType, ModuleOp
     from xdsl.dialects import arith, func, linalg
-    return MemRefType, ModuleOp, arith, func, linalg
+    from xdsl.ir.op_selector import OpSelector
+    return MemRefType, ModuleOp, OpSelector, arith, func, linalg
 
 
 @app.cell(hide_code=True)
@@ -522,7 +523,7 @@ def _(memref_stream_module, mo):
 
     {msg_factors}
     """)
-    return memref_stream, msg_factors
+    return (msg_factors,)
 
 
 @app.cell
@@ -530,7 +531,7 @@ def _(mo, msg_factors):
     from xdsl.transforms.memref_stream_interleave import MemRefStreamInterleavePass
 
     uaj_passes = tuple(
-        MemRefStreamInterleavePass(0, index, factor)
+        MemRefStreamInterleavePass(4, 2, "memref_stream.generic", index, factor)
         for index, factor in msg_factors
     )
 
@@ -652,37 +653,27 @@ def _(
     MemRefStreamInterleavePass,
     ModuleOp,
     ModulePass,
+    OpSelector,
     Random,
     SnitchCycleCostModel,
     func,
-    memref_stream,
-    msg_factors,
     random_attr_of_type,
     riscv_passes,
-    uaj_passes,
 ):
     class AutomaticUnrollAndJamPass(ModulePass):
 
         name = "automatic-unroll-and-jam"
 
         def apply(self, ctx: Context, op: ModuleOp) -> None:
-            msg_ops = tuple(child for child in op.walk() if isinstance(child, memref_stream.GenericOp))
-
-            if not msg_ops:
-                return
-
-            assert len(msg_ops) == 1
-
-            msg_op = msg_ops[0]
-
-            passes = tuple(
-                MemRefStreamInterleavePass(0, index, factor)
-                for index, factor in msg_factors
-            )
+            passes = MemRefStreamInterleavePass.schedule_space(ctx, op)
 
             if not passes:
                 return
 
+            assert len(set(p.op_index for p in passes)) == 1
+            op_index = passes[0].op_index
+            msg_op = OpSelector(op_index, "memref_stream.generic").get_op(op)
+        
             func_op = msg_op.parent_op()
 
             assert isinstance(func_op, func.FuncOp), func_op.name
@@ -699,7 +690,7 @@ def _(
             scores = tuple(
                 enumerate(
                     cost_model.estimate_cost(apply(p, ctx, op)[1], ctx)
-                    for p in uaj_passes
+                    for p in passes
                 )
             )
 
