@@ -22,11 +22,8 @@ def test_arith(x: float, y: float, z: float) -> float:
 print(test_arith(1.0, 2.0, 3.0))
 # CHECK: 7.0
 
-# But the wrapper also provides a property to get an IR representation, which
-# is built only once, then cached
-module = test_arith.module
-assert module is test_arith.module
-print(module)
+# But the wrapper also provides a property to get an IR representation
+print(test_arith.module)
 # CHECK:       builtin.module {
 # CHECK-NEXT:  func.func @test_arith(%x : f64, %y : f64, %z : f64) -> f64 {
 # CHECK-NEXT:    %0 = arith.mulf %y, %z : f64
@@ -46,7 +43,10 @@ def test_add(x: float, y: float) -> float:
     return x + y
 
 
-print(test_add.module)
+# And the extracted module is built only once, then cached
+module = test_add.module
+assert module is test_add.module
+print(module)
 # CHECK:       builtin.module {
 # CHECK-NEXT:    func.func @test_add(%x : f64, %y : f64) -> f64 {
 # CHECK-NEXT:      symref.declare "x"
