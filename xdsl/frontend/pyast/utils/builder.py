@@ -19,7 +19,7 @@ class PostTransform(NamedTuple):
     module_pass: ModulePass
     """The module pass to apply."""
 
-    verify: bool
+    verify: bool = True
     """Whether to verify the result of the pass."""
 
 

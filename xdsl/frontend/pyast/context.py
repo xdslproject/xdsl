@@ -42,7 +42,7 @@ class PyASTContext:
     """Mappings between functions and their operation types."""
 
     post_transforms: list[PostTransform] = field(
-        default_factory=lambda: [PostTransform(FrontendDesymrefyPass(), True)]
+        default_factory=lambda: [PostTransform(FrontendDesymrefyPass())]
     )
     """An ordered list of passes to apply to the built module."""
 
