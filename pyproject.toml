@@ -23,9 +23,9 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.2",
     "lit<19.0.0",
-    "marimo==0.14.12",
+    "marimo==0.14.16",
     "pre-commit>=4.0.0,<5.0.0",
-    "ruff==0.12.4",
+    "ruff==0.12.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
     "pytest-asyncio==1.1.0",
@@ -41,7 +41,7 @@ docs = [
     "pymdown-extensions>=10.7",
     "lzstring2",
 ]
-gui = ["textual>=4,<5", "pyclip==0.7"]
+gui = ["textual>=5,<6", "pyclip==0.7"]
 jax = ["jax==0.6.0", "numpy==2.2.6"]
 riscv = ["riscemu==2.2.7"]
 bench = [
@@ -168,7 +168,7 @@ max-complexity = 10
 exclude = ["docs/marimo/**/*.py"]
 
 [tool.pytest.ini_options]
-python_files = ["tests/*test_*.py", "docs/*test_*.py"]
+python_files = ["tests/*test_*.py", "docs/*test_*.py", "docs/marimo/**.py"]
 python_classes = "Test_*"
 python_functions = "test_*"
 addopts = ["--durations=20", "--maxfail=5", "--import-mode=importlib"]

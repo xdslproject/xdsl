@@ -14,7 +14,6 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    ClassVar,
     Generic,
     Literal,
     NamedTuple,
@@ -29,6 +28,7 @@ from typing import (
 from typing_extensions import TypeVar, dataclass_transform
 
 from xdsl.ir import AttributeCovT
+from xdsl.utils.classvar import is_const_classvar
 
 if TYPE_CHECKING:
     from typing_extensions import TypeForm
@@ -98,21 +98,25 @@ class _ParameterDef:
     """
 
     param: AttrConstraint | None
+    converter: Callable[[Any], Attribute] | None
 
     def __init__(
         self,
         param: AttrConstraint | None,
+        converter: Callable[[Any], Attribute] | None,
     ):
         self.param = param
+        self.converter = converter
 
 
 def param_def(
     constraint: AttrConstraint[AttributeInvT] | None = None,
     *,
+    converter: Callable[[Any], AttributeInvT] | None = None,
     init: Literal[True] = True,
 ) -> AttributeInvT:
     """Defines a property of an operation."""
-    return cast(AttributeInvT, _ParameterDef(constraint))
+    return cast(AttributeInvT, _ParameterDef(constraint, converter))
 
 
 def check_attr_name(cls: type):
@@ -161,6 +165,7 @@ class ParamDef(NamedTuple):
     """
 
     constr: AttrConstraint
+    converter: Callable[[Any], Attribute] | None = None
 
 
 @dataclass
@@ -220,19 +225,17 @@ class ParamAttrDef:
         parameters: dict[str, ParamDef] = {}
 
         for field_name, field_type in field_types.items():
-            if is_classvar(field_type):
-                if field_name.isupper():
-                    field_values.pop(field_name, None)
-                    continue
-                raise PyRDLAttrDefinitionError(
-                    f'Invalid ClassVar name "{field_name}", must be uppercase.'
-                )
+            if is_const_classvar(field_name, field_type, PyRDLAttrDefinitionError):
+                field_values.pop(field_name, None)
+                continue
             try:
                 constraint = irdl_to_attr_constraint(field_type, allow_type_var=True)
             except TypeError as e:
                 raise PyRDLAttrDefinitionError(
                     f"Invalid field type {field_type} for field name {field_name}."
                 ) from e
+
+            converter: Callable[[Any], Attribute] | None = None
 
             if field_name in field_values:
                 value = field_values.pop(field_name)
@@ -246,6 +249,8 @@ class ParamAttrDef:
                         raise PyRDLAttrDefinitionError(
                             f"Invalid constraint {value.param} for field name {field_name}."
                         ) from e
+                    if value.converter is not None:
+                        converter = value.converter
 
                 # Constraint variables are deprecated
                 elif get_origin(value) is Annotated or any(
@@ -263,7 +268,7 @@ class ParamAttrDef:
                         f"{field_name} is not a parameter definition."
                     )
 
-            parameters[field_name] = ParamDef(constraint)
+            parameters[field_name] = ParamDef(constraint, converter)
 
         for field_name, value in field_values.items():
             # Anything left is a field without an annotation or a constaint var.
@@ -375,11 +380,29 @@ def irdl_attr_definition(
     return decorator(cls)
 
 
+# Cannot subclass ABC as it conflicts with Enum's metaclass.
+class ConstraintConvertible(Generic[AttributeCovT]):
+    """
+    Abstract superclass for values that have corresponding Attribute constraints.
+    """
+
+    @staticmethod
+    @abstractmethod
+    def base_constr() -> AttrConstraint[AttributeCovT]:
+        """The constraint for this class."""
+
+    @abstractmethod
+    def constr(self) -> AttrConstraint[AttributeCovT]:
+        """The constraint for this instance."""
+
+
 IRDLAttrConstraint: TypeAlias = (
     AttrConstraint[AttributeInvT]
     | AttributeInvT
     | type[AttributeInvT]
     | "TypeForm[AttributeInvT]"
+    | type[ConstraintConvertible[AttributeInvT]]
+    | ConstraintConvertible[AttributeInvT]
 )
 """
 Attribute constraints represented using the IRDL python frontend. Attribute constraints
@@ -388,6 +411,7 @@ can either be:
 - An instance of `Attribute` representing an equality constraint on an attribute.
 - A type representing a specific attribute class.
 - A TypeForm that can represent both unions and generic attributes.
+- An instance or subclass of ConstraintConvertible.
 """
 
 
@@ -436,6 +460,10 @@ def irdl_to_attr_constraint(
 
     if isinstance(irdl, Attribute):
         return cast(AttrConstraint[AttributeInvT], EqAttrConstraint(irdl))
+
+    if isinstance(irdl, ConstraintConvertible):
+        value = cast(ConstraintConvertible[AttributeInvT], irdl)
+        return value.constr()
 
     # Annotated case
     # Each argument of the Annotated type corresponds to a constraint to satisfy.
@@ -540,6 +568,10 @@ def irdl_to_attr_constraint(
             return cast(AttrConstraint[AttributeInvT], AnyOf(constraints))
         return cast(AttrConstraint[AttributeInvT], constraints[0])
 
+    if isclass(irdl) and issubclass(irdl, ConstraintConvertible):
+        attr_data = cast(type[ConstraintConvertible[AttributeInvT]], irdl)
+        return attr_data.base_constr()
+
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):
         raise PyRDLTypeError(
@@ -583,17 +615,3 @@ def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
 ) -> RangeConstraint[AttributeCovT]:
     return SingleOf(irdl_to_attr_constraint(attr))
-
-
-def is_classvar(annotation: Any) -> bool:
-    """
-    The type annotation can be one of
-     * `ClassVar[MyType]`,
-     * `ClassVar`, or
-     * `"ClassVar[MyType]"`.
-    """
-    return (
-        get_origin(annotation) is ClassVar
-        or annotation is ClassVar
-        or (isinstance(annotation, str) and annotation.startswith("ClassVar"))
-    )

@@ -4,7 +4,6 @@ from typing import Any
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import CodeGeneration
-from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
 from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
     TypeConverter,
@@ -23,13 +22,13 @@ class PyASTBuilder:
     function_registry: FunctionRegistry
     """Mappings between functions and their operation types."""
 
-    file: str
+    file: str | None
     """The file path of the function being built."""
 
     globals: dict[str, Any]
     """Global information for the function being built, including all the imports."""
 
-    ast: ast.FunctionDef
+    function_ast: ast.FunctionDef
     """The AST tree for the function being built."""
 
     desymref: bool
@@ -37,18 +36,15 @@ class PyASTBuilder:
 
     def build(self) -> ModuleOp:
         """Build a module from the builder state."""
-        # Get the functions and blocks from the builder state
-        functions_and_blocks = PythonCodeCheck.run([self.ast], self.file)
-
         # Convert the Python AST into xDSL IR objects
         type_converter = TypeConverter(
-            globals=self.globals,
-            type_registry=self.type_registry,
-            function_registry=self.function_registry,
+            self.globals,
+            self.type_registry,
+            self.function_registry,
         )
         module = CodeGeneration.run_with_type_converter(
             type_converter,
-            functions_and_blocks,
+            self.function_ast,
             self.file,
         )
         module.verify()

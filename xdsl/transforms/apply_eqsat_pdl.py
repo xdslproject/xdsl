@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, pdl_interp
-from xdsl.dialects.eqsat import EClassOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
 from xdsl.parser import Parser
@@ -62,15 +61,10 @@ class ApplyEqsatPDLPass(ModulePass):
             # Register matches by walking the module
             walker.rewrite_module(op)
 
-            for eclass in op.walk():
-                if isinstance(eclass, EClassOp):
-                    op.verify()
+            # Execute all pending rewrites that were aggregated during matching
+            implementations.execute_pending_rewrites(interpreter)
 
-            if not implementations.merge_list:
+            if not implementations.worklist:
                 break
 
-            implementations.apply_matches()
-
-            for eclass in op.walk():
-                if isinstance(eclass, EClassOp):
-                    op.verify()
+            implementations.rebuild()

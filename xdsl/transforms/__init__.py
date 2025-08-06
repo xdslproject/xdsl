@@ -278,6 +278,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return eqsat_create_eclasses.EqsatCreateEclassesPass
 
+    def get_eqsat_create_egraphs():
+        from xdsl.transforms import eqsat_create_egraphs
+
+        return eqsat_create_egraphs.EqsatCreateEgraphsPass
+
     def get_eqsat_serialize_egraph():
         from xdsl.transforms import eqsat_serialize_egraph
 
@@ -570,10 +575,20 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return varith_transformations.VarithFuseRepeatedOperandsPass
 
+    def get_vector_split_load_extract():
+        from xdsl.transforms import vector_split_load_extract
+
+        return vector_split_load_extract.VectorSplitLoadExtractPass
+
     def get_x86_allocate_registers():
         from xdsl.transforms import x86_allocate_registers
 
         return x86_allocate_registers.X86AllocateRegisters
+
+    def get_x86_infer_broadcast():
+        from xdsl.transforms import x86_infer_broadcast
+
+        return x86_infer_broadcast.X86InferBroadcast
 
     # Please insert pass and `get_` function in alphabetical order
 
@@ -632,6 +647,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "empty-tensor-to-alloc-tensor": get_empty_tensor_to_alloc_tensor,
         "eqsat-add-costs": get_eqsat_add_costs,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
+        "eqsat-create-egraphs": get_eqsat_create_egraphs,
         "eqsat-serialize-egraph": get_eqsat_serialize_egraph,
         "eqsat-extract": get_eqsat_extract,
         "eqsat-insert-banned-rule-pruning": get_eqsat_insert_banned_rule_pruning,
@@ -690,5 +706,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
+        "vector-split-load-extract": get_vector_split_load_extract,
         "x86-allocate-registers": get_x86_allocate_registers,
+        "x86-infer-broadcast": get_x86_infer_broadcast,
     }

@@ -28,3 +28,7 @@ This series of notebooks introduces the RISC-V dialects, which let us represent 
 
 1. [RISC-V Dialects](riscv_dialects.py)
 1. [Compiling `linalg` to Snitch](linalg_snitch.py)
+
+## Other Projects
+
+1. [Equality Saturation](eqsat.py)

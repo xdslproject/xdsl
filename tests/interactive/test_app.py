@@ -19,7 +19,11 @@ from xdsl.dialects.builtin import (
 from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
-from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
+from xdsl.interactive.passes import (
+    AvailablePass,
+    get_condensed_pass_list,
+    get_new_registered_context,
+)
 from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
@@ -273,12 +277,11 @@ builtin.module {
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        rewrites = get_all_possible_rewrites(
-            expected_module,
-            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
-        )
+        rewrites = get_all_possible_rewrites(expected_module)
         assert app.available_pass_list == get_condensed_pass_list(
-            expected_module, app.all_passes
+            get_new_registered_context(app.all_dialects),
+            expected_module,
+            app.all_passes,
         ) + tuple(rewrites)
 
         # press "Uncondense" button
@@ -316,7 +319,6 @@ async def test_rewrites():
         await pilot.click("#condense_button")
 
         addi_pass = AvailablePass(
-            display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:SignlessIntegerBinaryOperationZeroOrUnitRight",
             module_pass=individual_rewrite.ApplyIndividualRewritePass(
                 3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
             ),
@@ -326,9 +328,11 @@ async def test_rewrites():
         # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
         assert app.condense_mode is True
         assert isinstance(app.current_module, ModuleOp)
-        condensed_list = get_condensed_pass_list(app.current_module, app.all_passes) + (
-            addi_pass,
-        )
+        condensed_list = get_condensed_pass_list(
+            get_new_registered_context(app.all_dialects),
+            app.current_module,
+            app.all_passes,
+        ) + (addi_pass,)
         assert app.available_pass_list == condensed_list
 
         # Select a rewrite
@@ -524,7 +528,7 @@ async def test_apply_individual_rewrite():
         """
         )
         app.passes_tree.root.expand()
-        await pilot.pause()
+        await pilot.click("#condense_button")
 
         node = None
         for n in app.passes_tree.root.children:

@@ -5,13 +5,27 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from inspect import currentframe, getsource
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
-from typing import Any, overload
+from types import FrameType
+from typing import Any, NamedTuple, overload
 
-from xdsl.frontend.builder import PyASTBuilder
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
+from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
 from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
 from xdsl.ir import Operation, TypeAttribute
+
+
+class FuncInfo(NamedTuple):
+    """Information about a decorated function being generated into IR."""
+
+    file: str
+    """The path of the file containing the function."""
+
+    globals: dict[str, Any]
+    """The globals defined in that file up to the point of function definition."""
+
+    ast: ast.FunctionDef
+    """The Python AST representation of the function."""
 
 
 @dataclass
@@ -38,6 +52,50 @@ class PyASTContext:
         """Associate a method on an object in the source code with its IR implementation."""
         self.function_registry.insert(function, ir_constructor)
 
+    @classmethod
+    def _get_func_info(
+        cls,
+        current_frame: FrameType | None,
+        func: Callable[P, R],
+        decorated_func: Callable[P, R] | None,
+    ) -> FuncInfo:
+        """Get information about the decorated function."""
+        # Get the correct function frame from the call stack
+        assert current_frame is not None
+        func_frame = current_frame.f_back
+        if decorated_func is not None:
+            assert func_frame is not None
+            func_frame = func_frame.f_back
+        assert func_frame is not None
+
+        # Get the required information about the function from the frame
+        func_file = func_frame.f_code.co_filename
+        func_globals = func_frame.f_globals
+
+        # Retrieve the AST for the function body, without the decorator
+        func_ast = ast.parse(getsource(func.__code__)).body[0]
+        assert isinstance(func_ast, ast.FunctionDef)
+        assert func_ast.name == func.__name__
+        assert len(func_ast.decorator_list) == 1
+        func_ast.decorator_list = []
+
+        # Return the information about the function
+        return FuncInfo(func_file, func_globals, func_ast)
+
+    @classmethod
+    def _get_wrapped_program(
+        cls, func: Callable[P, R], builder: PyASTBuilder
+    ) -> PyASTProgram[P, R]:
+        """Return a PyAST program for this function with the builder."""
+        program = PyASTProgram[P, R](
+            name=func.__name__,
+            func=func,
+            _builder=builder,
+        )
+        functools.update_wrapper(program, func)
+        assert program.__doc__ == func.__doc__
+        return program
+
     @overload
     def parse_program(
         self,
@@ -63,46 +121,22 @@ class PyASTContext:
         """Get a program wrapper by decorating a function."""
 
         def decorator(func: Callable[P, R]) -> PyASTProgram[P, R]:
-            # Get the frame as the function is being decorated
-            current_frame = currentframe()
-            assert current_frame is not None
-            func_frame = current_frame.f_back
-            if decorated_func is not None:
-                assert func_frame is not None
-                func_frame = func_frame.f_back
-            assert func_frame is not None
-
-            # Get the required information about the function from the frame
-            func_file = func_frame.f_code.co_filename
-            func_globals = func_frame.f_globals
-
-            # Retrieve the AST for the function body, without the decorator
-            func_ast = ast.parse(getsource(func.__code__)).body[0]
-            assert isinstance(func_ast, ast.FunctionDef)
-            assert func_ast.name == func.__name__
-            assert len(func_ast.decorator_list) == 1
-            func_ast.decorator_list = []
-
-            # Construct the lazy builder with this information
+            """Get a wrapped program by decorating a function."""
+            func_file, func_globals, func_ast = self._get_func_info(
+                currentframe(), func, decorated_func
+            )
             builder = PyASTBuilder(
                 type_registry=self.type_registry,
                 function_registry=self.function_registry,
                 file=func_file,
                 globals=func_globals,
-                ast=func_ast,
+                function_ast=func_ast,
                 desymref=desymref,
             )
+            return self._get_wrapped_program(func, builder)
 
-            # Return a PyAST program for this function with the builder
-            program = PyASTProgram[P, R](
-                name=func.__name__,
-                func=func,
-                _builder=builder,
-            )
-            functools.update_wrapper(program, func)
-            assert program.__doc__ == func.__doc__
-            return program
-
+        # Handle the two invocation cases: either `@ctx.parse_program` or
+        # `@ctx.parse_program(...)`
         if decorated_func is None:
             return decorator
         return decorator(decorated_func)

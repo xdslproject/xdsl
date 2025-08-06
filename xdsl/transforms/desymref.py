@@ -298,7 +298,7 @@ class Desymrefier:
 
     def _prune_unused_reads(self, block: Block):
         def is_unused_read(op: Operation) -> bool:
-            return isinstance(op, symref.FetchOp) and len(op.results[0].uses) == 0
+            return isinstance(op, symref.FetchOp) and not op.results[0].uses
 
         unused_reads = [op for op in block.ops if is_unused_read(op)]
         for read in unused_reads:

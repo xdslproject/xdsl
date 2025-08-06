@@ -33,7 +33,11 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.mlir_lexer import MLIRTokenKind, PunctuationSpelling
+from xdsl.utils.mlir_lexer import (
+    KIND_BY_PUNCTUATION_SPELLING,
+    MLIRTokenKind,
+    PunctuationSpelling,
+)
 from xdsl.utils.str_enum import StrEnum
 
 # pyright: reportPrivateUsage=false
@@ -588,9 +592,7 @@ def test_parse_comma_separated_list_error_delimiters(
     assert e.value.span.text == "5"
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().values())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.values()))
 def test_is_punctuation_true(punctuation: MLIRTokenKind):
     assert punctuation.is_punctuation()
 
@@ -603,9 +605,7 @@ def test_is_punctuation_false(punctuation: MLIRTokenKind):
     assert not punctuation.is_punctuation()
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().values())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.values()))
 def test_is_spelling_of_punctuation_true(punctuation: MLIRTokenKind):
     value = cast(PunctuationSpelling, punctuation.value)
     assert MLIRTokenKind.is_spelling_of_punctuation(value)
@@ -616,17 +616,13 @@ def test_is_spelling_of_punctuation_false(punctuation: str):
     assert not MLIRTokenKind.is_spelling_of_punctuation(punctuation)
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().values())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.values()))
 def test_get_punctuation_kind(punctuation: MLIRTokenKind):
     value = cast(PunctuationSpelling, punctuation.value)
     assert punctuation.get_punctuation_kind_from_name(value) == punctuation
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().keys())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_punctuation(punctuation: PunctuationSpelling):
     parser = Parser(Context(), punctuation)
 
@@ -635,9 +631,7 @@ def test_parse_punctuation(punctuation: PunctuationSpelling):
     assert parser._parse_token(MLIRTokenKind.EOF, "").kind == MLIRTokenKind.EOF
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().keys())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_punctuation_fail(punctuation: PunctuationSpelling):
     parser = Parser(Context(), "e +")
     with pytest.raises(ParseError) as e:
@@ -646,9 +640,7 @@ def test_parse_punctuation_fail(punctuation: PunctuationSpelling):
     assert e.value.msg == "Expected '" + punctuation + "' in test"
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().keys())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_optional_punctuation(punctuation: PunctuationSpelling):
     parser = Parser(Context(), punctuation)
     res = parser.parse_optional_punctuation(punctuation)
@@ -656,9 +648,7 @@ def test_parse_optional_punctuation(punctuation: PunctuationSpelling):
     assert parser._parse_token(MLIRTokenKind.EOF, "").kind == MLIRTokenKind.EOF
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().keys())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_optional_punctuation_fail(punctuation: PunctuationSpelling):
     parser = Parser(Context(), "e +")
     assert parser.parse_optional_punctuation(punctuation) is None
@@ -1005,26 +995,56 @@ class MyEnum(StrEnum):
     A = "a"
     B = "b"
     C = "c"
+    D = "d-non-keyword"
 
 
 @pytest.mark.parametrize(
     "keyword, expected",
     [
         ("a", MyEnum.A),
+        ('"a"', MyEnum.A),
         ("b", MyEnum.B),
+        ('"b"', MyEnum.B),
         ("c", MyEnum.C),
-        ("cc", None),
+        ('"c"', MyEnum.C),
+        ('"d-non-keyword"', MyEnum.D),
+        ("other", None),
+        ('"other"', None),
     ],
 )
-def test_parse_str_enum(keyword: str, expected: MyEnum | None):
-    assert Parser(Context(), keyword).parse_optional_str_enum(MyEnum) == expected
+def test_parse_str_enum_right_token(keyword: str, expected: MyEnum | None):
+    """
+    Test parsing of string enums where the next
+    token is a keyword or a string literal.
+    """
+    if expected is None:
+        with pytest.raises(
+            ParseError, match="Expected `a`, `b`, `c`, or `d-non-keyword`"
+        ):
+            Parser(Context(), keyword).parse_optional_str_enum(MyEnum)
+    else:
+        assert Parser(Context(), keyword).parse_optional_str_enum(MyEnum) == expected
 
     parser = Parser(Context(), keyword)
     if expected is None:
-        with pytest.raises(ParseError, match="Expected `a`, `b`, or `c`"):
+        with pytest.raises(
+            ParseError, match="Expected `a`, `b`, `c`, or `d-non-keyword`"
+        ):
             parser.parse_str_enum(MyEnum)
     else:
         assert parser.parse_str_enum(MyEnum) == expected
+
+
+@pytest.mark.parametrize("keyword", ["2", "-"])
+def test_parse_str_enum_wrong_token(keyword: str):
+    """
+    Test parsing of string enums where the next
+    token is a keyword or a string literal.
+    """
+    assert Parser(Context(), keyword).parse_optional_str_enum(MyEnum) is None
+
+    with pytest.raises(ParseError, match="Expected `a`, `b`, `c`, or `d-non-keyword`"):
+        Parser(Context(), keyword).parse_str_enum(MyEnum)
 
 
 @pytest.mark.parametrize("value", ["(1., 2)", "(1, 2.)"])
@@ -1155,3 +1175,26 @@ def test_metadata_parsing():
 
     element = interface.lookup("some_res")
     assert element == "0x1"
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        ("a", "a"),
+        ('"a"', "a"),
+        ("a-b", "a"),
+        ('"a-b"', "a-b"),
+        ("2a", None),
+    ],
+)
+def test_parse_identifier_or_str_literal(input: str, expected: str | None):
+    parser = Parser(Context(), input)
+    result = parser.parse_optional_identifier_or_str_literal()
+    assert result == expected
+
+    parser = Parser(Context(), input)
+    if expected is None:
+        with pytest.raises(ParseError, match="identifier or string literal expected"):
+            parser.parse_identifier_or_str_literal()
+    else:
+        assert parser.parse_identifier_or_str_literal() == expected
