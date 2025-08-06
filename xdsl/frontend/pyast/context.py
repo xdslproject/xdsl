@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from inspect import currentframe, getsource
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
 from types import FrameType
-from typing import Any, NamedTuple, overload
+from typing import Any, NamedTuple
 
 from xdsl.context import Context
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
@@ -80,15 +80,11 @@ class PyASTContext:
         cls,
         current_frame: FrameType | None,
         func: Callable[P, R],
-        decorated_func: Callable[P, R] | None,
     ) -> FuncInfo:
         """Get information about the decorated function."""
         # Get the correct function frame from the call stack
         assert current_frame is not None
         func_frame = current_frame.f_back
-        if decorated_func is not None:
-            assert func_frame is not None
-            func_frame = func_frame.f_back
         assert func_frame is not None
 
         # Get the required information about the function from the frame
@@ -119,55 +115,19 @@ class PyASTContext:
         assert program.__doc__ == func.__doc__
         return program
 
-    @overload
-    def parse_program(
-        self,
-        decorated_func: None = None,
-        *,
-        desymref: bool = True,
-    ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]]: ...
-
-    @overload
-    def parse_program(
-        self,
-        decorated_func: Callable[P, R],
-        *,
-        desymref: bool = True,
-    ) -> PyASTProgram[P, R]: ...
-
-    def parse_program(
-        self,
-        decorated_func: Callable[P, R] | None = None,
-        *,
-        desymref: bool = True,
-    ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]] | PyASTProgram[P, R]:
+    def parse_program(self, func: Callable[P, R]) -> PyASTProgram[P, R]:
         """Get a program wrapper by decorating a function."""
-
-        if not desymref:
-            raise DeprecationWarning("Desymref flag no longer supported!")
-
-        def decorator(func: Callable[P, R]) -> PyASTProgram[P, R]:
-            """Get a wrapped program by decorating a function."""
-            func_file, func_globals, func_ast = self._get_func_info(
-                currentframe(), func, decorated_func
-            )
-
-            builder = PyASTBuilder(
-                type_registry=self.type_registry,
-                function_registry=self.function_registry,
-                file=func_file,
-                globals=func_globals,
-                function_ast=func_ast,
-                build_context=self.ir_context,
-                post_transforms=self.post_transforms,
-            )
-            return self._get_wrapped_program(func, builder)
-
-        # Handle the two invocation cases: either `@ctx.parse_program` or
-        # `@ctx.parse_program(...)`
-        if decorated_func is None:
-            return decorator
-        return decorator(decorated_func)
+        func_file, func_globals, func_ast = self._get_func_info(currentframe(), func)
+        builder = PyASTBuilder(
+            type_registry=self.type_registry,
+            function_registry=self.function_registry,
+            file=func_file,
+            globals=func_globals,
+            function_ast=func_ast,
+            build_context=self.ir_context,
+            post_transforms=self.post_transforms,
+        )
+        return self._get_wrapped_program(func, builder)
 
 
 @dataclass
