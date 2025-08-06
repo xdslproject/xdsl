@@ -10,11 +10,11 @@ from typing import Any, NamedTuple
 
 from xdsl.context import Context
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
-from xdsl.frontend.pyast.utils.builder import PostTransform, PyASTBuilder
+from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
 from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
 from xdsl.ir import Dialect, Operation, TypeAttribute
-from xdsl.passes import ModulePass
+from xdsl.passes import ModulePass, PassPipeline
 from xdsl.transforms.desymref import FrontendDesymrefyPass
 
 
@@ -41,8 +41,8 @@ class PyASTContext:
     function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between functions and their operation types."""
 
-    post_transforms: list[PostTransform] = field(
-        default_factory=lambda: [PostTransform(FrontendDesymrefyPass())]
+    post_transforms: list[ModulePass] = field(
+        default_factory=lambda: [FrontendDesymrefyPass()]
     )
     """An ordered list of passes to apply to the built module."""
 
@@ -65,11 +65,9 @@ class PyASTContext:
         """Associate a method on an object in the source code with its IR implementation."""
         self.function_registry.insert(function, ir_constructor)
 
-    def register_post_transform(
-        self, transform: ModulePass, verify: bool = True
-    ) -> None:
+    def register_post_transform(self, transform: ModulePass) -> None:
         """Add a module pass to be run on the generated IR."""
-        self.post_transforms.append(PostTransform(transform, verify))
+        self.post_transforms.append(transform)
 
     def register_dialect(self, dialect: Dialect) -> None:
         """Add a dialect to the context used for transformation."""
@@ -125,7 +123,7 @@ class PyASTContext:
             globals=func_globals,
             function_ast=func_ast,
             build_context=self.ir_context,
-            post_transforms=self.post_transforms,
+            post_transforms=PassPipeline(tuple(self.post_transforms)),
         )
         return self._get_wrapped_program(func, builder)
 
