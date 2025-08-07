@@ -303,6 +303,8 @@ class MaxPool2DOp(IRDLOperation):
     pad = prop_def(DenseArrayBase[I64])
     nan_mode = opt_prop_def(StringAttr)
 
+    irdl_options = [ParsePropInAttrDict()]
+
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
     def _verify_(self) -> None:
@@ -335,6 +337,8 @@ class AvgPool2DOp(IRDLOperation):
     stride = prop_def(DenseArrayBase)
     pad = prop_def(DenseArrayBase)
     acc_type = prop_def(TypeAttribute)
+
+    irdl_options = [ParsePropInAttrDict()]
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
