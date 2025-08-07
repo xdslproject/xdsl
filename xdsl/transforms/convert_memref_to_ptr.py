@@ -323,7 +323,8 @@ class ConvertMemRefToPtr(ModulePass):
                     LowerExtractStridedMetadataOp(),
                     LowerReinterpretCastOp(),
                 ]
-            )
+            ),
+            apply_recursively=False,
         ).rewrite_module(op)
 
         if self.lower_func:
