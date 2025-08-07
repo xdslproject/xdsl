@@ -22,7 +22,7 @@ from xdsl.utils.hints import isa
 _index_type = builtin.IndexType()
 
 
-def get_constant_strides(memref_type: builtin.MemRefType) -> tuple[Sequence[int], int]:
+def get_constant_strides(memref_type: builtin.MemRefType) -> Sequence[int]:
     """
     If the memref has constant strides and offset, returns them, otherwise raises a
     DiagnosticException.
@@ -30,7 +30,6 @@ def get_constant_strides(memref_type: builtin.MemRefType) -> tuple[Sequence[int]
     match memref_type.layout:
         case builtin.NoneAttr():
             strides = builtin.ShapedType.strides_for_shape(memref_type.get_shape())
-            offset = 0
         case builtin.StridedLayoutAttr():
             strides = memref_type.layout.get_strides()
             if None in strides:
@@ -38,13 +37,9 @@ def get_constant_strides(memref_type: builtin.MemRefType) -> tuple[Sequence[int]
                     f"MemRef {memref_type} with dynamic stride is not yet implemented"
                 )
             strides = cast(Sequence[int], strides)
-            if (offset := memref_type.layout.get_offset()) is None:
-                raise DiagnosticException(
-                    f"Unsupported layout with dynamic offset {memref_type.layout}"
-                )
         case _:
             raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
-    return strides, offset
+    return strides
 
 
 def get_strides_offset(
@@ -127,25 +122,14 @@ def get_target_ptr(
     pointer = memref_ptr.res
     pointer.name_hint = target_memref.name_hint
 
-    if not indices:
-        return pointer
+    if indices:
+        strides = get_constant_strides(memref_type)
+        head = get_strides_offset(indices, strides, builder)
 
-    strides, offset = get_constant_strides(memref_type)
-    head = get_strides_offset(indices, strides, builder)
-
-    if offset:
-        memref_offset_op = builder.insert_op(
-            arith.ConstantOp.from_int_and_width(offset, _index_type)
-        )
-
-        memref_offset_op.result.name_hint = "memref_base_offset"
         if head is not None:
-            add_op = builder.insert_op(arith.AddiOp(head, memref_offset_op.result))
-            add_op.result.name_hint = "pointer_with_offset"
-            head = add_op.result
-
-    if head is not None:
-        pointer = get_offset_pointer(head, pointer, memref_type.element_type, builder)
+            pointer = get_offset_pointer(
+                head, pointer, memref_type.element_type, builder
+            )
 
     return pointer
 
