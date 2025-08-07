@@ -16,7 +16,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, PassFailedException
 from xdsl.utils.hints import isa
 
 _index_type = builtin.IndexType()
@@ -263,6 +263,43 @@ class LowerMemRefFuncCallPattern(RewritePattern):
         rewriter.replace_matched_op(new_ops, new_results)
 
 
+class LowerExtractStridedMetadataOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: memref.ExtractStridedMetaDataOp, rewriter: PatternRewriter, /
+    ):
+        if (
+            op.offset.has_uses()
+            or any(size.has_uses() for size in op.sizes)
+            or any(stride.has_uses() for stride in op.strides)
+        ):
+            raise PassFailedException(
+                "Cannot lower op with uses of offset, sizes, or strides."
+            )
+        rewriter.replace_matched_op(
+            (
+                to_ptr := ptr.ToPtrOp(op.source),
+                ptr.FromPtrOp(to_ptr.res, op.base_buffer.type),
+            )
+        )
+
+
+class LowerReinterpretCastOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: memref.ReinterpretCastOp, rewriter: PatternRewriter, /
+    ):
+        if len(op.offsets) != 1:
+            raise NotImplementedError
+        rewriter.replace_matched_op(
+            (
+                to_ptr := ptr.ToPtrOp(op.source),
+                ptr_add := ptr.PtrAddOp(to_ptr.res, op.offsets[0]),
+                ptr.FromPtrOp(ptr_add.result, op.result.type),
+            )
+        )
+
+
 @dataclass(frozen=True)
 class ConvertMemRefToPtr(ModulePass):
     name = "convert-memref-to-ptr"
@@ -271,7 +308,14 @@ class ConvertMemRefToPtr(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()])
+            GreedyRewritePatternApplier(
+                [
+                    ConvertStoreOp(),
+                    ConvertLoadOp(),
+                    LowerExtractStridedMetadataOp(),
+                    LowerReinterpretCastOp(),
+                ]
+            )
         ).rewrite_module(op)
 
         if self.lower_func:

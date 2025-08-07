@@ -607,6 +607,10 @@ class IRWithUses(ABC):
         if prev_use is None:
             self.first_use = next_use
 
+    def has_uses(self) -> bool:
+        """Returns true if the value has no uses."""
+        return self.first_use is not None
+
     def has_one_use(self) -> bool:
         """Returns true if the value has exactly one use."""
         first_use = self.first_use
