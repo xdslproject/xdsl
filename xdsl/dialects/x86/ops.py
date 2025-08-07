@@ -74,6 +74,7 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     IsTerminator,
     MemoryReadEffect,
+    MemoryWriteEffect,
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -615,7 +616,7 @@ class MS_Operation(
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     source = operand_def(R2InvT)
 
-    traits = traits_def(MS_OperationHasCanonicalizationPatterns())
+    traits = traits_def(MS_OperationHasCanonicalizationPatterns(), MemoryWriteEffect())
 
     def __init__(
         self,
