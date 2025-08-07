@@ -40,7 +40,7 @@ from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
 )
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
@@ -110,6 +110,8 @@ class X86AsmOperation(
     """
     Base class for operations that can be a part of x86 assembly printing.
     """
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     @abstractmethod
     def assembly_line(self) -> str | None:
