@@ -202,13 +202,11 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
     def get_effects(cls, op: Operation) -> set[EffectInstance]:
         effects = set[EffectInstance]()
         if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in chain(op.results)
+            isinstance(r.type, RegisterType) and r.type.is_allocated for r in op.results
         ):
             effects.add(EffectInstance(MemoryEffectKind.WRITE))
         if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in chain(op.operands)
+            isinstance(r.type, RegisterType) and r.type.is_allocated for r in op.operands
         ):
             effects.add(EffectInstance(MemoryEffectKind.READ))
         return effects
