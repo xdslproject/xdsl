@@ -290,12 +290,19 @@ class LowerReinterpretCastOp(RewritePattern):
     def match_and_rewrite(
         self, op: memref.ReinterpretCastOp, rewriter: PatternRewriter, /
     ):
-        if len(op.offsets) != 1:
+        static_offsets = op.static_offsets.get_values()
+        if len(static_offsets) != 1:
             raise NotImplementedError
+        if static_offsets[0] == memref.ReinterpretCastOp.DYNAMIC_INDEX:
+            offset = rewriter.insert_op(
+                arith.ConstantOp(builtin.IntegerAttr(static_offsets[0], _index_type))
+            ).result
+        else:
+            offset = op.offsets[0]
         rewriter.replace_matched_op(
             (
                 to_ptr := ptr.ToPtrOp(op.source),
-                ptr_add := ptr.PtrAddOp(to_ptr.res, op.offsets[0]),
+                ptr_add := ptr.PtrAddOp(to_ptr.res, offset),
                 ptr.FromPtrOp(ptr_add.result, op.result.type),
             )
         )
