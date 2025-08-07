@@ -300,15 +300,10 @@ class LowerReinterpretCastOp(RewritePattern):
             offset = rewriter.insert_op(
                 arith.ConstantOp(builtin.IntegerAttr(static_offsets[0], _index_type))
             ).result
-        offset_val = get_offset_pointer(
+        new_ptr = get_offset_pointer(
             offset, to_ptr.res, op.result.type.element_type, rewriter
         )
-        rewriter.replace_matched_op(
-            (
-                ptr_add := ptr.PtrAddOp(to_ptr.res, offset_val),
-                ptr.FromPtrOp(ptr_add.result, op.result.type),
-            )
-        )
+        rewriter.replace_matched_op(ptr.FromPtrOp(new_ptr, op.result.type))
 
 
 @dataclass(frozen=True)
