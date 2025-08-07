@@ -1,3 +1,22 @@
+"""
+Implements a lowering from operations on memrefs to operations on pointers.
+
+The default lowering of memrefs in MLIR is to a structure that carries the base pointer,
+an offset, and strides
+(See (memref.extract_strided_metadata)[https://mlir.llvm.org/docs/Dialects/MemRef/#memrefextract_strided_metadata-memrefextractstridedmetadataop]).
+If the offset and strides are statically known, they can be encoded in the type, but
+they can also be dynamic.
+
+When lowering operations on memrefs to operations on pointers, the offset and stride
+information must be lowered to operations that perform the required pointer arithmetic.
+In order to simplify the lowering of memory accesses, this pass makes the choice to
+lower memrefs to a pointer to the buffer including the dynamic offset.
+This means that memory accesses can be a simple dot product of statically known strides
+and dynamic indices.
+On the other hand, operations that create views of memrefs from other memrefs must lower
+to the relevant pointer arithmetic to encode the new inner buffer offset, when possible.
+"""
+
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import cast
@@ -53,7 +72,7 @@ def get_offset_pointer(
     return target_ptr.result
 
 
-def get_constant_strides(memref_type: builtin.MemRefType) -> tuple[Sequence[int], int]:
+def get_constant_strides(memref_type: builtin.MemRefType) -> Sequence[int]:
     """
     If the memref has constant strides and offset, returns them, otherwise raises a
     DiagnosticException.
@@ -61,7 +80,6 @@ def get_constant_strides(memref_type: builtin.MemRefType) -> tuple[Sequence[int]
     match memref_type.layout:
         case builtin.NoneAttr():
             strides = builtin.ShapedType.strides_for_shape(memref_type.get_shape())
-            offset = 0
         case builtin.StridedLayoutAttr():
             strides = memref_type.layout.get_strides()
             if None in strides:
@@ -69,13 +87,9 @@ def get_constant_strides(memref_type: builtin.MemRefType) -> tuple[Sequence[int]
                     f"MemRef {memref_type} with dynamic stride is not yet implemented"
                 )
             strides = cast(Sequence[int], strides)
-            if (offset := memref_type.layout.get_offset()) is None:
-                raise DiagnosticException(
-                    f"Unsupported layout with dynamic offset {memref_type.layout}"
-                )
         case _:
             raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
-    return strides, offset
+    return strides
 
 
 def get_strides_offset(
@@ -135,22 +149,8 @@ def get_target_ptr(
     pointer = memref_ptr.res
     pointer.name_hint = target_memref.name_hint
 
-    if not indices:
-        return pointer
-
-    strides, offset = get_constant_strides(memref_type)
+    strides = get_constant_strides(memref_type)
     head = get_strides_offset(indices, strides, builder)
-
-    if offset:
-        memref_offset_op = builder.insert_op(
-            arith.ConstantOp.from_int_and_width(offset, _index_type)
-        )
-
-        memref_offset_op.result.name_hint = "memref_base_offset"
-        if head is not None:
-            add_op = builder.insert_op(arith.AddiOp(head, memref_offset_op.result))
-            add_op.result.name_hint = "pointer_with_offset"
-            head = add_op.result
 
     if head is not None:
         offset = get_bytes_offset(head, memref_type.element_type, builder)
