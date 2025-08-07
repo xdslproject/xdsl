@@ -87,6 +87,29 @@ memref.store %fv4, %mstr4[%idx4] {"nontemporal" = false} : memref<2xf32, strided
 // CHECK-NEXT:    %offset_pointer_7 = ptr_xdsl.ptradd %mstr4_1, %scaled_pointer_offset_7 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 // CHECK-NEXT:    ptr_xdsl.store %fv4, %offset_pointer_7 : f32, !ptr_xdsl.ptr
 
+%subview1d = memref.subview %arr[5][5][1] : memref<10xi32> to memref<5xi32>
+
+// CHECK-NEXT:  %arr_3 = ptr_xdsl.to_ptr %arr : memref<10xi32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %c5 = arith.constant 5 : index
+// CHECK-NEXT:  %bytes_per_element_8 = ptr_xdsl.type_offset i32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_8 = arith.muli %c5, %bytes_per_element_8 : index
+// CHECK-NEXT:  %offset_pointer_8 = ptr_xdsl.ptradd %arr_3, %scaled_pointer_offset_8 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %subview1d = ptr_xdsl.from_ptr %offset_pointer_8 : !ptr_xdsl.ptr -> memref<5xi32>
+
+%subview2d = memref.subview %arr2[2, 3][5, 4][1, 1] : memref<10x10xi32> to memref<5x4xi32>
+
+// CHECK-NEXT:  %arr2_3 = ptr_xdsl.to_ptr %arr2 : memref<10x10xi32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %c2 = arith.constant 2 : index
+// CHECK-NEXT:  %c10 = arith.constant 10 : index
+// CHECK-NEXT:  %increment = arith.muli %c10, %c2 : index
+// CHECK-NEXT:  %c3 = arith.constant 3 : index
+// CHECK-NEXT:  %subview = arith.addi %increment, %c3 : index
+// CHECK-NEXT:  %bytes_per_element_9 = ptr_xdsl.type_offset i32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_9 = arith.muli %subview, %bytes_per_element_9 : index
+// CHECK-NEXT:  %offset_pointer_9 = ptr_xdsl.ptradd %arr2_3, %scaled_pointer_offset_9 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %subview2d = ptr_xdsl.from_ptr %offset_pointer_9 : !ptr_xdsl.ptr -> memref<5x4xi32>
+
+
 // -----
 
 %fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, strided<[?]>>)
