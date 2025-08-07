@@ -2,10 +2,10 @@ from collections.abc import Sequence
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.passes import AvailablePass
-from xdsl.ir.op_selector import OpSelector
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.traits import HasCanonicalizationPatternsTrait
 from xdsl.transforms import individual_rewrite
+from xdsl.utils.op_selector import OpSelector
 
 
 def get_all_possible_rewrites(module: ModuleOp) -> Sequence[AvailablePass]:

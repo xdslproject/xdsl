@@ -4,7 +4,6 @@ from xdsl.context import Context
 from xdsl.dialects import arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, ModuleOp
 from xdsl.ir import Operation
-from xdsl.ir.op_selector import OpSelector
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -12,6 +11,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.traits import HasCanonicalizationPatternsTrait
+from xdsl.utils.op_selector import OpSelector
 
 
 class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
