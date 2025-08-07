@@ -276,12 +276,13 @@ class LowerExtractStridedMetadataOp(RewritePattern):
             raise PassFailedException(
                 "Cannot lower op with uses of offset, sizes, or strides."
             )
-        rewriter.replace_matched_op(
+        rewriter.insert_op(
             (
                 to_ptr := ptr.ToPtrOp(op.source),
-                ptr.FromPtrOp(to_ptr.res, op.base_buffer.type),
+                from_ptr := ptr.FromPtrOp(to_ptr.res, op.base_buffer.type),
             )
         )
+        rewriter.replace_all_uses_with(op.base_buffer, from_ptr.res)
 
 
 class LowerReinterpretCastOp(RewritePattern):
