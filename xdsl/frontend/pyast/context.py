@@ -6,13 +6,17 @@ from dataclasses import dataclass, field
 from inspect import currentframe, getsource
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
 from types import FrameType
-from typing import Any, NamedTuple, overload
+from typing import Any, NamedTuple
 
+from xdsl.context import Context
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
 from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
 from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
-from xdsl.ir import Operation, TypeAttribute
+from xdsl.ir import Dialect, Operation, TypeAttribute
+from xdsl.passes import ModulePass, PassPipeline
+from xdsl.transforms.desymref import FrontendDesymrefyPass
 
 
 class FuncInfo(NamedTuple):
@@ -28,6 +32,13 @@ class FuncInfo(NamedTuple):
     """The Python AST representation of the function."""
 
 
+def default_pipeline_callback(
+    _previous_pass: ModulePass, module: ModuleOp, _next_pass: ModulePass
+) -> None:
+    """Default callback to verify the module after each transformation pass."""
+    module.verify()
+
+
 @dataclass
 class PyASTContext:
     """Encapsulate the mapping between Python and IR types and operations."""
@@ -37,6 +48,21 @@ class PyASTContext:
 
     function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between functions and their operation types."""
+
+    post_transforms: list[ModulePass] = field(
+        default_factory=lambda: [FrontendDesymrefyPass()]
+    )
+    """An ordered list of passes to apply to the built module."""
+
+    post_callback: Callable[[ModulePass, ModuleOp, ModulePass], None] | None = (
+        default_pipeline_callback
+    )
+    """Callback to run between post transforms."""
+
+    ir_context: Context = field(
+        default_factory=lambda: Context(allow_unregistered=True)
+    )
+    """The xDSL context to use when applying transformations to the built module."""
 
     def register_type(
         self,
@@ -52,20 +78,29 @@ class PyASTContext:
         """Associate a method on an object in the source code with its IR implementation."""
         self.function_registry.insert(function, ir_constructor)
 
+    def register_post_transform(self, transform: ModulePass) -> None:
+        """Add a module pass to be run on the generated IR."""
+        self.post_transforms.append(transform)
+
+    def register_dialect(self, dialect: Dialect) -> None:
+        """Add a dialect to the context used for transformation."""
+        self.ir_context.load_dialect(dialect)
+
+    @property
+    def pass_pipeline(self) -> PassPipeline:
+        """Get a pass pipeline from the context state."""
+        return PassPipeline(tuple(self.post_transforms), self.post_callback)
+
     @classmethod
     def _get_func_info(
         cls,
         current_frame: FrameType | None,
         func: Callable[P, R],
-        decorated_func: Callable[P, R] | None,
     ) -> FuncInfo:
         """Get information about the decorated function."""
         # Get the correct function frame from the call stack
         assert current_frame is not None
         func_frame = current_frame.f_back
-        if decorated_func is not None:
-            assert func_frame is not None
-            func_frame = func_frame.f_back
         assert func_frame is not None
 
         # Get the required information about the function from the frame
@@ -96,50 +131,19 @@ class PyASTContext:
         assert program.__doc__ == func.__doc__
         return program
 
-    @overload
-    def parse_program(
-        self,
-        decorated_func: None = None,
-        *,
-        desymref: bool = True,
-    ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]]: ...
-
-    @overload
-    def parse_program(
-        self,
-        decorated_func: Callable[P, R],
-        *,
-        desymref: bool = True,
-    ) -> PyASTProgram[P, R]: ...
-
-    def parse_program(
-        self,
-        decorated_func: Callable[P, R] | None = None,
-        *,
-        desymref: bool = True,
-    ) -> Callable[[Callable[P, R]], PyASTProgram[P, R]] | PyASTProgram[P, R]:
+    def parse_program(self, func: Callable[P, R]) -> PyASTProgram[P, R]:
         """Get a program wrapper by decorating a function."""
-
-        def decorator(func: Callable[P, R]) -> PyASTProgram[P, R]:
-            """Get a wrapped program by decorating a function."""
-            func_file, func_globals, func_ast = self._get_func_info(
-                currentframe(), func, decorated_func
-            )
-            builder = PyASTBuilder(
-                type_registry=self.type_registry,
-                function_registry=self.function_registry,
-                file=func_file,
-                globals=func_globals,
-                function_ast=func_ast,
-                desymref=desymref,
-            )
-            return self._get_wrapped_program(func, builder)
-
-        # Handle the two invocation cases: either `@ctx.parse_program` or
-        # `@ctx.parse_program(...)`
-        if decorated_func is None:
-            return decorator
-        return decorator(decorated_func)
+        func_file, func_globals, func_ast = self._get_func_info(currentframe(), func)
+        builder = PyASTBuilder(
+            type_registry=self.type_registry,
+            function_registry=self.function_registry,
+            file=func_file,
+            globals=func_globals,
+            function_ast=func_ast,
+            build_context=self.ir_context,
+            post_transforms=self.pass_pipeline,
+        )
+        return self._get_wrapped_program(func, builder)
 
 
 @dataclass
