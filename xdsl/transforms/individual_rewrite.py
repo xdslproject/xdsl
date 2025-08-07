@@ -5,6 +5,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.traits import HasCanonicalizationPatternsTrait
+from xdsl.utils.op_selector import OpSelector
 
 
 @dataclass(frozen=True)
@@ -23,11 +24,9 @@ class ApplyIndividualRewritePass(ModulePass):
     pattern_name: str = field()
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
-        all_ops = list(op.walk())
-        if self.matched_operation_index >= len(all_ops):
-            raise ValueError("Matched operation index out of range.")
-
-        matched_operation = all_ops[self.matched_operation_index]
+        matched_operation = OpSelector(
+            self.matched_operation_index, self.operation_name
+        ).get_op(op)
         rewriter = PatternRewriter(matched_operation)
 
         if matched_operation.name != self.operation_name:
@@ -68,9 +67,10 @@ class ApplyIndividualRewritePass(ModulePass):
                 type(pattern).__name__: pattern
                 for pattern in trait.get_canonicalization_patterns()
             }
+            selector = OpSelector(op_idx, matched_op.name)
 
             for pattern_name, pattern in pattern_by_name.items():
-                cloned_op = tuple(module_op.clone().walk())[op_idx]
+                cloned_op = selector.get_op(module_op.clone())
                 rewriter = PatternRewriter(cloned_op)
                 pattern.match_and_rewrite(cloned_op, rewriter)
                 if rewriter.has_done_action:

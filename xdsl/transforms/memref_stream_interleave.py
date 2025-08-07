@@ -1,5 +1,9 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from itertools import repeat
+from typing import NamedTuple
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
@@ -35,9 +39,73 @@ def factors(num: int) -> tuple[int, ...]:
     return tuple(factor for factor in range(1, num + 1) if not num % factor)
 
 
+class IndexAndFactor(NamedTuple):
+    """
+    Helper data structure holding an option for which index of a `memref_stream.generic`
+    operation to interleave and with which factor.
+    """
+
+    iterator_index: int
+    factor: int
+
+    @staticmethod
+    def choose(
+        indices_and_factors: Sequence[IndexAndFactor], pipeline_depth: int
+    ) -> IndexAndFactor | None:
+        """
+        A heuristic to choose the interleave index and factor automatically given the
+        pipeline depth of floating-point operations on the processor.
+        The higher the factor chosen, the higher the instruction-level parallelism, but
+        also the more registers need to be used at the same time, potentially leading to
+        spilling.
+        """
+        if not indices_and_factors:
+            return None
+        # Filter for innermost parallel index
+        max_index = max(index for index, _ in indices_and_factors)
+        indices_and_factors = tuple(
+            t for t in indices_and_factors if t.iterator_index == max_index
+        )
+
+        # Want the biggest number for maximal instruction-level parallelism, less than
+        # 2 * pipeline depth as a heuristic to limit register pressure.
+        indices_and_factors = tuple(
+            t for t in indices_and_factors if t.factor < pipeline_depth * 2
+        )
+        if not indices_and_factors:
+            return None
+
+        sorted_indices_and_factors = sorted(indices_and_factors, key=lambda x: x[1])
+
+        # Greatest number less than double of pipeline depth.
+        return sorted_indices_and_factors[-1]
+
+
 @dataclass(frozen=True)
 class PipelineGenericPattern(RewritePattern):
     pipeline_depth: int = field()
+
+    @staticmethod
+    def indices_and_factors(
+        op: memref_stream.GenericOp,
+    ) -> tuple[IndexAndFactor, ...]:
+        """
+        Given a `memref_stream.generic` operation, returns all the possible options for
+        unrolling.
+        """
+        parallel_indices = tuple(
+            index
+            for index, iterator_type in enumerate(op.iterator_types)
+            if iterator_type == memref_stream.IteratorTypeAttr.parallel()
+        )
+        parallel_bounds = tuple(
+            op.bounds.data[index].value.data for index in parallel_indices
+        )
+        return tuple(
+            IndexAndFactor(index, factor)
+            for index, bound in zip(parallel_indices, parallel_bounds)
+            for factor in factors(bound)
+        )
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -51,24 +119,19 @@ class PipelineGenericPattern(RewritePattern):
             # No reduction
             return
 
-        interleave_bound_index = -1
-        interleave_bound = -1
-        for index, (iterator_type, bound) in enumerate(
-            zip(op.iterator_types, op.bounds, strict=True)
-        ):
-            if iterator_type == memref_stream.IteratorTypeAttr.parallel():
-                interleave_bound = bound.value.data
-                interleave_bound_index = index
-        if interleave_bound == -1:
-            # No parallel dimension
+        indices_and_factors = self.indices_and_factors(op)
+        if not indices_and_factors:
             return
 
-        # Greatest number less than double of pipeline depth.
-        # Want the biggest number for maximal instruction-level parallelism, less than
-        # 2 * pipeline depth as a heuristic to limit register pressure.
-        interleave_factor = max(
-            f for f in factors(interleave_bound) if f < self.pipeline_depth * 2
-        )
+        t = IndexAndFactor.choose(indices_and_factors, self.pipeline_depth)
+        if t is None:
+            return
+
+        interleave_bound_index, interleave_factor = t
+
+        if interleave_factor == 1:
+            # If unroll factor is 1, rewrite is a no-op
+            return
 
         old_block = op.body.block
         new_region = Region(
@@ -132,6 +195,7 @@ class PipelineGenericPattern(RewritePattern):
         # The new bounds are the same, except there is one more bound
         new_bounds = list(op.bounds)
         new_bounds.append(IntegerAttr.from_index_int_value(interleave_factor))
+        interleave_bound = op.bounds.data[interleave_bound_index].value.data
         new_bounds[interleave_bound_index] = IntegerAttr.from_index_int_value(
             interleave_bound // interleave_factor
         )
