@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
-from itertools import chain
 
 from typing_extensions import Self
 
@@ -206,7 +205,8 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
         ):
             effects.add(EffectInstance(MemoryEffectKind.WRITE))
         if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated for r in op.operands
+            isinstance(r.type, RegisterType) and r.type.is_allocated
+            for r in op.operands
         ):
             effects.add(EffectInstance(MemoryEffectKind.READ))
         return effects
