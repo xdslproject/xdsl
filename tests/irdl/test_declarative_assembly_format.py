@@ -93,6 +93,7 @@ from xdsl.irdl.declarative_assembly_format import (
     VariadicOperandVariable,
     irdl_custom_directive,
 )
+from xdsl.irdl.operations import SameVariadicResultSize
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import (
@@ -1822,6 +1823,31 @@ def test_results_directive_fails_with_two_var():
             irdl_options = [AttrSizedResultSegments()]
 
             assembly_format = "attr-dict `:` type(results)"
+
+
+def test_results_directive_works_with_two_var_and_option():
+    """
+    Test results directive can be used with two variadic results as long as they have
+    the same length.
+    """
+
+    @irdl_op_definition
+    class TwoVarOp(IRDLOperation):
+        name = "test.two_var_op"
+
+        res1 = var_result_def()
+        res2 = var_result_def()
+
+        irdl_options = [SameVariadicResultSize()]
+
+        assembly_format = "attr-dict `:` type(results)"
+
+    ctx = Context()
+    ctx.load_op(TwoVarOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip("%0, %1 = test.two_var_op : i32, i32", ctx)
+    check_roundtrip("%0, %1, %2, %3 = test.two_var_op : i32, i32, i32, i32", ctx)
 
 
 def test_results_directive_fails_with_no_results():
