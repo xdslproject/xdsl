@@ -1,11 +1,11 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import cast
 
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, ptr
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -19,6 +19,99 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
+_index_type = builtin.IndexType()
+
+
+def get_constant_strides(memref_type: builtin.MemRefType) -> tuple[Sequence[int], int]:
+    """
+    If the memref has constant strides and offset, returns them, otherwise raises a
+    DiagnosticException.
+    """
+    match memref_type.layout:
+        case builtin.NoneAttr():
+            strides = builtin.ShapedType.strides_for_shape(memref_type.get_shape())
+            offset = 0
+        case builtin.StridedLayoutAttr():
+            strides = memref_type.layout.get_strides()
+            if None in strides:
+                raise DiagnosticException(
+                    f"MemRef {memref_type} with dynamic stride is not yet implemented"
+                )
+            strides = cast(Sequence[int], strides)
+            if (offset := memref_type.layout.get_offset()) is None:
+                raise DiagnosticException(
+                    f"Unsupported layout with dynamic offset {memref_type.layout}"
+                )
+        case _:
+            raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
+    return strides, offset
+
+
+def get_strides_offset(
+    indices: Iterable[SSAValue], strides: Sequence[int], builder: Builder
+) -> SSAValue | None:
+    """
+    Given SSA values for indices, and constant strides, insert the arithmetic ops that
+    create the combined index offset.
+    The length of indices and strides must be the same.
+    Strides must not contain `-1`.
+    """
+    head: SSAValue | None = None
+
+    for index, stride in zip(indices, strides, strict=True):
+        # Calculate the offset that needs to be added through the index of the current
+        # dimension.
+        increment = index
+
+        # Stride 1 is a noop making the index equal to the offset.
+        if stride != 1:
+            # Otherwise, multiply the stride (which by definition is the number of
+            # elements required to be skipped when incrementing that dimension).
+            stride_op = builder.insert_op(
+                arith.ConstantOp.from_int_and_width(stride, _index_type)
+            )
+            offset_op = builder.insert_op(arith.MuliOp(increment, stride_op))
+            stride_op.result.name_hint = "pointer_dim_stride"
+            offset_op.result.name_hint = "pointer_dim_offset"
+
+            increment = offset_op.result
+
+        if head is None:
+            # First iteration.
+            head = increment
+            continue
+
+        # Otherwise sum up the products.
+        add_op = builder.insert_op(arith.AddiOp(head, increment))
+        add_op.result.name_hint = "pointer_dim_stride"
+        head = add_op.result
+
+    return head
+
+
+def get_offset_pointer(
+    offset_in_indices: SSAValue,
+    pointer: SSAValue,
+    element_type: Attribute,
+    builder: Builder,
+) -> SSAValue:
+    """
+    Returns the offset in indices scaled by the size of element_type.
+    """
+    bytes_per_element_op = builder.insert_op(
+        ptr.TypeOffsetOp(element_type, _index_type)
+    )
+    final_offset = builder.insert_op(
+        arith.MuliOp(offset_in_indices, bytes_per_element_op)
+    )
+    target_ptr = builder.insert_op(ptr.PtrAddOp(pointer, final_offset.result))
+
+    bytes_per_element_op.offset.name_hint = "bytes_per_element"
+    final_offset.result.name_hint = "scaled_pointer_offset"
+    target_ptr.result.name_hint = "offset_pointer"
+    pointer = target_ptr.result
+    return pointer
+
 
 def get_target_ptr(
     target_memref: SSAValue,
@@ -31,63 +124,18 @@ def get_target_ptr(
     """
 
     memref_ptr = builder.insert_op(ptr.ToPtrOp(target_memref))
-    memref_ptr.res.name_hint = target_memref.name_hint
+    pointer = memref_ptr.res
+    pointer.name_hint = target_memref.name_hint
 
     if not indices:
-        return memref_ptr.res
+        return pointer
 
-    match memref_type.layout:
-        case builtin.NoneAttr():
-            strides = builtin.ShapedType.strides_for_shape(memref_type.get_shape())
-            offset = 0
-        case builtin.StridedLayoutAttr():
-            strides = memref_type.layout.get_strides()
-            if (offset := memref_type.layout.get_offset()) is None:
-                raise DiagnosticException(
-                    f"Unsupported layout with dynamic offset {memref_type.layout}"
-                )
-        case _:
-            raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
-
-    head: SSAValue | None = None
-
-    for index, stride in zip(indices, strides, strict=True):
-        # Calculate the offset that needs to be added through the index of the current
-        # dimension.
-        increment = index
-        match stride:
-            case None:
-                raise DiagnosticException(
-                    f"MemRef {memref_type} with dynamic stride is not yet implemented"
-                )
-            case 1:
-                # Stride 1 is a noop making the index equal to the offset.
-                pass
-            case _:
-                # Otherwise, multiply the stride (which by definition is the number of
-                # elements required to be skipped when incrementing that dimension).
-                stride_op = builder.insert_op(
-                    arith.ConstantOp.from_int_and_width(stride, builtin.IndexType())
-                )
-                offset_op = builder.insert_op(arith.MuliOp(increment, stride_op))
-                stride_op.result.name_hint = "pointer_dim_stride"
-                offset_op.result.name_hint = "pointer_dim_offset"
-
-                increment = offset_op.result
-
-        if head is None:
-            # First iteration.
-            head = increment
-            continue
-
-        # Otherwise sum up the products.
-        add_op = builder.insert_op(arith.AddiOp(head, increment))
-        add_op.result.name_hint = "pointer_dim_stride"
-        head = add_op.result
+    strides, offset = get_constant_strides(memref_type)
+    head = get_strides_offset(indices, strides, builder)
 
     if offset:
         memref_offset_op = builder.insert_op(
-            arith.ConstantOp.from_int_and_width(offset, builtin.IndexType())
+            arith.ConstantOp.from_int_and_width(offset, _index_type)
         )
 
         memref_offset_op.result.name_hint = "memref_base_offset"
@@ -97,20 +145,7 @@ def get_target_ptr(
             head = add_op.result
 
     if head is not None:
-        bytes_per_element_op = builder.insert_op(
-            ptr.TypeOffsetOp(memref_type.element_type, builtin.IndexType())
-        )
-        final_offset = builder.insert_op(arith.MuliOp(head, bytes_per_element_op))
-        target_ptr = builder.insert_op(
-            ptr.PtrAddOp(memref_ptr.res, final_offset.result)
-        )
-
-        bytes_per_element_op.offset.name_hint = "bytes_per_element"
-        final_offset.result.name_hint = "scaled_pointer_offset"
-        target_ptr.result.name_hint = "offset_pointer"
-        pointer = target_ptr.result
-    else:
-        pointer = memref_ptr.res
+        pointer = get_offset_pointer(head, pointer, memref_type.element_type, builder)
 
     return pointer
 
