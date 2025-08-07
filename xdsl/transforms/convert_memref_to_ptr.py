@@ -293,16 +293,19 @@ class LowerReinterpretCastOp(RewritePattern):
         static_offsets = op.static_offsets.get_values()
         if len(static_offsets) != 1:
             raise NotImplementedError
+        to_ptr = rewriter.insert_op(ptr.ToPtrOp(op.source))
         if static_offsets[0] == memref.ReinterpretCastOp.DYNAMIC_INDEX:
             offset = op.offsets[0]
         else:
             offset = rewriter.insert_op(
                 arith.ConstantOp(builtin.IntegerAttr(static_offsets[0], _index_type))
             ).result
+        offset_val = get_offset_pointer(
+            offset, to_ptr.res, op.result.type.element_type, rewriter
+        )
         rewriter.replace_matched_op(
             (
-                to_ptr := ptr.ToPtrOp(op.source),
-                ptr_add := ptr.PtrAddOp(to_ptr.res, offset),
+                ptr_add := ptr.PtrAddOp(to_ptr.res, offset_val),
                 ptr.FromPtrOp(ptr_add.result, op.result.type),
             )
         )
