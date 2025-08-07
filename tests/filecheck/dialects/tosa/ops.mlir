@@ -18,9 +18,10 @@
 %z = "test.op"() : () -> tensor<1xf32>
 %13 = tosa.matmul %m, %n, %z, %z : (tensor<1x4x27xf32>, tensor<1x27x15xf32>, tensor<1xf32>, tensor<1xf32>) -> tensor<1x4x15xf32>
 %14 = "test.op"() : () -> tensor<?x114x114x64xi8>
-%15 = "tosa.max_pool2d"(%14) <{kernel = array<i64: 3, 3>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 2, 2>}> : (tensor<?x114x114x64xi8>) -> tensor<?x56x56x64xi8>
+%15 = tosa.max_pool2d %14 {kernel = array<i64: 3, 3>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 2, 2>} : (tensor<?x114x114x64xi8>) -> tensor<?x56x56x64xi8>
 %16 = "test.op"() : () -> tensor<?x25x5x64xi8>
-%17 = "tosa.avg_pool2d"(%16) <{acc_type = i32, kernel = array<i64: 25, 5>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 25, 5>}> : (tensor<?x25x5x64xi8>) -> tensor<?x1x1x64xi8>
+%17 = tosa.avg_pool2d %16 {acc_type = i32, kernel = array<i64: 25, 5>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 25, 5>} : (tensor<?x25x5x64xi8>) -> tensor<?x1x1x64xi8>
+
 // CHECK: builtin.module {
 // CHECK-NEXT:   %0 = "test.op"() : () -> tensor<12x34xi32>
 // CHECK-NEXT:   %1 = "test.op"() : () -> tensor<1x1xi32>
@@ -40,7 +41,7 @@
 // CHECK-NEXT:   %z = "test.op"() : () -> tensor<1xf32>
 // CHECK-NEXT:   %13 = tosa.matmul %m, %n, %z, %z : (tensor<1x4x27xf32>, tensor<1x27x15xf32>, tensor<1xf32>, tensor<1xf32>) -> tensor<1x4x15xf32>
 // CHECK-NEXT:   %14 = "test.op"() : () -> tensor<?x114x114x64xi8>
-// CHECK-NEXT:   %15 = "tosa.max_pool2d"(%14) <{kernel = array<i64: 3, 3>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 2, 2>}> : (tensor<?x114x114x64xi8>) -> tensor<?x56x56x64xi8>
+// CHECK-NEXT:   %15 = tosa.max_pool2d %14 {kernel = array<i64: 3, 3>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 2, 2>} : (tensor<?x114x114x64xi8>) -> tensor<?x56x56x64xi8>
 // CHECK-NEXT:   %16 = "test.op"() : () -> tensor<?x25x5x64xi8>
-// CHECK-NEXT:   %17 = "tosa.avg_pool2d"(%16) <{acc_type = i32, kernel = array<i64: 25, 5>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 25, 5>}> : (tensor<?x25x5x64xi8>) -> tensor<?x1x1x64xi8>
+// CHECK-NEXT:   %17 = tosa.avg_pool2d %16 {acc_type = i32, kernel = array<i64: 25, 5>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 25, 5>} : (tensor<?x25x5x64xi8>) -> tensor<?x1x1x64xi8>
 // CHECK-NEXT: }
