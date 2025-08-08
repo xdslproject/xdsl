@@ -19,6 +19,10 @@ from xdsl.utils.lexer import Span
 
 
 def _empty_post_init(self: Attribute):
+    """
+    An empty 'post_init' function.
+    Used to replace the default 'post_init' on 'Attribute' when verification is disabled.
+    """
     pass
 
 
