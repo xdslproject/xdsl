@@ -56,3 +56,15 @@ plugins:
           show_root_heading: true
           show_root_full_path: false
           show_signature_annotations: true
+
+extra:
+  social:
+    - icon: material/rss
+      link: https://xdsl.dev/feed.xml
+      name: Subscribe to our RSS Feed
+    - icon: material/chat
+      link: https://xdsl.zulipchat.com/
+      name: Chat on Zulip
+    - icon: material/github
+      link: https://github.com/xdslproject
+      name: Contribute on Github
