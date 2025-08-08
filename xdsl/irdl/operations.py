@@ -1785,7 +1785,7 @@ def irdl_op_init(
     )
 
 
-@dataclass
+@dataclass(frozen=True)
 class BaseAccessor(ABC):
     """
     Base class for accessor objects for retrieving operands, results, regions, and successors.
@@ -1809,7 +1809,7 @@ class BaseAccessor(ABC):
         return self.index(args)
 
 
-@dataclass
+@dataclass(frozen=True)
 class BeforeVariadicSingleAccessor(BaseAccessor):
     """
     Access a non-variadic construct which appears before any variadic arguments.
@@ -1819,7 +1819,7 @@ class BeforeVariadicSingleAccessor(BaseAccessor):
         return args[self.idx]
 
 
-@dataclass
+@dataclass(frozen=True)
 class AfterVariadicSingleAccessor(BaseAccessor):
     """
     Access a non-variadic construct which appears after any variadic arguments.
@@ -1832,7 +1832,7 @@ class AfterVariadicSingleAccessor(BaseAccessor):
         return args[-self.num_defs + self.idx]
 
 
-@dataclass
+@dataclass(frozen=True)
 class SameOptionalAccessor(BaseAccessor):
     """
     Access an optional construct when all variadic arguments have the same size.
@@ -1851,7 +1851,7 @@ class SameOptionalAccessor(BaseAccessor):
         return None
 
 
-@dataclass
+@dataclass(frozen=True)
 class UniqueVariadicAccessor(BaseAccessor):
     """
     Access a variadic construct in the case where it is the only variadic.
@@ -1864,7 +1864,7 @@ class UniqueVariadicAccessor(BaseAccessor):
         return args[self.idx : self.idx + len(args) - self.num_defs + 1]
 
 
-@dataclass
+@dataclass(frozen=True)
 class SameVariadicAccessor(BaseAccessor):
     """
     Access a variadic construct in the case where all variadics have the same size.
@@ -1888,7 +1888,7 @@ class SameVariadicAccessor(BaseAccessor):
         return args[start:end]
 
 
-@dataclass
+@dataclass(frozen=True)
 class SameVariadicSingleAccessor(SameVariadicAccessor):
     """
     Access a non-variadic construct in the case where all variadics have the same size.
@@ -1900,7 +1900,7 @@ class SameVariadicSingleAccessor(SameVariadicAccessor):
         return args[start]
 
 
-@dataclass
+@dataclass(frozen=True)
 class BaseAttrAccessor(ABC):
     """
     Base class for accessors in the case where there is a "segment size" attribute.
@@ -1941,6 +1941,7 @@ class BaseAttrAccessor(ABC):
         return self.index(attr.get_values(), args)  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue,reportUnknownArgumentType]
 
 
+@dataclass(frozen=True)
 class SingleAttrAccessor(BaseAttrAccessor):
     """
     Access a non-variadic construct when there is a "segment size" attribute.
@@ -1950,6 +1951,7 @@ class SingleAttrAccessor(BaseAttrAccessor):
         return args[sum(values[: self.idx])]
 
 
+@dataclass(frozen=True)
 class VariadicAttrAccessor(BaseAttrAccessor):
     """
     Access a variadic construct when there is a "segment size" attribute.
@@ -1960,6 +1962,7 @@ class VariadicAttrAccessor(BaseAttrAccessor):
         return args[start : start + values[self.idx]]
 
 
+@dataclass(frozen=True)
 class OptionalAttrAccessor(BaseAttrAccessor):
     """
     Access an optional construct when there is a "segment size" attribute.
