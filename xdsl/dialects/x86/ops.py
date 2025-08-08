@@ -845,6 +845,7 @@ class M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC
 
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
     def __init__(
         self,
