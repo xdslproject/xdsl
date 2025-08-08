@@ -618,7 +618,11 @@ class MS_Operation(
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     source = operand_def(R2InvT)
 
-    traits = traits_def(MS_OperationHasCanonicalizationPatterns(), MemoryWriteEffect())
+    traits = traits_def(
+        MS_OperationHasCanonicalizationPatterns(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+    )
 
     def __init__(
         self,
@@ -668,6 +672,8 @@ class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     immediate = attr_def(IntegerAttr)
+
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,
