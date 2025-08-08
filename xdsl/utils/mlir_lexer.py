@@ -496,24 +496,22 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             )
 
         self.pos = m.end()  # advance cursor to the end of the string literal
-        span = Span(start_pos, self.pos, self.input)
+        lit = StringLiteral(start_pos, self.pos, self.input)
 
-        if span.text == '""':
-            return MLIRToken(MLIRTokenKind.STRING_LIT, span)  # empty string literal
+        if lit.text == '""':
+            return MLIRToken(MLIRTokenKind.STRING_LIT, lit)  # empty string literal
 
-        if "\\" not in span.text:
+        if "\\" not in lit.text:
             # If there are no escape sequences, directly return a STRING_LIT
-            return MLIRToken(MLIRTokenKind.STRING_LIT, span)
-
-        lit = StringLiteral.from_span(span)
+            return MLIRToken(MLIRTokenKind.STRING_LIT, lit)
 
         bytes_contents = lit.bytes_contents
 
         if bytes_contents.isascii():
             # If the bytes contents are ASCII, return a STRING_LIT
-            return MLIRToken(MLIRTokenKind.STRING_LIT, span)
+            return MLIRToken(MLIRTokenKind.STRING_LIT, lit)
 
-        return MLIRToken(MLIRTokenKind.BYTES_LIT, span)
+        return MLIRToken(MLIRTokenKind.BYTES_LIT, lit)
 
     _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
     _digits_star_regex = re.compile(r"[0-9]*")
