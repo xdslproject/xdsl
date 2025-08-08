@@ -9,12 +9,21 @@ from typing import IO, Any
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.ir import Attribute
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
 from xdsl.utils.lexer import Span
+
+
+def _empty_post_init(self: Attribute):
+    """
+    An empty 'post_init' function.
+    Used to replace the default 'post_init' on 'Attribute' when verification is disabled.
+    """
+    pass
 
 
 class xDSLOptMain(CommandLineTool):
@@ -53,6 +62,9 @@ class xDSLOptMain(CommandLineTool):
         self.args = arg_parser.parse_args(args=args)
 
         self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
+
+        if self.args.disable_verify:
+            Attribute.__post_init__ = _empty_post_init
 
         self.setup_pipeline()
 
