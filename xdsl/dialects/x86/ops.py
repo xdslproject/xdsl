@@ -372,13 +372,13 @@ class RM_Operation(
     memory access with an optional offset.
     """
 
-    traits = traits_def(MemoryReadEffect())
-
     register_in = operand_def(R1InvT)
     register_out = result_def(R1InvT)
 
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
