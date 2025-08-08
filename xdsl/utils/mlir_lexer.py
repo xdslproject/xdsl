@@ -478,7 +478,10 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         return self._form_token(kind, start_pos)
 
-    _unescaped_characters_regex = re.compile(r'"(?:\\.|[^"\\\n\v\f])*"')
+    # Match a double-quoted string literal, allowing valid escape sequences (\n, \t, \\, \", and two hex digits).
+    _unescaped_characters_regex = re.compile(
+        r'"(?:[^"\\\n\v\f]+|\\(?:["nt\\]|[0-9A-Fa-f]{2}))*"'
+    )
 
     def _lex_string_literal(self, start_pos: Position) -> MLIRToken:
         """
@@ -504,8 +507,14 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         lit = StringLiteral.from_span(span)
 
+        bytes_contents = lit.bytes_contents
+
+        if bytes_contents.isascii():
+            # If the bytes contents are ASCII, return a STRING_LIT
+            return MLIRToken(MLIRTokenKind.STRING_LIT, span)
+
         try:
-            lit.bytes_contents.decode()  # UTF‑8 by default
+            bytes_contents.decode()  # UTF‑8 by default
             kind = MLIRTokenKind.STRING_LIT
         except UnicodeDecodeError:
             kind = MLIRTokenKind.BYTES_LIT
