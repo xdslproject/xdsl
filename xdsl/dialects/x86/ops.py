@@ -790,6 +790,7 @@ class DMI_Operation(
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     immediate = attr_def(IntegerAttr)
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
