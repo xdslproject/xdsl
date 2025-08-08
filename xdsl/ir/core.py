@@ -1138,8 +1138,7 @@ class Operation(_IRNode):
         self._successor_uses = new_uses
 
     def __post_init__(self):
-        assert self.name != ""
-        assert isinstance(self.name, str)
+        pass
 
     def __init__(
         self,
@@ -1288,6 +1287,9 @@ class Operation(_IRNode):
         return False
 
     def verify(self, verify_nested_ops: bool = True) -> None:
+        if self.name == "":
+            raise ValueError("Operation name must be a non empty string")
+
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
                 raise ValueError("Erased SSA value is used by the operation")
