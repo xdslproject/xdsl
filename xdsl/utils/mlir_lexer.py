@@ -498,6 +498,10 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         if span.text == '""':
             return MLIRToken(MLIRTokenKind.STRING_LIT, span)  # empty string literal
 
+        if "\\" not in span.text:
+            # If there are no escape sequences, directly return a STRING_LIT
+            return MLIRToken(MLIRTokenKind.STRING_LIT, span)
+
         lit = StringLiteral.from_span(span)
 
         try:
