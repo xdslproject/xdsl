@@ -2066,10 +2066,10 @@ class OptionalAttributeAccessor:
         return obj.attributes.get(self.attribute_name, self.default_value)
 
     def __set__(self, obj: IRDLOperation, value):
-        if value is None:
-            obj.attributes.pop(self.attribute_name, None)
-        else:
-            obj.attributes[self.attribute_name] = value
+        obj.attributes[self.attribute_name] = value
+
+    def __delete__(self, obj: IRDLOperation):
+        obj.attributes.pop(self.attribute_name, None)
 
 
 @dataclass(frozen=True)
@@ -2096,10 +2096,10 @@ class OptionalPropertyAccessor:
         return obj.properties.get(self.property_name, self.default_value)
 
     def __set__(self, obj: IRDLOperation, value):
-        if value is None:
-            obj.properties.pop(self.property_name, None)
-        else:
-            obj.properties[self.property_name] = value
+        obj.properties[self.property_name] = value
+
+    def __delete__(self, obj: IRDLOperation):
+        obj.properties.pop(self.property_name, None)
 
 
 @dataclass(frozen=True)

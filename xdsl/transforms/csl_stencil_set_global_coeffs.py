@@ -174,7 +174,7 @@ class GenerateCoeffAPICalls(RewritePattern):
 
         # delete coefficients from apply ops
         for apply in applies:
-            apply.coeffs = None
+            del apply.coeffs
 
 
 @dataclass(frozen=True)
