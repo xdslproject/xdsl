@@ -1,5 +1,5 @@
 nav:
-  - index.md
+  - xDSL: "https://xdsl.dev/"
   - Tutorial Notebooks: marimo
   - API Reference: reference
   - User Guide: guides
