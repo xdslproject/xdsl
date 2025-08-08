@@ -43,9 +43,9 @@ extra_css:
 
 plugins:
 - search
-- gen-files:
-    scripts:
-    - scripts/gen_ref_pages.py
+# - gen-files:
+#     scripts:
+#     - scripts/gen_ref_pages.py
 - awesome-nav
 - mkdocstrings:
     handlers:

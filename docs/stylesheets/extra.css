@@ -13,13 +13,13 @@ h2 {
   --md-primary-fg-color--dark: #002F6C;
 
   /* #ED80E9 */
-  --md-accent-fg-color: hsla(302, 75%, 72%, 1);
+  --md-accent-fg-color: hsla(302, 75%, 60%, 1);
   --md-accent-fg-color--transparent: hsla(302, 75%, 72%, 0.1);
 
   --md-typeset-a-color: var(--md-accent-fg-color);
 
   h2 {
-    filter: brightness(0.7);
+    filter: brightness(0.5);
   }
 
   .md-header {
@@ -33,7 +33,7 @@ h2 {
   --md-primary-fg-color--light: #0F52BA;
   --md-primary-fg-color--dark: #002147;
 
-  --md-accent-fg-color: hsla(302, 75%, 72%, 1);
+  --md-accent-fg-color: hsla(302, 75%, 60%, 1);
   --md-accent-fg-color--transparent: hsla(302, 75%, 72%, 0.1);
 
   --md-typeset-a-color: var(--md-accent-fg-color);
