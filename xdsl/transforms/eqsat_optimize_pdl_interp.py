@@ -1,12 +1,46 @@
-from collections.abc import Collection
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass, field
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, pdl_interp
-from xdsl.ir import Block
+from xdsl.ir import Block, Region, SSAValue, Use
+from xdsl.irdl.dominance import DominanceInfo
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 from xdsl.traits import SymbolTable
+
+
+class FilteredDominanceInfo(DominanceInfo):
+    """
+    A DominanceInfo subclass that filters out finalize blocks from post-dominance computation.
+    This is used to ignore edges that lead to finalize blocks when computing post-dominance.
+    """
+
+    def __init__(
+        self,
+        region: Region,
+        is_finalize_block: Callable[[Block], bool],
+        compute_postdominance: bool = False,
+    ):
+        self.is_finalize_block = is_finalize_block
+        super().__init__(region, compute_postdominance)
+
+    def _get_flow_predecessors(self, block: Block) -> Sequence[Block]:
+        """Override to filter out finalize blocks from successors when computing post-dominance."""
+        if self._is_postdominance:
+            # Filter out successors that are finalize blocks
+            if block.last_op:
+                filtered_successors = [
+                    succ
+                    for succ in block.last_op.successors
+                    if not self.is_finalize_block(succ)
+                ]
+                return filtered_successors
+            else:
+                return []
+        else:
+            # For regular dominance, use the original behavior
+            return block.predecessors()
 
 
 @dataclass(frozen=True)
@@ -29,9 +63,22 @@ class MatcherOptimizer:
     finalize_blocks: set[Block] = field(default_factory=set[Block])
 
     def optimize(self):
-        for gdo in self.matcher.walk():
-            if isinstance(gdo, pdl_interp.GetDefiningOpOp):
-                self.optimize_name_constraints(gdo)
+        changed = True
+        postdominance = None
+        for op in self.matcher.walk(reverse=True):
+            if isinstance(op, pdl_interp.GetDefiningOpOp):
+                # changed = self.optimize_name_constraints(op)
+                ...
+            elif isinstance(op, pdl_interp.AreEqualOp):
+                if changed:
+                    postdominance = FilteredDominanceInfo(
+                        self.matcher.body,
+                        self.is_finalize_block,
+                        compute_postdominance=True,
+                    )
+                    changed = False
+                assert postdominance is not None
+                changed = self.optimize_equality_constraints(op, postdominance)
 
     def optimize_name_constraints(
         self,
@@ -91,6 +138,122 @@ class MatcherOptimizer:
             names,
             gdo,
         )
+
+        return True
+
+    def optimize_equality_constraints(
+        self,
+        are_equal_op: pdl_interp.AreEqualOp,
+        postdominance: DominanceInfo,
+    ) -> bool:
+        if not self.is_finalize_block(are_equal_op.false_dest):
+            # If the false destination is not a finalize block, we cannot optimize this AreEqualOp.
+            return False
+
+        assert (are_equal_block := are_equal_op.parent_block())
+        blocks_to_move = [are_equal_block]
+
+        # We can always pick only one of the predecessors to move up.
+        # Forked paths will never define values that are used after paths
+        # are joined again, since there are no block arguments/phi nodes.
+        # The final destination of the blocks will always be along a
+        # non-split path at the post-dominator frontier:
+        assert (incoming_edge := next(iter(are_equal_block.uses), None)) is not None
+        incoming_edges: list[Use] = [incoming_edge]
+
+        outgoing_edges = [are_equal_op._successor_uses[0]]  # pyright: ignore[reportPrivateUsage]
+
+        block_dependencies: set[SSAValue] = set()
+        for op in are_equal_block.ops:
+            for result in op.operands:
+                block_dependencies.add(result)
+
+        insertion_edge = None
+        while True:
+            should_move_block = False
+            pred = incoming_edge.operation.parent_block()
+            assert pred is not None
+            outgoing_edge = incoming_edge
+            incoming_edge = next(iter(pred.uses), None)
+            if incoming_edge is None:
+                insertion_edge = outgoing_edge
+                break
+            if not postdominance.postdominates(are_equal_block, pred):
+                insertion_edge = outgoing_edge
+                break
+            for op in pred.ops:
+                is_gdo = isinstance(op, pdl_interp.GetDefiningOpOp)
+                for result in op.results:
+                    if result in block_dependencies:
+                        if is_gdo:
+                            # The result of the GDO is used. We can stop iterating and
+                            # will insert the moved blocks after this one.
+                            insertion_edge = outgoing_edge
+                            break
+                        should_move_block = True  # block defines a value that is used by the blocks to move.
+                        continue
+            if insertion_edge is not None:
+                break
+            terminator = pred.last_op
+            assert terminator is not None, "Expected each block to have a terminator"
+            if any(
+                self.is_finalize_block(succ) for succ in terminator.successors
+            ) and any(operand in block_dependencies for operand in terminator.operands):
+                # The block contains a check on one of the values that will be moved,
+                # this means we need to move this block as well.
+                should_move_block = True
+            if not should_move_block:
+                continue
+            blocks_to_move.append(pred)
+            outgoing_edges.append(outgoing_edge)
+            incoming_edges.append(incoming_edge)
+
+        assert insertion_edge is not None
+
+        #  initial    move  2      move  4
+        #  ┌─────┐    ┌─────┐      ┌─────┐
+        #  │0    │    │0    │      │0    │    * blocks_to_move
+        #  └──┬──┘    └──┬──┘      └──┬──┘    < insertion_edge
+        #     │<     ┌───┘┌───┐       │
+        #  ┌──▼──┐   │┌───▼─┐ │    ┌──▼──┐
+        #  │1    │   ││1    │ │<   │2  * │    (While blocks are visually reordered
+        #  └──┬──┘   │└──┬──┘ │    └──┬──┘    in the diagram, they are not moved in
+        #     │      └──┐└───┐│   ┌───┘┌──┐   the block linked list structure. Only
+        #  ┌──▼──┐    ┌─▼───┐││   │┌───▼─┐│   the successor edges are updated.)
+        #  │2  * │    │2  * │││   ││1    ││
+        #  └──┬──┘    └──┬──┘││   │└──┬──┘│
+        #     │          └───┼┘   │   │   │<
+        #  ┌──▼──┐       ┌───┘    │┌──▼──┐│
+        #  │3    │    ┌──▼──┐     ││3    ││
+        #  └──┬──┘    │3    │     │└──┬──┘│
+        #     │       └──┬──┘     │   ▼   │
+        #  ┌──▼──┐       │        └───┐   │
+        #  │4  * │    ┌──▼──┐      ┌──▼──┐│
+        #  └──┬──┘    │4  * │      │4  * ││
+        #     │       └──┬──┘      └──┬──┘│
+        #     ▼          ▼            └───┘
+
+        for block, incoming, outgoing in zip(
+            reversed(blocks_to_move), reversed(incoming_edges), reversed(outgoing_edges)
+        ):
+            assert outgoing.operation.parent_block() is block
+            # print(f"moving block with terminator: {block.last_op}")
+            # print(f"insertion_edge operation: {insertion_edge.operation}")
+            # print(f"incoming operation: {incoming.operation}")
+            # print(f"outgoing operation: {outgoing.operation}")
+            if incoming.operation is insertion_edge.operation:
+                # print("ordering is already correct, skipping")
+                # print()
+                insertion_edge = outgoing
+                continue
+            insertion_dest = insertion_edge.operation.successors[insertion_edge.index]
+            insertion_edge.operation.successors[insertion_edge.index] = block
+            outgoing_dest = outgoing.operation.successors[outgoing.index]
+            outgoing.operation.successors[outgoing.index] = insertion_dest
+            if incoming.operation != insertion_edge.operation:
+                incoming.operation.successors[incoming.index] = outgoing_dest
+            insertion_edge = outgoing.operation._successor_uses[outgoing.index]  # pyright: ignore[reportPrivateUsage]
+            # print()
 
         return True
 
