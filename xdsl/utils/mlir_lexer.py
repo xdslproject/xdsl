@@ -513,13 +513,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             # If the bytes contents are ASCII, return a STRING_LIT
             return MLIRToken(MLIRTokenKind.STRING_LIT, span)
 
-        try:
-            bytes_contents.decode()  # UTF‑8 by default
-            kind = MLIRTokenKind.STRING_LIT
-        except UnicodeDecodeError:
-            kind = MLIRTokenKind.BYTES_LIT
-
-        return MLIRToken(kind, span)
+        return MLIRToken(MLIRTokenKind.BYTES_LIT, span)
 
     _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
     _digits_star_regex = re.compile(r"[0-9]*")
