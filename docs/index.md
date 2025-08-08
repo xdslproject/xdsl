@@ -57,7 +57,7 @@ You're welcome to come up with your own, or do one of the following:
 - `n * x -> x * n` (where `n` is an immediate)
 
 The patterns are defined in
-[xdsl/transforms/canonicalization_patterns/riscv.py](xdsl/transforms/canonicalization_patterns/riscv.py).
+[xdsl/transforms/canonicalization_patterns/riscv.py](https://github.com/xdslproject/xdsl/blob/main/xdsl/transforms/canonicalization_patterns/riscv.py).
 
 We try to put the patterns roughly in the order of the operations that they operate on in the `riscv` dialect definition file:
 [xdsl/dialects/riscv.py](https://github.com/xdslproject/xdsl/blob/main/xdsl/dialects/riscv.py).
