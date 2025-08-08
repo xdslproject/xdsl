@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import (
     Callable,
@@ -39,6 +40,7 @@ from xdsl.utils.str_enum import StrEnum
 if TYPE_CHECKING:
     from typing_extensions import TypeForm
 
+    from xdsl.builder import Builder
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
@@ -974,6 +976,19 @@ class OpTraits(Iterable[OpTrait]):
         return isinstance(value, OpTraits) and self.traits == value.traits
 
 
+@dataclass
+class _ThreadLocalBuilder(threading.local):
+    """
+    Stores the implicit builder for use in ImplicitBuilder, None by default.
+    There is a builder per thread, guaranteed by inheriting from `threading.local`.
+    """
+
+    builder: Builder | None = None
+
+
+current_builder = _ThreadLocalBuilder()
+
+
 @dataclass(eq=False, unsafe_hash=False)
 class Operation(_IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -1166,6 +1181,9 @@ class Operation(_IRNode):
         self.regions = ()
         for region in regions:
             self.add_region(region)
+
+        if (b := current_builder.builder) is not None:
+            b.insert(self)
 
         self.__post_init__()
 

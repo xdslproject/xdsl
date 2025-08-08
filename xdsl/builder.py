@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import contextlib
-import threading
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TypeAlias, overload
@@ -9,7 +8,15 @@ from typing import TypeAlias, overload
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ArrayAttr
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OperationInvT,
+    Region,
+    current_builder,
+)
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
@@ -74,7 +81,7 @@ class Builder(BuilderListener):
         if not ops:
             return ops
 
-        implicit_builder = _current_builder.builder
+        implicit_builder = current_builder.builder
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
                 "Cannot insert operation explicitly when an implicit builder exists."
@@ -252,26 +259,13 @@ class Builder(BuilderListener):
 
     @staticmethod
     def assert_implicit():
-        if _current_builder.builder is None:
+        if current_builder.builder is None:
             raise ValueError(
                 "op_builder must be called within an implicit builder block"
             )
 
 
 # Implicit builders
-
-
-@dataclass
-class _ThreadLocalBuilder(threading.local):
-    """
-    Stores the implicit builder for use in ImplicitBuilder, None by default.
-    There is a builder per thread, guaranteed by inheriting from `threading.local`.
-    """
-
-    builder: Builder | None = None
-
-
-_current_builder = _ThreadLocalBuilder()
 
 
 @contextlib.contextmanager
@@ -311,37 +305,15 @@ def ImplicitBuilder(
         case Builder():
             builder = arg
 
-    old_builder = _current_builder.builder
-    old_post_init = None
-    if old_builder is None:
-        old_post_init = _override_operation_post_init()
-
-    _current_builder.builder = builder
+    old_builder = current_builder.builder
+    current_builder.builder = builder
     try:
         yield builder.insertion_point.block.args
     finally:
-        _current_builder.builder = old_builder
-        if old_builder is None:
-            Operation.__post_init__ = old_post_init  # pyright: ignore[reportAttributeAccessIssue]
+        current_builder.builder = old_builder
 
 
 _CallableRegionFuncType: TypeAlias = Callable[
     [Builder, tuple[BlockArgument, ...]], None
 ]
 _CallableImplicitRegionFuncType: TypeAlias = Callable[[tuple[BlockArgument, ...]], None]
-
-
-def _op_init_callback(op: Operation):
-    if (b := _current_builder.builder) is not None:
-        b.insert(op)
-
-
-def _override_operation_post_init() -> Callable[[Operation], None]:
-    old_post_init = Operation.__post_init__
-
-    def new_post_init(self: Operation) -> None:
-        old_post_init(self)
-        _op_init_callback(self)
-
-    Operation.__post_init__ = new_post_init
-    return old_post_init
