@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
@@ -93,7 +93,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # TODO: Implement assignemnt in the next patch.
         pass
 
-    def visit_Assert(self, node: ast.Assert):
+    def visit_Assert(self, node: ast.Assert) -> None:
         self.visit(node.test)
         if node.msg is None:
             msg = ""
@@ -116,7 +116,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # TODO: Implement assignemnt in the next patch.
         pass
 
-    def visit_BinOp(self, node: ast.BinOp):
+    def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
 
         # Table with mappings of Python AST operator to Python methods.
@@ -192,7 +192,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             f"which does not overload '{overload_name}'.",
         )
 
-    def visit_Call(self, node: ast.Call):
+    def visit_Call(self, node: ast.Call) -> None:
         # Resolve function
         assert isinstance(node.func, ast.Name)
         func_name = node.func.id
@@ -250,7 +250,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         self.inserter.insert_op(ir_op(*args, **kwargs))
 
-    def visit_Compare(self, node: ast.Compare):
+    def visit_Compare(self, node: ast.Compare) -> None:
         # Allow a single comparison only.
         if len(node.comparators) != 1 or len(node.ops) != 1:
             raise CodeGenerationException(
@@ -338,10 +338,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             f"which does not overload '{python_op}'.",
         )
 
-    def visit_Expr(self, node: ast.Expr):
+    def visit_Expr(self, node: ast.Expr) -> None:
         self.visit(node.value)
 
-    def visit_For(self, node: ast.For):
+    def visit_For(self, node: ast.For) -> None:
         raise NotImplementedError("For loops are currently not supported!")
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
@@ -415,7 +415,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         assert parent_op is not None
         self.inserter.set_insertion_point_from_op(parent_op)
 
-    def visit_If(self, node: ast.If):
+    def visit_If(self, node: ast.If) -> None:
         # Get the condition.
         self.visit(node.test)
         cond = self.inserter.get_operand()
@@ -443,7 +443,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_block(cond_block)
         self.inserter.insert_op(op)
 
-    def visit_IfExp(self, node: ast.IfExp) -> Any:
+    def visit_IfExp(self, node: ast.IfExp) -> None:
         self.visit(node.test)
         cond = self.inserter.get_operand()
         cond_block = self.inserter.insertion_point
@@ -475,7 +475,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_block(cond_block)
         self.inserter.insert_op(op)
 
-    def visit_Name(self, node: ast.Name):
+    def visit_Name(self, node: ast.Name) -> None:
         fetch_op = symref.FetchOp(node.id, self.get_symbol(node))
         self.inserter.insert_op(fetch_op)
 
