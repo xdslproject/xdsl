@@ -14,7 +14,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) outs(%C : memref<4x3xf64>) {
-^0(%a : f64, %b : f64, %acc_old : f64):
+^bb0(%a : f64, %b : f64, %acc_old : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     memref_stream.yield %acc_new : f64
@@ -29,7 +29,7 @@ memref_stream.generic {
 // CHECK-NEXT:      ],
 // CHECK-NEXT:      iterator_types = ["parallel", "parallel", "reduction"]
 // CHECK-NEXT:    } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) outs(%C : memref<4x3xf64>) {
-// CHECK-NEXT:    ^0(%a : f64, %b : f64, %acc_old : f64):
+// CHECK-NEXT:    ^bb0(%a : f64, %b : f64, %acc_old : f64):
 // CHECK-NEXT:      %prod = arith.mulf %a, %b : f64
 // CHECK-NEXT:      %acc_new = arith.addf %acc_old, %prod : f64
 // CHECK-NEXT:      memref_stream.yield %acc_new : f64
@@ -47,7 +47,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"]
 } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) outs(%Z : memref<1x1x6x6xf64>) {
-^0(%x : f64, %y : f64, %acc : f64):
+^bb0(%x : f64, %y : f64, %acc : f64):
     %prod = arith.mulf %x, %y fastmath<fast> : f64
     %res = arith.addf %prod, %acc fastmath<fast> : f64
     memref_stream.yield %res : f64
@@ -62,7 +62,7 @@ memref_stream.generic {
 // CHECK-NEXT:      ],
 // CHECK-NEXT:      iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"]
 // CHECK-NEXT:    } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) outs(%Z : memref<1x1x6x6xf64>) {
-// CHECK-NEXT:    ^1(%x : f64, %y : f64, %acc : f64):
+// CHECK-NEXT:    ^bb1(%x : f64, %y : f64, %acc : f64):
 // CHECK-NEXT:      %prod_1 = arith.mulf %x, %y fastmath<fast> : f64
 // CHECK-NEXT:      %res = arith.addf %prod_1, %acc fastmath<fast> : f64
 // CHECK-NEXT:      memref_stream.yield %res : f64

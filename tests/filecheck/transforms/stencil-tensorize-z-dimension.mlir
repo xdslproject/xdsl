@@ -8,7 +8,7 @@ builtin.module {
     %1 = "stencil.load"(%0) : (!stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> !stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>
     %2 = "stencil.external_load"(%b) : (memref<1024x512x512xf32>) -> !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>
     %3 = "stencil.apply"(%1)  <{operandSegmentSizes = array<i32: 1, 0>}> ({
-    ^0(%4 : !stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>):
+    ^bb0(%4 : !stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>):
       %5 = arith.constant 1.666600e-01 : f32
       %6 = "stencil.access"(%4) {"offset" = #stencil.index<[1, 0, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
       %7 = "stencil.access"(%4) {"offset" = #stencil.index<[-1, 0, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
@@ -62,7 +62,7 @@ builtin.module {
   func.func @gauss_seidel_func(%a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>, %b : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) {
     %0 = "stencil.load"(%a) : (!stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> !stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>
     %1 = "stencil.apply"(%0) <{operandSegmentSizes = array<i32: 1, 0>}>  ({
-    ^0(%2 : !stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>):
+    ^bb0(%2 : !stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>):
       %3 = arith.constant 1.666600e-01 : f32
       %4 = "stencil.access"(%2) {"offset" = #stencil.index<[1, 0, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
       %5 = "stencil.access"(%2) {"offset" = #stencil.index<[-1, 0, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32

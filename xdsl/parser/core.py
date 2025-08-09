@@ -186,7 +186,7 @@ class Parser(AttrParser):
             self.forward_block_references[name].append(block_name)
             block = Block()
             if Block.is_valid_name(name) and not Block._is_default_block_name(name):  # pyright: ignore[reportPrivateUsage]
-                block.name_hint = name
+                block.name_hint = name  # setter verifies validity
             self.blocks[name] = (block, None)
         return self.blocks[name][0]
 
@@ -252,8 +252,8 @@ class Parser(AttrParser):
             self.forward_block_references.pop(name)
 
         # Don't set name_hint for blocks that match the default pattern
-        if Block.is_valid_name(name) and not Block._is_default_block_name(name):  # pyright: ignore[reportPrivateUsage]
-            block.name_hint = name
+        if not Block._is_default_block_name(name):  # pyright: ignore[reportPrivateUsage]
+            block.name_hint = name  # setter verifies validity
         # If it matches pattern "bb" followed by digits, leave name_hint as None
 
         self._parse_optional_block_arg_list(block)
@@ -916,8 +916,8 @@ class Parser(AttrParser):
         if name not in self.blocks:
             self.forward_block_references[name].append(block_token.span)
             block = Block()
-            if Block.is_valid_name(name):
-                block.name_hint = name
+            if not Block._is_default_block_name(name):  # pyright: ignore[reportPrivateUsage]
+                block.name_hint = name  # setter verifies validity
             self.blocks[name] = (block, None)
         return self.blocks[name][0]
 
