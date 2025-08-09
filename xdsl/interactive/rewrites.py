@@ -5,6 +5,7 @@ from xdsl.interactive.passes import AvailablePass
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.traits import HasCanonicalizationPatternsTrait
 from xdsl.transforms import individual_rewrite
+from xdsl.utils.op_selector import OpSelector
 
 
 def get_all_possible_rewrites(module: ModuleOp) -> Sequence[AvailablePass]:
@@ -25,8 +26,10 @@ def get_all_possible_rewrites(module: ModuleOp) -> Sequence[AvailablePass]:
             for pattern in trait.get_canonicalization_patterns()
         }
 
+        selector = OpSelector(op_idx, matched_op.name)
+
         for pattern_name, pattern in pattern_by_name.items():
-            cloned_op = tuple(module.clone().walk())[op_idx]
+            cloned_op = selector.get_op(module.clone())
             rewriter = PatternRewriter(cloned_op)
             pattern.match_and_rewrite(cloned_op, rewriter)
             if rewriter.has_done_action:
