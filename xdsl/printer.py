@@ -183,7 +183,7 @@ class Printer(BasePrinter):
         Print a block name in the printer. This assigns a name to the block if the block
         does not have one in the current printing context.
         If the block has a name hint, it will use it as a prefix, and otherwise assign
-        a number as the name. Numbers are assigned in order.
+        "bb" followed by a number as the name. Numbers are assigned in order.
 
         Returns the name used for printing the block.
         """
@@ -196,7 +196,7 @@ class Printer(BasePrinter):
             self._blocks[block] = name
             self.block_names[block.name_hint] = curr_ind + 1
         else:
-            name = str(self._get_new_valid_block_id())
+            name = f"bb{self._get_new_valid_block_id()}"
             self._blocks[block] = name
 
         self.print_string(f"^{name}")

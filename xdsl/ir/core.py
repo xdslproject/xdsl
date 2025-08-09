@@ -1664,6 +1664,11 @@ class Block(_IRNode, IRWithUses):
 
     _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
 
+    @staticmethod
+    def _is_default_block_name(name: str) -> bool:
+        """Check if a name matches the default block naming pattern (bb followed by digits)."""
+        return name.startswith("bb") and name[2:].isdigit() and name[2:] != ""
+
     @property
     def name_hint(self) -> str | None:
         return self._name

@@ -177,7 +177,7 @@ class Parser(AttrParser):
 
     def _get_block_from_name(self, block_name: Span) -> Block:
         """
-        This function takes a span containing a block id (like `^42`) and returns a block.
+        This function takes a span containing a block id (like `^bb42`) and returns a block.
 
         If the block definition was not seen yet, we create a forward declaration.
         """
@@ -185,7 +185,7 @@ class Parser(AttrParser):
         if name not in self.blocks:
             self.forward_block_references[name].append(block_name)
             block = Block()
-            if Block.is_valid_name(name):
+            if Block.is_valid_name(name) and not Block._is_default_block_name(name):  # pyright: ignore[reportPrivateUsage]
                 block.name_hint = name
             self.blocks[name] = (block, None)
         return self.blocks[name][0]
@@ -251,8 +251,10 @@ class Parser(AttrParser):
                 )
             self.forward_block_references.pop(name)
 
-        if Block.is_valid_name(name):
+        # Don't set name_hint for blocks that match the default pattern
+        if Block.is_valid_name(name) and not Block._is_default_block_name(name):  # pyright: ignore[reportPrivateUsage]
             block.name_hint = name
+        # If it matches pattern "bb" followed by digits, leave name_hint as None
 
         self._parse_optional_block_arg_list(block)
         self.parse_punctuation(":")
