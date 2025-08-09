@@ -40,7 +40,7 @@ from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
 )
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
@@ -74,6 +74,7 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     IsTerminator,
     MemoryReadEffect,
+    MemoryWriteEffect,
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -110,6 +111,8 @@ class X86AsmOperation(
     """
     Base class for operations that can be a part of x86 assembly printing.
     """
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     @abstractmethod
     def assembly_line(self) -> str | None:
@@ -375,6 +378,8 @@ class RM_Operation(
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         register_in: Operation | SSAValue,
@@ -613,7 +618,11 @@ class MS_Operation(
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     source = operand_def(R2InvT)
 
-    traits = traits_def(MS_OperationHasCanonicalizationPatterns())
+    traits = traits_def(
+        MS_OperationHasCanonicalizationPatterns(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+    )
 
     def __init__(
         self,
@@ -663,6 +672,8 @@ class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     immediate = attr_def(IntegerAttr)
+
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,
@@ -779,6 +790,7 @@ class DMI_Operation(
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     immediate = attr_def(IntegerAttr)
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
@@ -840,6 +852,7 @@ class M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC
 
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
     def __init__(
         self,
