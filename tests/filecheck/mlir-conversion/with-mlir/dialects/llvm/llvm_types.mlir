@@ -1,7 +1,6 @@
-// RUN: mlir-opt %s --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt --print-op-generic | filecheck %s
+// RUN: MLIR_GENERIC_ROUNDTRIP
 
-"builtin.module"() ({
-  // CHECK:   "builtin.module"() ({
+  // CHECK:   builtin.module {
 
   // Type tests
 
@@ -24,5 +23,3 @@
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> !llvm.func<void ()>
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> !llvm.func<i32 (i32, i32)>
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> !llvm.func<i32 (i32, ...)>
-
-}) : () -> ()
