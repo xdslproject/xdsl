@@ -641,6 +641,10 @@ class IRWithUses(ABC):
         return None
 
 
+_name_regex = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
+_name_cleanup_pattern = re.compile(r"(_\d+)+$")
+
+
 @dataclass(eq=False)
 class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
     """
@@ -652,8 +656,6 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
     """Each SSA variable is associated to a type."""
 
     _name: str | None = field(init=False, default=None)
-
-    _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
 
     @property
     def type(self) -> AttributeCovT:
@@ -678,8 +680,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         if SSAValue.is_valid_name(name):
             # Remove `_` followed by numbers at the end of the name
             if name is not None:
-                r1 = re.compile(r"(_\d+)+$")
-                if match := r1.search(name):
+                if match := _name_cleanup_pattern.search(name):
                     name = name[: match.start()]
             self._name = name
         else:
@@ -690,7 +691,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
     @classmethod
     def is_valid_name(cls, name: str | None):
-        return name is None or cls._name_regex.fullmatch(name)
+        return name is None or _name_regex.fullmatch(name)
 
     @staticmethod
     def get(
@@ -1662,8 +1663,6 @@ class Block(_IRNode, IRWithUses):
 
     _name: str | None = field(init=False, default=None)
 
-    _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
-
     @staticmethod
     def _is_default_block_name(name: str) -> bool:
         """Check if a name matches the default block naming pattern (bb followed by digits)."""
@@ -1679,19 +1678,18 @@ class Block(_IRNode, IRWithUses):
         if Block.is_valid_name(name):
             # Remove `_` followed by numbers at the end of the name
             if name is not None:
-                r1 = re.compile(r"(_\d+)+$")
-                if match := r1.search(name):
+                if match := _name_cleanup_pattern.search(name):
                     name = name[: match.start()]
             self._name = name
         else:
             raise ValueError(
-                "Invalid Block name format!",
-                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
+                "Invalid Block name format.",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number.",
             )
 
     @classmethod
     def is_valid_name(cls, name: str | None):
-        return name is None or cls._name_regex.fullmatch(name)
+        return name is None or _name_regex.fullmatch(name)
 
     def __init__(
         self,
