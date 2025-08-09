@@ -5,10 +5,10 @@
   // Sum elements of a vector
 
   "func.func"() ({
-  ^0(%ref : memref<128xi32>):
+  ^bb0(%ref : memref<128xi32>):
     %const0 = "arith.constant"() {"value" = 0 : i32} : () -> i32
     %r = "affine.for"(%const0) <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
-    ^1(%i : index, %sum : i32):
+    ^bb1(%i : index, %sum : i32):
       %val = "memref.load"(%ref, %i) : (memref<128xi32>, index) -> i32
       %res = "arith.addi"(%sum, %val) : (i32, i32) -> i32
       "affine.yield"(%res) : (i32) -> ()
@@ -31,13 +31,13 @@
   // Matrix multiplication
 
   "func.func"() ({
-  ^2(%0 : memref<256x256xf32>, %1 : memref<256x256xf32>, %2 : memref<256x256xf32>):
+  ^bb2(%0 : memref<256x256xf32>, %1 : memref<256x256xf32>, %2 : memref<256x256xf32>):
     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-    ^3(%3 : index):
+    ^bb3(%3 : index):
       "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-      ^4(%4 : index):
+      ^bb4(%4 : index):
         "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-        ^5(%5 : index):
+        ^bb5(%5 : index):
           %6 = "memref.load"(%0, %3, %5) : (memref<256x256xf32>, index, index) -> f32
           %7 = "memref.load"(%1, %5, %4) : (memref<256x256xf32>, index, index) -> f32
           %8 = "memref.load"(%2, %3, %4) : (memref<256x256xf32>, index, index) -> f32

@@ -11,7 +11,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "reduction", "parallel"]
 } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) outs(%C : memref<4x3xf64>) {
-^0(%a : f64, %b : f64, %acc_old : f64):
+^bb0(%a : f64, %b : f64, %acc_old : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     memref_stream.yield %acc_new : f64
@@ -32,7 +32,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "interleaved", "reduction"]
 } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) outs(%C : memref<4x3xf64>) {
-^0(%a : f64, %b : f64, %acc_old : f64):
+^bb0(%a : f64, %b : f64, %acc_old : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     memref_stream.yield %acc_new : f64
@@ -53,7 +53,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "interleaved", "interleaved"]
 } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) outs(%C : memref<4x3xf64>) {
-^0(%a : f64, %b : f64, %acc_old : f64):
+^bb0(%a : f64, %b : f64, %acc_old : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     memref_stream.yield %acc_new : f64
@@ -73,7 +73,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) outs(%C : memref<4x3xf64>) {
-^0(%a : f64, %b : f64, %acc_old : f64):
+^bb0(%a : f64, %b : f64, %acc_old : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     memref_stream.yield %acc_new : f64
@@ -94,7 +94,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) outs(%C : memref<4x3xf64>) {
-^0(%a : f64, %b : f64, %acc_old : f64):
+^bb0(%a : f64, %b : f64, %acc_old : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     memref_stream.yield %acc_new : f64
@@ -115,7 +115,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) outs(%C : memref<4x3xf64>) {
-^0(%a : f64, %b : f64, %acc_old : f64):
+^bb0(%a : f64, %b : f64, %acc_old : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     memref_stream.yield %acc_new : f64
@@ -137,7 +137,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) outs(%C, %D : memref<4x3xf64>, memref<4x3xf64>) {
-^0(%a : f64, %b : f64, %acc_old0 : f64, %acc_old1 : f64):
+^bb0(%a : f64, %b : f64, %acc_old0 : f64, %acc_old1 : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new0 = arith.addf %acc_old0, %prod : f64
     %acc_new1 = arith.addf %acc_old1, %prod : f64
@@ -158,7 +158,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%A: memref<4x2xf64>) outs(%C: memref<4x3xf64>) {
-^0(%a : f64, %b : f64, %acc_old0 : f64, %acc_old1 : f64):
+^bb0(%a : f64, %b : f64, %acc_old0 : f64, %acc_old1 : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new0 = arith.addf %acc_old0, %prod : f64
     %acc_new1 = arith.addf %acc_old1, %prod : f64
@@ -179,7 +179,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%A: memref<4x2xf64>) outs(%C: memref<4x3xf64>) {
-^0(%a : f64, %b : f64, %acc_old0 : f64, %acc_old1 : f64):
+^bb0(%a : f64, %b : f64, %acc_old0 : f64, %acc_old1 : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new0 = arith.addf %acc_old0, %prod : f64
     %acc_new1 = arith.addf %acc_old1, %prod : f64
@@ -200,7 +200,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "reduction", "interleaved"]
 } ins(%A: memref<4x3xf64>) outs(%C: memref<4x2xf64>) {
-^0(%a0 : f64, %a1 : f64, %acc_old0 : f64, %acc_old1 : f64, %extra : f64):
+^bb0(%a0 : f64, %a1 : f64, %acc_old0 : f64, %acc_old1 : f64, %extra : f64):
     %acc_new0 = arith.addf %acc_old0, %a0 : f64
     %acc_new1 = arith.addf %acc_old1, %a1 : f64
     memref_stream.yield %acc_new0, %acc_new1 : f64, f64

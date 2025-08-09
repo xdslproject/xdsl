@@ -83,7 +83,7 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK:        module {
 // CHECK-NEXT:    %{{.*}} %{{.*}} = "test.op"() : () -> (f32, memref<1x256xf32>)
 // CHECK-NEXT:    linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%{{.*}} : f32) outs(%{{.*}} : memref<1x256xf32>) {
-// CHECK-NEXT:    ^0(%{{.*}} f32, %{{.*}} f32):
+// CHECK-NEXT:    ^bb0(%{{.*}} f32, %{{.*}} f32):
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
 // CHECK-NEXT:    }
 // CHECK-NEXT:    linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%{{.*}} : f32) outs(%{{.*}} : memref<1x256xf32>) {

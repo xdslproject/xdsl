@@ -385,7 +385,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:      %20 = arith.constant 66 : index
 // MLIR-NEXT:      %21 = arith.constant 64 : index
 // MLIR-NEXT:      "scf.parallel"(%13, %14, %15, %19, %20, %21, %16, %17, %18) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
-// MLIR-NEXT:      ^0(%22 : index, %23 : index, %24 : index):
+// MLIR-NEXT:      ^bb0(%22 : index, %23 : index, %24 : index):
 // MLIR-NEXT:        %cst = arith.constant 1.000000e+00 : f64
 // MLIR-NEXT:        %cst_1 = arith.constant 7.000000e+00 : f64
 // MLIR-NEXT:        %cst_2 = arith.constant 1.200000e+01 : f64
@@ -419,7 +419,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:      %49 = arith.constant 65 : index
 // MLIR-NEXT:      %50 = arith.constant 64 : index
 // MLIR-NEXT:      "scf.parallel"(%42, %43, %44, %48, %49, %50, %45, %46, %47) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
-// MLIR-NEXT:      ^1(%51 : index, %52 : index, %53 : index):
+// MLIR-NEXT:      ^bb1(%51 : index, %52 : index, %53 : index):
 // MLIR-NEXT:        %cst_3 = arith.constant 0.000000e+00 : f64
 // MLIR-NEXT:        %cst_4 = arith.constant 1.000000e+00 : f64
 // MLIR-NEXT:        %54 = memref.load %arg8[%51, %52, %53] : memref<64x67x64xf64, strided<[4288, 64, 1], offset: 64>>
@@ -449,7 +449,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:      %72 = arith.constant 65 : index
 // MLIR-NEXT:      %73 = arith.constant 64 : index
 // MLIR-NEXT:      "scf.parallel"(%65, %66, %67, %71, %72, %73, %68, %69, %70) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
-// MLIR-NEXT:      ^2(%74 : index, %75 : index, %76 : index):
+// MLIR-NEXT:      ^bb2(%74 : index, %75 : index, %76 : index):
 // MLIR-NEXT:        %cst_5 = arith.constant 0.000000e+00 : f64
 // MLIR-NEXT:        %cst_6 = arith.constant 1.000000e+00 : f64
 // MLIR-NEXT:        %77 = arith.constant -1 : index
@@ -508,7 +508,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:      %119 = arith.constant 65 : index
 // MLIR-NEXT:      %120 = arith.constant 64 : index
 // MLIR-NEXT:      "scf.parallel"(%112, %113, %114, %118, %119, %120, %115, %116, %117) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
-// MLIR-NEXT:      ^3(%121 : index, %122 : index, %123 : index):
+// MLIR-NEXT:      ^bb3(%121 : index, %122 : index, %123 : index):
 // MLIR-NEXT:        %124 = memref.load %11[%121, %122, %123] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        %125 = memref.load %arg8_1[%121, %122, %123] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        %126 = arith.mulf %124, %125 : f64
@@ -525,7 +525,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:      %134 = arith.constant 64 : index
 // MLIR-NEXT:      %135 = arith.constant 64 : index
 // MLIR-NEXT:      "scf.parallel"(%127, %128, %129, %133, %134, %135, %130, %131, %132) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
-// MLIR-NEXT:      ^4(%136 : index, %137 : index, %138 : index):
+// MLIR-NEXT:      ^bb4(%136 : index, %137 : index, %138 : index):
 // MLIR-NEXT:        %139 = memref.load %8[%136, %137, %138] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        %140 = memref.load %12[%136, %137, %138] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        %141 = arith.mulf %139, %140 : f64

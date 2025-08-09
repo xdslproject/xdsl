@@ -5,12 +5,12 @@
     // For without value being passed during iterations
 
     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-    ^0(%i : index):
+    ^bb0(%i : index):
       "affine.yield"() : () -> ()
     }) : () -> ()
 
     // CHECK:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, upperBoundMap = affine_map<() -> (256)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-    // CHECK-NEXT: ^0(%{{.*}} : index):
+    // CHECK-NEXT: ^bb0(%{{.*}} : index):
     // CHECK-NEXT:   "affine.yield"() : () -> ()
     // CHECK-NEXT: }) : () -> ()
 
@@ -19,24 +19,24 @@
 
     %init_value = "test.op"() : () -> !test.type<"int">
     %res = "affine.for"(%init_value) <{"lowerBoundMap" = affine_map<() -> (-10)>, "upperBoundMap" = affine_map<() -> (10)>, "step" = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
-    ^1(%i : index, %step_value : !test.type<"int">):
+    ^bb1(%i : index, %step_value : !test.type<"int">):
       %next_value = "test.op"() : () -> !test.type<"int">
       "affine.yield"(%next_value) : (!test.type<"int">) -> ()
     }) : (!test.type<"int">) -> (!test.type<"int">)
     %00 = "test.op"() : () -> index
     %N = "test.op"() : () -> index
     %res2 = "affine.for"(%00, %N, %init_value) <{"lowerBoundMap" = affine_map<(d0) -> (d0)>, "upperBoundMap" = affine_map<()[s0] -> (s0)>, "step" = 1 : index, operandSegmentSizes = array<i32: 1, 1, 1>}> ({
-    ^1(%i : index, %step_value : !test.type<"int">):
+    ^bb1(%i : index, %step_value : !test.type<"int">):
       %next_value = "test.op"() : () -> !test.type<"int">
       "affine.yield"(%next_value) : (!test.type<"int">) -> ()
     }) : (index, index, !test.type<"int">) -> (!test.type<"int">)
     "affine.parallel"(%N) <{"lowerBoundsMap" = affine_map<() -> (0)>, "lowerBoundsGroups" = dense<1> : vector<1xi32>, "upperBoundsMap" = affine_map<()[s0] -> (s0)>, "upperBoundsGroups" = dense<1> : vector<1xi32>, "steps" = [1 : i64], "reductions" = []}> ({
-    ^1(%i : index):
+    ^bb1(%i : index):
       "affine.yield"() : () -> ()
     }) : (index) -> ()
 
     // CHECK:      %res = "affine.for"(%{{.*}}) <{lowerBoundMap = affine_map<() -> (-10)>, upperBoundMap = affine_map<() -> (10)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
-    // CHECK-NEXT: ^1(%{{.*}} : index, %{{.*}} : !test.type<"int">):
+    // CHECK-NEXT: ^bb1(%{{.*}} : index, %{{.*}} : !test.type<"int">):
     // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> !test.type<"int">
     // CHECK-NEXT:   "affine.yield"(%{{.*}}) : (!test.type<"int">) -> ()
     // CHECK-NEXT: }) : (!test.type<"int">) -> !test.type<"int">
@@ -66,7 +66,7 @@
 
     func.func @empty() {
     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
-    ^2(%arg0 : index):
+    ^bb2(%arg0 : index):
       "affine.yield"() : () -> ()
     }) : () -> ()
     "affine.if"() <{condition = affine_set<() : (0 == 0)>}> ({

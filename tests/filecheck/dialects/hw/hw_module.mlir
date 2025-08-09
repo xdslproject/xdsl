@@ -71,7 +71,7 @@ hw.module.extern @extern(in %foo: i32, in %bar "hello": i16, out baz: i8)
 // CHECK-GENERIC-NEXT:   "hw.output"(%{{[^ ]*}}, %{{[^ ]*}}) : (i1, i1) -> ()
 // CHECK-GENERIC-NEXT: }) {sym_name = "generic_basic", module_type = !hw.modty<input a : i1, output nameOfPortInSV : i1, output "" : i1, input customName : i1, input "very custom name" : i32>, parameters = []} : () -> ()
 "hw.module"() ({
-  ^0(%a_foo : i1, %b : i1, %c: i32):
+  ^bb0(%a_foo : i1, %b : i1, %c: i32):
     "hw.output"(%a_foo, %b) : (i1, i1) -> ()
   }) {
     "sym_name" = "generic_basic",

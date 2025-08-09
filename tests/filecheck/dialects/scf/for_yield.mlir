@@ -7,7 +7,7 @@
   %carried = "arith.constant"() {"value" = 255 : i8} : () -> i8
   "scf.for"(%lb, %ub, %step, %carried) ({
 // CHECK: scf.yield expected 1 args, but got 0. The scf.for must yield its loop-carried variables
-  ^0(%iv : index, %carried_arg : i8):
+  ^bb0(%iv : index, %carried_arg : i8):
     "scf.yield"() : () -> ()
   }) : (index, index, index, i8) -> ()
 }) : () -> ()

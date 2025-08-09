@@ -13,7 +13,7 @@
     ],
     operandSegmentSizes = array<i32: 2, 1>
 }> ({
-^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
+^bb0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
     "test.op"() : () -> ()
 }) : (!riscv.reg, !riscv.reg, !riscv.reg) -> ()
 // CHECK-NEXT:  %{{.*}} = riscv.li 2 : !riscv.reg
@@ -85,7 +85,7 @@
     ],
     operandSegmentSizes = array<i32: 1, 1>
 }> ({
-^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.writable<!riscv.freg<ft1>>):
+^bb0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.writable<!riscv.freg<ft1>>):
     "test.op"() : () -> ()
 }) : (!riscv.reg, !riscv.reg) -> ()
 

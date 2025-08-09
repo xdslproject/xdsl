@@ -72,12 +72,12 @@ def test_uses_methods():
 
 test_prog_blocks = """
 "test.op"() ({
-  "test.termop"() [^0, ^1] : () -> ()
-^0:
-  "test.termop"()[^2] : () -> ()
-^1:
-  "test.termop"()[^2] : () -> ()
-^2:
+  "test.termop"() [^bb0, ^bb1] : () -> ()
+^bb0:
+  "test.termop"()[^bb2] : () -> ()
+^bb1:
+  "test.termop"()[^bb2] : () -> ()
+^bb2:
   "test.termop"() : () -> ()
 }) : () -> ()
 """

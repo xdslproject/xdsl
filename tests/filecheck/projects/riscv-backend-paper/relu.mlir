@@ -11,7 +11,7 @@ builtin.module {
         linalg.generic {
             indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]
         } ins(%A : memref<2x3xf64>) outs(%B : memref<2x3xf64>) {
-        ^0(%a : f64, %b : f64):
+        ^bb0(%a : f64, %b : f64):
             %res = arith.maximumf %a, %zero : f64
             linalg.yield %res : f64
         }

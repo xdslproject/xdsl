@@ -2332,8 +2332,8 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
             '"test.empty_region_group"() ({}) : () -> ()',
         ),
         (
-            "test.empty_region_group keyword {\n^0:\n}",
-            '"test.empty_region_group"() ({^0:}) : () -> ()',
+            "test.empty_region_group keyword {\n^bb0:\n}",
+            '"test.empty_region_group"() ({^bb0:}) : () -> ()',
         ),
         (
             'test.empty_region_group keyword {\n  "test.op"() : () -> ()\n}',
@@ -2398,18 +2398,18 @@ def test_successors():
     program = textwrap.dedent(
         """\
         "test.op"() ({
-          "test.op"() [^0] : () -> ()
-        ^0:
-          test.two_successors ^0 ^0
+          "test.op"() [^bb0] : () -> ()
+        ^bb0:
+          test.two_successors ^bb0 ^bb0
         }) : () -> ()"""
     )
 
     generic_program = textwrap.dedent(
         """\
         "test.op"() ({
-          "test.op"() [^0] : () -> ()
-        ^0:
-          "test.two_successors"() [^0, ^0] : () -> ()
+          "test.op"() [^bb0] : () -> ()
+        ^bb0:
+          "test.two_successors"() [^bb0, ^bb0] : () -> ()
         }) : () -> ()"""
     )
 
@@ -2433,12 +2433,12 @@ def test_successors():
     "program, generic_program",
     [
         (
-            '"test.op"() ({\n  "test.op"() [^0] : () -> ()\n^0:\n  test.var_successor\n}) : () -> ()',
+            '"test.op"() ({\n  "test.op"() [^bb0] : () -> ()\n^bb0:\n  test.var_successor\n}) : () -> ()',
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^0] : () -> ()
-                ^0:
+                  "test.op"() [^bb0] : () -> ()
+                ^bb0:
                   "test.var_successor"() : () -> ()
                 }) : () -> ()"""
             ),
@@ -2447,17 +2447,17 @@ def test_successors():
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^0] : () -> ()
-                ^0:
-                  test.var_successor ^0
+                  "test.op"() [^bb0] : () -> ()
+                ^bb0:
+                  test.var_successor ^bb0
                 }) : () -> ()"""
             ),
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^0] : () -> ()
-                ^0:
-                  "test.var_successor"() [^0] : () -> ()
+                  "test.op"() [^bb0] : () -> ()
+                ^bb0:
+                  "test.var_successor"() [^bb0] : () -> ()
                 }) : () -> ()"""
             ),
         ),
@@ -2465,17 +2465,17 @@ def test_successors():
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^0] : () -> ()
-                ^0:
-                  test.var_successor ^0, ^0
+                  "test.op"() [^bb0] : () -> ()
+                ^bb0:
+                  test.var_successor ^bb0, ^bb0
                 }) : () -> ()"""
             ),
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^0] : () -> ()
-                ^0:
-                  "test.var_successor"() [^0, ^0] : () -> ()
+                  "test.op"() [^bb0] : () -> ()
+                ^bb0:
+                  "test.var_successor"() [^bb0, ^bb0] : () -> ()
                 }) : () -> ()"""
             ),
         ),
@@ -2503,12 +2503,12 @@ def test_variadic_successor(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            '"test.op"() ({\n  "test.op"() [^0] : () -> ()\n^0:\n  test.opt_successor\n}) : () -> ()',
+            '"test.op"() ({\n  "test.op"() [^bb0] : () -> ()\n^bb0:\n  test.opt_successor\n}) : () -> ()',
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^0] : () -> ()
-                ^0:
+                  "test.op"() [^bb0] : () -> ()
+                ^bb0:
                   "test.opt_successor"() : () -> ()
                 }) : () -> ()"""
             ),
@@ -2517,17 +2517,17 @@ def test_variadic_successor(program: str, generic_program: str):
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^0] : () -> ()
-                ^0:
-                  test.opt_successor ^0
+                  "test.op"() [^bb0] : () -> ()
+                ^bb0:
+                  test.opt_successor ^bb0
                 }) : () -> ()"""
             ),
             textwrap.dedent(
                 """\
                 "test.op"() ({
-                  "test.op"() [^0] : () -> ()
-                ^0:
-                  "test.opt_successor"() [^0] : () -> ()
+                  "test.op"() [^bb0] : () -> ()
+                ^bb0:
+                  "test.opt_successor"() [^bb0] : () -> ()
                 }) : () -> ()"""
             ),
         ),
@@ -3943,4 +3943,4 @@ def test_ref_directives():
     ctx = Context()
     ctx.load_op(RefDirectivesOp)
     ctx.load_dialect(Test)
-    check_roundtrip("%0 = test.ref_directives %1 i1 i2 i3 i4 {\n} ^0", ctx)
+    check_roundtrip("%0 = test.ref_directives %1 i1 i2 i3 i4 {\n} ^bb0", ctx)

@@ -315,11 +315,11 @@ def _(Parser, ctx, xmo):
     switch_ir = """\
     riscv_func.func @switch(%a : !riscv.reg<a0>, %b : !riscv.reg<a1>, %c : !riscv.reg<a2>) -> !riscv.reg<a0> {
       %zero = riscv.get_register : !riscv.reg<zero>
-      riscv_cf.beq %a : !riscv.reg<a0>, %zero : !riscv.reg<zero>, ^2(), ^1()
-    ^1():
+      riscv_cf.beq %a : !riscv.reg<a0>, %zero : !riscv.reg<zero>, ^bb2(), ^bb1()
+    ^bb1():
       %res_b = riscv.mv %b : (!riscv.reg<a1>) -> !riscv.reg<a0>
       riscv_func.return %res_b : !riscv.reg<a0>
-    ^2():
+    ^bb2():
       riscv.label "c_label"
       %res_c = riscv.mv %c : (!riscv.reg<a2>) -> !riscv.reg<a0>
       riscv_func.return %res_c : !riscv.reg<a0>
@@ -436,23 +436,23 @@ def _(mo):
     fib_editor = mo.ui.code_editor("""\
     riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
       %zero = riscv.get_register : !riscv.reg<zero>
-      riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^4(), ^1()
-    ^1():
+      riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^bb4(), ^bb1()
+    ^bb1():
       %a_init = riscv.li 1 : !riscv.reg<a2>
       %b_init = riscv.li 1 : !riscv.reg<a3>
-      riscv_cf.branch ^2 (%num : !riscv.reg<a0>, %a_init : !riscv.reg<a2>, %b_init : !riscv.reg<a3>)
-    ^2(%i : !riscv.reg<a0>, %a_in : !riscv.reg<a2>, %b_in : !riscv.reg<a3>):
+      riscv_cf.branch ^bb2 (%num : !riscv.reg<a0>, %a_init : !riscv.reg<a2>, %b_init : !riscv.reg<a3>)
+    ^bb2(%i : !riscv.reg<a0>, %a_in : !riscv.reg<a2>, %b_in : !riscv.reg<a3>):
       riscv.label ".LBB1_2"
       %sum = riscv.li 2 : !riscv.reg<a4>
       %i_next = riscv.li 3 : !riscv.reg<a0>
       %temp = riscv.li 4 : !riscv.reg<a1>
       %a_next = riscv.li 5 : !riscv.reg<a2>
       %b_next = riscv.li 6 : !riscv.reg<a3>
-      riscv_cf.bne %zero: !riscv.reg<zero>, %i_next : !riscv.reg<a0>, ^2(%i_next : !riscv.reg<a0>, %a_next : !riscv.reg<a2>, %b_next : !riscv.reg<a3>), ^3()
-    ^3():
+      riscv_cf.bne %zero: !riscv.reg<zero>, %i_next : !riscv.reg<a0>, ^bb2(%i_next : !riscv.reg<a0>, %a_next : !riscv.reg<a2>, %b_next : !riscv.reg<a3>), ^bb3()
+    ^bb3():
       %res = riscv.mv %temp : (!riscv.reg<a1>) -> !riscv.reg<a0>
       riscv_func.return %num : !riscv.reg<a0>
-    ^4():
+    ^bb4():
       riscv.label ".LBB1_4"
       %res_early = riscv.li 1 : !riscv.reg<a0>
       riscv_func.return %res_early : !riscv.reg<a0>
@@ -502,23 +502,23 @@ def _():
     _ = """\
     riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
       %zero = riscv.get_register : !riscv.reg<zero>
-      riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^4(), ^1()
-    ^1():
+      riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^bb4(), ^bb1()
+    ^bb1():
       %a_init = riscv.li 1 : !riscv.reg<a2>
       %b_init = riscv.li 1 : !riscv.reg<a3>
-      riscv_cf.branch ^2 (%num : !riscv.reg<a0>, %a_init : !riscv.reg<a2>, %b_init : !riscv.reg<a3>)
-    ^2(%i : !riscv.reg<a0>, %a_in : !riscv.reg<a2>, %b_in : !riscv.reg<a3>):
+      riscv_cf.branch ^bb2 (%num : !riscv.reg<a0>, %a_init : !riscv.reg<a2>, %b_init : !riscv.reg<a3>)
+    ^bb2(%i : !riscv.reg<a0>, %a_in : !riscv.reg<a2>, %b_in : !riscv.reg<a3>):
       riscv.label ".LBB1_2"
       %sum = riscv.add %a_in, %b_in : (!riscv.reg<a2>, !riscv.reg<a3>) -> !riscv.reg<a4>
       %i_next = riscv.addi %i, -1 : (!riscv.reg<a0>) -> !riscv.reg<a0>
       %temp = riscv.mv %b_in : (!riscv.reg<a3>) -> !riscv.reg<a1>
       %a_next = riscv.mv %b_in : (!riscv.reg<a3>) -> !riscv.reg<a2>
       %b_next = riscv.mv %sum : (!riscv.reg<a4>) -> !riscv.reg<a3>
-      riscv_cf.bne %zero: !riscv.reg<zero>, %i_next : !riscv.reg<a0>, ^2(%i_next : !riscv.reg<a0>, %a_next : !riscv.reg<a2>, %b_next : !riscv.reg<a3>), ^3()
-    ^3():
+      riscv_cf.bne %zero: !riscv.reg<zero>, %i_next : !riscv.reg<a0>, ^bb2(%i_next : !riscv.reg<a0>, %a_next : !riscv.reg<a2>, %b_next : !riscv.reg<a3>), ^bb3()
+    ^bb3():
       %res = riscv.mv %temp : (!riscv.reg<a1>) -> !riscv.reg<a0>
       riscv_func.return %num : !riscv.reg<a0>
-    ^4():
+    ^bb4():
       riscv.label ".LBB1_4"
       %res_early = riscv.li 1 : !riscv.reg<a0>
       riscv_func.return %res_early : !riscv.reg<a0>

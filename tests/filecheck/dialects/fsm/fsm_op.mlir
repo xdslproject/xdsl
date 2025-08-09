@@ -3,7 +3,7 @@
 // COM: the machine consists of a single state (IDLE) with no transitions
 
 // CHECK:  "fsm.machine"() ({
-// CHECK:  ^0(%arg0 : i1):
+// CHECK:  ^bb0(%arg0 : i1):
 // CHECK:    "fsm.state"() ({
 // CHECK:    }, {
 // CHECK:    }) {sym_name = "IDLE"} : () -> ()
@@ -11,7 +11,7 @@
 
 builtin.module {
   "fsm.machine"() ({
-  ^0(%arg0 : i1):
+  ^bb0(%arg0 : i1):
     "fsm.state"() ({
     }, {
     }) {sym_name = "IDLE"} : () -> ()
@@ -95,7 +95,7 @@ builtin.module {
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   "fsm.machine"() ({
-// CHECK-NEXT:   ^0(%arg0 : i1):
+// CHECK-NEXT:   ^bb0(%arg0 : i1):
 // CHECK-NEXT:     %0 = "fsm.variable"() {initValue = 0 : i16, name = "cnt"} : () -> i16
 // CHECK-NEXT:     "fsm.state"() ({
 // CHECK-NEXT:       %1 = arith.constant true

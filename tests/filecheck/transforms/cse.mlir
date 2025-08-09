@@ -118,7 +118,7 @@ func.func @different_ops() -> (i32, i32) {
   func.func @down_propagate_for() {
     %25 = arith.constant 1 : i32
     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, operandSegmentSizes = array<i32: 0, 0, 0>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (4)>}> ({
-    ^0(%arg0_3 : index):
+    ^bb0(%arg0_3 : index):
       %26 = arith.constant 1 : i32
       "foo"(%25, %26) : (i32, i32) -> ()
       "affine.yield"() : () -> ()
@@ -128,7 +128,7 @@ func.func @different_ops() -> (i32, i32) {
 
 // CHECK:      %0 = arith.constant 1 : i32
 // CHECK-NEXT:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, operandSegmentSizes = array<i32: 0, 0, 0>, step = 1 : index, upperBoundMap = affine_map<() -> (4)>}> ({
-// CHECK-NEXT:      ^0(%arg0 : index):
+// CHECK-NEXT:      ^bb0(%arg0 : index):
 // CHECK-NEXT:        "foo"(%0, %0) : (i32, i32) -> ()
 // CHECK-NEXT:        "affine.yield"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
@@ -145,21 +145,21 @@ func.func @different_ops() -> (i32, i32) {
 func.func @down_propagate() -> i32 {
     %27 = arith.constant 1 : i32
     %28 = arith.constant true
-    cf.cond_br %28, ^1, ^2(%27 : i32)
-  ^1:
+    cf.cond_br %28, ^bb1, ^bb2(%27 : i32)
+  ^bb1:
     %29 = arith.constant 1 : i32
-    cf.br ^2(%29 : i32)
-  ^2(%30 : i32):
+    cf.br ^bb2(%29 : i32)
+  ^bb2(%30 : i32):
     func.return %30 : i32
   }
 
 // CHECK:      %0 = arith.constant 1 : i32
 // CHECK-NEXT:      %1 = arith.constant true
-// CHECK-NEXT:      cf.cond_br %1, ^0, ^1(%0 : i32)
-// CHECK-NEXT:    ^0:
+// CHECK-NEXT:      cf.cond_br %1, ^bb0, ^bb1(%0 : i32)
+// CHECK-NEXT:    ^bb0:
 // CHECK-NEXT:      %2 = arith.constant 1 : i32
-// CHECK-NEXT:      cf.br ^1(%2 : i32)
-// CHECK-NEXT:    ^1(%3 : i32):
+// CHECK-NEXT:      cf.br ^bb1(%2 : i32)
+// CHECK-NEXT:    ^bb1(%3 : i32):
 // CHECK-NEXT:      func.return %3 : i32
 // CHECK-NEXT:    }
 
@@ -167,7 +167,7 @@ func.func @down_propagate() -> i32 {
 // CHECK-LABEL: @up_propagate_for
  func.func @up_propagate_for() -> i32 {
     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, operandSegmentSizes = array<i32: 0, 0, 0>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (4)>}> ({
-    ^3(%arg0_4 : index):
+    ^bb3(%arg0_4 : index):
       %31 = arith.constant 1 : i32
       "foo"(%31) : (i32) -> ()
       "affine.yield"() : () -> ()
@@ -177,7 +177,7 @@ func.func @down_propagate() -> i32 {
   }
 
 // CHECK:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, operandSegmentSizes = array<i32: 0, 0, 0>, step = 1 : index, upperBoundMap = affine_map<() -> (4)>}> ({
-// CHECK-NEXT:      ^0(%arg0 : index):
+// CHECK-NEXT:      ^bb0(%arg0 : index):
 // CHECK-NEXT:        %0 = arith.constant 1 : i32
 // CHECK-NEXT:        "foo"(%0) : (i32) -> ()
 // CHECK-NEXT:        "affine.yield"() : () -> ()
@@ -190,11 +190,11 @@ func.func @down_propagate() -> i32 {
 func.func @up_propagate() -> i32 {
     %33 = arith.constant 0 : i32
     %34 = arith.constant true
-    cf.cond_br %34, ^4, ^5(%33 : i32)
-  ^4:
+    cf.cond_br %34, ^bb4, ^bb5(%33 : i32)
+  ^bb4:
     %35 = arith.constant 1 : i32
-    cf.br ^5(%35 : i32)
-  ^5(%36 : i32):
+    cf.br ^bb5(%35 : i32)
+  ^bb5(%36 : i32):
     %37 = arith.constant 1 : i32
     %38 = arith.addi %36, %37 : i32
     func.return %38 : i32
@@ -202,11 +202,11 @@ func.func @up_propagate() -> i32 {
 
 // CHECK:      %0 = arith.constant 0 : i32
 // CHECK-NEXT:      %1 = arith.constant true
-// CHECK-NEXT:      cf.cond_br %1, ^0, ^1(%0 : i32)
-// CHECK-NEXT:    ^0:
+// CHECK-NEXT:      cf.cond_br %1, ^bb0, ^bb1(%0 : i32)
+// CHECK-NEXT:    ^bb0:
 // CHECK-NEXT:      %2 = arith.constant 1 : i32
-// CHECK-NEXT:      cf.br ^1(%2 : i32)
-// CHECK-NEXT:    ^1(%3 : i32):
+// CHECK-NEXT:      cf.br ^bb1(%2 : i32)
+// CHECK-NEXT:    ^bb1(%3 : i32):
 // CHECK-NEXT:      %4 = arith.constant 1 : i32
 // CHECK-NEXT:      %5 = arith.addi %3, %4 : i32
 // CHECK-NEXT:      func.return %5 : i32
@@ -219,11 +219,11 @@ func.func @up_propagate_region() -> i32 {
     %39 = "foo.region"() ({
       %40 = arith.constant 0 : i32
       %41 = arith.constant true
-      cf.cond_br %41, ^6, ^7(%40 : i32)
-    ^6:
+      cf.cond_br %41, ^bb6, ^bb7(%40 : i32)
+    ^bb6:
       %42 = arith.constant 1 : i32
-      cf.br ^7(%42 : i32)
-    ^7(%43 : i32):
+      cf.br ^bb7(%42 : i32)
+    ^bb7(%43 : i32):
       %44 = arith.constant 1 : i32
       %45 = arith.addi %43, %44 : i32
       "foo.yield"(%45) : (i32) -> ()
@@ -234,11 +234,11 @@ func.func @up_propagate_region() -> i32 {
 // CHECK:      %0 = "foo.region"() ({
 // CHECK-NEXT:        %1 = arith.constant 0 : i32
 // CHECK-NEXT:        %2 = arith.constant true
-// CHECK-NEXT:        cf.cond_br %2, ^0, ^1(%1 : i32)
-// CHECK-NEXT:      ^0:
+// CHECK-NEXT:        cf.cond_br %2, ^bb0, ^bb1(%1 : i32)
+// CHECK-NEXT:      ^bb0:
 // CHECK-NEXT:        %3 = arith.constant 1 : i32
-// CHECK-NEXT:        cf.br ^1(%3 : i32)
-// CHECK-NEXT:      ^1(%4 : i32):
+// CHECK-NEXT:        cf.br ^bb1(%3 : i32)
+// CHECK-NEXT:      ^bb1(%4 : i32):
 // CHECK-NEXT:        %5 = arith.constant 1 : i32
 // CHECK-NEXT:        %6 = arith.addi %4, %5 : i32
 // CHECK-NEXT:        "foo.yield"(%6) : (i32) -> ()
@@ -355,11 +355,11 @@ func.func @dont_remove_duplicated_read_op_with_sideeffecting() -> i32 {
 // Check that an operation with a single region can CSE.
   func.func @cse_single_block_ops(%arg0_5 : tensor<?x?xf32>, %arg1_2 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
     %65 = "test.pureop"(%arg0_5, %arg1_2) ({
-    ^8(%arg2 : f32):
+    ^bb8(%arg2 : f32):
       "test.region_yield"(%arg2) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     %66 = "test.pureop"(%arg0_5, %arg1_2) ({
-    ^9(%arg2_1 : f32):
+    ^bb9(%arg2_1 : f32):
       "test.region_yield"(%arg2_1) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     func.return %65, %66 : tensor<?x?xf32>, tensor<?x?xf32>
@@ -367,7 +367,7 @@ func.func @dont_remove_duplicated_read_op_with_sideeffecting() -> i32 {
 
 // CHECK:         func.func @cse_single_block_ops(%arg0 : tensor<?x?xf32>, %arg1 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
 // CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^0(%arg2 : f32):
+// CHECK-NEXT:      ^bb0(%arg2 : f32):
 // CHECK-NEXT:        "test.region_yield"(%arg2) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      func.return %0, %0 : tensor<?x?xf32>, tensor<?x?xf32>
@@ -376,11 +376,11 @@ func.func @dont_remove_duplicated_read_op_with_sideeffecting() -> i32 {
 // Operations with different number of bbArgs dont CSE.
 func.func @no_cse_varied_bbargs(%arg0_6 : tensor<?x?xf32>, %arg1_3 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
     %67 = "test.pureop"(%arg0_6, %arg1_3) ({
-    ^10(%arg2_2 : f32, %arg3 : f32):
+    ^bb10(%arg2_2 : f32, %arg3 : f32):
       "test.region_yield"(%arg2_2) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     %68 = "test.pureop"(%arg0_6, %arg1_3) ({
-    ^11(%arg2_3 : f32):
+    ^bb11(%arg2_3 : f32):
       "test.region_yield"(%arg2_3) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     func.return %67, %68 : tensor<?x?xf32>, tensor<?x?xf32>
@@ -388,11 +388,11 @@ func.func @no_cse_varied_bbargs(%arg0_6 : tensor<?x?xf32>, %arg1_3 : tensor<?x?x
 
 // CHECK:         func.func @no_cse_varied_bbargs(%arg0 : tensor<?x?xf32>, %arg1 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
 // CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^0(%arg2 : f32, %arg3 : f32):
+// CHECK-NEXT:      ^bb0(%arg2 : f32, %arg3 : f32):
 // CHECK-NEXT:        "test.region_yield"(%arg2) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      %1 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^1(%arg2_1 : f32):
+// CHECK-NEXT:      ^bb1(%arg2_1 : f32):
 // CHECK-NEXT:        "test.region_yield"(%arg2_1) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      func.return %0, %1 : tensor<?x?xf32>, tensor<?x?xf32>
@@ -401,22 +401,22 @@ func.func @no_cse_varied_bbargs(%arg0_6 : tensor<?x?xf32>, %arg1_3 : tensor<?x?x
 // Operations with different regions dont CSE
 func.func @no_cse_region_difference_simple(%arg0_7 : tensor<?x?xf32>, %arg1_4 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
     %69 = "test.pureop"(%arg0_7, %arg1_4) ({
-    ^12(%arg2_4 : f32, %arg3_1 : f32):
+    ^bb12(%arg2_4 : f32, %arg3_1 : f32):
       "test.region_yield"(%arg2_4) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     %70 = "test.pureop"(%arg0_7, %arg1_4) ({
-    ^13(%arg2_5 : f32, %arg3_2 : f32):
+    ^bb13(%arg2_5 : f32, %arg3_2 : f32):
       "test.region_yield"(%arg3_2) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     func.return %69, %70 : tensor<?x?xf32>, tensor<?x?xf32>
   }
 // CHECK:         func.func @no_cse_region_difference_simple(%arg0 : tensor<?x?xf32>, %arg1 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
 // CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^0(%arg2 : f32, %arg3 : f32):
+// CHECK-NEXT:      ^bb0(%arg2 : f32, %arg3 : f32):
 // CHECK-NEXT:        "test.region_yield"(%arg2) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      %1 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^1(%arg2_1 : f32, %arg3_1 : f32):
+// CHECK-NEXT:      ^bb1(%arg2_1 : f32, %arg3_1 : f32):
 // CHECK-NEXT:        "test.region_yield"(%arg3_1) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      func.return %0, %1 : tensor<?x?xf32>, tensor<?x?xf32>
@@ -425,14 +425,14 @@ func.func @no_cse_region_difference_simple(%arg0_7 : tensor<?x?xf32>, %arg1_4 : 
 // Operation with identical region with multiple statements CSE.
 func.func @cse_single_block_ops_identical_bodies(%arg0_8 : tensor<?x?xf32>, %arg1_5 : tensor<?x?xf32>, %arg2_6 : f32, %arg3_3 : i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
     %71 = "test.pureop"(%arg0_8, %arg1_5) ({
-    ^14(%arg4 : f32, %arg5 : f32):
+    ^bb14(%arg4 : f32, %arg5 : f32):
       %72 = arith.divf %arg4, %arg5 : f32
       %73 = "arith.remf"(%arg4, %arg2_6) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
       %74 = arith.select %arg3_3, %72, %73 : f32
       "test.region_yield"(%74) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     %75 = "test.pureop"(%arg0_8, %arg1_5) ({
-    ^15(%arg4_1 : f32, %arg5_1 : f32):
+    ^bb15(%arg4_1 : f32, %arg5_1 : f32):
       %76 = arith.divf %arg4_1, %arg5_1 : f32
       %77 = "arith.remf"(%arg4_1, %arg2_6) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
       %78 = arith.select %arg3_3, %76, %77 : f32
@@ -443,7 +443,7 @@ func.func @cse_single_block_ops_identical_bodies(%arg0_8 : tensor<?x?xf32>, %arg
 
 // CHECK:         func.func @cse_single_block_ops_identical_bodies(%arg0 : tensor<?x?xf32>, %arg1 : tensor<?x?xf32>, %arg2 : f32, %arg3 : i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
 // CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^0(%arg4 : f32, %arg5 : f32):
+// CHECK-NEXT:      ^bb0(%arg4 : f32, %arg5 : f32):
 // CHECK-NEXT:        %1 = arith.divf %arg4, %arg5 : f32
 // CHECK-NEXT:        %2 = "arith.remf"(%arg4, %arg2) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-NEXT:        %3 = arith.select %arg3, %1, %2 : f32
@@ -455,14 +455,14 @@ func.func @cse_single_block_ops_identical_bodies(%arg0_8 : tensor<?x?xf32>, %arg
 // Operation with non-identical regions dont CSE.
 func.func @no_cse_single_block_ops_different_bodies(%arg0_9 : tensor<?x?xf32>, %arg1_6 : tensor<?x?xf32>, %arg2_7 : f32, %arg3_4 : i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
     %79 = "test.pureop"(%arg0_9, %arg1_6) ({
-    ^16(%arg4_2 : f32, %arg5_2 : f32):
+    ^bb16(%arg4_2 : f32, %arg5_2 : f32):
       %80 = arith.divf %arg4_2, %arg5_2 : f32
       %81 = "arith.remf"(%arg4_2, %arg2_7) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
       %82 = arith.select %arg3_4, %80, %81 : f32
       "test.region_yield"(%82) : (f32) -> ()
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     %83 = "test.pureop"(%arg0_9, %arg1_6) ({
-    ^17(%arg4_3 : f32, %arg5_3 : f32):
+    ^bb17(%arg4_3 : f32, %arg5_3 : f32):
       %84 = arith.divf %arg4_3, %arg5_3 : f32
       %85 = "arith.remf"(%arg4_3, %arg2_7) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
       %86 = arith.select %arg3_4, %85, %84 : f32
@@ -473,14 +473,14 @@ func.func @no_cse_single_block_ops_different_bodies(%arg0_9 : tensor<?x?xf32>, %
 
 // CHECK:         func.func @no_cse_single_block_ops_different_bodies(%arg0 : tensor<?x?xf32>, %arg1 : tensor<?x?xf32>, %arg2 : f32, %arg3 : i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
 // CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^0(%arg4 : f32, %arg5 : f32):
+// CHECK-NEXT:      ^bb0(%arg4 : f32, %arg5 : f32):
 // CHECK-NEXT:        %1 = arith.divf %arg4, %arg5 : f32
 // CHECK-NEXT:        %2 = "arith.remf"(%arg4, %arg2) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-NEXT:        %3 = arith.select %arg3, %1, %2 : f32
 // CHECK-NEXT:        "test.region_yield"(%3) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      %4 = "test.pureop"(%arg0, %arg1) ({
-// CHECK-NEXT:      ^1(%arg4_1 : f32, %arg5_1 : f32):
+// CHECK-NEXT:      ^bb1(%arg4_1 : f32, %arg5_1 : f32):
 // CHECK-NEXT:        %5 = arith.divf %arg4_1, %arg5_1 : f32
 // CHECK-NEXT:        %6 = "arith.remf"(%arg4_1, %arg2) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-NEXT:        %7 = arith.select %arg3, %6, %5 : f32
@@ -493,12 +493,12 @@ func.func @failing_issue_59135(%arg0_10 : tensor<2x2xi1>, %arg1_7 : f32, %arg2_8
     %87 = arith.constant false
     %88 = arith.constant true
     %89 = "test.pureop"(%arg2_8) ({
-    ^18(%arg3_5 : i1):
+    ^bb18(%arg3_5 : i1):
       %90 = arith.constant true
       "test.region_yield"(%90) : (i1) -> ()
     }) : (tensor<2xi1>) -> tensor<2xi1>
     %91 = "test.pureop"(%arg2_8) ({
-    ^19(%arg3_6 : i1):
+    ^bb19(%arg3_6 : i1):
       %92 = arith.constant true
       "test.region_yield"(%92) : (i1) -> ()
     }) : (tensor<2xi1>) -> tensor<2xi1>
@@ -510,7 +510,7 @@ func.func @failing_issue_59135(%arg0_10 : tensor<2x2xi1>, %arg1_7 : f32, %arg2_8
 // CHECK-NEXT:      %0 = arith.constant false
 // CHECK-NEXT:      %1 = arith.constant true
 // CHECK-NEXT:      %2 = "test.pureop"(%arg2) ({
-// CHECK-NEXT:      ^0(%arg3 : i1):
+// CHECK-NEXT:      ^bb0(%arg3 : i1):
 // CHECK-NEXT:        "test.region_yield"(%1) : (i1) -> ()
 // CHECK-NEXT:      }) : (tensor<2xi1>) -> tensor<2xi1>
 // CHECK-NEXT:      func.return %2, %2 : tensor<2xi1>, tensor<2xi1>

@@ -22,7 +22,7 @@ builtin.module {
       "stride_patterns" = [#snitch_stream.stride_pattern<ub = [2, 3], strides = [24, 8]>],
       operandSegmentSizes = array<i32: 1, 1>
     }> ({
-    ^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.writable<!riscv.freg<ft1>>):
+    ^bb0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.writable<!riscv.freg<ft1>>):
       %c5 = riscv.li 5 : !riscv.reg
       riscv_snitch.frep_outer %c5 {
         %a = riscv_snitch.read from %a_stream : !riscv.freg<ft0>

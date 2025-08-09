@@ -518,10 +518,10 @@ def test_region_clone_into_circular_blocks():
     """
     region_str = """
     {
-    ^0:
-        "test.op"() [^1] : () -> ()
-    ^1:
-        "test.op"() [^0] : () -> ()
+    ^bb0:
+        "test.op"() [^bb1] : () -> ()
+    ^bb1:
+        "test.op"() [^bb0] : () -> ()
     }
     """
     ctx = Context(allow_unregistered=True)
@@ -699,7 +699,7 @@ program_add_2 = """
 program_func = """
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%0 : i32, %1 : i32):
+  ^bb0(%0 : i32, %1 : i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
@@ -709,10 +709,10 @@ program_func = """
 program_successors = """
 "builtin.module"() ({
   "func.func"() ({
-  ^0:
-    "cf.br"() [^1] : () -> ()
-  ^1:
-    "cf.br"() [^0] : () -> ()
+  ^bb0:
+    "cf.br"() [^bb1] : () -> ()
+  ^bb1:
+    "cf.br"() [^bb0] : () -> ()
   }) {"sym_name" = "unconditional_br", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
 """
@@ -781,11 +781,11 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     program_func = """
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%0 : i32, %1 : i32):
+  ^bb0(%0 : i32, %1 : i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     %3 = "arith.constant"() {"value" = 2 : i32} : () -> i32
     "func.return"(%3) : (i32) -> ()
-  ^1(%4 : i32, %5 : i32):
+  ^bb1(%4 : i32, %5 : i32):
     "func.return"(%4) : (i32) -> ()
   }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
 }) : () -> ()

@@ -177,14 +177,17 @@ class Parser(AttrParser):
 
     def _get_block_from_name(self, block_name: Span) -> Block:
         """
-        This function takes a span containing a block id (like `^42`) and returns a block.
+        This function takes a span containing a block id (like `^bb42`) and returns a block.
 
         If the block definition was not seen yet, we create a forward declaration.
         """
         name = block_name.text[1:]
         if name not in self.blocks:
             self.forward_block_references[name].append(block_name)
-            self.blocks[name] = (Block(), None)
+            block = Block()
+            if Block.is_valid_name(name) and not Block.is_default_block_name(name):
+                block.name_hint = name  # setter verifies validity
+            self.blocks[name] = (block, None)
         return self.blocks[name][0]
 
     def _parse_optional_block_arg_list(self, block: Block):
@@ -247,6 +250,11 @@ class Parser(AttrParser):
                     [(original_definition, None)],
                 )
             self.forward_block_references.pop(name)
+
+        # Don't set name_hint for blocks that match the default pattern
+        if not Block.is_default_block_name(name):
+            block.name_hint = name  # setter verifies validity
+        # If it matches pattern "bb" followed by digits, leave name_hint as None
 
         self._parse_optional_block_arg_list(block)
         self.parse_punctuation(":")
@@ -907,7 +915,10 @@ class Parser(AttrParser):
         name = block_token.text[1:]
         if name not in self.blocks:
             self.forward_block_references[name].append(block_token.span)
-            self.blocks[name] = (Block(), None)
+            block = Block()
+            if not Block.is_default_block_name(name):
+                block.name_hint = name  # setter verifies validity
+            self.blocks[name] = (block, None)
         return self.blocks[name][0]
 
     def parse_successor(self) -> Block:

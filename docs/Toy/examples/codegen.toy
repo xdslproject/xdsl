@@ -15,7 +15,7 @@ def main() {
 
 # CHECK:       builtin.module {
 # CHECK-NEXT:    "toy.func"() ({
-# CHECK-NEXT:    ^0(%{{.*}} : tensor<*xf64>, %{{.*}} : tensor<*xf64>):
+# CHECK-NEXT:    ^bb0(%{{.*}} : tensor<*xf64>, %{{.*}} : tensor<*xf64>):
 # CHECK-NEXT:      %{{.*}} = "toy.transpose"(%{{.*}}) : (tensor<*xf64>) -> tensor<*xf64>
 # CHECK-NEXT:      %{{.*}} = "toy.transpose"(%{{.*}}) : (tensor<*xf64>) -> tensor<*xf64>
 # CHECK-NEXT:      %{{.*}} = "toy.mul"(%{{.*}}, %{{.*}}) : (tensor<*xf64>, tensor<*xf64>) -> tensor<*xf64>
