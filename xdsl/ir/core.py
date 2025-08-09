@@ -641,8 +641,11 @@ class IRWithUses(ABC):
         return None
 
 
-_name_regex = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
-_name_cleanup_pattern = re.compile(r"(_\d+)+$")
+_VALUE_NAME_PATTERN = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
+"""Pattern to check if a name is valid for an SSAValue or Block."""
+
+_VALUE_NAME_SUFFIX_PATTERN = re.compile(r"(_\d+)+$")
+"""This pattern is used to remove the suffix from an SSAValue or Block name."""
 
 
 @dataclass(eq=False)
@@ -680,7 +683,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         if SSAValue.is_valid_name(name):
             # Remove `_` followed by numbers at the end of the name
             if name is not None:
-                if match := _name_cleanup_pattern.search(name):
+                if match := _VALUE_NAME_SUFFIX_PATTERN.search(name):
                     name = name[: match.start()]
             self._name = name
         else:
@@ -691,7 +694,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
     @classmethod
     def is_valid_name(cls, name: str | None):
-        return name is None or _name_regex.fullmatch(name)
+        return name is None or _VALUE_NAME_PATTERN.fullmatch(name)
 
     @staticmethod
     def get(
@@ -1664,7 +1667,7 @@ class Block(_IRNode, IRWithUses):
     _name: str | None = field(init=False, default=None)
 
     @staticmethod
-    def _is_default_block_name(name: str) -> bool:
+    def is_default_block_name(name: str) -> bool:
         """Check if a name matches the default block naming pattern (bb followed by digits)."""
         return name.startswith("bb") and name[2:].isdigit() and name[2:] != ""
 
@@ -1678,7 +1681,7 @@ class Block(_IRNode, IRWithUses):
         if Block.is_valid_name(name):
             # Remove `_` followed by numbers at the end of the name
             if name is not None:
-                if match := _name_cleanup_pattern.search(name):
+                if match := _VALUE_NAME_SUFFIX_PATTERN.search(name):
                     name = name[: match.start()]
             self._name = name
         else:
@@ -1687,9 +1690,9 @@ class Block(_IRNode, IRWithUses):
                 r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number.",
             )
 
-    @classmethod
-    def is_valid_name(cls, name: str | None):
-        return name is None or _name_regex.fullmatch(name)
+    @staticmethod
+    def is_valid_name(name: str | None):
+        return name is None or _VALUE_NAME_PATTERN.fullmatch(name)
 
     def __init__(
         self,
