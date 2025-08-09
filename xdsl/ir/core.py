@@ -1660,6 +1660,34 @@ class Block(_IRNode, IRWithUses):
     parent: Region | None = field(default=None, repr=False)
     """Parent region containing the block."""
 
+    _name: str | None = field(init=False, default=None)
+
+    _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
+
+    @property
+    def name_hint(self) -> str | None:
+        return self._name
+
+    @name_hint.setter
+    def name_hint(self, name: str | None):
+        # only allow valid names
+        if Block.is_valid_name(name):
+            # Remove `_` followed by numbers at the end of the name
+            if name is not None:
+                r1 = re.compile(r"(_\d+)+$")
+                if match := r1.search(name):
+                    name = name[: match.start()]
+            self._name = name
+        else:
+            raise ValueError(
+                "Invalid Block name format!",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
+            )
+
+    @classmethod
+    def is_valid_name(cls, name: str | None):
+        return name is None or cls._name_regex.fullmatch(name)
+
     def __init__(
         self,
         ops: Iterable[Operation] = (),

@@ -184,7 +184,10 @@ class Parser(AttrParser):
         name = block_name.text[1:]
         if name not in self.blocks:
             self.forward_block_references[name].append(block_name)
-            self.blocks[name] = (Block(), None)
+            block = Block()
+            if Block.is_valid_name(name):
+                block.name_hint = name
+            self.blocks[name] = (block, None)
         return self.blocks[name][0]
 
     def _parse_optional_block_arg_list(self, block: Block):
@@ -247,6 +250,9 @@ class Parser(AttrParser):
                     [(original_definition, None)],
                 )
             self.forward_block_references.pop(name)
+
+        if Block.is_valid_name(name):
+            block.name_hint = name
 
         self._parse_optional_block_arg_list(block)
         self.parse_punctuation(":")
@@ -907,7 +913,10 @@ class Parser(AttrParser):
         name = block_token.text[1:]
         if name not in self.blocks:
             self.forward_block_references[name].append(block_token.span)
-            self.blocks[name] = (Block(), None)
+            block = Block()
+            if Block.is_valid_name(name):
+                block.name_hint = name
+            self.blocks[name] = (block, None)
         return self.blocks[name][0]
 
     def parse_successor(self) -> Block:
