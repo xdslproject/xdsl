@@ -35,10 +35,10 @@ def test_args():
 
 
 try:
-    print(test_args.module)
-    # CHECK-NEXT: Function arguments must be declared variables.
+    test_args.module
 except CodeGenerationException as e:
     print(e.msg)
+    # CHECK-NEXT: Function arguments must be declared variables.
 
 
 # ================================================= #
@@ -53,10 +53,10 @@ def test_args():
 
 
 try:
-    print(test_args.module)
-    # CHECK-NEXT: Function arguments must be declared variables.
+    test_args.module
 except CodeGenerationException as e:
     print(e.msg)
+    # CHECK-NEXT: Function arguments must be declared variables.
 
 
 def func():
@@ -69,10 +69,10 @@ def test_unregistered_func():
 
 
 try:
-    print(test_unregistered_func.module)
-    # CHECK-NEXT: Function 'func' is not registered.
+    test_unregistered_func.module
 except CodeGenerationException as e:
     print(e.msg)
+    # CHECK-NEXT: Function 'func' is not registered.
 
 
 @ctx.parse_program
@@ -83,7 +83,7 @@ def test_missing_func():
 del func
 
 try:
-    print(test_missing_func.module)
-    # CHECK-NEXT: Function 'func' is not defined in scope.
+    test_missing_func.module
 except CodeGenerationException as e:
     print(e.msg)
+    # CHECK-NEXT: Function 'func' is not defined in scope.

@@ -4,47 +4,48 @@ from collections.abc import Callable
 from ctypes import c_size_t
 
 from xdsl.dialects import builtin
-from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 
-p = FrontendProgram()
-p.register_type(c_size_t, builtin.IndexType())
+ctx = PyASTContext(post_transforms=[])
+ctx.register_type(c_size_t, builtin.IndexType())
+
+
+@ctx.parse_program
+def test_for_unsupported(end: c_size_t):
+    for _ in range(
+        end  # pyright: ignore[reportArgumentType]
+    ):
+        pass
+    return
+
+
 try:
-    with CodeContext(p):
-        # CHECK: For loops are currently not supported!
-
-        def test_for_unsupported(end: c_size_t):
-            for _ in range(
-                end  # pyright: ignore[reportArgumentType]
-            ):
-                pass
-            return
-
-    p.compile(desymref=False)
-    exit(1)
+    test_for_unsupported.module
 except NotImplementedError as e:
     print(e)
+    # CHECK: For loops are currently not supported!
+
+
+@ctx.parse_program
+def test_complex_arg_annotation(x: Callable[..., None]) -> None:
+    return
 
 
 try:
-    with CodeContext(p):
-        # CHECK: Unsupported function argument type: 'Callable[..., None]'
-        def test_complex_arg_annotation(x: Callable[..., None]) -> None:
-            return
-
-    p.compile(desymref=False)
-    exit(1)
+    test_complex_arg_annotation.module
 except CodeGenerationException as e:
+    # CHECK: Unsupported function argument type: 'Callable[..., None]'
     print(e.msg)
+
+
+@ctx.parse_program
+def test_complex_return_annotation() -> int | None:
+    return
+
 
 try:
-    with CodeContext(p):
-        # CHECK: Unsupported function return type: 'int | None'
-        def test_complex_return_annotation() -> int | None:
-            return
-
-    p.compile(desymref=False)
-    exit(1)
+    test_complex_return_annotation.module
 except CodeGenerationException as e:
     print(e.msg)
+    # CHECK: Unsupported function return type: 'int | None'
