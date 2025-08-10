@@ -52,37 +52,6 @@ builtin.module {
 }
 ```
 
-## Package structure and implementation details
-
-```text
-.
-├── utils
-│   ├── block.py              : Mark functions as basic blocks using a decorator
-│   ├── const.py              : Mark variables as compile-time constants using a
-│   │                           type hint
-│   ├── exceptions.py         : Custom exceptions for the frontend and code 
-│   │                           generation
-│   ├── op_inserter.py        : Helper class to add operations from a stack to
-│   │                           the end of an operation/region/block
-│   ├── python_code_check.py  : Performs two checks for whether the code in the
-│   │                           context is supported:
-│   │                           1. Structure doesn't have nested block and
-│   │                              blocks have explicit terminators
-│   │                           2. Guaranteeing and inlining constant values
-│   └── type_conversion.py    : Map between Python objects, Python AST nodes,
-│                               and xDSL IR for the types and functions
-├── code_generation.py        : Walk AST to generate xDSL from nodes. Simple
-│                               operands and control flow supported. Explicitly
-│                               no support for assignment. Implicitly no support
-│                               for complex structures such as classes
-├── context.py                : Context manager which parses its inner context
-│                               into a provided FrontendProgram, checking its
-│                               well-formedness on exit.
-├── program.py                : Helper class to store, compile, and print code
-└── README.md
-```
-
-
 ## Future development
 
 1. Widen support for Python control flow structures
@@ -90,7 +59,7 @@ builtin.module {
          functions
    - [ ] Extend `Call` AST to support invoking `func.FuncOp`s as well as
          functions registered to map to operations
-   - [ ] Loosen constraints enforced by `PythonCodeCheck` to leverage added
+   - [x] Loosen constraints enforced by `PythonCodeCheck` to leverage added
          functionality
 2. Add support for more Python functionality by implementing code generation for
    each AST node:
@@ -107,9 +76,7 @@ builtin.module {
    - [x] `Return`
    - [ ] `While`
    - [ ] ...
-3. Refactor `CodeContext` to support decorating functions
-4. Add support for more Python builtin data types, for example:
-   - [ ] `None`
+3. Add support for more Python builtin data types, for example:
    - [ ] `string`
    - [ ] `list`
    - [ ] `tuple`
