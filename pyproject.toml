@@ -54,6 +54,10 @@ bench = [
     "bytesight",
 ]
 
+[dependency-groups]
+dev = ["xdsl[dev,docs,gui,jax,riscv,bench]"]
+
+
 [project.urls]
 Homepage = "https://xdsl.dev/"
 "Source Code" = "https://github.com/xdslproject/xdsl"
