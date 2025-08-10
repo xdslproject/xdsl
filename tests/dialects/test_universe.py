@@ -1,8 +1,8 @@
 import re
 
 import pytest
-from my_plugin import Dialect
 
+from xdsl.ir import Dialect
 from xdsl.universe import Universe
 
 
