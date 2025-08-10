@@ -49,12 +49,12 @@ ctx.post_transforms = []
 
 # CHECK-NEXT: Function arguments must be declared variables.
 @ctx.parse_program
-def test_args():
+def test_more_args():
     return add_i32(operand1=1, operand2=2)  # pyright: ignore[reportArgumentType]
 
 
 try:
-    test_args.module
+    test_more_args.module
 except CodeGenerationException as e:
     print(e.msg)
 
