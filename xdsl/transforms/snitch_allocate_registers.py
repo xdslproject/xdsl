@@ -69,7 +69,7 @@ class AllocateRiscvSnitchWriteRegisters(RewritePattern):
 
 
 @dataclass(frozen=True)
-class SnitchRegisterAllocation(ModulePass):
+class SnitchAllocateRegistersPass(ModulePass):
     """
     Allocates unallocated registers for snitch operations.
     """
