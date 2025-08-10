@@ -6,7 +6,7 @@
   %step = "arith.constant"() {"value" = 7 : i32} : () -> i32
   %sum_init = "arith.constant"() {"value" = 36 : i32} : () -> i32
   %sum = "scf.for"(%lb, %ub, %step, %sum_init) ({
-  ^0(%iv : i32, %sum_iter : i32):
+  ^bb0(%iv : i32, %sum_iter : i32):
     %sum_new = "arith.addi"(%sum_iter, %iv) : (i32, i32) -> i32
     "scf.yield"(%sum_new) : (i32) -> ()
   }) : (i32, i32, i32, i32) -> i32
@@ -22,12 +22,12 @@
 // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{value = 7 : i32}> : () -> i32
 // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{value = 36 : i32}> : () -> i32
 // CHECK-NEXT:   %{{.*}} = "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) ({
-// CHECK-NEXT:   ^0(%{{.*}} : i32, %{{.*}} : i32):
+// CHECK-NEXT:   ^bb0(%{{.*}} : i32, %{{.*}} : i32):
 // CHECK-NEXT:     %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (i32) -> ()
 // CHECK-NEXT:   }) : (i32, i32, i32, i32) -> i32
 // CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-// CHECK-NEXT:   ^1(%{{.*}}: i32):
+// CHECK-NEXT:   ^bb1(%{{.*}}: i32):
 // CHECK-NEXT:     "scf.yield"() : () -> ()
 // CHECK-NEXT:   }) : (i32, i32, i32) -> ()
 // CHECK-NEXT: }) : () -> ()

@@ -364,7 +364,7 @@ def test_fail_error_message():
 
     assert getattr(e.value, "__notes__") == [
         """
-^0:
+^bb0:
   %0 = "test.inout"(%1) : (!test.reg<a0>) -> !test.reg<a1>
   ^^^^^^^^^^^^^^^^^----
   | Error allocating op
