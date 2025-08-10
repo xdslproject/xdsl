@@ -16,7 +16,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
 )
-from xdsl.ir import Attribute, Dialect
+from xdsl.ir import Attribute, Dialect, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
@@ -284,6 +284,65 @@ class MatMulOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class MaxPool2DOp(IRDLOperation):
+    """
+    TOSA dialect operation for performing 2D max pooling on a tensor.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosamax_pool2d-mlirtosamaxpool2dop).
+    """
+
+    name = "tosa.max_pool2d"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    input = operand_def(TensorType.constr(T))
+    output = result_def(TensorType.constr(T))
+
+    kernel = prop_def(DenseArrayBase[I64])
+    stride = prop_def(DenseArrayBase[I64])
+    pad = prop_def(DenseArrayBase[I64])
+    nan_mode = opt_prop_def(StringAttr)
+
+    irdl_options = [ParsePropInAttrDict()]
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    def _verify_(self) -> None:
+        assert isinstance(self.input.type, ShapedType)
+        assert isinstance(self.output.type, ShapedType)
+
+        input_shape = self.input.type.get_shape()
+        output_shape = self.output.type.get_shape()
+
+        if len(input_shape) != 4 or len(output_shape) != 4:
+            raise VerifyException(
+                "'tosa.max_pool2d' Expected input and output tensors to be rank 4"
+            )
+
+
+@irdl_op_definition
+class AvgPool2DOp(IRDLOperation):
+    """
+    TOSA dialect operation for performing 2D average pooling on a tensor.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaavg_pool2d-mlirtosaavgpool2dop).
+    """
+
+    name = "tosa.avg_pool2d"
+
+    input = operand_def(TensorType)
+    output = result_def(TensorType)
+
+    kernel = prop_def(DenseArrayBase)
+    stride = prop_def(DenseArrayBase)
+    pad = prop_def(DenseArrayBase)
+    acc_type = prop_def(TypeAttribute)
+
+    irdl_options = [ParsePropInAttrDict()]
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+
 TOSA = Dialect(
     "tosa",
     [
@@ -295,6 +354,8 @@ TOSA = Dialect(
         SinOp,
         CosOp,
         MatMulOp,
+        MaxPool2DOp,
+        AvgPool2DOp,
     ],
     [],
 )

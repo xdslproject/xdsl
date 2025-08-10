@@ -641,6 +641,13 @@ class IRWithUses(ABC):
         return None
 
 
+_VALUE_NAME_PATTERN = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
+"""Pattern to check if a name is valid for an SSAValue or Block."""
+
+_VALUE_NAME_SUFFIX_PATTERN = re.compile(r"(_\d+)+$")
+"""This pattern is used to remove the suffix from an SSAValue or Block name."""
+
+
 @dataclass(eq=False)
 class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
     """
@@ -652,8 +659,6 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
     """Each SSA variable is associated to a type."""
 
     _name: str | None = field(init=False, default=None)
-
-    _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
 
     @property
     def type(self) -> AttributeCovT:
@@ -678,8 +683,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         if SSAValue.is_valid_name(name):
             # Remove `_` followed by numbers at the end of the name
             if name is not None:
-                r1 = re.compile(r"(_\d+)+$")
-                if match := r1.search(name):
+                if match := _VALUE_NAME_SUFFIX_PATTERN.search(name):
                     name = name[: match.start()]
             self._name = name
         else:
@@ -690,7 +694,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
     @classmethod
     def is_valid_name(cls, name: str | None):
-        return name is None or cls._name_regex.fullmatch(name)
+        return name is None or _VALUE_NAME_PATTERN.fullmatch(name)
 
     @staticmethod
     def get(
@@ -1659,6 +1663,36 @@ class Block(_IRNode, IRWithUses):
 
     parent: Region | None = field(default=None, repr=False)
     """Parent region containing the block."""
+
+    _name: str | None = field(init=False, default=None)
+
+    @staticmethod
+    def is_default_block_name(name: str) -> bool:
+        """Check if a name matches the default block naming pattern (bb followed by digits)."""
+        return name.startswith("bb") and name[2:].isdigit() and name[2:] != ""
+
+    @property
+    def name_hint(self) -> str | None:
+        return self._name
+
+    @name_hint.setter
+    def name_hint(self, name: str | None):
+        # only allow valid names
+        if Block.is_valid_name(name):
+            # Remove `_` followed by numbers at the end of the name
+            if name is not None:
+                if match := _VALUE_NAME_SUFFIX_PATTERN.search(name):
+                    name = name[: match.start()]
+            self._name = name
+        else:
+            raise ValueError(
+                "Invalid Block name format.",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number.",
+            )
+
+    @staticmethod
+    def is_valid_name(name: str | None):
+        return name is None or _VALUE_NAME_PATTERN.fullmatch(name)
 
     def __init__(
         self,

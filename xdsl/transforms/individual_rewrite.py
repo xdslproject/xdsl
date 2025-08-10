@@ -11,6 +11,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.traits import HasCanonicalizationPatternsTrait
+from xdsl.utils.op_selector import OpSelector
 
 
 class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
@@ -71,18 +72,10 @@ class ApplyIndividualRewritePass(ModulePass):
     pattern_name: str = field()
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
-        all_ops = list(op.walk())
-        if self.matched_operation_index >= len(all_ops):
-            raise ValueError("Matched operation index out of range.")
-
-        matched_operation = all_ops[self.matched_operation_index]
+        matched_operation = OpSelector(
+            self.matched_operation_index, self.operation_name
+        ).get_op(op)
         rewriter = PatternRewriter(matched_operation)
-
-        if matched_operation.name != self.operation_name:
-            raise ValueError(
-                f"Operation {matched_operation.name} at index "
-                f"{self.matched_operation_index} does not match {self.operation_name}"
-            )
 
         # Check individual rewrites first
         if (
