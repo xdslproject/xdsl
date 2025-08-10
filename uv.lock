@@ -3572,6 +3572,11 @@ riscv = [
     { name = "riscemu" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "xdsl", extra = ["bench", "dev", "docs", "gui", "jax", "riscv"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "asv", marker = "extra == 'bench'", specifier = ">=0.6.4" },
@@ -3614,6 +3619,9 @@ requires-dist = [
     { name = "viztracer", marker = "extra == 'bench'", specifier = ">=1.0.1" },
 ]
 provides-extras = ["dev", "docs", "gui", "jax", "riscv", "bench"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "xdsl", extras = ["dev", "docs", "gui", "jax", "riscv", "bench"] }]
 
 [[package]]
 name = "yarl"
