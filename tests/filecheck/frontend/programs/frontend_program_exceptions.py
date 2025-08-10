@@ -10,19 +10,19 @@ ctx.register_type(bool, builtin.i1)
 
 
 @ctx.parse_program
-def foo():
+def redefined_function():  # pyright: ignore[reportRedeclaration]
     return
 
 
 @ctx.parse_program
-def foo(x: int) -> int:
+def redefined_function(x: int) -> int:
     return x
 
 
 # Function definitions can be overriden
-print(foo.module)
+print(redefined_function.module)
 # CHECK:      builtin.module {
-# CHECK-NEXT:     func.func @foo(%x : !bigint.bigint) -> !bigint.bigint {
+# CHECK-NEXT:     func.func @redefined_function(%x : !bigint.bigint) -> !bigint.bigint {
 # CHECK-NEXT:       func.return %x : !bigint.bigint
 # CHECK-NEXT:     }
 # CHECK-NEXT:   }
