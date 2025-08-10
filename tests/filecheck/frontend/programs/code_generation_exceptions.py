@@ -11,6 +11,7 @@ ctx = PyASTContext(post_transforms=[])
 ctx.register_type(c_size_t, builtin.IndexType())
 
 
+# CHECK: For loops are currently not supported!
 @ctx.parse_program
 def test_for_unsupported(end: c_size_t):
     for _ in range(
@@ -24,9 +25,9 @@ try:
     test_for_unsupported.module
 except NotImplementedError as e:
     print(e)
-    # CHECK: For loops are currently not supported!
 
 
+# CHECK: Unsupported function argument type: 'Callable[..., None]'
 @ctx.parse_program
 def test_complex_arg_annotation(x: Callable[..., None]) -> None:
     return
@@ -35,10 +36,10 @@ def test_complex_arg_annotation(x: Callable[..., None]) -> None:
 try:
     test_complex_arg_annotation.module
 except CodeGenerationException as e:
-    # CHECK: Unsupported function argument type: 'Callable[..., None]'
     print(e.msg)
 
 
+# CHECK: Unsupported function return type: 'int | None'
 @ctx.parse_program
 def test_complex_return_annotation() -> int | None:
     return
@@ -48,4 +49,3 @@ try:
     test_complex_return_annotation.module
 except CodeGenerationException as e:
     print(e.msg)
-    # CHECK: Unsupported function return type: 'int | None'

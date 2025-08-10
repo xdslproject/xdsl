@@ -29,6 +29,7 @@ print(test_add.module)
 # CHECK-NEXT: }
 
 
+# CHECK-NEXT: Function arguments must be declared variables.
 @ctx.parse_program
 def test_args():
     return add_i32(1, 2)  # pyright: ignore[reportArgumentType]
@@ -38,7 +39,6 @@ try:
     test_args.module
 except CodeGenerationException as e:
     print(e.msg)
-    # CHECK-NEXT: Function arguments must be declared variables.
 
 
 # ================================================= #
@@ -47,6 +47,7 @@ except CodeGenerationException as e:
 ctx.post_transforms = []
 
 
+# CHECK-NEXT: Function arguments must be declared variables.
 @ctx.parse_program
 def test_args():
     return add_i32(operand1=1, operand2=2)  # pyright: ignore[reportArgumentType]
@@ -56,13 +57,13 @@ try:
     test_args.module
 except CodeGenerationException as e:
     print(e.msg)
-    # CHECK-NEXT: Function arguments must be declared variables.
 
 
 def func():
     pass
 
 
+# CHECK-NEXT: Function 'func' is not registered.
 @ctx.parse_program
 def test_unregistered_func():
     return func()  # noqa: F821
@@ -72,9 +73,9 @@ try:
     test_unregistered_func.module
 except CodeGenerationException as e:
     print(e.msg)
-    # CHECK-NEXT: Function 'func' is not registered.
 
 
+# CHECK-NEXT: Function 'func' is not defined in scope.
 @ctx.parse_program
 def test_missing_func():
     return func()  # noqa: F821
@@ -86,4 +87,3 @@ try:
     test_missing_func.module
 except CodeGenerationException as e:
     print(e.msg)
-    # CHECK-NEXT: Function 'func' is not defined in scope.
