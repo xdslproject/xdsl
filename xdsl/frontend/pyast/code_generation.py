@@ -11,9 +11,12 @@ from xdsl.frontend.pyast.utils.exceptions import (
     CodeGenerationException,
 )
 from xdsl.frontend.pyast.utils.op_inserter import OpInserter
-from xdsl.frontend.pyast.utils.python_code_check import FunctionMap
 from xdsl.frontend.pyast.utils.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, TypeAttribute
+
+BlockMap = dict[str, ast.FunctionDef]
+FunctionData = tuple[ast.FunctionDef, BlockMap]
+FunctionMap = dict[str, FunctionData]
 
 
 @dataclass
