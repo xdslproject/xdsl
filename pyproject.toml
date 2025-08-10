@@ -106,7 +106,7 @@ reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
-"include" = ["docs", "xdsl", "tests"]
+"include" = ["docs", "xdsl", "tests", "benchmarks"]
 "exclude" = ["docs/marimo"]
 
 [tool.ruff]
