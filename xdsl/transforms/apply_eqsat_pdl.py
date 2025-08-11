@@ -2,15 +2,16 @@ import os
 from dataclasses import dataclass
 from typing import cast
 
+from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import builtin, pdl, pdl_interp
 from xdsl.dialects.builtin import StringAttr
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
-from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
+from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -93,23 +94,6 @@ class ApplyEqsatPDLPass(ModulePass):
 
         return matcher, rewriter_func
 
-    def _create_aggregate_module(
-        self,
-        matchers: list[pdl_interp.FuncOp],
-        all_rewriter_ops: list[pdl_interp.FuncOp],
-    ) -> builtin.ModuleOp:
-        """Create master module containing all matchers and rewriters."""
-        rewriters_module_ops: list[builtin.ModuleOp] = []
-        if all_rewriter_ops:
-            rewriters_module = builtin.ModuleOp(cast(list[Operation], all_rewriter_ops))
-            rewriters_module.attributes["sym_name"] = builtin.StringAttr("rewriters")
-            rewriters_module_ops.append(rewriters_module)
-
-        all_ops = cast(list[Operation], matchers) + cast(
-            list[Operation], rewriters_module_ops
-        )
-        return builtin.ModuleOp(all_ops)
-
     def _apply_individual_patterns(
         self, ctx: Context, op: builtin.ModuleOp, pdl_module: builtin.ModuleOp
     ) -> None:
@@ -119,11 +103,16 @@ class ApplyEqsatPDLPass(ModulePass):
         implementations = EqsatPDLInterpFunctions(ctx)
         implementations.populate_known_ops(op)
 
-        # Convert all patterns and collect components
-        matchers: list[pdl_interp.FuncOp] = []
-        all_rewriter_ops: list[pdl_interp.FuncOp] = []
-        names: list[builtin.StringAttr] = []
+        matchers_module = builtin.ModuleOp([])
+        rewriters_module = builtin.ModuleOp([], sym_name=StringAttr("rewriters"))
+        matchers_builder = Builder(InsertPoint.at_end(matchers_module.body.block))
+        matchers_builder.insert_op(rewriters_module)
+        rewriters_builder = Builder(InsertPoint.at_end(rewriters_module.body.block))
 
+        interpreter = Interpreter(matchers_module)
+        interpreter.register_implementations(implementations)
+
+        rewrite_patterns: list[PDLInterpRewritePattern] = []
         for pattern_op in patterns:
             temp_module = self._convert_single_pattern(ctx, pattern_op)
             matcher, rewriter_func = self._extract_matcher_and_rewriters(temp_module)
@@ -135,27 +124,18 @@ class ApplyEqsatPDLPass(ModulePass):
             name = (
                 pattern_op.sym_name
                 if pattern_op.sym_name
-                else StringAttr(f"pattern_{len(names)}")
+                else StringAttr(f"pattern_{len(rewrite_patterns)}")
             )
             recordmatch.rewriter = builtin.SymbolRefAttr("rewriters", (name,))
-            names.append(name)
             rewriter_func.sym_name = name
 
-            # Detach and collect operations
+            # Detach and insert operations
             matcher.detach()
-            matchers.append(matcher)
+            matchers_builder.insert_op(matcher)
 
             rewriter_func.detach()
-            all_rewriter_ops.append(rewriter_func)
+            rewriters_builder.insert_op(rewriter_func)
 
-        # Create master module and interpreter
-        aggregate_module = self._create_aggregate_module(matchers, all_rewriter_ops)
-        interpreter = Interpreter(aggregate_module)
-        interpreter.register_implementations(implementations)
-
-        # Create rewrite patterns
-        rewrite_patterns: list[PDLInterpRewritePattern] = []
-        for name, matcher in zip(names, matchers):
             rewrite_pattern = PDLInterpRewritePattern(
                 matcher, interpreter, implementations, name.data
             )
