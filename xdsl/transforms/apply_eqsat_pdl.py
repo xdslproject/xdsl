@@ -58,7 +58,7 @@ class ApplyEqsatPDLPass(ModulePass):
     def _extract_patterns(self, pdl_module: builtin.ModuleOp) -> list[pdl.PatternOp]:
         """Extract all PDL patterns from the module."""
         patterns: list[pdl.PatternOp] = []
-        for pattern_op in pdl_module.walk():
+        for pattern_op in pdl_module.ops:
             if isinstance(pattern_op, pdl.PatternOp):
                 patterns.append(pattern_op)
         return patterns
