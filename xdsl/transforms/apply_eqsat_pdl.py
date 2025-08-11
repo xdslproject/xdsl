@@ -4,6 +4,7 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, pdl, pdl_interp
+from xdsl.dialects.builtin import StringAttr
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
 from xdsl.ir import Operation
@@ -131,12 +132,14 @@ class ApplyEqsatPDLPass(ModulePass):
             assert isinstance(
                 recordmatch := matcher.body.last_block.last_op, pdl_interp.RecordMatchOp
             )
-            assert pattern_op.sym_name
-            recordmatch.rewriter = builtin.SymbolRefAttr(
-                "rewriters", (pattern_op.sym_name,)
+            name = (
+                pattern_op.sym_name
+                if pattern_op.sym_name
+                else StringAttr(f"pattern_{len(names)}")
             )
-            names.append(pattern_op.sym_name)
-            rewriter_func.sym_name = pattern_op.sym_name
+            recordmatch.rewriter = builtin.SymbolRefAttr("rewriters", (name,))
+            names.append(name)
+            rewriter_func.sym_name = name
 
             # Detach and collect operations
             matcher.detach()
