@@ -1,4 +1,5 @@
 // RUN: MLIR_GENERIC_ROUNDTRIP
+// RUN: MLIR_ROUNDTRIP
 
 builtin.module {
     // CHECK:    "test.op"() {set = affine_set<(d0) : ((d0 + -10) >= 0)>} : () -> ()

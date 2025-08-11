@@ -1,3 +1,4 @@
+// RUN: MLIR_GENERIC_ROUNDTRIP
 // RUN: MLIR_ROUNDTRIP
 
 %vali32 = "test.op"() : () -> i32

@@ -1,5 +1,5 @@
-// RUN: MLIR_ROUNDTRIP
 // RUN: MLIR_GENERIC_ROUNDTRIP
+// RUN: MLIR_ROUNDTRIP
 
 %0, %1 = "test.op"() : () -> (i32, i32)
 
