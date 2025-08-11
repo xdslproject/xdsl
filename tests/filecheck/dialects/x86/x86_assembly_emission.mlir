@@ -8,13 +8,17 @@
 %rsp = x86.get_register : () -> !x86.reg<rsp>
 %rax = x86.get_register : () -> !x86.reg<rax>
 
-%rr_add = x86.rs.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
+%rs_add = x86.rs.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: add rax, rdx
-%rr_sub = x86.rs.sub %rr_add, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
+%rs_fadd = x86.rs.fadd %rs_add, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
+// CHECK-NEXT: fadd rax, rdx
+%rr_sub = x86.rs.sub %rs_fadd, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: sub rax, rdx
-%rr_imul = x86.rs.imul %rr_sub, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
+%rs_imul = x86.rs.imul %rr_sub, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: imul rax, rdx
-%rr_and = x86.rs.and %rr_imul, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
+%rs_fmul = x86.rs.fmul %rs_imul, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
+// CHECK-NEXT: fmul rax, rdx
+%rr_and = x86.rs.and %rs_fmul, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: and rax, rdx
 %rr_or = x86.rs.or %rr_and, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: or rax, rdx

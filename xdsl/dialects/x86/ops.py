@@ -1099,6 +1099,35 @@ class RS_ImulOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
+class RS_FAddOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Adds the floating point values in registers r and s and stores the result in r.
+    ```C
+    x[r] += x[s]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/fadd:faddp:fiadd).
+    """
+
+    name = "x86.rs.fadd"
+
+
+@irdl_op_definition
+class RS_FMulOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the floating point values in registers r and s and stores the result in
+    r.
+    ```C
+    x[r] *= x[s]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/fmul:fmulp:fimul).
+    """
+
+    name = "x86.rs.fmul"
+
+
+@irdl_op_definition
 class RS_AndOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise and of r and s, stored in r
