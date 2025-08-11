@@ -7,6 +7,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     UnrealizedConversionCastOp,
 )
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -36,40 +37,34 @@ class ArithConstantToX86(RewritePattern):
         rewriter.replace_matched_op([mov_op, cast_op])
 
 
+X86_OP_BY_ARITH_BINARY_OP = {
+    arith.AddiOp: x86.RS_AddOp,
+    arith.AddfOp: x86.RS_FAddOp,
+    arith.MuliOp: x86.RS_ImulOp,
+    arith.MulfOp: x86.RS_FMulOp,
+}
+
+
 @dataclass
-class ArithAddiToX86(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter):
-        if isinstance(op.lhs.type, builtin.ShapedType):
+class ArithBinaryToX86(RewritePattern):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        new_type = X86_OP_BY_ARITH_BINARY_OP.get(type(op))  # pyright: ignore
+        if new_type is None:
+            return
+
+        lhs = op.operands[0]
+
+        if isinstance(lhs.type, builtin.ShapedType):
             raise DiagnosticException(
-                "Lowering of arith.addi not implemented for ShapedType"
+                f"Lowering of {op.name} not implemented for ShapedType"
             )
         lhs_x86, rhs_x86 = cast_operands_to_regs(rewriter=rewriter)
         rhs_copy_op = x86.DS_MovOp(
             source=rhs_x86, destination=x86.register.UNALLOCATED_GENERAL
         )
-        add_op = x86.RS_AddOp(source=lhs_x86, register_in=rhs_copy_op.destination)
+        add_op = new_type(source=lhs_x86, register_in=rhs_copy_op.destination)
         result_cast_op, _ = UnrealizedConversionCastOp.cast_one(
-            add_op.register_out, op.lhs.type
-        )
-        rewriter.replace_matched_op([rhs_copy_op, add_op, result_cast_op])
-
-
-@dataclass
-class ArithMuliToX86(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.MuliOp, rewriter: PatternRewriter):
-        if isinstance(op.lhs.type, builtin.ShapedType):
-            raise DiagnosticException(
-                "Lowering of arith.muli not implemented for ShapedType"
-            )
-        lhs_x86, rhs_x86 = cast_operands_to_regs(rewriter=rewriter)
-        rhs_copy_op = x86.DS_MovOp(
-            source=rhs_x86, destination=x86.register.UNALLOCATED_GENERAL
-        )
-        add_op = x86.RS_ImulOp(source=lhs_x86, register_in=rhs_copy_op.destination)
-        result_cast_op, _ = UnrealizedConversionCastOp.cast_one(
-            add_op.register_out, op.lhs.type
+            add_op.register_out, lhs.type
         )
         rewriter.replace_matched_op([rhs_copy_op, add_op, result_cast_op])
 
@@ -82,8 +77,7 @@ class ConvertArithToX86Pass(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ArithAddiToX86(),
-                    ArithMuliToX86(),
+                    ArithBinaryToX86(),
                     ArithConstantToX86(),
                 ]
             ),
