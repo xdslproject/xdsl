@@ -56,14 +56,6 @@ class ApplyEqsatPDLPass(ModulePass):
         else:
             return op
 
-    def _extract_patterns(self, pdl_module: builtin.ModuleOp) -> list[pdl.PatternOp]:
-        """Extract all PDL patterns from the module."""
-        patterns: list[pdl.PatternOp] = []
-        for pattern_op in pdl_module.ops:
-            if isinstance(pattern_op, pdl.PatternOp):
-                patterns.append(pattern_op)
-        return patterns
-
     def _convert_single_pattern(
         self, ctx: Context, pattern_op: pdl.PatternOp
     ) -> builtin.ModuleOp:
@@ -98,7 +90,9 @@ class ApplyEqsatPDLPass(ModulePass):
         self, ctx: Context, op: builtin.ModuleOp, pdl_module: builtin.ModuleOp
     ) -> None:
         """Apply patterns individually in separate iterations."""
-        patterns = self._extract_patterns(pdl_module)
+        patterns = (
+            pattern for pattern in pdl_module.ops if isinstance(pattern, pdl.PatternOp)
+        )
 
         implementations = EqsatPDLInterpFunctions(ctx)
         implementations.populate_known_ops(op)
