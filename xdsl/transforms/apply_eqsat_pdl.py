@@ -42,6 +42,7 @@ class ApplyEqsatPDLPass(ModulePass):
     """
 
     optimize_matcher: bool = False
+    """When enabled, the matcher is optimized to evaluate equality constraints early."""
 
     def _load_pdl_module(self, ctx: Context, op: builtin.ModuleOp) -> builtin.ModuleOp:
         """Load PDL module from file or use the input module."""
