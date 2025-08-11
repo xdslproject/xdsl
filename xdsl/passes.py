@@ -166,6 +166,30 @@ class ModulePass(ABC):
             args[name] = arg_list
         return PipelinePassSpec(self.name, args)
 
+    @classmethod
+    def schedule_space(
+        cls, ctx: Context, module_op: builtin.ModuleOp
+    ) -> tuple[Self, ...]:
+        """
+        Returns a tuple of `Self` that can be applied to rewrite the given module with
+        the given context without error.
+        The default implementation attempts to construct an instance with no parameters,
+        and run it on the module_op; if the module_op is mutated then the pass instance
+        is returned.
+        Parametrizable passes should override this implementation to provide a full
+        schedule space of transformations.
+        """
+        cloned_module = module_op.clone()
+        cloned_ctx = ctx.clone()
+        try:
+            pass_instance = cls()
+            pass_instance.apply(cloned_ctx, cloned_module)
+            if module_op.is_structurally_equivalent(cloned_module):
+                return ()
+        except Exception:
+            return ()
+        return (pass_instance,)
+
 
 class PassOptionInfo(NamedTuple):
     """The name, expected type, and default value for one option of a module pass."""
