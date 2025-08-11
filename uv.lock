@@ -1260,7 +1260,7 @@ source = { git = "https://github.com/superlopuh/lz-string.git#d435be09f8aa454ce0
 
 [[package]]
 name = "marimo"
-version = "0.14.16"
+version = "0.14.17"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1281,9 +1281,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/39/bfaba4cdb29b3c0ef2608184af16cb487298ab9cfcf4be803f4d12ac84e6/marimo-0.14.16.tar.gz", hash = "sha256:f0f291ac7fa6f87c8072f4019c6e9f635ad7efb37e0214f22543c8dd983042d1", size = 30568080, upload-time = "2025-08-01T13:43:27.637Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a5/2a/f0ce506e78e49ae0fe567ae23418e9af759c0272ac46c91a7d5ed8e92777/marimo-0.14.17.tar.gz", hash = "sha256:f38e592b83f8c23a0f19ef32d845594f6566691c28b1e41d04a78156df953305", size = 30581473, upload-time = "2025-08-11T19:31:16.103Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e9/d4/e8cb6cd10f22bcaf482d072d51511c34913c307caa10b0e0c2bfbea70955/marimo-0.14.16-py3-none-any.whl", hash = "sha256:2ffa19f9d7bc403895acd8aeba6a648d7787fc8a08ccae7882bacfd80099e15e", size = 30810373, upload-time = "2025-08-01T13:43:31.766Z" },
+    { url = "https://files.pythonhosted.org/packages/76/23/ca5f37ea5f6d0e22e8ba1bb6c2d00b44d8178ec5c5b10dad9d17e3561886/marimo-0.14.17-py3-none-any.whl", hash = "sha256:88e2b3fe86567c322805a5faebcc18e302813b109e017e1104157e44b8659777", size = 30819777, upload-time = "2025-08-11T19:31:12.049Z" },
 ]
 
 [[package]]
@@ -3628,7 +3628,7 @@ requires-dist = [
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.6.0" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
     { name = "lzstring2", marker = "extra == 'docs'", git = "https://github.com/superlopuh/lz-string.git" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.14.16" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.14.17" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.1" },
     { name = "mkdocs-awesome-nav", marker = "extra == 'docs'", specifier = ">=3.1.2" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.5.0" },
