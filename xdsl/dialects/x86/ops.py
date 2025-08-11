@@ -1815,6 +1815,8 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
     memory = operand_def(X86RegisterType)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
+    traits = traits_def(MemoryWriteEffect())
+
     def __init__(
         self,
         rsp_in: Operation | SSAValue,
@@ -1871,6 +1873,8 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     memory = operand_def(GeneralRegisterType)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     rsp_out = result_def(RSP)
+
+    traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,
@@ -1983,6 +1987,8 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     rax_in = operand_def(RAX)
     rax_out = result_def(RAX)
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         memory: Operation | SSAValue,
@@ -2043,6 +2049,8 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
 
     rax_in = operand_def(RAX)
     rax_out = result_def(RAX)
+
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
@@ -2339,6 +2347,8 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     result = result_def(RFLAGSRegisterType)
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         source: Operation | SSAValue,
@@ -2453,6 +2463,8 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     result = result_def(RFLAGSRegisterType)
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         memory: Operation | SSAValue,
@@ -2512,6 +2524,8 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     immediate = attr_def(IntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
+
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
