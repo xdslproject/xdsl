@@ -1,11 +1,7 @@
 // RUN: MLIR_GENERIC_ROUNDTRIP
+// RUN: MLIR_ROUNDTRIP
 
-// Tests if the non generic form can be printed.
-
-// CHECK: module {
-"builtin.module"() ({
-  "func.func"() ({
-  }) {"function_type" = () -> (), "symbol" = @some_symbol, "sym_name" = "symbol_attr", "sym_visibility" = "private"} : () -> ()
-  "func.func"() ({
-  }) {"function_type" = () -> (), "value1" = tensor<?xi32>, "sym_name" = "unranked_tensor_type", "sym_visibility" = "private"} : () -> ()
-}) : () -> ()
+// CHECK:    func.func private @symbol_attr() -> () attributes {symbol = @some_symbol}
+func.func private @symbol_attr() -> () attributes {symbol = @some_symbol}
+// CHECK:    func.func private @unranked_tensor_type() -> () attributes {value1 = tensor<?xi32>}
+func.func private @unranked_tensor_type() -> () attributes {value1 = tensor<?xi32>}
