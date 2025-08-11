@@ -7,6 +7,10 @@ from xdsl.universe import Universe
 
 
 def test_multiverse():
+    """
+    Checks that the universe can be discovered within the current environment, and that
+    duplicate names are detected.
+    """
     multiverse = Universe.get_multiverse()
 
     assert "plugin_dialect" in multiverse.all_dialects
