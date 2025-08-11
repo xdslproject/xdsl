@@ -346,7 +346,13 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         # Set the symbol table.
-        assert self.symbol_table is None
+        if self.symbol_table is not None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Cannot have an inner function '{node.name}' inside another function.",
+            )
         self.symbol_table = dict()
 
         # Then, convert types in the function signature.
