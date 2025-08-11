@@ -14,6 +14,7 @@ from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
+from xdsl.transforms.eqsat_optimize_pdl_interp import MatcherOptimizer
 from xdsl.transforms.mlir_opt import MLIROptPass
 
 
@@ -76,6 +77,9 @@ class ApplyEqsatPDLPass(ModulePass):
         matcher = SymbolTable.lookup_symbol(temp_module, "matcher")
         assert isinstance(matcher, pdl_interp.FuncOp)
         assert matcher is not None, "matcher function not found"
+
+        if self.optimize_matcher:
+            MatcherOptimizer(matcher).optimize()
 
         rewriter_module = cast(
             builtin.ModuleOp, SymbolTable.lookup_symbol(temp_module, "rewriters")
@@ -171,6 +175,8 @@ class ApplyEqsatPDLPass(ModulePass):
         matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
         assert isinstance(matcher, pdl_interp.FuncOp)
         assert matcher is not None, "matcher function not found"
+        if self.optimize_matcher:
+            MatcherOptimizer(matcher).optimize()
 
         # Initialize interpreter and implementations
         interpreter = Interpreter(pdl_interp_module)
