@@ -1,5 +1,4 @@
 import os
-import time
 from dataclasses import dataclass
 from typing import cast
 
@@ -115,7 +114,6 @@ class ApplyEqsatPDLPass(ModulePass):
     ) -> None:
         """Apply patterns individually in separate iterations."""
         patterns = self._extract_patterns(pdl_module)
-        print(f"Collected {len(patterns)} patterns.")
 
         implementations = EqsatPDLInterpFunctions(ctx)
         implementations.populate_known_ops(op)
@@ -151,7 +149,6 @@ class ApplyEqsatPDLPass(ModulePass):
         aggregate_module = self._create_aggregate_module(matchers, all_rewriter_ops)
         interpreter = Interpreter(aggregate_module)
         interpreter.register_implementations(implementations)
-        print(f"Collected {len(matchers)} matchers.")
 
         # Create rewrite patterns
         rewrite_patterns: list[PDLInterpRewritePattern] = []
@@ -160,7 +157,6 @@ class ApplyEqsatPDLPass(ModulePass):
                 matcher, interpreter, implementations, name.data
             )
             rewrite_patterns.append(rewrite_pattern)
-        print(f"Collected {len(rewrite_patterns)} rewrite patterns.")
 
         # Initialize listener
         listener = PatternRewriterListener()
@@ -170,17 +166,12 @@ class ApplyEqsatPDLPass(ModulePass):
 
         # Main iteration loop
         for _i in range(self.max_iterations):
-            print(f"Starting iteration {_i + 1} of {self.max_iterations}")
             # Apply each pattern individually
             for rewrite_pattern in rewrite_patterns:
                 assert rewrite_pattern.matcher is not None
-                print(f"Applying pattern: {rewrite_pattern.name}", end="", flush=True)
                 walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
                 walker.listener = listener
-                t0 = time.time()
                 walker.rewrite_module(op)
-                t1 = time.time()
-                print(f" - took {t1 - t0:.2f} seconds")
 
             # Execute all pending rewrites
             implementations.execute_pending_rewrites(interpreter)
