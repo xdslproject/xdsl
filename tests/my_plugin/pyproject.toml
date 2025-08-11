@@ -1,6 +1,6 @@
 [project]
 name = "my_plugin"
-description = "Test plugin for pass and transform discovery"
+description = "Plugin to test pass and transform discovery"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache License v2.0 with LLVM Exceptions" }
