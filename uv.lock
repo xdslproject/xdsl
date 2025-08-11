@@ -1775,6 +1775,16 @@ wheels = [
 ]
 
 [[package]]
+name = "my-plugin"
+source = { directory = "tests/my_plugin" }
+dependencies = [
+    { name = "xdsl" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "xdsl" }]
+
+[[package]]
 name = "narwhals"
 version = "2.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3602,6 +3612,7 @@ riscv = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "my-plugin" },
     { name = "xdsl", extra = ["bench", "dev", "docs", "gui", "jax", "riscv"] },
 ]
 
@@ -3649,7 +3660,10 @@ requires-dist = [
 provides-extras = ["dev", "docs", "gui", "jax", "riscv", "bench"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "xdsl", extras = ["dev", "docs", "gui", "jax", "riscv", "bench"] }]
+dev = [
+    { name = "my-plugin", directory = "tests/my_plugin" },
+    { name = "xdsl", extras = ["dev", "docs", "gui", "jax", "riscv", "bench"] },
+]
 
 [[package]]
 name = "yarl"

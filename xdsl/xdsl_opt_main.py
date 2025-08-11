@@ -13,7 +13,7 @@ from xdsl.ir import Attribute
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
-from xdsl.transforms import get_all_passes
+from xdsl.universe import Universe
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
 from xdsl.utils.lexer import Span
 
@@ -225,7 +225,8 @@ class xDSLOptMain(CommandLineTool):
 
         Add other/additional passes by overloading this function.
         """
-        for pass_name, pass_factory in get_all_passes().items():
+        multiverse = Universe.get_multiverse()
+        for pass_name, pass_factory in multiverse.all_passes.items():
             self.register_pass(pass_name, pass_factory)
 
     def register_all_targets(self):

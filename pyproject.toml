@@ -13,6 +13,10 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.entry-points.'xdsl.universe']
+xdsl = 'xdsl.universe:XDSL_UNIVERSE'
+
+
 [project.optional-dependencies]
 dev = [
     "toml<0.11",
@@ -55,7 +59,7 @@ bench = [
 ]
 
 [dependency-groups]
-dev = ["xdsl[dev,docs,gui,jax,riscv,bench]"]
+dev = ["xdsl[dev,docs,gui,jax,riscv,bench]", "my_plugin"]
 
 
 [project.urls]
@@ -81,6 +85,7 @@ zip-safe = false
 [tool.uv.sources]
 lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
 bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
+my_plugin = { path = "tests/my_plugin" }
 
 [tool.setuptools.packages]
 find = {}
