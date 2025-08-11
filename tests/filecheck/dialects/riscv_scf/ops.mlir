@@ -14,7 +14,7 @@ riscv_scf.rof %j : !riscv.reg = %ub down to %lb step %step {
         %cond = riscv.slt %i0, %ub_arg0 : (!riscv.reg, !riscv.reg) -> !riscv.reg
         riscv_scf.condition(%cond : !riscv.reg) %i0, %ub_arg0, %step_arg0 : !riscv.reg, !riscv.reg, !riscv.reg
 } do {
-    ^1(%i1 : !riscv.reg, %ub_arg1 : !riscv.reg, %step_arg1 : !riscv.reg):
+    ^bb1(%i1 : !riscv.reg, %ub_arg1 : !riscv.reg, %step_arg1 : !riscv.reg):
         riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
         %i_next = "riscv.add"(%i1, %step_arg1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
         "riscv_scf.yield"(%i_next, %ub_arg1, %step_arg1) : (!riscv.reg, !riscv.reg, !riscv.reg) -> ()
@@ -35,7 +35,7 @@ riscv_scf.rof %j : !riscv.reg = %ub down to %lb step %step {
 // CHECK-NEXT:             %cond = riscv.slt %i0, %ub_arg0 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:             riscv_scf.condition(%cond : !riscv.reg) %i0, %ub_arg0, %step_arg0 : !riscv.reg, !riscv.reg, !riscv.reg
 // CHECK-NEXT:     } do {
-// CHECK-NEXT:         ^0(%i1 : !riscv.reg, %ub_arg1 : !riscv.reg, %step_arg1 : !riscv.reg):
+// CHECK-NEXT:         ^bb0(%i1 : !riscv.reg, %ub_arg1 : !riscv.reg, %step_arg1 : !riscv.reg):
 // CHECK-NEXT:             riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 // CHECK-NEXT:             %i_next = riscv.add %i1, %step_arg1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:             riscv_scf.yield %i_next, %ub_arg1, %step_arg1 : !riscv.reg, !riscv.reg, !riscv.reg

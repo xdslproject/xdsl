@@ -4,7 +4,7 @@ builtin.module {
 // CHECK: builtin.module {
 
   "toy.func"() ({
-  ^0(%0 : tensor<*xf64>, %1 : tensor<*xf64>):
+  ^bb0(%0 : tensor<*xf64>, %1 : tensor<*xf64>):
     %2 = "toy.transpose"(%0) : (tensor<*xf64>) -> tensor<*xf64>
     %3 = "toy.transpose"(%1) : (tensor<*xf64>) -> tensor<*xf64>
     %4 = "toy.mul"(%2, %3) : (tensor<*xf64>, tensor<*xf64>) -> tensor<*xf64>

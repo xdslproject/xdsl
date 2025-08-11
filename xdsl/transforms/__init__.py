@@ -308,6 +308,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return function_transformations.FunctionPersistArgNamesPass
 
+    def get_func_to_pdl_rewrite():
+        from xdsl.transforms.experimental import func_to_pdl_rewrite
+
+        return func_to_pdl_rewrite.FuncToPdlRewrite
+
     def get_gpu_map_parallel_loops():
         from xdsl.transforms import gpu_map_parallel_loops
 
@@ -648,6 +653,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "frontend-desymrefy": get_frontend_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
         "function-persist-arg-names": get_function_persist_arg_names,
+        "func-to-pdl-rewrite": get_func_to_pdl_rewrite,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "inline-snrt": get_inline_snrt,

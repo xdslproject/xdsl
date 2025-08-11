@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.14.16"
 app = marimo.App(width="medium")
 
 
@@ -31,7 +31,7 @@ def _():
     from xdsl.interpreters.utils.ptr import TypedPtr
     from xdsl.ir import Attribute, Block, Region, SSAValue
     from xdsl.passes import PassPipeline
-    from xdsl.tools.command_line_tool import get_all_dialects
+    from xdsl.dialects import get_all_dialects
     from xdsl.transforms import (
         arith_add_fastmath,
         convert_linalg_to_loops,
