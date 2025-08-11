@@ -1,15 +1,45 @@
 site_name: xDSL
+site_url: https://xdsl.readthedocs.io/
+site_description: xDSL -- a Python-native compiler framework
+site_author: xDSL developers
+copyright: Copyright &copy xDSL developers
+repo_name:  xdslproject/xdsl
+repo_url: https://github.com/xdslproject/xdsl
 
 strict: true
 
 theme:
   name: "material"
+  logo: assets/img/logos/xdsl-transparent-single.png
+  favicon: assets/img/logos/xdsl-transparent-single.png
+  locale: en
   features:
+    - content.code.annotate
+    - content.code.copy
     - navigation.instant
     - navigation.tracking
     - navigation.tabs
     - navigation.sections
     - navigation.expand
+    - navigation.indexes
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: xdsl
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
 
 plugins:
 - search
@@ -26,3 +56,15 @@ plugins:
           show_root_heading: true
           show_root_full_path: false
           show_signature_annotations: true
+
+extra:
+  social:
+    - icon: material/rss
+      link: https://xdsl.dev/feed.xml
+      name: Subscribe to our RSS Feed
+    - icon: material/chat
+      link: https://xdsl.zulipchat.com/
+      name: Chat on Zulip
+    - icon: material/github
+      link: https://github.com/xdslproject
+      name: Contribute on Github

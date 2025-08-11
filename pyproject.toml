@@ -25,7 +25,7 @@ dev = [
     "lit<19.0.0",
     "marimo==0.14.16",
     "pre-commit>=4.0.0,<5.0.0",
-    "ruff==0.12.7",
+    "ruff==0.12.8",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
     "pytest-asyncio==1.1.0",
@@ -54,6 +54,10 @@ bench = [
     "bytesight",
 ]
 
+[dependency-groups]
+dev = ["xdsl[dev,docs,gui,jax,riscv,bench]"]
+
+
 [project.urls]
 Homepage = "https://xdsl.dev/"
 "Source Code" = "https://github.com/xdslproject/xdsl"
@@ -76,7 +80,7 @@ zip-safe = false
 
 [tool.uv.sources]
 lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
-bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "ee773b979ba70d707a4d6532244de21496399c08" }
+bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
 
 [tool.setuptools.packages]
 find = {}
@@ -102,7 +106,7 @@ reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
-"include" = ["docs", "xdsl", "tests"]
+"include" = ["docs", "xdsl", "tests", "benchmarks"]
 "exclude" = ["docs/marimo"]
 
 [tool.ruff]

@@ -3,7 +3,7 @@
 builtin.module attributes {gpu.container_module} {
   "gpu.module"() ({
     "gpu.func"() ({
-    ^0(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : memref<260x260xf32>, %arg4 : index, %arg5 : f32, %arg6 : f32, %arg7 : f32, %arg8 : f32, %arg9 : f32, %arg10 : f32, %arg11 : memref<260x260xf32>, %arg12: memref<260x260xindex>):
+    ^bb0(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : memref<260x260xf32>, %arg4 : index, %arg5 : f32, %arg6 : f32, %arg7 : f32, %arg8 : f32, %arg9 : f32, %arg10 : f32, %arg11 : memref<260x260xf32>, %arg12: memref<260x260xindex>):
       %0 = "arith.constant"() {"value" = 2 : index} : () -> index
       %1 = "gpu.block_id"() {"dimension" = #gpu<dim x>} : () -> index
       %2 = "gpu.block_id"() {"dimension" = #gpu<dim y>} : () -> index
