@@ -6,6 +6,7 @@ from xdsl.dialects import builtin, pdl_interp
 from xdsl.ir import Block, Region, SSAValue, Use
 from xdsl.irdl.dominance import DominanceInfo
 from xdsl.passes import ModulePass
+from xdsl.printer import Printer
 from xdsl.rewriter import Rewriter
 from xdsl.traits import SymbolTable
 
@@ -168,11 +169,16 @@ class MatcherOptimizer:
             for result in op.operands:
                 block_dependencies.add(result)
 
+        printer = Printer()
         insertion_edge = None
         while True:
             should_move_block = False
             pred = incoming_edge.operation.parent_block()
             assert pred is not None
+            print("pred:", end="")
+            with printer.indented():
+                printer.print_block(pred)
+            print()
             outgoing_edge = incoming_edge
             incoming_edge = next(iter(pred.uses), None)
             if incoming_edge is None:
@@ -203,7 +209,9 @@ class MatcherOptimizer:
                 # this means we need to move this block as well.
                 should_move_block = True
             if not should_move_block:
+                # print("(not moving block)\n")
                 continue
+            # print("(moving block)\n")
             blocks_to_move.append(pred)
             outgoing_edges.append(outgoing_edge)
             incoming_edges.append(incoming_edge)
