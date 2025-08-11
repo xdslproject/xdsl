@@ -10,6 +10,6 @@ class PluginPass(ModulePass):
 PluginDialect = Dialect("plugin_dialect")
 
 MY_UNIVERSE = Universe(
-    {"plugin_dialect": lambda: PluginDialect},
-    {"plugin-pass": lambda: PluginPass},
+    all_dialects={"plugin_dialect": lambda: PluginDialect},
+    all_passes={"plugin-pass": lambda: PluginPass},
 )

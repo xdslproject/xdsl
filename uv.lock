@@ -1773,7 +1773,6 @@ wheels = [
 
 [[package]]
 name = "my-plugin"
-version = "0.1.0"
 source = { directory = "tests/my_plugin" }
 dependencies = [
     { name = "xdsl" },

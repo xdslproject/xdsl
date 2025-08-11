@@ -7,7 +7,7 @@ license = { text = "Apache License v2.0 with LLVM Exceptions" }
 authors = [{ name = "Sasha Lopoukhine", email = "sasha@lopoukhine.com" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = ["xdsl"]
-version = "0.1.0"
+dynamic = ["version"]
 
 [project.entry-points.'xdsl.universe']
 my_plugin = 'my_plugin:MY_UNIVERSE'

@@ -4,13 +4,27 @@ xDSL leverages Python [plugins](https://packaging.python.org/en/latest/guides/cr
 Python packages that want to extend the passes and dialects available in `xdsl-opt` can
 implement their own `Universe`, which will be discovered by `Multiverse` at runtime.
 
-To opt into this behavior first add an AbstractUniverse subclass somewhere in your
-project, for example in `your_project/universe.py`.
+To opt into this behavior first add a Universe instance somewhere in your project,
+for example in `your_project/universe.py`:
+
+```py
+def get_dialect():
+    ...
+
+def get_pass():
+    ...
+
+YOUR_UNIVERSE = Universe(
+    all_dialects={"your_dialect": get_dialect},
+    all_passes={"your-pass": get_pass},
+)
+```
+
 Then, add the following entry in your `pyproject.toml` file:
 
 ```toml
 [project.entry-points.'xdsl.universe']
-your_project = 'your_project.universe:Universe'
+your_project = 'your_project.universe:YOUR_UNIVERSE'
 ```
 
 Note that any clashes in names of dialects or passes will result in an error.
@@ -38,11 +52,12 @@ class Universe:
 
     def __init__(
         self,
-        all_dialects: dict[str, Callable[[], Dialect]],
-        all_passes: dict[str, Callable[[], type[ModulePass]]],
+        *,
+        all_dialects: dict[str, Callable[[], Dialect]] | None = None,
+        all_passes: dict[str, Callable[[], type[ModulePass]]] | None = None,
     ) -> None:
-        self.all_dialects = all_dialects
-        self.all_passes = all_passes
+        self.all_dialects = {} if all_dialects is None else all_dialects
+        self.all_passes = {} if all_passes is None else all_passes
 
     @staticmethod
     def get_multiverse() -> Universe:
@@ -85,7 +100,7 @@ class Universe:
                     )
                 all_passes[pass_name] = _pass
 
-        return Universe(all_dialects, all_passes)
+        return Universe(all_dialects=all_dialects, all_passes=all_passes)
 
 
-XDSL_UNIVERSE = Universe(get_all_dialects(), get_all_passes())
+XDSL_UNIVERSE = Universe(all_dialects=get_all_dialects(), all_passes=get_all_passes())
