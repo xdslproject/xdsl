@@ -22,7 +22,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, ParametrizedAttribute
+from xdsl.ir import Attribute, Block, ParametrizedAttribute
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -426,6 +426,15 @@ def test_parse_multi_region_mlir():
     op = parser.parse_op()
 
     assert len(op.regions) == 2
+
+
+def test_is_default_block_name():
+    assert Block.is_default_block_name("bb0")
+    assert Block.is_default_block_name("bb1")
+    assert not Block.is_default_block_name("bb1a")
+    assert not Block.is_default_block_name("bb")
+    assert not Block.is_default_block_name("bbb0")
+    assert not Block.is_default_block_name("")
 
 
 def test_parse_block_name():

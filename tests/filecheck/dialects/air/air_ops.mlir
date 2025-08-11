@@ -27,7 +27,7 @@ func.func @graph(%arg0 : memref<32x16xi32>, %arg1 : memref<32x16xi32>) -> () {
 // CHECK-NEXT:     %herd_cols = arith.constant 1 : index
 // CHECK-NEXT:     %herd_rows = arith.constant 1 : index
 // CHECK-NEXT:     %0 = air.herd tile(%tx, %ty) in (%size_x = %herd_cols, %size_y = %herd_rows) args(%ext0 = %arg0, %ext1 = %arg1 : memref<32x16xi32>,memref<32x16xi32>){
-// CHECK-NEXT:     ^0(%ext0 : memref<32x16xi32>, %ext1 : memref<32x16xi32>):
+// CHECK-NEXT:     ^bb0(%ext0 : memref<32x16xi32>, %ext1 : memref<32x16xi32>):
 // CHECK-NEXT:       %c0 = arith.constant 0 : index
 // CHECK-NEXT:       %c128 = arith.constant 128 : index
 // CHECK-NEXT:       %c32 = arith.constant 32 : index
@@ -230,7 +230,7 @@ module  {
 // CHECK-NEXT:     %c4 = arith.constant 4 : index
 // CHECK-NEXT:     %c1 = arith.constant 1 : index
 // CHECK-NEXT:     %0 = air.herd tile(%tx, %ty) in (%size_x = %c4, %size_y = %c1) args(%ext0 = %m0, %ext1 = %m1, %ext2 = %m2 : memref<1024xi32>,memref<1024xi32>,memref<1024xi32>){
-// CHECK-NEXT:     ^0(%op0 : memref<1024xi32>, %op1 : memref<1024xi32>, %op2 : memref<1024xi32>):
+// CHECK-NEXT:     ^bb0(%op0 : memref<1024xi32>, %op1 : memref<1024xi32>, %op2 : memref<1024xi32>):
 // CHECK-NEXT:       %c0 = arith.constant 0 : index
 // CHECK-NEXT:       %c1024 = arith.constant 1024 : index
 // CHECK-NEXT:       %c1_1 = arith.constant 1 : index
@@ -243,10 +243,10 @@ module  {
 // CHECK-NEXT:           air.pipeline.yield %init : tensor<1024xi32>
 // CHECK-NEXT:         }) : () -> tensor<1024xi32>
 // CHECK-NEXT:         %output2 = "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^1(%in : tensor<1024xi32>):
+// CHECK-NEXT:         ^bb1(%in : tensor<1024xi32>):
 // CHECK-NEXT:           %init_1 = tensor.empty() : tensor<1024xi32>
 // CHECK-NEXT:           %2 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in : tensor<1024xi32>) outs(%init_1 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^2(%a2 : i32, %a3 : i32):
+// CHECK-NEXT:           ^bb2(%a2 : i32, %a3 : i32):
 // CHECK-NEXT:             %one = arith.constant 1 : i32
 // CHECK-NEXT:             %3 = arith.addi %a2, %one : i32
 // CHECK-NEXT:             linalg.yield %3 : i32
@@ -254,10 +254,10 @@ module  {
 // CHECK-NEXT:           air.pipeline.yield %2 : tensor<1024xi32>
 // CHECK-NEXT:         }) : () -> tensor<1024xi32>
 // CHECK-NEXT:         %output3 = "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^3(%in_1 : tensor<1024xi32>):
+// CHECK-NEXT:         ^bb3(%in_1 : tensor<1024xi32>):
 // CHECK-NEXT:           %init_2 = tensor.empty() : tensor<1024xi32>
 // CHECK-NEXT:           %4 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in_1 : tensor<1024xi32>) outs(%init_2 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^4(%a2_1 : i32, %a3_1 : i32):
+// CHECK-NEXT:           ^bb4(%a2_1 : i32, %a3_1 : i32):
 // CHECK-NEXT:             %two = arith.constant 2 : i32
 // CHECK-NEXT:             %5 = arith.addi %a2_1, %two : i32
 // CHECK-NEXT:             linalg.yield %5 : i32
@@ -265,10 +265,10 @@ module  {
 // CHECK-NEXT:           air.pipeline.yield %4 : tensor<1024xi32>
 // CHECK-NEXT:         }) : () -> tensor<1024xi32>
 // CHECK-NEXT:         "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^5(%in_2 : tensor<1024xi32>):
+// CHECK-NEXT:         ^bb5(%in_2 : tensor<1024xi32>):
 // CHECK-NEXT:           %init_3 = tensor.empty() : tensor<1024xi32>
 // CHECK-NEXT:           %6 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in_2 : tensor<1024xi32>) outs(%init_3 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^6(%a2_2 : i32, %a3_2 : i32):
+// CHECK-NEXT:           ^bb6(%a2_2 : i32, %a3_2 : i32):
 // CHECK-NEXT:             %three = arith.constant 3 : i32
 // CHECK-NEXT:             %7 = arith.addi %a2_2, %three : i32
 // CHECK-NEXT:             linalg.yield %7 : i32
