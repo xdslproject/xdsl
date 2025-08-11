@@ -92,7 +92,7 @@ class ApplyEqsatPDLPass(ModulePass):
 
         return matcher, rewriter_func
 
-    def _create_master_module(
+    def _create_aggregate_module(
         self,
         matchers: list[pdl_interp.FuncOp],
         all_rewriter_ops: list[pdl_interp.FuncOp],
@@ -116,9 +116,8 @@ class ApplyEqsatPDLPass(ModulePass):
         patterns = self._extract_patterns(pdl_module)
         print(f"Collected {len(patterns)} patterns.")
 
-        # Create shared implementations for all patterns
-        shared_implementations = EqsatPDLInterpFunctions(ctx)
-        shared_implementations.populate_known_ops(op)
+        implementations = EqsatPDLInterpFunctions(ctx)
+        implementations.populate_known_ops(op)
 
         # Convert all patterns and collect components
         matchers: list[pdl_interp.FuncOp] = []
@@ -148,16 +147,16 @@ class ApplyEqsatPDLPass(ModulePass):
             all_rewriter_ops.append(rewriter_func)
 
         # Create master module and interpreter
-        master_module = self._create_master_module(matchers, all_rewriter_ops)
-        master_interpreter = Interpreter(master_module)
-        master_interpreter.register_implementations(shared_implementations)
+        aggregate_module = self._create_aggregate_module(matchers, all_rewriter_ops)
+        interpreter = Interpreter(aggregate_module)
+        interpreter.register_implementations(implementations)
         print(f"Collected {len(matchers)} matchers.")
 
         # Create rewrite patterns
         rewrite_patterns: list[PDLInterpRewritePattern] = []
         for name, matcher in zip(names, matchers):
             rewrite_pattern = PDLInterpRewritePattern(
-                matcher, master_interpreter, shared_implementations, name.data
+                matcher, interpreter, implementations, name.data
             )
             rewrite_patterns.append(rewrite_pattern)
         print(f"Collected {len(rewrite_patterns)} rewrite patterns.")
@@ -165,7 +164,7 @@ class ApplyEqsatPDLPass(ModulePass):
         # Initialize listener
         listener = PatternRewriterListener()
         listener.operation_modification_handler.append(
-            shared_implementations.modification_handler
+            implementations.modification_handler
         )
 
         # Main iteration loop
@@ -183,12 +182,12 @@ class ApplyEqsatPDLPass(ModulePass):
                 print(f" - took {t1 - t0:.2f} seconds")
 
             # Execute all pending rewrites
-            shared_implementations.execute_pending_rewrites(master_interpreter)
+            implementations.execute_pending_rewrites(interpreter)
 
-            if not shared_implementations.worklist:
+            if not implementations.worklist:
                 break
 
-            shared_implementations.rebuild()
+            implementations.rebuild()
 
     def _apply_combined_patterns(
         self, ctx: Context, op: builtin.ModuleOp, pdl_module: builtin.ModuleOp
