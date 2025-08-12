@@ -1481,7 +1481,7 @@ def irdl_op_verify_arg_list(
         elif not isinstance(args, Sequence):
             arg_types = (args.type,)
         else:
-            arg_types = tuple(a.type for a in cast(Sequence[SSAValue], args))
+            arg_types = args.types
         length = len(arg_types)
         try:
             arg_def.constr.verify(arg_types, constraint_context)
