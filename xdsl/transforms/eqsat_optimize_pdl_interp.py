@@ -52,10 +52,9 @@ class MatcherOptimizer:
 
         outgoing_edges = [are_equal_op._successor_uses[0]]  # pyright: ignore[reportPrivateUsage]
 
-        block_dependencies: set[SSAValue] = set()
-        for op in are_equal_block.ops:
-            for result in op.operands:
-                block_dependencies.add(result)
+        block_dependencies: set[SSAValue] = {
+            result for op in are_equal_block.ops for result in op.operands
+        }
         insertion_edge = None
         while True:
             should_move_block = False
