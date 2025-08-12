@@ -10,6 +10,7 @@ from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
 from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
+from xdsl.transforms.eqsat_optimize_pdl_interp import MatcherOptimizer
 
 _DEFAULT_MAX_ITERATIONS = 20
 """Default number of times to iterate over the module."""
@@ -20,10 +21,15 @@ def apply_eqsat_pdl_interp(
     ctx: Context,
     pdl_interp_module: builtin.ModuleOp,
     max_iterations: int = _DEFAULT_MAX_ITERATIONS,
+    optimize_matcher: bool = False,
 ):
     matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
     assert isinstance(matcher, pdl_interp.FuncOp)
     assert matcher is not None, "matcher function not found"
+
+    if optimize_matcher:
+        mo = MatcherOptimizer(matcher)
+        mo.optimize()
 
     # Initialize interpreter and implementations once
     interpreter = Interpreter(pdl_interp_module)
@@ -54,8 +60,14 @@ class ApplyEqsatPDLInterpPass(ModulePass):
     name = "apply-eqsat-pdl-interp"
 
     pdl_interp_file: str | None = None
+    """Path to external file containing pdl_interp matcher and rewriters.
+    If None, matcher and rewriters are taken from the input module."""
+
     max_iterations: int = _DEFAULT_MAX_ITERATIONS
     """Maximum number of iterations to run, default 20."""
+
+    optimize_matcher: bool = False
+    """When enabled, the matcher is optimized to evaluate equality constraints early."""
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if self.pdl_interp_file is not None:
@@ -67,4 +79,6 @@ class ApplyEqsatPDLInterpPass(ModulePass):
         else:
             pdl_interp_module = op
 
-        apply_eqsat_pdl_interp(op, ctx, pdl_interp_module, self.max_iterations)
+        apply_eqsat_pdl_interp(
+            op, ctx, pdl_interp_module, self.max_iterations, self.optimize_matcher
+        )
