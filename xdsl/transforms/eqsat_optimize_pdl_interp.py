@@ -29,74 +29,9 @@ class MatcherOptimizer:
     finalize_blocks: set[Block] = field(default_factory=set[Block])
 
     def optimize(self):
-        print("Optimizing matcher...")
         for op in self.matcher.walk(reverse=True):
-            if isinstance(op, pdl_interp.GetDefiningOpOp):
-                # changed = self.optimize_name_constraints(op)
-                ...
-            elif isinstance(op, pdl_interp.AreEqualOp):
+            if isinstance(op, pdl_interp.AreEqualOp):
                 self.optimize_equality_constraints(op)
-
-    def optimize_name_constraints(
-        self,
-        gdo: pdl_interp.GetDefiningOpOp,
-    ) -> bool:
-        assert (gdo_block := gdo.parent_block())
-        if not (
-            isinstance(gdo_block.last_op, pdl_interp.IsNotNullOp)
-            and self.is_finalize_block(gdo_block.last_op.false_dest)
-        ):
-            return False
-
-        check_blocks = set[Block]()
-        names = set[builtin.StringAttr]()
-
-        for use in gdo.input_op.uses:
-            check_op = use.operation
-            if isinstance(check_op, pdl_interp.SwitchOperationNameOp):
-                finalizes = self.is_finalize_block(check_op.default_dest), f"{check_op}"
-                names.update(check_op.case_values)
-            elif isinstance(check_op, pdl_interp.CheckOperationNameOp):
-                finalizes = self.is_finalize_block(check_op.false_dest)
-                names.add(check_op.operation_name)
-            else:
-                continue
-            if finalizes:
-                # when this `check_op` is reached, the pattern will either fail to match or
-                # the operation will be constrained to a name contained in `names`.
-                assert (check_block := check_op.parent_block())
-                check_blocks.add(check_block)
-
-        worklist: list[Block] = list(gdo_block.last_op.successors)
-        additional_gdo_on_path = False
-        while worklist:
-            block = worklist.pop()
-            for op in block.ops:
-                if isinstance(op, pdl_interp.GetDefiningOpOp):
-                    additional_gdo_on_path = True
-            if block in check_blocks:
-                continue
-            terminator = block.last_op
-            assert terminator, "Expected each block to have a terminator"
-            if isinstance(terminator, pdl_interp.RecordMatchOp):
-                # There is a rewrite that is triggered without ever constraining the operation's name.
-                # This means we cannot move a aggregate name check right after the GDO.
-                return False
-            worklist.extend(
-                terminator.successors
-            )  # This terminates since CFG is acyclic.
-
-        # To prevent inserting too many new checks, we only insert if there is actual danger
-        # of exponential blowup due to the presence of multiple GDOs on the path.
-        if not additional_gdo_on_path:
-            return False
-
-        self.insert_name_constraint(
-            names,
-            gdo,
-        )
-
-        return True
 
     def optimize_equality_constraints(
         self,
