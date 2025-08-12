@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.backend.x86.lowering.helpers import cast_operands_to_regs
+from xdsl.backend.x86.lowering.helpers import Arch, cast_operands_to_regs
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, x86
 from xdsl.dialects.builtin import (
@@ -47,6 +47,8 @@ X86_OP_BY_ARITH_BINARY_OP = {
 
 @dataclass
 class ArithBinaryToX86(RewritePattern):
+    arch: Arch
+
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         new_type = X86_OP_BY_ARITH_BINARY_OP.get(type(op))  # pyright: ignore
         if new_type is None:
@@ -58,7 +60,7 @@ class ArithBinaryToX86(RewritePattern):
             raise DiagnosticException(
                 f"Lowering of {op.name} not implemented for ShapedType"
             )
-        lhs_x86, rhs_x86 = cast_operands_to_regs(rewriter=rewriter)
+        lhs_x86, rhs_x86 = cast_operands_to_regs(self.arch, rewriter)
         rhs_copy_op = x86.DS_MovOp(
             source=rhs_x86, destination=x86.register.UNALLOCATED_GENERAL
         )
@@ -74,10 +76,11 @@ class ConvertArithToX86Pass(ModulePass):
     name = "convert-arith-to-x86"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
+        arch = Arch.arch_for_name(None)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ArithBinaryToX86(),
+                    ArithBinaryToX86(arch),
                     ArithConstantToX86(),
                 ]
             ),

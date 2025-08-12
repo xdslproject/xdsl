@@ -51,7 +51,7 @@
 
 // -----
 
-// CHECK: The vector size and target architecture are inconsistent.
+// CHECK: The vector size 1024 and target architecture avx512 are inconsistent.
 %ptr4 = "test.op"(): () -> !ptr_xdsl.ptr
 %v4 = ptr_xdsl.load %ptr4 : !ptr_xdsl.ptr -> vector<32xf32>
 
