@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.builder import Builder, add_value_name_listener
+from xdsl.builder import Builder, SSAValueNameSetter
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IntAttr, i32, i64
 from xdsl.dialects.scf import IfOp
@@ -196,7 +196,7 @@ def test_builder_name_hint_listener():
     b = Builder(InsertPoint.at_start(block))
     assert b.insert_op(TestOp((), result_types=(i32,))).results[0].name_hint is None
 
-    add_value_name_listener(b, "hello")
+    SSAValueNameSetter("hello").register(b)
     # No name hint
     assert b.insert_op(TestOp((), result_types=(i32,))).results[0].name_hint == "hello"
 
@@ -206,7 +206,7 @@ def test_builder_name_hint_listener():
     assert b.insert_op(op).results[0].name_hint == "world"
 
     with pytest.raises(ValueError, match="Invalid SSAValue name format `1`."):
-        add_value_name_listener(b, "1")
+        SSAValueNameSetter("1")
 
 
 def test_build_region():
