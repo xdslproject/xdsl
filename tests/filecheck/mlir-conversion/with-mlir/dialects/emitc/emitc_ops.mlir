@@ -1,5 +1,5 @@
-// RUN: xdsl-opt %s | mlir-opt --allow-unregistered-dialect | xdsl-opt | filecheck %s
-// RUN: xdsl-opt %s --print-op-generic | mlir-opt --allow-unregistered-dialect --mlir-print-op-generic | xdsl-opt | filecheck %s
+// RUN: MLIR_ROUNDTRIP
+// RUN: MLIR_GENERIC_ROUNDTRIP
 
 %i32_lhs, %i32_rhs = "test.op"() : () -> (i32, i32)
 %ptr_f32, %i32_offset = "test.op"() : () -> (!emitc.ptr<f32>, i32)
