@@ -667,6 +667,14 @@ class IRWithName(ABC):
         """
         return name is None or _VALUE_NAME_PATTERN.fullmatch(name)
 
+    @overload
+    @classmethod
+    def extract_valid_name(cls, name: str) -> str: ...
+
+    @overload
+    @classmethod
+    def extract_valid_name(cls, name: None) -> None: ...
+
     @classmethod
     def extract_valid_name(cls, name: str | None) -> str | None:
         """
