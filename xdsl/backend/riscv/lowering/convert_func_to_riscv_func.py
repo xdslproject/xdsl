@@ -7,7 +7,6 @@ from xdsl.backend.riscv.lowering.utils import (
     move_to_unallocated_regs,
     register_type_for_type,
 )
-from xdsl.builder import SSAValueNameSetter
 from xdsl.context import Context
 from xdsl.dialects import func, riscv_func
 from xdsl.dialects.builtin import ModuleOp, StringAttr, UnrealizedConversionCastOp
@@ -64,8 +63,8 @@ class LowerFuncCallOp(RewritePattern):
         if len(op.res) > 2:
             raise ValueError("Cannot lower func.call with more than 2 results")
 
-        if len(op.results) == 1 and (name_hint := op.results[0].name_hint) is not None:
-            SSAValueNameSetter(name_hint).register(rewriter)
+        if len(op.results) == 1:
+            rewriter.name_hint = op.results[0].name_hint
 
         register_operands = cast_to_regs(op.arguments, register_type_for_type, rewriter)
         operand_types = op.arguments.types
