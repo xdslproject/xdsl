@@ -1,11 +1,9 @@
-from collections.abc import Collection
 from dataclasses import dataclass, field
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, pdl_interp
 from xdsl.ir import Block, SSAValue, Use
 from xdsl.passes import ModulePass
-from xdsl.rewriter import Rewriter
 from xdsl.traits import SymbolTable
 
 
@@ -155,39 +153,3 @@ class MatcherOptimizer:
             self.finalize_blocks.add(block)
             return True
         return False
-
-    def insert_name_constraint(
-        self,
-        valid_names: Collection[builtin.StringAttr],
-        gdo: pdl_interp.GetDefiningOpOp,
-    ):
-        gdo_block = gdo.parent_block()
-        # at this point, we also know that the false_dest of the terminator is a finalize block
-        assert gdo_block
-        assert isinstance(terminator := gdo_block.last_op, pdl_interp.IsNotNullOp)
-
-        continue_dest = terminator.true_dest
-        if len(valid_names) == 1:
-            new_check_op = pdl_interp.CheckOperationNameOp(
-                next(iter(valid_names)),
-                gdo.input_op,
-                trueDest=continue_dest,
-                falseDest=terminator.false_dest,
-            )
-        else:
-            new_check_op = pdl_interp.SwitchOperationNameOp(
-                valid_names,
-                gdo.input_op,
-                default_dest=terminator.false_dest,
-                cases=[continue_dest for _ in range(len(valid_names))],
-            )
-        new_block = Block((new_check_op,))
-        self.matcher.body.insert_block_after(new_block, gdo_block)
-
-        rewriter = Rewriter()
-        rewriter.replace_op(
-            terminator,
-            pdl_interp.IsNotNullOp(
-                terminator.value, trueDest=new_block, falseDest=terminator.false_dest
-            ),
-        )
