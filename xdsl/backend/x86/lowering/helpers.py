@@ -53,7 +53,7 @@ class Arch(StrEnum):
                 return x86.register.SSERegisterType
             case _:
                 raise DiagnosticException(
-                    f"The vector size {vector_size} and target architecture {self} are inconsistent."
+                    f"The vector size ({vector_size} bits) and target architecture `{self}` are inconsistent."
                 )
 
     def _scalar_type_for_type(self, value_type: Attribute) -> type[X86RegisterType]:
