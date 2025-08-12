@@ -1475,7 +1475,7 @@ def irdl_op_verify_arg_list(
     idx = 0
 
     for arg_name, arg_def in defs:
-        args = getattr(op, arg_name)
+        args: None | SSAValue | SSAValues = getattr(op, arg_name)
         if args is None:
             arg_types = ()
         elif not isinstance(args, Sequence):
