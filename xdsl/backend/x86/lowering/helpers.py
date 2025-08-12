@@ -83,7 +83,7 @@ class Arch(StrEnum):
         return self._scalar_type_for_type(value_type)
 
 
-_ARCH_BY_NAME = {str(case).lower(): case for case in Arch}
+_ARCH_BY_NAME = {str(case): case for case in Arch}
 """
 Handled architectures in x86 backend.
 """
