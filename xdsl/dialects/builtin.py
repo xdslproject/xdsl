@@ -2279,14 +2279,14 @@ class MemRefType(
 
     shape: ArrayAttr[IntAttr]
     element_type: _MemRefTypeElement
-    layout: StridedLayoutAttr | AffineMapAttr | NoneAttr
+    layout: Attribute
     memory_space: Attribute
 
     def __init__(
         self,
         element_type: _MemRefTypeElement,
         shape: ArrayAttr[IntAttr] | Iterable[int | IntAttr],
-        layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
+        layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
         if not isa(shape, ArrayAttr[IntAttr]):
