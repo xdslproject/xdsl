@@ -1,6 +1,10 @@
 // RUN: XDSL_ROUNDTRIP
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
+%i32_lhs, %i32_rhs = "test.op"() : () -> (i32, i32)
+%ptr_f32, %i32_offset = "test.op"() : () -> (!emitc.ptr<f32>, i32)
+%opaque_uint = "test.op"() : () -> !emitc.opaque<"unsigned int">
+
 //===----------------------------------------------------------------------===//
 // CallOpaqueOp
 //===----------------------------------------------------------------------===//
@@ -18,3 +22,19 @@ emitc.call_opaque "test" ()  : () -> ()
 // CHECK-GENERIC:  %0 = "emitc.call_opaque"() <{callee = "blah"}> : () -> i64
 // CHECK-GENERIC-NEXT: "emitc.call_opaque"(%0) <{callee = "foo", args = [0 : index, dense<[0, 1]> : tensor<2xi32>, 0 : index]}> : (i64) -> ()
 // CHECK-GENERIC-NEXT: "emitc.call_opaque"() <{callee = "test"}> : () -> ()
+
+//===----------------------------------------------------------------------===//
+// AddOp
+//===----------------------------------------------------------------------===//
+
+%add_int = "emitc.add" (%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+// CHECK: %add_int = emitc.add %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %add_int = "emitc.add"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+%add_ptr_int = "emitc.add" (%ptr_f32, %i32_offset) : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+// CHECK: %add_ptr_int = emitc.add %ptr_f32, %i32_offset : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+// CHECK-GENERIC: %add_ptr_int = "emitc.add"(%ptr_f32, %i32_offset) : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+
+%add_ptr_opaque = "emitc.add" (%ptr_f32, %opaque_uint) : (!emitc.ptr<f32>, !emitc.opaque<"unsigned int">) -> !emitc.ptr<f32>
+// CHECK: %add_ptr_opaque = emitc.add %ptr_f32, %opaque_uint : (!emitc.ptr<f32>, !emitc.opaque<"unsigned int">) -> !emitc.ptr<f32>
+// CHECK-GENERIC: %add_ptr_opaque = "emitc.add"(%ptr_f32, %opaque_uint) : (!emitc.ptr<f32>, !emitc.opaque<"unsigned int">) -> !emitc.ptr<f32>

@@ -40,8 +40,10 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
     opt_prop_def,
     prop_def,
+    result_def,
     var_operand_def,
     var_result_def,
 )
@@ -303,6 +305,73 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
 
 
 @irdl_op_definition
+class EmitC_AddOp(IRDLOperation):
+    """
+    Addition operation.
+
+    With the `emitc.add` operation the arithmetic operator + (addition) can
+    be applied. Supports pointer arithmetic where one operand is a pointer
+    and the other is an integer or opaque type.
+
+    Example:
+
+    ```mlir
+    // Custom form of the addition operation.
+    %0 = emitc.add %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.add %arg2, %arg3 : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 + v2;
+    float* v6 = v3 + v4;
+    ```
+    """
+
+    name = "emitc.add"
+
+    lhs = operand_def()
+    rhs = operand_def()
+    result = result_def()
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            # Default to the type of lhs for result type
+            result_type = lhs.type
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[result_type],
+        )
+
+    def verify_(self) -> None:
+        lhs_type = self.lhs.type
+        rhs_type = self.rhs.type
+
+        if isa(lhs_type, EmitC_PointerType) and isa(rhs_type, EmitC_PointerType):
+            raise VerifyException(
+                "emitc.add requires that at most one operand is a pointer"
+            )
+
+        if (
+            isa(lhs_type, EmitC_PointerType)
+            and not isa(rhs_type, IntegerType | EmitC_OpaqueType)
+        ) or (
+            isa(rhs_type, EmitC_PointerType)
+            and not isa(lhs_type, IntegerType | EmitC_OpaqueType)
+        ):
+            raise VerifyException(
+                "emitc.add requires that one operand is an integer or of opaque "
+                "type if the other is a pointer"
+            )
+
+
+@irdl_op_definition
 class EmitC_CallOpaqueOp(IRDLOperation):
     """
     The `emitc.call_opaque` operation represents a C++ function call. The callee can be an arbitrary non-empty string.
@@ -381,6 +450,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
 EmitC = Dialect(
     "emitc",
     [
+        EmitC_AddOp,
         EmitC_CallOpaqueOp,
     ],
     [
