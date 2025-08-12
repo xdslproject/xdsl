@@ -59,7 +59,7 @@ bench = [
 ]
 
 [dependency-groups]
-dev = ["xdsl[dev,docs,gui,jax,riscv,bench]", "my_plugin"]
+dev = ["xdsl[dev,docs,gui]", "my_plugin"]
 
 
 [project.urls]
