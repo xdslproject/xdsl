@@ -66,6 +66,20 @@ class Builder(BuilderListener):
     insertion_point: InsertPoint
     """Operations will be inserted at this location."""
 
+    _name_hint: str | None = field(default=None)
+    """
+    If this is not None, results of inserted operations will be assigned this name hint.
+    This is always valid.
+    """
+
+    @property
+    def name_hint(self) -> str | None:
+        return self._name_hint
+
+    @name_hint.setter
+    def name_hint(self, name: str | None):
+        self._name_hint = SSAValue.extract_valid_name(name)
+
     def insert(self, op: OperationInvT) -> OperationInvT:
         """
         Inserts op at the current location and returns it.
@@ -93,6 +107,10 @@ class Builder(BuilderListener):
         )
 
         for op_ in ops:
+            if self._name_hint is not None:
+                for result in op_.results:
+                    if result.name_hint is None:
+                        result._name = self._name_hint  # pyright: ignore[reportPrivateUsage]
             self.handle_operation_insertion(op_)
 
         return op
@@ -264,40 +282,6 @@ class Builder(BuilderListener):
             raise ValueError(
                 "op_builder must be called within an implicit builder block"
             )
-
-
-class SSAValueNameSetter:
-    """
-    Helper structure for setting name hints for inserted ops.
-    """
-
-    _name: str
-    """
-    Valid name for SSAValue objects.
-    """
-
-    def __init__(self, name: str) -> None:
-        self._name = SSAValue.extract_valid_name(name)
-
-    @property
-    def name_hint(self) -> str:
-        return self._name
-
-    @name_hint.setter
-    def name_hint(self, name: str):
-        self._name = SSAValue.extract_valid_name(name)
-
-    def register(self, builder_listener: BuilderListener):
-        """
-        Adds a handler to the builder_listener instance to set the name hint of all
-        results of inserted operations, as long as the result name is not None.
-        """
-        builder_listener.operation_insertion_handler.append(self._handler)
-
-    def _handler(self, operation: Operation) -> None:
-        for res in operation.results:
-            if res.name_hint is None:
-                res._name = self._name  # pyright: ignore[reportPrivateUsage]
 
 
 # Implicit builders

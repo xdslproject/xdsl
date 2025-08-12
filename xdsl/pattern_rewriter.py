@@ -771,6 +771,7 @@ class PatternRewriteWalker:
             rewriter.has_done_action = False
             rewriter.current_operation = op
             rewriter.insertion_point = InsertPoint.before(op)
+            rewriter.name_hint = None
 
             # Apply the pattern on the operation
             try:
