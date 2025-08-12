@@ -13,6 +13,7 @@ from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
+from xdsl.transforms.apply_eqsat_pdl_interp import _DEFAULT_MAX_ITERATIONS
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 from xdsl.transforms.eqsat_optimize_pdl_interp import MatcherOptimizer
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -29,8 +30,8 @@ class ApplyEqsatPDLPass(ModulePass):
     pdl_file: str | None = None
     """Path to external PDL file containing patterns. If None, patterns are taken from the input module."""
 
-    max_iterations: int = 20
-    """Maximum number of iterations to run the equality saturation algorithm."""
+    max_iterations: int = _DEFAULT_MAX_ITERATIONS
+    """Maximum number of iterations to run, default 20."""
 
     individual_patterns: bool = False
     """
