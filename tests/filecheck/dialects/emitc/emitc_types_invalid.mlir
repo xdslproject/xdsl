@@ -58,7 +58,7 @@
 
 // -----
 
-// CHECK: EmitC array dimensions must have non-negative size
+// CHECK: expected static shape, but got dynamic dimension
 "test.op"() {
   illegal_array_dynamic_shape = !emitc.array<10x?xi32>
 }: ()->()
