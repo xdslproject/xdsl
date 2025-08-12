@@ -12,7 +12,7 @@ from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 from xdsl.transforms.eqsat_optimize_pdl_interp import MatcherOptimizer
 
-_DEFAULT_MAX_ITERATIONS = 20
+DEFAULT_MAX_ITERATIONS = 20
 """Default number of times to iterate over the module."""
 
 
@@ -20,7 +20,7 @@ def apply_eqsat_pdl_interp(
     op: builtin.ModuleOp,
     ctx: Context,
     pdl_interp_module: builtin.ModuleOp,
-    max_iterations: int = _DEFAULT_MAX_ITERATIONS,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS,
     optimize_matcher: bool = False,
 ):
     matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
@@ -63,7 +63,7 @@ class ApplyEqsatPDLInterpPass(ModulePass):
     """Path to external file containing pdl_interp matcher and rewriters.
     If None, matcher and rewriters are taken from the input module."""
 
-    max_iterations: int = _DEFAULT_MAX_ITERATIONS
+    max_iterations: int = DEFAULT_MAX_ITERATIONS
     """Maximum number of iterations to run, default 20."""
 
     optimize_matcher: bool = False
