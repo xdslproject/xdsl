@@ -685,7 +685,7 @@ class IRWithName(ABC):
             return
         if _VALUE_NAME_PATTERN.fullmatch(name) is None:
             raise ValueError(
-                f"Invalid {cls.__name__} name format.",
+                f"Invalid {cls.__name__} name format `{name}`.",
                 r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number.",
             )
 
