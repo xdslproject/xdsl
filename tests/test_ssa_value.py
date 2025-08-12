@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.dialects.builtin import StringAttr, i32, i64
@@ -61,7 +63,9 @@ def test_invalid_ssa_vals(name: str):
     structured.
     """
     val = BlockArgument(i32, Block(), 0)
-    with pytest.raises(ValueError, match="Invalid BlockArgument name format"):
+    with pytest.raises(
+        ValueError, match=re.escape(f"Invalid BlockArgument name format `{name}`.")
+    ):
         val.name_hint = name
 
 
