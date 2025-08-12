@@ -9,7 +9,15 @@ from typing import TypeAlias, overload
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ArrayAttr
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OperationInvT,
+    Region,
+    SSAValue,
+)
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
@@ -256,6 +264,37 @@ class Builder(BuilderListener):
             raise ValueError(
                 "op_builder must be called within an implicit builder block"
             )
+
+
+class _SSAValueNameHandler:
+    """
+    Helper structure for setting name hints for inserted ops.
+    """
+
+    _name: str
+    """
+    Valid name for SSAValue objects.
+    """
+
+    def __init__(self, name: str) -> None:
+        self._name = SSAValue.extract_valid_name(name)
+
+    def handler(self, operation: Operation) -> None:
+        for res in operation.results:
+            if res.name_hint is None:
+                res._name = self._name  # pyright: ignore[reportPrivateUsage]
+
+
+def add_value_name_listener(builder_listener: BuilderListener, name: str | None):
+    """
+    If name is not None, adds a handler to the builder_listener instance to set the name
+    hint of all results of inserted operations, as long as the result is not None.
+    Raises ValueError if the name is not valid.
+    """
+    if name is not None:
+        builder_listener.operation_insertion_handler.append(
+            _SSAValueNameHandler(name).handler
+        )
 
 
 # Implicit builders
