@@ -5,7 +5,7 @@ from typing import cast, overload
 
 from xdsl.backend.utils import cast_to_regs
 from xdsl.builder import Builder
-from xdsl.dialects import x86
+from xdsl.dialects import ptr, x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
     IndexType,
@@ -61,8 +61,10 @@ class Arch(StrEnum):
     def _scalar_type_for_type(self, value_type: Attribute) -> type[X86RegisterType]:
         assert not isinstance(value_type, ShapedType)
         if (
-            isinstance(value_type, FixedBitwidthType) and value_type.bitwidth <= 64
-        ) or isinstance(value_type, IndexType):
+            (isinstance(value_type, FixedBitwidthType) and value_type.bitwidth <= 64)
+            or isinstance(value_type, IndexType)
+            or isinstance(value_type, ptr.PtrType)
+        ):
             return x86.registers.GeneralRegisterType
         else:
             raise DiagnosticException("Not implemented for bitwidth larger than 64.")
