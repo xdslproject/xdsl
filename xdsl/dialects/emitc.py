@@ -339,11 +339,8 @@ class EmitC_AddOp(IRDLOperation):
         self,
         lhs: SSAValue,
         rhs: SSAValue,
-        result_type: Attribute | None = None,
+        result_type: Attribute,
     ):
-        if result_type is None:
-            # Default to the type of lhs for result type
-            result_type = lhs.type
         super().__init__(
             operands=[lhs, rhs],
             result_types=[result_type],
