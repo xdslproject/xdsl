@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import cast, overload
 
 from xdsl.backend.utils import cast_to_regs
+from xdsl.builder import Builder
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
@@ -82,19 +84,23 @@ class Arch(StrEnum):
             return self._register_type_for_vector_type(value_type)
         return self._scalar_type_for_type(value_type)
 
+    def cast_to_regs(
+        self, values: Sequence[SSAValue], builder: Builder
+    ) -> list[SSAValue[Attribute]]:
+        return cast_to_regs(values, self.register_type_for_type, builder)
+
+    def cast_operands_to_regs(
+        self, rewriter: PatternRewriter
+    ) -> list[SSAValue[Attribute]]:
+        new_operands = cast_to_regs(
+            rewriter.current_operation.operands,
+            self.register_type_for_type,
+            rewriter,
+        )
+        return new_operands
+
 
 _ARCH_BY_NAME = {str(case): case for case in Arch}
 """
 Handled architectures in x86 backend.
 """
-
-
-def cast_operands_to_regs(
-    arch: Arch, rewriter: PatternRewriter
-) -> list[SSAValue[Attribute]]:
-    new_ops, new_operands = cast_to_regs(
-        values=rewriter.current_operation.operands,
-        register_map=arch.register_type_for_type,
-    )
-    rewriter.insert_op_before_matched_op(new_ops)
-    return new_operands
