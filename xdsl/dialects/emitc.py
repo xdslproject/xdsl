@@ -7,8 +7,11 @@ Those can be translated to C/C++ via the Cpp emitter.
 See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
+import abc
 from collections.abc import Iterable, Sequence
 from typing import cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -36,6 +39,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrConstraint,
+    ConstraintContext,
     IRDLOperation,
     ParsePropInAttrDict,
     irdl_attr_definition,
@@ -289,6 +294,8 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
         case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
             return True
         case TensorType():
+            if not type_attr.has_static_shape():
+                return False
             elem_type = cast(Attribute, type_attr.get_element_type())
             if isinstance(elem_type, EmitC_ArrayType):
                 return False
@@ -298,14 +305,55 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
                 not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
                 for t in type_attr.types
             )
-        case EmitC_PtrDiffT():
+        case EmitC_PtrDiffT() | EmitC_SignedSizeT() | EmitC_SizeT():
             return True
         case _:
             return False
 
 
+# Type constraint for EmitC operations
+class EmitCType(AttrConstraint):
+    """Constraint that verifies an attribute is a supported EmitC type."""
+
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
+        if not is_supported_emitc_type(attr):
+            raise VerifyException(f"Type {attr} is not a supported EmitC type")
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
+
+
+emitc_type = EmitCType()
+
+
+class EmitC_BinaryOp(IRDLOperation, abc.ABC):
+    """Base class for EmitC binary operations."""
+
+    lhs = operand_def(emitc_type)
+    rhs = operand_def(emitc_type)
+    result = result_def(emitc_type)
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[result_type],
+        )
+
+
 @irdl_op_definition
-class EmitC_AddOp(IRDLOperation):
+class EmitC_AddOp(EmitC_BinaryOp):
     """
     Addition operation.
 
@@ -328,23 +376,6 @@ class EmitC_AddOp(IRDLOperation):
     """
 
     name = "emitc.add"
-
-    lhs = operand_def()
-    rhs = operand_def()
-    result = result_def()
-
-    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
-
-    def __init__(
-        self,
-        lhs: SSAValue,
-        rhs: SSAValue,
-        result_type: Attribute,
-    ):
-        super().__init__(
-            operands=[lhs, rhs],
-            result_types=[result_type],
-        )
 
     def verify_(self) -> None:
         lhs_type = self.lhs.type

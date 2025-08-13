@@ -62,3 +62,9 @@ emitc.call_opaque "array_result"() : () -> !emitc.array<4xi32>
 %float_val, %ptr = "test.op"() : () -> (f32, !emitc.ptr<f32>)
 // CHECK: emitc.add requires that one operand is an integer or of opaque type if the other is a pointer
 %float_ptr = emitc.add %float_val, %ptr : (f32, !emitc.ptr<f32>) -> !emitc.ptr<f32>
+
+// -----
+
+%dynamic_tensor_lhs, %dynamic_tensor_rhs = "test.op"() : () -> (tensor<?x4xi32>, tensor<?x4xi32>)
+// CHECK: Type tensor<?x4xi32> is not a supported EmitC type
+%add_dynamic_tensor = emitc.add %dynamic_tensor_lhs, %dynamic_tensor_rhs : (tensor<?x4xi32>, tensor<?x4xi32>) -> tensor<?x4xi32>
