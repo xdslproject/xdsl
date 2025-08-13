@@ -231,8 +231,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 class SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(
     HasCanonicalizationPatternsTrait
 ):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import (
             SignlessIntegerBinaryOperationConstantProp,
             SignlessIntegerBinaryOperationZeroOrUnitRight,
@@ -282,8 +281,7 @@ class SignlessIntegerBinaryOperationWithOverflow(
 class FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(
     HasCanonicalizationPatternsTrait
 ):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import FoldConstConstOp
 
         return (FoldConstConstOp(),)
@@ -292,8 +290,7 @@ class FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(
 class FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(
     HasCanonicalizationPatternsTrait
 ):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import (
             FoldConstConstOp,
             FoldConstsByReassociation,
@@ -785,8 +782,7 @@ class ComparisonOperation(IRDLOperation):
 
 
 class CmpiHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns import arith
 
         return (arith.ApplyCmpiPredicateToEqualOperands(),)
@@ -998,8 +994,7 @@ class CmpfOp(ComparisonOperation):
 
 
 class SelectHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import (
             SelectConstPattern,
             SelectFoldCmpfPattern,

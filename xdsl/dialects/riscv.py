@@ -1444,8 +1444,7 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
 
 class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             AddImmediateConstant,
             AddImmediateZero,
@@ -1544,8 +1543,7 @@ class XoriOp(RdRsImmIntegerOperation):
 
 
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             ShiftLeftbyZero,
             ShiftLeftImmediate,
@@ -1571,8 +1569,7 @@ class SlliOp(RdRsImmShiftOperation):
 
 
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import ShiftRightbyZero
 
         return (ShiftRightbyZero(),)
@@ -1793,8 +1790,7 @@ class AuipcOp(RdImmIntegerOperation):
 
 
 class MVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             RemoveRedundantMv,
         )
@@ -1819,8 +1815,7 @@ class MVOp(RdRsIntegerOperation[IntRegisterType]):
 
 
 class FMVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMv
 
         return (RemoveRedundantFMv(),)
@@ -1850,8 +1845,7 @@ class FMVOp(RdRsFloatOperation[FloatRegisterType]):
 
 
 class AddOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             AddImmediates,
             AdditionOfSameVariablesToMultiplyByTwo,
@@ -1910,8 +1904,7 @@ class SltuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import BitwiseAndByZero
 
         return (BitwiseAndByZero(),)
@@ -1933,8 +1926,7 @@ class AndOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import BitwiseOrByZero
 
         return (BitwiseOrByZero(),)
@@ -1956,8 +1948,7 @@ class OrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 class BitwiseXorHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             BitwiseXorByZero,
             XorBySelf,
@@ -2010,8 +2001,7 @@ class SrlOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 class SubOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             SubAddi,
             SubImmediates,
@@ -2298,8 +2288,7 @@ class LhuOp(RdRsImmIntegerOperation):
 
 
 class LwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             LoadWordWithKnownOffset,
         )
@@ -2366,8 +2355,7 @@ class ShOp(RsRsImmIntegerOperation):
 
 
 class SwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             StoreWordWithKnownOffset,
         )
@@ -2545,8 +2533,7 @@ class CsrrciOp(CsrBitwiseImmOperation):
 
 
 class MulOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             MultiplyImmediates,
         )
@@ -2623,8 +2610,7 @@ class MulwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 class DivOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             DivideByOneIdentity,
         )
@@ -3348,8 +3334,7 @@ class CZeroNezOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             LoadImmediate0,
         )
@@ -4361,8 +4346,7 @@ class FMvWXOp(RdRsFloatOperation[IntRegisterType]):
 
 
 class FLwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             LoadFloatWordWithKnownOffset,
         )
@@ -4397,8 +4381,7 @@ class FLwOp(RdRsImmFloatOperation):
 
 
 class FSwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             StoreFloatWordWithKnownOffset,
         )
@@ -4466,8 +4449,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 
 
 class FuseMultiplyAddDCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             FuseMultiplyAddD,
         )
@@ -4537,8 +4519,7 @@ class FDivDOp(RdRsRsFloatOperationWithFastMath):
 
 
 class FLdOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             LoadDoubleWithKnownOffset,
         )
@@ -4640,8 +4621,7 @@ class FLdOp(RdRsImmFloatOperation):
 
 
 class FSdOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             StoreDoubleWithKnownOffset,
         )
@@ -4674,8 +4654,7 @@ class FSdOp(RsRsImmFloatOperation):
 
 
 class FMvDHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMvD
 
         return (RemoveRedundantFMvD(),)

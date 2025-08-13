@@ -427,8 +427,7 @@ class RM_Operation(
 
 
 class DM_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.x86 import (
             DM_Operation_ConstantOffset,
         )
@@ -597,8 +596,7 @@ class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
 
 
 class MS_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.x86 import (
             MS_Operation_ConstantOffset,
         )
@@ -1060,8 +1058,7 @@ class RSS_Operation(
 
 
 class RS_AddOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.x86 import RS_Add_Zero
 
         return (RS_Add_Zero(),)
@@ -1183,8 +1180,7 @@ class RS_XorOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 class DS_MovOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.x86 import RemoveRedundantDS_Mov
 
         return (RemoveRedundantDS_Mov(),)

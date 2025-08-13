@@ -50,8 +50,7 @@ from xdsl.utils.hints import isa
 
 
 class AssertHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.cf import AssertTrue
 
         return (AssertTrue(),)
@@ -80,8 +79,7 @@ class AssertOp(IRDLOperation):
 
 
 class BranchOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.cf import (
             SimplifyBrToBlockWithSinglePred,
             SimplifyPassThroughBr,
@@ -108,8 +106,7 @@ class BranchOp(IRDLOperation):
 
 
 class ConditionalBranchOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.cf import (
             CondBranchTruthPropagation,
             SimplifyCondBranchIdenticalSuccessors,
@@ -165,8 +162,7 @@ class ConditionalBranchOp(IRDLOperation):
 
 
 class SwitchOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.cf import (
             DropSwitchCasesThatMatchDefault,
             SimplifyConstSwitchValue,

@@ -414,8 +414,7 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.stencil import (
             ApplyRedundantOperands,
             ApplyUnusedOperands,
@@ -692,8 +691,7 @@ class AllocOp(IRDLOperation):
 
 
 class CastOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.stencil import (
             RemoveCastWithNoEffect,
         )

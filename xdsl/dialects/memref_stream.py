@@ -434,8 +434,7 @@ class StreamingRegionOp(IRDLOperation):
 
 
 class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls):
+    def get_canonicalization_patterns(self):
         from xdsl.transforms.canonicalization_patterns.memref_stream import (
             RemoveUnusedInitOperandPattern,
         )

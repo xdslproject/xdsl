@@ -44,8 +44,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
 
 
 class PtrAddOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns import ptr
 
         return (ptr.PtrAddZero(),)
@@ -150,8 +149,7 @@ class LoadOp(IRDLOperation):
 
 
 class ToPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.ptr import RedundantToPtr
 
         return (RedundantToPtr(),)
@@ -173,8 +171,7 @@ class ToPtrOp(IRDLOperation):
 
 
 class FromPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.ptr import RedundantFromPtr
 
         return (RedundantFromPtr(),)

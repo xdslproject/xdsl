@@ -165,8 +165,7 @@ class CoeffAttr(ParametrizedAttribute):
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.csl_stencil import (
             RedundantAccumulatorInitialisation,
         )

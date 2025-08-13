@@ -464,7 +464,6 @@ class HasCanonicalizationPatternsTrait(OpTrait):
     def verify(self, op: Operation) -> None:
         return
 
-    @classmethod
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
