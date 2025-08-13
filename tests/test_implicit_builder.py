@@ -25,7 +25,6 @@ builtin.module {
 }"""
 
     with ImplicitBuilder((module := builtin.ModuleOp([])).body):
-        assert len(ImplicitBuilder._stack.stack) == 1  # pyright: ignore[reportPrivateUsage]
         _i = test.TestOp.create(result_types=[builtin.i32])
     assert str(module) == expected
 
@@ -40,8 +39,6 @@ builtin.module {
 }"""
 
     with ImplicitBuilder((module_outer := builtin.ModuleOp([])).body):
-        assert len(ImplicitBuilder._stack.stack) == 1  # pyright: ignore[reportPrivateUsage]
         with ImplicitBuilder((_module_inner := builtin.ModuleOp([])).body):
-            assert len(ImplicitBuilder._stack.stack) == 2  # pyright: ignore[reportPrivateUsage]
             _i = test.TestOp.create(result_types=[builtin.i32])
     assert str(module_outer) == expected

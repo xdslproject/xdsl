@@ -641,8 +641,63 @@ class IRWithUses(ABC):
         return None
 
 
+_VALUE_NAME_PATTERN = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
+"""Pattern to check if a name is valid for an SSAValue or Block."""
+
+_VALUE_NAME_SUFFIX_PATTERN = re.compile(r"(_\d+)$")
+"""This pattern is used to remove the suffix from an SSAValue or Block name."""
+
+
 @dataclass(eq=False)
-class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
+class IRWithName(ABC):
+    _name: str | None = field(init=False, default=None)
+
+    @property
+    def name_hint(self) -> str | None:
+        return self._name
+
+    @name_hint.setter
+    def name_hint(self, name: str | None):
+        self._name = self.extract_valid_name(name)
+
+    @classmethod
+    def is_valid_name(cls, name: str | None):
+        """
+        Returns `True` if `name` is None or a valid name for an identifier.
+        """
+        return name is None or _VALUE_NAME_PATTERN.fullmatch(name)
+
+    @overload
+    @classmethod
+    def extract_valid_name(cls, name: str) -> str: ...
+
+    @overload
+    @classmethod
+    def extract_valid_name(cls, name: None) -> None: ...
+
+    @classmethod
+    def extract_valid_name(cls, name: str | None) -> str | None:
+        """
+        If the name is valid, extracts the name before an optional `_\\d+` suffix.
+        Raises ValueError otherwise.
+        """
+        if name is None:
+            return
+        if _VALUE_NAME_PATTERN.fullmatch(name) is None:
+            raise ValueError(
+                f"Invalid {cls.__name__} name format `{name}`.",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number.",
+            )
+
+        if match := _VALUE_NAME_SUFFIX_PATTERN.search(name):
+            # Remove `_` followed by numbers at the end of the name
+            return name[: match.start()]
+
+        return name
+
+
+@dataclass(eq=False)
+class SSAValue(Generic[AttributeCovT], IRWithUses, IRWithName, ABC):
     """
     A reference to an SSA variable.
     An SSA variable is either an operation result, or a basic block argument.
@@ -650,10 +705,6 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
     _type: AttributeCovT
     """Each SSA variable is associated to a type."""
-
-    _name: str | None = field(init=False, default=None)
-
-    _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
 
     @property
     def type(self) -> AttributeCovT:
@@ -667,30 +718,6 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         This property returns the Operation or Block that currently defines a specific value.
         """
         pass
-
-    @property
-    def name_hint(self) -> str | None:
-        return self._name
-
-    @name_hint.setter
-    def name_hint(self, name: str | None):
-        # only allow valid names
-        if SSAValue.is_valid_name(name):
-            # Remove `_` followed by numbers at the end of the name
-            if name is not None:
-                r1 = re.compile(r"(_\d+)+$")
-                if match := r1.search(name):
-                    name = name[: match.start()]
-            self._name = name
-        else:
-            raise ValueError(
-                "Invalid SSA Value name format!",
-                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
-            )
-
-    @classmethod
-    def is_valid_name(cls, name: str | None):
-        return name is None or cls._name_regex.fullmatch(name)
 
     @staticmethod
     def get(
@@ -874,6 +901,20 @@ class SSAValues(Generic[SSAValueCovT], tuple[SSAValueCovT, ...]):
     def types(self):
         return tuple(o.type for o in self)
 
+    @overload
+    def __getitem__(self, idx: int) -> SSAValueCovT: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> SSAValues[SSAValueCovT]: ...
+
+    def __getitem__(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, idx: int | slice
+    ) -> SSAValueCovT | SSAValues[SSAValueCovT]:
+        if isinstance(idx, int):
+            return super().__getitem__(idx)
+        else:
+            return SSAValues(super().__getitem__(idx))
+
 
 @dataclass
 class OpOperands(Sequence[SSAValue]):
@@ -899,7 +940,7 @@ class OpOperands(Sequence[SSAValue]):
         operand_uses = self._op._operand_uses  # pyright: ignore[reportPrivateUsage]
         operands[idx].remove_use(operand_uses[idx])
         operand.add_use(operand_uses[idx])
-        new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
+        new_operands = SSAValues((*operands[:idx], operand, *operands[idx + 1 :]))
         self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
 
     def __iter__(self) -> Iterator[SSAValue]:
@@ -967,7 +1008,7 @@ class Operation(_IRNode):
     name: ClassVar[str] = field(repr=False)
     """The operation name. Should be a static member of the class"""
 
-    _operands: tuple[SSAValue, ...] = field(default=())
+    _operands: SSAValues = field(default=SSAValues())
     """The operation operands."""
 
     _operand_uses: tuple[Use, ...] = field(default=())
@@ -977,7 +1018,7 @@ class Operation(_IRNode):
     access to the operand SSAValue.
     """
 
-    results: tuple[OpResult, ...] = field(default=())
+    results: SSAValues[OpResult] = field(default=SSAValues())
     """The results created by the operation."""
 
     _successors: tuple[Block, ...] = field(default=())
@@ -1099,7 +1140,7 @@ class Operation(_IRNode):
 
     @operands.setter
     def operands(self, new: Sequence[SSAValue]):
-        new = tuple(new)
+        new = SSAValues(new)
         new_uses = tuple(Use(self, idx) for idx in range(len(new)))
         for operand, use in zip(self._operands, self._operand_uses):
             operand.remove_use(use)
@@ -1142,7 +1183,7 @@ class Operation(_IRNode):
         # This is assumed to exist by Operation.operand setter.
         self.operands = operands
 
-        self.results = tuple(
+        self.results = SSAValues(
             OpResult(result_type, self, idx)
             for (idx, result_type) in enumerate(result_types)
         )
@@ -1631,7 +1672,7 @@ class BlockOps(Reversible[Operation], Iterable[Operation]):
 
 
 @dataclass(init=False, eq=False, unsafe_hash=False)
-class Block(_IRNode, IRWithUses):
+class Block(_IRNode, IRWithUses, IRWithName):
     """A sequence of operations"""
 
     _args: tuple[BlockArgument, ...]
@@ -1645,6 +1686,11 @@ class Block(_IRNode, IRWithUses):
 
     parent: Region | None = field(default=None, repr=False)
     """Parent region containing the block."""
+
+    @staticmethod
+    def is_default_block_name(name: str) -> bool:
+        """Check if a name matches the default block naming pattern (bb followed by digits)."""
+        return name.startswith("bb") and name[2:].isdigit() and name[2:] != ""
 
     def __init__(
         self,

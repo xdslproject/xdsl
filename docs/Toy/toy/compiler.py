@@ -122,7 +122,7 @@ def transform(
     if target == "riscv-opt":
         return
 
-    RISCVRegisterAllocation().apply(ctx, module_op)
+    RISCVRegisterAllocation(allow_infinite=True).apply(ctx, module_op)
 
     module_op.verify()
 

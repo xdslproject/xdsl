@@ -73,3 +73,20 @@
 // CHECK-NEXT:   %c = x86.di.mov 1 : () -> !x86.reg
 // CHECK-NEXT:   %c_1 = builtin.unrealized_conversion_cast %c : !x86.reg to index
 // CHECK-NEXT: }
+
+// -----
+
+// CHECK:         %f0, %f1 = "test.op"() : () -> (f32, f32)
+%f0, %f1 = "test.op"(): () -> (f32, f32)
+// CHECK-NEXT:    %f0_1 = builtin.unrealized_conversion_cast %f0 : f32 to !x86.reg
+// CHECK-NEXT:    %f1_1 = builtin.unrealized_conversion_cast %f1 : f32 to !x86.reg
+// CHECK-NEXT:    %addf = x86.ds.mov %f1_1 : (!x86.reg) -> !x86.reg
+// CHECK-NEXT:    %addf_1 = x86.rs.fadd %addf, %f0_1 : (!x86.reg, !x86.reg) -> !x86.reg
+// CHECK-NEXT:    %addf_2 = builtin.unrealized_conversion_cast %addf_1 : !x86.reg to f32
+%addf = arith.addf %f0, %f1: f32
+// CHECK-NEXT:    %f0_2 = builtin.unrealized_conversion_cast %f0 : f32 to !x86.reg
+// CHECK-NEXT:    %f1_2 = builtin.unrealized_conversion_cast %f1 : f32 to !x86.reg
+// CHECK-NEXT:    %mulf = x86.ds.mov %f1_2 : (!x86.reg) -> !x86.reg
+// CHECK-NEXT:    %mulf_1 = x86.rs.fmul %mulf, %f0_2 : (!x86.reg, !x86.reg) -> !x86.reg
+// CHECK-NEXT:    %mulf_2 = builtin.unrealized_conversion_cast %mulf_1 : !x86.reg to f32
+%mulf = arith.mulf %f0, %f1: f32
