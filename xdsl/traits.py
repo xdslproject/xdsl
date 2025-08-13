@@ -454,15 +454,52 @@ class CallableOpInterface(OpTrait, abc.ABC):
 
 
 @dataclass(frozen=True)
-class HasCanonicalizationPatternsTrait(OpTrait):
+class CanonicalizationPatternsTrait(OpTrait):
     """
-    Provides the rewrite passes to canonicalize an operation.
+    Provides the rewrite patterns to canonicalize an operation.
+
+    If initialised with a tuple of patterns, these are used every time, otherwise
+    queries the operation type via the `HasCanonicalizationPatternsInterface`.
 
     Each rewrite pattern must have the trait's op as root.
     """
 
+    _patterns: tuple[RewritePattern, ...] | None = field(default=None)
+
     def verify(self, op: Operation) -> None:
         return
+
+    def get_patterns(
+        self,
+        op: type[Operation],
+    ) -> tuple[RewritePattern, ...]:
+        if (patterns := self._patterns) is not None:
+            return patterns
+        from xdsl.interfaces import HasCanonicalizationPatternsInterface
+
+        if not issubclass(op, HasCanonicalizationPatternsInterface):
+            raise ValueError(
+                f"{op.__name__} must subclass {HasCanonicalizationPatternsInterface.__name__}"
+            )
+        return op.get_canonicalization_patterns()
+
+
+@dataclass(frozen=True)
+class HasCanonicalizationPatternsTrait(CanonicalizationPatternsTrait):
+    """
+    Provides the rewrite passes to canonicalize an operation.
+
+    Each rewrite pattern must have the trait's op as root.
+
+    Note: this class will be deprecated soon, please use
+    `HasCanonicalizationPatternsTrait` instead.
+    """
+
+    def get_patterns(
+        self,
+        op: type[Operation],
+    ) -> tuple[RewritePattern, ...]:
+        return type(self).get_canonicalization_patterns()
 
     @classmethod
     @abc.abstractmethod
