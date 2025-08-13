@@ -1417,6 +1417,12 @@ class TensorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
+    def has_static_shape(self) -> bool:
+        """
+        Check if all dimensions have static (non-dynamic) shapes.
+        """
+        return all(dim.data != DYNAMIC_INDEX for dim in self.shape.data)
+
     @staticmethod
     def constr(
         element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
