@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     FloatAttr,
     IntegerAttr,
+    IntegerType,
     ShapedType,
     StringAttr,
     TensorType,
@@ -100,8 +101,8 @@ class RescaleOp(IRDLOperation):
 
     input_zp = prop_def(IntegerAttr[I32])
     output_zp = prop_def(IntegerAttr[I32])
-    multiplier = prop_def(DenseArrayBase)
-    shift = prop_def(DenseArrayBase)
+    multiplier = prop_def(DenseArrayBase[IntegerType])
+    shift = prop_def(DenseArrayBase[IntegerType])
     scale32 = prop_def(BoolAttr)
     double_round = prop_def(BoolAttr)
     per_channel = prop_def(BoolAttr)

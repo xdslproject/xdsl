@@ -1,5 +1,5 @@
-// RUN: xdsl-opt %s | mlir-opt | xdsl-opt | filecheck %s
-// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
+// RUN: MLIR_GENERIC_ROUNDTRIP
+// RUN: MLIR_ROUNDTRIP
 
 "builtin.module"() ({
 

@@ -40,7 +40,7 @@ from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
 )
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
@@ -74,6 +74,7 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     IsTerminator,
     MemoryReadEffect,
+    MemoryWriteEffect,
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -110,6 +111,8 @@ class X86AsmOperation(
     """
     Base class for operations that can be a part of x86 assembly printing.
     """
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     @abstractmethod
     def assembly_line(self) -> str | None:
@@ -375,6 +378,8 @@ class RM_Operation(
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         register_in: Operation | SSAValue,
@@ -613,7 +618,11 @@ class MS_Operation(
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     source = operand_def(R2InvT)
 
-    traits = traits_def(MS_OperationHasCanonicalizationPatterns())
+    traits = traits_def(
+        MS_OperationHasCanonicalizationPatterns(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+    )
 
     def __init__(
         self,
@@ -663,6 +672,8 @@ class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     immediate = attr_def(IntegerAttr)
+
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,
@@ -779,6 +790,7 @@ class DMI_Operation(
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     immediate = attr_def(IntegerAttr)
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
@@ -840,6 +852,7 @@ class M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC
 
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
     def __init__(
         self,
@@ -1096,6 +1109,35 @@ class RS_ImulOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.rs.imul"
+
+
+@irdl_op_definition
+class RS_FAddOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Adds the floating point values in registers r and s and stores the result in r.
+    ```C
+    x[r] += x[s]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/fadd:faddp:fiadd).
+    """
+
+    name = "x86.rs.fadd"
+
+
+@irdl_op_definition
+class RS_FMulOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the floating point values in registers r and s and stores the result in
+    r.
+    ```C
+    x[r] *= x[s]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/fmul:fmulp:fimul).
+    """
+
+    name = "x86.rs.fmul"
 
 
 @irdl_op_definition
@@ -1802,6 +1844,8 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
     memory = operand_def(X86RegisterType)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
+    traits = traits_def(MemoryWriteEffect())
+
     def __init__(
         self,
         rsp_in: Operation | SSAValue,
@@ -1858,6 +1902,8 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     memory = operand_def(GeneralRegisterType)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     rsp_out = result_def(RSP)
+
+    traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,
@@ -1970,6 +2016,8 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     rax_in = operand_def(RAX)
     rax_out = result_def(RAX)
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         memory: Operation | SSAValue,
@@ -2030,6 +2078,8 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
 
     rax_in = operand_def(RAX)
     rax_out = result_def(RAX)
+
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
@@ -2326,6 +2376,8 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     result = result_def(RFLAGSRegisterType)
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         source: Operation | SSAValue,
@@ -2440,6 +2492,8 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     result = result_def(RFLAGSRegisterType)
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         memory: Operation | SSAValue,
@@ -2499,6 +2553,8 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     immediate = attr_def(IntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
+
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
