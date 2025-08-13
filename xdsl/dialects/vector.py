@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar, cast
+
 from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import (
