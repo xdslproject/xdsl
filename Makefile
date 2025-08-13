@@ -11,7 +11,9 @@ VENV_DIR ?= .venv
 export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
-VENV_EXTRAS ?= --extra gui --extra dev --extra docs
+VENV_EXTRAS ?= --all-extras
+VENV_GROUPS ?= --all-groups
+
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -28,7 +30,7 @@ uv-installed:
 # set up the venv with all dependencies for development
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
-	uv sync ${VENV_EXTRAS}
+	uv sync ${VENV_EXTRAS} ${VENV_GROUPS}
 	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
 		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
 	fi

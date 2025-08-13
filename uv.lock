@@ -3562,15 +3562,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-bench = [
-    { name = "asv" },
-    { name = "bytesight" },
-    { name = "flameprof" },
-    { name = "orjson" },
-    { name = "pyinstrument" },
-    { name = "snakeviz" },
-    { name = "viztracer" },
-]
 dev = [
     { name = "coverage" },
     { name = "filecheck" },
@@ -3589,15 +3580,6 @@ dev = [
     { name = "textual-dev" },
     { name = "toml" },
 ]
-docs = [
-    { name = "lzstring2" },
-    { name = "mkdocs" },
-    { name = "mkdocs-awesome-nav" },
-    { name = "mkdocs-gen-files" },
-    { name = "mkdocs-material" },
-    { name = "mkdocstrings", extra = ["python"] },
-    { name = "pymdown-extensions" },
-]
 gui = [
     { name = "pyclip" },
     { name = "textual" },
@@ -3611,58 +3593,80 @@ riscv = [
 ]
 
 [package.dev-dependencies]
+bench = [
+    { name = "asv" },
+    { name = "bytesight" },
+    { name = "flameprof" },
+    { name = "orjson" },
+    { name = "pyinstrument" },
+    { name = "snakeviz" },
+    { name = "viztracer" },
+]
 dev = [
     { name = "my-plugin" },
-    { name = "xdsl", extra = ["bench", "dev", "docs", "gui", "jax", "riscv"] },
+    { name = "xdsl", extra = ["dev", "gui"] },
+]
+docs = [
+    { name = "lzstring2" },
+    { name = "mkdocs" },
+    { name = "mkdocs-awesome-nav" },
+    { name = "mkdocs-gen-files" },
+    { name = "mkdocs-material" },
+    { name = "mkdocstrings", extra = ["python"] },
+    { name = "pymdown-extensions" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "asv", marker = "extra == 'bench'", specifier = ">=0.6.4" },
-    { name = "bytesight", marker = "extra == 'bench'", git = "https://github.com/EdmundGoodman/bytesight.git?rev=e8e8e45ec34316fdc99ee09ea8886c4f63c248be" },
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.2" },
-    { name = "flameprof", marker = "extra == 'bench'", specifier = ">=0.4" },
     { name = "immutabledict", specifier = "<4.2.2" },
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.6.0" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
-    { name = "lzstring2", marker = "extra == 'docs'", git = "https://github.com/superlopuh/lz-string.git" },
     { name = "marimo", marker = "extra == 'dev'", specifier = "==0.14.17" },
-    { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.1" },
-    { name = "mkdocs-awesome-nav", marker = "extra == 'docs'", specifier = ">=3.1.2" },
-    { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.5.0" },
-    { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.49" },
-    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.27.0" },
     { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8.0.0" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "<0.12" },
     { name = "numpy", marker = "extra == 'jax'", specifier = "==2.2.6" },
     { name = "ordered-set", specifier = "==4.1.0" },
-    { name = "orjson", marker = "extra == 'bench'", specifier = ">=3.10.15" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.0,<5.0.0" },
     { name = "pyclip", marker = "extra == 'gui'", specifier = "==0.7" },
-    { name = "pyinstrument", marker = "extra == 'bench'", specifier = ">=5.0.1" },
-    { name = "pymdown-extensions", marker = "extra == 'docs'", specifier = ">=10.7" },
     { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.403" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "<8.5" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.1.0" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "riscemu", marker = "extra == 'riscv'", specifier = "==2.2.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.12.8" },
-    { name = "snakeviz", marker = "extra == 'bench'", specifier = ">=2.2.2" },
     { name = "sympy", marker = "extra == 'dev'", specifier = "==1.14.0" },
     { name = "textual", marker = "extra == 'gui'", specifier = ">=5,<6" },
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.7.0" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<5" },
-    { name = "viztracer", marker = "extra == 'bench'", specifier = ">=1.0.1" },
 ]
-provides-extras = ["dev", "docs", "gui", "jax", "riscv", "bench"]
+provides-extras = ["dev", "gui", "jax", "riscv"]
 
 [package.metadata.requires-dev]
+bench = [
+    { name = "asv", specifier = ">=0.6.4" },
+    { name = "bytesight", git = "https://github.com/EdmundGoodman/bytesight.git?rev=e8e8e45ec34316fdc99ee09ea8886c4f63c248be" },
+    { name = "flameprof", specifier = ">=0.4" },
+    { name = "orjson", specifier = ">=3.10.15" },
+    { name = "pyinstrument", specifier = ">=5.0.1" },
+    { name = "snakeviz", specifier = ">=2.2.2" },
+    { name = "viztracer", specifier = ">=1.0.1" },
+]
 dev = [
     { name = "my-plugin", directory = "tests/my_plugin" },
-    { name = "xdsl", extras = ["dev", "docs", "gui", "jax", "riscv", "bench"] },
+    { name = "xdsl", extras = ["dev", "gui"] },
+]
+docs = [
+    { name = "lzstring2", git = "https://github.com/superlopuh/lz-string.git" },
+    { name = "mkdocs", specifier = ">=1.6.1" },
+    { name = "mkdocs-awesome-nav", specifier = ">=3.1.2" },
+    { name = "mkdocs-gen-files", specifier = ">=0.5.0" },
+    { name = "mkdocs-material", specifier = ">=9.5.49" },
+    { name = "mkdocstrings", extras = ["python"], specifier = ">=0.27.0" },
+    { name = "pymdown-extensions", specifier = ">=10.7" },
 ]
 
 [[package]]

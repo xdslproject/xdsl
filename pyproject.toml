@@ -36,18 +36,12 @@ dev = [
     "pyright==1.1.403",
     "sympy==1.14.0",
 ]
-docs = [
-    "mkdocs-awesome-nav>=3.1.2",
-    "mkdocs-gen-files>=0.5.0",
-    "mkdocs-material>=9.5.49",
-    "mkdocs>=1.6.1",
-    "mkdocstrings[python]>=0.27.0",
-    "pymdown-extensions>=10.7",
-    "lzstring2",
-]
 gui = ["textual>=5,<6", "pyclip==0.7"]
 jax = ["jax==0.6.0", "numpy==2.2.6"]
 riscv = ["riscemu==2.2.7"]
+
+[dependency-groups]
+dev = ["xdsl[dev,gui]", "my_plugin"]
 bench = [
     "asv>=0.6.4",
     "snakeviz>=2.2.2",
@@ -57,10 +51,15 @@ bench = [
     "pyinstrument>=5.0.1",
     "bytesight",
 ]
-
-[dependency-groups]
-dev = ["xdsl[dev,docs,gui]", "my_plugin"]
-
+docs = [
+    "mkdocs-awesome-nav>=3.1.2",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-material>=9.5.49",
+    "mkdocs>=1.6.1",
+    "mkdocstrings[python]>=0.27.0",
+    "pymdown-extensions>=10.7",
+    "lzstring2",
+]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
