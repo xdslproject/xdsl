@@ -2,7 +2,7 @@
 
 builtin.module {
   func.func @cus_arg_rec(%0 : !test.type<"int">) -> !test.type<"int"> {
-  ^0(%arg : !test.type<"int">)
+  ^bb0(%arg : !test.type<"int">)
     %1 = "func.call"(%0) {"callee" = @cus_arg_rec} : (!test.type<"int">) -> !test.type<"int">
     "func.return"(%1) : (!test.type<"int">) -> ()
   }
@@ -24,7 +24,7 @@ builtin.module {
 
 builtin.module {
   func.func @mixed_args(%0 : !test.type<"int">, i32) -> !test.type<"int"> {
-  ^0(%arg : !test.type<"int">)
+  ^bb0(%arg : !test.type<"int">)
     %1 = "func.call"(%0) {"callee" = @cus_arg_rec} : (!test.type<"int">) -> !test.type<"int">
     "func.return"(%1) : (!test.type<"int">) -> ()
   }

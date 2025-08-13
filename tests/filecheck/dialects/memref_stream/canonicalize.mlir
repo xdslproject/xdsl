@@ -35,7 +35,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%E, %F : memref<4x2xf64>, memref<2x3xf64>) outs(%G, %I : memref<4x3xf64>, memref<4x3xf64>) inits(%H : f64, None) {
-^0(%e : f64, %f : f64, %acc_old_0 : f64, %acc_old_1 : f64):
+^bb0(%e : f64, %f : f64, %acc_old_0 : f64, %acc_old_1 : f64):
     %prod = arith.mulf %e, %f : f64
     %acc_new_0 = arith.addf %acc_old_0, %prod : f64
     %acc_new_1 = arith.addf %acc_old_1, %prod : f64
@@ -66,7 +66,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%E, %F : memref<4x2xf64>, memref<2x3xf64>) outs(%G, %I : memref<4x3xf64>, memref<4x3xf64>) inits(%H : f64, None) {
-^0(%e : f64, %f : f64, %acc_old_0 : f64, %acc_old_1 : f64):
+^bb0(%e : f64, %f : f64, %acc_old_0 : f64, %acc_old_1 : f64):
     linalg.yield %e, %acc_old_1 : f64, f64
 }
 
@@ -100,7 +100,7 @@ func.func @interleaved_no_init(%A0 : memref<3x5xf64>, %B0 : memref<5x8xf64>, %C0
         ],
         iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
     } ins(%A0, %B0 : memref<3x5xf64>, memref<5x8xf64>) outs(%C0 : memref<3x8xf64>) {
-    ^1(
+    ^bb1(
         %a0 : f64, %a1 : f64, %a2 : f64, %a3 : f64,
         %b0 : f64, %b1 : f64, %b2 : f64, %b3 : f64,
         %c0 : f64, %c1 : f64, %c2 : f64, %c3 : f64

@@ -35,7 +35,7 @@ builtin.module {
 // CHECK:      builtin.module {
 // CHECK-NEXT:   "test.op"() ({
 // CHECK-NEXT:     "test.termop"(%0) : (i32) -> ()
-// CHECK-NEXT:   ^0(%0 : i32):
+// CHECK-NEXT:   ^bb0(%0 : i32):
 // CHECK-NEXT:     "test.termop"() : () -> ()
 // CHECK-NEXT:   }) : () -> ()
 // CHECK-NEXT: }

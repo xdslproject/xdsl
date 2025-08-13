@@ -7,13 +7,17 @@
 %rax = "test.op"() : () -> !x86.reg<rax>
 %rdx = "test.op"() : () -> !x86.reg<rdx>
 
-%rr_add = x86.rs.add %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rs_add = x86.rs.add %0, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK: %{{.*}} = x86.rs.add %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_sub = x86.rs.sub %rr_add, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rs_fadd = x86.rs.fadd %rs_add, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+// CHECK: %{{.*}} = x86.rs.fadd %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_sub = x86.rs.sub %rs_fadd, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.sub %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
 %rr_mul = x86.rs.imul %rr_sub, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.imul %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
-%rr_and = x86.rs.and %rr_mul, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_fmul = x86.rs.fmul %rr_mul, %1 : (!x86.reg, !x86.reg) -> !x86.reg
+// CHECK-NEXT: %{{.*}} = x86.rs.fmul %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
+%rr_and = x86.rs.and %rr_fmul, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.and %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
 %rr_or = x86.rs.or %rr_and, %1 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rs.or %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg

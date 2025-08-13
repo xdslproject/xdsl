@@ -1469,43 +1469,32 @@ def irdl_op_verify_arg_list(
     constraint_context: ConstraintContext,
 ) -> None:
     """Verify the argument list of an operation."""
-    arg_sizes = get_variadic_sizes(op, op_def, construct)
-    arg_idx = 0
-    var_idx = 0
-    args = cast(
-        Sequence[SSAValue] | Sequence[OpResult], get_op_constructs(op, construct)
-    )
-    args_defs = cast(
-        Sequence[tuple[str, ResultDef]] | Sequence[tuple[str, OperandDef]],
-        get_construct_defs(op_def, construct),
-    )
+    get_variadic_sizes(op, op_def, construct)
+    defs = op_def.operands if construct == VarIRConstruct.OPERAND else op_def.results
 
-    def verify_sequence(
-        arg: Sequence[SSAValue], arg_def: ResultDef | OperandDef, arg_idx: int
-    ) -> None:
-        """Verify a single argument."""
+    idx = 0
+
+    for arg_name, arg_def in defs:
+        args: None | SSAValue | SSAValues = getattr(op, arg_name)
+        if args is None:
+            arg_types = ()
+        elif not isinstance(args, Sequence):
+            arg_types = (args.type,)
+        else:
+            arg_types = args.types
+        length = len(arg_types)
         try:
-            arg_def.constr.verify(tuple(a.type for a in arg), constraint_context)
+            arg_def.constr.verify(arg_types, constraint_context)
         except VerifyException as e:
-            if len(arg) == 1:
-                pos = f"{arg_idx}"
+            if length == 1:
+                pos = f"{idx}"
             else:
-                pos = f"{arg_idx} to {arg_idx + len(arg) - 1}"
+                pos = f"{idx} to {idx + length - 1}"
             raise VerifyException(
                 f"{get_construct_name(construct)} at position {pos} does not "
                 f"verify:\n{e}"
             ) from e
-
-    for def_idx, (_, arg_def) in enumerate(args_defs):
-        if isinstance(arg_def, VariadicDef):
-            verify_sequence(
-                args[arg_idx : arg_idx + arg_sizes[var_idx]], arg_def, def_idx
-            )
-            arg_idx += arg_sizes[var_idx]
-            var_idx += 1
-        else:
-            verify_sequence((args[arg_idx],), arg_def, def_idx)
-            arg_idx += 1
+        idx += length
 
 
 @overload
@@ -1785,7 +1774,7 @@ def irdl_op_init(
     )
 
 
-@dataclass
+@dataclass(frozen=True)
 class BaseAccessor(ABC):
     """
     Base class for accessor objects for retrieving operands, results, regions, and successors.
@@ -1809,7 +1798,7 @@ class BaseAccessor(ABC):
         return self.index(args)
 
 
-@dataclass
+@dataclass(frozen=True)
 class BeforeVariadicSingleAccessor(BaseAccessor):
     """
     Access a non-variadic construct which appears before any variadic arguments.
@@ -1819,7 +1808,7 @@ class BeforeVariadicSingleAccessor(BaseAccessor):
         return args[self.idx]
 
 
-@dataclass
+@dataclass(frozen=True)
 class AfterVariadicSingleAccessor(BaseAccessor):
     """
     Access a non-variadic construct which appears after any variadic arguments.
@@ -1832,7 +1821,7 @@ class AfterVariadicSingleAccessor(BaseAccessor):
         return args[-self.num_defs + self.idx]
 
 
-@dataclass
+@dataclass(frozen=True)
 class SameOptionalAccessor(BaseAccessor):
     """
     Access an optional construct when all variadic arguments have the same size.
@@ -1851,7 +1840,7 @@ class SameOptionalAccessor(BaseAccessor):
         return None
 
 
-@dataclass
+@dataclass(frozen=True)
 class UniqueVariadicAccessor(BaseAccessor):
     """
     Access a variadic construct in the case where it is the only variadic.
@@ -1864,7 +1853,7 @@ class UniqueVariadicAccessor(BaseAccessor):
         return args[self.idx : self.idx + len(args) - self.num_defs + 1]
 
 
-@dataclass
+@dataclass(frozen=True)
 class SameVariadicAccessor(BaseAccessor):
     """
     Access a variadic construct in the case where all variadics have the same size.
@@ -1888,7 +1877,7 @@ class SameVariadicAccessor(BaseAccessor):
         return args[start:end]
 
 
-@dataclass
+@dataclass(frozen=True)
 class SameVariadicSingleAccessor(SameVariadicAccessor):
     """
     Access a non-variadic construct in the case where all variadics have the same size.
@@ -1900,7 +1889,7 @@ class SameVariadicSingleAccessor(SameVariadicAccessor):
         return args[start]
 
 
-@dataclass
+@dataclass(frozen=True)
 class BaseAttrAccessor(ABC):
     """
     Base class for accessors in the case where there is a "segment size" attribute.
@@ -1941,6 +1930,7 @@ class BaseAttrAccessor(ABC):
         return self.index(attr.get_values(), args)  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue,reportUnknownArgumentType]
 
 
+@dataclass(frozen=True)
 class SingleAttrAccessor(BaseAttrAccessor):
     """
     Access a non-variadic construct when there is a "segment size" attribute.
@@ -1950,6 +1940,7 @@ class SingleAttrAccessor(BaseAttrAccessor):
         return args[sum(values[: self.idx])]
 
 
+@dataclass(frozen=True)
 class VariadicAttrAccessor(BaseAttrAccessor):
     """
     Access a variadic construct when there is a "segment size" attribute.
@@ -1960,6 +1951,7 @@ class VariadicAttrAccessor(BaseAttrAccessor):
         return args[start : start + values[self.idx]]
 
 
+@dataclass(frozen=True)
 class OptionalAttrAccessor(BaseAttrAccessor):
     """
     Access an optional construct when there is a "segment size" attribute.
@@ -2055,58 +2047,64 @@ def irdl_op_arg_definition(
             )
 
 
-def _optional_attribute_field(attribute_name: str, default_value: Attribute | None):
-    """Returns the getter and setter for an optional operation attribute."""
+@dataclass(frozen=True)
+class OptionalAttributeAccessor:
+    """Accessor for an optional operation attribute."""
 
-    def field_getter(self: IRDLOperation):
-        return self.attributes.get(attribute_name, default_value)
+    attribute_name: str
+    default_value: Attribute | None
 
-    def field_setter(self: IRDLOperation, value: Attribute | None):
+    def __get__(self, obj: IRDLOperation, objtype=None):
+        return obj.attributes.get(self.attribute_name, self.default_value)
+
+    def __set__(self, obj: IRDLOperation, value):
         if value is None:
-            self.attributes.pop(attribute_name, None)
+            obj.attributes.pop(self.attribute_name, None)
         else:
-            self.attributes[attribute_name] = value
-
-    return property(field_getter, field_setter)
+            obj.attributes[self.attribute_name] = value
 
 
-def _attribute_field(attribute_name: str):
-    """Returns the getter and setter for an operation attribute."""
+@dataclass(frozen=True)
+class AttributeAccessor:
+    """Accessor for an operation attribute."""
 
-    def field_getter(self: IRDLOperation):
-        return self.attributes[attribute_name]
+    attribute_name: str
 
-    def field_setter(self: IRDLOperation, value: Attribute):
-        self.attributes[attribute_name] = value
+    def __get__(self, obj: IRDLOperation, objtype=None):
+        return obj.attributes[self.attribute_name]
 
-    return property(field_getter, field_setter)
+    def __set__(self, obj: IRDLOperation, value):
+        obj.attributes[self.attribute_name] = value
 
 
-def _optional_property_field(property_name: str, default_value: Attribute | None):
-    """Returns the getter and setter for an optional operation property."""
+@dataclass(frozen=True)
+class OptionalPropertyAccessor:
+    """Accessor for an optional operation property."""
 
-    def field_getter(self: IRDLOperation):
-        return self.properties.get(property_name, default_value)
+    property_name: str
+    default_value: Attribute | None
 
-    def field_setter(self: IRDLOperation, value: Attribute | None):
+    def __get__(self, obj: IRDLOperation, objtype=None):
+        return obj.properties.get(self.property_name, self.default_value)
+
+    def __set__(self, obj: IRDLOperation, value):
         if value is None:
-            self.properties.pop(property_name, None)
+            obj.properties.pop(self.property_name, None)
         else:
-            self.properties[property_name] = value
-
-    return property(field_getter, field_setter)
+            obj.properties[self.property_name] = value
 
 
-def _property_field(property_name: str):
-    """Returns the getter and setter for an operation property."""
+@dataclass(frozen=True)
+class PropertyAccessor:
+    """Accessor for an operation property."""
 
-    def field_getter(self: IRDLOperation):
-        return self.properties[property_name]
+    property_name: str
 
-    def field_setter(self: IRDLOperation, value: Attribute):
-        self.properties[property_name] = value
+    def __get__(self, obj: IRDLOperation, objtype=None):
+        return obj.properties[self.property_name]
 
-    return property(field_getter, field_setter)
+    def __set__(self, obj: IRDLOperation, value):
+        obj.properties[self.property_name] = value
 
 
 def get_accessors_from_op_def(
@@ -2134,19 +2132,19 @@ def get_accessors_from_op_def(
         if attribute_type == "attribute":
             attr_def = op_def.attributes[attribute_name]
             if isinstance(attr_def, OptAttributeDef):
-                new_attrs[accessor_name] = _optional_attribute_field(
+                new_attrs[accessor_name] = OptionalAttributeAccessor(
                     attribute_name, op_def.attributes[attribute_name].default_value
                 )
             else:
-                new_attrs[accessor_name] = _attribute_field(attribute_name)
+                new_attrs[accessor_name] = AttributeAccessor(attribute_name)
         else:
             prop_def = op_def.properties[attribute_name]
             if isinstance(prop_def, OptPropertyDef):
-                new_attrs[accessor_name] = _optional_property_field(
+                new_attrs[accessor_name] = OptionalPropertyAccessor(
                     attribute_name, op_def.properties[attribute_name].default_value
                 )
             else:
-                new_attrs[accessor_name] = _property_field(attribute_name)
+                new_attrs[accessor_name] = PropertyAccessor(attribute_name)
 
     # If the traits are already defined then this is a no-op, as the new attrs are
     # passed after the existing attrs, otherwise this sets an empty OpTraits.
