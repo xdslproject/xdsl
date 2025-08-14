@@ -3588,9 +3588,6 @@ jax = [
     { name = "jax" },
     { name = "numpy" },
 ]
-riscv = [
-    { name = "riscemu" },
-]
 
 [package.dev-dependencies]
 bench = [
@@ -3614,6 +3611,7 @@ docs = [
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
     { name = "pymdown-extensions" },
+    { name = "riscemu" },
 ]
 
 [package.metadata]
@@ -3635,7 +3633,6 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = "<8.5" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.1.0" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "riscemu", marker = "extra == 'riscv'", specifier = "==2.2.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.12.8" },
     { name = "sympy", marker = "extra == 'dev'", specifier = "==1.14.0" },
     { name = "textual", marker = "extra == 'gui'", specifier = ">=5,<6" },
@@ -3643,7 +3640,7 @@ requires-dist = [
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<5" },
 ]
-provides-extras = ["dev", "gui", "jax", "riscv"]
+provides-extras = ["dev", "gui", "jax"]
 
 [package.metadata.requires-dev]
 bench = [
@@ -3667,6 +3664,7 @@ docs = [
     { name = "mkdocs-material", specifier = ">=9.5.49" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.27.0" },
     { name = "pymdown-extensions", specifier = ">=10.7" },
+    { name = "riscemu", specifier = "==2.2.7" },
 ]
 
 [[package]]
