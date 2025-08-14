@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, TypeAlias
+from typing import ClassVar, TypeAlias, overload
 
 from typing_extensions import Self
 
@@ -617,17 +617,24 @@ class BvConstantOp(IRDLOperation):
 
     traits = traits_def(ConstantLike(), Pure())
 
-    def __init__(self, value: BitVectorAttr) -> None:
-        super().__init__(properties={"value": value}, result_types=[value.type])
+    @overload
+    def __init__(self, value: BitVectorAttr) -> None: ...
 
-    @staticmethod
-    def from_value_and_type(value: int, type: BitVectorType | int) -> BvConstantOp:
+    @overload
+    def __init__(self, value: int, type: BitVectorType | int) -> None: ...
+
+    def __init__(
+        self, value: BitVectorAttr | int, type: int | BitVectorType | None = None
+    ):
         """
         Create a new `BvConstantOp` from a value and a bitvector width.
         """
-        if isinstance(type, int):
-            type = BitVectorType(type)
-        return BvConstantOp(BitVectorAttr(value, type))
+        if not isinstance(value, BitVectorAttr):
+            if isinstance(type, int):
+                type = BitVectorType(type)
+            assert isinstance(type, BitVectorType)
+            value = BitVectorAttr(value, type)
+        super().__init__(properties={"value": value}, result_types=[value.type])
 
 
 class UnaryBVOp(IRDLOperation, ABC):
