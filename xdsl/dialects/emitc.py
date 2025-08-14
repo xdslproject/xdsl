@@ -331,7 +331,7 @@ class EmitCType(AttrConstraint):
 emitc_type = EmitCType()
 
 
-class EmitC_BinaryOp(IRDLOperation, abc.ABC):
+class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
     """Base class for EmitC binary operations."""
 
     lhs = operand_def(emitc_type)
