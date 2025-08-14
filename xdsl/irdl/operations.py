@@ -1469,43 +1469,32 @@ def irdl_op_verify_arg_list(
     constraint_context: ConstraintContext,
 ) -> None:
     """Verify the argument list of an operation."""
-    arg_sizes = get_variadic_sizes(op, op_def, construct)
-    arg_idx = 0
-    var_idx = 0
-    args = cast(
-        Sequence[SSAValue] | Sequence[OpResult], get_op_constructs(op, construct)
-    )
-    args_defs = cast(
-        Sequence[tuple[str, ResultDef]] | Sequence[tuple[str, OperandDef]],
-        get_construct_defs(op_def, construct),
-    )
+    get_variadic_sizes(op, op_def, construct)
+    defs = op_def.operands if construct == VarIRConstruct.OPERAND else op_def.results
 
-    def verify_sequence(
-        arg: Sequence[SSAValue], arg_def: ResultDef | OperandDef, arg_idx: int
-    ) -> None:
-        """Verify a single argument."""
+    idx = 0
+
+    for arg_name, arg_def in defs:
+        args: None | SSAValue | SSAValues = getattr(op, arg_name)
+        if args is None:
+            arg_types = ()
+        elif not isinstance(args, Sequence):
+            arg_types = (args.type,)
+        else:
+            arg_types = args.types
+        length = len(arg_types)
         try:
-            arg_def.constr.verify(tuple(a.type for a in arg), constraint_context)
+            arg_def.constr.verify(arg_types, constraint_context)
         except VerifyException as e:
-            if len(arg) == 1:
-                pos = f"{arg_idx}"
+            if length == 1:
+                pos = f"{idx}"
             else:
-                pos = f"{arg_idx} to {arg_idx + len(arg) - 1}"
+                pos = f"{idx} to {idx + length - 1}"
             raise VerifyException(
                 f"{get_construct_name(construct)} at position {pos} does not "
                 f"verify:\n{e}"
             ) from e
-
-    for def_idx, (_, arg_def) in enumerate(args_defs):
-        if isinstance(arg_def, VariadicDef):
-            verify_sequence(
-                args[arg_idx : arg_idx + arg_sizes[var_idx]], arg_def, def_idx
-            )
-            arg_idx += arg_sizes[var_idx]
-            var_idx += 1
-        else:
-            verify_sequence((args[arg_idx],), arg_def, def_idx)
-            arg_idx += 1
+        idx += length
 
 
 @overload
