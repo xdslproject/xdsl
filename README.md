@@ -90,17 +90,27 @@ To contribute to the development of xDSL follow the subsequent steps.
 
 ### Developer Installation
 
+Here are the commands to run to set up local development:
+
+```sh
+# Clone repo
+git clone https://github.com/xdslproject/xdsl.git
+cd xdsl
+# Set up local environment with all optional and dev dependencies
+# Creates a virtual environment called `.venv`
+make venv
+# Set up pre-commit hook for automatic formatting
+make precommit-install
+# Run all tests to verify installation was successful
+make tests
+```
+
+Please take a look at the Makefile for the available commands such as running specific tests, running the documentation website locally, and others.
+
 We use [uv](https://docs.astral.sh/uv/) for dependency management of xDSL.
 Getting started documentation can be found [here](https://docs.astral.sh/uv/getting-started/),
 and is also printed by the `make uv-installed` and `make venv` targets if it
 is not already installed on your system.
-
-```bash
-git clone https://github.com/xdslproject/xdsl.git
-cd xdsl
-# set up the venv and install everything
-make venv
-```
 
 To make a custom mlir-opt available in the virtual environment, set the `XDSL_MLIR_OPT_PATH` variable when running `make venv`, like so:
 
@@ -108,30 +118,10 @@ To make a custom mlir-opt available in the virtual environment, set the `XDSL_ML
 XDSL_MLIR_OPT_PATH=/PATH/TO/LLVM/BUILD/bin/mlir-opt make venv
 ```
 
-#### If you can't use `uv`
+### Alternative installations
 
-For some systems and workflows, changing to a new dependency management system
-may be inconvenient, impractical, or impossible. If this is the case for you,
-xDSL can still be installed using `pip`.
-
-To create the required virtual environment (the equivalent of `make venv`):
-
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -e ".[dev]"
-```
-
-The following commands can then be run using this virtual environment rather
-than `uv` by running `source venv/bin/activate` when starting a new shell, then
-eliding the `uv run` prefix from the commands. For example, to run the commands
-in the following testing section:
-
-```bash
-source venv/bin/activate
-pytest
-lit tests/filecheck
-```
+For some use-cases, such as running xDSL with Pypy, it may be preferable to install a minimal set of dependencies instead. This can be done with `uv sync`.
+Note that Pyright will then complain about missing dependencies, so run `make tests-functional` instead of `make tests` to test the functionality of xDSL.
 
 ### Testing and benchmarking
 
@@ -149,10 +139,9 @@ uv run lit tests/filecheck
 make tests
 ```
 
-Benchmarks for the project are tracked in the <https://github.com/xdslproject/xdsl-bench>
-repository. These run automatically every day on the main branch, reporting
-their results to <https://xdsl.dev/xdsl-bench/>. However, they can also be run
-manually by cloning the repository and pointing the submodule at your
+Benchmarks for the project are tracked in the <https://github.com/xdslproject/xdsl-bench> repository.
+These run automatically every day on the main branch, reporting their results to <https://xdsl.dev/xdsl-bench/>.
+However, they can also be run manually by cloning the repository and pointing the submodule at your
 feature branch to benchmark.
 
 ### Formatting and Typechecking
