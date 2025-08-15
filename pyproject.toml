@@ -51,14 +51,16 @@ bench = [
     "bytesight",
 ]
 docs = [
+    "lzstring2",
     "mkdocs-awesome-nav>=3.1.2",
     "mkdocs-gen-files>=0.5.0",
+    "mkdocs-marimo>=0.2.1",
     "mkdocs-material>=9.5.49",
+    "mkdocs-simple-hooks>=0.1.5",
     "mkdocs>=1.6.1",
     "mkdocstrings[python]>=0.27.0",
     "pymdown-extensions>=10.7",
     "riscemu==2.2.7",
-    "lzstring2",
 ]
 
 [project.urls]
