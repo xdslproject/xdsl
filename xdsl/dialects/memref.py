@@ -155,8 +155,7 @@ class StoreOp(IRDLOperation):
 
 
 class AllocOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import ElideUnusedAlloc
 
         return (ElideUnusedAlloc(),)
@@ -597,8 +596,7 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
 
 
 class MemRefHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import (
             MemRefSubviewOfSubviewFolding,
         )
