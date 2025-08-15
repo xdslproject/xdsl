@@ -189,9 +189,17 @@ asv-clean:
 	rm -rf .asv/
 
 # docs
+
+# Set to 1 to skip the generation of "API Reference".
+SKIP_GEN_PAGES ?= 0
+
 .PHONY: docs-serve
 docs-serve: uv-installed
 	uv run mkdocs serve
+
+.PHONY: docs-serve-fast
+docs-serve-fast: uv-installed
+	SKIP_GEN_PAGES=1 uv run mkdocs serve
 
 .PHONY: docs-build
 docs-build: uv-installed
