@@ -453,7 +453,6 @@ def irdl_to_attr_constraint(
     irdl: IRDLAttrConstraint[AttributeInvT],
     *,
     allow_type_var: bool = False,
-    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint[AttributeInvT]:
     if isinstance(irdl, AttrConstraint):
         return cast(AttrConstraint[AttributeInvT], irdl)
@@ -543,9 +542,7 @@ def irdl_to_attr_constraint(
         origin_parameters = attr_def.parameters
 
         origin_constraints = [
-            irdl_to_attr_constraint(
-                param.constr, allow_type_var=True
-            ).mapping_type_vars(type_var_mapping)
+            param.constr.mapping_type_vars(type_var_mapping)
             for _, param in origin_parameters
         ]
         return cast(
