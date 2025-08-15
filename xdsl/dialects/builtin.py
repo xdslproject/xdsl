@@ -109,6 +109,12 @@ class ShapedType(Attribute, ABC):
     def element_count(self) -> int:
         return prod(self.get_shape())
 
+    def has_static_shape(self) -> bool:
+        """
+        Check if all dimensions have static (non-dynamic) shapes.
+        """
+        return all(dim != DYNAMIC_INDEX for dim in self.get_shape())
+
     @staticmethod
     def strides_for_shape(shape: Sequence[int], factor: int = 1) -> tuple[int, ...]:
         import operator
