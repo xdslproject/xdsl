@@ -8,7 +8,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
 )
-from xdsl.traits import HasCanonicalizationPatternsTrait
+from xdsl.traits import CanonicalizationPatternsTrait
 from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations, region_dce
 
 
@@ -16,10 +16,12 @@ class CanonicalizationRewritePattern(RewritePattern):
     """Rewrite pattern that applies a canonicalization pattern."""
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        trait = op.get_trait(HasCanonicalizationPatternsTrait)
-        if trait is None:
+        traits = op.get_traits_of_type(CanonicalizationPatternsTrait)
+        if not traits:
             return
-        patterns = trait.get_canonicalization_patterns()
+        patterns = tuple(
+            pattern for trait in traits for pattern in trait.get_patterns(type(op))
+        )
         if len(patterns) == 1:
             patterns[0].match_and_rewrite(op, rewriter)
             return
