@@ -830,6 +830,34 @@ def test_dense_array_constr():
     assert constr.verifies(DenseArrayBase.from_list(f32, [1.0, 2.0, 3.0]))
 
 
+def test_shaped_type_has_static_shape():
+    """Test ShapedType.has_static_shape() method for all shaped types."""
+
+    # Test TensorType
+    static_tensor = TensorType(i32, [3, 4])
+    assert static_tensor.has_static_shape() is True
+
+    scalar_tensor = TensorType(f64, [])
+    assert scalar_tensor.has_static_shape() is True
+
+    dynamic_tensor = TensorType(f32, [3, -1])
+    assert dynamic_tensor.has_static_shape() is False
+
+    # Test VectorType
+    static_vector = VectorType(i32, [8])
+    assert static_vector.has_static_shape() is True
+
+    dynamic_vector = VectorType(f32, [4, -1])
+    assert dynamic_vector.has_static_shape() is False
+
+    # Test MemRefType
+    static_memref = MemRefType(i64, [8, 16])
+    assert static_memref.has_static_shape() is True
+
+    dynamic_memref = MemRefType(i32, [-1])
+    assert dynamic_memref.has_static_shape() is False
+
+
 ################################################################################
 # Mapping Type Var
 ################################################################################

@@ -13,7 +13,8 @@ A clear and concise description of the issue or bug.
 
 ### Expected vs Actual Behavior
 
-Include what you expected to happen and what actually happened (e.g., when compared with upstream MLIR).
+Include what you expected to happen and what actually happened (e.g., when compared with
+upstream MLIR).
 
 ### Steps to Reproduce and a Minimal Working Example (MWE)
 
