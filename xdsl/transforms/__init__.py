@@ -293,6 +293,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return eqsat_extract.EqsatExtractPass
 
+    def get_eqsat_optimize_pdl_interp():
+        from xdsl.transforms import eqsat_optimize_pdl_interp
+
+        return eqsat_optimize_pdl_interp.EqsatOptimizePDLInterp
+
     def get_frontend_desymrefy():
         from xdsl.transforms.desymref import FrontendDesymrefyPass
 
@@ -650,6 +655,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "eqsat-create-egraphs": get_eqsat_create_egraphs,
         "eqsat-serialize-egraph": get_eqsat_serialize_egraph,
         "eqsat-extract": get_eqsat_extract,
+        "eqsat-optimize-pdl-interp": get_eqsat_optimize_pdl_interp,
         "frontend-desymrefy": get_frontend_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
         "function-persist-arg-names": get_function_persist_arg_names,
