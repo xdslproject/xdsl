@@ -22,13 +22,17 @@ def apply_eqsat_pdl_interp(
     max_iterations: int = _DEFAULT_MAX_ITERATIONS,
 ):
     matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
-    assert isinstance(matcher, pdl_interp.FuncOp)
-    assert matcher is not None, "matcher function not found"
+    assert isinstance(matcher, pdl_interp.FuncOp), "matcher not found"
+    rewriters_module = SymbolTable.lookup_symbol(
+        pdl_interp_module, builtin.SymbolRefAttr("rewriters")
+    )
+    assert isinstance(rewriters_module, builtin.ModuleOp), "rewriters not found"
 
     # Initialize interpreter and implementations once
     interpreter = Interpreter(pdl_interp_module)
     implementations = EqsatPDLInterpFunctions(ctx)
     implementations.populate_known_ops(op)
+    implementations.initialize_reachable_rules(rewriters_module)
     interpreter.register_implementations(implementations)
     rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
 
