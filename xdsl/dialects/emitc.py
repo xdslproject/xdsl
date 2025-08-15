@@ -213,6 +213,16 @@ class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
     name = "emitc.size_t"
 
 
+@irdl_attr_definition
+class EmitC_OpaqueAttr(ParametrizedAttribute):
+    """
+    An opaque attribute of which the value gets emitted as is.
+    """
+
+    name = "emitc.opaque"
+    value: StringAttr
+
+
 _SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
 
 
@@ -367,9 +377,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
             for t_arg in self.template_args.data:
                 if not isa(
                     t_arg,
-                    TypeAttribute | IntegerAttr | FloatAttr,
-                    # FIXME: uncomment and replace the line above when EmitC_OpaqueAttr is implemented
-                    # TypeAttribute | IntegerAttr | FloatAttr | EmitC_OpaqueAttr,
+                    TypeAttribute | IntegerAttr | FloatAttr | EmitC_OpaqueAttr,
                 ):
                     raise VerifyException("template argument has invalid type")
 
@@ -386,6 +394,7 @@ EmitC = Dialect(
     [
         EmitC_ArrayType,
         EmitC_LValueType,
+        EmitC_OpaqueAttr,
         EmitC_OpaqueType,
         EmitC_PointerType,
         EmitC_PtrDiffT,
