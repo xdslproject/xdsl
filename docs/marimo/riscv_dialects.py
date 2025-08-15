@@ -174,9 +174,9 @@ def _(Block, Builder, InsertPoint, Printer, riscv):
     builder = Builder(InsertPoint.at_end(block))
 
     # Explicitly specify result registers
-    addi_op = builder.insert(riscv.AddiOp(a0, 42, rd=riscv.Registers.A2))
-    sub_op = builder.insert(riscv.SubOp(a0, a1, rd=riscv.Registers.A3))
-    mul_op = builder.insert(riscv.MulOp(addi_op.rd, sub_op.rd, rd=riscv.Registers.A4))
+    addi_op = builder.insert_op(riscv.AddiOp(a0, 42, rd=riscv.Registers.A2))
+    sub_op = builder.insert_op(riscv.SubOp(a0, a1, rd=riscv.Registers.A3))
+    mul_op = builder.insert_op(riscv.MulOp(addi_op.rd, sub_op.rd, rd=riscv.Registers.A4))
 
     Printer().print_block(block)
     return (block,)
