@@ -68,16 +68,16 @@ def _is_supported_integer_type(type_attr: Attribute) -> bool:
     )
 
 
-def is_supported_float_type(type_attr: Attribute) -> bool:
-    """
-    Check if a type is a supported floating-point type in EmitC.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
-    """
-    match type_attr:
-        case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
-            return True
-        case _:
-            return False
+EmitCFloatTypeConstr = (
+    BaseAttr(Float16Type)
+    | BaseAttr(BFloat16Type)
+    | BaseAttr(Float32Type)
+    | BaseAttr(Float64Type)
+)
+"""
+Supported floating-point type in EmitC.
+See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
+"""
 
 
 def is_pointer_wide_type(type_attr: Attribute) -> bool:
