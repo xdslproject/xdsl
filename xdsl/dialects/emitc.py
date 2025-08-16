@@ -253,7 +253,7 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "emitc.lvalue"
-    value_type: Annotated[TypeAttribute, emitc_type_constr]
+    value_type: EmitCTypeConstr
 
     def verify(self) -> None:
         """
