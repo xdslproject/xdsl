@@ -8,7 +8,9 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
 from collections.abc import Iterable, Sequence
-from typing import cast
+from typing import Annotated, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -36,6 +38,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrConstraint,
+    ConstraintContext,
     IRDLOperation,
     ParsePropInAttrDict,
     irdl_attr_definition,
@@ -49,6 +53,118 @@ from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
+_SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
+
+
+def _is_supported_integer_type(type_attr: Attribute) -> bool:
+    """
+    Check if an IntegerType is supported by EmitC.
+    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
+    """
+    return (
+        isinstance(type_attr, IntegerType)
+        and type_attr.width.data in _SUPPORTED_BITWIDTHS
+    )
+
+
+def is_supported_float_type(type_attr: Attribute) -> bool:
+    """
+    Check if a type is a supported floating-point type in EmitC.
+    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
+    """
+    match type_attr:
+        case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
+            return True
+        case _:
+            return False
+
+
+def is_pointer_wide_type(type_attr: Attribute) -> bool:
+    """Check if a type is a pointer-wide type."""
+    match type_attr:
+        case EmitC_PtrDiffT() | EmitC_SignedSizeT() | EmitC_SizeT():
+            return True
+        case _:
+            return False
+
+
+def is_integer_index_or_opaque_type(
+    type_attr: Attribute,
+) -> bool:
+    """
+    Check if a type is an integer, index, or opaque type.
+
+    The emitC opaque type is not implemented yet so this function currently checks
+    only for integer and index types.
+    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
+    """
+    return (
+        _is_supported_integer_type(type_attr)
+        or isinstance(type_attr, IndexType)
+        or is_pointer_wide_type(type_attr)
+    )
+
+
+class EmitCTypeConstraint(AttrConstraint):
+    """Constraint that verifies an attribute is a supported EmitC type."""
+
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
+        if not self.is_supported_emitc_type(attr):
+            raise VerifyException(f"Type {attr} is not a supported EmitC type")
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
+
+    @staticmethod
+    def is_supported_emitc_type(type_attr: Attribute) -> bool:
+        """
+        Check if a type is supported by EmitC.
+        See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
+        """
+        match type_attr:
+            case IntegerType():
+                return _is_supported_integer_type(type_attr)
+            case IndexType():
+                return True
+            case EmitC_OpaqueType():
+                return True
+            case EmitC_ArrayType():
+                elem_type = cast(Attribute, type_attr.get_element_type())
+                return not isinstance(
+                    elem_type, EmitC_ArrayType
+                ) and EmitCTypeConstraint.is_supported_emitc_type(elem_type)
+            case EmitC_PointerType():
+                return EmitCTypeConstraint.is_supported_emitc_type(
+                    type_attr.pointee_type
+                )
+            case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
+                return True
+            case TensorType():
+                if not type_attr.has_static_shape():
+                    return False
+                elem_type = cast(Attribute, type_attr.get_element_type())
+                if isinstance(elem_type, EmitC_ArrayType):
+                    return False
+                return EmitCTypeConstraint.is_supported_emitc_type(elem_type)
+            case TupleType():
+                return all(
+                    not isinstance(t, EmitC_ArrayType)
+                    and EmitCTypeConstraint.is_supported_emitc_type(t)
+                    for t in type_attr.types
+                )
+            case EmitC_PtrDiffT() | EmitC_SignedSizeT() | EmitC_SizeT():
+                return True
+            case _:
+                return False
+
+
+emitc_type_constr = EmitCTypeConstraint()
 
 
 @irdl_attr_definition
@@ -137,7 +253,7 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "emitc.lvalue"
-    value_type: TypeAttribute
+    value_type: Annotated[TypeAttribute, emitc_type_constr]
 
     def verify(self) -> None:
         """
@@ -145,10 +261,6 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
         See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L1095)
         """
         # Check that the wrapped type is valid. This especially forbids nested lvalue types.
-        if not is_supported_emitc_type(self.value_type):
-            raise VerifyException(
-                f"!emitc.lvalue must wrap supported emitc type, but got {self.value_type}"
-            )
         if isinstance(self.value_type, EmitC_ArrayType):
             raise VerifyException("!emitc.lvalue cannot wrap !emitc.array type")
 
@@ -211,95 +323,6 @@ class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "emitc.size_t"
-
-
-_SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
-
-
-def _is_supported_integer_type(type_attr: Attribute) -> bool:
-    """
-    Check if an IntegerType is supported by EmitC.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
-    """
-    return (
-        isinstance(type_attr, IntegerType)
-        and type_attr.width.data in _SUPPORTED_BITWIDTHS
-    )
-
-
-def is_supported_float_type(type_attr: Attribute) -> bool:
-    """
-    Check if a type is a supported floating-point type in EmitC.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
-    """
-    match type_attr:
-        case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
-            return True
-        case _:
-            return False
-
-
-def is_pointer_wide_type(type_attr: Attribute) -> bool:
-    """Check if a type is a pointer-wide type."""
-    match type_attr:
-        case EmitC_PtrDiffT() | EmitC_SignedSizeT() | EmitC_SizeT():
-            return True
-        case _:
-            return False
-
-
-def is_integer_index_or_opaque_type(
-    type_attr: Attribute,
-) -> bool:
-    """
-    Check if a type is an integer, index, or opaque type.
-
-    The emitC opaque type is not implemented yet so this function currently checks
-    only for integer and index types.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
-    """
-    return (
-        _is_supported_integer_type(type_attr)
-        or isinstance(type_attr, IndexType)
-        or is_pointer_wide_type(type_attr)
-    )
-
-
-def is_supported_emitc_type(type_attr: Attribute) -> bool:
-    """
-    Check if a type is supported by EmitC.
-    See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
-    """
-    match type_attr:
-        case IntegerType():
-            return _is_supported_integer_type(type_attr)
-        case IndexType():
-            return True
-        case EmitC_OpaqueType():
-            return True
-        case EmitC_ArrayType():
-            elem_type = cast(Attribute, type_attr.get_element_type())
-            return not isinstance(
-                elem_type, EmitC_ArrayType
-            ) and is_supported_emitc_type(elem_type)
-        case EmitC_PointerType():
-            return is_supported_emitc_type(type_attr.pointee_type)
-        case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
-            return True
-        case TensorType():
-            elem_type = cast(Attribute, type_attr.get_element_type())
-            if isinstance(elem_type, EmitC_ArrayType):
-                return False
-            return is_supported_emitc_type(elem_type)
-        case TupleType():
-            return all(
-                not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
-                for t in type_attr.types
-            )
-        case EmitC_PtrDiffT():
-            return True
-        case _:
-            return False
 
 
 @irdl_op_definition

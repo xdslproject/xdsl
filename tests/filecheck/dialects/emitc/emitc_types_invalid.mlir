@@ -86,28 +86,28 @@
 
 // -----
 
-// CHECK: !emitc.lvalue must wrap supported emitc type, but got !emitc.lvalue<i32>
+// CHECK: Type !emitc.lvalue<i32> is not a supported EmitC type
 "test.op"() {
   illegal_lvalue_type_2 = !emitc.lvalue<!emitc.lvalue<i32>>
 }: ()->()
 
 // -----
 
-// CHECK: !emitc.lvalue must wrap supported emitc type, but got i17
+// CHECK: Type i17 is not a supported EmitC type
 "test.op"() {
   illegal_lvalue_type_3 = !emitc.lvalue<i17>
 }: ()->()
 
 // -----
 
-// CHECK: !emitc.lvalue must wrap supported emitc type, but got tensor<1x!emitc.array<1xi32>>
+// CHECK: Type tensor<1x!emitc.array<1xi32>> is not a supported EmitC type
 "test.op"() {
   illegal_lvalue_tensor_emitc_array_i32 = !emitc.lvalue<tensor<1x!emitc.array<1xi32>>>
 }: ()->()
 
 // -----
 
-// CHECK: !emitc.lvalue must wrap supported emitc type, but got tuple<!emitc.array<1xi32>>
+// CHECK: Type tuple<!emitc.array<1xi32>> is not a supported EmitC type
 "test.op"() {
   illegal_lvalue_tuple_emitc_array_i32 = !emitc.lvalue<tuple<!emitc.array<1xi32>>>
 }: ()->()
@@ -135,7 +135,7 @@
 
 // -----
 
-// CHECK: !emitc.lvalue must wrap supported emitc type, but got !emitc.ptr<memref<1xi32>>
+// CHECK: Type !emitc.ptr<memref<1xi32>> is not a supported EmitC type
 "test.op"() {
   lvalue_ptr_memref = !emitc.lvalue<!emitc.ptr<memref<1xi32>>>
 }: ()->()
