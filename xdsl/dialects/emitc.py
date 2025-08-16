@@ -54,18 +54,23 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-_SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
+import functools
+import operator
 
-
-def _is_supported_integer_type(type_attr: Attribute) -> bool:
-    """
-    Check if an IntegerType is supported by EmitC.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
-    """
-    return (
-        isinstance(type_attr, IntegerType)
-        and type_attr.width.data in _SUPPORTED_BITWIDTHS
+EmitCIntegerTypeBitwidthConstr = reduce(
+    operator.or, 
+    (
+        EqAttrConstraint(bw) for bw in (1, 8, 16, 32, 64)
     )
+)
+
+EmitCIntegerTypeConstr = ParamAttrConstr(
+	IntegerAttr,
+	(
+		EmitCIntegerTypeBitwidthConstr,
+		AnyAttr()
+	)
+)
 
 
 EmitCFloatTypeConstr = (
