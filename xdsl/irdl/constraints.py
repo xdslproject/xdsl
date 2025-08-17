@@ -846,9 +846,8 @@ class IntSetConstraint(IntConstraint):
         constraint_context: ConstraintContext,
     ) -> None:
         if i not in self.values:
-            raise VerifyException(
-                f"Invalid value {i}, expected one of {set(self.values)}"
-            )
+            set_str = set(self.values) if self.values else "{}"
+            raise VerifyException(f"Invalid value {i}, expected one of {set_str}")
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return len(self.values) == 1
