@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntAttr,
+    IntAttrConstraint,
     IntegerAttr,
     IntegerType,
     ShapedType,
@@ -36,7 +37,9 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    IntSetConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
@@ -213,18 +216,18 @@ class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
     name = "emitc.size_t"
 
 
-_SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
+EmitCIntegerBitwidthConstr = IntSetConstraint(frozenset((1, 8, 16, 32, 64)))
+"""
+Constraint for the bitwidth parameter of integer types supported by EmitC.
+"""
 
-
-def _is_supported_integer_type(type_attr: Attribute) -> bool:
-    """
-    Check if an IntegerType is supported by EmitC.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
-    """
-    return (
-        isinstance(type_attr, IntegerType)
-        and type_attr.width.data in _SUPPORTED_BITWIDTHS
-    )
+EmitCIntegerConstr = ParamAttrConstraint(
+    IntegerType, (IntAttrConstraint(EmitCIntegerBitwidthConstr), None)
+)
+"""
+Constraint for integer types supported by EmitC.
+See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
+"""
 
 
 def is_supported_float_type(type_attr: Attribute) -> bool:
@@ -259,7 +262,7 @@ def is_integer_index_or_opaque_type(
     See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
     """
     return (
-        _is_supported_integer_type(type_attr)
+        EmitCIntegerConstr.verifies(type_attr)
         or isinstance(type_attr, IndexType)
         or is_pointer_wide_type(type_attr)
     )
@@ -272,7 +275,7 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
     """
     match type_attr:
         case IntegerType():
-            return _is_supported_integer_type(type_attr)
+            return EmitCIntegerConstr.verifies(type_attr)
         case IndexType():
             return True
         case EmitC_OpaqueType():
