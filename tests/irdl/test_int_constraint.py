@@ -43,7 +43,7 @@ def test_set():
     empty_constr = IntSetConstraint(frozenset())
     assert not empty_constr.can_infer(set())
     with pytest.raises(
-        VerifyException, match=re.escape("Invalid value 2, expected one of []")
+        VerifyException, match=re.escape("Invalid value 2, expected one of {}")
     ):
         empty_constr.verify(2, ConstraintContext())
 
@@ -52,7 +52,7 @@ def test_set():
     assert one_constr.can_infer(set())
     assert one_constr.infer(ConstraintContext()) == 0
     with pytest.raises(
-        VerifyException, match=re.escape("Invalid value 2, expected one of [0]")
+        VerifyException, match=re.escape("Invalid value 2, expected one of {0}")
     ):
         one_constr.verify(2, ConstraintContext())
 
@@ -60,6 +60,6 @@ def test_set():
     two_constr.verify(0, ConstraintContext())
     assert not two_constr.can_infer(set())
     with pytest.raises(
-        VerifyException, match=re.escape("Invalid value 2, expected one of [0, 1]")
+        VerifyException, match=re.escape("Invalid value 2, expected one of {0, 1}")
     ):
         two_constr.verify(2, ConstraintContext())
