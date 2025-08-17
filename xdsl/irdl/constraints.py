@@ -835,6 +835,29 @@ class EqIntConstraint(IntConstraint):
 
 
 @dataclass(frozen=True)
+class IntSetConstraint(IntConstraint):
+    """Constrain an integer to one of a set of integers."""
+
+    values: frozenset[int]
+
+    def verify(
+        self,
+        i: int,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        if i not in self.values:
+            raise VerifyException(
+                f"Invalid value {i}, expected one of {list(self.values)}"
+            )
+
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
+        return len(self.values) == 1
+
+    def infer(self, context: ConstraintContext) -> int:
+        return next(iter(self.values))
+
+
+@dataclass(frozen=True)
 class AtLeast(IntConstraint):
     """Constrain an integer to be at least a given value."""
 

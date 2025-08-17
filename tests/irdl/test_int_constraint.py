@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from xdsl.irdl import AtLeast, ConstraintContext, EqIntConstraint
+from xdsl.irdl import AtLeast, ConstraintContext, EqIntConstraint, IntSetConstraint
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -37,3 +37,29 @@ def test_eq():
         one_constr.verify(2, ConstraintContext())
     assert one_constr.can_infer(set())
     assert one_constr.infer(ConstraintContext()) == 1
+
+
+def test_set():
+    empty_constr = IntSetConstraint(frozenset())
+    assert not empty_constr.can_infer(set())
+    with pytest.raises(
+        VerifyException, match=re.escape("Invalid value 2, expected one of []")
+    ):
+        empty_constr.verify(2, ConstraintContext())
+
+    one_constr = IntSetConstraint(frozenset((0,)))
+    one_constr.verify(0, ConstraintContext())
+    assert one_constr.can_infer(set())
+    assert one_constr.infer(ConstraintContext()) == 0
+    with pytest.raises(
+        VerifyException, match=re.escape("Invalid value 2, expected one of [0]")
+    ):
+        one_constr.verify(2, ConstraintContext())
+
+    two_constr = IntSetConstraint(frozenset((0, 1)))
+    two_constr.verify(0, ConstraintContext())
+    assert not two_constr.can_infer(set())
+    with pytest.raises(
+        VerifyException, match=re.escape("Invalid value 2, expected one of [0, 1]")
+    ):
+        two_constr.verify(2, ConstraintContext())
