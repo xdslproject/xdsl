@@ -40,7 +40,7 @@ from xdsl.irdl import (
     IRDLOperation,
     ParamAttrConstraint,
     ParsePropInAttrDict,
-    int_to_constraint,
+    get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
@@ -216,7 +216,7 @@ class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
     name = "emitc.size_t"
 
 
-EmitCIntegerBitwidthConstr = int_to_constraint(Literal[1, 8, 16, 32, 64])
+EmitCIntegerBitwidthConstr = get_int_constraint(Literal[1, 8, 16, 32, 64])
 """
 Constraint for the bitwidth parameter of integer types supported by EmitC.
 """
