@@ -1,4 +1,5 @@
 import re
+from typing import Literal
 
 import pytest
 from typing_extensions import TypeVar
@@ -10,8 +11,9 @@ from xdsl.irdl import (
     EqIntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
+    get_int_constraint,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import PyRDLTypeError, VerifyException
 
 
 def test_failing_inference():
@@ -78,3 +80,27 @@ def test_mapping_type_vars():
     tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
     my_constr = EqIntConstraint(1)
     assert tv_constr.mapping_type_vars({_IntT: my_constr}) is my_constr
+
+
+def test_get_int_constr():
+    assert get_int_constraint(int) == AnyInt()
+    assert get_int_constraint(Literal[1]) == EqIntConstraint(1)
+    assert get_int_constraint(Literal[2]) == EqIntConstraint(2)
+    assert get_int_constraint(Literal[2, 3]) == IntSetConstraint(frozenset((2, 3)))
+
+    assert get_int_constraint(
+        Literal[2] | Literal[3]  # noqa
+    ) == IntSetConstraint(frozenset((2, 3)))
+
+    assert get_int_constraint(
+        Literal[1] | Literal[2, 3]  # noqa
+    ) == IntSetConstraint(frozenset((1, 2, 3)))
+    assert get_int_constraint(
+        (Literal[1] | Literal[2]) | Literal[3]  # noqa
+    ) == IntSetConstraint(frozenset((1, 2, 3)))
+    assert get_int_constraint(
+        Literal[1] | (Literal[2] | Literal[3])  # noqa
+    ) == IntSetConstraint(frozenset((1, 2, 3)))
+
+    with pytest.raises(PyRDLTypeError, match="Unexpected int type: <class 'str'>"):
+        get_int_constraint(str)  # pyright: ignore[reportArgumentType]

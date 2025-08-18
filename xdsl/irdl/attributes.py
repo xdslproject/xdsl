@@ -52,12 +52,16 @@ from xdsl.utils.runtime_final import runtime_final
 from .constraints import (  # noqa: TID251
     AllOf,
     AnyAttr,
+    AnyInt,
     AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
     ConstraintVar,
     EqAttrConstraint,
+    EqIntConstraint,
+    IntConstraint,
+    IntSetConstraint,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -593,6 +597,43 @@ def eq(irdl: AttributeInvT) -> AttrConstraint[AttributeInvT]:
     Converts an attribute instance into the equivalent constraint.
     """
     return irdl_to_attr_constraint(irdl)
+
+
+def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
+    """
+    Converts an int or an int type to the corresponding constraint.
+    """
+    if isinstance(arg, int):
+        return EqIntConstraint(arg)
+
+    if isclass(arg) and issubclass(arg, int):
+        return AnyInt()
+
+    if get_origin(arg) is Literal:
+        literal_args = get_args(arg)
+
+        if all(isinstance(literal_arg, int) for literal_arg in literal_args):
+            if len(literal_args) == 1:
+                return EqIntConstraint(literal_args[0])
+            else:
+                ints = frozenset(literal_arg for literal_arg in literal_args)
+                return IntSetConstraint(ints)
+
+    if get_origin(arg) is Union:
+        union_args = get_args(arg)
+        if all(
+            (get_origin(union_arg) is Literal)
+            and all(isinstance(literal_arg, int) for literal_arg in get_args(union_arg))
+            for union_arg in union_args
+        ):
+            ints = frozenset(
+                literal_arg
+                for union_arg in union_args
+                for literal_arg in get_args(union_arg)
+            )
+            return IntSetConstraint(ints)
+
+    raise PyRDLTypeError(f"Unexpected int type: {arg}")
 
 
 def range_constr_coercion(
