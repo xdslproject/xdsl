@@ -376,7 +376,8 @@ class IntAttr(Generic[IntCovT], GenericData[IntCovT]):
         return bool(self.data)
 
     @staticmethod
-    def constr(constr: IntConstraint | None = None) -> AttrConstraint:
+    @override
+    def constr(constr: IntConstraint | None = None) -> AttrConstraint[IntAttr]:
         return IntAttrConstraint(
             IntTypeVarConstraint(IntCovT, AnyInt()) if constr is None else constr
         )
