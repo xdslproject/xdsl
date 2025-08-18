@@ -34,10 +34,10 @@
   tosa.yield %f : tensor<12x13xf32>
 }
 %19 = tosa.cond_if %cond (%20 = %f) : tensor<i1> (tensor<12x13xf32>) -> tensor<12x13xf32> {
-^0(%20 : tensor<12x13xf32>):
+^bb0(%20 : tensor<12x13xf32>):
   tosa.yield %20 : tensor<12x13xf32>
 } else {
-^1(%21 : tensor<12x13xf32>):
+^bb1(%21 : tensor<12x13xf32>):
   tosa.yield %21 : tensor<12x13xf32>
 }
 
@@ -71,10 +71,10 @@
 // CHECK-NEXT:     tosa.yield %f : tensor<12x13xf32>
 // CHECK-NEXT:   }
 // CHECK-NEXT:   %19 = tosa.cond_if %cond (%20 = %f) : tensor<i1> (tensor<12x13xf32>) -> tensor<12x13xf32> {
-// CHECK-NEXT:   ^0(%20 : tensor<12x13xf32>):
+// CHECK-NEXT:   ^bb0(%20 : tensor<12x13xf32>):
 // CHECK-NEXT:     tosa.yield %20 : tensor<12x13xf32>
 // CHECK-NEXT:   } else {
-// CHECK-NEXT:   ^1(%21 : tensor<12x13xf32>):
+// CHECK-NEXT:   ^bb1(%21 : tensor<12x13xf32>):
 // CHECK-NEXT:     tosa.yield %21 : tensor<12x13xf32>
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
