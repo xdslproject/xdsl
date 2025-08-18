@@ -90,7 +90,7 @@ tests-marimo: uv-installed
 			  fi; \
 			fi; \
 			echo "Running $$file"; \
-			if ! output=$$(uv run python3 "$$file" 2>&1); then \
+			if ! output=$$(uv run python -W error "$$file" 2>&1); then \
 				echo "$$output" >> "$$error_log"; \
 				failed_tests="$$failed_tests $$file"; \
 			fi; \
