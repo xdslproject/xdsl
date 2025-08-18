@@ -223,6 +223,12 @@ class AttrSizedSegments(IRDLOption, ABC):
     as_property: bool = False
     """Name of the attribute containing the segment sizes."""
 
+    def container(self, op: Operation) -> dict[str, Attribute]:
+        if self.as_property:
+            return op.properties
+        else:
+            return op.attributes
+
 
 @dataclass
 class AttrSizedOperandSegments(AttrSizedSegments):
@@ -1277,12 +1283,7 @@ def get_op_constructs(
 
 def get_attr_size_option(
     construct: VarIRConstruct,
-) -> type[
-    AttrSizedOperandSegments
-    | AttrSizedResultSegments
-    | AttrSizedRegionSegments
-    | AttrSizedSuccessorSegments
-]:
+) -> type[AttrSizedSegments]:
     """Get the AttrSized option for this type."""
     match construct:
         case VarIRConstruct.OPERAND:
@@ -1327,8 +1328,7 @@ def get_variadic_sizes_from_attr(
     op: Operation,
     defs: Sequence[tuple[str, OperandDef | ResultDef | RegionDef | SuccessorDef]],
     construct: VarIRConstruct,
-    size_attribute_name: str,
-    from_prop: bool = False,
+    option: AttrSizedSegments,
 ) -> list[int]:
     """
     Get the sizes of the variadic definitions
@@ -1337,18 +1337,18 @@ def get_variadic_sizes_from_attr(
     # Circular import because DenseArrayBase is defined using IRDL
     from xdsl.dialects.builtin import DenseArrayBase, i32
 
-    container = op.properties if from_prop else op.attributes
-    container_name = "property" if from_prop else "attribute"
+    container = option.container(op)
+    container_name = "property" if option.as_property else "attribute"
 
     # Check that the attribute is present
-    if size_attribute_name not in container:
+    if option.attribute_name not in container:
         raise VerifyException(
-            f"Expected {size_attribute_name} {container_name} in {op.name} operation."
+            f"Expected {option.attribute_name} {container_name} in {op.name} operation."
         )
-    attribute = container[size_attribute_name]
+    attribute = container[option.attribute_name]
     if not isinstance(attribute, DenseArrayBase) or attribute.elt_type != i32:  # pyright: ignore[reportUnknownMemberType]
         raise VerifyException(
-            f"{size_attribute_name} {container_name} is expected "
+            f"{option.attribute_name} {container_name} is expected "
             "to be a DenseArrayBase of i32."
         )
 
@@ -1357,7 +1357,7 @@ def get_variadic_sizes_from_attr(
     if len(def_sizes) != len(defs):
         raise VerifyException(
             f"expected {len(defs)} values in "
-            f"{size_attribute_name}, but got {len(def_sizes)}"
+            f"{option.attribute_name}, but got {len(def_sizes)}"
         )
 
     variadic_sizes = list[int]()
@@ -1365,14 +1365,14 @@ def get_variadic_sizes_from_attr(
         if isinstance(arg_def, OptionalDef) and arg_size > 1:
             raise VerifyException(
                 f"optional {get_construct_name(construct)} {arg_name} is expected to "
-                f"be of size 0 or 1 in {size_attribute_name}, but got "
+                f"be of size 0 or 1 in {option.attribute_name}, but got "
                 f"{arg_size}"
             )
 
         if not isinstance(arg_def, VariadicDef) and arg_size != 1:
             raise VerifyException(
                 f"non-variadic {get_construct_name(construct)} {arg_name} is expected "
-                f"to be of size 1 in {size_attribute_name}, but got {arg_size}"
+                f"to be of size 1 in {option.attribute_name}, but got {arg_size}"
             )
 
         if isinstance(arg_def, VariadicDef):
@@ -1405,8 +1405,7 @@ def get_variadic_sizes(
             op,
             defs,
             construct,
-            option.attribute_name,
-            option.as_property,
+            option,
         )
 
     # If there are no variadics arguments,
@@ -1903,12 +1902,7 @@ class BaseAttrAccessor(ABC):
     Index of this accessor.
     i.e. the number of accessors of this construct type appearing before this one.
     """
-    option: (
-        AttrSizedOperandSegments
-        | AttrSizedResultSegments
-        | AttrSizedRegionSegments
-        | AttrSizedSuccessorSegments
-    )
+    option: AttrSizedSegments
     """
     The option used to declare variadic sizes are obtained from an attribute.
     """
@@ -1922,11 +1916,7 @@ class BaseAttrAccessor(ABC):
         ...
 
     def __get__(self, obj: Operation, objtype=None):
-        attr = (
-            obj.properties[self.option.attribute_name]
-            if self.option.as_property
-            else obj.attributes[self.option.attribute_name]
-        )
+        attr = self.option.container(obj)[self.option.attribute_name]
         args = get_op_constructs(obj, self.construct)
         return self.index(attr.get_values(), args)  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue,reportUnknownArgumentType]
 
