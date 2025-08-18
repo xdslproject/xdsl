@@ -210,8 +210,8 @@ class ToTensorOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ToMemRefOp(IRDLOperation):
-    name = "bufferization.to_memref"
+class ToBufferOp(IRDLOperation):
+    name = "bufferization.to_buffer"
 
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
     tensor = operand_def(TensorFromMemRefConstraint(T))
@@ -243,7 +243,7 @@ Bufferization = Dialect(
         AllocTensorOp,
         CloneOp,
         ToTensorOp,
-        ToMemRefOp,
+        ToBufferOp,
         MaterializeInDestinationOp,
     ],
     [],
