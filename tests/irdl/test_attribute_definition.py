@@ -27,7 +27,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    AttributeCovT,
     AttributeInvT,
     BitEnumAttribute,
     BuiltinAttribute,
@@ -661,10 +660,8 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
 
     @staticmethod
     @override
-    def constr(
-        constr: AttrConstraint[AttributeCovT],
-    ) -> DataListAttr[AttributeCovT]:
-        return DataListAttr(constr)
+    def constr() -> DataListAttr:
+        return DataListAttr(TypeVarConstraint(AttributeInvT, AnyAttr()))
 
     @staticmethod
     def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
