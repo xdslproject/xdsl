@@ -39,10 +39,24 @@
 // -----
 
 
-%simple = "test.op"() : () -> tensor<1x2x3x4xi32>
-%flat = "test.op"() : () -> tensor<1x1x1x1xi32>
-%1 = tosa.mul %simple, %flat : (tensor<1x2x3x4xi32>, tensor<1x1x1x1xi32>) -> tensor<1x1x1x1xi32>
+%simple = "test.op"() : () -> tensor<1x2x3x4xf32>
+%flat = "test.op"() : () -> tensor<1x1x1x1xf32>
+%1 = tosa.mul %simple, %flat : (tensor<1x2x3x4xf32>, tensor<1x1x1x1xf32>) -> tensor<1x1x1x1xf32>
 // CHECK: 'tosa.mul' Operand and result tensor shapes are not compatible 
+
+// -----
+
+
+%int = "test.op"() : () -> tensor<15x10xi32>
+%1 = tosa.mul %int, %int : (tensor<15x10xi32>, tensor<15x10xi32>) -> tensor<15x10xi32>
+// CHECK: 'tosa.mul' Expected third operand 'shift' : tensor<1xi8> when multiplying i32 tensors
+
+// -----
+
+%int = "test.op"() : () -> tensor<15x10xi32>
+%shift = "test.op"() : () -> tensor<i8>
+%1 = tosa.mul %int, %int, %shift : (tensor<15x10xi32>, tensor<15x10xi32>, tensor<i8>) -> tensor<15x10xi32>
+// CHECK: 'tosa.mul' Expected 'shift' to have type tensor<1xi8>
 
 // -----
 

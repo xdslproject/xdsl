@@ -9,6 +9,12 @@
 %6 = tosa.sub %0, %0 : (tensor<12x34xi32>, tensor<12x34xi32>) -> tensor<12x34xi32>
 %7 = tosa.sub %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
 
+%8 = "test.op"() : () -> tensor<15x35xf32>
+%9 = "test.op"() : () -> tensor<1xi8>
+%10 = tosa.mul %8, %8, %9 : (tensor<15x35xf32>, tensor<15x35xf32>, tensor<1xi8>) -> tensor<15x35xf32> 
+%11 = tosa.mul %8, %8 : (tensor<15x35xf32>, tensor<15x35xf32>) -> tensor<15x35xf32> 
+%12 = tosa.mul %0, %1, %9 : (tensor<12x34xi32>, tensor<1x1xi32>, tensor<1xi8>) -> tensor<12x34xi32>
+
 
 // CHECK: module {
 // CHECK-NEXT:   %0 = "test.op"() : () -> tensor<12x34xi32>
@@ -19,4 +25,9 @@
 // CHECK-NEXT:   %5 = tosa.add %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
 // CHECK-NEXT:   %6 = tosa.sub %0, %0 : (tensor<12x34xi32>, tensor<12x34xi32>) -> tensor<12x34xi32>
 // CHECK-NEXT:   %7 = tosa.sub %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
+// CHECK-NEXT:   %8 = "test.op"() : () -> tensor<15x35xf32>
+// CHECK-NEXT:   %9 = "test.op"() : () -> tensor<1xi8>
+// CHECK-NEXT:   %10 = tosa.mul %8, %8, %9 : (tensor<15x35xf32>, tensor<15x35xf32>, tensor<1xi8>) -> tensor<15x35xf32> 
+// CHECK-NEXT:   %11 = tosa.mul %8, %8 : (tensor<15x35xf32>, tensor<15x35xf32>) -> tensor<15x35xf32> 
+// CHECK-NEXT:   %12 = tosa.mul %0, %1, %9 : (tensor<12x34xi32>, tensor<1x1xi32>, tensor<1xi8>) -> tensor<12x34xi32>
 // CHECK-NEXT: }

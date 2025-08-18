@@ -8,29 +8,32 @@
 %5 = tosa.add %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
 %6 = tosa.sub %0, %0 : (tensor<12x34xi32>, tensor<12x34xi32>) -> tensor<12x34xi32>
 %7 = tosa.sub %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
-%8 = tosa.mul %0, %0 : (tensor<12x34xi32>, tensor<12x34xi32>) -> tensor<12x34xi32>
-%9 = tosa.mul %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
-%10 = "test.op"() : () -> tensor<12x13xf32>
-%11 = tosa.sin %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
-%12 = tosa.cos %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
+
+%f = "test.op"() : () -> tensor<12x13xf32>
+%s = "test.op"() : () -> tensor<1xi8>
+%8 = tosa.mul %f, %f, %s : (tensor<12x13xf32>, tensor<12x13xf32>, tensor<1xi8>) -> tensor<12x13xf32> 
+%9 = tosa.mul %f, %f : (tensor<12x13xf32>, tensor<12x13xf32>) -> tensor<12x13xf32> 
+%10 = tosa.mul %0, %1, %s : (tensor<12x34xi32>, tensor<1x1xi32>, tensor<1xi8>) -> tensor<12x34xi32>
+
+%11 = tosa.sin %f : (tensor<12x13xf32>) -> tensor<12x13xf32>
+%12 = tosa.cos %f : (tensor<12x13xf32>) -> tensor<12x13xf32>
 %m = "test.op"() : () -> tensor<1x4x27xf32>
 %n = "test.op"() : () -> tensor<1x27x15xf32>
 %z = "test.op"() : () -> tensor<1xf32>
 %13 = tosa.matmul %m, %n, %z, %z : (tensor<1x4x27xf32>, tensor<1x27x15xf32>, tensor<1xf32>, tensor<1xf32>) -> tensor<1x4x15xf32>
 %cond = "test.op"() : () -> tensor<i1>
 %14 = tosa.cond_if %cond : tensor<i1> -> tensor<12x13xf32> {
-  tosa.yield %10 : tensor<12x13xf32>
+  tosa.yield %f : tensor<12x13xf32>
 } else {
-  tosa.yield %10 : tensor<12x13xf32>
+  tosa.yield %f : tensor<12x13xf32>
 }
-%15 = tosa.cond_if %cond (%16 = %10) : tensor<i1> (tensor<12x13xf32>) -> tensor<12x13xf32> {
+%15 = tosa.cond_if %cond (%16 = %f) : tensor<i1> (tensor<12x13xf32>) -> tensor<12x13xf32> {
 ^0(%16 : tensor<12x13xf32>):
   tosa.yield %16 : tensor<12x13xf32>
 } else {
 ^1(%17 : tensor<12x13xf32>):
   tosa.yield %17 : tensor<12x13xf32>
 }
-
 
 // CHECK: builtin.module {
 // CHECK-NEXT:   %0 = "test.op"() : () -> tensor<12x34xi32>
@@ -41,22 +44,24 @@
 // CHECK-NEXT:   %5 = tosa.add %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
 // CHECK-NEXT:   %6 = tosa.sub %0, %0 : (tensor<12x34xi32>, tensor<12x34xi32>) -> tensor<12x34xi32>
 // CHECK-NEXT:   %7 = tosa.sub %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
-// CHECK-NEXT:   %8 = tosa.mul %0, %0 : (tensor<12x34xi32>, tensor<12x34xi32>) -> tensor<12x34xi32>
-// CHECK-NEXT:   %9 = tosa.mul %0, %1 : (tensor<12x34xi32>, tensor<1x1xi32>) -> tensor<12x34xi32>
-// CHECK-NEXT:   %10 = "test.op"() : () -> tensor<12x13xf32>
-// CHECK-NEXT:   %11 = tosa.sin %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
-// CHECK-NEXT:   %12 = tosa.cos %10 : (tensor<12x13xf32>) -> tensor<12x13xf32>
+// CHECK-NEXT:   %f = "test.op"() : () -> tensor<12x13xf32>
+// CHECK-NEXT:   %s = "test.op"() : () -> tensor<1xi8>
+// CHECK-NEXT:   %8 = tosa.mul %f, %f, %s : (tensor<12x13xf32>, tensor<12x13xf32>, tensor<1xi8>) -> tensor<12x13xf32> 
+// CHECK-NEXT:   %9 = tosa.mul %f, %f : (tensor<12x13xf32>, tensor<12x13xf32>) -> tensor<12x13xf32> 
+// CHECK-NEXT:   %10 = tosa.mul %0, %1, %s : (tensor<12x34xi32>, tensor<1x1xi32>, tensor<1xi8>) -> tensor<12x34xi32>
+// CHECK-NEXT:   %11 = tosa.sin %f : (tensor<12x13xf32>) -> tensor<12x13xf32>
+// CHECK-NEXT:   %12 = tosa.cos %f : (tensor<12x13xf32>) -> tensor<12x13xf32>
 // CHECK-NEXT:   %m = "test.op"() : () -> tensor<1x4x27xf32>
 // CHECK-NEXT:   %n = "test.op"() : () -> tensor<1x27x15xf32>
 // CHECK-NEXT:   %z = "test.op"() : () -> tensor<1xf32>
 // CHECK-NEXT:   %13 = tosa.matmul %m, %n, %z, %z : (tensor<1x4x27xf32>, tensor<1x27x15xf32>, tensor<1xf32>, tensor<1xf32>) -> tensor<1x4x15xf32>
 // CHECK-NEXT:   %cond = "test.op"() : () -> tensor<i1>
 // CHECK-NEXT:   %14 = tosa.cond_if %cond : tensor<i1> -> tensor<12x13xf32> {
-// CHECK-NEXT:     tosa.yield %10 : tensor<12x13xf32>
+// CHECK-NEXT:     tosa.yield %f : tensor<12x13xf32>
 // CHECK-NEXT:   } else {
-// CHECK-NEXT:     tosa.yield %10 : tensor<12x13xf32>
+// CHECK-NEXT:     tosa.yield %f : tensor<12x13xf32>
 // CHECK-NEXT:   }
-// CHECK-NEXT:   %15 = tosa.cond_if %cond (%16 = %10) : tensor<i1> (tensor<12x13xf32>) -> tensor<12x13xf32> {
+// CHECK-NEXT:   %15 = tosa.cond_if %cond (%16 = %f) : tensor<i1> (tensor<12x13xf32>) -> tensor<12x13xf32> {
 // CHECK-NEXT:   ^0(%16 : tensor<12x13xf32>):
 // CHECK-NEXT:     tosa.yield %16 : tensor<12x13xf32>
 // CHECK-NEXT:   } else {
