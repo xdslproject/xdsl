@@ -79,7 +79,3 @@
 %b = "test.op"() : () -> tensor<1x23x16xf32>
 %0 = tosa.matmul %a, %b : (tensor<1x13x16xf32>, tensor<1x23x16xf32>) -> tensor<1x16x23xf32>
 // CHECK: 'tosa.matmul' Incompatible shapes for performing matrix multiplication
-
-// -----
-
-
