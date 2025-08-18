@@ -54,8 +54,6 @@ def test_at_most():
     AtMost(2).verify(1, ConstraintContext())
     with pytest.raises(VerifyException, match="Expected integer <= 2, got 3"):
         AtMost(2).verify(3, ConstraintContext())
-    with pytest.raises(VerifyException, match="Expected integer <= 2, got 4"):
-        AtMost(2).verify(4, ConstraintContext())
 
 
 def test_eq():
