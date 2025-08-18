@@ -637,7 +637,8 @@ def get_optional_int_constraint(arg: Any) -> IntConstraint | None:
 
 def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
     """
-    Converts an int or an int type to the corresponding constraint.
+    If the input is an int or an int type, return the corresponding constraint,
+    otherwise raise `PyRDLTypeError`.
     """
     if (ic := get_optional_int_constraint(arg)) is not None:
         return ic
