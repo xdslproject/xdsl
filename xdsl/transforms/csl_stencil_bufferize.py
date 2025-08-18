@@ -47,13 +47,13 @@ def tensor_to_memref_type(
     return memref.MemRefType(t.get_element_type(), t.get_shape())
 
 
-def to_memref_op(op: SSAValue) -> bufferization.ToMemRefOp:
-    """Creates a `bufferization.to_memref` operation."""
+def to_memref_op(op: SSAValue) -> bufferization.ToBufferOp:
+    """Creates a `bufferization.to_buffer` operation."""
     assert isa(op.type, AnyTensorType)
     r_type = memref.MemRefType(
         op.type.get_element_type(), op.type.get_shape()
     )  # todo set strided+offset here?
-    return bufferization.ToMemRefOp(operands=[op], result_types=[r_type])
+    return bufferization.ToBufferOp(operands=[op], result_types=[r_type])
 
 
 def to_tensor_op(
@@ -415,7 +415,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
         for arg, yld_arg in zip(op.dest, yld.arguments, strict=True):
             if (
                 not isinstance(yld_arg, OpResult)
-                or not isinstance(yld_arg.op, bufferization.ToMemRefOp)
+                or not isinstance(yld_arg.op, bufferization.ToBufferOp)
                 or not isinstance(yld_arg.op.tensor, OpResult)
                 or not isinstance(
                     linalg_op := yld_arg.op.tensor.op,
