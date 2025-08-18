@@ -668,7 +668,7 @@ def get_constraint(
     arg: "IRDLAttrConstraint | int | TypeForm[int]",
 ) -> AttrConstraint | IntConstraint:
     """
-    Given
+    Converts the input expression, constraint, or type to the corresponding constraint.
     """
     if (ic := _get_int_constraint(arg)) is not None:
         return ic
