@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar
@@ -23,6 +23,7 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
+    IntConstraint,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -89,7 +90,7 @@ class TensorFromMemRefConstraint(
         return {TensorType, UnrankedTensorType}
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> TensorFromMemRefConstraint:
         return TensorFromMemRefConstraint(
             self.memref_constraint.mapping_type_vars(type_var_mapping)

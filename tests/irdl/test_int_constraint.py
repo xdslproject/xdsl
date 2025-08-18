@@ -1,8 +1,16 @@
 import re
 
 import pytest
+from typing_extensions import TypeVar
 
-from xdsl.irdl import AtLeast, ConstraintContext, EqIntConstraint, IntSetConstraint
+from xdsl.irdl import (
+    AnyInt,
+    AtLeast,
+    ConstraintContext,
+    EqIntConstraint,
+    IntSetConstraint,
+    IntTypeVarConstraint,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -63,3 +71,10 @@ def test_set():
         VerifyException, match=re.escape("Invalid value 2, expected one of {0, 1}")
     ):
         two_constr.verify(2, ConstraintContext())
+
+
+def test_mapping_type_vars():
+    _IntT = TypeVar("_IntT", bound=int, default=int)
+    tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
+    my_constr = EqIntConstraint(1)
+    assert tv_constr.mapping_type_vars({_IntT: my_constr}) is my_constr
