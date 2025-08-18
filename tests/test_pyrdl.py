@@ -447,7 +447,7 @@ def test_get_constraint():
     with pytest.raises(
         PyRDLTypeError, match="Unexpected irdl constraint: <class 'str'>"
     ):
-        get_constraint(str)  # pyright: ignore[reportArgumentType]
+        get_constraint(str)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
 
 # endregion
