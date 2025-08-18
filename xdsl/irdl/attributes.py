@@ -468,10 +468,6 @@ def irdl_to_attr_constraint(
         value = cast(ConstraintConvertible[AttributeInvT], irdl)
         return value.constr()
 
-    if isclass(irdl) and issubclass(irdl, ConstraintConvertible):
-        attr_data = cast(type[ConstraintConvertible[AttributeInvT]], irdl)
-        return attr_data.base_constr()
-
     # Annotated case
     # Each argument of the Annotated type corresponds to a constraint to satisfy.
     # If there is a `ConstraintVar` annotation, we add the entire constraint to
@@ -528,7 +524,6 @@ def irdl_to_attr_constraint(
             )
 
         args: tuple[IRDLAttrConstraint | int | TypeForm[int], ...] = get_args(irdl)
-
         inner_constraints = [
             get_constraint(arg, allow_type_var=allow_type_var) for arg in args
         ]
@@ -537,7 +532,8 @@ def irdl_to_attr_constraint(
         # Check that we have the right number of parameters
         if len(args) != len(generic_args):
             raise PyRDLTypeError(
-                f"{origin.name} expects {len(generic_args)} parameters, got {len(args)}."
+                f"{origin.name} expects {len(generic_args)}"
+                f" parameters, got {len(args)}."
             )
 
         type_var_mapping = dict(zip(generic_args, inner_constraints))
@@ -561,6 +557,10 @@ def irdl_to_attr_constraint(
         if len(constraints) > 1:
             return cast(AttrConstraint[AttributeInvT], AnyOf(constraints))
         return cast(AttrConstraint[AttributeInvT], constraints[0])
+
+    if isclass(irdl) and issubclass(irdl, ConstraintConvertible):
+        attr_data = cast(type[ConstraintConvertible[AttributeInvT]], irdl)
+        return attr_data.base_constr()
 
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):
