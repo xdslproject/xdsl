@@ -53,11 +53,13 @@ from xdsl.traits import (
     ConditionallySpeculatable,
     HasAncestor,
     HasParent,
+    MemoryEffectKind,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
     SameOperandsAndResultType,
     SymbolOpInterface,
     SymbolTable,
+    has_effects,
     is_speculatable,
 )
 from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
@@ -990,6 +992,20 @@ def test_same_operands_and_result_type_trait_for_mixed_rank_and_mixed_shapes(
     )
 
     op.verify()
+
+
+def test_memory_effects():
+    from xdsl.dialects.test import TestPureOp, TestReadOp, TestWriteOp
+
+    assert not has_effects(TestPureOp(), MemoryEffectKind.ALLOC)
+    assert not has_effects(TestReadOp(), MemoryEffectKind.ALLOC)
+    assert not has_effects(TestWriteOp(), MemoryEffectKind.ALLOC)
+    assert not has_effects(TestPureOp(), MemoryEffectKind.READ)
+    assert has_effects(TestReadOp(), MemoryEffectKind.READ)
+    assert not has_effects(TestWriteOp(), MemoryEffectKind.READ)
+    assert not has_effects(TestPureOp(), MemoryEffectKind.WRITE)
+    assert not has_effects(TestReadOp(), MemoryEffectKind.WRITE)
+    assert has_effects(TestWriteOp(), MemoryEffectKind.WRITE)
 
 
 @irdl_op_definition

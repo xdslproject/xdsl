@@ -4,7 +4,7 @@ import abc
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING
 
 from typing_extensions import TypeVar
 
@@ -554,14 +554,13 @@ class MemoryEffect(OpTrait):
         """
         raise NotImplementedError()
 
-    @final
-    @classmethod
-    def has_effects(cls, op: Operation) -> bool:
-        """
-        Returns if the operation has any side effects.
-        """
-        effects = cls.get_effects(op)
-        return (effects is not None) and len(effects) > 0
+
+def has_effects(op: Operation, effect: MemoryEffectKind) -> bool:
+    """
+    Returns if the operation has side effects of this kind.
+    """
+    effects = get_effects(op)
+    return effects is not None and any(e.kind == effect for e in effects)
 
 
 def has_exact_effect(op: Operation, effect: MemoryEffectKind) -> bool:
