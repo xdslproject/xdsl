@@ -47,14 +47,14 @@ def test_at_most():
 
     AtMost(1).verify(1, ConstraintContext())
     AtMost(1).verify(0, ConstraintContext())
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="Expected integer <= 0, got 1"):
         AtMost(0).verify(1, ConstraintContext())
 
     AtMost(2).verify(2, ConstraintContext())
     AtMost(2).verify(1, ConstraintContext())
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="Expected integer <= 2, got 3"):
         AtMost(2).verify(3, ConstraintContext())
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="Expected integer <= 2, got 4"):
         AtMost(2).verify(4, ConstraintContext())
 
 
