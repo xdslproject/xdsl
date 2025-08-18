@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import IO, Literal
+from typing import IO, Literal, cast
 
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
@@ -438,8 +438,8 @@ class CslPrintContext:
         and converts it to a csl expression representing that value literal (0, 3.14, ...)
         """
         match attr:
-            case IntAttr(data=val):
-                return str(val)
+            case IntAttr():
+                return str(cast(IntAttr[int], attr).data)
             case IntegerAttr(
                 value=val, type=IntegerType(width=IntAttr(data=width))
             ) if width == 1:
