@@ -13,7 +13,7 @@ from xdsl.irdl import (
     IntTypeVarConstraint,
     get_int_constraint,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import PyRDLTypeError, VerifyException
 
 
 def test_failing_inference():
@@ -91,3 +91,6 @@ def test_get_int_constr():
     assert get_int_constraint(
         Literal[2] | Literal[3]  # noqa
     ) == IntSetConstraint(frozenset((2, 3)))
+
+    with pytest.raises(PyRDLTypeError, match="Unsupported int type: <class 'str'>"):
+        get_int_constraint(str)  # pyright: ignore[reportArgumentType]
