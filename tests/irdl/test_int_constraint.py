@@ -92,5 +92,5 @@ def test_get_int_constr():
         Literal[2] | Literal[3]  # noqa
     ) == IntSetConstraint(frozenset((2, 3)))
 
-    with pytest.raises(PyRDLTypeError, match="Unsupported int type: <class 'str'>"):
+    with pytest.raises(PyRDLTypeError, match="Unexpected int type: <class 'str'>"):
         get_int_constraint(str)  # pyright: ignore[reportArgumentType]

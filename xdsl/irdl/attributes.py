@@ -628,7 +628,7 @@ def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
             ints = frozenset(get_args(union_arg)[0] for union_arg in union_args)
             return IntSetConstraint(ints)
 
-    raise PyRDLTypeError(f"Unsupported int type: {arg}")
+    raise PyRDLTypeError(f"Unexpected int type: {arg}")
 
 
 def range_constr_coercion(
