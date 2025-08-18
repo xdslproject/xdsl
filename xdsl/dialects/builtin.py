@@ -69,6 +69,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.core_attrs import IntAttr
 from xdsl.traits import (
     IsolatedFromAbove,
     NoMemoryEffect,
@@ -350,25 +351,6 @@ FlatSymbolRefAttrConstr = MessageConstraint(
 
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstr]
 """SymbolRef constrained to have an empty `nested_references` property."""
-
-
-@irdl_attr_definition
-class IntAttr(Data[int]):
-    name = "builtin.int"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> int:
-        with parser.in_angle_brackets():
-            data = parser.parse_integer()
-            return data
-
-    def print_parameter(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print_string(f"{self.data}")
-
-    def __bool__(self) -> bool:
-        """Returns True if value is non-zero."""
-        return bool(self.data)
 
 
 @dataclass(frozen=True)
