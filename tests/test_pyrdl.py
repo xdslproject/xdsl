@@ -3,6 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import auto
+from typing import Literal
 
 import pytest
 from typing_extensions import Self, TypeVar
@@ -11,15 +12,19 @@ from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyInt,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
+    EqIntConstraint,
     IntConstraint,
+    IntSetConstraint,
     ParamAttrConstraint,
     VarConstraint,
     eq,
+    get_constraint,
     irdl_attr_definition,
     irdl_to_attr_constraint,
 )
@@ -416,6 +421,33 @@ def test_irdl_to_attr_constraint():
     assert irdl_to_attr_constraint(TestEnum.A) == EqAttrConstraint(
         TestEnumAttr(TestEnum.A)
     )
+
+
+def test_get_constraint():
+    assert get_constraint(int) == AnyInt()
+    assert get_constraint(Literal[1]) == EqIntConstraint(1)
+    assert get_constraint(Literal[2]) == EqIntConstraint(2)
+    assert get_constraint(Literal[2, 3]) == IntSetConstraint(frozenset((2, 3)))
+
+    assert get_constraint(
+        Literal[2] | Literal[3]  # noqa
+    ) == IntSetConstraint(frozenset((2, 3)))
+
+    assert get_constraint(
+        Literal[1] | Literal[2, 3]  # noqa
+    ) == IntSetConstraint(frozenset((1, 2, 3)))
+
+    assert get_constraint(TestEnumAttr) == BaseAttr(TestEnumAttr)
+    assert get_constraint(TestEnumAttr(TestEnum.A)) == EqAttrConstraint(
+        TestEnumAttr(TestEnum.A)
+    )
+    assert get_constraint(TestEnum) == BaseAttr(TestEnumAttr)
+    assert get_constraint(TestEnum.A) == EqAttrConstraint(TestEnumAttr(TestEnum.A))
+
+    with pytest.raises(
+        PyRDLTypeError, match="Unexpected irdl constraint: <class 'str'>"
+    ):
+        get_constraint(str)  # pyright: ignore[reportArgumentType]
 
 
 # endregion
