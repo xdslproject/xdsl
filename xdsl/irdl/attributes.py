@@ -62,7 +62,6 @@ from .constraints import (  # noqa: TID251
     EqIntConstraint,
     IntConstraint,
     IntSetConstraint,
-    IntTypeVarConstraint,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -633,14 +632,6 @@ def int_to_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
         ):
             ints = frozenset(get_args(union_arg)[0] for union_arg in union_args)
             return IntSetConstraint(ints)
-
-    if isinstance(arg, TypeVar):
-        if arg.__bound__ is None:
-            raise PyRDLTypeError(
-                "Type variables used in IRDL are expected to be bound."
-            )
-        base = int_constr(arg.__bound__)
-        return IntTypeVarConstraint(arg, base)
 
     raise PyRDLTypeError(f"Unsupported int type: {arg}")
 
