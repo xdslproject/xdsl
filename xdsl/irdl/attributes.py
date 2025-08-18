@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
 from inspect import get_annotations, isclass
-from types import FunctionType, UnionType
+from types import FunctionType, GenericAlias, UnionType
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -464,16 +464,6 @@ def irdl_to_attr_constraint(
     if isinstance(irdl, Attribute):
         return cast(AttrConstraint[AttributeInvT], EqAttrConstraint(irdl))
 
-    # Attribute class case
-    # This is an `AnyAttr`, which does not constrain the attribute.
-    if irdl is Attribute:
-        return cast(AttrConstraint[AttributeInvT], AnyAttr())
-
-    # Attribute class case
-    # This is a coercion for an `BaseAttr`.
-    if isclass(irdl) and issubclass(irdl, Attribute):
-        return cast(AttrConstraint[AttributeInvT], BaseAttr(irdl))
-
     if isinstance(irdl, ConstraintConvertible):
         value = cast(ConstraintConvertible[AttributeInvT], irdl)
         return value.constr()
@@ -481,6 +471,33 @@ def irdl_to_attr_constraint(
     if isclass(irdl) and issubclass(irdl, ConstraintConvertible):
         attr_data = cast(type[ConstraintConvertible[AttributeInvT]], irdl)
         return attr_data.base_constr()
+
+    # Annotated case
+    # Each argument of the Annotated type corresponds to a constraint to satisfy.
+    # If there is a `ConstraintVar` annotation, we add the entire constraint to
+    # the constraint variable.
+    if get_origin(irdl) == Annotated:
+        return cast(
+            AttrConstraint[AttributeInvT],
+            irdl_list_to_attr_constraint(
+                get_args(irdl),
+                allow_type_var=allow_type_var,
+            ),
+        )
+
+    # Attribute class case
+    # This is an `AnyAttr`, which does not constrain the attribute.
+    if irdl is Attribute:
+        return cast(AttrConstraint[AttributeInvT], AnyAttr())
+
+    # Attribute class case
+    # This is a coercion for an `BaseAttr`.
+    if (
+        isclass(irdl)
+        and not isinstance(irdl, GenericAlias)
+        and issubclass(irdl, Attribute)
+    ):
+        return cast(AttrConstraint[AttributeInvT], BaseAttr(irdl))
 
     # Type variable case
     # We take the type variable bound constraint.
@@ -496,19 +513,6 @@ def irdl_to_attr_constraint(
         return cast(AttrConstraint[AttributeInvT], TypeVarConstraint(irdl, constraint))
 
     origin = get_origin(irdl)
-
-    # Annotated case
-    # Each argument of the Annotated type corresponds to a constraint to satisfy.
-    # If there is a `ConstraintVar` annotation, we add the entire constraint to
-    # the constraint variable.
-    if origin == Annotated:
-        return cast(
-            AttrConstraint[AttributeInvT],
-            irdl_list_to_attr_constraint(
-                get_args(irdl),
-                allow_type_var=allow_type_var,
-            ),
-        )
 
     # Union case
     # This is a coercion for an `AnyOf` constraint.
