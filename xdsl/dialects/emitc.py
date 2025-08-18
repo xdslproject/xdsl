@@ -282,11 +282,10 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
     Check if a type is supported by EmitC.
     See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
     """
-    match type_attr:
-        case IntegerType():
-            return EmitCIntegerConstr.verifies(type_attr)
-        case _FloatType():
-            return is_supported_float_type(type_attr)
+_constrs = EmitCIntegerConstr | EmitCFloatTypeConstr
+if _constrs.verifies(type_attr):
+    return True
+match type_attr:
         case IndexType():
             return True
         case EmitC_OpaqueType():
