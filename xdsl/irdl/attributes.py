@@ -614,7 +614,7 @@ def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
 
         if all(isinstance(literal_arg, int) for literal_arg in literal_args):
             if len(literal_args) == 1:
-                return EqIntConstraint(get_args(literal_args)[0])
+                return EqIntConstraint(literal_args[0])
             else:
                 ints = frozenset(literal_arg for literal_arg in literal_args)
                 return IntSetConstraint(ints)

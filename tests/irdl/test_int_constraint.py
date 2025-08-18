@@ -82,7 +82,7 @@ def test_mapping_type_vars():
     assert tv_constr.mapping_type_vars({_IntT: my_constr}) is my_constr
 
 
-def test_int_constr():
+def test_get_int_constr():
     assert get_int_constraint(int) == AnyInt()
     assert get_int_constraint(Literal[1]) == EqIntConstraint(1)
     assert get_int_constraint(Literal[2]) == EqIntConstraint(2)
