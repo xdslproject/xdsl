@@ -6,9 +6,9 @@ from typing_extensions import Self, TypeVar
 
 from xdsl.dialects.builtin import (
     I1,
+    I8,
     I32,
     I64,
-    I8,
     AnyAttr,
     AnyFloat,
     BoolAttr,
