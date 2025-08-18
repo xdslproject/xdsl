@@ -526,44 +526,47 @@ def irdl_to_attr_constraint(
         return cast(AttrConstraint[AttributeInvT], constraints[0])
 
     # Generic case
-    if not isclass(origin):
-        raise PyRDLTypeError(f"Unexpected irdl constraint: {irdl}")
+    if isclass(origin):
+        base_constr = None
+        if issubclass(origin, GenericData):
+            base_constr = origin.constr()
 
-    if issubclass(origin, ParametrizedAttribute):
-        base_constr = ParamAttrConstraint(
-            origin,
-            [param.constr for _, param in origin.get_irdl_definition().parameters],
-        )
-    elif issubclass(origin, GenericData):
-        base_constr = origin.constr()
-    # Better error messages for missing GenericData in Data definitions
-    elif issubclass(origin, Data):
-        raise PyRDLTypeError(
-            f"Generic `Data` type '{origin.name}' cannot be converted to "
-            "an attribute constraint. Consider making it inherit from "
-            "`GenericData` instead of `Data`."
-        )
-    else:
-        raise PyRDLTypeError(f"Unexpected irdl constraint: {irdl}")
+        if issubclass(origin, ParametrizedAttribute) and issubclass(origin, Generic):
+            base_constr = ParamAttrConstraint(
+                origin,
+                [param.constr for _, param in origin.get_irdl_definition().parameters],
+            )
 
-    args: tuple[IRDLAttrConstraint | int | TypeForm[int], ...] = get_args(irdl)
+        if base_constr is not None:
+            args: tuple[IRDLAttrConstraint | int | TypeForm[int], ...] = get_args(irdl)
 
-    inner_constraints = [
-        get_constraint(arg, allow_type_var=allow_type_var) for arg in args
-    ]
-    generic_args = get_type_var_from_generic_class(cast(type, origin))
+            inner_constraints = [
+                get_constraint(arg, allow_type_var=allow_type_var) for arg in args
+            ]
+            generic_args = get_type_var_from_generic_class(cast(type, origin))
 
-    # Check that we have the right number of parameters
-    if len(args) != len(generic_args):
-        raise PyRDLTypeError(
-            f"{origin.name} expects {len(generic_args)} parameters, got {len(args)}."
-        )
+            # Check that we have the right number of parameters
+            if len(args) != len(generic_args):
+                raise PyRDLTypeError(
+                    f"{origin.name} expects {len(generic_args)} parameters, got {len(args)}."
+                )
 
-    type_var_mapping = dict(zip(generic_args, inner_constraints))
+            type_var_mapping = dict(zip(generic_args, inner_constraints))
 
-    return cast(
-        AttrConstraint[AttributeInvT], base_constr.mapping_type_vars(type_var_mapping)
-    )
+            return cast(
+                AttrConstraint[AttributeInvT],
+                base_constr.mapping_type_vars(type_var_mapping),
+            )
+
+        # Better error messages for missing GenericData in Data definitions
+        if issubclass(origin, Data):
+            raise PyRDLTypeError(
+                f"Generic `Data` type '{origin.name}' cannot be converted to "
+                "an attribute constraint. Consider making it inherit from "
+                "`GenericData` instead of `Data`."
+            )
+
+    raise PyRDLTypeError(f"Unexpected irdl constraint: {irdl}")
 
 
 def base(irdl: type[AttributeInvT]) -> AttrConstraint[AttributeInvT]:
