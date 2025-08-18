@@ -25,6 +25,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntAttr,
+    IntAttrConstraint,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -50,8 +51,11 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data
 from xdsl.irdl import (
+    AnyInt,
+    AtMost,
     BaseAttr,
     ConstraintContext,
+    RangeLengthConstraint,
     RangeOf,
     RangeVarConstraint,
     TypeVarConstraint,
@@ -493,6 +497,39 @@ def test_DenseIntOrFPElementsAttr_values():
         complex_i32_attr.get_attrs()
     with pytest.raises(NotImplementedError):
         complex_i32_attr.iter_attrs()
+
+
+def test_tensor_constr():
+    # int32 constraint
+    constr = TensorType.constr(i32)
+    constr.verify(TensorType(i32, [1]), ConstraintContext())
+    constr.verify(TensorType(i32, [1, 2]), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(TensorType(i64, [1]), ConstraintContext())
+
+    # int32 constraint with shape (1,)
+    shape = ArrayAttr([IntAttr(1)])
+    constr = TensorType.constr(i32, shape)
+    constr.verify(TensorType(i32, shape), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(TensorType(i32, [1, 2]), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(TensorType(i64, [1]), ConstraintContext())
+
+    # int32 constraint with rank <= 3
+    shape = ArrayOfConstraint(
+        RangeLengthConstraint(
+            constraint=RangeOf(IntAttrConstraint(AnyInt())), length=AtMost(3)
+        )
+    )
+    constr = TensorType.constr(i32, shape)
+    constr.verify(TensorType(i32, [50]), ConstraintContext())
+    constr.verify(TensorType(i32, [50, 1000]), ConstraintContext())
+    constr.verify(TensorType(i32, [50, 1000, 2]), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(TensorType(i32, [50, 1000, 2, 4]), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(TensorType(i64, [50, 1000]), ConstraintContext())
 
 
 @pytest.mark.parametrize(

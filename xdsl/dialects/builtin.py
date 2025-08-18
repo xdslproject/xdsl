@@ -1431,11 +1431,13 @@ class TensorType(
     @staticmethod
     def constr(
         element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
+        shape: IRDLAttrConstraint[AttributeInvT] | None = None,
     ) -> AttrConstraint[TensorType[AttributeInvT]]:
-        if element_type is None:
+        if element_type is None and shape is None:
             return BaseAttr[TensorType[AttributeInvT]](TensorType)
+        shape_constr = AnyAttr() if shape is None else shape
         return ParamAttrConstraint[TensorType[AttributeInvT]](
-            TensorType, (AnyAttr(), element_type, AnyAttr())
+            TensorType, (shape_constr, element_type, AnyAttr())
         )
 
 
