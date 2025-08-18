@@ -11,7 +11,7 @@ from xdsl.irdl import (
     EqIntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
-    int_constr,
+    int_to_constraint,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -83,11 +83,11 @@ def test_mapping_type_vars():
 
 
 def test_int_constr():
-    assert int_constr(int) == AnyInt()
-    assert int_constr(Literal[1]) == EqIntConstraint(1)
-    assert int_constr(Literal[2]) == EqIntConstraint(2)
-    assert int_constr(Literal[2, 3]) == IntSetConstraint(frozenset((2, 3)))
+    assert int_to_constraint(int) == AnyInt()
+    assert int_to_constraint(Literal[1]) == EqIntConstraint(1)
+    assert int_to_constraint(Literal[2]) == EqIntConstraint(2)
+    assert int_to_constraint(Literal[2, 3]) == IntSetConstraint(frozenset((2, 3)))
 
-    assert int_constr(
+    assert int_to_constraint(
         Literal[2] | Literal[3]  # noqa
     ) == IntSetConstraint(frozenset((2, 3)))

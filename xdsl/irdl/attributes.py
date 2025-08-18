@@ -600,7 +600,7 @@ def eq(irdl: AttributeInvT) -> AttrConstraint[AttributeInvT]:
     return irdl_to_attr_constraint(irdl)
 
 
-def int_constr(arg: "int | TypeForm[int]") -> IntConstraint:
+def int_to_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
     """
     Converts an int or an int type to the corresponding constraint.
     """
