@@ -21,7 +21,15 @@ from xdsl.dialects.builtin import (
     TensorType,
     i32,
 )
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue, TypeAttribute
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
