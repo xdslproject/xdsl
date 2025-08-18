@@ -27,6 +27,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
     TupleType,
+    _FloatType,
 )
 from xdsl.ir import (
     Attribute,
@@ -37,6 +38,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    BaseAttr,
     IRDLOperation,
     ParamAttrConstraint,
     ParsePropInAttrDict,
@@ -229,17 +231,24 @@ Constraint for integer types supported by EmitC.
 See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
 """
 
+EmitCFloatTypeConstr = (
+    BaseAttr(Float16Type)
+    | BaseAttr(BFloat16Type)
+    | BaseAttr(Float32Type)
+    | BaseAttr(Float64Type)
+)
+"""
+Supported floating-point type in EmitC.
+See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
+"""
+
 
 def is_supported_float_type(type_attr: Attribute) -> bool:
     """
     Check if a type is a supported floating-point type in EmitC.
     See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
     """
-    match type_attr:
-        case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
-            return True
-        case _:
-            return False
+    return EmitCFloatTypeConstr.verifies(type_attr)
 
 
 def is_pointer_wide_type(type_attr: Attribute) -> bool:
@@ -276,6 +285,8 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
     match type_attr:
         case IntegerType():
             return EmitCIntegerConstr.verifies(type_attr)
+        case _FloatType():
+            return is_supported_float_type(type_attr)
         case IndexType():
             return True
         case EmitC_OpaqueType():
@@ -287,8 +298,6 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
             ) and is_supported_emitc_type(elem_type)
         case EmitC_PointerType():
             return is_supported_emitc_type(type_attr.pointee_type)
-        case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
-            return True
         case TensorType():
             elem_type = cast(Attribute, type_attr.get_element_type())
             if isinstance(elem_type, EmitC_ArrayType):
