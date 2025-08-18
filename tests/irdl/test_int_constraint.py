@@ -7,6 +7,7 @@ from typing_extensions import TypeVar
 from xdsl.irdl import (
     AnyInt,
     AtLeast,
+    AtMost,
     ConstraintContext,
     EqIntConstraint,
     IntSetConstraint,
@@ -39,6 +40,20 @@ def test_at_least():
         AtLeast(2).verify(1, ConstraintContext())
     with pytest.raises(VerifyException):
         AtLeast(2).verify(0, ConstraintContext())
+
+
+def test_at_most():
+    AtMost(0).verify(0, ConstraintContext())
+
+    AtMost(1).verify(1, ConstraintContext())
+    AtMost(1).verify(0, ConstraintContext())
+    with pytest.raises(VerifyException, match="Expected integer <= 0, got 1"):
+        AtMost(0).verify(1, ConstraintContext())
+
+    AtMost(2).verify(2, ConstraintContext())
+    AtMost(2).verify(1, ConstraintContext())
+    with pytest.raises(VerifyException, match="Expected integer <= 2, got 3"):
+        AtMost(2).verify(3, ConstraintContext())
 
 
 def test_eq():

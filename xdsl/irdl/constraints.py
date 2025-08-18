@@ -903,6 +903,23 @@ class AtLeast(IntConstraint):
 
 
 @dataclass(frozen=True)
+class AtMost(IntConstraint):
+    """Constrain an integer to be at most a given value."""
+
+    bound: int
+    """The maximum value the integer can take."""
+
+    def verify(self, i: int, constraint_context: ConstraintContext) -> None:
+        if i > self.bound:
+            raise VerifyException(f"Expected integer <= {self.bound}, got {i}")
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> IntConstraint:
+        return self
+
+
+@dataclass(frozen=True)
 class IntVarConstraint(IntConstraint):
     """
     Constrain an integer with the given constraint, and constrain all occurences
