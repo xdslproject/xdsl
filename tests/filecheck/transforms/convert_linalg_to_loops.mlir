@@ -17,7 +17,7 @@ linalg.generic {
     ],
     iterator_types = []
 } ins(%A, %B : memref<f64>, memref<f64>) outs(%C : memref<f64>) {
-^0(%a : f64, %b : f64, %acc_old : f64):
+^bb0(%a : f64, %b : f64, %acc_old : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     linalg.yield %acc_new : f64
@@ -38,7 +38,7 @@ linalg.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%D, %E : memref<2x3xf64>, memref<3x4xf64>) outs(%F : memref<2x4xf64>) {
-^0(%d : f64, %e : f64, %acc_old : f64):
+^bb0(%d : f64, %e : f64, %acc_old : f64):
     %prod = arith.mulf %d, %e : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     linalg.yield %acc_new : f64
@@ -71,7 +71,7 @@ linalg.generic {
     ],
     iterator_types = ["parallel", "reduction"]
 } ins(%G, %H : memref<4xf64>, memref<2xf64>) outs(%I : memref<3xf64>) {
-^0(%g : f64, %h : f64, %acc_old : f64):
+^bb0(%g : f64, %h : f64, %acc_old : f64):
     %prod = arith.mulf %g, %h : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     linalg.yield %acc_new : f64

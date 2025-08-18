@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
@@ -24,6 +24,7 @@ from typing_extensions import Self, TypeVar, assert_never
 
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     Block,
     Operation,
@@ -31,6 +32,7 @@ from xdsl.ir import (
     OpTraits,
     Region,
     SSAValue,
+    SSAValues,
 )
 from xdsl.traits import OpTrait
 from xdsl.utils.classvar import is_const_classvar
@@ -53,6 +55,7 @@ from .constraints import (  # noqa: TID251
     AttrConstraint,
     ConstraintContext,
     ConstraintVar,
+    IntConstraint,
     RangeConstraint,
     RangeOf,
 )
@@ -220,6 +223,12 @@ class AttrSizedSegments(IRDLOption, ABC):
     as_property: bool = False
     """Name of the attribute containing the segment sizes."""
 
+    def container(self, op: Operation) -> dict[str, Attribute]:
+        if self.as_property:
+            return op.properties
+        else:
+            return op.attributes
+
 
 @dataclass
 class AttrSizedOperandSegments(AttrSizedSegments):
@@ -349,10 +358,7 @@ class VarOperandDef(OperandDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-class VarOperand(tuple[Operand, ...]):
-    @property
-    def types(self):
-        return tuple(o.type for o in self)
+VarOperand = SSAValues[SSAValue[AttributeCovT]]
 
 
 @dataclass(init=False)
@@ -387,10 +393,7 @@ class VarResultDef(ResultDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-class VarOpResult(Generic[AttributeInvT], tuple[OpResult[AttributeInvT], ...]):
-    @property
-    def types(self):
-        return tuple(r.type for r in self)
+VarOpResult = SSAValues[OpResult[AttributeCovT]]
 
 
 @dataclass(init=False)
@@ -856,8 +859,9 @@ def opt_successor_def(
 def traits_def(*traits: OpTrait):
     """
     Defines the traits of an operation.
+    Note that `traits_def` from parent superclasses get included automatically.
     """
-    return OpTraits(frozenset(traits))
+    return OpTraits(lambda: traits)
 
 
 def lazy_traits_def(future_traits: Callable[[], tuple[OpTrait, ...]]):
@@ -911,7 +915,7 @@ class OpDef:
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
         """Decorator used on classes to define a new operation definition."""
 
-        type_var_mapping: dict[TypeVar, AttrConstraint] | None = None
+        type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint] | None = None
 
         # If the operation inherit from `Generic`, this means that it specializes a
         # generic operation. Retrieve the mapping from `TypeVar` to pyrdl constraints.
@@ -935,9 +939,12 @@ class OpDef:
 
         op_def = OpDef(pyrdl_def.name)
 
-        # If an operation subclass overrides a superclass field, only keep the definition
-        # of the subclass.
+        # If an operation subclass overrides a superclass field, only keep the
+        # definition of the subclass, with the exception of `traits`, which are
+        # processed for all superclasses.
         field_names = set[str]()
+
+        traits_defs: list[OpTraits] = []
 
         # Get all fields of the class, including the parent classes
         for parent_cls in pyrdl_def.mro():
@@ -1014,14 +1021,13 @@ class OpDef:
 
                 if field_name == "traits":
                     traits = value
-                    field_names.add("traits")
                     if not isinstance(traits, OpTraits):
                         raise PyRDLOpDefinitionError(
                             f"pyrdl operation definition '{pyrdl_def.__name__}' "
                             "traits field should be an instance of"
                             f"'{OpTraits.__name__}'."
                         )
-                    op_def.traits = traits
+                    traits_defs.append(traits)
                     continue
 
                 # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
@@ -1132,6 +1138,15 @@ class OpDef:
 
                 raise wrong_field_exception(field_name)
 
+        if traits_defs:
+            if len(traits_defs) == 1:
+                op_def.traits = traits_defs[0]
+            else:
+                op_def.traits = OpTraits(
+                    lambda: tuple(
+                        trait for traits in traits_defs for trait in traits.gen_traits()
+                    )
+                )
         op_def.assembly_format = pyrdl_def.assembly_format
         op_def.custom_directives = {
             directive.__name__: directive for directive in pyrdl_def.custom_directives
@@ -1268,12 +1283,7 @@ def get_op_constructs(
 
 def get_attr_size_option(
     construct: VarIRConstruct,
-) -> type[
-    AttrSizedOperandSegments
-    | AttrSizedResultSegments
-    | AttrSizedRegionSegments
-    | AttrSizedSuccessorSegments
-]:
+) -> type[AttrSizedSegments]:
     """Get the AttrSized option for this type."""
     match construct:
         case VarIRConstruct.OPERAND:
@@ -1318,8 +1328,7 @@ def get_variadic_sizes_from_attr(
     op: Operation,
     defs: Sequence[tuple[str, OperandDef | ResultDef | RegionDef | SuccessorDef]],
     construct: VarIRConstruct,
-    size_attribute_name: str,
-    from_prop: bool = False,
+    option: AttrSizedSegments,
 ) -> list[int]:
     """
     Get the sizes of the variadic definitions
@@ -1328,18 +1337,18 @@ def get_variadic_sizes_from_attr(
     # Circular import because DenseArrayBase is defined using IRDL
     from xdsl.dialects.builtin import DenseArrayBase, i32
 
-    container = op.properties if from_prop else op.attributes
-    container_name = "property" if from_prop else "attribute"
+    container = option.container(op)
+    container_name = "property" if option.as_property else "attribute"
 
     # Check that the attribute is present
-    if size_attribute_name not in container:
+    if option.attribute_name not in container:
         raise VerifyException(
-            f"Expected {size_attribute_name} {container_name} in {op.name} operation."
+            f"Expected {option.attribute_name} {container_name} in {op.name} operation."
         )
-    attribute = container[size_attribute_name]
+    attribute = container[option.attribute_name]
     if not isinstance(attribute, DenseArrayBase) or attribute.elt_type != i32:  # pyright: ignore[reportUnknownMemberType]
         raise VerifyException(
-            f"{size_attribute_name} {container_name} is expected "
+            f"{option.attribute_name} {container_name} is expected "
             "to be a DenseArrayBase of i32."
         )
 
@@ -1348,7 +1357,7 @@ def get_variadic_sizes_from_attr(
     if len(def_sizes) != len(defs):
         raise VerifyException(
             f"expected {len(defs)} values in "
-            f"{size_attribute_name}, but got {len(def_sizes)}"
+            f"{option.attribute_name}, but got {len(def_sizes)}"
         )
 
     variadic_sizes = list[int]()
@@ -1356,14 +1365,14 @@ def get_variadic_sizes_from_attr(
         if isinstance(arg_def, OptionalDef) and arg_size > 1:
             raise VerifyException(
                 f"optional {get_construct_name(construct)} {arg_name} is expected to "
-                f"be of size 0 or 1 in {size_attribute_name}, but got "
+                f"be of size 0 or 1 in {option.attribute_name}, but got "
                 f"{arg_size}"
             )
 
         if not isinstance(arg_def, VariadicDef) and arg_size != 1:
             raise VerifyException(
                 f"non-variadic {get_construct_name(construct)} {arg_name} is expected "
-                f"to be of size 1 in {size_attribute_name}, but got {arg_size}"
+                f"to be of size 1 in {option.attribute_name}, but got {arg_size}"
             )
 
         if isinstance(arg_def, VariadicDef):
@@ -1396,8 +1405,7 @@ def get_variadic_sizes(
             op,
             defs,
             construct,
-            option.attribute_name,
-            option.as_property,
+            option,
         )
 
     # If there are no variadics arguments,
@@ -1434,65 +1442,6 @@ def get_variadic_sizes(
     return [variadic_args // len(variadic_defs)] * len(variadic_defs)
 
 
-def get_operand_result_or_region(
-    op: Operation,
-    op_def: OpDef,
-    arg_def_idx: int,
-    previous_var_args: int,
-    construct: VarIRConstruct,
-) -> (
-    None
-    | Operand
-    | VarOperand
-    | OptOperand
-    | OpResult
-    | VarOpResult
-    | OptOpResult
-    | Sequence[SSAValue]
-    | Sequence[OpResult]
-    | Region
-    | Sequence[Region]
-    | Successor
-    | Sequence[Successor]
-):
-    """
-    Get an operand, result, or region.
-    In the case of a variadic definition, return a list of elements.
-    :param op: The operation we want to get argument of.
-    :param arg_def_idx: The index of the argument in the irdl definition.
-    :param previous_var_args: The number of previous variadic definitions
-           before this definition.
-    :param arg_type: The type of the argument we want
-           (i.e. operand, result, or region)
-    :return:
-    """
-    defs = get_construct_defs(op_def, construct)
-    args = get_op_constructs(op, construct)
-
-    variadic_sizes = get_variadic_sizes(op, op_def, construct)
-
-    begin_arg = (
-        arg_def_idx - previous_var_args + sum(variadic_sizes[:previous_var_args])
-    )
-    if isinstance(defs[arg_def_idx][1], OptionalDef):
-        arg_size = variadic_sizes[previous_var_args]
-        if arg_size == 0:
-            return None
-        else:
-            return args[begin_arg]
-    if isinstance(defs[arg_def_idx][1], VariadicDef):
-        arg_size = variadic_sizes[previous_var_args]
-        values = args[begin_arg : begin_arg + arg_size]
-        if isinstance(defs[arg_def_idx][1], OperandDef):
-            return VarOperand(cast(Sequence[Operand], values))
-        elif isinstance(defs[arg_def_idx][1], ResultDef):
-            return VarOpResult(cast(Sequence[OpResult], values))
-        else:
-            return values
-    else:
-        return args[begin_arg]
-
-
 def irdl_op_verify_regions(
     op: Operation, op_def: OpDef, constraint_context: ConstraintContext
 ):
@@ -1520,43 +1469,32 @@ def irdl_op_verify_arg_list(
     constraint_context: ConstraintContext,
 ) -> None:
     """Verify the argument list of an operation."""
-    arg_sizes = get_variadic_sizes(op, op_def, construct)
-    arg_idx = 0
-    var_idx = 0
-    args = cast(
-        Sequence[SSAValue] | Sequence[OpResult], get_op_constructs(op, construct)
-    )
-    args_defs = cast(
-        Sequence[tuple[str, ResultDef]] | Sequence[tuple[str, OperandDef]],
-        get_construct_defs(op_def, construct),
-    )
+    get_variadic_sizes(op, op_def, construct)
+    defs = op_def.operands if construct == VarIRConstruct.OPERAND else op_def.results
 
-    def verify_sequence(
-        arg: Sequence[SSAValue], arg_def: ResultDef | OperandDef, arg_idx: int
-    ) -> None:
-        """Verify a single argument."""
+    idx = 0
+
+    for arg_name, arg_def in defs:
+        args: None | SSAValue | SSAValues = getattr(op, arg_name)
+        if args is None:
+            arg_types = ()
+        elif not isinstance(args, Sequence):
+            arg_types = (args.type,)
+        else:
+            arg_types = args.types
+        length = len(arg_types)
         try:
-            arg_def.constr.verify(tuple(a.type for a in arg), constraint_context)
+            arg_def.constr.verify(arg_types, constraint_context)
         except VerifyException as e:
-            if len(arg) == 1:
-                pos = f"{arg_idx}"
+            if length == 1:
+                pos = f"{idx}"
             else:
-                pos = f"{arg_idx} to {arg_idx + len(arg) - 1}"
+                pos = f"{idx} to {idx + length - 1}"
             raise VerifyException(
                 f"{get_construct_name(construct)} at position {pos} does not "
                 f"verify:\n{e}"
             ) from e
-
-    for def_idx, (_, arg_def) in enumerate(args_defs):
-        if isinstance(arg_def, VariadicDef):
-            verify_sequence(
-                args[arg_idx : arg_idx + arg_sizes[var_idx]], arg_def, def_idx
-            )
-            arg_idx += arg_sizes[var_idx]
-            var_idx += 1
-        else:
-            verify_sequence((args[arg_idx],), arg_def, def_idx)
-            arg_idx += 1
+        idx += length
 
 
 @overload
@@ -1836,91 +1774,328 @@ def irdl_op_init(
     )
 
 
+@dataclass(frozen=True)
+class BaseAccessor(ABC):
+    """
+    Base class for accessor objects for retrieving operands, results, regions, and successors.
+    """
+
+    construct: VarIRConstruct
+    """The construct type we are accessing."""
+    idx: int
+    """
+    Index of this accessor.
+    i.e. the number of accessors of this construct type appearing before this one.
+    """
+
+    @abstractmethod
+    def index(self, args: Sequence[Any]) -> Any:
+        """Index the sequence of all operands/results/etc., returning the correct elements/slice."""
+        ...
+
+    def __get__(self, obj: Operation, objtype=None) -> Any:
+        args = get_op_constructs(obj, self.construct)
+        return self.index(args)
+
+
+@dataclass(frozen=True)
+class BeforeVariadicSingleAccessor(BaseAccessor):
+    """
+    Access a non-variadic construct which appears before any variadic arguments.
+    """
+
+    def index(self, args: Sequence[Any]) -> Any:
+        return args[self.idx]
+
+
+@dataclass(frozen=True)
+class AfterVariadicSingleAccessor(BaseAccessor):
+    """
+    Access a non-variadic construct which appears after any variadic arguments.
+    """
+
+    num_defs: int
+    """Number of accessors for this construct type."""
+
+    def index(self, args: Sequence[Any]) -> Any:
+        return args[-self.num_defs + self.idx]
+
+
+@dataclass(frozen=True)
+class SameOptionalAccessor(BaseAccessor):
+    """
+    Access an optional construct when all variadic arguments have the same size.
+    This occurs when the appropriate same-size option is set
+    or there is a single variadic.
+
+    In this case either all variadics contain 1 element or no elements.
+    """
+
+    num_defs: int
+    """Number of accessors for this construct type."""
+
+    def index(self, args: Sequence[Any]) -> Any:
+        if len(args) == self.num_defs:
+            return args[self.idx]
+        return None
+
+
+@dataclass(frozen=True)
+class UniqueVariadicAccessor(BaseAccessor):
+    """
+    Access a variadic construct in the case where it is the only variadic.
+    """
+
+    num_defs: int
+    """Number of accessors for this construct type."""
+
+    def index(self, args: Sequence[Any]) -> Any:
+        return args[self.idx : self.idx + len(args) - self.num_defs + 1]
+
+
+@dataclass(frozen=True)
+class SameVariadicAccessor(BaseAccessor):
+    """
+    Access a variadic construct in the case where all variadics have the same size.
+
+    The size of the variadic is calculated by subtracting the number of non-variadic
+    arguments from the total number of arguments, and dividing the result by the
+    number of variadic arguments.
+    """
+
+    num_defs: int
+    """Number of accessors for this construct type."""
+    num_variadics: int
+    """Number of variadic accessors for this construct type."""
+    variadics_encountered: int
+    """Number of variadic accessors for this construct type which appear before this one."""
+
+    def index(self, args: Sequence[Any]) -> Any:
+        variadic_diff = (len(args) - self.num_defs) // self.num_variadics
+        start = self.idx + self.variadics_encountered * variadic_diff
+        end = start + 1 + variadic_diff
+        return args[start:end]
+
+
+@dataclass(frozen=True)
+class SameVariadicSingleAccessor(SameVariadicAccessor):
+    """
+    Access a non-variadic construct in the case where all variadics have the same size.
+    """
+
+    def index(self, args: Sequence[Any]) -> Any:
+        variadic_diff = (len(args) - self.num_defs) // self.num_variadics
+        start = self.idx + self.variadics_encountered * variadic_diff
+        return args[start]
+
+
+@dataclass(frozen=True)
+class BaseAttrAccessor(ABC):
+    """
+    Base class for accessors in the case where there is a "segment size" attribute.
+    """
+
+    construct: VarIRConstruct
+    """The construct type we are accessing."""
+    idx: int
+    """
+    Index of this accessor.
+    i.e. the number of accessors of this construct type appearing before this one.
+    """
+    option: AttrSizedSegments
+    """
+    The option used to declare variadic sizes are obtained from an attribute.
+    """
+
+    @abstractmethod
+    def index(self, values: tuple[int, ...], args: Sequence[Any]) -> Any:
+        """
+        Index the sequence of all operands/results/etc., returning the correct elements/slice.
+        The `values` argument contains the integer values of the "segment size" attribute.
+        """
+        ...
+
+    def __get__(self, obj: Operation, objtype=None):
+        attr = self.option.container(obj)[self.option.attribute_name]
+        args = get_op_constructs(obj, self.construct)
+        return self.index(attr.get_values(), args)  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue,reportUnknownArgumentType]
+
+
+@dataclass(frozen=True)
+class SingleAttrAccessor(BaseAttrAccessor):
+    """
+    Access a non-variadic construct when there is a "segment size" attribute.
+    """
+
+    def index(self, values: tuple[int, ...], args: Sequence[Any]) -> Any:
+        return args[sum(values[: self.idx])]
+
+
+@dataclass(frozen=True)
+class VariadicAttrAccessor(BaseAttrAccessor):
+    """
+    Access a variadic construct when there is a "segment size" attribute.
+    """
+
+    def index(self, values: tuple[int, ...], args: Sequence[Any]) -> Any:
+        start = sum(values[: self.idx])
+        return args[start : start + values[self.idx]]
+
+
+@dataclass(frozen=True)
+class OptionalAttrAccessor(BaseAttrAccessor):
+    """
+    Access an optional construct when there is a "segment size" attribute.
+    """
+
+    def index(self, values: tuple[int, ...], args: Sequence[Any]) -> Any:
+        if values[self.idx]:
+            return args[sum(values[: self.idx])]
+        return None
+
+
 def irdl_op_arg_definition(
     new_attrs: dict[str, Any], construct: VarIRConstruct, op_def: OpDef
 ) -> None:
-    previous_variadics = 0
     defs = get_construct_defs(op_def, construct)
-    for arg_idx, (arg_name, arg_def) in enumerate(defs):
 
-        def fun(self: Any, idx: int = arg_idx, previous_vars: int = previous_variadics):
-            return get_operand_result_or_region(
-                self, op_def, idx, previous_vars, construct
+    if any(
+        isinstance(o, get_same_variadic_size_option(construct)) for o in op_def.options
+    ):
+        num_variadics = sum(isinstance(d, VariadicDef) for _, d in defs)
+        variadics_encountered = 0
+        num_defs = len(defs)
+
+        for arg_idx, (arg_name, arg_def) in enumerate(defs):
+            if isinstance(arg_def, VariadicDef):
+                if isinstance(arg_def, OptionalDef):
+                    new_attrs[arg_name] = SameOptionalAccessor(
+                        construct, arg_idx, num_defs
+                    )
+                else:
+                    new_attrs[arg_name] = SameVariadicAccessor(
+                        construct,
+                        arg_idx,
+                        num_defs,
+                        num_variadics,
+                        variadics_encountered,
+                    )
+                variadics_encountered += 1
+            else:
+                new_attrs[arg_name] = SameVariadicSingleAccessor(
+                    construct, arg_idx, num_defs, num_variadics, variadics_encountered
+                )
+        return
+    if (
+        option := next(
+            (
+                o
+                for o in op_def.options
+                if isinstance(o, get_attr_size_option(construct))
+            ),
+            None,
+        )
+    ) is not None:
+        for arg_idx, (arg_name, arg_def) in enumerate(defs):
+            if isinstance(arg_def, OptionalDef):
+                new_attrs[arg_name] = OptionalAttrAccessor(construct, arg_idx, option)
+            elif isinstance(arg_def, VariadicDef):
+                new_attrs[arg_name] = VariadicAttrAccessor(construct, arg_idx, option)
+            else:
+                new_attrs[arg_name] = SingleAttrAccessor(construct, arg_idx, option)
+        return
+
+    before_variadic = True
+    num_defs = len(defs)
+
+    for arg_idx, (arg_name, arg_def) in enumerate(defs):
+        if before_variadic:
+            if isinstance(arg_def, VariadicDef):
+                before_variadic = False
+                if isinstance(arg_def, OptionalDef):
+                    new_attrs[arg_name] = SameOptionalAccessor(
+                        construct, arg_idx, num_defs
+                    )
+                else:
+                    new_attrs[arg_name] = UniqueVariadicAccessor(
+                        construct, arg_idx, num_defs
+                    )
+            else:
+                new_attrs[arg_name] = BeforeVariadicSingleAccessor(construct, arg_idx)
+        else:
+            if isinstance(arg_def, VariadicDef):
+                # We've hit a second variadic
+                variadics_option = get_multiple_variadic_options(construct)
+                names = list(option.__name__ for option in variadics_option)
+                names, last_name = names[:-1], names[-1]
+                raise PyRDLOpDefinitionError(
+                    f"Operation {op_def.name} defines more than two variadic "
+                    f"{get_construct_name(construct)}s, but do not define any of "
+                    f"{', '.join(names)} or {last_name} PyRDL options."
+                )
+            new_attrs[arg_name] = AfterVariadicSingleAccessor(
+                construct, arg_idx, num_defs
             )
 
-        new_attrs[arg_name] = property(fun)
-        if isinstance(arg_def, VariadicDef):
-            previous_variadics += 1
 
-    # If we have multiple variadics, check that we have an
-    # attribute that holds the variadic sizes.
-    variadics_option = get_multiple_variadic_options(construct)
-    if previous_variadics > 1 and (
-        not any(
-            isinstance(o, option) for o in op_def.options for option in variadics_option
-        )
-    ):
-        names = list(option.__name__ for option in variadics_option)
-        names, last_name = names[:-1], names[-1]
-        raise PyRDLOpDefinitionError(
-            f"Operation {op_def.name} defines more than two variadic "
-            f"{get_construct_name(construct)}s, but do not define any of "
-            f"{', '.join(names)} or {last_name} PyRDL options."
-        )
+@dataclass(frozen=True)
+class OptionalAttributeAccessor:
+    """Accessor for an optional operation attribute."""
 
+    attribute_name: str
+    default_value: Attribute | None
 
-def _optional_attribute_field(attribute_name: str, default_value: Attribute | None):
-    """Returns the getter and setter for an optional operation attribute."""
+    def __get__(self, obj: IRDLOperation, objtype=None):
+        return obj.attributes.get(self.attribute_name, self.default_value)
 
-    def field_getter(self: IRDLOperation):
-        return self.attributes.get(attribute_name, default_value)
-
-    def field_setter(self: IRDLOperation, value: Attribute | None):
+    def __set__(self, obj: IRDLOperation, value):
         if value is None:
-            self.attributes.pop(attribute_name, None)
+            obj.attributes.pop(self.attribute_name, None)
         else:
-            self.attributes[attribute_name] = value
-
-    return property(field_getter, field_setter)
+            obj.attributes[self.attribute_name] = value
 
 
-def _attribute_field(attribute_name: str):
-    """Returns the getter and setter for an operation attribute."""
+@dataclass(frozen=True)
+class AttributeAccessor:
+    """Accessor for an operation attribute."""
 
-    def field_getter(self: IRDLOperation):
-        return self.attributes[attribute_name]
+    attribute_name: str
 
-    def field_setter(self: IRDLOperation, value: Attribute):
-        self.attributes[attribute_name] = value
+    def __get__(self, obj: IRDLOperation, objtype=None):
+        return obj.attributes[self.attribute_name]
 
-    return property(field_getter, field_setter)
+    def __set__(self, obj: IRDLOperation, value):
+        obj.attributes[self.attribute_name] = value
 
 
-def _optional_property_field(property_name: str, default_value: Attribute | None):
-    """Returns the getter and setter for an optional operation property."""
+@dataclass(frozen=True)
+class OptionalPropertyAccessor:
+    """Accessor for an optional operation property."""
 
-    def field_getter(self: IRDLOperation):
-        return self.properties.get(property_name, default_value)
+    property_name: str
+    default_value: Attribute | None
 
-    def field_setter(self: IRDLOperation, value: Attribute | None):
+    def __get__(self, obj: IRDLOperation, objtype=None):
+        return obj.properties.get(self.property_name, self.default_value)
+
+    def __set__(self, obj: IRDLOperation, value):
         if value is None:
-            self.properties.pop(property_name, None)
+            obj.properties.pop(self.property_name, None)
         else:
-            self.properties[property_name] = value
-
-    return property(field_getter, field_setter)
+            obj.properties[self.property_name] = value
 
 
-def _property_field(property_name: str):
-    """Returns the getter and setter for an operation property."""
+@dataclass(frozen=True)
+class PropertyAccessor:
+    """Accessor for an operation property."""
 
-    def field_getter(self: IRDLOperation):
-        return self.properties[property_name]
+    property_name: str
 
-    def field_setter(self: IRDLOperation, value: Attribute):
-        self.properties[property_name] = value
+    def __get__(self, obj: IRDLOperation, objtype=None):
+        return obj.properties[self.property_name]
 
-    return property(field_getter, field_setter)
+    def __set__(self, obj: IRDLOperation, value):
+        obj.properties[self.property_name] = value
 
 
 def get_accessors_from_op_def(
@@ -1948,19 +2123,19 @@ def get_accessors_from_op_def(
         if attribute_type == "attribute":
             attr_def = op_def.attributes[attribute_name]
             if isinstance(attr_def, OptAttributeDef):
-                new_attrs[accessor_name] = _optional_attribute_field(
+                new_attrs[accessor_name] = OptionalAttributeAccessor(
                     attribute_name, op_def.attributes[attribute_name].default_value
                 )
             else:
-                new_attrs[accessor_name] = _attribute_field(attribute_name)
+                new_attrs[accessor_name] = AttributeAccessor(attribute_name)
         else:
             prop_def = op_def.properties[attribute_name]
             if isinstance(prop_def, OptPropertyDef):
-                new_attrs[accessor_name] = _optional_property_field(
+                new_attrs[accessor_name] = OptionalPropertyAccessor(
                     attribute_name, op_def.properties[attribute_name].default_value
                 )
             else:
-                new_attrs[accessor_name] = _property_field(attribute_name)
+                new_attrs[accessor_name] = PropertyAccessor(attribute_name)
 
     # If the traits are already defined then this is a no-op, as the new attrs are
     # passed after the existing attrs, otherwise this sets an empty OpTraits.

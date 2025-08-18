@@ -4,6 +4,7 @@ See [MLIR counterpart](https://github.com/llvm/llvm-project/blob/main/mlir/inclu
 for more details.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import cast
 
@@ -15,6 +16,7 @@ from xdsl.irdl import (
     AtLeast,
     AttrConstraint,
     ConstraintContext,
+    IntConstraint,
     irdl_to_attr_constraint,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -55,7 +57,7 @@ class ContiguousArrayOfIntArray(AttrConstraint[ArrayOfIntArrayAttr]):
                 raise VerifyException(f"All inner arrays must be contiguous: {attr}")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> "ContiguousArrayOfIntArray":
         # No type variables to map in this constraint
         return self

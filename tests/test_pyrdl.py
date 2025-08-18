@@ -1,5 +1,6 @@
 """Unit tests for IRDL."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import auto
 
@@ -15,6 +16,7 @@ from xdsl.irdl import (
     ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
+    IntConstraint,
     ParamAttrConstraint,
     VarConstraint,
     eq,
@@ -164,7 +166,7 @@ class LessThan(AttrConstraint):
             raise VerifyException(f"{attr} should hold a value less than {self.bound}")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> Self:
         return self
 
@@ -182,7 +184,7 @@ class GreaterThan(AttrConstraint):
             )
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> Self:
         return self
 

@@ -109,6 +109,12 @@ class ShapedType(Attribute, ABC):
     def element_count(self) -> int:
         return prod(self.get_shape())
 
+    def has_static_shape(self) -> bool:
+        """
+        Check if all dimensions have static (non-dynamic) shapes.
+        """
+        return all(dim != DYNAMIC_INDEX for dim in self.get_shape())
+
     @staticmethod
     def strides_for_shape(shape: Sequence[int], factor: int = 1) -> tuple[int, ...]:
         import operator
@@ -235,7 +241,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
         return self.elem_range_constraint.variables()
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[ArrayAttr[AttributeCovT]]:
         return ArrayOfConstraint(
             self.elem_range_constraint.mapping_type_vars(type_var_mapping)
@@ -269,7 +275,7 @@ class SymbolNameConstraint(AttrConstraint[StringAttr]):
         return {StringAttr}
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[StringAttr]:
         return self
 
@@ -326,7 +332,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
             raise VerifyException(f"expected empty array, but got {attr}")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> EmptyArrayAttrConstraint:
         return self
 
@@ -386,9 +392,9 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         return {IntAttr}
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> Self:
-        return self
+        return type(self)(self.int_constraint.mapping_type_vars(type_var_mapping))
 
 
 class Signedness(Enum):
@@ -1487,7 +1493,7 @@ class ContainerOf(
             return {*bases, TensorType, VectorType}
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> ContainerOf[AttributeCovT]:
         return ContainerOf(self.elem_constr.mapping_type_vars(type_var_mapping))
 
@@ -1517,7 +1523,7 @@ class VectorRankConstraint(AttrConstraint):
             )
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> VectorRankConstraint:
         return self
 
@@ -1540,7 +1546,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
             )
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> VectorBaseTypeConstraint:
         return self
 
@@ -1564,7 +1570,7 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
         constraint.verify(attr, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> VectorBaseTypeAndRankConstraint:
         return self
 

@@ -3,33 +3,48 @@
 from ctypes import c_float, c_int32, c_int64, c_size_t
 
 from xdsl.dialects import builtin
-from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.frontend.pyast.context import PyASTContext
 
-p = FrontendProgram()
-p.register_type(c_int32, builtin.i32)
-p.register_type(c_int64, builtin.i64)
-p.register_type(c_size_t, builtin.IndexType())
-p.register_type(bool, builtin.i1)
-p.register_type(c_float, builtin.f32)
-p.register_type(float, builtin.f64)
-with CodeContext(p):
-    # CHECK: @boolean(%{{.*}} : i1)
-    def boolean(x: bool):
-        return
-
-    # CHECK: @signless(%{{.*}} : i32, %{{.*}} : i64)
-    def signless(x: c_int32, y: c_int64):
-        return
-
-    # CHECK: @indexed(%{{.*}} : index)
-    def indexed(x: c_size_t):
-        return
-
-    # CHECK: @fp(%{{.*}} : f32, %{{.*}} : f64)
-    def fp(x: c_float, y: float):
-        return
+ctx = PyASTContext(post_transforms=[])
+ctx.register_type(c_int32, builtin.i32)
+ctx.register_type(c_int64, builtin.i64)
+ctx.register_type(c_size_t, builtin.IndexType())
+ctx.register_type(bool, builtin.i1)
+ctx.register_type(c_float, builtin.f32)
+ctx.register_type(float, builtin.f64)
 
 
-p.compile(desymref=False)
-print(p.textual_format())
+# CHECK: @boolean(%{{.*}} : i1)
+@ctx.parse_program
+def boolean(x: bool):
+    return
+
+
+print(boolean.module)
+
+
+# CHECK: @signless(%{{.*}} : i32, %{{.*}} : i64)
+@ctx.parse_program
+def signless(x: c_int32, y: c_int64):
+    return
+
+
+print(signless.module)
+
+
+# CHECK: @indexed(%{{.*}} : index)
+@ctx.parse_program
+def indexed(x: c_size_t):
+    return
+
+
+print(indexed.module)
+
+
+# CHECK: @fp(%{{.*}} : f32, %{{.*}} : f64)
+@ctx.parse_program
+def fp(x: c_float, y: float):
+    return
+
+
+print(fp.module)

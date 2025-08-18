@@ -126,12 +126,9 @@ def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     Add cast operations just before the targeted operation
     if the operands were not already int registers
     """
-
-    new_ops, new_operands = cast_to_regs(
-        values=rewriter.current_operation.operands, register_map=register_type_for_type
+    return cast_to_regs(
+        rewriter.current_operation.operands, register_type_for_type, rewriter
     )
-    rewriter.insert_op_before_matched_op(new_ops)
-    return new_operands
 
 
 def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:

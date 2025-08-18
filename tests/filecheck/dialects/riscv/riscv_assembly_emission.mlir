@@ -84,7 +84,7 @@
 
     riscv.ret
     // CHECK-NEXT: ret
-  ^0(%b00 : !riscv.reg, %b01 : !riscv.reg):
+  ^bb0(%b00 : !riscv.reg, %b01 : !riscv.reg):
 
 
     // Conditional Branch Instructions
@@ -156,7 +156,7 @@
     // CHECK-NEXT: ebreak
     riscv.ret
     // CHECK-NEXT: ret
-  ^1(%b10 : !riscv.reg, %b11 : !riscv.reg):
+  ^bb1(%b10 : !riscv.reg, %b11 : !riscv.reg):
 
     riscv.directive ".align" "2"
     // CHECK-NEXT: .align 2
