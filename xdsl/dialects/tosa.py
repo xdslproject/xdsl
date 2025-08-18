@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     I1,
     I32,
     I64,
+    I8,
     AnyAttr,
     AnyFloat,
     BoolAttr,
@@ -17,6 +18,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StringAttr,
     TensorType,
+    i32,
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
@@ -26,6 +28,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
+    opt_operand_def,
     opt_prop_def,
     prop_def,
     region_def,
@@ -189,8 +192,12 @@ class SubOp(ElementwiseBinaryOperation):
     name = "tosa.sub"
 
 
+class ShiftableOperation(IRDLOperation, ABC):
+    shift = opt_operand_def(TensorType.constr(I8))
+
+
 @irdl_op_definition
-class MulOp(ElementwiseBinaryOperation):
+class MulOp(ElementwiseBinaryOperation, ShiftableOperation):
     """
     Tosa elementwise multiplication operation (Hadamard product)
 
@@ -202,6 +209,26 @@ class MulOp(ElementwiseBinaryOperation):
     traits = traits_def(
         Commutative(),
     )
+
+    # right-shift only required for operands of tensor<...xi32>
+    def verify_(self):
+        super().verify_()
+        tensor_type = self.input1.type
+        assert isinstance(tensor_type, TensorType)
+
+        if tensor_type.get_element_type() == i32:
+            if not self.shift:
+                raise VerifyException(
+                    "'tosa.mul' Expected third operand 'shift' : tensor<1xi8> when multiplying i32 tensors"
+                )
+
+            shift_type = self.shift.type
+            assert isinstance(shift_type, TensorType)
+
+            if shift_type.get_num_dims() != 1:
+                raise VerifyException(
+                    "'tosa.mul' Expected 'shift' to have type tensor<1xi8>"
+                )
 
 
 TInv = TypeVar("TInv", bound=TensorType)
