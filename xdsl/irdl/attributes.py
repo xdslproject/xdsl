@@ -603,12 +603,7 @@ def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
     """
     Converts an int or an int type to the corresponding constraint.
     """
-    if isinstance(arg, int) or (
-        get_origin(arg) is Literal
-        and (literal_args := get_args(arg))
-        and len(literal_args) == 1
-        and isinstance(arg := literal_args[0], int)
-    ):
+    if isinstance(arg, int):
         return EqIntConstraint(arg)
 
     if isclass(arg) and issubclass(arg, int):
