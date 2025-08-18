@@ -51,6 +51,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
+    SameVariadicResultSize,
     TypedAttributeConstraint,  # pyright: ignore[reportDeprecated]
     VarConstraint,
     VarOperand,
@@ -1392,15 +1393,15 @@ def test_operands_directive_fails_with_other_type_directive():
 @pytest.mark.parametrize(
     "program, error",
     [
-        ("test.two_operands %0 : i32, i32", "Expected 2 operands but found 1"),
+        ("test.two_operands %0 : i32, i32", "Expected 2 operands, but got 1"),
         (
             "test.two_operands %0, %1, %2 : i32, i32",
-            "Expected 2 operands but found 3",
+            "Expected 2 operands, but got 3",
         ),
-        ("test.two_operands %0, %1 : i32", "Expected 2 operand types but found 1"),
+        ("test.two_operands %0, %1 : i32", "Expected 2 operand types, but got 1"),
         (
             "test.two_operands %0, %1 : i32, i32, i32",
-            "Expected 2 operand types but found 3",
+            "Expected 2 operand types, but got 3",
         ),
     ],
 )
@@ -1427,19 +1428,19 @@ def test_operands_directive_bounds(program: str, error: str):
     [
         (
             "test.three_operands %0 : i32, i32",
-            "Expected at least 2 operands but found 1",
+            "Expected 2 or 3 operands, but got 1",
         ),
         (
             "test.three_operands %0, %1, %2, %3 : i32, i32, i32",
-            "Expected at most 3 operands but found 4",
+            "Expected 2 or 3 operands, but got 4",
         ),
         (
             "test.three_operands %0, %1 : i32",
-            "Expected at least 2 operand types but found 1",
+            "Expected 2 or 3 operand types, but got 1",
         ),
         (
             "test.three_operands %0, %1, %3 : i32, i32, i32, i32",
-            "Expected at most 3 operand types but found 4",
+            "Expected 2 or 3 operand types, but got 4",
         ),
     ],
 )
@@ -1467,11 +1468,11 @@ def test_operands_directive_bounds_with_opt(program: str, error: str):
     [
         (
             "test.three_operands %0 : i32, i32",
-            "Expected at least 2 operands but found 1",
+            "Expected at least 2 operands, but got 1",
         ),
         (
             "test.three_operands %0, %1 : i32",
-            "Expected at least 2 operand types but found 1",
+            "Expected at least 2 operand types, but got 1",
         ),
     ],
 )
@@ -1501,10 +1502,10 @@ def test_operands_directive_with_non_variadic_type_directive():
     # an OperandsDirective, but we can manually make one.
     format_program = FormatProgram(
         (
-            OperandsDirective(None),
+            OperandsDirective(),
             AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
-            TypeDirective(OperandsDirective(None)),
+            TypeDirective(OperandsDirective()),
         ),
     )
 
@@ -1536,10 +1537,10 @@ def test_operands_directive_with_variadic_type_directive():
     # an OperandsDirective, but we can manually make one.
     format_program = FormatProgram(
         (
-            OperandsDirective((False, 1)),
+            OperandsDirective(),
             AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
-            TypeDirective(OperandsDirective((False, 1))),
+            TypeDirective(OperandsDirective()),
         ),
     )
 
@@ -1824,6 +1825,31 @@ def test_results_directive_fails_with_two_var():
             assembly_format = "attr-dict `:` type(results)"
 
 
+def test_results_directive_works_with_two_var_and_option():
+    """
+    Test results directive can be used with two variadic results as long as they have
+    the same length.
+    """
+
+    @irdl_op_definition
+    class TwoVarOp(IRDLOperation):
+        name = "test.two_var_op"
+
+        res1 = var_result_def()
+        res2 = var_result_def()
+
+        irdl_options = [SameVariadicResultSize()]
+
+        assembly_format = "attr-dict `:` type(results)"
+
+    ctx = Context()
+    ctx.load_op(TwoVarOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip("%0, %1 = test.two_var_op : i32, i32", ctx)
+    check_roundtrip("%0, %1, %2, %3 = test.two_var_op : i32, i32, i32, i32", ctx)
+
+
 def test_results_directive_fails_with_no_results():
     """Test results directive cannot be used with no results"""
 
@@ -1860,10 +1886,10 @@ def test_results_directive_fails_with_other_type_directive():
 @pytest.mark.parametrize(
     "program, error",
     [
-        ("%0 = test.two_results : i32", "Expected 2 result types but found 1"),
+        ("%0 = test.two_results : i32", "Expected 2 result types, but got 1"),
         (
             "%0, %1, %2 = test.two_results : i32, i32, i32",
-            "Expected 2 result types but found 3",
+            "Expected 2 result types, but got 3",
         ),
     ],
 )
@@ -1890,11 +1916,11 @@ def test_results_directive_bounds(program: str, error: str):
     [
         (
             "%0 = test.three_results : i32",
-            "Expected at least 2 result types but found 1",
+            "Expected 2 or 3 result types, but got 1",
         ),
         (
             "%0, %1, %2, %3 = test.three_results : i32, i32, i32, i32",
-            "Expected at most 3 result types but found 4",
+            "Expected 2 or 3 result types, but got 4",
         ),
     ],
 )
@@ -1923,7 +1949,7 @@ def test_results_directive_bound_with_var():
         name = "test.three_results"
 
         res1 = result_def()
-        res2 = opt_result_def()
+        res2 = var_result_def()
         res3 = result_def()
 
         assembly_format = "attr-dict `:` type(results)"
@@ -1931,9 +1957,7 @@ def test_results_directive_bound_with_var():
     ctx = Context()
     ctx.load_op(ThreeResultsOp)
 
-    with pytest.raises(
-        ParseError, match="Expected at least 2 result types but found 1"
-    ):
+    with pytest.raises(ParseError, match="Expected at least 2 result types, but got 1"):
         parser = Parser(ctx, "%0 = test.three_results : i32")
         parser.parse_operation()
 
@@ -1947,7 +1971,7 @@ def test_results_directive_with_non_variadic_type_directive():
         (
             AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
-            TypeDirective(ResultsDirective(None)),
+            TypeDirective(ResultsDirective()),
         ),
     )
 
@@ -1981,7 +2005,7 @@ def test_results_directive_with_variadic_type_directive():
         (
             AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
-            TypeDirective(ResultsDirective((False, 1))),
+            TypeDirective(ResultsDirective()),
         ),
     )
 

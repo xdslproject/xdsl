@@ -1240,12 +1240,11 @@ def get_construct_name(construct: VarIRConstruct) -> str:
             return "successor"
 
 
-def get_numbered_construct_name(number: int, construct: VarIRConstruct) -> str:
+def get_plural_name(number: int, name: str) -> str:
     """
-    Print a number followed by a construct name,
-    possibly making the construct name plural.
+    Print a number followed by a name, possibly making the name plural.
     """
-    return f"{number} {get_construct_name(construct)}{'' if number == 1 else 's'}"
+    return f"{number} {name}{'' if number == 1 else 's'}"
 
 
 def get_construct_defs(
@@ -1372,7 +1371,9 @@ def verify_variadic_attr_size(
             raise VerifyException(f"expected 1 value for {name}, but got {l}")
 
 
-def verify_variadic_same_size(length: int, op_def: OpDef, construct: VarIRConstruct):
+def verify_variadic_same_size(
+    length: int, op_def: OpDef, construct: VarIRConstruct, construct_name: str
+):
     """
     Verify the number of 'construct' is valid, assuming all variadics have the same size.
     """
@@ -1385,14 +1386,14 @@ def verify_variadic_same_size(length: int, op_def: OpDef, construct: VarIRConstr
     if not variadic_defs:
         if length != len(defs):
             raise VerifyException(
-                f"Expected {get_numbered_construct_name(len(defs), construct)}, but got {length}"
+                f"Expected {get_plural_name(len(defs), construct_name)}, but got {length}"
             )
 
     # If there is an optional argument they must all be empty or all be singletons
     elif has_optional:
         if length not in (len(defs), len(defs) - len(variadic_defs)):
             raise VerifyException(
-                f"Expected {len(defs) - len(variadic_defs)} or {len(defs)} {get_construct_name(construct)}s, but got {length}"
+                f"Expected {len(defs) - len(variadic_defs)} or {len(defs)} {construct_name}s, but got {length}"
             )
 
     # Otherwise they must all have the same size.
@@ -1400,13 +1401,13 @@ def verify_variadic_same_size(length: int, op_def: OpDef, construct: VarIRConstr
         # There must be enough arguments
         if length < len(defs) - len(variadic_defs):
             raise VerifyException(
-                f"Expected at least {get_numbered_construct_name(len(defs) - len(variadic_defs), construct)}, "
+                f"Expected at least {get_plural_name(len(defs) - len(variadic_defs), construct_name)}, "
                 f"but got {length}"
             )
         # And the (variadic) arguments must be able to be split evenly between the definitions.
         if (length - len(defs)) % len(variadic_defs):
             raise VerifyException(
-                f"Operation has {get_numbered_construct_name(length - len(defs) + len(variadic_defs), construct)} "
+                f"Operation has {get_plural_name(length - len(defs) + len(variadic_defs), construct_name)} "
                 f"for {len(variadic_defs)} variadic {get_construct_name(construct)}s marked as having the same size."
             )
 
@@ -1423,7 +1424,10 @@ def verify_variadic_size(op: Operation, op_def: OpDef, construct: VarIRConstruct
         verify_variadic_attr_size(op, op_def, construct, option)
     else:
         verify_variadic_same_size(
-            len(get_op_constructs(op, construct)), op_def, construct
+            len(get_op_constructs(op, construct)),
+            op_def,
+            construct,
+            get_construct_name(construct),
         )
 
 
