@@ -12,6 +12,7 @@ from xdsl.irdl import (
     IntSetConstraint,
     IntTypeVarConstraint,
     get_int_constraint,
+    get_optional_int_constraint,
 )
 from xdsl.utils.exceptions import PyRDLTypeError, VerifyException
 
@@ -101,6 +102,8 @@ def test_get_int_constr():
     assert get_int_constraint(
         Literal[1] | (Literal[2] | Literal[3])  # noqa
     ) == IntSetConstraint(frozenset((1, 2, 3)))
+
+    assert get_optional_int_constraint(str) is None
 
     with pytest.raises(PyRDLTypeError, match="Unexpected int type: <class 'str'>"):
         get_int_constraint(str)  # pyright: ignore[reportArgumentType]

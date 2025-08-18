@@ -599,9 +599,10 @@ def eq(irdl: AttributeInvT) -> AttrConstraint[AttributeInvT]:
     return irdl_to_attr_constraint(irdl)
 
 
-def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
+def get_optional_int_constraint(arg: Any) -> IntConstraint | None:
     """
-    Converts an int or an int type to the corresponding constraint.
+    If the input is an int or an int type, return the corresponding constraint,
+    otherwise return None.
     """
     if isinstance(arg, int):
         return EqIntConstraint(arg)
@@ -633,6 +634,15 @@ def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
             )
             return IntSetConstraint(ints)
 
+
+def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
+    """
+    If the input is an int or an int type, return the corresponding constraint,
+    otherwise raise `PyRDLTypeError`.
+    """
+    if (ic := get_optional_int_constraint(arg)) is not None:
+        return ic
+
     raise PyRDLTypeError(f"Unexpected int type: {arg}")
 
 
@@ -653,3 +663,15 @@ def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
 ) -> RangeConstraint[AttributeCovT]:
     return SingleOf(irdl_to_attr_constraint(attr))
+
+
+def get_constraint(
+    arg: "IRDLAttrConstraint | int | TypeForm[int]",
+) -> AttrConstraint | IntConstraint:
+    """
+    Converts the input expression, constraint, or type to the corresponding constraint.
+    """
+    if (ic := get_optional_int_constraint(arg)) is not None:
+        return ic
+
+    return irdl_to_attr_constraint(arg)  # pyright: ignore[reportArgumentType]
