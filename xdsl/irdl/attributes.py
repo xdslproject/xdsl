@@ -81,7 +81,7 @@ class GenericData(Data[_DataElement], ABC):
 
     @staticmethod
     @abstractmethod
-    def constr(constr: AttrConstraint) -> AttrConstraint:
+    def constr() -> AttrConstraint:
         """
         Returns a constraint for this subclass.
         Generic arguments are constrained via TypeVarConstraints.
@@ -512,12 +512,26 @@ def irdl_to_attr_constraint(
 
     # GenericData case
     if isclass(origin) and issubclass(origin, GenericData):
-        args = get_args(irdl)
+        args: tuple[IRDLAttrConstraint, ...] = get_args(irdl)
         if len(args) != 1:
             raise PyRDLTypeError(f"GenericData args must have length 1, got {args}")
-        constr = irdl_to_attr_constraint(args[0])
 
-        return cast(AttrConstraint[AttributeInvT], origin.constr(constr))
+        inner = irdl_to_attr_constraint(args[0])
+        generic_args = get_type_var_from_generic_class(cast(type, origin))
+
+        # Check that we have the right number of parameters
+        if len(args) != len(generic_args):
+            raise PyRDLTypeError(
+                f"{origin.name} expects {len(generic_args)}"
+                f" parameters, got {len(args)}."
+            )
+
+        type_var_mapping = {generic_args[0]: inner}
+
+        return cast(
+            AttrConstraint[AttributeInvT],
+            origin.constr().mapping_type_vars(type_var_mapping),
+        )
 
     # Generic ParametrizedAttributes case
     # We translate it to constraints over the attribute parameters.
@@ -526,9 +540,9 @@ def irdl_to_attr_constraint(
         and issubclass(origin, ParametrizedAttribute)
         and issubclass(origin, Generic)
     ):
-        args = [
-            irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)
-            for arg in get_args(irdl)
+        args: tuple[IRDLAttrConstraint, ...] = get_args(irdl)
+        inner_constraints = [
+            irdl_to_attr_constraint(arg, allow_type_var=allow_type_var) for arg in args
         ]
         generic_args = get_type_var_from_generic_class(origin)
 
@@ -539,7 +553,7 @@ def irdl_to_attr_constraint(
                 f" parameters, got {len(args)}."
             )
 
-        type_var_mapping = dict(zip(generic_args, args))
+        type_var_mapping = dict(zip(generic_args, inner_constraints))
 
         # Map the constraints in the attribute definition
         attr_def = origin.get_irdl_definition()

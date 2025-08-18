@@ -58,6 +58,7 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
+    TypeVarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -185,9 +186,13 @@ class ArrayAttr(
     @staticmethod
     @override
     def constr(
-        constr: IRDLAttrConstraint[AttributeInvT] | RangeConstraint[AttributeInvT],
+        constr: IRDLAttrConstraint[AttributeInvT]
+        | RangeConstraint[AttributeInvT]
+        | None = None,
     ) -> ArrayOfConstraint[AttributeInvT]:
-        return ArrayOfConstraint(constr)
+        return ArrayOfConstraint(
+            TypeVarConstraint(AttributeCovT, AnyAttr()) if constr is None else constr
+        )
 
     def __len__(self):
         return len(self.data)
