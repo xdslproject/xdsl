@@ -622,10 +622,15 @@ def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
     if get_origin(arg) is Union:
         union_args = get_args(arg)
         if all(
-            (get_origin(union_arg) is Literal) and len(get_args(union_arg)) == 1
+            (get_origin(union_arg) is Literal)
+            and all(isinstance(literal_arg, int) for literal_arg in get_args(union_arg))
             for union_arg in union_args
         ):
-            ints = frozenset(get_args(union_arg)[0] for union_arg in union_args)
+            ints = frozenset(
+                literal_arg
+                for union_arg in union_args
+                for literal_arg in get_args(union_arg)
+            )
             return IntSetConstraint(ints)
 
     raise PyRDLTypeError(f"Unexpected int type: {arg}")
