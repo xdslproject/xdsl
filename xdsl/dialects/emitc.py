@@ -8,7 +8,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
 from collections.abc import Iterable, Sequence
-from typing import cast
+from typing import Literal, cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -37,10 +37,10 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    IntSetConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     ParsePropInAttrDict,
+    int_constr,
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
@@ -216,7 +216,7 @@ class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
     name = "emitc.size_t"
 
 
-EmitCIntegerBitwidthConstr = IntSetConstraint(frozenset((1, 8, 16, 32, 64)))
+EmitCIntegerBitwidthConstr = int_constr(Literal[1, 8, 16, 32, 64])
 """
 Constraint for the bitwidth parameter of integer types supported by EmitC.
 """

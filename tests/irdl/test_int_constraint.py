@@ -1,4 +1,5 @@
 import re
+from typing import Literal
 
 import pytest
 from typing_extensions import TypeVar
@@ -10,6 +11,7 @@ from xdsl.irdl import (
     EqIntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
+    int_constr,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -78,3 +80,14 @@ def test_mapping_type_vars():
     tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
     my_constr = EqIntConstraint(1)
     assert tv_constr.mapping_type_vars({_IntT: my_constr}) is my_constr
+
+
+def test_int_constr():
+    assert int_constr(int) == AnyInt()
+    assert int_constr(Literal[1]) == EqIntConstraint(1)
+    assert int_constr(Literal[2]) == EqIntConstraint(2)
+    assert int_constr(Literal[2, 3]) == IntSetConstraint(frozenset((2, 3)))
+
+    assert int_constr(
+        Literal[2] | Literal[3]  # noqa
+    ) == IntSetConstraint(frozenset((2, 3)))
