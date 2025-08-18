@@ -599,7 +599,7 @@ def eq(irdl: AttributeInvT) -> AttrConstraint[AttributeInvT]:
     return irdl_to_attr_constraint(irdl)
 
 
-def _get_int_constraint(arg: Any) -> IntConstraint | None:
+def get_optional_int_constraint(arg: Any) -> IntConstraint | None:
     """
     If the input is an int or an int type, return the corresponding constraint,
     otherwise return None.
@@ -639,7 +639,7 @@ def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:
     """
     Converts an int or an int type to the corresponding constraint.
     """
-    if (ic := _get_int_constraint(arg)) is not None:
+    if (ic := get_optional_int_constraint(arg)) is not None:
         return ic
 
     raise PyRDLTypeError(f"Unexpected int type: {arg}")
@@ -670,7 +670,7 @@ def get_constraint(
     """
     Converts the input expression, constraint, or type to the corresponding constraint.
     """
-    if (ic := _get_int_constraint(arg)) is not None:
+    if (ic := get_optional_int_constraint(arg)) is not None:
         return ic
 
     return irdl_to_attr_constraint(arg)  # pyright: ignore[reportArgumentType]
