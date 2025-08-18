@@ -27,7 +27,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
     TupleType,
-    _FloatType,
 )
 from xdsl.ir import (
     Attribute,
@@ -128,9 +127,9 @@ class EmitC_ArrayType(
         Check if the element type is valid for EmitC_ArrayType.
         See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/Dialect/EmitC/IR/EmitCTypes.td#L77).
         """
-        return is_integer_index_or_opaque_type(element_type) or is_supported_float_type(
+        return is_integer_index_or_opaque_type(
             element_type
-        )
+        ) or EmitCFloatTypeConstr.verifies(element_type)
 
 
 @irdl_attr_definition
@@ -243,14 +242,6 @@ See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir
 """
 
 
-def is_supported_float_type(type_attr: Attribute) -> bool:
-    """
-    Check if a type is a supported floating-point type in EmitC.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
-    """
-    return EmitCFloatTypeConstr.verifies(type_attr)
-
-
 def is_pointer_wide_type(type_attr: Attribute) -> bool:
     """Check if a type is a pointer-wide type."""
     match type_attr:
@@ -282,10 +273,12 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
     Check if a type is supported by EmitC.
     See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
     """
-_constrs = EmitCIntegerConstr | EmitCFloatTypeConstr
-if _constrs.verifies(type_attr):
-    return True
-match type_attr:
+
+    _constrs = EmitCIntegerConstr | EmitCFloatTypeConstr
+    if _constrs.verifies(type_attr):
+        return True
+
+    match type_attr:
         case IndexType():
             return True
         case EmitC_OpaqueType():
