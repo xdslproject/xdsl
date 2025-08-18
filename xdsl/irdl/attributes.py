@@ -512,11 +512,11 @@ def irdl_to_attr_constraint(
 
     # GenericData case
     if isclass(origin) and issubclass(origin, GenericData):
-        args: tuple[IRDLAttrConstraint | int | TypeForm[int], ...] = get_args(irdl)
+        args: tuple[IRDLAttrConstraint, ...] = get_args(irdl)
         if len(args) != 1:
             raise PyRDLTypeError(f"GenericData args must have length 1, got {args}")
 
-        inner = get_constraint(args[0], allow_type_var=allow_type_var)
+        inner = irdl_to_attr_constraint(args[0])
         generic_args = get_type_var_from_generic_class(cast(type, origin))
 
         # Check that we have the right number of parameters
@@ -540,9 +540,9 @@ def irdl_to_attr_constraint(
         and issubclass(origin, ParametrizedAttribute)
         and issubclass(origin, Generic)
     ):
-        args: tuple[IRDLAttrConstraint | int | TypeForm[int], ...] = get_args(irdl)
+        args: tuple[IRDLAttrConstraint, ...] = get_args(irdl)
         inner_constraints = [
-            get_constraint(arg, allow_type_var=allow_type_var) for arg in args
+            irdl_to_attr_constraint(arg, allow_type_var=allow_type_var) for arg in args
         ]
         generic_args = get_type_var_from_generic_class(origin)
 
@@ -679,34 +679,8 @@ def single_range_constr_coercion(
     return SingleOf(irdl_to_attr_constraint(attr))
 
 
-@overload
-def get_constraint(
-    arg: "int | TypeForm[int]",
-    *,
-    allow_type_var: bool = False,
-) -> IntConstraint: ...
-
-
-@overload
-def get_constraint(
-    arg: IRDLAttrConstraint,
-    *,
-    allow_type_var: bool = False,
-) -> AttrConstraint: ...
-
-
-@overload
 def get_constraint(
     arg: "IRDLAttrConstraint | int | TypeForm[int]",
-    *,
-    allow_type_var: bool = False,
-) -> AttrConstraint | IntConstraint: ...
-
-
-def get_constraint(
-    arg: "IRDLAttrConstraint | int | TypeForm[int]",
-    *,
-    allow_type_var: bool = False,
 ) -> AttrConstraint | IntConstraint:
     """
     Converts the input expression, constraint, or type to the corresponding constraint.
@@ -714,4 +688,4 @@ def get_constraint(
     if (ic := get_optional_int_constraint(arg)) is not None:
         return ic
 
-    return irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)  # pyright: ignore[reportArgumentType]
+    return irdl_to_attr_constraint(arg)  # pyright: ignore[reportArgumentType]
