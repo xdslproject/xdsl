@@ -11,11 +11,12 @@ A small test-page to test mkdocs-marimo.
 
 ```python {marimo}
 expr_str = mo.ui.text(value = "1 + 2")
+expr_str
 ```
 
 ## Output
 
 ```python {marimo}
 
-mo.md(f"Expr String: {expr_str}")
+mo.md(f"{expr_str}")
 ```
