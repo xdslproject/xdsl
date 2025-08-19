@@ -174,19 +174,6 @@ class EmitC_ArrayType(
                     "EmitC array dimensions must have non-negative size"
                 )
 
-        element_type = self.get_element_type()
-
-        if isinstance(element_type, EmitC_ArrayType):
-            raise VerifyException(
-                "EmitC array element type cannot be another EmitC_ArrayType."
-            )
-
-        # Check that the element type is a supported EmitC type.
-        if not EmitCArrayElementTypeConstr.verifies(element_type):
-            raise VerifyException(
-                f"EmitC array element type '{element_type}' is not a supported EmitC type."
-            )
-
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
