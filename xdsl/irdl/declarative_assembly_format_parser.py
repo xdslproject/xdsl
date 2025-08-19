@@ -33,6 +33,8 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
+    SameVariadicOperandSize,
+    SameVariadicResultSize,
     VarConstraint,
     VariadicDef,
     VarOperandDef,
@@ -854,16 +856,14 @@ class FormatParser(BaseParser):
             for i, (_, o) in enumerate(self.op_def.operands)
             if isinstance(o, VariadicDef)
         )
-        if len(variadics) > 1:
+        if len(variadics) > 1 and SameVariadicOperandSize() not in self.op_def.options:
             self.raise_error("'operands' is ambiguous with multiple variadic operands")
         if not inside_ref:
             if not inside_type:
                 self.seen_operands = [True] * len(self.seen_operands)
             else:
                 self.seen_operand_types = [True] * len(self.seen_operand_types)
-        if not variadics:
-            return OperandsDirective(None)
-        return OperandsDirective(variadics[0])
+        return OperandsDirective()
 
     def create_results_directive(self, inside_ref: bool) -> ResultsDirective:
         """
@@ -881,10 +881,8 @@ class FormatParser(BaseParser):
             for i, (_, o) in enumerate(self.op_def.results)
             if isinstance(o, VarResultDef)
         )
-        if len(variadics) > 1:
+        if len(variadics) > 1 and SameVariadicResultSize() not in self.op_def.options:
             self.raise_error("'results' is ambiguous with multiple variadic results")
         if not inside_ref:
             self.seen_result_types = [True] * len(self.seen_result_types)
-        if not variadics:
-            return ResultsDirective(None)
-        return ResultsDirective(variadics[0])
+        return ResultsDirective()
