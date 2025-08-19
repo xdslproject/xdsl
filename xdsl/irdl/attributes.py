@@ -524,29 +524,25 @@ def irdl_to_attr_constraint(
                 [param.constr for _, param in origin.get_irdl_definition().parameters],
             )
 
+        type_vars = get_type_var_from_generic_class(cast(type, origin))
         args: tuple[IRDLAttrConstraint | int | TypeForm[int], ...] = get_args(irdl)
-        inner_constraints = [
-            get_constraint(arg, allow_type_var=allow_type_var) for arg in args
-        ]
-        generic_args = get_type_var_from_generic_class(cast(type, origin))
 
-        if len(args) < len(generic_args) and all(
-            arg.has_default() for arg in generic_args[len(args) :]
+        if len(args) < len(type_vars) and all(
+            arg.has_default() for arg in type_vars[len(args) :]
         ):
             # Check for default values
-            inner_constraints += tuple(
-                irdl_to_attr_constraint(arg.__default__)
-                for arg in generic_args[len(args) :]
-            )
+            args += tuple(arg.__default__ for arg in type_vars[len(args) :])
 
         # Check that we have the right number of parameters
-        if len(inner_constraints) != len(generic_args):
+        if len(args) != len(type_vars):
             raise PyRDLTypeError(
-                f"{origin.name} expects {len(generic_args)}"
-                f" parameters, got {len(args)}."
+                f"{origin.name} expects {len(type_vars)} parameters, got {len(args)}."
             )
 
-        type_var_mapping = dict(zip(generic_args, inner_constraints))
+        type_var_mapping = {
+            type_var: get_constraint(arg, allow_type_var=allow_type_var)
+            for type_var, arg in zip(type_vars, args)
+        }
 
         return cast(
             AttrConstraint[AttributeInvT],
