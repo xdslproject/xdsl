@@ -20,7 +20,6 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IntAttr,
     IntegerAttr,
-    IntegerType,
     ParametrizedAttribute,
     StringAttr,
     UnitAttr,
@@ -85,13 +84,13 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         # We need extra work here as the builtin tuple is not being supported
         # yet, therefore handle this here
-        def parse_interval() -> IntegerAttr[IntegerType] | DeferredAttr:
+        def parse_interval() -> IntegerAttr | DeferredAttr:
             if parser.parse_optional_punctuation("?"):
                 return DeferredAttr()
             s = parser.parse_integer(allow_boolean=False)
-            return IntegerAttr[IntegerType](s, 32)
+            return IntegerAttr(s, 32)
 
-        shape: list[IntegerAttr[IntegerType] | DeferredAttr] = []
+        shape: list[IntegerAttr | DeferredAttr] = []
         parser.parse_characters("<")
         elementType = parser.parse_optional_type()
         while elementType is None:
