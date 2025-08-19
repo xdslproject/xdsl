@@ -510,41 +510,24 @@ def irdl_to_attr_constraint(
 
     origin = get_origin(irdl)
 
-    # GenericData case
-    if isclass(origin) and issubclass(origin, GenericData):
-        args: tuple[IRDLAttrConstraint | int | TypeForm[int], ...] = get_args(irdl)
-        if len(args) != 1:
-            raise PyRDLTypeError(f"GenericData args must have length 1, got {args}")
-
-        inner = get_constraint(args[0], allow_type_var=allow_type_var)
-        generic_args = get_type_var_from_generic_class(cast(type, origin))
-
-        # Check that we have the right number of parameters
-        if len(args) != len(generic_args):
-            raise PyRDLTypeError(
-                f"{origin.name} expects {len(generic_args)}"
-                f" parameters, got {len(args)}."
+    # Generic case
+    if isclass(origin) and (
+        issubclass(origin, GenericData)
+        or (issubclass(origin, ParametrizedAttribute) and issubclass(origin, Generic))
+    ):
+        if issubclass(origin, GenericData):
+            base_constr = origin.constr()
+        else:
+            base_constr = ParamAttrConstraint(
+                origin,
+                [param.constr for _, param in origin.get_irdl_definition().parameters],
             )
 
-        type_var_mapping = {generic_args[0]: inner}
-
-        return cast(
-            AttrConstraint[AttributeInvT],
-            origin.constr().mapping_type_vars(type_var_mapping),
-        )
-
-    # Generic ParametrizedAttributes case
-    # We translate it to constraints over the attribute parameters.
-    if (
-        isclass(origin)
-        and issubclass(origin, ParametrizedAttribute)
-        and issubclass(origin, Generic)
-    ):
         args: tuple[IRDLAttrConstraint | int | TypeForm[int], ...] = get_args(irdl)
         inner_constraints = [
             get_constraint(arg, allow_type_var=allow_type_var) for arg in args
         ]
-        generic_args = get_type_var_from_generic_class(origin)
+        generic_args = get_type_var_from_generic_class(cast(type, origin))
 
         # Check that we have the right number of parameters
         if len(args) != len(generic_args):
@@ -555,17 +538,9 @@ def irdl_to_attr_constraint(
 
         type_var_mapping = dict(zip(generic_args, inner_constraints))
 
-        # Map the constraints in the attribute definition
-        attr_def = origin.get_irdl_definition()
-        origin_parameters = attr_def.parameters
-
-        origin_constraints = [
-            param.constr.mapping_type_vars(type_var_mapping)
-            for _, param in origin_parameters
-        ]
         return cast(
             AttrConstraint[AttributeInvT],
-            ParamAttrConstraint(origin, origin_constraints),
+            base_constr.mapping_type_vars(type_var_mapping),
         )
 
     # Union case

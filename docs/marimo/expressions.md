@@ -578,12 +578,14 @@ def to_mlir(input):
   return output.getvalue()
 
 expr_str = mo.ui.text(value = "1 + 2", debounce=True)
+=======
+expr_str = mo.ui.text(value = "1 + 2", debounce=False)
+>>>>>>> origin/main
 expr_str
 ```
 
 ## Output
 
 ```python {marimo}
-
 mo.md(f"Expr String: <pre>{to_mlir(expr_str.value)}</pre>")
 ```
