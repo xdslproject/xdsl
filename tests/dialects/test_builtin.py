@@ -1,6 +1,7 @@
 import math
 import re
 from collections.abc import Sequence
+from io import StringIO
 
 import pytest
 from typing_extensions import TypeVar
@@ -62,6 +63,7 @@ from xdsl.irdl import (
     eq,
     irdl_attr_definition,
 )
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -245,6 +247,38 @@ def test_IntAttr___bool__():
 def test_BoolAttr___bool__():
     assert not BoolAttr.from_bool(False)
     assert BoolAttr.from_bool(True)
+
+
+@pytest.mark.parametrize(
+    "expected, value, type",
+    [
+        ("true", -1, IntegerType(1)),
+        ("false", 0, IntegerType(1)),
+        ("true", True, IntegerType(1)),
+        ("false", False, IntegerType(1)),
+        ("-1 : si1", -1, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("0 : si1", 0, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("-1 : si1", True, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("0 : si1", False, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("-1 : i32", -1, IntegerType(32)),
+        ("0 : i32", 0, IntegerType(32)),
+        ("1 : i32", True, IntegerType(32)),
+        ("0 : i32", False, IntegerType(32)),
+        ("-1 : si32", -1, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("0 : si32", 0, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("1 : si32", True, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("0 : si32", False, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("-1 : index", -1, IndexType()),
+        ("0 : index", 0, IndexType()),
+        ("1 : index", True, IndexType()),
+        ("0 : index", False, IndexType()),
+    ],
+)
+def test_int(expected: str, value: int, type: IntegerType | IndexType):
+    printer = Printer()
+    printer.stream = StringIO()
+    IntegerAttr(value, type, truncate_bits=True).print_builtin(printer)
+    assert printer.stream.getvalue() == expected
 
 
 def test_IntegerType_packing():
