@@ -10,7 +10,7 @@ A small test-page to test mkdocs-marimo.
 ## Input
 
 ```python {marimo}
-expr_str = mo.ui.text(value = "1 + 2", debounce=1)
+expr_str = mo.ui.text(value = "1 + 2")
 ```
 
 ## Output
