@@ -1774,6 +1774,9 @@ def irdl_op_init(
     )
 
 
+_Construct = TypeVar("_Construct")
+
+
 @dataclass(frozen=True)
 class BaseAccessor(ABC):
     """
@@ -1789,7 +1792,9 @@ class BaseAccessor(ABC):
     """
 
     @abstractmethod
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(
+        self, args: Sequence[_Construct]
+    ) -> _Construct | Sequence[_Construct] | None:
         """Index the sequence of all operands/results/etc., returning the correct elements/slice."""
         ...
 
@@ -1804,7 +1809,7 @@ class BeforeVariadicSingleAccessor(BaseAccessor):
     Access a non-variadic construct which appears before any variadic arguments.
     """
 
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> _Construct:
         return args[self.idx]
 
 
@@ -1817,7 +1822,7 @@ class AfterVariadicSingleAccessor(BaseAccessor):
     num_defs: int
     """Number of accessors for this construct type."""
 
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> _Construct:
         return args[-self.num_defs + self.idx]
 
 
@@ -1834,7 +1839,7 @@ class SameOptionalAccessor(BaseAccessor):
     num_defs: int
     """Number of accessors for this construct type."""
 
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> _Construct | None:
         if len(args) == self.num_defs:
             return args[self.idx]
         return None
@@ -1849,12 +1854,22 @@ class UniqueVariadicAccessor(BaseAccessor):
     num_defs: int
     """Number of accessors for this construct type."""
 
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> Sequence[_Construct]:
         return args[self.idx : self.idx + len(args) - self.num_defs + 1]
 
 
 @dataclass(frozen=True)
-class SameVariadicAccessor(BaseAccessor):
+class SameVariadicBaseAccessor(BaseAccessor, ABC):
+    num_defs: int
+    """Number of accessors for this construct type."""
+    num_variadics: int
+    """Number of variadic accessors for this construct type."""
+    variadics_encountered: int
+    """Number of variadic accessors for this construct type which appear before this one."""
+
+
+@dataclass(frozen=True)
+class SameVariadicAccessor(SameVariadicBaseAccessor):
     """
     Access a variadic construct in the case where all variadics have the same size.
 
@@ -1863,14 +1878,7 @@ class SameVariadicAccessor(BaseAccessor):
     number of variadic arguments.
     """
 
-    num_defs: int
-    """Number of accessors for this construct type."""
-    num_variadics: int
-    """Number of variadic accessors for this construct type."""
-    variadics_encountered: int
-    """Number of variadic accessors for this construct type which appear before this one."""
-
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> Sequence[_Construct]:
         variadic_diff = (len(args) - self.num_defs) // self.num_variadics
         start = self.idx + self.variadics_encountered * variadic_diff
         end = start + 1 + variadic_diff
@@ -1878,12 +1886,12 @@ class SameVariadicAccessor(BaseAccessor):
 
 
 @dataclass(frozen=True)
-class SameVariadicSingleAccessor(SameVariadicAccessor):
+class SameVariadicSingleAccessor(SameVariadicBaseAccessor):
     """
     Access a non-variadic construct in the case where all variadics have the same size.
     """
 
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> _Construct:
         variadic_diff = (len(args) - self.num_defs) // self.num_variadics
         start = self.idx + self.variadics_encountered * variadic_diff
         return args[start]
