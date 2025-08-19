@@ -20,7 +20,6 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntAttr,
-    IntAttrConstraint,
     IntegerAttr,
     IntegerType,
     ShapedType,
@@ -39,11 +38,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     BaseAttr,
     IRDLOperation,
-    ParamAttrConstraint,
     ParsePropInAttrDict,
-    get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     opt_prop_def,
     prop_def,
     var_operand_def,
@@ -217,14 +215,13 @@ class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
     name = "emitc.size_t"
 
 
-EmitCIntegerBitwidthConstr = get_int_constraint(Literal[1, 8, 16, 32, 64])
+EmitCIntegerType = IntegerType[Literal[1, 8, 16, 32, 64]]
 """
-Constraint for the bitwidth parameter of integer types supported by EmitC.
+Type for integer types supported by EmitC.
+See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
 """
 
-EmitCIntegerConstr = ParamAttrConstraint(
-    IntegerType, (IntAttrConstraint(EmitCIntegerBitwidthConstr), None)
-)
+EmitCIntegerTypeConstr = irdl_to_attr_constraint(EmitCIntegerType)
 """
 Constraint for integer types supported by EmitC.
 See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
@@ -262,7 +259,7 @@ def is_integer_index_or_opaque_type(
     See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
     """
     return (
-        EmitCIntegerConstr.verifies(type_attr)
+        EmitCIntegerTypeConstr.verifies(type_attr)
         or isinstance(type_attr, IndexType)
         or is_pointer_wide_type(type_attr)
     )
@@ -274,7 +271,7 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
     See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
     """
 
-    _constrs = EmitCIntegerConstr | EmitCFloatTypeConstr
+    _constrs = EmitCIntegerTypeConstr | EmitCFloatTypeConstr
     if _constrs.verifies(type_attr):
         return True
 

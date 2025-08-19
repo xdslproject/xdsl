@@ -8,7 +8,12 @@ from typing import Literal
 import pytest
 from typing_extensions import Self, TypeVar
 
-from xdsl.dialects.builtin import IntAttr, IntAttrConstraint
+from xdsl.dialects.builtin import (
+    IntAttr,
+    IntAttrConstraint,
+    IntegerType,
+    SignednessAttr,
+)
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
@@ -431,6 +436,23 @@ def test_irdl_to_attr_constraint():
     )
     assert irdl_to_attr_constraint(IntAttr[2]) == IntAttrConstraint(
         int_constraint=EqIntConstraint(value=2)
+    )
+
+    assert irdl_to_attr_constraint(IntegerType) == BaseAttr(IntegerType)
+    assert irdl_to_attr_constraint(IntegerType[int]) == ParamAttrConstraint(
+        IntegerType,
+        (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
+    )
+    assert irdl_to_attr_constraint(IntegerType[32]) == ParamAttrConstraint(
+        IntegerType,
+        (IntAttrConstraint(EqIntConstraint(32)), BaseAttr(SignednessAttr)),
+    )
+    assert irdl_to_attr_constraint(IntegerType[Literal[32, 64]]) == ParamAttrConstraint(
+        IntegerType,
+        (
+            IntAttrConstraint(IntSetConstraint(frozenset((32, 64)))),
+            BaseAttr(SignednessAttr),
+        ),
     )
 
 

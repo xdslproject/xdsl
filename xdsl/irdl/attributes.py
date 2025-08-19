@@ -62,6 +62,7 @@ from .constraints import (  # noqa: TID251
     EqIntConstraint,
     IntConstraint,
     IntSetConstraint,
+    IntTypeVarConstraint,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -622,6 +623,12 @@ def get_optional_int_constraint(arg: Any) -> IntConstraint | None:
                 for literal_arg in get_args(union_arg)
             )
             return IntSetConstraint(ints)
+
+    if (
+        isinstance(arg, TypeVar)
+        and (base := get_optional_int_constraint(arg.__bound__)) is not None
+    ):
+        return IntTypeVarConstraint(arg, base)
 
 
 def get_int_constraint(arg: "int | TypeForm[int]") -> IntConstraint:

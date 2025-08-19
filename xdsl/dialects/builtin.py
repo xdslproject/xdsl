@@ -593,15 +593,19 @@ Bitwidths: `<B`: 1-8, `<H`: 9-16, `<I`: 17-32, `<Q`: 33-64.
 
 @irdl_attr_definition
 class IntegerType(
-    ParametrizedAttribute, StructPackableType[int], FixedBitwidthType, BuiltinAttribute
+    Generic[IntCovT],
+    ParametrizedAttribute,
+    StructPackableType[int],
+    FixedBitwidthType,
+    BuiltinAttribute,
 ):
     name = "integer_type"
-    width: IntAttr
+    width: IntAttr[IntCovT]
     signedness: SignednessAttr
 
     def __init__(
         self,
-        data: int | IntAttr,
+        data: IntCovT | IntAttr[IntCovT],
         signedness: Signedness | SignednessAttr = Signedness.SIGNLESS,
     ) -> None:
         if isinstance(data, int):
@@ -888,13 +892,7 @@ class IntegerAttr(
 
     def print_builtin(self, printer: Printer) -> None:
         # boolean shorthands
-        if (
-            isinstance(
-                (ty := self.get_type()),
-                IntegerType,
-            )
-            and ty.width.data == 1
-        ):
+        if isa((ty := self.get_type()), IntegerType[1]):
             printer.print_string("true" if self.value.data else "false")
         else:
             self.print_without_type(printer)
@@ -912,7 +910,7 @@ class IntegerAttr(
         parser: AttrParser,
         type: Attribute,
     ) -> TypedAttribute:
-        assert isinstance(type, IntegerType | IndexType)
+        assert isa(type, IntegerType | IndexType)
         return IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type)
 
     def print_without_type(self, printer: Printer):
