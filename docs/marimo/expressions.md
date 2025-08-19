@@ -1,13 +1,19 @@
 
 # Expressions in IR
 
+```python {marimo}
+import marimo as mo
+```
+
+```python {marimo}
+import xdsl
+```
+
 A small test-page to test mkdocs-marimo.
 
 ## Input
 
 ```python {marimo}
-import marimo as mo
-
 from dataclasses import dataclass
 import re
 import io
