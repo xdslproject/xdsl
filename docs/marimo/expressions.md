@@ -17,6 +17,5 @@ expr_str
 ## Output
 
 ```python {marimo}
-
 mo.md(f"Expr String: {expr_str}")
 ```
