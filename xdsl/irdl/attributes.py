@@ -534,13 +534,13 @@ def irdl_to_attr_constraint(
             arg.has_default() for arg in generic_args[len(args) :]
         ):
             # Check for default values
-            args += tuple(
+            inner_constraints += tuple(
                 irdl_to_attr_constraint(arg.__default__)
                 for arg in generic_args[len(args) :]
             )
 
         # Check that we have the right number of parameters
-        if len(args) != len(generic_args):
+        if len(inner_constraints) != len(generic_args):
             raise PyRDLTypeError(
                 f"{origin.name} expects {len(generic_args)}"
                 f" parameters, got {len(args)}."
