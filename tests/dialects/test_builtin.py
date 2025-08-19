@@ -274,7 +274,7 @@ def test_BoolAttr___bool__():
         ("0 : index", False, IndexType()),
     ],
 )
-def test_int(expected: str, value: int, type: IntegerType | IndexType):
+def test_print_integer_attr(expected: str, value: int, type: IntegerType | IndexType):
     printer = Printer()
     printer.stream = StringIO()
     IntegerAttr(value, type, truncate_bits=True).print_builtin(printer)
