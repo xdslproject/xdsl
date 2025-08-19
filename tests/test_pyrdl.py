@@ -442,6 +442,12 @@ def test_irdl_to_attr_constraint():
     )
 
     assert irdl_to_attr_constraint(IntegerType) == BaseAttr(IntegerType)
+    # With one type arg, second default
+    assert irdl_to_attr_constraint(IntegerType[int]) == ParamAttrConstraint(
+        IntegerType,
+        (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
+    )
+    # With both type args
     assert irdl_to_attr_constraint(IntegerType[int, Signedness]) == ParamAttrConstraint(
         IntegerType,
         (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),

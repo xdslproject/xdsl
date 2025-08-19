@@ -530,6 +530,15 @@ def irdl_to_attr_constraint(
         ]
         generic_args = get_type_var_from_generic_class(cast(type, origin))
 
+        if len(args) < len(generic_args) and all(
+            arg.has_default() for arg in generic_args[len(args) :]
+        ):
+            # Check for default values
+            args += tuple(
+                irdl_to_attr_constraint(arg.__default__)
+                for arg in generic_args[len(args) :]
+            )
+
         # Check that we have the right number of parameters
         if len(args) != len(generic_args):
             raise PyRDLTypeError(
