@@ -18,5 +18,5 @@ expr_str
 
 ```python {marimo}
 
-mo.md(f"{expr_str}")
+mo.md(f"Expr String: {expr_str}")
 ```
