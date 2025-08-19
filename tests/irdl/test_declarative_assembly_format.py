@@ -51,6 +51,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
+    SameVariadicOperandSize,
     SameVariadicResultSize,
     TypedAttributeConstraint,  # pyright: ignore[reportDeprecated]
     VarConstraint,
@@ -1339,6 +1340,69 @@ def test_operands_directive_fails_with_two_var():
             assembly_format = "operands attr-dict `:` type(operands)"
 
 
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.two_var_op :",
+        "test.two_var_op %0, %1 : i32, i32",
+        "test.two_var_op %0, %1, %2, %3 : i32, i32, i32, i32",
+    ],
+)
+def test_operands_directive_works_with_two_var_and_option(program: str):
+    """
+    Test operands directive can be used with two variadic operands as long as they have
+    the same length.
+    """
+
+    @irdl_op_definition
+    class TwoVarOp(IRDLOperation):
+        name = "test.two_var_op"
+
+        res1 = var_operand_def()
+        res2 = var_operand_def()
+
+        irdl_options = [SameVariadicOperandSize()]
+
+        assembly_format = "operands attr-dict  `:` type(operands)"
+
+    ctx = Context()
+    ctx.load_op(TwoVarOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.two_var_op :",
+        "test.two_var_op %0, %1 : i32, i32",
+    ],
+)
+def test_operands_directive_works_with_two_opt_and_option(program: str):
+    """
+    Test operands directive can be used with two optional operands as long as they have
+    the same length.
+    """
+
+    @irdl_op_definition
+    class TwoVarOp(IRDLOperation):
+        name = "test.two_var_op"
+
+        res1 = var_operand_def()
+        res2 = var_operand_def()
+
+        irdl_options = [SameVariadicOperandSize()]
+
+        assembly_format = "operands attr-dict `:` type(operands)"
+
+    ctx = Context()
+    ctx.load_op(TwoVarOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+
+
 def test_operands_directive_fails_with_no_operands():
     """Test operands directive cannot be used with no operands"""
 
@@ -1825,7 +1889,15 @@ def test_results_directive_fails_with_two_var():
             assembly_format = "attr-dict `:` type(results)"
 
 
-def test_results_directive_works_with_two_var_and_option():
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.two_var_op :",
+        "%0, %1 = test.two_var_op : i32, i32",
+        "%0, %1, %2, %3 = test.two_var_op : i32, i32, i32, i32",
+    ],
+)
+def test_results_directive_works_with_two_var_and_option(program: str):
     """
     Test results directive can be used with two variadic results as long as they have
     the same length.
@@ -1846,8 +1918,38 @@ def test_results_directive_works_with_two_var_and_option():
     ctx.load_op(TwoVarOp)
     ctx.load_dialect(Test)
 
-    check_roundtrip("%0, %1 = test.two_var_op : i32, i32", ctx)
-    check_roundtrip("%0, %1, %2, %3 = test.two_var_op : i32, i32, i32, i32", ctx)
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.two_var_op :",
+        "%0, %1 = test.two_var_op : i32, i32",
+    ],
+)
+def test_results_directive_works_with_two_opt_and_option(program: str):
+    """
+    Test results directive can be used with two optional results as long as they have
+    the same length.
+    """
+
+    @irdl_op_definition
+    class TwoVarOp(IRDLOperation):
+        name = "test.two_var_op"
+
+        res1 = var_result_def()
+        res2 = var_result_def()
+
+        irdl_options = [SameVariadicResultSize()]
+
+        assembly_format = "attr-dict `:` type(results)"
+
+    ctx = Context()
+    ctx.load_op(TwoVarOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
 
 
 def test_results_directive_fails_with_no_results():

@@ -774,7 +774,8 @@ class OperandsDirective(OperandsOrResultDirective, FormatDirective):
             parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        state.print_whitespace(printer)
+        if op.operands:
+            state.print_whitespace(printer)
         printer.print_list(op.operands, printer.print_ssa_value)
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
