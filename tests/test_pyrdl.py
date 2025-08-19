@@ -452,13 +452,11 @@ def test_irdl_to_attr_constraint():
         IntegerType,
         (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
     )
-    assert irdl_to_attr_constraint(IntegerType[32, Signedness]) == ParamAttrConstraint(
+    assert irdl_to_attr_constraint(IntegerType[32]) == ParamAttrConstraint(
         IntegerType,
         (IntAttrConstraint(EqIntConstraint(32)), BaseAttr(SignednessAttr)),
     )
-    assert irdl_to_attr_constraint(
-        IntegerType[Literal[32, 64], Signedness]
-    ) == ParamAttrConstraint(
+    assert irdl_to_attr_constraint(IntegerType[Literal[32, 64]]) == ParamAttrConstraint(
         IntegerType,
         (
             IntAttrConstraint(IntSetConstraint(frozenset((32, 64)))),

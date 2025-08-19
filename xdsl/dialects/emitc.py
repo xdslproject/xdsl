@@ -23,7 +23,6 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ShapedType,
-    Signedness,
     StringAttr,
     TensorType,
     TupleType,
@@ -215,7 +214,7 @@ class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
     name = "emitc.size_t"
 
 
-EmitCIntegerType = IntegerType[Literal[1, 8, 16, 32, 64], Signedness]
+EmitCIntegerType = IntegerType[Literal[1, 8, 16, 32, 64]]
 """
 Type for integer types supported by EmitC.
 See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
