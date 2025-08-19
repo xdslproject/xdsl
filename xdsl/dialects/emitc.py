@@ -233,14 +233,12 @@ Supported floating-point type in EmitC.
 See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
 """
 
-
-def is_pointer_wide_type(type_attr: Attribute) -> bool:
-    """Check if a type is a pointer-wide type."""
-    match type_attr:
-        case EmitC_PtrDiffT() | EmitC_SignedSizeT() | EmitC_SizeT():
-            return True
-        case _:
-            return False
+EmitCPointerWideType = EmitC_PtrDiffT | EmitC_SignedSizeT | EmitC_SizeT
+EmitCPointerWideTypeConstr = irdl_to_attr_constraint(EmitCPointerWideType)
+"""
+Constraint for pointer-wide types supported by EmitC.
+These types have the same width as platform-specific pointer types.
+"""
 
 
 def is_integer_index_or_opaque_type(
@@ -256,7 +254,7 @@ def is_integer_index_or_opaque_type(
     return (
         EmitCIntegerTypeConstr.verifies(type_attr)
         or isinstance(type_attr, IndexType)
-        or is_pointer_wide_type(type_attr)
+        or EmitCPointerWideTypeConstr.verifies(type_attr)
     )
 
 
