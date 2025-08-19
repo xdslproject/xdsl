@@ -36,7 +36,7 @@ class AffineParser(BaseParser):
         """
         # Handle parentheses
         if self._parse_optional_token(MLIRTokenKind.L_PAREN):
-            expr = self.parse_affine_expr(dims, syms)
+            expr = self._parse_affine_expr(dims, syms)
             self._parse_token(MLIRTokenKind.R_PAREN, "Expected closing parenthesis")
             return expr
         # Handle bare id
@@ -100,7 +100,7 @@ class AffineParser(BaseParser):
             lhs = self._create_binop_expr(lhs, rhs, binop)
 
     # TODO: Extend to semi-affine maps
-    def parse_affine_expr(self, dims: list[str], syms: list[str]) -> AffineExpr:
+    def _parse_affine_expr(self, dims: list[str], syms: list[str]) -> AffineExpr:
         """
         affine-expr ::= `(` affine-expr `)`
                       | `-`? integer-literal
@@ -125,7 +125,7 @@ class AffineParser(BaseParser):
         """
 
         def parse_expr() -> AffineExpr:
-            return self.parse_affine_expr(dims, syms)
+            return self._parse_affine_expr(dims, syms)
 
         return self.parse_comma_separated_list(self.Delimiter.PAREN, parse_expr)
 
@@ -145,14 +145,14 @@ class AffineParser(BaseParser):
                       | affine-expr `+` affine-expr
                       | affine-expr `-` affine-expr
         """
-        lhs = self.parse_affine_expr(dims, syms)
+        lhs = self._parse_affine_expr(dims, syms)
         op = self._consume_token().text + self._consume_token().text
         if op not in set(k.value for k in AffineConstraintKind):
             self.raise_error(
                 f"Expected one of {', '.join(f'`{k.value}`' for k in AffineConstraintKind)}, got {op}."
             )
         op = AffineConstraintKind(op)
-        rhs = self.parse_affine_expr(dims, syms)
+        rhs = self._parse_affine_expr(dims, syms)
 
         return AffineConstraintExpr(op, lhs, rhs)
 

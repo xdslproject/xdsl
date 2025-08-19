@@ -1,16 +1,11 @@
 from collections import Counter
 from collections.abc import Sequence
-from typing import NamedTuple
 
 import marimo as mo
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir.affine import AffineExpr
-from xdsl.parser import AffineParser, ParserState
 from xdsl.passes import ModulePass, PassPipeline
-from xdsl.utils.lexer import Input
-from xdsl.utils.mlir_lexer import MLIRLexer
 
 
 def asm_html(asm: str) -> mo.Html:
@@ -75,28 +70,3 @@ def pipeline_html(
             )
         )
     return (ctx, res, mo.carousel(d))
-
-
-# region: Tutorial Helpers
-
-
-class Expression(NamedTuple):
-    symbols: list[str]
-    expression: AffineExpr
-
-    @staticmethod
-    def parse_symbols(text: str) -> set[str]:
-        from xdsl.utils.mlir_lexer import MLIRLexer
-
-        return set(MLIRLexer.bare_identifier_regex.findall(text))
-
-    @staticmethod
-    def parse(text: str):
-        symbols = sorted(Expression.parse_symbols(text))
-        expression = AffineParser(
-            ParserState(MLIRLexer(Input(text, "name"))),
-        ).parse_affine_expr([], symbols)
-        return Expression(symbols, expression)
-
-
-# endregion
