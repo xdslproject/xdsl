@@ -891,11 +891,9 @@ class IntegerAttr(
         return IntegerAttr(value, 1)
 
     def print_builtin(self, printer: Printer) -> None:
-        # boolean shorthands
-        if isa((ty := self.get_type()), IntegerType[1]):
-            printer.print_string("true" if self.value.data else "false")
-        else:
-            self.print_without_type(printer)
+        ty = self.type
+        printer.print_int(self.value.data, ty)
+        if ty != i1:
             printer.print_string(" : ")
             printer.print_attribute(ty)
 
