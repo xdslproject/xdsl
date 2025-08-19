@@ -36,7 +36,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    BaseAttr,
     IRDLOperation,
     ParsePropInAttrDict,
     irdl_attr_definition,
@@ -227,12 +226,8 @@ Constraint for integer types supported by EmitC.
 See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
 """
 
-EmitCFloatTypeConstr = (
-    BaseAttr(Float16Type)
-    | BaseAttr(BFloat16Type)
-    | BaseAttr(Float32Type)
-    | BaseAttr(Float64Type)
-)
+EmitCFloatType = Float16Type | BFloat16Type | Float32Type | Float64Type
+EmitCFloatTypeConstr = irdl_to_attr_constraint(EmitCFloatType)
 """
 Supported floating-point type in EmitC.
 See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
