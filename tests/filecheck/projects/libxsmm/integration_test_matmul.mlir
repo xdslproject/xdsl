@@ -59,6 +59,7 @@ func.func public @matmul(
 }
 // CHECK:       .intel_syntax noprefix
 // CHECK-NEXT:  .text
+// CHECK-NEXT:  .globl matmul
 // CHECK-NEXT:  matmul:
 // CHECK-NEXT:      mov rcx, rdi
 // CHECK-NEXT:      mov rbx, rsi
