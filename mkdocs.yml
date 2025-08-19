@@ -47,6 +47,7 @@ plugins:
     scripts:
     - scripts/gen_ref_pages.py
 - awesome-nav
+- marimo
 - mkdocstrings:
     handlers:
       python:
