@@ -42,6 +42,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_prop_def,
+    param_def,
     prop_def,
     var_operand_def,
     var_result_def,
@@ -124,7 +125,7 @@ class EmitC_ArrayType(
         Check if the element type is valid for EmitC_ArrayType.
         See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/Dialect/EmitC/IR/EmitCTypes.td#L77).
         """
-        return is_integer_index_or_opaque_type(
+        return EmitCIntegerIndexOpaqueTypeConstr.verifies(
             element_type
         ) or EmitCFloatTypeConstr.verifies(element_type)
 
@@ -240,22 +241,11 @@ Constraint for pointer-wide types supported by EmitC.
 These types have the same width as platform-specific pointer types.
 """
 
-
-def is_integer_index_or_opaque_type(
-    type_attr: Attribute,
-) -> bool:
-    """
-    Check if a type is an integer, index, or opaque type.
-
-    The emitC opaque type is not implemented yet so this function currently checks
-    only for integer and index types.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
-    """
-    return (
-        EmitCIntegerTypeConstr.verifies(type_attr)
-        or isinstance(type_attr, IndexType)
-        or EmitCPointerWideTypeConstr.verifies(type_attr)
-    )
+EmitCIntegerIndexOpaqueType = EmitCIntegerType | IndexType | EmitC_OpaqueType
+EmitCIntegerIndexOpaqueTypeConstr = irdl_to_attr_constraint(EmitCIntegerIndexOpaqueType)
+"""
+Constraint for integer, index, or opaque types supported by EmitC.
+"""
 
 
 def is_supported_emitc_type(type_attr: Attribute) -> bool:
