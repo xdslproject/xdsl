@@ -1180,7 +1180,7 @@ class OpDef:
         irdl_op_verify_regions(op, self, constraint_context)
 
         # Verify successors.
-        get_variadic_sizes(op, self, VarIRConstruct.SUCCESSOR)
+        verify_variadic_size(op, self, VarIRConstruct.SUCCESSOR)
 
         # Verify properties.
         for prop_name, attr_def in self.properties.items():
@@ -1238,6 +1238,14 @@ def get_construct_name(construct: VarIRConstruct) -> str:
             return "region"
         case VarIRConstruct.SUCCESSOR:
             return "successor"
+
+
+def get_numbered_construct_name(number: int, construct: VarIRConstruct) -> str:
+    """
+    Print a number followed by a construct name,
+    possibly making the construct name plural.
+    """
+    return f"{number} {get_construct_name(construct)}{'' if number == 1 else 's'}"
 
 
 def get_construct_defs(
@@ -1324,15 +1332,11 @@ def get_multiple_variadic_options(
     return [get_same_variadic_size_option(construct), get_attr_size_option(construct)]
 
 
-def get_variadic_sizes_from_attr(
-    op: Operation,
-    defs: Sequence[tuple[str, OperandDef | ResultDef | RegionDef | SuccessorDef]],
-    construct: VarIRConstruct,
-    option: AttrSizedSegments,
-) -> list[int]:
+def verify_variadic_attr_size(
+    op: Operation, op_def: OpDef, construct: VarIRConstruct, option: AttrSizedSegments
+):
     """
-    Get the sizes of the variadic definitions
-    from the corresponding attribute.
+    Verify the number of 'construct' is valid, obtaining sizes from an attribute.
     """
     # Circular import because DenseArrayBase is defined using IRDL
     from xdsl.dialects.builtin import DenseArrayBase, i32
@@ -1352,6 +1356,7 @@ def get_variadic_sizes_from_attr(
             "to be a DenseArrayBase of i32."
         )
 
+    defs = get_construct_defs(op_def, construct)
     def_sizes = attribute.get_values()
 
     if len(def_sizes) != len(defs):
@@ -1360,92 +1365,72 @@ def get_variadic_sizes_from_attr(
             f"{option.attribute_name}, but got {len(def_sizes)}"
         )
 
-    variadic_sizes = list[int]()
-    for (arg_name, arg_def), arg_size in zip(defs, def_sizes):
-        if isinstance(arg_def, OptionalDef) and arg_size > 1:
-            raise VerifyException(
-                f"optional {get_construct_name(construct)} {arg_name} is expected to "
-                f"be of size 0 or 1 in {option.attribute_name}, but got "
-                f"{arg_size}"
-            )
-
-        if not isinstance(arg_def, VariadicDef) and arg_size != 1:
-            raise VerifyException(
-                f"non-variadic {get_construct_name(construct)} {arg_name} is expected "
-                f"to be of size 1 in {option.attribute_name}, but got {arg_size}"
-            )
-
-        if isinstance(arg_def, VariadicDef):
-            variadic_sizes.append(arg_size)
-
-    return variadic_sizes
+    for l, (name, d) in zip(def_sizes, defs):
+        if isinstance(d, OptionalDef) and l not in (0, 1):
+            raise VerifyException(f"expected 0 or 1 values for {name}, but got {l}")
+        if not isinstance(d, VariadicDef) and l != 1:
+            raise VerifyException(f"expected 1 value for {name}, but got {l}")
 
 
-def get_variadic_sizes(
-    op: Operation, op_def: OpDef, construct: VarIRConstruct
-) -> list[int]:
-    """Get variadic sizes of operands or results."""
-
+def verify_variadic_same_size(length: int, op_def: OpDef, construct: VarIRConstruct):
+    """
+    Verify the number of 'construct' is valid, assuming all variadics have the same size.
+    """
     defs = get_construct_defs(op_def, construct)
-    args = get_op_constructs(op, construct)
-    def_type_name = get_construct_name(construct)
-    attribute_option = get_attr_size_option(construct)
-    same_size_option = get_same_variadic_size_option(construct)
+    variadic_defs = tuple(d for _, d in defs if isinstance(d, VariadicDef))
+    has_optional = any(isinstance(d, OptionalDef) for d in variadic_defs)
 
-    variadic_defs = [
-        (arg_name, arg_def)
-        for arg_name, arg_def in defs
-        if isinstance(arg_def, VariadicDef)
-    ]
+    # If there are no variadics arguments,
+    # we just check that we have the right number of arguments
+    if not variadic_defs:
+        if length != len(defs):
+            raise VerifyException(
+                f"Expected {get_numbered_construct_name(len(defs), construct)}, but got {length}"
+            )
+
+    # If there is an optional argument they must all be empty or all be singletons
+    elif has_optional:
+        if length not in (len(defs), len(defs) - len(variadic_defs)):
+            raise VerifyException(
+                f"Expected {len(defs) - len(variadic_defs)} or {len(defs)} {get_construct_name(construct)}s, but got {length}"
+            )
+
+    # Otherwise they must all have the same size.
+    else:
+        # There must be enough arguments
+        if length < len(defs) - len(variadic_defs):
+            raise VerifyException(
+                f"Expected at least {get_numbered_construct_name(len(defs) - len(variadic_defs), construct)}, "
+                f"but got {length}"
+            )
+        # And the (variadic) arguments must be able to be split evenly between the definitions.
+        if (length - len(defs)) % len(variadic_defs):
+            raise VerifyException(
+                f"Operation has {get_numbered_construct_name(length - len(defs) + len(variadic_defs), construct)} "
+                f"for {len(variadic_defs)} variadic {get_construct_name(construct)}s marked as having the same size."
+            )
+
+
+def verify_variadic_size(op: Operation, op_def: OpDef, construct: VarIRConstruct):
+    """
+    Verify the number of 'construct' is valid, given the number and type of variadic definitions.
+    """
+    attribute_option = get_attr_size_option(construct)
 
     # If the size is in the attributes, fetch it
     option = next((o for o in op_def.options if isinstance(o, attribute_option)), None)
     if option is not None:
-        return get_variadic_sizes_from_attr(
-            op,
-            defs,
-            construct,
-            option,
+        verify_variadic_attr_size(op, op_def, construct, option)
+    else:
+        verify_variadic_same_size(
+            len(get_op_constructs(op, construct)), op_def, construct
         )
-
-    # If there are no variadics arguments,
-    # we just check that we have the right number of arguments
-    if len(variadic_defs) == 0:
-        if len(args) != len(defs):
-            raise VerifyException(
-                f"Expected {len(defs)} {def_type_name}, but got {len(args)}"
-            )
-        return []
-
-    # If there is a single variadic argument,
-    # we can get its size from the number of arguments.
-    if len(variadic_defs) == 1:
-        if len(args) - len(defs) + 1 < 0:
-            raise VerifyException(
-                f"Expected at least {len(defs) - 1} {def_type_name}s, got {len(defs)}"
-            )
-        return [len(args) - len(defs) + 1]
-
-    # If the operation has to related SameSize option, equally distribute the
-    # variadic arguments between the variadic definitions.
-    option = next((o for o in op_def.options if isinstance(o, same_size_option)), None)
-
-    assert option is not None, "Unexpected xDSL error while fetching variadic sizes"
-
-    non_variadic_defs = len(defs) - len(variadic_defs)
-    variadic_args = len(args) - non_variadic_defs
-    if variadic_args % len(variadic_defs):
-        name = get_construct_name(construct)
-        raise VerifyException(
-            f"Operation has {variadic_args} {name}s for {len(variadic_defs)} variadic {name}s marked as having the same size."
-        )
-    return [variadic_args // len(variadic_defs)] * len(variadic_defs)
 
 
 def irdl_op_verify_regions(
     op: Operation, op_def: OpDef, constraint_context: ConstraintContext
 ):
-    get_variadic_sizes(op, op_def, VarIRConstruct.REGION)
+    verify_variadic_size(op, op_def, VarIRConstruct.REGION)
     for i, (region, (name, region_def)) in enumerate(zip(op.regions, op_def.regions)):
         if isinstance(region_def, SingleBlockRegionDef) and len(region.blocks) != 1:
             raise VerifyException(
@@ -1469,7 +1454,7 @@ def irdl_op_verify_arg_list(
     constraint_context: ConstraintContext,
 ) -> None:
     """Verify the argument list of an operation."""
-    get_variadic_sizes(op, op_def, construct)
+    verify_variadic_size(op, op_def, construct)
     defs = op_def.operands if construct == VarIRConstruct.OPERAND else op_def.results
 
     idx = 0
@@ -1774,6 +1759,9 @@ def irdl_op_init(
     )
 
 
+_Construct = TypeVar("_Construct")
+
+
 @dataclass(frozen=True)
 class BaseAccessor(ABC):
     """
@@ -1789,7 +1777,9 @@ class BaseAccessor(ABC):
     """
 
     @abstractmethod
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(
+        self, args: Sequence[_Construct]
+    ) -> _Construct | Sequence[_Construct] | None:
         """Index the sequence of all operands/results/etc., returning the correct elements/slice."""
         ...
 
@@ -1804,7 +1794,7 @@ class BeforeVariadicSingleAccessor(BaseAccessor):
     Access a non-variadic construct which appears before any variadic arguments.
     """
 
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> _Construct:
         return args[self.idx]
 
 
@@ -1817,7 +1807,7 @@ class AfterVariadicSingleAccessor(BaseAccessor):
     num_defs: int
     """Number of accessors for this construct type."""
 
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> _Construct:
         return args[-self.num_defs + self.idx]
 
 
@@ -1834,7 +1824,7 @@ class SameOptionalAccessor(BaseAccessor):
     num_defs: int
     """Number of accessors for this construct type."""
 
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> _Construct | None:
         if len(args) == self.num_defs:
             return args[self.idx]
         return None
@@ -1849,12 +1839,22 @@ class UniqueVariadicAccessor(BaseAccessor):
     num_defs: int
     """Number of accessors for this construct type."""
 
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> Sequence[_Construct]:
         return args[self.idx : self.idx + len(args) - self.num_defs + 1]
 
 
 @dataclass(frozen=True)
-class SameVariadicAccessor(BaseAccessor):
+class SameVariadicBaseAccessor(BaseAccessor, ABC):
+    num_defs: int
+    """Number of accessors for this construct type."""
+    num_variadics: int
+    """Number of variadic accessors for this construct type."""
+    variadics_encountered: int
+    """Number of variadic accessors for this construct type which appear before this one."""
+
+
+@dataclass(frozen=True)
+class SameVariadicAccessor(SameVariadicBaseAccessor):
     """
     Access a variadic construct in the case where all variadics have the same size.
 
@@ -1863,14 +1863,7 @@ class SameVariadicAccessor(BaseAccessor):
     number of variadic arguments.
     """
 
-    num_defs: int
-    """Number of accessors for this construct type."""
-    num_variadics: int
-    """Number of variadic accessors for this construct type."""
-    variadics_encountered: int
-    """Number of variadic accessors for this construct type which appear before this one."""
-
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> Sequence[_Construct]:
         variadic_diff = (len(args) - self.num_defs) // self.num_variadics
         start = self.idx + self.variadics_encountered * variadic_diff
         end = start + 1 + variadic_diff
@@ -1878,12 +1871,12 @@ class SameVariadicAccessor(BaseAccessor):
 
 
 @dataclass(frozen=True)
-class SameVariadicSingleAccessor(SameVariadicAccessor):
+class SameVariadicSingleAccessor(SameVariadicBaseAccessor):
     """
     Access a non-variadic construct in the case where all variadics have the same size.
     """
 
-    def index(self, args: Sequence[Any]) -> Any:
+    def index(self, args: Sequence[_Construct]) -> _Construct:
         variadic_diff = (len(args) - self.num_defs) // self.num_variadics
         start = self.idx + self.variadics_encountered * variadic_diff
         return args[start]
