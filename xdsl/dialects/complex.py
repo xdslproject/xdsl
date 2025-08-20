@@ -5,32 +5,32 @@ from typing import ClassVar, cast
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyFloatConstr,
     ArrayAttr,
+    ArrayOfConstraint,
     ComplexType,
-    FloatAttr,
     IntegerType,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
+    EqIntConstraint,
     IRDLOperation,
+    RangeOf,
     VarConstraint,
-    base,
     irdl_op_definition,
     operand_def,
     prop_def,
     result_def,
     traits_def,
 )
-from xdsl.traits import ConstantLike, Pure, SameOperandsAndResultType
+from xdsl.traits import ConstantLike, Pure
 from xdsl.utils.exceptions import VerifyException
 
-# Type constraint for our new ComplexType
-ComplexTypeConstr = base(ComplexType)
+ComplexTypeConstr = ComplexType.constr(AnyFloat)
 
 
-class ComplexUnaryOp(IRDLOperation, abc.ABC):
+class ComplexUnaryComplexResultOperation(IRDLOperation, abc.ABC):
     """Base class for unary operations on complex numbers."""
 
     T: ClassVar = VarConstraint("T", ComplexTypeConstr)
@@ -38,7 +38,7 @@ class ComplexUnaryOp(IRDLOperation, abc.ABC):
     result = result_def(T)
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
 
-    traits = traits_def(Pure(), SameOperandsAndResultType())
+    traits = traits_def(Pure())
 
     assembly_format = (
         "$complex (`fastmath` `` $fastmath^)? attr-dict `:` type($complex)"
@@ -57,7 +57,7 @@ class ComplexUnaryOp(IRDLOperation, abc.ABC):
         )
 
 
-class ComplexUnaryRealResultOp(IRDLOperation, abc.ABC):
+class ComplexUnaryRealResultOperation(IRDLOperation, abc.ABC):
     """Base class for unary operations on complex numbers that return a float."""
 
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
@@ -122,12 +122,6 @@ class ComplexBinaryOp(IRDLOperation, abc.ABC):
             properties={"fastmath": fastmath},
         )
 
-    def verify_(self):
-        if self.lhs.type != self.rhs.type:
-            raise VerifyException("lhs and rhs of binary op must have the same type")
-        if self.lhs.type != self.result.type:
-            raise VerifyException("result type must match operand types")
-
 
 class ComplexCompareOp(IRDLOperation, abc.ABC):
     """Base class for comparison operations on complex numbers."""
@@ -144,13 +138,9 @@ class ComplexCompareOp(IRDLOperation, abc.ABC):
     def __init__(self, lhs: SSAValue | Operation, rhs: SSAValue | Operation):
         super().__init__(operands=[lhs, rhs], result_types=[IntegerType(1)])
 
-    def verify_(self):
-        if self.lhs.type != self.rhs.type:
-            raise VerifyException("lhs and rhs of compare op must have the same type")
-
 
 @irdl_op_definition
-class AbsOp(ComplexUnaryRealResultOp):
+class AbsOp(ComplexUnaryRealResultOperation):
     name = "complex.abs"
 
 
@@ -160,7 +150,7 @@ class AddOp(ComplexBinaryOp):
 
 
 @irdl_op_definition
-class AngleOp(ComplexUnaryRealResultOp):
+class AngleOp(ComplexUnaryRealResultOperation):
     name = "complex.angle"
 
 
@@ -172,8 +162,8 @@ class Atan2Op(ComplexBinaryOp):
 @irdl_op_definition
 class BitcastOp(IRDLOperation):
     name = "complex.bitcast"
-    operand = operand_def(AnyAttr())
-    result = result_def(AnyAttr())
+    operand = operand_def()
+    result = result_def()
 
     traits = traits_def(Pure())
 
@@ -184,15 +174,20 @@ class BitcastOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ConjOp(ComplexUnaryOp):
+class ConjOp(ComplexUnaryComplexResultOperation):
     name = "complex.conj"
 
 
 @irdl_op_definition
 class ConstantOp(IRDLOperation):
     name = "complex.constant"
-    value = prop_def(ArrayAttr)
-    complex = result_def(ComplexTypeConstr)
+    value = prop_def(
+        ArrayOfConstraint(RangeOf(ComplexTypeConstr).of_length(EqIntConstraint(2)))
+    )
+
+    # In contrast to other operations, `complex.constant` can
+    # have any complex result type, not just floating point:
+    complex = result_def(ComplexType.constr())
 
     traits = traits_def(Pure(), ConstantLike())
 
@@ -201,19 +196,9 @@ class ConstantOp(IRDLOperation):
     def __init__(self, value: ArrayAttr, result_type: ComplexType):
         super().__init__(properties={"value": value}, result_types=[result_type])
 
-    def verify_(self):
-        if len(self.value.data) != 2:
-            raise VerifyException("complex.constant must have an array of 2 values")
-        elem_type = self.complex.type.element_type
-        # TODO: this check might be wrong, x can be something other than float?
-        if any(cast(FloatAttr, x).type != elem_type for x in self.value.data):
-            raise VerifyException(
-                "complex.constant value types must match the complex element type"
-            )
-
 
 @irdl_op_definition
-class CosOp(ComplexUnaryOp):
+class CosOp(ComplexUnaryComplexResultOperation):
     name = "complex.cos"
 
 
@@ -237,19 +222,6 @@ class CreateOp(IRDLOperation):
     ):
         super().__init__(operands=[real, imaginary], result_types=[result_type])
 
-    def verify_(self):
-        real_type = self.real.type
-        imag_type = self.imaginary.type
-        if real_type != imag_type:
-            raise VerifyException(
-                "real and imaginary parts of complex.create must have the same type"
-            )
-        complex_element_type = self.complex.type.element_type
-        if real_type != complex_element_type:
-            raise VerifyException(
-                "operands of complex.create must match the element type of the result"
-            )
-
 
 @irdl_op_definition
 class DivOp(ComplexBinaryOp):
@@ -262,27 +234,27 @@ class EqualOp(ComplexCompareOp):
 
 
 @irdl_op_definition
-class ExpOp(ComplexUnaryOp):
+class ExpOp(ComplexUnaryComplexResultOperation):
     name = "complex.exp"
 
 
 @irdl_op_definition
-class Expm1Op(ComplexUnaryOp):
+class Expm1Op(ComplexUnaryComplexResultOperation):
     name = "complex.expm1"
 
 
 @irdl_op_definition
-class ImOp(ComplexUnaryRealResultOp):
+class ImOp(ComplexUnaryRealResultOperation):
     name = "complex.im"
 
 
 @irdl_op_definition
-class LogOp(ComplexUnaryOp):
+class LogOp(ComplexUnaryComplexResultOperation):
     name = "complex.log"
 
 
 @irdl_op_definition
-class Log1pOp(ComplexUnaryOp):
+class Log1pOp(ComplexUnaryComplexResultOperation):
     name = "complex.log1p"
 
 
@@ -292,7 +264,7 @@ class MulOp(ComplexBinaryOp):
 
 
 @irdl_op_definition
-class NegOp(ComplexUnaryOp):
+class NegOp(ComplexUnaryComplexResultOperation):
     name = "complex.neg"
 
 
@@ -307,27 +279,27 @@ class PowOp(ComplexBinaryOp):
 
 
 @irdl_op_definition
-class ReOp(ComplexUnaryRealResultOp):
+class ReOp(ComplexUnaryRealResultOperation):
     name = "complex.re"
 
 
 @irdl_op_definition
-class RsqrtOp(ComplexUnaryOp):
+class RsqrtOp(ComplexUnaryComplexResultOperation):
     name = "complex.rsqrt"
 
 
 @irdl_op_definition
-class SignOp(ComplexUnaryOp):
+class SignOp(ComplexUnaryComplexResultOperation):
     name = "complex.sign"
 
 
 @irdl_op_definition
-class SinOp(ComplexUnaryOp):
+class SinOp(ComplexUnaryComplexResultOperation):
     name = "complex.sin"
 
 
 @irdl_op_definition
-class SqrtOp(ComplexUnaryOp):
+class SqrtOp(ComplexUnaryComplexResultOperation):
     name = "complex.sqrt"
 
 
@@ -337,12 +309,12 @@ class SubOp(ComplexBinaryOp):
 
 
 @irdl_op_definition
-class TanOp(ComplexUnaryOp):
+class TanOp(ComplexUnaryComplexResultOperation):
     name = "complex.tan"
 
 
 @irdl_op_definition
-class TanhOp(ComplexUnaryOp):
+class TanhOp(ComplexUnaryComplexResultOperation):
     name = "complex.tanh"
 
 
