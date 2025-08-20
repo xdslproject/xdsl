@@ -866,18 +866,18 @@ class IntegerAttr(
 
     @overload
     def __init__(
-        self: IntegerAttr[IntegerType[IntCovT, Literal[Signedness.SIGNLESS]]],
+        self,
         value: int | IntAttr,
-        value_type: IntCovT,
+        value_type: _IntegerAttrType,
         *,
         truncate_bits: bool = False,
     ) -> None: ...
 
     @overload
     def __init__(
-        self,
+        self: IntegerAttr[IntegerType[IntCovT, Literal[Signedness.SIGNLESS]]],
         value: int | IntAttr,
-        value_type: _IntegerAttrType,
+        value_type: IntCovT,
         *,
         truncate_bits: bool = False,
     ) -> None: ...
