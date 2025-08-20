@@ -2322,6 +2322,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pulp"
+version = "3.2.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/4f/11cfa283228b5f259bcfc913f731f7c6f68748d26711594e14cf2cb5e39a/pulp-3.2.2.tar.gz", hash = "sha256:389a6ff1dc34ec4b093f34f7a9fa3553743ff0ea99b2a423e9f0dd16940f63d2", size = 16299367, upload-time = "2025-07-29T11:42:04.109Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/8d/a6a9d58c929a869f7f1b99b3d37b3f14ef63e2826eef581416338d686c3f/pulp-3.2.2-py3-none-any.whl", hash = "sha256:d3ca5ff11a28b3e7b2508a992d7e51f3533471d89305f0560b5fe3b6cc821043", size = 16385354, upload-time = "2025-07-29T11:42:01.829Z" },
+]
+
+[[package]]
 name = "pure-eval"
 version = "0.2.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3600,8 +3609,10 @@ wheels = [
 name = "xdsl"
 source = { editable = "." }
 dependencies = [
+    { name = "highspy" },
     { name = "immutabledict" },
     { name = "ordered-set" },
+    { name = "pulp" },
     { name = "typing-extensions" },
 ]
 
@@ -3674,6 +3685,7 @@ requires-dist = [
     { name = "numpy", marker = "extra == 'jax'", specifier = "==2.2.6" },
     { name = "ordered-set", specifier = "==4.1.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.0,<5.0.0" },
+    { name = "pulp", extras = ["highs"], specifier = ">=3.2.2" },
     { name = "pyclip", marker = "extra == 'gui'", specifier = "==0.7" },
     { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.403" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "<8.5" },

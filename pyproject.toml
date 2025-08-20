@@ -10,6 +10,8 @@ dependencies = [
     "immutabledict<4.2.2",
     "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
+    "pulp[highs]>=3.2.2",
+    "highspy>=1.11.0",
 ]
 dynamic = ["version"]
 
@@ -113,7 +115,7 @@ reportUnnecessaryTypeIgnoreComment = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests", "benchmarks"]
-"exclude" = ["docs/marimo"]
+"exclude" = ["docs/marimo", "xdsl/transforms/pyo_typed.py"]
 
 [tool.ruff]
 target-version = "py310"
