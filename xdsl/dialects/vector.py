@@ -1324,43 +1324,6 @@ class ReductionOp(IRDLOperation):
             properties={"kind": CombiningKindAttr([kind])},
         )
 
-    # @classmethod
-    # def parse(cls, parser: Parser):
-    #     parser.parse_characters("<")
-    #     kind = parser.parse_str_enum(CombiningKindFlag)
-    #     parser.parse_characters(">")
-    #     parser.parse_characters(",")
-
-    #     vector = parser.parse_unresolved_operand()
-
-    #     if parser.parse_optional_characters(",") is not None:
-    #         acc = parser.parse_unresolved_operand()
-    #     else:
-    #         acc = None
-
-    #     parser.parse_characters(":")
-    #     vector_type = parser.parse_type()
-    #     parser.parse_characters("into")
-    #     result_type = parser.parse_type()
-
-    #     return ReductionOp(
-    #         vector=parser.resolve_operand(vector, vector_type),
-    #         kind=kind,
-    #         result_type=result_type,
-    #         acc=parser.resolve_operand(acc, result_type) if acc is not None else None,
-    #     )
-
-    # def print(self, printer: Printer):
-    #     printer.print_string(" <")
-    #     printer.print(f"{self.kind.data[0]}")
-    #     printer.print(">, ", self.vector)
-    #     if self.acc is not None:
-    #         printer.print_string(", ", indent=0)
-    #         printer.print(self.acc)
-    #     printer.print_op_attributes(self.attributes)
-    #     printer.print_string(" : ", indent=0)
-    #     printer.print(self.vector.type, " into ", self.result.type)
-
 
 Vector = Dialect(
     "vector",
@@ -1381,5 +1344,7 @@ Vector = Dialect(
         TransferWriteOp,
         ReductionOp,
     ],
-    [CombiningKindAttr],
+    [
+        CombiningKindAttr,
+    ],
 )
