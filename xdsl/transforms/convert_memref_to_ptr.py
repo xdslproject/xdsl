@@ -22,28 +22,35 @@ from xdsl.utils.hints import isa
 _index_type = builtin.IndexType()
 
 
-def get_offset_pointer(
-    offset_in_indices: SSAValue,
-    pointer: SSAValue,
-    element_type: Attribute,
-    builder: Builder,
+def get_bytes_offset(
+    elements_offset: SSAValue, element_type: Attribute, builder: Builder
 ) -> SSAValue:
     """
-    Returns the offset in indices scaled by the size of element_type.
+    Returns the offset in bytes given an offset in elements and the element type.
     """
     bytes_per_element_op = builder.insert_op(
         ptr.TypeOffsetOp(element_type, _index_type)
     )
-    final_offset = builder.insert_op(
-        arith.MuliOp(offset_in_indices, bytes_per_element_op)
+    bytes_offset = builder.insert_op(
+        arith.MuliOp(elements_offset, bytes_per_element_op)
     )
-    target_ptr = builder.insert_op(ptr.PtrAddOp(pointer, final_offset.result))
-
     bytes_per_element_op.offset.name_hint = "bytes_per_element"
-    final_offset.result.name_hint = "scaled_pointer_offset"
+    bytes_offset.result.name_hint = "scaled_pointer_offset"
+
+    return bytes_offset.result
+
+
+def get_offset_pointer(
+    pointer: SSAValue,
+    bytes_offset: SSAValue,
+    builder: Builder,
+) -> SSAValue:
+    """
+    Returns the pointer scaled by an offset in bytes.
+    """
+    target_ptr = builder.insert_op(ptr.PtrAddOp(pointer, bytes_offset))
     target_ptr.result.name_hint = "offset_pointer"
-    pointer = target_ptr.result
-    return pointer
+    return target_ptr.result
 
 
 def get_target_ptr(
@@ -124,7 +131,8 @@ def get_target_ptr(
             head = add_op.result
 
     if head is not None:
-        pointer = get_offset_pointer(head, pointer, memref_type.element_type, builder)
+        offset = get_bytes_offset(head, memref_type.element_type, builder)
+        pointer = get_offset_pointer(pointer, offset, builder)
 
     return pointer
 
