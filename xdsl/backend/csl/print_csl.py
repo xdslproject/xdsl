@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import IO, Literal
+from typing import IO, Literal, cast
 
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
@@ -389,12 +389,11 @@ class CslPrintContext:
             case IntegerType(width=IntAttr(1)):
                 return "bool"
             case IntegerType(
-                width=IntAttr(data=width),
                 signedness=SignednessAttr(data=Signedness.UNSIGNED),
             ):
-                return f"u{width}"
-            case IntegerType(width=IntAttr(data=width)):
-                return f"i{width}"
+                return f"u{cast(IntegerType, type_attr).width.data}"
+            case IntegerType():
+                return f"i{cast(IntegerType, type_attr).width.data}"
             case MemRefType(element_type=Attribute() as elem_t, shape=shape):
                 if any(dim.data == -1 for dim in shape):
                     raise ValueError(
@@ -438,11 +437,9 @@ class CslPrintContext:
         and converts it to a csl expression representing that value literal (0, 3.14, ...)
         """
         match attr:
-            case IntAttr(data=val):
-                return str(val)
-            case IntegerAttr(
-                value=val, type=IntegerType(width=IntAttr(data=width))
-            ) if width == 1:
+            case IntAttr():
+                return str(cast(IntAttr[int], attr).data)
+            case IntegerAttr(value=val, type=IntegerType(width=IntAttr(data=1))):
                 return str(bool(val.data)).lower()
             case IntegerAttr(value=val):
                 return str(val.data)

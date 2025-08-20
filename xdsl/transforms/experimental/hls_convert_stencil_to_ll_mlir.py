@@ -149,7 +149,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             func_arg_elem_type = func_arg.type
 
         # add_pragma_interface(func_arg, op.attributes["inout"].data, op.parent_op())
-        assert isinstance(op.attributes["inout"], IntAttr)
+        assert isa(op.attributes["inout"], IntAttr)
         inout = op.attributes["inout"].data
 
         if op.attributes["inout"].data is OUT:
@@ -570,7 +570,7 @@ class ApplyOpToHLS(RewritePattern):
         for _operand in apply_clone.operands:
             assert isinstance(_operand, BlockArgument) or isinstance(_operand, OpResult)
             if isinstance(_operand, OpResult) and isinstance(_operand.op, HLSStreamOp):
-                assert isinstance(_operand.op.attributes["inout"], IntAttr)
+                assert isa(_operand.op.attributes["inout"], IntAttr)
                 if (
                     "stencil" in _operand.op.attributes
                     and _operand.op.attributes["inout"].data is IN

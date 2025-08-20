@@ -47,3 +47,8 @@ h2 {
     background: var(--md-primary-fg-color);
   }
 }
+
+/* Disable marimo spinners */
+.animate-delayed-show-200 {
+  visibility: hidden}
+}

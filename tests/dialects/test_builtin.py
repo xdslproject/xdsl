@@ -1,6 +1,7 @@
 import math
 import re
 from collections.abc import Sequence
+from io import StringIO
 
 import pytest
 from typing_extensions import TypeVar
@@ -25,6 +26,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntAttr,
+    IntAttrConstraint,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -50,14 +52,18 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data
 from xdsl.irdl import (
+    AnyInt,
+    AtMost,
     BaseAttr,
     ConstraintContext,
+    RangeLengthConstraint,
     RangeOf,
     RangeVarConstraint,
     TypeVarConstraint,
     eq,
     irdl_attr_definition,
 )
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -241,6 +247,42 @@ def test_IntAttr___bool__():
 def test_BoolAttr___bool__():
     assert not BoolAttr.from_bool(False)
     assert BoolAttr.from_bool(True)
+
+
+@pytest.mark.parametrize(
+    "expected, value, type",
+    [
+        ("true", -1, IntegerType(1)),
+        ("false", 0, IntegerType(1)),
+        ("true", True, IntegerType(1)),
+        ("false", False, IntegerType(1)),
+        ("-1 : si1", -1, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("0 : si1", 0, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("-1 : si1", True, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("0 : si1", False, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("1 : ui1", -1, IntegerType(1, signedness=Signedness.UNSIGNED)),
+        ("0 : ui1", 0, IntegerType(1, signedness=Signedness.UNSIGNED)),
+        ("1 : ui1", True, IntegerType(1, signedness=Signedness.UNSIGNED)),
+        ("0 : ui1", False, IntegerType(1, signedness=Signedness.UNSIGNED)),
+        ("-1 : i32", -1, IntegerType(32)),
+        ("0 : i32", 0, IntegerType(32)),
+        ("1 : i32", True, IntegerType(32)),
+        ("0 : i32", False, IntegerType(32)),
+        ("-1 : si32", -1, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("0 : si32", 0, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("1 : si32", True, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("0 : si32", False, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("-1 : index", -1, IndexType()),
+        ("0 : index", 0, IndexType()),
+        ("1 : index", True, IndexType()),
+        ("0 : index", False, IndexType()),
+    ],
+)
+def test_print_integer_attr(expected: str, value: int, type: IntegerType | IndexType):
+    printer = Printer()
+    printer.stream = StringIO()
+    IntegerAttr(value, type, truncate_bits=True).print_builtin(printer)
+    assert printer.stream.getvalue() == expected
 
 
 def test_IntegerType_packing():
@@ -493,6 +535,39 @@ def test_DenseIntOrFPElementsAttr_values():
         complex_i32_attr.get_attrs()
     with pytest.raises(NotImplementedError):
         complex_i32_attr.iter_attrs()
+
+
+def test_tensor_constr():
+    # int32 constraint
+    constr = TensorType.constr(i32)
+    constr.verify(TensorType(i32, [1]), ConstraintContext())
+    constr.verify(TensorType(i32, [1, 2]), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(TensorType(i64, [1]), ConstraintContext())
+
+    # int32 constraint with shape (1,)
+    shape = ArrayAttr([IntAttr(1)])
+    constr = TensorType.constr(i32, shape)
+    constr.verify(TensorType(i32, shape), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(TensorType(i32, [1, 2]), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(TensorType(i64, [1]), ConstraintContext())
+
+    # int32 constraint with rank <= 3
+    shape = ArrayOfConstraint(
+        RangeLengthConstraint(
+            constraint=RangeOf(IntAttrConstraint(AnyInt())), length=AtMost(3)
+        )
+    )
+    constr = TensorType.constr(i32, shape)
+    constr.verify(TensorType(i32, [50]), ConstraintContext())
+    constr.verify(TensorType(i32, [50, 1000]), ConstraintContext())
+    constr.verify(TensorType(i32, [50, 1000, 2]), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(TensorType(i32, [50, 1000, 2, 4]), ConstraintContext())
+    with pytest.raises(VerifyException):
+        constr.verify(TensorType(i64, [50, 1000]), ConstraintContext())
 
 
 @pytest.mark.parametrize(
@@ -828,6 +903,34 @@ def test_dense_array_constr():
     assert not constr.verifies(DenseArrayBase.from_list(i32, [1, 2, 3]))
     assert not constr.verifies(DenseArrayBase.from_list(i64, [1, 2, 3]))
     assert constr.verifies(DenseArrayBase.from_list(f32, [1.0, 2.0, 3.0]))
+
+
+def test_shaped_type_has_static_shape():
+    """Test ShapedType.has_static_shape() method for all shaped types."""
+
+    # Test TensorType
+    static_tensor = TensorType(i32, [3, 4])
+    assert static_tensor.has_static_shape() is True
+
+    scalar_tensor = TensorType(f64, [])
+    assert scalar_tensor.has_static_shape() is True
+
+    dynamic_tensor = TensorType(f32, [3, -1])
+    assert dynamic_tensor.has_static_shape() is False
+
+    # Test VectorType
+    static_vector = VectorType(i32, [8])
+    assert static_vector.has_static_shape() is True
+
+    dynamic_vector = VectorType(f32, [4, -1])
+    assert dynamic_vector.has_static_shape() is False
+
+    # Test MemRefType
+    static_memref = MemRefType(i64, [8, 16])
+    assert static_memref.has_static_shape() is True
+
+    dynamic_memref = MemRefType(i32, [-1])
+    assert dynamic_memref.has_static_shape() is False
 
 
 ################################################################################

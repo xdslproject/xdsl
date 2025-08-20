@@ -8,7 +8,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
 from collections.abc import Iterable, Sequence
-from typing import cast
+from typing import Literal, cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -40,6 +40,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     opt_prop_def,
     prop_def,
     var_operand_def,
@@ -52,8 +53,100 @@ from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
+class EmitC_OpaqueType(ParametrizedAttribute, TypeAttribute):
+    """EmitC opaque type"""
+
+    name = "emitc.opaque"
+    value: StringAttr
+
+    def verify(self) -> None:
+        if not self.value.data:
+            raise VerifyException("expected non empty string in !emitc.opaque type")
+        if self.value.data[-1] == "*":
+            raise VerifyException(
+                "pointer not allowed as outer type with !emitc.opaque, use !emitc.ptr instead"
+            )
+
+
+@irdl_attr_definition
+class EmitC_PtrDiffT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC signed pointer diff type.
+    Signed data type as wide as platform-specific pointer types. In particular, it is as wide as emitc.size_t.
+    It corresponds to ptrdiff_t found in <stddef.h>.
+    """
+
+    name = "emitc.ptrdiff_t"
+
+
+@irdl_attr_definition
+class EmitC_SignedSizeT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC signed size type.
+    Data type representing all values of emitc.size_t, plus -1. It corresponds to ssize_t found in <sys/types.h>.
+    Use of this type causes the code to be non-C99 compliant.
+    """
+
+    name = "emitc.ssize_t"
+
+
+@irdl_attr_definition
+class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
+    """
+    EmitC unsigned size type.
+    Unsigned data type as wide as platform-specific pointer types. It corresponds to size_t found in <stddef.h>.
+    """
+
+    name = "emitc.size_t"
+
+
+EmitCIntegerType = IntegerType[Literal[1, 8, 16, 32, 64]]
+"""
+Type for integer types supported by EmitC.
+See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
+"""
+
+EmitCIntegerTypeConstr = irdl_to_attr_constraint(EmitCIntegerType)
+"""
+Constraint for integer types supported by EmitC.
+See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
+"""
+
+EmitCFloatType = Float16Type | BFloat16Type | Float32Type | Float64Type
+EmitCFloatTypeConstr = irdl_to_attr_constraint(EmitCFloatType)
+"""
+Supported floating-point type in EmitC.
+See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
+"""
+
+EmitCPointerWideType = EmitC_PtrDiffT | EmitC_SignedSizeT | EmitC_SizeT
+EmitCPointerWideTypeConstr = irdl_to_attr_constraint(EmitCPointerWideType)
+"""
+Constraint for pointer-wide types supported by EmitC.
+These types have the same width as platform-specific pointer types.
+"""
+
+EmitCIntegerIndexOpaqueType = EmitCIntegerType | IndexType | EmitC_OpaqueType
+EmitCIntegerIndexOpaqueTypeConstr = irdl_to_attr_constraint(EmitCIntegerIndexOpaqueType)
+"""
+Constraint for integer, index, or opaque types supported by EmitC.
+"""
+
+EmitCArrayElementType = (
+    EmitCIntegerIndexOpaqueType | EmitCFloatType | EmitCPointerWideType
+)
+EmitCArrayElementTypeConstr = irdl_to_attr_constraint(EmitCArrayElementType)
+"""
+Constraint for valid element types in EmitC arrays.
+"""
+
+
+@irdl_attr_definition
 class EmitC_ArrayType(
-    ParametrizedAttribute, TypeAttribute, ShapedType, ContainerType[AttributeCovT]
+    ParametrizedAttribute,
+    TypeAttribute,
+    ShapedType,
+    ContainerType[AttributeCovT],
 ):
     """EmitC array type"""
 
@@ -90,7 +183,7 @@ class EmitC_ArrayType(
             )
 
         # Check that the element type is a supported EmitC type.
-        if not self._is_valid_element_type(element_type):
+        if not EmitCArrayElementTypeConstr.verifies(element_type):
             raise VerifyException(
                 f"EmitC array element type '{element_type}' is not a supported EmitC type."
             )
@@ -117,15 +210,6 @@ class EmitC_ArrayType(
             )
             printer.print_string("x")
             printer.print_attribute(self.element_type)
-
-    def _is_valid_element_type(self, element_type: Attribute) -> bool:
-        """
-        Check if the element type is valid for EmitC_ArrayType.
-        See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/Dialect/EmitC/IR/EmitCTypes.td#L77).
-        """
-        return is_integer_index_or_opaque_type(element_type) or is_supported_float_type(
-            element_type
-        )
 
 
 @irdl_attr_definition
@@ -154,22 +238,6 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class EmitC_OpaqueType(ParametrizedAttribute, TypeAttribute):
-    """EmitC opaque type"""
-
-    name = "emitc.opaque"
-    value: StringAttr
-
-    def verify(self) -> None:
-        if not self.value.data:
-            raise VerifyException("expected non empty string in !emitc.opaque type")
-        if self.value.data[-1] == "*":
-            raise VerifyException(
-                "pointer not allowed as outer type with !emitc.opaque, use !emitc.ptr instead"
-            )
-
-
-@irdl_attr_definition
 class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
     """EmitC pointer type"""
 
@@ -181,98 +249,17 @@ class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
             raise VerifyException("pointers to lvalues are not allowed")
 
 
-@irdl_attr_definition
-class EmitC_PtrDiffT(ParametrizedAttribute, TypeAttribute):
-    """
-    EmitC signed pointer diff type.
-    Signed data type as wide as platform-specific pointer types. In particular, it is as wide as emitc.size_t.
-    It corresponds to ptrdiff_t found in <stddef.h>.
-    """
-
-    name = "emitc.ptrdiff_t"
-
-
-@irdl_attr_definition
-class EmitC_SignedSizeT(ParametrizedAttribute, TypeAttribute):
-    """
-    EmitC signed size type.
-    Data type representing all values of emitc.size_t, plus -1. It corresponds to ssize_t found in <sys/types.h>.
-    Use of this type causes the code to be non-C99 compliant.
-    """
-
-    name = "emitc.ssize_t"
-
-
-@irdl_attr_definition
-class EmitC_SizeT(ParametrizedAttribute, TypeAttribute):
-    """
-    EmitC unsigned size type.
-    Unsigned data type as wide as platform-specific pointer types. It corresponds to size_t found in <stddef.h>.
-    """
-
-    name = "emitc.size_t"
-
-
-_SUPPORTED_BITWIDTHS = (1, 8, 16, 32, 64)
-
-
-def _is_supported_integer_type(type_attr: Attribute) -> bool:
-    """
-    Check if an IntegerType is supported by EmitC.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L96).
-    """
-    return (
-        isinstance(type_attr, IntegerType)
-        and type_attr.width.data in _SUPPORTED_BITWIDTHS
-    )
-
-
-def is_supported_float_type(type_attr: Attribute) -> bool:
-    """
-    Check if a type is a supported floating-point type in EmitC.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L117)
-    """
-    match type_attr:
-        case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
-            return True
-        case _:
-            return False
-
-
-def is_pointer_wide_type(type_attr: Attribute) -> bool:
-    """Check if a type is a pointer-wide type."""
-    match type_attr:
-        case EmitC_PtrDiffT() | EmitC_SignedSizeT() | EmitC_SizeT():
-            return True
-        case _:
-            return False
-
-
-def is_integer_index_or_opaque_type(
-    type_attr: Attribute,
-) -> bool:
-    """
-    Check if a type is an integer, index, or opaque type.
-
-    The emitC opaque type is not implemented yet so this function currently checks
-    only for integer and index types.
-    See external [documentation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L112).
-    """
-    return (
-        _is_supported_integer_type(type_attr)
-        or isinstance(type_attr, IndexType)
-        or is_pointer_wide_type(type_attr)
-    )
-
-
 def is_supported_emitc_type(type_attr: Attribute) -> bool:
     """
     Check if a type is supported by EmitC.
     See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
     """
+
+    _constrs = EmitCIntegerTypeConstr | EmitCFloatTypeConstr
+    if _constrs.verifies(type_attr):
+        return True
+
     match type_attr:
-        case IntegerType():
-            return _is_supported_integer_type(type_attr)
         case IndexType():
             return True
         case EmitC_OpaqueType():
@@ -284,8 +271,6 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
             ) and is_supported_emitc_type(elem_type)
         case EmitC_PointerType():
             return is_supported_emitc_type(type_attr.pointee_type)
-        case Float16Type() | BFloat16Type() | Float32Type() | Float64Type():
-            return True
         case TensorType():
             elem_type = cast(Attribute, type_attr.get_element_type())
             if isinstance(elem_type, EmitC_ArrayType):

@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Annotated, ClassVar, Literal, TypeAlias
+from typing import ClassVar, Literal, TypeAlias
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
@@ -408,15 +408,13 @@ class VarType(ParametrizedAttribute, TypeAttribute, ContainerType):
         return self.child_type
 
 
-ColorIdAttr: TypeAlias = IntegerAttr[
-    Annotated[
-        IntegerType,
-        eq(IntegerType(5, Signedness.UNSIGNED))
-        | eq(IntegerType(6, Signedness.UNSIGNED)),
-    ]
-]
+ColorId = IntegerType[Literal[5, 6], Signedness.UNSIGNED]
 
-QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
+ColorIdAttr: TypeAlias = IntegerAttr[ColorId]
+
+I3 = IntegerType[3, Signedness.SIGNLESS]
+
+QueueIdAttr: TypeAlias = IntegerAttr[I3]
 
 ParamAttr: TypeAlias = FloatAttr | IntegerAttr
 
@@ -849,7 +847,7 @@ class TaskOp(_FuncBase):
             task_kind = TaskKindAttr(task_kind)
         if isinstance(id, int):
             id = IntegerAttr(
-                id, IntegerType(task_kind.get_color_bits(), Signedness.UNSIGNED)
+                id, ColorId(task_kind.get_color_bits(), Signedness.UNSIGNED)
             )
         if id is not None:
             assert id.type.width.data == task_kind.get_color_bits(), (
@@ -965,9 +963,7 @@ class ActivateOp(IRDLOperation):
         if isinstance(kind, TaskKind):
             kind = TaskKindAttr(kind)
         if isinstance(id, int):
-            id = IntegerAttr(
-                id, IntegerType(kind.get_color_bits(), Signedness.UNSIGNED)
-            )
+            id = IntegerAttr(id, ColorId(kind.get_color_bits(), Signedness.UNSIGNED))
 
         super().__init__(properties={"id": id, "kind": kind})
 
@@ -2042,7 +2038,7 @@ class SignednessCastOp(IRDLOperation):
         """
         if result_type is None:
             typ = op.results[0].type if isinstance(op, Operation) else op.type
-            assert isinstance(typ, IntegerType)
+            assert isa(typ, IntegerType)
             result_type = IntegerType(
                 typ.width,
                 (
@@ -2054,7 +2050,7 @@ class SignednessCastOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[result_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.inp.type, IntegerType)
+        assert isa(self.inp.type, IntegerType)
         assert isinstance(self.result.type, IntegerType)
         if self.inp.type.width != self.result.type.width:
             raise VerifyException("Input and output type must be of same bitwidth")

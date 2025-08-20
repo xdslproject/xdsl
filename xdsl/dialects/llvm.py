@@ -753,7 +753,7 @@ class TruncOp(IntegerConversionOpOverflow):
     name = "llvm.trunc"
 
     def verify(self, verify_nested_ops: bool = True):
-        assert isinstance(self.arg.type, IntegerType)
+        assert isa(self.arg.type, IntegerType)
         assert isinstance(self.res.type, IntegerType)
         if self.arg.type.bitwidth <= self.res.type.bitwidth:
             raise VerifyException(
@@ -767,7 +767,7 @@ class ZExtOp(IntegerConversionOpNNeg):
     name = "llvm.zext"
 
     def verify(self, verify_nested_ops: bool = True):
-        assert isinstance(self.arg.type, IntegerType)
+        assert isa(self.arg.type, IntegerType)
         assert isinstance(self.res.type, IntegerType)
         if self.arg.type.bitwidth >= self.res.type.bitwidth:
             raise VerifyException(
@@ -781,7 +781,7 @@ class SExtOp(IntegerConversionOp):
     name = "llvm.sext"
 
     def verify(self, verify_nested_ops: bool = True):
-        assert isinstance(self.arg.type, IntegerType)
+        assert isa(self.arg.type, IntegerType)
         assert isinstance(self.res.type, IntegerType)
         if self.arg.type.bitwidth >= self.res.type.bitwidth:
             raise VerifyException(

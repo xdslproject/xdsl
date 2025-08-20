@@ -9,7 +9,15 @@ from typing import TypeAlias, overload
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ArrayAttr
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OperationInvT,
+    Region,
+    SSAValue,
+)
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
@@ -58,6 +66,20 @@ class Builder(BuilderListener):
     insertion_point: InsertPoint
     """Operations will be inserted at this location."""
 
+    _name_hint: str | None = field(default=None)
+    """
+    If this is not None, results of inserted operations will be assigned this name hint.
+    This is always valid.
+    """
+
+    @property
+    def name_hint(self) -> str | None:
+        return self._name_hint
+
+    @name_hint.setter
+    def name_hint(self, name: str | None):
+        self._name_hint = SSAValue.extract_valid_name(name)
+
     def insert(self, op: OperationInvT) -> OperationInvT:
         """
         Inserts op at the current location and returns it.
@@ -85,6 +107,10 @@ class Builder(BuilderListener):
         )
 
         for op_ in ops:
+            if self._name_hint is not None:
+                for result in op_.results:
+                    if result.name_hint is None:
+                        result._name = self._name_hint  # pyright: ignore[reportPrivateUsage]
             self.handle_operation_insertion(op_)
 
         return op
