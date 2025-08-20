@@ -56,7 +56,16 @@ with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
     nav_file.writelines(nav.build_literate_nav())
 
 
-def gen_marimo():
+NEW_MARIMO_NOTEBOOKS = [
+    docs_root / "marimo" / "expressions.py",
+]
+"""
+Notebooks expected to be run inline in mkdocs-marimo.
+Some features are not supported so they have to be opted into it one by one.
+"""
+
+
+def gen_marimo_old():
     def create_marimo_app_url(code: str, mode: str = "read") -> str:
         from lzstring2 import LZString
 
@@ -64,6 +73,8 @@ def gen_marimo():
         return f"https://marimo.app/#code/{encoded_code}&embed=true"
 
     for path in sorted((docs_root / "marimo").rglob("*.py")):
+        if path in NEW_MARIMO_NOTEBOOKS:
+            continue
         doc_path = path.relative_to(docs_root).with_suffix(".html")
 
         url = create_marimo_app_url(path.read_text())
@@ -81,4 +92,40 @@ def gen_marimo():
         fd.write(marimo_readme.replace(".py", ".html"))
 
 
-gen_marimo()
+def gen_marimo_new():
+    import subprocess
+
+    for path in NEW_MARIMO_NOTEBOOKS:
+        doc_path = path.relative_to(docs_root).with_suffix(".md")
+
+        with mkdocs_gen_files.open(doc_path, "w") as fd:
+            # Run marimo export and capture output
+            result = subprocess.run(
+                ["marimo", "export", "md", "--no-sandbox", str(path)],
+                stdout=subprocess.PIPE,
+                check=True,
+                encoding="utf-8",
+            )
+            output = result.stdout
+
+            # Rewrite code block headers as specified
+            import re
+
+            # Replace broken markdown syntax
+            output = re.sub(
+                r"python \{\.marimo[^\}]*\}",
+                "python {marimo}",
+                output,
+            )
+            # Replace broken test functions
+            output = re.sub(
+                "def test",
+                "def _test",
+                output,
+            )
+
+            fd.write(output)
+
+
+gen_marimo_old()
+gen_marimo_new()

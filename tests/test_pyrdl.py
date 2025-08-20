@@ -9,9 +9,12 @@ import pytest
 from typing_extensions import Self, TypeVar
 
 from xdsl.dialects.builtin import (
+    I32,
     IntAttr,
     IntAttrConstraint,
+    IntegerAttr,
     IntegerType,
+    Signedness,
     SignednessAttr,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
@@ -439,7 +442,13 @@ def test_irdl_to_attr_constraint():
     )
 
     assert irdl_to_attr_constraint(IntegerType) == BaseAttr(IntegerType)
+    # With one type arg, second default
     assert irdl_to_attr_constraint(IntegerType[int]) == ParamAttrConstraint(
+        IntegerType,
+        (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
+    )
+    # With both type args
+    assert irdl_to_attr_constraint(IntegerType[int, Signedness]) == ParamAttrConstraint(
         IntegerType,
         (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
     )
@@ -452,6 +461,40 @@ def test_irdl_to_attr_constraint():
         (
             IntAttrConstraint(IntSetConstraint(frozenset((32, 64)))),
             BaseAttr(SignednessAttr),
+        ),
+    )
+
+    assert irdl_to_attr_constraint(Signedness.SIGNED) == EqAttrConstraint(
+        SignednessAttr(Signedness.SIGNED)
+    )
+
+    assert irdl_to_attr_constraint(Signedness) == BaseAttr(SignednessAttr)
+    assert irdl_to_attr_constraint(SignednessAttr) == BaseAttr(SignednessAttr)
+    assert irdl_to_attr_constraint(
+        SignednessAttr[Signedness.SIGNED]
+    ) == EqAttrConstraint(SignednessAttr(Signedness.SIGNED))
+
+    assert irdl_to_attr_constraint(IntegerAttr[I32]) == ParamAttrConstraint(
+        IntegerAttr,
+        (
+            BaseAttr(IntAttr),
+            ParamAttrConstraint(
+                IntegerType,
+                (
+                    IntAttrConstraint(EqIntConstraint(32)),
+                    EqAttrConstraint(SignednessAttr(Signedness.SIGNLESS)),
+                ),
+            ),
+        ),
+    )
+    assert irdl_to_attr_constraint(IntegerAttr[IntegerType[32]]) == ParamAttrConstraint(
+        IntegerAttr,
+        (
+            BaseAttr(IntAttr),
+            ParamAttrConstraint(
+                IntegerType,
+                (IntAttrConstraint(EqIntConstraint(32)), BaseAttr(SignednessAttr)),
+            ),
         ),
     )
 
