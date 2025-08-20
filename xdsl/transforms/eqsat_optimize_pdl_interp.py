@@ -47,7 +47,7 @@ class MatcherOptimizer:
         # are joined again, since there are no block arguments/phi nodes.
         # The final destination of the blocks will always be along a
         # non-split path at the post-dominator frontier:
-        assert (incoming_edge := next(iter(are_equal_block.uses), None)) is not None
+        assert (incoming_edge := are_equal_block.first_use) is not None
         incoming_edges: list[Use] = [incoming_edge]
 
         outgoing_edges = [are_equal_op._successor_uses[0]]  # pyright: ignore[reportPrivateUsage]
