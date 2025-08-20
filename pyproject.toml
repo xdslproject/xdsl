@@ -25,7 +25,7 @@ dev = [
     "ipykernel",
     "pytest<8.5",
     "nbval<0.12",
-    "filecheck==1.0.2",
+    "filecheck==1.0.3",
     "lit<19.0.0",
     "marimo==0.14.17",
     "pre-commit>=4.0.0,<5.0.0",
