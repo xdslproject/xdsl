@@ -1258,13 +1258,15 @@ class CombiningKindFlag(StrEnum):
     MUL = "mul"
     MINUI = "minui"
     MINSI = "minsi"
-    MINF = "minf"
+    MINNUMF = "minnumf"
     MAXUI = "maxui"
     MAXSI = "maxsi"
-    MAXF = "maxf"
+    MAXNUMF = "maxnumf"
     AND = "and"
     OR = "or"
     XOR = "xor"
+    MAXIMUMF = "maximumf"
+    MINIMUMF = "minimumf"
 
 
 @irdl_attr_definition
@@ -1284,13 +1286,15 @@ class CombiningKindAttr(BitEnumAttribute[CombiningKindFlag]):
             "mul",
             "minui",
             "minsi",
-            "minf",
+            "minnumf",
             "maxui",
             "maxsi",
-            "maxf",
+            "maxnumf",
             "and",
             "or",
             "xor",
+            "maximumf",
+            "minimumf",
         ],
     ):
         super().__init__(kind)
