@@ -2,10 +2,10 @@ from dataclasses import dataclass, field
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir.op_selector import OpSelector
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.traits import HasCanonicalizationPatternsTrait
+from xdsl.utils.op_selector import OpSelector
 
 
 @dataclass(frozen=True)
@@ -61,7 +61,6 @@ class ApplyIndividualRewritePass(ModulePass):
                 type(pattern).__name__: pattern
                 for pattern in trait.get_canonicalization_patterns()
             }
-
             selector = OpSelector(op_idx, matched_op.name)
 
             for pattern_name, pattern in pattern_by_name.items():

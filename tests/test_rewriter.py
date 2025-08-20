@@ -45,7 +45,7 @@ def test_operation_deletion():
 
     expected = """\
 "builtin.module"() ({
-^0:
+^bb0:
 }) : () -> ()"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
@@ -244,8 +244,8 @@ def test_insert_block():
 
     expected = """\
 "builtin.module"() ({
-^0:
-^1:
+^bb0:
+^bb1:
   %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
 """
@@ -267,7 +267,7 @@ def test_insert_block2():
     expected = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = true}> : () -> i1
-^0:
+^bb0:
 }) : () -> ()
 """
 
@@ -287,8 +287,8 @@ def test_insert_block_before():
 
     expected = """\
 "builtin.module"() ({
-^0:
-^1:
+^bb0:
+^bb1:
   %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
 """
@@ -314,7 +314,7 @@ def test_insert_block_after():
     expected = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = true}> : () -> i1
-^0:
+^bb0:
 }) : () -> ()
 """
 
@@ -498,7 +498,7 @@ def test_inline_region_before():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -506,11 +506,11 @@ def test_inline_region_before():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> f32
-^1:
+^bb1:
   %2 = "test.op"() : () -> f64
-^2:
+^bb2:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -532,7 +532,7 @@ def test_inline_region_after():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -540,11 +540,11 @@ def test_inline_region_after():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> f32
-^1:
+^bb1:
   %2 = "test.op"() : () -> f64
-^2:
+^bb2:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -566,7 +566,7 @@ def test_inline_region_at_start():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -574,11 +574,11 @@ def test_inline_region_at_start():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> f32
-^0:
+^bb0:
   %1 = "test.op"() : () -> f64
-^1:
+^bb1:
   %2 = "test.op"() : () -> i32
-^2:
+^bb2:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -600,7 +600,7 @@ def test_inline_region_at_end():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -608,11 +608,11 @@ def test_inline_region_at_end():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
-^1:
+^bb1:
   %2 = "test.op"() : () -> f32
-^2:
+^bb2:
   %3 = "test.op"() : () -> f64
 }) : () -> ()
 """

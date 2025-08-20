@@ -170,41 +170,14 @@ class MLIRTokenKind(Enum):
     FILE_METADATA_BEGIN = "{-#"
     FILE_METADATA_END = "#-}"
 
-    @staticmethod
-    def get_punctuation_spelling_to_kind_dict() -> dict[str, MLIRTokenKind]:
-        return {
-            "->": MLIRTokenKind.ARROW,
-            ":": MLIRTokenKind.COLON,
-            ",": MLIRTokenKind.COMMA,
-            "...": MLIRTokenKind.ELLIPSIS,
-            "=": MLIRTokenKind.EQUAL,
-            ">": MLIRTokenKind.GREATER,
-            "{": MLIRTokenKind.L_BRACE,
-            "(": MLIRTokenKind.L_PAREN,
-            "[": MLIRTokenKind.L_SQUARE,
-            "<": MLIRTokenKind.LESS,
-            "-": MLIRTokenKind.MINUS,
-            "+": MLIRTokenKind.PLUS,
-            "?": MLIRTokenKind.QUESTION,
-            "}": MLIRTokenKind.R_BRACE,
-            ")": MLIRTokenKind.R_PAREN,
-            "]": MLIRTokenKind.R_SQUARE,
-            "*": MLIRTokenKind.STAR,
-            "|": MLIRTokenKind.VERTICAL_BAR,
-            "{-#": MLIRTokenKind.FILE_METADATA_BEGIN,
-            "#-}": MLIRTokenKind.FILE_METADATA_END,
-        }
-
     def is_punctuation(self) -> bool:
-        punctuation_dict = MLIRTokenKind.get_punctuation_spelling_to_kind_dict()
-        return self in punctuation_dict.values()
+        return self in KIND_BY_PUNCTUATION_SPELLING.values()
 
     @staticmethod
     def is_spelling_of_punctuation(
         spelling: str,
     ) -> TypeGuard[PunctuationSpelling]:
-        punctuation_dict = MLIRTokenKind.get_punctuation_spelling_to_kind_dict()
-        return spelling in punctuation_dict.keys()
+        return spelling in KIND_BY_PUNCTUATION_SPELLING.keys()
 
     @staticmethod
     def get_punctuation_kind_from_name(
@@ -214,7 +187,7 @@ class MLIRTokenKind(Enum):
             "Kind.get_punctuation_kind_from_name: spelling is not a "
             "valid punctuation spelling!"
         )
-        return MLIRTokenKind.get_punctuation_spelling_to_kind_dict()[spelling]
+        return KIND_BY_PUNCTUATION_SPELLING[spelling]
 
     def get_int_value(self, span: Span):
         """
@@ -248,6 +221,30 @@ class MLIRTokenKind(Enum):
         if self != MLIRTokenKind.STRING_LIT:
             raise ValueError("Token is not a string literal!")
         return StringLiteral.from_span(span).string_contents
+
+
+KIND_BY_PUNCTUATION_SPELLING = {
+    "->": MLIRTokenKind.ARROW,
+    ":": MLIRTokenKind.COLON,
+    ",": MLIRTokenKind.COMMA,
+    "...": MLIRTokenKind.ELLIPSIS,
+    "=": MLIRTokenKind.EQUAL,
+    ">": MLIRTokenKind.GREATER,
+    "{": MLIRTokenKind.L_BRACE,
+    "(": MLIRTokenKind.L_PAREN,
+    "[": MLIRTokenKind.L_SQUARE,
+    "<": MLIRTokenKind.LESS,
+    "-": MLIRTokenKind.MINUS,
+    "+": MLIRTokenKind.PLUS,
+    "?": MLIRTokenKind.QUESTION,
+    "}": MLIRTokenKind.R_BRACE,
+    ")": MLIRTokenKind.R_PAREN,
+    "]": MLIRTokenKind.R_SQUARE,
+    "*": MLIRTokenKind.STAR,
+    "|": MLIRTokenKind.VERTICAL_BAR,
+    "{-#": MLIRTokenKind.FILE_METADATA_BEGIN,
+    "#-}": MLIRTokenKind.FILE_METADATA_END,
+}
 
 
 MLIRToken = Token[MLIRTokenKind]
@@ -430,8 +427,8 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         # literal string case
         if current_char == '"':
-            token = self._lex_string_literal(start_pos)
-            return self._form_token(MLIRTokenKind.AT_IDENT, token.span.start)
+            self._lex_string_literal(start_pos + 1)  # + 1 to skip the '@'
+            return self._form_token(MLIRTokenKind.AT_IDENT, start_pos)
 
         raise ParseError(
             Span(start_pos, self.pos, self.input),
@@ -481,57 +478,40 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         return self._form_token(kind, start_pos)
 
-    _unescaped_characters_regex = re.compile(r'[^"\\\n\v\f]*')
+    # Match a double-quoted string literal, allowing valid escape sequences (\n, \t, \\, \", and two hex digits).
+    _unescaped_characters_regex = re.compile(
+        r'"(?:[^"\\\n\v\f]+|\\(?:["nt\\]|[0-9A-Fa-f]{2}))*"'
+    )
 
     def _lex_string_literal(self, start_pos: Position) -> MLIRToken:
         """
-        Lex a string literal.
-        The first character `"` is expected to have already been parsed.
+        Lex a string literal. Return STRING_LIT when the payload can be decoded
+        as UTF‑8, otherwise BYTES_LIT.
         """
+        m = self._unescaped_characters_regex.match(self.input.content, start_pos)
+        if m is None:
+            raise ParseError(
+                Span(start_pos, self.pos, self.input),
+                "End of file reached before closing string literal.",
+            )
 
-        bytes_token = False
-        while self._is_in_bounds():
-            self._consume_regex(self._unescaped_characters_regex)
-            current_char = self._get_chars()
+        self.pos = m.end()  # advance cursor to the end of the string literal
+        lit = StringLiteral(start_pos, self.pos, self.input)
 
-            # end of string literal
-            if current_char == '"':
-                if bytes_token:
-                    return self._form_token(MLIRTokenKind.BYTES_LIT, start_pos)
-                else:
-                    return self._form_token(MLIRTokenKind.STRING_LIT, start_pos)
+        if lit.text == '""':
+            return MLIRToken(MLIRTokenKind.STRING_LIT, lit)  # empty string literal
 
-            # newline character in string literal (not allowed)
-            if current_char in ["\n", "\v", "\f"]:
-                raise ParseError(
-                    Span(start_pos, self.pos, self.input),
-                    "Newline character not allowed in string literal.",
-                )
+        if "\\" not in lit.text:
+            # If there are no escape sequences, directly return a STRING_LIT
+            return MLIRToken(MLIRTokenKind.STRING_LIT, lit)
 
-            # escape character
-            # TODO: handle unicode escape
-            if current_char == "\\":
-                escaped_char = self._get_chars()
-                if escaped_char not in ['"', "\\", "n", "t"]:
-                    bytes_token = True
-                    next_char = self._get_chars()
-                    if escaped_char is None or next_char is None:
-                        raise ParseError(
-                            Span(start_pos, self.pos, self.input),
-                            "Unknown escape in string literal.",
-                        )
-                    try:
-                        int(escaped_char + next_char, 16)
-                    except Exception:
-                        raise ParseError(
-                            Span(start_pos, self.pos, self.input),
-                            "Unknown escape in string literal.",
-                        )
+        bytes_contents = lit.bytes_contents
 
-        raise ParseError(
-            Span(start_pos, self.pos, self.input),
-            "End of file reached before closing string literal.",
-        )
+        if bytes_contents.isascii():
+            # If the bytes contents are ASCII, return a STRING_LIT
+            return MLIRToken(MLIRTokenKind.STRING_LIT, lit)
+
+        return MLIRToken(MLIRTokenKind.BYTES_LIT, lit)
 
     _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
     _digits_star_regex = re.compile(r"[0-9]*")

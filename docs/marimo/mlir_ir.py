@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.14.17"
 app = marimo.App(width="medium")
 
 
@@ -580,7 +580,7 @@ def _(mo):
 def _(Parser, Printer, StringIO, ctx, mo, triangle_text):
     _triangle_module = Parser(ctx, triangle_text).parse_module()
     _file = StringIO()
-    Printer(print_generic_format=True, stream=_file).print(_triangle_module)
+    Printer(print_generic_format=True, stream=_file).print_op(_triangle_module)
     mo.md(
         f"""
     ```

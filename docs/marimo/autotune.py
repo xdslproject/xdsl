@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.16"
+__generated_with = "0.14.17"
 app = marimo.App(width="full")
 
 
@@ -350,6 +350,7 @@ def _(ModuleOp, abc):
 
 @app.cell
 def _(Context, CostModel, ModuleOp):
+    from math import inf
     from xdsl.passes import ModulePass
 
     class LensCostModel(CostModel):
@@ -364,8 +365,11 @@ def _(Context, CostModel, ModuleOp):
             module_copy = module.clone()
             ctx_copy = ctx.clone()
 
-            for p in self.pass_pipeline:
-                p.apply(ctx_copy, module_copy)
+            try:
+                for p in self.pass_pipeline:
+                    p.apply(ctx_copy, module_copy)
+            except:
+                return inf
 
             return self.inner.estimate_cost(module_copy, ctx_copy)
     return LensCostModel, ModulePass
@@ -673,7 +677,7 @@ def _(
             assert len(set(p.op_index for p in passes)) == 1
             op_index = passes[0].op_index
             msg_op = OpSelector(op_index, "memref_stream.generic").get_op(op)
-        
+
             func_op = msg_op.parent_op()
 
             assert isinstance(func_op, func.FuncOp), func_op.name

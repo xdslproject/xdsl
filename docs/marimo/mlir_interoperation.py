@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.14.17"
 app = marimo.App(width="medium")
 
 
@@ -65,7 +65,7 @@ def _():
     c = AddiOp(a, b)
     d = AddiOp(a, b)
     e = AddiOp(c, d)
-    f = PrintOp.get(e)
+    f = PrintOp(e)
 
     # Create Block from operations and Region from blocks
     block0 = Block([a, b, c, d, e, f])

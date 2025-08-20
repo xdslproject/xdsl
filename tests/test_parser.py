@@ -22,7 +22,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, ParametrizedAttribute
+from xdsl.ir import Attribute, Block, ParametrizedAttribute
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -33,7 +33,11 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.mlir_lexer import MLIRTokenKind, PunctuationSpelling
+from xdsl.utils.mlir_lexer import (
+    KIND_BY_PUNCTUATION_SPELLING,
+    MLIRTokenKind,
+    PunctuationSpelling,
+)
 from xdsl.utils.str_enum import StrEnum
 
 # pyright: reportPrivateUsage=false
@@ -424,6 +428,15 @@ def test_parse_multi_region_mlir():
     assert len(op.regions) == 2
 
 
+def test_is_default_block_name():
+    assert Block.is_default_block_name("bb0")
+    assert Block.is_default_block_name("bb1")
+    assert not Block.is_default_block_name("bb1a")
+    assert not Block.is_default_block_name("bb")
+    assert not Block.is_default_block_name("bbb0")
+    assert not Block.is_default_block_name("")
+
+
 def test_parse_block_name():
     block_str = """
     ^bb0(%name: i32, %100: i32):
@@ -588,9 +601,7 @@ def test_parse_comma_separated_list_error_delimiters(
     assert e.value.span.text == "5"
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().values())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.values()))
 def test_is_punctuation_true(punctuation: MLIRTokenKind):
     assert punctuation.is_punctuation()
 
@@ -603,9 +614,7 @@ def test_is_punctuation_false(punctuation: MLIRTokenKind):
     assert not punctuation.is_punctuation()
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().values())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.values()))
 def test_is_spelling_of_punctuation_true(punctuation: MLIRTokenKind):
     value = cast(PunctuationSpelling, punctuation.value)
     assert MLIRTokenKind.is_spelling_of_punctuation(value)
@@ -616,17 +625,13 @@ def test_is_spelling_of_punctuation_false(punctuation: str):
     assert not MLIRTokenKind.is_spelling_of_punctuation(punctuation)
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().values())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.values()))
 def test_get_punctuation_kind(punctuation: MLIRTokenKind):
     value = cast(PunctuationSpelling, punctuation.value)
     assert punctuation.get_punctuation_kind_from_name(value) == punctuation
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().keys())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_punctuation(punctuation: PunctuationSpelling):
     parser = Parser(Context(), punctuation)
 
@@ -635,9 +640,7 @@ def test_parse_punctuation(punctuation: PunctuationSpelling):
     assert parser._parse_token(MLIRTokenKind.EOF, "").kind == MLIRTokenKind.EOF
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().keys())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_punctuation_fail(punctuation: PunctuationSpelling):
     parser = Parser(Context(), "e +")
     with pytest.raises(ParseError) as e:
@@ -646,9 +649,7 @@ def test_parse_punctuation_fail(punctuation: PunctuationSpelling):
     assert e.value.msg == "Expected '" + punctuation + "' in test"
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().keys())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_optional_punctuation(punctuation: PunctuationSpelling):
     parser = Parser(Context(), punctuation)
     res = parser.parse_optional_punctuation(punctuation)
@@ -656,9 +657,7 @@ def test_parse_optional_punctuation(punctuation: PunctuationSpelling):
     assert parser._parse_token(MLIRTokenKind.EOF, "").kind == MLIRTokenKind.EOF
 
 
-@pytest.mark.parametrize(
-    "punctuation", list(MLIRTokenKind.get_punctuation_spelling_to_kind_dict().keys())
-)
+@pytest.mark.parametrize("punctuation", list(KIND_BY_PUNCTUATION_SPELLING.keys()))
 def test_parse_optional_punctuation_fail(punctuation: PunctuationSpelling):
     parser = Parser(Context(), "e +")
     assert parser.parse_optional_punctuation(punctuation) is None

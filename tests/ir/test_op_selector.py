@@ -1,6 +1,6 @@
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import TestOp
-from xdsl.ir.op_selector import OpSelector
+from xdsl.utils.op_selector import OpSelector
 
 
 def test_op_selector():
