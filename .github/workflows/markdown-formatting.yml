@@ -1,0 +1,19 @@
+# This workflow checks the formatting of markdown files in the repository
+name: Markdown Formatting
+
+on:
+  pull_request:
+
+jobs:
+  code-formatting:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: markdownlint-cli2-action
+      uses: DavidAnson/markdownlint-cli2-action@v20
+      with:
+        config: '.markdownlint.json'
+        globs: '**/*.{md,markdown}'

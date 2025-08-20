@@ -231,10 +231,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             if shape is None:
                 shape = [1]
             shape_array_attr = ArrayAttr(
-                [
-                    (IntegerAttr[IntegerType](d, 32) if isinstance(d, int) else d)
-                    for d in shape
-                ]
+                [(IntegerAttr(d, 32) if isinstance(d, int) else d) for d in shape]
             )
             super().__init__(
                 shape_array_attr,
@@ -273,7 +270,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             if parser.parse_optional_punctuation("?"):
                 return DeferredAttr()
             s = parser.parse_integer(allow_boolean=False)
-            return IntegerAttr[IntegerType](s, 32)
+            return IntegerAttr(s, 32)
 
         shape: list[IntegerAttr[IntegerType] | DeferredAttr] = []
         type2 = NoneType()
@@ -286,7 +283,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             parser.parse_characters(",")
             type2 = parser.parse_type()
             parser.parse_characters(">")
-            shape.append(IntegerAttr[IntegerType](1, 32))
+            shape.append(IntegerAttr(1, 32))
         else:
             type1 = parser.parse_optional_type()
             while type1 is None:

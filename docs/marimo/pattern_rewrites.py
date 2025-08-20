@@ -121,7 +121,7 @@ def _(mo):
 
     As xDSL and MLIR allow the definition of higher-level dialects, pattern rewrites are very common, and can be used to both write high-level optimizations, and lowerings from a high-level dialect to a lower-level one. A general rationale for pattern rewrites in MLIR can be found [here](https://mlir.llvm.org/docs/Rationale/RationaleGenericDAGRewriter/).
 
-    Pattern rewrites are applied step by step on the IR. For instance, using the rewrite `x + 0 -> x`, the IR `x + 0 + 0` will be progressively transformed to `x + 0`, then `x using this single rewrite. Different application ordering and variations exist for rewrite patterns, which will be covered by Matthias Springer at 4pm on day 3 of the winter school.
+    Pattern rewrites are applied step by step on the IR. For instance, using the rewrite `x + 0 -> x`, the IR `x + 0 + 0` will be progressively transformed to `x + 0`, then `x using this single rewrite. Different application ordering and variations exist for rewrite patterns, please see `PatternRewriteWalker` for more details.
 
     ## Defining a pattern rewrite
 

@@ -237,7 +237,7 @@ class SwitchOpCases(CustomDirective):
             flag_type = state.operand_types[self.flag.inner.index]
             assert flag_type is not None
             flag_type = flag_type[0]
-            assert isinstance(flag_type, IntegerType | IndexType)
+            assert isa(flag_type, IntegerType | IndexType)
             cases = parser.parse_comma_separated_list(
                 Parser.Delimiter.NONE, lambda: self._parse_case(parser)
             )
