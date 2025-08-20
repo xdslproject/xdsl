@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Literal, overload
 
 from xdsl.context import Context
+from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -127,6 +128,9 @@ class Parser(AttrParser):
                 ):
                     self._parse_alias_def()
                     continue
+                if self._current_token.kind in (MLIRTokenKind.FILE_METADATA_BEGIN,):
+                    self._parse_file_metadata_dictionary()
+                    continue
                 if (parsed_op := self.parse_optional_operation()) is not None:
                     parsed_ops.append(parsed_op)
                     continue
@@ -173,14 +177,17 @@ class Parser(AttrParser):
 
     def _get_block_from_name(self, block_name: Span) -> Block:
         """
-        This function takes a span containing a block id (like `^42`) and returns a block.
+        This function takes a span containing a block id (like `^bb42`) and returns a block.
 
         If the block definition was not seen yet, we create a forward declaration.
         """
         name = block_name.text[1:]
         if name not in self.blocks:
             self.forward_block_references[name].append(block_name)
-            self.blocks[name] = (Block(), None)
+            block = Block()
+            if Block.is_valid_name(name) and not Block.is_default_block_name(name):
+                block.name_hint = name  # setter verifies validity
+            self.blocks[name] = (block, None)
         return self.blocks[name][0]
 
     def _parse_optional_block_arg_list(self, block: Block):
@@ -243,6 +250,11 @@ class Parser(AttrParser):
                     [(original_definition, None)],
                 )
             self.forward_block_references.pop(name)
+
+        # Don't set name_hint for blocks that match the default pattern
+        if not Block.is_default_block_name(name):
+            block.name_hint = name  # setter verifies validity
+        # If it matches pattern "bb" followed by digits, leave name_hint as None
 
         self._parse_optional_block_arg_list(block)
         self.parse_punctuation(":")
@@ -903,7 +915,10 @@ class Parser(AttrParser):
         name = block_token.text[1:]
         if name not in self.blocks:
             self.forward_block_references[name].append(block_token.span)
-            self.blocks[name] = (Block(), None)
+            block = Block()
+            if not Block.is_default_block_name(name):
+                block.name_hint = name  # setter verifies validity
+            self.blocks[name] = (block, None)
         return self.blocks[name][0]
 
     def parse_successor(self) -> Block:
@@ -944,4 +959,70 @@ class Parser(AttrParser):
             self.Delimiter.PAREN,
             self.parse_unresolved_operand,
             " in operation argument list",
+        )
+
+    def _parse_resource(
+        self, dialect_name: str, interface: OpAsmDialectInterface
+    ) -> None:
+        key = self._parse_dialect_resource_handle(dialect_name, interface)
+        self._parse_token(MLIRTokenKind.COLON, "expected `:`")
+        value = self.parse_str_literal()
+
+        try:
+            interface.parse_resource(key, value)
+        except Exception as e:
+            self.raise_error(f"got an error when parsing a resource: {e}")
+
+    def _parse_single_dialect_resources(self) -> None:
+        dialect_name = self._parse_token(
+            MLIRTokenKind.BARE_IDENT, "Expected a dialect name"
+        )
+        self._parse_token(MLIRTokenKind.COLON, "expected `:`")
+
+        dialect = self.ctx.get_optional_dialect(dialect_name.text)
+        if dialect is None:
+            self.raise_error(f"dialect {dialect_name.text} is not registered")
+
+        interface = dialect.get_interface(OpAsmDialectInterface)
+        if not interface:
+            self.raise_error(
+                f"dialect {dialect.name} doesn't have an OpAsmDialectInterface interface"
+            )
+
+        self.parse_comma_separated_list(
+            self.Delimiter.BRACES, lambda: self._parse_resource(dialect.name, interface)
+        )
+
+    def _parse_dialect_resources(self) -> None:
+        self.parse_comma_separated_list(
+            self.Delimiter.BRACES, self._parse_single_dialect_resources
+        )
+
+    def _parse_external_resources(self) -> None:
+        raise NotImplementedError("Currently only dialect resources are supported")
+
+    def _parse_metadata_element(self) -> None:
+        resource_type = self._parse_token(
+            MLIRTokenKind.BARE_IDENT, "Expected a resource type key"
+        )
+
+        self._parse_token(MLIRTokenKind.COLON, "expected `:`")
+
+        match resource_type.text:
+            case "dialect_resources":
+                self._parse_dialect_resources()
+            case "external_resources":
+                self._parse_external_resources()
+            case _:
+                self.raise_error(
+                    f"got an unexpected key in file metadata: {resource_type.text}"
+                )
+
+    def _parse_file_metadata_dictionary(self) -> None:
+        """
+        Parse metadata section {-# ... #-} of the file.
+        Returns None since results are stored in the context object.
+        """
+        self.parse_comma_separated_list(
+            self.Delimiter.METADATA_TOKEN, self._parse_metadata_element
         )

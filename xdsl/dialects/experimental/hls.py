@@ -6,11 +6,11 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ParametrizedAttribute,
     StringAttr,
+    i64,
 )
 from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -70,7 +70,7 @@ class PragmaDataflowOp(IRDLOperation):
 class PragmaArrayPartitionOp(IRDLOperation):
     name = "hls.array_partition"
     variable = opt_attr_def(StringAttr)
-    array_type = opt_attr_def(Attribute)  # look at memref.Global
+    array_type = opt_attr_def()  # look at memref.Global
     factor = operand_def()
     dim = operand_def()
 
@@ -91,17 +91,13 @@ class PragmaArrayPartitionOp(IRDLOperation):
 class HLSStreamType(ParametrizedAttribute, TypeAttribute):
     name = "hls.streamtype"
 
-    element_type: ParameterDef[Attribute]
-
-    @staticmethod
-    def get(element_type: Attribute):
-        return HLSStreamType([element_type])
+    element_type: Attribute
 
 
 @irdl_op_definition
 class HLSStreamOp(IRDLOperation):
     name = "hls.stream"
-    elem_type = attr_def(Attribute)
+    elem_type = attr_def()
     result = result_def(HLSStreamType)  # This should be changed to HLSStreamType
 
     @staticmethod
@@ -110,7 +106,7 @@ class HLSStreamOp(IRDLOperation):
 
         attrs["elem_type"] = elem_type
 
-        stream_type = HLSStreamType([elem_type])
+        stream_type = HLSStreamType(elem_type)
         return HLSStreamOp.build(result_types=[stream_type], attributes=attrs)
 
 
@@ -140,7 +136,7 @@ class HLSStreamReadOp(IRDLOperation):
 class HLSExtractStencilValueOp(IRDLOperation):
     name = "hls.extract_stencil_value"
 
-    position = attr_def(DenseArrayBase)
+    position = attr_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
 
     res = result_def(Attribute)

@@ -13,12 +13,12 @@ from xdsl.dialects.irdl.irdl import (
     VariadicityArrayAttr,
     VariadicityAttr,
 )
-from xdsl.ir import Attribute, Block, Dialect, ParametrizedAttribute, Region, SSAValue
+from xdsl.ir import Block, Dialect, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import (
     AttrConstraint,
-    GenericRangeConstraint,
     IRDLOperation,
     OptionalDef,
+    RangeConstraint,
     VariadicDef,
 )
 
@@ -38,9 +38,7 @@ def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue
     return any_op.output
 
 
-def range_to_irdl(
-    builder: Builder, constraint: GenericRangeConstraint[Attribute]
-) -> SSAValue:
+def range_to_irdl(builder: Builder, constraint: RangeConstraint) -> SSAValue:
     """
     Convert a range constraint to IRDL.
     This will create new operations at the provided builder location.
@@ -58,45 +56,45 @@ def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
 
     # Operands
     operand_values: list[SSAValue] = []
-    variadicities: list[VariadicityAttr] = []
-    names: list[StringAttr] = []
+    operand_variadicities: list[VariadicityAttr] = []
+    operand_names: list[StringAttr] = []
     for operand in op_def.operands:
         operand_values.append(range_to_irdl(builder, operand[1].constr))
         if isinstance(operand[1], OptionalDef):
-            variadicities.append(VariadicityAttr.OPTIONAL)
+            operand_variadicities.append(VariadicityAttr.OPTIONAL)
         elif isinstance(operand[1], VariadicDef):
-            variadicities.append(VariadicityAttr.VARIADIC)
+            operand_variadicities.append(VariadicityAttr.VARIADIC)
         else:
-            variadicities.append(VariadicityAttr.SINGLE)
-        names.append(StringAttr(depython_name(operand[0])))
+            operand_variadicities.append(VariadicityAttr.SINGLE)
+        operand_names.append(StringAttr(depython_name(operand[0])))
     if operand_values:
         builder.insert(
             OperandsOp(
                 operand_values,
-                VariadicityArrayAttr(ArrayAttr(variadicities)),
-                ArrayAttr(names),
+                VariadicityArrayAttr(ArrayAttr(operand_variadicities)),
+                ArrayAttr(operand_names),
             )
         )
 
     # Results
     result_values: list[SSAValue] = []
-    variadicities: list[VariadicityAttr] = []
-    names: list[StringAttr] = []
+    result_variadicities: list[VariadicityAttr] = []
+    result_names: list[StringAttr] = []
     for result in op_def.results:
         result_values.append(range_to_irdl(builder, result[1].constr))
         if isinstance(result[1], OptionalDef):
-            variadicities.append(VariadicityAttr.OPTIONAL)
+            result_variadicities.append(VariadicityAttr.OPTIONAL)
         elif isinstance(result[1], VariadicDef):
-            variadicities.append(VariadicityAttr.VARIADIC)
+            result_variadicities.append(VariadicityAttr.VARIADIC)
         else:
-            variadicities.append(VariadicityAttr.SINGLE)
-        names.append(StringAttr(depython_name(result[0])))
+            result_variadicities.append(VariadicityAttr.SINGLE)
+        result_names.append(StringAttr(depython_name(result[0])))
     if result_values:
         builder.insert(
             ResultsOp(
                 result_values,
-                VariadicityArrayAttr(ArrayAttr(variadicities)),
-                ArrayAttr(names),
+                VariadicityArrayAttr(ArrayAttr(result_variadicities)),
+                ArrayAttr(result_names),
             )
         )
 
@@ -116,7 +114,7 @@ def attr_def_to_irdl(
     param_values: list[SSAValue] = []
     names: list[StringAttr] = []
     for param in attr_def.parameters:
-        param_values.append(constraint_to_irdl(builder, param[1]))
+        param_values.append(constraint_to_irdl(builder, param[1].constr))
         names.append(StringAttr(depython_name(param[0])))
     builder.insert(ParametersOp(param_values, ArrayAttr(names)))
 

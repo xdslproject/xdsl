@@ -1,7 +1,47 @@
 import pytest
 
 from xdsl.dialects import x86
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.builtin import IntegerAttr, i32
+from xdsl.dialects.x86.ops import (
+    DM_LeaOp,
+    DM_MovOp,
+    DM_VbroadcastsdOp,
+    DM_VbroadcastssOp,
+    DM_VmovupdOp,
+    DM_VmovupsOp,
+    DMI_ImulOp,
+    M_DecOp,
+    M_IDivOp,
+    M_ImulOp,
+    M_IncOp,
+    M_NegOp,
+    M_NotOp,
+    MI_AddOp,
+    MI_AndOp,
+    MI_CmpOp,
+    MI_MovOp,
+    MI_OrOp,
+    MI_SubOp,
+    MI_XorOp,
+    MS_AddOp,
+    MS_AndOp,
+    MS_CmpOp,
+    MS_MovOp,
+    MS_OrOp,
+    MS_SubOp,
+    MS_XorOp,
+    RM_AddOp,
+    RM_AndOp,
+    RM_ImulOp,
+    RM_OrOp,
+    RM_SubOp,
+    RM_XorOp,
+    SM_CmpOp,
+)
+from xdsl.ir import Block, Operation
+from xdsl.traits import MemoryReadEffect
+from xdsl.transforms.canonicalization_patterns.x86 import get_constant_value
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_unallocated_register():
@@ -37,14 +77,16 @@ def test_unallocated_register():
         (x86.register.RBP, "rbp"),
         (x86.register.RSI, "rsi"),
         (x86.register.RDI, "rdi"),
-        (x86.register.EAX, "eax"),
-        (x86.register.ECX, "ecx"),
-        (x86.register.EDX, "edx"),
-        (x86.register.EBX, "ebx"),
-        (x86.register.ESP, "esp"),
-        (x86.register.EBP, "ebp"),
-        (x86.register.ESI, "esi"),
-        (x86.register.EDI, "edi"),
+        # Currently don't support 32-bit registers
+        # https://github.com/xdslproject/xdsl/issues/4737
+        # (x86.register.EAX, "eax"),
+        # (x86.register.ECX, "ecx"),
+        # (x86.register.EDX, "edx"),
+        # (x86.register.EBX, "ebx"),
+        # (x86.register.ESP, "esp"),
+        # (x86.register.EBP, "ebp"),
+        # (x86.register.ESI, "esi"),
+        # (x86.register.EDI, "edi"),
         (x86.register.R8, "r8"),
         (x86.register.R9, "r9"),
         (x86.register.R10, "r10"),
@@ -164,13 +206,13 @@ def test_sse_register(register: x86.register.SSERegisterType, name: str):
     "OpClass, dest, operand1, operand2",
     [
         (
-            x86.ops.RRR_Vfmadd231pdOp,
+            x86.ops.RSS_Vfmadd231pdOp,
             x86.register.YMM0,
             x86.register.YMM1,
             x86.register.YMM2,
         ),
         (
-            x86.ops.RRR_Vfmadd231psOp,
+            x86.ops.RSS_Vfmadd231psOp,
             x86.register.YMM0,
             x86.register.YMM1,
             x86.register.YMM2,
@@ -179,7 +221,7 @@ def test_sse_register(register: x86.register.SSERegisterType, name: str):
 )
 def test_rrr_vops(
     OpClass: type[
-        x86.ops.RRROperation[
+        x86.ops.RSS_Operation[
             x86.register.X86VectorRegisterType,
             x86.register.X86VectorRegisterType,
             x86.register.X86VectorRegisterType,
@@ -189,25 +231,30 @@ def test_rrr_vops(
     operand1: x86.register.X86VectorRegisterType,
     operand2: x86.register.X86VectorRegisterType,
 ):
-    output = x86.ops.GetAVXRegisterOp(dest)
-    param1 = x86.ops.GetAVXRegisterOp(operand1)
-    param2 = x86.ops.GetAVXRegisterOp(operand2)
-    op = OpClass(r3=output.result, r1=param1.result, r2=param2.result, result=dest)
-    assert op.r1.type == operand1
-    assert op.r2.type == operand2
-    assert op.r3.type == dest
+    output = create_ssa_value(dest)
+    param1 = create_ssa_value(operand1)
+    param2 = create_ssa_value(operand2)
+    op = OpClass(
+        source2=output,
+        register_in=param1,
+        source1=param2,
+        register_out=dest,
+    )
+    assert op.register_in.type == operand1
+    assert op.source1.type == operand2
+    assert op.source2.type == dest
 
 
 @pytest.mark.parametrize(
     "OpClass, dest, src",
     [
         (
-            x86.ops.MR_VmovupsOp,
+            x86.ops.MS_VmovupsOp,
             x86.register.RCX,
             x86.register.YMM0,
         ),
         (
-            x86.ops.MR_VmovapdOp,
+            x86.ops.MS_VmovapdOp,
             x86.register.RCX,
             x86.register.YMM0,
         ),
@@ -215,7 +262,7 @@ def test_rrr_vops(
 )
 def test_mr_vops(
     OpClass: type[
-        x86.ops.M_MR_Operation[
+        x86.ops.MS_Operation[
             x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
         ]
     ],
@@ -224,26 +271,26 @@ def test_mr_vops(
 ):
     output = x86.ops.GetRegisterOp(dest)
     input = x86.ops.GetAVXRegisterOp(src)
-    op = OpClass(r1=output, r2=input, offset=IntegerAttr(0, 64))
-    assert op.r1.type == dest
-    assert op.r2.type == src
+    op = OpClass(memory=output, source=input, memory_offset=IntegerAttr(0, 64))
+    assert op.memory.type == dest
+    assert op.source.type == src
 
 
 @pytest.mark.parametrize(
     "OpClass, dest, src",
     [
         (
-            x86.ops.RM_VmovupsOp,
+            x86.ops.DM_VmovupsOp,
             x86.register.YMM0,
             x86.register.RCX,
         ),
         (
-            x86.ops.RM_VbroadcastsdOp,
+            x86.ops.DM_VbroadcastsdOp,
             x86.register.YMM0,
             x86.register.RCX,
         ),
         (
-            x86.ops.RM_VbroadcastssOp,
+            x86.ops.DM_VbroadcastssOp,
             x86.register.YMM0,
             x86.register.RCX,
         ),
@@ -251,14 +298,72 @@ def test_mr_vops(
 )
 def test_rm_vops(
     OpClass: type[
-        x86.ops.R_M_Operation[
-            x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
+        x86.ops.DM_Operation[
+            x86.register.X86VectorRegisterType, x86.register.GeneralRegisterType
         ]
     ],
     dest: x86.register.X86VectorRegisterType,
     src: x86.register.GeneralRegisterType,
 ):
     input = x86.ops.GetRegisterOp(src)
-    op = OpClass(r1=input, result=dest, offset=IntegerAttr(0, 64))
-    assert op.r1.type == src
-    assert op.result.type == dest
+    op = OpClass(memory=input, destination=dest, memory_offset=IntegerAttr(0, 64))
+    assert op.memory.type == src
+    assert op.destination.type == dest
+
+
+def test_get_constant_value():
+    U = x86.register.UNALLOCATED_GENERAL
+    unknown_value = create_ssa_value(U)
+    assert get_constant_value(unknown_value) is None
+    known_value = x86.DI_MovOp(42, destination=U).destination
+    assert get_constant_value(known_value) == IntegerAttr(42, i32)
+    moved_once = x86.DS_MovOp(known_value, destination=U).destination
+    assert get_constant_value(moved_once) == IntegerAttr(42, i32)
+    moved_twice = x86.DS_MovOp(known_value, destination=U).destination
+    assert get_constant_value(moved_twice) == IntegerAttr(42, i32)
+
+    block = Block(arg_types=(U,))
+    assert get_constant_value(block.args[0]) is None
+
+
+@pytest.mark.parametrize(
+    "op",
+    [
+        DM_MovOp,
+        DM_LeaOp,
+        DM_VmovupsOp,
+        DM_VmovupdOp,
+        DM_VbroadcastsdOp,
+        DM_VbroadcastssOp,
+        RM_AddOp,
+        RM_SubOp,
+        RM_ImulOp,
+        RM_AndOp,
+        RM_OrOp,
+        RM_XorOp,
+        MS_AddOp,
+        MS_SubOp,
+        MS_AndOp,
+        MS_OrOp,
+        MS_XorOp,
+        MS_MovOp,
+        MI_AddOp,
+        MI_SubOp,
+        MI_AndOp,
+        MI_OrOp,
+        MI_XorOp,
+        MI_MovOp,
+        DMI_ImulOp,
+        M_NegOp,
+        M_NotOp,
+        M_IncOp,
+        M_DecOp,
+        M_IDivOp,
+        M_ImulOp,
+        SM_CmpOp,
+        MS_CmpOp,
+        MI_CmpOp,
+    ],
+)
+def test_read_effects(op: type[Operation]):
+    assert MemoryReadEffect() in op.traits.traits

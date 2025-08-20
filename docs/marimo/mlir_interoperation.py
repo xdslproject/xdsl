@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.19"
+__generated_with = "0.14.17"
 app = marimo.App(width="medium")
 
 
@@ -15,11 +15,11 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        # xDSL-MLIR Interoperation Tutorial
+    # xDSL-MLIR Interoperation Tutorial
 
-        This tutorial aims to showcase a simple pipeline of actions to unlock MLIR optimisations when lowering from xDSL.
-        This tutorial can help users getting familiar with the xDSL-MLIR interoperation. We will start from a higher level of xDSL abstraction, lower to MLIR generic format, apply an optimisation and the return to xDSL-land.
-        """
+    This tutorial aims to showcase a simple pipeline of actions to unlock MLIR optimisations when lowering from xDSL.
+    This tutorial can help users getting familiar with the xDSL-MLIR interoperation. We will start from a higher level of xDSL abstraction, lower to MLIR generic format, apply an optimisation and the return to xDSL-land.
+    """
     )
     return
 
@@ -28,24 +28,24 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ## Problem Setup
+    ## Problem Setup
 
-        We start by writing a simple example consisting of adding integers.
-        We are writing this example using constructs that are supported in xDSL.
+    We start by writing a simple example consisting of adding integers.
+    We are writing this example using constructs that are supported in xDSL.
 
-        Furthermore, we create 4 integers, namely a, b, c, d.
-        Then we just accumulate by the simple following pseudocode and print the result:
+    Furthermore, we create 4 integers, namely a, b, c, d.
+    Then we just accumulate by the simple following pseudocode and print the result:
 
 
-        ```bash
-        a = 1
-        b = 2
-        c = a + b
-        d = a + b
-        e = c + d
-        print(e)
-        ```
-        """
+    ```bash
+    a = 1
+    b = 2
+    c = a + b
+    d = a + b
+    e = c + d
+    print(e)
+    ```
+    """
     )
     return
 
@@ -65,7 +65,7 @@ def _():
     c = AddiOp(a, b)
     d = AddiOp(a, b)
     e = AddiOp(c, d)
-    f = PrintOp.get(e)
+    f = PrintOp(e)
 
     # Create Block from operations and Region from blocks
     block0 = Block([a, b, c, d, e, f])
@@ -73,34 +73,16 @@ def _():
 
     # Create an Operation from the region
     op = ModuleOp(region0)
-    return (
-        AddiOp,
-        Block,
-        ConstantOp,
-        IntegerAttr,
-        ModuleOp,
-        PrintOp,
-        Region,
-        a,
-        b,
-        block0,
-        c,
-        d,
-        e,
-        f,
-        i32,
-        op,
-        region0,
-    )
+    return (op,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-        Using xDSLs printer we can print this operation.
-        For convenience we provide a file called `source.mlir` with the code printed below
-        """
+    Using xDSLs printer we can print this operation.
+    For convenience we provide a file called `source.mlir` with the code printed below
+    """
     )
     return
 
@@ -111,8 +93,8 @@ def _(op):
 
     # Print in xdsl format
     printer = Printer()
-    printer.print(op)
-    return Printer, printer
+    printer.print_op(op)
+    return
 
 
 @app.cell
@@ -127,13 +109,13 @@ def _(mo, subprocess):
 def _(mo):
     mo.md(
         r"""
-        Now, let's try to benefit from some MLIR optimization.
-        For this example, we will use the [Common subexpression elimination](https://en.wikipedia.org/wiki/Common_subexpression_elimination).
+    Now, let's try to benefit from some MLIR optimization.
+    For this example, we will use the [Common subexpression elimination](https://en.wikipedia.org/wiki/Common_subexpression_elimination).
 
-        See some documentation here: [mlir.llvm CSE docs](https://mlir.llvm.org/docs/Passes/#-cse-eliminate-common-sub-expressions).
+    See some documentation here: [mlir.llvm CSE docs](https://mlir.llvm.org/docs/Passes/#-cse-eliminate-common-sub-expressions).
 
-        Assuming you have already `mlir-opt` installed in your machine:
-        """
+    Assuming you have already `mlir-opt` installed in your machine:
+    """
     )
     return
 
@@ -153,7 +135,7 @@ def _(subprocess):
         print(f"{mlir_opt_tool} is available.")
     else:
         print(f"{mlir_opt_tool} is not available.")
-    return is_mlir_opt_available, mlir_opt_tool
+    return (mlir_opt_tool,)
 
 
 @app.cell(hide_code=True)
@@ -174,16 +156,16 @@ def _(mlir_opt_tool, source_file, subprocess):
 def _(mo):
     mo.md(
         r"""
-        We can clearly see in the optimized output that after CSE we do not need to calculate:
+    We can clearly see in the optimized output that after CSE we do not need to calculate:
 
-        ```
-        arith.addi"(%0, %1) : (i32, i32) -> i32
-        ```
+    ```
+    arith.addi"(%0, %1) : (i32, i32) -> i32
+    ```
 
-        twice!
+    twice!
 
-        Now can we back to xDSL? Yes we can!
-        """
+    Now can we back to xDSL? Yes we can!
+    """
     )
     return
 

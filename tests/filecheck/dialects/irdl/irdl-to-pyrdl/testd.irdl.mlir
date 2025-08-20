@@ -15,7 +15,7 @@ builtin.module {
 // CHECK:      @irdl_attr_definition
 // CHECK-NEXT: class parametric(ParametrizedAttribute, TypeAttribute):
 // CHECK-NEXT:     name = "testd.parametric"
-// CHECK-NEXT:     elem: ParameterDef[Attribute]
+// CHECK-NEXT:     elem: Attribute
 
 
     irdl.attribute @parametric_attr {
@@ -25,7 +25,7 @@ builtin.module {
 // CHECK:      @irdl_attr_definition
 // CHECK-NEXT: class parametric_attr(ParametrizedAttribute):
 // CHECK-NEXT:     name = "testd.parametric_attr"
-// CHECK-NEXT:     elem: ParameterDef[Attribute]
+// CHECK-NEXT:     elem: Attribute
 
 
     irdl.type @attr_in_type_out {
@@ -35,7 +35,7 @@ builtin.module {
 // CHECK:      @irdl_attr_definition
 // CHECK-NEXT: class attr_in_type_out(ParametrizedAttribute, TypeAttribute):
 // CHECK-NEXT:     name = "testd.attr_in_type_out"
-// CHECK-NEXT:     param: ParameterDef[Attribute]
+// CHECK-NEXT:     param: Attribute
 
 
 

@@ -7,11 +7,12 @@ from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Generic, NoReturn, TypeVar, overload
+from typing import Generic, NoReturn, overload
+
+from typing_extensions import TypeVar
 
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, Token, TokenKindT
-from xdsl.utils.str_enum import StrEnum
 
 
 @dataclass(init=False)
@@ -37,7 +38,6 @@ class ParserState(Generic[TokenKindT]):
 
 
 _AnyInvT = TypeVar("_AnyInvT")
-_EnumType = TypeVar("_EnumType", bound=StrEnum)
 
 
 @dataclass
@@ -124,14 +124,14 @@ class GenericParser(Generic[TokenKindT]):
     ) -> Token[TokenKindT]:
         """
         Advance the lexer to the next token.
-        Additionally check that the current token was of a specific kind,
-        and assert if it was not.
+        Assert that the current token was of a specific kind, if specified.
         For reporting errors if the token was not of the expected kind,
         use `_parse_token` instead.
         """
         consumed_token = self._current_token
-        if expected_kind is not None:
-            assert consumed_token.kind == expected_kind, "Consumed an unexpected token!"
+        assert expected_kind is None or consumed_token.kind == expected_kind, (
+            f"Unexpected token {consumed_token}, expected {expected_kind}"
+        )
         self._parser_state.current_token = self.lexer.lex()
         return consumed_token
 
@@ -143,10 +143,7 @@ class GenericParser(Generic[TokenKindT]):
         Otherwise, return None.
         """
         if self._current_token.kind == expected_kind:
-            current_token = self._current_token
-            self._consume_token(expected_kind)
-            return current_token
-        return None
+            return self._consume_token()
 
     def _parse_token(
         self, expected_kind: TokenKindT, error_msg: str
@@ -155,11 +152,9 @@ class GenericParser(Generic[TokenKindT]):
         Parse a specific token, and raise an error if it is not present.
         Returns the token that was parsed.
         """
-        if self._current_token.kind != expected_kind:
+        if (result := self._parse_optional_token(expected_kind)) is None:
             self.raise_error(error_msg, self._current_token.span)
-        current_token = self._current_token
-        self._consume_token(expected_kind)
-        return current_token
+        return result
 
     def _parse_optional_token_in(
         self, expected_kinds: Iterable[TokenKindT]
@@ -190,6 +185,7 @@ class GenericParser(Generic[TokenKindT]):
         ANGLE = ("<", ">")
         SQUARE = ("[", "]")
         BRACES = ("{", "}")
+        METADATA_TOKEN = ("{-#", "#-}")
         NONE = None
 
     def parse_comma_separated_list(
@@ -306,9 +302,19 @@ class GenericParser(Generic[TokenKindT]):
         self.raise_error(f"'{text}' expected" + context_msg)
 
     @contextmanager
+    def delimited(self, start: str, end: str):
+        self.parse_characters(start)
+        yield
+        self.parse_characters(end)
+
     def in_angle_brackets(self):
-        self.parse_characters("<")
-        try:
-            yield
-        finally:
-            self.parse_characters(">")
+        return self.delimited("<", ">")
+
+    def in_square_brackets(self):
+        return self.delimited("[", "]")
+
+    def in_parens(self):
+        return self.delimited("(", ")")
+
+    def in_braces(self):
+        return self.delimited("{", "}")

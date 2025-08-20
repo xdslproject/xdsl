@@ -1,34 +1,45 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.dialects.builtin import i32
-from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.dialects import bigint
+from xdsl.frontend.pyast.context import PyASTContext
 
-p = FrontendProgram()
-with CodeContext(p):
-    # CHECK:      func.func @f1(%{{.*}} : i32) {
-    # CHECK-NEXT:   symref.declare "x"
-    # CHECK-NEXT:   symref.update @x = %{{.*}} : i32
-    # CHECK-NEXT:   func.return
-    # CHECK-NEXT: }
-    def f1(x: i32):
-        return
-
-    # CHECK:      func.func @f2() {
-    # CHECK-NEXT:   func.return
-    # CHECK-NEXT: }
-    def f2():
-        return
-
-    # CHECK:      func.func @f3(%{{.*}} : i32) -> i32 {
-    # CHECK-NEXT:   symref.declare "x"
-    # CHECK-NEXT:   symref.update @x = %{{.*}} : i32
-    # CHECK-NEXT:   %{{.*}} = symref.fetch @x : i32
-    # CHECK-NEXT:   func.return %{{.*}} : i32
-    # CHECK-NEXT: }
-    def f3(x: i32) -> i32:
-        return x
+ctx = PyASTContext(post_transforms=[])
+ctx.register_type(int, bigint.bigint)
 
 
-p.compile(desymref=False)
-print(p.textual_format())
+# CHECK:      func.func @f1(%{{.*}} : !bigint.bigint) {
+# CHECK-NEXT:   symref.declare "x"
+# CHECK-NEXT:   symref.update @x = %{{.*}} : !bigint.bigint
+# CHECK-NEXT:   func.return
+# CHECK-NEXT: }
+@ctx.parse_program
+def f1(x: int):
+    return
+
+
+print(f1.module)
+
+
+# CHECK:      func.func @f2() {
+# CHECK-NEXT:   func.return
+# CHECK-NEXT: }
+@ctx.parse_program
+def f2():
+    return
+
+
+print(f2.module)
+
+
+# CHECK:      func.func @f3(%{{.*}} : !bigint.bigint) -> !bigint.bigint {
+# CHECK-NEXT:   symref.declare "x"
+# CHECK-NEXT:   symref.update @x = %{{.*}} : !bigint.bigint
+# CHECK-NEXT:   %{{.*}} = symref.fetch @x : !bigint.bigint
+# CHECK-NEXT:   func.return %{{.*}} : !bigint.bigint
+# CHECK-NEXT: }
+@ctx.parse_program
+def f3(x: int) -> int:
+    return x
+
+
+print(f3.module)

@@ -10,8 +10,13 @@ from xdsl.dialects.arith import (
     AddiOp,
     CmpiOp,
     ConstantOp,
+    DivSIOp,
+    FloorDivSIOp,
     MulfOp,
     MuliOp,
+    RemSIOp,
+    ShLIOp,
+    ShRSIOp,
     SubfOp,
     SubiOp,
 )
@@ -181,3 +186,61 @@ def test_cmpi(
 
     assert len(ret) == 1
     assert ret[0] == fn(lhs_value, rhs_value)
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [0, 1, 2, 8])
+def test_shlsi(lhs_value: int, rhs_value: int):
+    shlsi = ShLIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(shlsi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value << rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [0, 1, 2, 8])
+def test_shrsi(lhs_value: int, rhs_value: int):
+    shrsi = ShRSIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(shrsi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value >> rhs_value
+
+
+@pytest.mark.parametrize(
+    "lhs_value,rhs_value,result", [(-3, -2, 1), (-3, 2, -1), (3, -2, -1), (3, 2, 1)]
+)
+def test_divsi(lhs_value: int, rhs_value: int, result: int):
+    divsi = DivSIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(divsi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == result
+
+
+@pytest.mark.parametrize(
+    "lhs_value,rhs_value,result", [(-3, -2, -1), (-3, 2, -1), (3, -2, 1), (3, 2, 1)]
+)
+def test_remsi(lhs_value: int, rhs_value: int, result: int):
+    remsi = RemSIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(remsi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == result
+
+
+@pytest.mark.parametrize(
+    "lhs_value,rhs_value,result", [(-3, -2, 1), (-3, 2, -2), (3, -2, -2), (3, 2, 1)]
+)
+def test_floordivsi(lhs_value: int, rhs_value: int, result: int):
+    floordivsi = FloorDivSIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(floordivsi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == result

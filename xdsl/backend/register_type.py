@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from typing_extensions import Self
 
@@ -12,25 +13,24 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    Operation,
     ParametrizedAttribute,
     TypeAttribute,
 )
-from xdsl.irdl import ParameterDef
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import EffectInstance, MemoryEffect, MemoryEffectKind
 from xdsl.utils.exceptions import VerifyException
 
 
+@dataclass(frozen=True)
 class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
     An abstract register type for target ISA-specific dialects.
     """
 
-    index: ParameterDef[IntAttr | NoneAttr]
-    register_name: ParameterDef[StringAttr]
-
-    def __init__(self, index: IntAttr | NoneAttr, register_name: StringAttr):
-        super().__init__((index, register_name))
+    index: IntAttr | NoneAttr
+    register_name: StringAttr
 
     @classmethod
     def unallocated(cls) -> Self:
@@ -139,6 +139,13 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         raise VerifyException(f"Invalid index {self.index.data} for register {name}.")
 
     @classmethod
+    def allocatable_registers(cls) -> Sequence[Self]:
+        """
+        Registers of this type that can be used for register allocation.
+        """
+        return ()
+
+    @classmethod
     @abstractmethod
     def index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
@@ -182,3 +189,24 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         index_attr = IntAttr(~index)
         res = cls(index_attr, StringAttr(register_name))
         return res
+
+
+class RegisterAllocatedMemoryEffect(MemoryEffect):
+    """
+    An assembly operation that only has side-effect if some registers are allocated to
+    it.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        effects = set[EffectInstance]()
+        if any(
+            isinstance(r.type, RegisterType) and r.type.is_allocated for r in op.results
+        ):
+            effects.add(EffectInstance(MemoryEffectKind.WRITE))
+        if any(
+            isinstance(r.type, RegisterType) and r.type.is_allocated
+            for r in op.operands
+        ):
+            effects.add(EffectInstance(MemoryEffectKind.READ))
+        return effects

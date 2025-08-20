@@ -60,6 +60,24 @@ func.func @existing_cost(%a : index, %b : index) -> (index) {
 
 // -----
 
+//      CHECK:    func.func @recursive(%a : index) -> index {
+// CHECK-NEXT:      %a_eq = eqsat.eclass %a, %b : index
+// CHECK-NEXT:      %one = arith.constant {eqsat_cost = #builtin.int<1>} 1 : index
+// CHECK-NEXT:      %one_eq = eqsat.eclass %one {min_cost_index = #builtin.int<0>} : index
+// CHECK-NEXT:      %b = arith.muli %a_eq, %one_eq : index
+// CHECK-NEXT:      func.return %a_eq : index
+// CHECK-NEXT:    }
+
+func.func @recursive(%a : index) -> (index) {
+    %a_eq = eqsat.eclass %a, %b : index
+    %one = arith.constant 1 : index
+    %one_eq = eqsat.eclass %one : index
+    %b = arith.muli %a_eq, %one_eq : index
+    return %a_eq : index
+}
+
+// -----
+
 // CHECK:    Unexpected value 1000 : i64 for key eqsat_cost in ConstantOp(%one = arith.constant {eqsat_cost = 1000 : i64} 1 : index)
 
 func.func @wrong_type_cost(%a : index, %b : index) -> (index) {

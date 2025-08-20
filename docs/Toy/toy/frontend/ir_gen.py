@@ -2,15 +2,24 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import NoReturn
 
 from xdsl.builder import Builder, InsertPoint
-from xdsl.dialects.builtin import ModuleOp, TensorType, UnrankedTensorType, f64
+from xdsl.dialects.builtin import (
+    FileLineColLoc,
+    IntAttr,
+    ModuleOp,
+    StringAttr,
+    TensorType,
+    UnrankedTensorType,
+    f64,
+)
 from xdsl.ir import Block, Region, SSAValue
+from xdsl.utils.lexer import Location
 from xdsl.utils.scoped_dict import ScopedDict
 
 from ..dialects.toy import (
     AddOp,
+    AnyTensorTypeF64,
     ConstantOp,
     FuncOp,
     FunctionType,
@@ -19,11 +28,9 @@ from ..dialects.toy import (
     PrintOp,
     ReshapeOp,
     ReturnOp,
-    TensorTypeF64,
     TransposeOp,
     UnrankedTensorTypeF64,
 )
-from .location import Location
 from .toy_ast import (
     BinaryExprAST,
     CallExprAST,
@@ -97,9 +104,7 @@ class IRGen:
 
     def loc(self, loc: Location):
         "Helper conversion for a Toy AST location to an MLIR location."
-        # TODO: Need location support in xDSL
-        # return mlir::FileLineColLoc::get(builder.getStringAttr(*loc.file), loc.line, loc.col);
-        pass
+        return FileLineColLoc(StringAttr(loc.file), IntAttr(loc.line), IntAttr(loc.col))
 
     def declare(self, var: str, value: SSAValue) -> bool:
         """
@@ -111,7 +116,7 @@ class IRGen:
         self.symbol_table[var] = value
         return True
 
-    def get_type(self, shape: list[int]) -> TensorTypeF64 | UnrankedTensorTypeF64:
+    def get_type(self, shape: list[int]) -> AnyTensorTypeF64:
         "Build a tensor type from a list of shape dimensions."
         # If the shape is empty, then this type is unranked.
         if len(shape):
@@ -139,7 +144,7 @@ class IRGen:
         parent_builder = self.builder
 
         # Create a scope in the symbol table to hold variable declarations.
-        self.symbol_table = ScopedDict[str, SSAValue]()
+        self.symbol_table = ScopedDict()
 
         proto_args = function_ast.proto.args
 
@@ -213,7 +218,7 @@ class IRGen:
         elif binop.op == "*":
             op = self.builder.insert(MulOp(lhs, rhs))
         else:
-            self.error(f"Unsupported binary operation `{binop.op}`")
+            raise IRGenError(f"Unsupported binary operation `{binop.op}`")
 
         return op.res
 
@@ -227,7 +232,7 @@ class IRGen:
             variable = self.symbol_table[expr.name]
             return variable
         except Exception as e:
-            self.error(f"error: unknown variable `{expr.name}`", e)
+            raise IRGenError(f"error: unknown variable `{expr.name}`") from e
 
     def ir_gen_return_expr(self, ret: ReturnExprAST):
         "Emit a return operation. This will return failure if any generation fails."
@@ -283,11 +288,13 @@ class IRGen:
         """
 
         if isinstance(expr, LiteralExprAST):
-            return expr.flattened_values()
+            return [
+                value for inner in expr.values for value in self.collect_data(inner)
+            ]
         elif isinstance(expr, NumberExprAST):
             return [expr.val]
         else:
-            self.error(
+            raise IRGenError(
                 f"Unsupported expr ({expr}) of type ({type(expr)}), "
                 "expected literal or number expr"
             )
@@ -308,7 +315,7 @@ class IRGen:
         # straightforward emission.
         if callee == "transpose":
             if len(operands) != 1:
-                self.error(
+                raise IRGenError(
                     "MLIR codegen encountered an error: toy.transpose "
                     "does not accept multiple arguments"
                 )
@@ -334,8 +341,7 @@ class IRGen:
 
     def ir_gen_number_expr(self, num: NumberExprAST) -> SSAValue:
         "Emit a constant for a single number"
-
-        constant_op = self.builder.insert(ConstantOp.from_list([num.val], []))
+        constant_op = self.builder.insert(ConstantOp.from_value(num.val))
         return constant_op.res
 
     def ir_gen_expr(self, expr: ExprAST) -> SSAValue:
@@ -352,7 +358,9 @@ class IRGen:
         if isinstance(expr, NumberExprAST):
             return self.ir_gen_number_expr(expr)
         else:
-            self.error(f"MLIR codegen encountered an unhandled expr kind '{expr.kind}'")
+            raise IRGenError(
+                f"MLIR codegen encountered an unhandled expr kind '{type(expr).__name__}'"
+            )
 
     def ir_gen_var_decl_expr(self, vardecl: VarDeclExprAST) -> SSAValue:
         """
@@ -394,6 +402,3 @@ class IRGen:
             else:
                 # Generic expression dispatch codegen.
                 self.ir_gen_expr(expr)
-
-    def error(self, message: str, cause: Exception | None = None) -> NoReturn:
-        raise IRGenError(message) from cause

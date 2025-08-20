@@ -3,7 +3,7 @@
 %0 = "test.op"() : () -> !ptr_xdsl.ptr
 %1 = "test.op"() : () -> index
 
-// CHECK: %2 = "llvm.load"(%0) : (!llvm.ptr) -> i32
+// CHECK: %2 = "llvm.load"(%0) <{ordering = 0 : i64}> : (!llvm.ptr) -> i32
 %2 = ptr_xdsl.load %0 : !ptr_xdsl.ptr -> i32
 
 // CHECK-NEXT: "llvm.store"(%2, %0) <{ordering = 0 : i64}> : (i32, !llvm.ptr) -> ()

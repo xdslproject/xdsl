@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Mapping, Sequence
-from typing import ClassVar, Literal, TypeVar, cast
+from typing import ClassVar, Literal, cast
 
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
     ContainerOf,
     DenseIntOrFPElementsAttr,
+    DenseResourceAttr,
     FixedBitwidthType,
     Float16Type,
     Float32Type,
@@ -30,9 +31,8 @@ from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
-    BaseAttr,
     IRDLOperation,
-    TypedAttributeConstraint,
+    ParamAttrConstraint,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -54,6 +54,7 @@ from xdsl.traits import (
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
@@ -61,7 +62,6 @@ boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
-_FloatTypeT = TypeVar("_FloatTypeT", bound=AnyFloat)
 
 CMPI_COMPARISON_OPERATIONS = [
     "eq",
@@ -133,12 +133,10 @@ class ConstantOp(IRDLOperation):
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
     value = prop_def(
-        TypedAttributeConstraint(
-            IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
-            | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
-            | BaseAttr(DenseIntOrFPElementsAttr),
-            _T,
-        )
+        IntegerAttr.constr((SignlessIntegerConstraint | IndexTypeConstr) & _T)
+        | ParamAttrConstraint(FloatAttr, (AnyAttr(), _T))
+        | ParamAttrConstraint(DenseIntOrFPElementsAttr, (_T, AnyAttr()))
+        | ParamAttrConstraint(DenseResourceAttr, (AnyAttr(), _T))
     )
 
     traits = traits_def(ConstantLike(), Pure())
@@ -147,7 +145,7 @@ class ConstantOp(IRDLOperation):
 
     def __init__(
         self,
-        value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value: IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr | DenseResourceAttr,
         value_type: Attribute | None = None,
     ):
         if value_type is None:
@@ -172,9 +170,6 @@ class ConstantOp(IRDLOperation):
                 "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
             },
         )
-
-
-_T = TypeVar("_T", bound=Attribute)
 
 
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
@@ -882,14 +877,14 @@ class CmpiOp(ComparisonOperation):
         return cls(operand1, operand2, arg)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
 
         printer.print_string(CMPI_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -990,16 +985,16 @@ class CmpfOp(ComparisonOperation):
         return cls(operand1, operand2, arg, fastmath)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string(CMPF_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
         if self.fastmath != FastMathFlagsAttr("none"):
             printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -1171,13 +1166,15 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        signlessIntegerLike
-        | floatingPointLike
+        ContainerOf(
+            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
+        )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        signlessIntegerLike
-        | floatingPointLike
+        ContainerOf(
+            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
+        )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 
@@ -1323,8 +1320,7 @@ class TruncIOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         if not self.result.type.width.data < self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be smaller than the input bit-width"
@@ -1346,8 +1342,7 @@ class ExtSIOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         if not self.result.type.width.data > self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be larger than the input bit-width"
@@ -1367,8 +1362,7 @@ class ExtUIOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         if not self.result.type.width.data > self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be larger than the input bit-width"

@@ -79,10 +79,10 @@ class ClockDividerOp(IRDLOperation):
         return cls(input_, divider)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.clockIn)
-        printer.print(" by ")
-        printer.print(self.pow2.value.data)
+        printer.print_string(" by ")
+        self.pow2.print_without_type(printer)
 
 
 @irdl_op_definition
@@ -172,9 +172,9 @@ class ClockConstAttr(Data[ClockConstAttrData]):
     def print_parameter_free_standing(self, printer: Printer) -> None:
         match self.data:
             case ClockConstAttrData.LOW:
-                printer.print("low")
+                printer.print_string("low")
             case ClockConstAttrData.HIGH:
-                printer.print("high")
+                printer.print_string("high")
 
 
 @irdl_op_definition
@@ -197,7 +197,7 @@ class ConstClockOp(IRDLOperation):
         return ConstClockOp.create(attributes=attrs_data, result_types=[clock])
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         self.value.print_parameter_free_standing(printer)
         printer.print_op_attributes(self.attributes, reserved_attr_names=("value",))
 

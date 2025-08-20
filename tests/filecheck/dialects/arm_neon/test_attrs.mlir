@@ -2,7 +2,7 @@
 
 builtin.module attributes {bla=#arm_neon<arrangement hello>} {}
 
-// CHECK-NEXT:  tests/filecheck/dialects/arm_neon/test_attrs.mlir:3:53
+// CHECK-NEXT:  tests/filecheck/dialects/arm_neon/test_attrs.mlir:3:54
 // CHECK-NEXT:  builtin.module attributes {bla=#arm_neon<arrangement hello>} {}
 // CHECK-NEXT:                                                       ^^^^^
 // CHECK-NEXT:                                                       Expected `D`, `S`, or `H`.

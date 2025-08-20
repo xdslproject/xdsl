@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from typing import cast
 
+from xdsl.backend.x86.lowering.helpers import Arch
 from xdsl.context import Context
 from xdsl.dialects import builtin, ptr, x86
 from xdsl.dialects.builtin import (
@@ -17,62 +17,116 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.hints import isa
+
+
+@dataclass
+class PtrAddToX86(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter):
+        x86_reg_type = x86.register.UNALLOCATED_GENERAL
+
+        rewriter.replace_matched_op(
+            [
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    (op.addr,), (x86_reg_type,)
+                ),
+                offset_cast_op := UnrealizedConversionCastOp.get(
+                    (op.offset,), (x86_reg_type,)
+                ),
+                ptr_mv_op := x86.DS_MovOp(
+                    ptr_cast_op, destination=x86.register.UNALLOCATED_GENERAL
+                ),
+                add_op := x86.RS_AddOp(
+                    ptr_mv_op.destination, offset_cast_op, register_out=x86_reg_type
+                ),
+                UnrealizedConversionCastOp.get(
+                    (add_op.register_out,), (ptr.PtrType(),)
+                ),
+            ]
+        )
+
+
+@dataclass
+class PtrStoreToX86(RewritePattern):
+    arch: Arch
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter):
+        value_type = op.value.type
+        # Pointer casts
+        addr_cast_op, x86_ptr = UnrealizedConversionCastOp.cast_one(
+            op.addr, x86.register.UNALLOCATED_GENERAL
+        )
+        if isa(value_type, VectorType[FixedBitwidthType]):
+            x86_vect_type = self.arch.register_type_for_type(value_type)
+            cast_op, x86_data = UnrealizedConversionCastOp.cast_one(
+                op.value, x86_vect_type.unallocated()
+            )
+            # Choose the x86 vector instruction according to the
+            # abstract vector element size
+            match value_type.get_element_type().bitwidth:
+                case 16:
+                    raise DiagnosticException(
+                        "Half-precision floating point vector load is not implemented yet."
+                    )
+                case 32:
+                    mov = x86.ops.MS_VmovupsOp
+                case 64:
+                    mov = x86.ops.MS_VmovapdOp
+                case _:
+                    raise DiagnosticException(
+                        "Float precision must be half, single or double."
+                    )
+            mov_op = mov(x86_ptr, x86_data, memory_offset=0)
+        else:
+            cast_op, x86_data = UnrealizedConversionCastOp.cast_one(
+                op.value, x86.register.UNALLOCATED_GENERAL
+            )
+            mov_op = x86.MS_MovOp(x86_ptr, x86_data, memory_offset=0)
+
+        rewriter.replace_matched_op([addr_cast_op, cast_op, mov_op])
 
 
 @dataclass
 class PtrLoadToX86(RewritePattern):
-    arch: str
+    arch: Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter):
-        source = op.addr
-        value = op.res
-        value_type = value.type
-        if not isinstance(value_type, VectorType):
-            raise DiagnosticException(
-                "The lowering of ptr.load is not yet implemented for non-vector types."
-            )
         # Pointer cast
         x86_reg_type = x86.register.UNALLOCATED_GENERAL
-        cast_op = UnrealizedConversionCastOp.get((source,), (x86_reg_type,))
-        # Output vector description
-        vector_num_elements = value_type.element_count()
-        element_type = cast(FixedBitwidthType, value_type.get_element_type())
-        element_size = element_type.bitwidth
-        vector_size = vector_num_elements * element_size
-        # Choose the x86 vector register according to the
-        # target architecture and the abstract vector size
-        if vector_size == 128:
-            vect_reg_type = x86.register.UNALLOCATED_SSE
-        elif vector_size == 256 and (self.arch == "avx2" or self.arch == "avx512"):
-            vect_reg_type = x86.register.UNALLOCATED_AVX2
-        elif vector_size == 512 and self.arch == "avx512":
-            vect_reg_type = x86.register.UNALLOCATED_AVX512
-        else:
-            raise DiagnosticException(
-                "The vector size and target architecture are inconsistent."
-            )
-        # Choose the x86 vector instruction according to the
-        # abstract vector element size
-        match element_size:
-            case 16:
-                raise DiagnosticException(
-                    "Half-precision vector load is not implemented yet."
-                )
-            case 32:
-                mov = x86.ops.RM_VmovupsOp
-            case 64:
-                # mov = x86.ops.RM_VmovapdOp
-                raise DiagnosticException(
-                    "Double precision vector load is not implemented yet."
-                )
-            case _:
-                raise DiagnosticException(
-                    "Float precision must be half, single or double."
-                )
+        cast_op, addr_x86 = UnrealizedConversionCastOp.cast_one(op.addr, x86_reg_type)
 
-        mov_op = mov(cast_op, offset=0, result=vect_reg_type)
-        rewriter.replace_matched_op([cast_op, mov_op])
+        value_type = op.res.type
+        if isa(value_type, VectorType[FixedBitwidthType]):
+            # Choose the x86 vector instruction according to the
+            # abstract vector element size
+            match value_type.get_element_type().bitwidth:
+                case 16:
+                    raise DiagnosticException(
+                        "Half-precision floating point vector load is not implemented yet."
+                    )
+                case 32:
+                    mov = x86.ops.DM_VmovupsOp
+                case 64:
+                    mov = x86.ops.DM_VmovupdOp
+                case _:
+                    raise DiagnosticException(
+                        "Float precision must be half, single or double."
+                    )
+            mov_op = mov(
+                addr_x86,
+                memory_offset=0,
+                destination=self.arch.register_type_for_type(value_type).unallocated(),
+            )
+        else:
+            mov_op = x86.DM_MovOp(
+                addr_x86, memory_offset=0, destination=x86.register.UNALLOCATED_GENERAL
+            )
+
+        res_cast_op = UnrealizedConversionCastOp.get(mov_op.results, (value_type,))
+        rewriter.replace_matched_op([cast_op, mov_op, res_cast_op])
 
 
 @dataclass(frozen=True)
@@ -82,10 +136,13 @@ class ConvertPtrToX86Pass(ModulePass):
     arch: str
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
+        arch = Arch.arch_for_name(self.arch)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    PtrLoadToX86(self.arch),
+                    PtrLoadToX86(arch),
+                    PtrStoreToX86(arch),
+                    PtrAddToX86(),
                 ]
             ),
             apply_recursively=False,

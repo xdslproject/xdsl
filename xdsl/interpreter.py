@@ -12,8 +12,9 @@ from typing import (
     NamedTuple,
     ParamSpec,
     TypeAlias,
-    TypeVar,
 )
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
 from xdsl.ir import (
@@ -572,7 +573,10 @@ class _InterpreterFunctionImpls:
                 f"Could not find interpretation function for op {op.name}"
             )
         ft, impl = self._impl_dict[type(op)]
-        return impl(ft, interpreter, op, args)
+        try:
+            return impl(ft, interpreter, op, args)
+        except Exception as e:
+            op.emit_error("Error while interpreting op", e)
 
     def cast(
         self,
@@ -776,12 +780,11 @@ class Interpreter:
         if not region.blocks:
             return results
 
-        scope_count = 0
+        initial_scope = self._ctx
         block = region.blocks.first
 
         while block is not None:
             self.push_scope(name)
-            scope_count += 1
             self.set_values(zip(block.args, args))
 
             op: Operation | None = block.first_op
@@ -810,9 +813,7 @@ class Interpreter:
                 # Set up next iteration
                 op = op.next_op
 
-        # Pop as many scopes as we entered blocks
-        for _ in range(scope_count):
-            self.pop_scope()
+        self._ctx = initial_scope
         return results
 
     def cast_value(self, o: Attribute, r: Attribute, value: Any) -> Any:

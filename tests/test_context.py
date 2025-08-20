@@ -265,6 +265,13 @@ def test_load_dialect_already_registered():
         ctx.load_dialect(testDialect)
 
 
+def test_get_dialect():
+    ctx = Context()
+    assert ctx.get_optional_dialect("test") is None
+    ctx.register_dialect("test", lambda: testDialect)
+    assert ctx.get_optional_dialect("test") is testDialect
+
+
 def test_get_optional_op_registered():
     ctx = Context()
     ctx.register_dialect("test", lambda: testDialect)

@@ -4,7 +4,10 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    BoolAttr,
     FunctionType,
+    IntegerAttr,
     ModuleOp,
     StringAttr,
     UnitAttr,
@@ -302,6 +305,38 @@ def test_check_attribute():
     assert nomatch_result.terminator_value.block is falsedest
 
 
+def test_check_type():
+    interpreter = Interpreter(ModuleOp([]))
+    pdl_interp_functions = PDLInterpFunctions(Context())
+    interpreter.register_implementations(pdl_interp_functions)
+
+    truedest = Block()
+    falsedest = Block()
+
+    # Test matching type
+    check_type_op = pdl_interp.CheckTypeOp(
+        i32,  # Expected type
+        create_ssa_value(pdl.ValueType()),  # Input value
+        truedest,
+        falsedest,
+    )
+
+    match_result = pdl_interp_functions.run_check_type(
+        interpreter, check_type_op, (i32,)
+    )
+
+    assert isinstance(match_result.terminator_value, Successor)
+    assert match_result.terminator_value.block is truedest
+
+    # Test non-matching type
+    nomatch_result = pdl_interp_functions.run_check_type(
+        interpreter, check_type_op, (i64,)
+    )
+
+    assert isinstance(nomatch_result.terminator_value, Successor)
+    assert nomatch_result.terminator_value.block is falsedest
+
+
 def test_is_not_null():
     interpreter = Interpreter(ModuleOp([]))
     pdl_interp_functions = PDLInterpFunctions(Context())
@@ -401,19 +436,23 @@ def test_create_operation():
     # Create test values
     c0 = create_ssa_value(i32)
     c1 = create_ssa_value(i32)
-    attr = StringAttr("test")
+    attr = StringAttr("test_attr")
+    prop = StringAttr("test_prop")
 
     # Test create operation
     create_op = pdl_interp.CreateOperationOp(
         name="test.op",
         inferred_result_types=UnitAttr(),
-        input_attribute_names=[StringAttr("attr")],
+        input_attribute_names=[StringAttr("attr"), StringAttr("prop2")],
         input_operands=[c0, c1],
-        input_attributes=[create_ssa_value(pdl.AttributeType())],
+        input_attributes=[
+            create_ssa_value(pdl.AttributeType()),
+            create_ssa_value(pdl.AttributeType()),
+        ],
         input_result_types=[create_ssa_value(pdl.TypeType())],
     )
 
-    result = interpreter.run_op(create_op, (c0, c1, attr, i32))
+    result = interpreter.run_op(create_op, (c0, c1, attr, prop, i32))
 
     assert len(result) == 1
     assert isinstance(result[0], test.TestOp)
@@ -421,6 +460,7 @@ def test_create_operation():
     assert len(created_op.operands) == 2
     assert created_op.ops == (c0, c1)
     assert created_op.attributes["attr"] is attr
+    assert created_op.prop2 is prop
     assert len(created_op.results) == 1
     assert created_op.results[0].type == i32
     # Verify that the operation was inserted:
@@ -585,3 +625,220 @@ def test_func():
         interpreter.call_op("matcher", (op,))
     pdl_interp_functions.rewriter = PatternRewriter(op)
     interpreter.call_op("matcher", (op,))
+
+
+def test_switch_operation_name():
+    interpreter = Interpreter(ModuleOp([]))
+    pdl_interp_functions = PDLInterpFunctions(Context())
+    interpreter.register_implementations(pdl_interp_functions)
+
+    case1 = Block()
+    case2 = Block()
+    case3 = Block()
+    default = Block()
+
+    switch_op = pdl_interp.SwitchOperationNameOp(
+        [
+            StringAttr("test.someop"),
+            StringAttr("test.yetanotherop"),
+            StringAttr("test.op"),
+        ],
+        create_ssa_value(pdl.OperationType()),
+        default,
+        [case1, case2, case3],
+    )
+
+    op = test.TestOp()
+
+    switch_result = pdl_interp_functions.run_switch_operation_name(
+        interpreter,
+        switch_op,
+        (op,),
+    )
+
+    assert isinstance(switch_result.terminator_value, Successor)
+    assert isinstance(switch_result.terminator_value.block, Block)
+    assert switch_result.terminator_value.block is case3
+
+    switch_op = pdl_interp.SwitchOperationNameOp(
+        [StringAttr("test.someop"), StringAttr("test.yetanotherop")],
+        create_ssa_value(pdl.OperationType()),
+        default,
+        [case1, case2, case3],
+    )
+
+    switch_result = pdl_interp_functions.run_switch_operation_name(
+        interpreter,
+        switch_op,
+        (op,),
+    )
+
+    assert isinstance(switch_result.terminator_value, Successor)
+    assert isinstance(switch_result.terminator_value.block, Block)
+    assert switch_result.terminator_value.block is default
+
+
+def test_create_type():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    # Test create_type operation
+    create_type_op = pdl_interp.CreateTypeOp(i32)
+    result = interpreter.run_op(create_type_op, ())
+
+    assert result == (i32,)
+
+
+def test_create_types():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    # Test create_types operation
+    type_attrs = ArrayAttr([i32, i64])
+    create_types_op = pdl_interp.CreateTypesOp(type_attrs)
+    result = interpreter.run_op(create_types_op, ())
+
+    assert result == ([i32, i64],)
+
+
+def test_switch_attribute():
+    interpreter = Interpreter(ModuleOp([]))
+    pdl_interp_functions = PDLInterpFunctions(Context())
+    interpreter.register_implementations(pdl_interp_functions)
+
+    case1 = Block()
+    case2 = Block()
+    case3 = Block()
+    default = Block()
+
+    # Create test attributes for the switch cases
+    attr1 = StringAttr("first")
+    attr2 = IntegerAttr(42, i32)
+    attr3 = UnitAttr()
+
+    switch_op = pdl_interp.SwitchAttributeOp(
+        create_ssa_value(pdl.AttributeType()),
+        ArrayAttr([attr1, attr2, attr3]),
+        default,
+        [case1, case2, case3],
+    )
+
+    # Test with matching attribute (should go to case3)
+    test_attr = UnitAttr()
+
+    switch_result = pdl_interp_functions.run_switch_attribute(
+        interpreter,
+        switch_op,
+        (test_attr,),
+    )
+
+    assert isinstance(switch_result.terminator_value, Successor)
+    assert isinstance(switch_result.terminator_value.block, Block)
+    assert switch_result.terminator_value.block is case3
+
+    # Test with non-matching attribute (should go to default)
+    switch_op = pdl_interp.SwitchAttributeOp(
+        create_ssa_value(pdl.AttributeType()),
+        ArrayAttr([attr1, attr2]),
+        default,
+        [case1, case2],
+    )
+
+    non_matching_attr = StringAttr("not_found")
+
+    switch_result = pdl_interp_functions.run_switch_attribute(
+        interpreter,
+        switch_op,
+        (non_matching_attr,),
+    )
+
+    assert isinstance(switch_result.terminator_value, Successor)
+    assert isinstance(switch_result.terminator_value.block, Block)
+    assert switch_result.terminator_value.block is default
+
+
+def test_get_defining_op_block_argument():
+    """Test that get_defining_op returns None for block arguments."""
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions(Context()))
+
+    # Create a block argument
+    block_arg = Block((), arg_types=(i32,)).args[0]
+
+    # Test GetDefiningOpOp with block argument
+    result = interpreter.run_op(
+        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (block_arg,)
+    )
+
+    # Should return None for block arguments since they are not defined by operations
+    assert result == (None,)
+
+
+def test_apply_constraint():
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
+
+    # Register a simple native constraint function
+    def native_constraint(x: int):
+        return True, (x + 42,)  # Return a boolean and an additional result
+
+    pdl_interp_functions.native_constraints["test_constraint"] = native_constraint
+
+    c0 = create_ssa_value(pdl.OperationType())
+
+    true_dest = Block()
+    false_dest = Block()
+
+    apply_constraint_op = pdl_interp.ApplyConstraintOp(
+        "test_constraint",
+        (c0,),
+        true_dest,
+        false_dest,
+        (pdl.AttributeType(),),
+        is_negated=False,
+    )
+
+    result = pdl_interp_functions.run_apply_constraint(
+        interpreter, apply_constraint_op, (1,)
+    )
+
+    assert result.values == (43,)
+
+    assert isinstance(result.terminator_value, Successor)
+    assert result.terminator_value.block is true_dest
+
+    # Test negated constraint
+    apply_constraint_op_negated = pdl_interp.ApplyConstraintOp(
+        StringAttr("test_constraint"),
+        (c0,),
+        true_dest,
+        false_dest,
+        (pdl.AttributeType(),),
+        is_negated=True,
+    )
+    negated_result = pdl_interp_functions.run_apply_constraint(
+        interpreter, apply_constraint_op_negated, (1,)
+    )
+    assert negated_result.values == (43,)
+    assert isinstance(negated_result.terminator_value, Successor)
+    assert negated_result.terminator_value.block is false_dest
+
+    # Test with non-existent constraint
+    apply_constraint_op_nonexistent = pdl_interp.ApplyConstraintOp(
+        "non_existent_constraint",
+        (c0,),
+        true_dest,
+        false_dest,
+        (pdl.AttributeType(),),
+        is_negated=BoolAttr.from_bool(False),
+    )
+    with pytest.raises(
+        InterpretationError,
+        match="Unknown constraint function: non_existent_constraint",
+    ):
+        pdl_interp_functions.run_apply_constraint(
+            interpreter, apply_constraint_op_nonexistent, (1,)
+        )

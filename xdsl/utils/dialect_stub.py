@@ -26,6 +26,7 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     PropertyDef,
+    RangeOf,
     RegionDef,
     ResultDef,
     SuccessorDef,
@@ -90,14 +91,14 @@ class DialectStubGenerator:
                     self._import(type(attr).__module__, type(attr).__name__)
                 return type(attr).__name__
 
-            case AnyOf(constraints):
+            case AnyOf(attr_constrs=constraints):
                 return " | ".join(
                     self._generate_constraint_type(c) for c in constraints
                 )
             case AllOf(constraints):
                 self._import(typing, "Annotated")
                 return f"Annotated[{', '.join(self._generate_constraint_type(c) for c in reversed(constraints))}]"  # noqa: E501
-            case ArrayOfConstraint(constraint):
+            case ArrayOfConstraint(RangeOf(constraint)):
                 self._import(xdsl.dialects.builtin, ArrayAttr)
                 return f"ArrayAttr[{self._generate_constraint_type(constraint)}]"
             case AnyAttr():
@@ -135,7 +136,7 @@ class DialectStubGenerator:
         # Generate the parameters' stubs, if any
         attr_def = attr.get_irdl_definition()
         for name, param in attr_def.parameters:
-            yield f'    {name} : "{self._generate_constraint_type(param)}"'
+            yield f'    {name} : "{self._generate_constraint_type(param.constr)}"'
         # Otherwise, generate a pass for Python's indentation
         if not attr_def.parameters:
             yield "    pass"

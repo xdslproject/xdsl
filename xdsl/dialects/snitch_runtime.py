@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Annotated, Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I32,
@@ -15,7 +17,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     irdl_op_definition,
     operand_def,
@@ -320,11 +321,9 @@ class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     Initiate an asynchronous 1D DMA transfer
     """
 
-    T = Annotated[Attribute, ConstraintVar("T"), _T]
     dst = operand_def(_T)
     src = operand_def(_T)
-    # Pylance was complaining about the below.
-    # size = operand_def(Annotated[Attribute, i32])
+
     size = operand_def(i32)
     transfer_id = result_def(tx_id)
 
@@ -342,7 +341,6 @@ class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     Generic base class for starting asynchronous 2D DMA transfers
     """
 
-    T = Annotated[Attribute, ConstraintVar("T"), _T]
     dst = operand_def(_T)
     src = operand_def(_T)
     dst_stride = operand_def(i32)

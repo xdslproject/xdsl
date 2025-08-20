@@ -1,5 +1,6 @@
 """Generate the code reference pages and navigation."""
 
+import os
 from pathlib import Path
 
 import mkdocs_gen_files
@@ -9,63 +10,122 @@ nav = Nav()
 
 root = Path(__file__).parent.parent
 src = root / "xdsl"
+docs_root = root / "docs"
 
-for path in sorted(src.rglob("*.py")):
-    module_path = path.relative_to(src).with_suffix("")
-    doc_path = path.relative_to(src).with_suffix(".md")
-    full_doc_path = Path("reference", doc_path)
 
-    parts = tuple(module_path.parts)
+def gen_reference():
+    for path in sorted(src.rglob("*.py")):
+        contents = path.read_text().strip()
+        if not contents or contents.startswith("# TID 251"):
+            # If this file is empty, or is an __init__.py with star imports, continue
+            continue
 
-    if parts[-1] == "__init__":
-        parts = parts[:-1]
-        doc_path = doc_path.with_name("index.md")
-        full_doc_path = full_doc_path.with_name("index.md")
-    elif parts[-1] == "__main__":
-        continue
-    elif parts[-1].startswith("_"):
-        continue
-    if not parts:
-        continue
+        module_path = path.relative_to(src).with_suffix("")
+        parts = tuple(module_path.parts)
 
-    if "ir" == parts[0]:
-        # IR is documented separately
-        continue
+        if parts[-1] == "__main__":
+            continue
+        elif parts[-1].startswith("_"):
+            continue
+        if not parts:
+            continue
 
-    ident = ".".join(parts)
+        doc_path = path.relative_to(src).with_suffix(".md")
+        full_doc_path = Path("reference", doc_path)
 
-    nav[parts] = doc_path.as_posix()
+        if parts[-1] == "__init__":
+            parts = parts[:-1]
+            doc_path = doc_path.with_name("index.md")
+            full_doc_path = full_doc_path.with_name("index.md")
 
-    with mkdocs_gen_files.open(full_doc_path, "w") as fd:
-        fd.write(f"::: xdsl.{ident}")
+        ident = ".".join(parts)
 
-    mkdocs_gen_files.set_edit_path(full_doc_path, path.relative_to(root))
+        nav[parts] = doc_path.as_posix()
 
+        with mkdocs_gen_files.open(full_doc_path, "w") as fd:
+            fd.write(f"::: xdsl.{ident}")
+
+        mkdocs_gen_files.set_edit_path(full_doc_path, path.relative_to(root))
+
+
+if os.environ.get("SKIP_GEN_PAGES") != "1":
+    gen_reference()
+
+# Generate an index page to empty if `gen_reference` did not run
 with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
     nav_file.writelines(nav.build_literate_nav())
 
-docs_root = root / "docs"
 
-for path in sorted((docs_root / "marimo").rglob("*.py")):
-    doc_path = path.relative_to(docs_root).with_suffix(".md")
+NEW_MARIMO_NOTEBOOKS = [
+    docs_root / "marimo" / "expressions.py",
+]
+"""
+Notebooks expected to be run inline in mkdocs-marimo.
+Some features are not supported so they have to be opted into it one by one.
+"""
 
-    with mkdocs_gen_files.open(doc_path, "w") as fd:
-        # Hide the header then inline the notebook
-        fd.write(f"""\
----
-hide:
-    - toc
----
-<style>
-  .md-typeset h1,
-  .md-content__button {{
-    display: none;
-  }}
-</style>
 
-/// marimo-embed-file
-    filepath: {path.relative_to(root)}
-    mode: 'edit'
-    show_source: 'false'
-///
-""")
+def gen_marimo_old():
+    def create_marimo_app_url(code: str, mode: str = "read") -> str:
+        from lzstring2 import LZString
+
+        encoded_code = LZString.compress_to_encoded_URI_component(code)
+        return f"https://marimo.app/#code/{encoded_code}&embed=true"
+
+    for path in sorted((docs_root / "marimo").rglob("*.py")):
+        if path in NEW_MARIMO_NOTEBOOKS:
+            continue
+        doc_path = path.relative_to(docs_root).with_suffix(".html")
+
+        url = create_marimo_app_url(path.read_text())
+
+        with mkdocs_gen_files.open(doc_path, "w") as fd:
+            # Hide the header then inline the notebook
+            fd.write(f"""\
+    <iframe style="border: 0px" height="3500em" scrolling="no" width="100%" src="{url}"></iframe>
+    """)
+
+    with open("docs/marimo/README.md") as rf:
+        marimo_readme = rf.read()
+
+    with mkdocs_gen_files.open("marimo/index.md", "w") as fd:
+        fd.write(marimo_readme.replace(".py", ".html"))
+
+
+def gen_marimo_new():
+    import subprocess
+
+    for path in NEW_MARIMO_NOTEBOOKS:
+        doc_path = path.relative_to(docs_root).with_suffix(".md")
+
+        with mkdocs_gen_files.open(doc_path, "w") as fd:
+            # Run marimo export and capture output
+            result = subprocess.run(
+                ["marimo", "export", "md", "--no-sandbox", str(path)],
+                stdout=subprocess.PIPE,
+                check=True,
+                encoding="utf-8",
+            )
+            output = result.stdout
+
+            # Rewrite code block headers as specified
+            import re
+
+            # Replace broken markdown syntax
+            output = re.sub(
+                r"python \{\.marimo[^\}]*\}",
+                "python {marimo}",
+                output,
+            )
+            # Replace broken test functions
+            output = re.sub(
+                "def test",
+                "def _test",
+                output,
+            )
+
+            fd.write(output)
+
+
+gen_marimo_old()
+gen_marimo_new()
