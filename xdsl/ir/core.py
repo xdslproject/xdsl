@@ -1027,7 +1027,7 @@ class Operation(_IRNode):
     This list should be empty for non-terminator operations.
     """
 
-    _successor_uses: tuple[Use, ...] = field(default=())
+    successor_uses: tuple[Use, ...] = field(default=())
     """
     The uses for each successor.
     They are stored separately from the successors to allow for more efficient
