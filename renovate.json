@@ -10,5 +10,11 @@
   ],
   "pre-commit": {
     "enabled": true
+  },
+  "nix": {
+    "enabled": true
+  },
+  "lockFileMaintenance": {
+    "enabled": true
   }
 }

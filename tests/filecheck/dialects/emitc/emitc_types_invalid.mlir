@@ -139,3 +139,17 @@
 "test.op"() {
   lvalue_ptr_memref = !emitc.lvalue<!emitc.ptr<memref<1xi32>>>
 }: ()->()
+
+// -----
+
+// CHECK: EmitC array element type 'f80' is not a supported EmitC type.
+"test.op"() {
+  unsupported_f80 = !emitc.array<1xf80>
+}: ()->()
+
+// -----
+
+// CHECK: !emitc.lvalue must wrap supported emitc type, but got f80
+"test.op"() {
+  unsupported_f80_lvalue = !emitc.lvalue<f80>
+}: ()->()

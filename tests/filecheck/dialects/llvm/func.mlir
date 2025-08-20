@@ -43,7 +43,7 @@
 // CHECK:            unnamed_addr = 0 : i64,
 // CHECK:            visibility_ = 0 : i64
 // CHECK:         }> ({
-// CHECK-NEXT:    ^0(%arg0 : i32, %arg1 : i32):
+// CHECK-NEXT:    ^bb0(%arg0 : i32, %arg1 : i32):
 // CHECK-NEXT:      "llvm.return"(%arg0) : (i32) -> ()
 // CHECK-NEXT:    }) : () -> ()
 // CHECK-NEXT:  }

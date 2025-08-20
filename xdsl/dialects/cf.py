@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from typing_extensions import Self
-
 from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntElementsAttr,
@@ -31,11 +29,24 @@ from xdsl.irdl import (
     var_operand_def,
     var_successor_def,
 )
-from xdsl.parser import Parser
+from xdsl.irdl.declarative_assembly_format import (
+    AttributeVariable,
+    CustomDirective,
+    OperandVariable,
+    ParsingState,
+    PrintingState,
+    SuccessorVariable,
+    TypeDirective,
+    VariadicOperandVariable,
+    VariadicSuccessorVariable,
+    irdl_custom_directive,
+)
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 class AssertHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
@@ -173,6 +184,143 @@ class SwitchOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
         )
 
 
+@irdl_custom_directive
+class SwitchOpCases(CustomDirective):
+    flag: TypeDirective
+    default_block: SuccessorVariable
+    default_operands: VariadicOperandVariable
+    default_operand_types: TypeDirective
+    case_values: AttributeVariable
+    case_blocks: VariadicSuccessorVariable
+    case_operands: VariadicOperandVariable
+    case_operand_segments: AttributeVariable
+    case_operand_types: TypeDirective
+
+    @staticmethod
+    def _parse_case_body(
+        parser: Parser,
+    ) -> tuple[Block, Sequence[UnresolvedOperand], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        block = parser.parse_successor()
+        if parser.parse_optional_punctuation("("):
+            unresolved = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            return (block, unresolved, types)
+        else:
+            return (block, (), ())
+
+    @classmethod
+    def _parse_case(
+        cls, parser: Parser
+    ) -> tuple[int, Block, Sequence[UnresolvedOperand], Sequence[Attribute]]:
+        i = parser.parse_integer()
+        (block, ops, types) = cls._parse_case_body(parser)
+        return (i, block, ops, types)
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        parser.parse_keyword("default")
+        (default_block, default_operands, default_operand_types) = (
+            self._parse_case_body(parser)
+        )
+        self.default_block.set(state, default_block)
+        self.default_operands.set(state, default_operands)
+        self.default_operand_types.set(state, default_operand_types)
+
+        if parser.parse_optional_punctuation(","):
+            assert isinstance(self.flag.inner, OperandVariable)
+            flag_type = state.operand_types[self.flag.inner.index]
+            assert flag_type is not None
+            flag_type = flag_type[0]
+            assert isa(flag_type, IntegerType | IndexType)
+            cases = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, lambda: self._parse_case(parser)
+            )
+            self.case_operand_segments.set(
+                state, DenseArrayBase.from_list(i32, tuple(len(x[2]) for x in cases))
+            )
+            self.case_values.set(
+                state,
+                DenseIntElementsAttr.from_list(
+                    VectorType(flag_type, (len(cases),)), tuple(x[0] for x in cases)
+                ),
+            )
+            self.case_blocks.set(state, tuple(x[1] for x in cases))
+            self.case_operands.set(state, tuple(y for x in cases for y in x[2]))
+            self.case_operand_types.set(state, tuple(y for x in cases for y in x[3]))
+        else:
+            self.case_blocks.set_empty(state)
+            self.case_operands.set_empty(state)
+            self.case_operand_types.set_empty(state)
+            self.case_operand_segments.set(state, DenseArrayBase.from_list(i32, ()))
+        return True
+
+    @staticmethod
+    def _print_case(
+        printer: Printer,
+        case_name: str | int,
+        block: Block,
+        arguments: Sequence[SSAValue],
+        types: Sequence[Attribute],
+    ):
+        if isinstance(case_name, str):
+            printer.print_string(case_name)
+        else:
+            printer.print_int(case_name)
+        printer.print_string(": ")
+        printer.print_block_name(block)
+        if arguments:
+            with printer.in_parens():
+                printer.print_list(arguments, printer.print_operand)
+                printer.print_string(" : ")
+                printer.print_list(types, printer.print_attribute)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        cases: list[
+            tuple[str | int, Successor, Sequence[SSAValue], Sequence[Attribute]]
+        ] = [
+            (
+                "default",
+                self.default_block.get(op),
+                self.default_operands.get(op),
+                self.default_operand_types.inner.get_types(op),
+            )
+        ]
+        if (case_values := self.case_values.get(op)) is not None:
+            assert isa(case_values, DenseIntElementsAttr)
+            case_blocks = self.case_blocks.get(op)
+            case_operands = self.case_operands.get(op)
+            case_operand_types = self.case_operand_types.get(op)
+            segments = self.case_operand_segments.get(op)
+            assert segments is not None
+            assert DenseArrayBase.constr(i32).verifies(segments)
+            idx = 0
+            for c, block, segment in zip(
+                case_values.get_values(), case_blocks, segments.get_values()
+            ):
+                cases.append(
+                    (
+                        c,
+                        block,
+                        case_operands[idx : idx + segment],
+                        case_operand_types[idx : idx + segment],
+                    )
+                )
+                idx += segment
+
+        with printer.indented():
+            printer.print_list(
+                cases,
+                lambda x: self._print_case(printer, x[0], x[1], x[2], x[3]),
+                ",\n",
+            )
+
+
 @irdl_op_definition
 class SwitchOp(IRDLOperation):
     """Switch operation"""
@@ -197,6 +345,23 @@ class SwitchOp(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     traits = traits_def(IsTerminator(), Pure(), SwitchOpHasCanonicalizationPatterns())
+
+    assembly_format = (
+        "$flag `:` type($flag) `,` `[` `\\n`"
+        "custom<SwitchOpCases>("
+        "  ref(type($flag)),"
+        "  $default_block,"
+        "  $default_operands,"
+        "  type($default_operands),"
+        "  $case_values,"
+        "  $case_blocks,"
+        "  $case_operands,"
+        "  $case_operand_segments,"  # We do not have variadic of variadic support
+        "  type($case_operands)"
+        ") `\\n` `]` attr-dict"
+    )
+
+    custom_directives = (SwitchOpCases,)
 
     def __init__(
         self,
@@ -231,21 +396,9 @@ class SwitchOp(IRDLOperation):
 
     @property
     def case_operand(self) -> tuple[VarOperand, ...]:
-        if self.case_operand_segments.elt_type != i32:
-            raise VerifyException(
-                "case_operand_segments is expected to be a DenseArrayBase of i32"
-            )
-
-        def_sizes = self.case_operand_segments.get_values()
-
-        if sum(def_sizes) != len(self.case_operands):
-            raise VerifyException(
-                "Lengths of case operand segment sizes do not sum to the number of case operands"
-            )
-
         cases: list[VarOperand] = []
         prev = 0
-        for size in def_sizes:
+        for size in self.case_operand_segments.get_values():
             cases.append(VarOperand(self.case_operands[prev : prev + size]))
             prev += size
 
@@ -272,114 +425,10 @@ class SwitchOp(IRDLOperation):
                 f"number of case values should match number of case blocks ({len(self.case_blocks)})"
             )
 
-        # Check case operands are well formed
-        self.case_operand
-
-    @staticmethod
-    def _print_case(
-        printer: Printer, case_name: str, block: Block, arguments: VarOperand
-    ):
-        printer.print_string(case_name)
-        printer.print_string(": ")
-        printer.print_block_name(block)
-        if arguments:
-            printer.print_string("(")
-            printer.print_list(arguments, printer.print_operand)
-            printer.print_string(" : ")
-            printer.print_list(arguments.types, printer.print_attribute)
-            printer.print_string(")")
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_operand(self.flag)
-        printer.print_string(" : ")
-        printer.print_attribute(self.flag.type)
-        printer.print_string(", [")
-        with printer.indented():
-            printer.print_string("\n")
-            cases = [("default", self.default_block, self.default_operands)]
-            if self.case_values:
-                cases = cases + [
-                    (str(c), block, operands)
-                    for (c, block, operands) in zip(
-                        self.case_values.get_values(),
-                        self.case_blocks,
-                        self.case_operand,
-                    )
-                ]
-
-            printer.print_list(
-                cases, lambda x: self._print_case(printer, x[0], x[1], x[2]), ",\n"
+        if sum(self.case_operand_segments.get_values()) != len(self.case_operands):
+            raise VerifyException(
+                "Lengths of case operand segment sizes do not sum to the number of case operands"
             )
-
-        printer.print_string("\n]")
-        attr_dict = {
-            k: v
-            for k, v in self.attributes.items()
-            if k not in ("case_operand_segments", "case_values", "operandSegmentSizes")
-        }
-        if attr_dict:
-            printer.print_attr_dict(attr_dict)
-
-    @staticmethod
-    def _parse_case_body(parser: Parser) -> tuple[Block, Sequence[SSAValue]]:
-        parser.parse_punctuation(":")
-        block = parser.parse_successor()
-        if parser.parse_optional_punctuation("("):
-            unresolved = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
-            parser.parse_punctuation(":")
-            types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
-            parser.parse_punctuation(")")
-            operands = parser.resolve_operands(unresolved, types, parser.pos)
-            return (block, operands)
-        else:
-            return (block, ())
-
-    @classmethod
-    def _parse_case(cls, parser: Parser) -> tuple[int, Block, Sequence[SSAValue]]:
-        i = parser.parse_integer()
-        (block, ops) = cls._parse_case_body(parser)
-        return (i, block, ops)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        unresolved_flag = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        flag_type = parser.parse_type()
-        flag = parser.resolve_operand(unresolved_flag, flag_type)
-        parser.parse_punctuation(",")
-        parser.parse_punctuation("[")
-        parser.parse_keyword("default")
-        (default_block, default_args) = cls._parse_case_body(parser)
-        case_values: DenseIntElementsAttr | None = None
-        case_blocks: tuple[Block, ...] = ()
-        case_operands: tuple[tuple[SSAValue, ...], ...] = ()
-        if parser.parse_optional_punctuation(","):
-            cases = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, lambda: cls._parse_case(parser)
-            )
-            assert isinstance(flag_type, IntegerType | IndexType)
-            data = tuple(x for (x, _, _) in cases)
-            case_values = DenseIntElementsAttr.from_list(
-                VectorType(flag_type, (len(data),)), data
-            )
-            case_blocks = tuple(x for (_, x, _) in cases)
-            case_operands = tuple(tuple(x) for (_, _, x) in cases)
-        parser.parse_punctuation("]")
-        attr_dict = parser.parse_optional_attr_dict()
-        return cls(
-            flag,
-            default_block,
-            default_args,
-            case_values,
-            case_blocks,
-            case_operands,
-            attr_dict,
-        )
 
 
 Cf = Dialect(

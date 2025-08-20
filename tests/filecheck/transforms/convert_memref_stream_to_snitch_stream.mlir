@@ -124,7 +124,7 @@ memref_stream.streaming_region {
         #memref_stream.stride_pattern<ub = [1, 1, 6, 6, 1, 3, 3], index_map = (d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>
     ]
 } ins(%D, %E : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) {
-^0(%d_stream : !memref_stream.readable<f64>, %e_stream : !memref_stream.readable<f64>):
+^bb0(%d_stream : !memref_stream.readable<f64>, %e_stream : !memref_stream.readable<f64>):
     "test.op"(%d_stream, %e_stream) : (!memref_stream.readable<f64>, !memref_stream.readable<f64>) -> ()
 }
 
@@ -152,7 +152,7 @@ memref_stream.streaming_region {
         #memref_stream.stride_pattern<ub = [8, 8], index_map = (m, n) -> (m, n)>
     ]
 } ins(%F, %F, %F : memref<8x8xf64>, memref<8x8xf64>, memref<8x8xf64>) {
-^0(%x_stream : !memref_stream.readable<f64>, %w_stream : !memref_stream.readable<f64>, %b_stream : !memref_stream.readable<f64>):
+^bb0(%x_stream : !memref_stream.readable<f64>, %w_stream : !memref_stream.readable<f64>, %b_stream : !memref_stream.readable<f64>):
     "test.op"(%x_stream, %w_stream, %b_stream) : (!memref_stream.readable<f64>, !memref_stream.readable<f64>, !memref_stream.readable<f64>) -> ()
 }
 
@@ -181,7 +181,7 @@ memref_stream.streaming_region {
     #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
     ]
 } outs(%H : memref<16x16xf64>) {
-^0(%h_stream : !memref_stream.writable<f64>):
+^bb0(%h_stream : !memref_stream.writable<f64>):
     %c0 = arith.constant 0 : i32
     %c1 = arith.constant 1 : i32
     %c256 = arith.constant 256 : i32
@@ -223,7 +223,7 @@ memref_stream.streaming_region {
         #memref_stream.stride_pattern<ub = [3, 2, 4], index_map = (d0, d1, d2) -> (d0, ((d1 * 4) + d2))>
     ]
 } ins(%I, %J : memref<3x5xf64>, memref<5x8xf64>) outs(%K : memref<3x8xf64>) {
-^0(%i : !memref_stream.readable<f64>, %j : !memref_stream.readable<f64>, %k : !memref_stream.writable<f64>):
+^bb0(%i : !memref_stream.readable<f64>, %j : !memref_stream.readable<f64>, %k : !memref_stream.writable<f64>):
     %res = "test.op"() : () -> f64
     memref_stream.yield %res : f64
 }
@@ -277,7 +277,7 @@ memref_stream.streaming_region {
         #memref_stream.stride_pattern<ub = [8, 8], index_map = (d0, d1) -> (d0, 2 * d1)>
     ]
 } ins(%X_f32, %Y_f32 : memref<8x16xf32>, memref<8x16xf32>) outs(%Z_f32 : memref<8x16xf32>) {
-^0(%x_stream : !memref_stream.readable<vector<2xf32>>, %y_stream : !memref_stream.readable<vector<2xf32>>, %z_stream : !memref_stream.writable<vector<2xf32>>):
+^bb0(%x_stream : !memref_stream.readable<vector<2xf32>>, %y_stream : !memref_stream.readable<vector<2xf32>>, %z_stream : !memref_stream.writable<vector<2xf32>>):
     memref_stream.generic {
         bounds = [8, 8],
         indexing_maps = [
@@ -287,7 +287,7 @@ memref_stream.streaming_region {
         ],
         iterator_types = ["parallel", "parallel"]
     } ins(%x_stream, %y_stream : !memref_stream.readable<vector<2xf32>>, !memref_stream.readable<vector<2xf32>>) outs(%z_stream : !memref_stream.writable<vector<2xf32>>) {
-    ^1(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
+    ^bb1(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
         %3 = arith.addf %in, %in_1 : vector<2xf32>
         memref_stream.yield %3 : vector<2xf32>
     }
@@ -300,7 +300,7 @@ memref_stream.streaming_region {
 // CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [64], strides = [8]>
 // CHECK-NEXT:      ]
 // CHECK-NEXT:    } ins(%X_f32_1, %Y_f32_1 : !riscv.reg, !riscv.reg) outs(%Z_f32_1 : !riscv.reg) {
-// CHECK-NEXT:    ^7(%x_stream_2 : !snitch.readable<!riscv.freg>, %y_stream : !snitch.readable<!riscv.freg>, %z_stream : !snitch.writable<!riscv.freg>):
+// CHECK-NEXT:    ^bb7(%x_stream_2 : !snitch.readable<!riscv.freg>, %y_stream : !snitch.readable<!riscv.freg>, %z_stream : !snitch.writable<!riscv.freg>):
 // CHECK-NEXT:      %x_stream_3 = builtin.unrealized_conversion_cast %x_stream_2 : !snitch.readable<!riscv.freg> to !memref_stream.readable<vector<2xf32>>
 // CHECK-NEXT:      %y_stream_1 = builtin.unrealized_conversion_cast %y_stream : !snitch.readable<!riscv.freg> to !memref_stream.readable<vector<2xf32>>
 // CHECK-NEXT:      %z_stream_1 = builtin.unrealized_conversion_cast %z_stream : !snitch.writable<!riscv.freg> to !memref_stream.writable<vector<2xf32>>
@@ -313,7 +313,7 @@ memref_stream.streaming_region {
 // CHECK-NEXT:        ],
 // CHECK-NEXT:        iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:      } ins(%x_stream_3, %y_stream_1 : !memref_stream.readable<vector<2xf32>>, !memref_stream.readable<vector<2xf32>>) outs(%z_stream_1 : !memref_stream.writable<vector<2xf32>>) {
-// CHECK-NEXT:      ^8(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
+// CHECK-NEXT:      ^bb8(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
 // CHECK-NEXT:        %15 = arith.addf %in, %in_1 : vector<2xf32>
 // CHECK-NEXT:        memref_stream.yield %15 : vector<2xf32>
 // CHECK-NEXT:      }

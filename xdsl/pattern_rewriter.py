@@ -648,7 +648,7 @@ class PatternRewriteWalker:
         """
         for operand in operands:
             if (
-                len(operand.uses) == 1
+                operand.has_one_use()
                 and not isinstance(operand, ErasedSSAValue)
                 and isinstance((op := operand.owner), Operation)
             ):
@@ -771,6 +771,7 @@ class PatternRewriteWalker:
             rewriter.has_done_action = False
             rewriter.current_operation = op
             rewriter.insertion_point = InsertPoint.before(op)
+            rewriter.name_hint = None
 
             # Apply the pattern on the operation
             try:

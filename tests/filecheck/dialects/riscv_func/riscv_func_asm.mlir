@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t riscv-asm --split-input-file --verify-diagnostics %s | filecheck %s
+// RUN: xdsl-opt -t x86-asm --split-input-file --verify-diagnostics %s | filecheck %s
 
 
 riscv_func.func @noarg_void() {
@@ -36,7 +36,7 @@ riscv_func.func @arg_rec(%0 : !riscv.reg) -> !riscv.reg {
 // CHECK-NEXT:      ret
 
 riscv_func.func @arg_rec_block(!riscv.reg) -> !riscv.reg {
-^0(%2 : !riscv.reg):
+^bb0(%2 : !riscv.reg):
   %3 = riscv_func.call @arg_rec_block(%2) : (!riscv.reg) -> !riscv.reg
   riscv_func.return %3 : !riscv.reg
 }

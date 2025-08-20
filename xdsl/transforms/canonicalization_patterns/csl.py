@@ -22,8 +22,8 @@ class GetDsdAndOffsetFolding(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.GetMemDsdOp, rewriter: PatternRewriter) -> None:
         # single use that is `@increment_dsd_offset`
-        if len(op.result.uses) != 1 or not isinstance(
-            offset_op := next(iter(op.result.uses)).operation, csl.IncrementDsdOffsetOp
+        if not isinstance(
+            offset_op := op.result.get_user_of_unique_use(), csl.IncrementDsdOffsetOp
         ):
             return
         # only works on 1d
@@ -62,8 +62,8 @@ class GetDsdAndLengthFolding(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.GetMemDsdOp, rewriter: PatternRewriter) -> None:
         # single use that is `@set_dsd_length`
-        if len(op.result.uses) != 1 or not isinstance(
-            size_op := next(iter(op.result.uses)).operation, csl.SetDsdLengthOp
+        if not isinstance(
+            size_op := op.result.get_user_of_unique_use(), csl.SetDsdLengthOp
         ):
             return
         # only works on 1d
@@ -89,8 +89,8 @@ class GetDsdAndStrideFolding(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.GetMemDsdOp, rewriter: PatternRewriter) -> None:
         # single use that is `@set_dsd_stride`
-        if len(op.result.uses) != 1 or not isinstance(
-            stride_op := next(iter(op.result.uses)).operation, csl.SetDsdStrideOp
+        if not isinstance(
+            stride_op := op.result.get_user_of_unique_use(), csl.SetDsdStrideOp
         ):
             return
         # only works on 1d and default (unspecified) tensor_access
@@ -129,8 +129,8 @@ class ChainedDsdOffsetFolding(RewritePattern):
         self, op: csl.IncrementDsdOffsetOp, rewriter: PatternRewriter
     ) -> None:
         # single use that is `@increment_dsd_offset`
-        if len(op.result.uses) != 1 or not isinstance(
-            next_op := next(iter(op.result.uses)).operation, csl.IncrementDsdOffsetOp
+        if not isinstance(
+            next_op := op.result.get_user_of_unique_use(), csl.IncrementDsdOffsetOp
         ):
             return
 
@@ -160,8 +160,8 @@ class ChainedDsdLengthFolding(RewritePattern):
         self, op: csl.SetDsdLengthOp, rewriter: PatternRewriter
     ) -> None:
         # single use that is `@set_dsd_length`
-        if len(op.result.uses) != 1 or not isinstance(
-            next_op := next(iter(op.result.uses)).operation, csl.SetDsdLengthOp
+        if not isinstance(
+            next_op := op.result.get_user_of_unique_use(), csl.SetDsdLengthOp
         ):
             return
 
@@ -186,8 +186,8 @@ class ChainedDsdStrideFolding(RewritePattern):
         self, op: csl.SetDsdStrideOp, rewriter: PatternRewriter
     ) -> None:
         # single use that is `@set_dsd_stride`
-        if len(op.result.uses) != 1 or not isinstance(
-            next_op := next(iter(op.result.uses)).operation, csl.SetDsdStrideOp
+        if not isinstance(
+            next_op := op.result.get_user_of_unique_use(), csl.SetDsdStrideOp
         ):
             return
 

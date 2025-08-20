@@ -340,7 +340,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         reduction_ops = cast(set[csl.BuiltinDsdOp], reduction_ops)
 
         # check: only apply rewrite if each access has exactly one use
-        if any(len(a.result.uses) != 1 for a in access_ops):
+        if any(not a.result.has_one_use() for a in access_ops):
             return
 
         # check: only apply rewrite if reduction ops use `access` ops only (plus one other, checked below)
@@ -370,7 +370,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         chunk_size = wrapper.get_program_param("chunk_size")
         new_ops: list[Operation]
         if wrapper.target.data != "wse2":
-            assert isinstance(pattern.type, IntegerType)
+            assert isa(pattern.type, IntegerType)
             one = arith.ConstantOp.from_int_and_width(1, pattern.type)
             pattern_m_one = arith.SubiOp(pattern, one)
             new_ops = [one, pattern_m_one]
