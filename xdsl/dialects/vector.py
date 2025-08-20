@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, Literal, cast
+from typing import ClassVar, cast
 
 from typing_extensions import deprecated
 
@@ -34,7 +34,13 @@ from xdsl.dialects.utils import (
     verify_dynamic_index_list,
 )
 from xdsl.dialects.utils.dynamic_index_list import DynamicIndexList
-from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Data,
+    Dialect,
+    Operation,
+    SSAValue,
+)
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
@@ -54,7 +60,7 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
@@ -1270,34 +1276,21 @@ class CombiningKindFlag(StrEnum):
 
 
 @irdl_attr_definition
-class CombiningKindAttr(BitEnumAttribute[CombiningKindFlag]):
+class CombiningKindAttr(Data[CombiningKindFlag]):
     """
     A mirror of LLVM's vector.kind attribute.
     """
 
     name = "vector.kind"
 
-    def __init__(
-        self,
-        kind: None
-        | Sequence[CombiningKindFlag]
-        | Literal[
-            "add",
-            "mul",
-            "minui",
-            "minsi",
-            "minnumf",
-            "maxui",
-            "maxsi",
-            "maxnumf",
-            "and",
-            "or",
-            "xor",
-            "maximumf",
-            "minimumf",
-        ],
-    ):
-        super().__init__(kind)
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> CombiningKindFlag:
+        with parser.in_angle_brackets():
+            return CombiningKindFlag(parser.parse_identifier())
 
 
 @irdl_op_definition
@@ -1318,14 +1311,18 @@ class ReductionOp(IRDLOperation):
     def __init__(
         self,
         vector: SSAValue | Operation,
-        kind: CombiningKindFlag,
+        kind: CombiningKindAttr,
         result_type: Attribute,
         acc: SSAValue | Operation | None = None,
+        fastmath: FastMathFlagsAttr | None = None,
     ):
         super().__init__(
             operands=[vector, acc],
             result_types=[result_type],
-            properties={"kind": CombiningKindAttr([kind])},
+            properties={
+                "kind": kind,
+                "fastmath": fastmath,
+            },
         )
 
 
