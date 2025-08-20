@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar, cast
@@ -44,6 +44,7 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
+    IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
@@ -229,7 +230,7 @@ class ShuffleResultConstraint(AttrConstraint[VectorType]):
         return VectorType(element_type, ArrayAttr(shape))
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[VectorType]:
         return ShuffleResultConstraint(
             self.element_constr.mapping_type_vars(type_var_mapping)
