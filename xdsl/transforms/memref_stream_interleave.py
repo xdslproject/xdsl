@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Block, Region, SSAValue
 from xdsl.ir.affine import AffineExpr
-from xdsl.ir.op_selector import OpSelector
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -24,6 +23,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.utils.op_selector import OpSelector
 
 
 def factors(num: int) -> tuple[int, ...]:
