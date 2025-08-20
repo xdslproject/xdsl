@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import Annotated, ClassVar, Generic
+from typing import ClassVar, Generic
 
 import pytest
 from typing_extensions import TypeVar
@@ -746,7 +746,7 @@ def test_typed_attribute_variable(program: str, generic_program: str):
     class TypedAttributeOp(IRDLOperation):
         name = "test.typed_attr"
         attr = attr_def(IntegerAttr[I32])
-        float_attr = attr_def(FloatAttr[Annotated[Float64Type, Float64Type()]])
+        float_attr = attr_def(FloatAttr[Float64Type])
 
         assembly_format = "$attr $float_attr attr-dict"
 
