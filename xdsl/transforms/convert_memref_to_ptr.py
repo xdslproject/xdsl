@@ -139,7 +139,7 @@ class ConvertSubviewOp(RewritePattern):
     def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.source.type, memref.MemRefType)
 
-        static_offsets = cast(tuple[int, ...], op.static_offsets.get_values())
+        static_offsets = op.static_offsets.get_values()
         offsets: list[SSAValue] = []
 
         for idx, offset in enumerate(static_offsets):
@@ -155,14 +155,10 @@ class ConvertSubviewOp(RewritePattern):
                 offsets.append(const_op.result)
 
         # We can treat a subview as getting a pointer to the first element in the subview.
-        ops, target_ptr = get_target_ptr(op.source, memref_type, offsets)
+        rewriter.name_hint = op.result.name_hint
+        target_ptr = get_target_ptr(op.source, memref_type, offsets, rewriter)
 
-        rewriter.replace_matched_op(
-            (
-                *ops,
-                builtin.UnrealizedConversionCastOp.get([target_ptr], [op.result.type]),
-            )
-        )
+        rewriter.replace_matched_op(ptr.FromPtrOp(target_ptr, op.result.type))
 
 
 @dataclass
