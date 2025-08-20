@@ -2151,7 +2151,7 @@ class OpSuccessors(Sequence[Block]):
 
     def __setitem__(self, idx: int, successor: Block) -> None:
         successors = self._op._successors  # pyright: ignore[reportPrivateUsage]
-        successor_uses = self._op.successor_uses
+        successor_uses = self._op._successor_uses  # pyright: ignore[reportPrivateUsage]
         successors[idx].remove_use(successor_uses[idx])
         successor.add_use(successor_uses[idx])
         new_successors = (*successors[:idx], successor, *successors[idx + 1 :])
