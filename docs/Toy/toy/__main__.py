@@ -35,7 +35,7 @@ parser.add_argument(
         "toy",
         "toy-opt",
         "toy-inline",
-        "toy-infer-shapes",
+        "shape-inference",
         "affine",
         "scf",
         "riscv",
@@ -61,7 +61,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         match path.suffix:
             case ".toy":
                 parser = ToyParser(path, f.read())
-                ast = parser.parseModule()
+                ast = parser.parse_module()
                 if emit == "ast":
                     print(ast.dump())
                     return
@@ -94,11 +94,11 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
 
     if ir:
         printer = Printer(print_generic_format=print_generic)
-        printer.print(module_op)
+        printer.print_op(module_op)
         return
 
     interpreter = Interpreter(module_op)
-    if emit in ("toy", "toy-opt", "toy-inline", "toy-infer-shapes"):
+    if emit in ("toy", "toy-opt", "toy-inline", "shape-inference"):
         interpreter.register_implementations(ToyFunctions())
     if emit in ("affine"):
         interpreter.register_implementations(AffineFunctions())

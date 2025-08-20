@@ -94,8 +94,6 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
             # find max x and y dimensions
             if len(shape := apply_op.topo.shape.get_values()) == 2:
-                assert isinstance(shape[0], int), "Cannot have a float data shape"
-                assert isinstance(shape[1], int), "Cannot have a float data shape"
                 width = max(width, shape[0])
                 height = max(height, shape[1])
             else:
@@ -115,7 +113,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             ) and isa(el_type := field_t.element_type, TensorType | MemRefType):
                 # unbufferized csl_stencil
                 z_dim = max(z_dim, el_type.get_shape()[-1])
-            elif isa(field_t, memref.MemRefType[Attribute]):
+            elif isa(field_t, memref.MemRefType):
                 # bufferized csl_stencil
                 z_dim = max(z_dim, field_t.get_shape()[-1])
 
@@ -213,7 +211,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             arg_name = arg.name_hint or ("arg" + str(args.index(arg)))
 
             if isa(arg.type, stencil.FieldType[TensorType[Attribute]]) or isa(
-                arg.type, memref.MemRefType[Attribute]
+                arg.type, memref.MemRefType
             ):
                 arg_t = (
                     csl_stencil_bufferize.tensor_to_memref_type(
@@ -398,11 +396,9 @@ class LowerTimerFuncCall(RewritePattern):
         time_lib = wrapper.get_program_import("<time>")
 
         three_elem_ptr_type = csl.PtrType(
-            [
-                memref.MemRefType(op.ptr.type.get_element_type(), (3,)),
-                csl.PtrKindAttr(csl.PtrKind.SINGLE),
-                csl.PtrConstAttr(csl.PtrConst.VAR),
-            ]
+            memref.MemRefType(op.ptr.type.get_element_type(), (3,)),
+            csl.PtrKindAttr(csl.PtrKind.SINGLE),
+            csl.PtrConstAttr(csl.PtrConst.VAR),
         )
 
         rewriter.insert_op(

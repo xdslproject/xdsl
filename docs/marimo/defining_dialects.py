@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.11.10"
+__generated_with = "0.13.6"
 app = marimo.App(width="medium")
 
 
@@ -59,7 +59,6 @@ def _():
         irdl_attr_definition,
         operand_def,
         result_def,
-        ParameterDef,
         traits_def,
     )
     from xdsl.dialects.builtin import (
@@ -95,13 +94,10 @@ def _():
         Block,
         Builder,
         ConstantOp,
-        DivfOp,
-        E,
         Expr,
         Float,
         Float64Type,
         FloatAttr,
-        FloatingPointLikeBinaryOperation,
         ForOp,
         FuncOp,
         Function,
@@ -117,21 +113,17 @@ def _():
         MulfOp,
         MuliOp,
         Operation,
-        ParameterDef,
         ParametrizedAttribute,
         PatternRewriteWalker,
         PatternRewriter,
         Pow,
         PowFOp,
         Pure,
-        Rational,
         Region,
         ReturnOp,
         RewritePattern,
-        S,
         SIToFPOp,
         SSAValue,
-        SqrtOp,
         SubfOp,
         Sum,
         Symbol,
@@ -139,14 +131,10 @@ def _():
         YieldOp,
         cse,
         dce,
-        im,
         irdl_attr_definition,
         irdl_op_definition,
         mo,
-        op_type_rewrite_pattern,
         operand_def,
-        re,
-        region_dce,
         result_def,
         symbols,
         traits_def,
@@ -163,14 +151,14 @@ def _(Function):
 def _(mo):
     mo.md(
         """
-        # Exercise: Add a `complex` dialect
+    # Exercise: Add a `complex` dialect
 
-        Your task is to:
+    Your task is to:
 
-        * Write a new set of `complex` operations
-        * Add a lowering from `complex` to `arith`
-        * Add optimizations for the `complex` dialect
-        """
+    * Write a new set of `complex` operations
+    * Add a lowering from `complex` to `arith`
+    * Add optimizations for the `complex` dialect
+    """
     )
     return
 
@@ -179,19 +167,19 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        ## Defining the `complex` dialect
+    ## Defining the `complex` dialect
 
-        You should write the following operations:
+    You should write the following operations:
 
-        * "complex.create": creates a complex value given its real and imaginary float types
-        * "complex.re": returns the real part of a complex number
-        * "complex.im": returns the imaginary part of a complex number
-        * "complex.add": adds two complex numbers
-        * "complex,mul": multiples two copmlex numbers
-        * "complex.norm": returns the norm of two complex numbers
+    * "complex.create": creates a complex value given its real and imaginary float types
+    * "complex.re": returns the real part of a complex number
+    * "complex.im": returns the imaginary part of a complex number
+    * "complex.add": adds two complex numbers
+    * "complex,mul": multiples two copmlex numbers
+    * "complex.norm": returns the norm of two complex numbers
 
-        Here is the definition of the `!complex.complex` type, and the definition of `complex.re`. Complete it with the other ops:
-        """
+    Here is the definition of the `!complex.complex` type, and the definition of `complex.re`. Complete it with the other ops:
+    """
     )
     return
 
@@ -282,10 +270,10 @@ def _(
 def _(mo):
     mo.md(
         """
-        ### Solution
+    ### Solution
 
-        Hidden below is the definition of all operations
-        """
+    Hidden below is the definition of all operations
+    """
     )
     return
 
@@ -389,18 +377,18 @@ def _(
 
             def __init__(self, arg: SSAValue):
                 super().__init__(operands=[arg], result_types=[Float64Type()])
-    return (dialect_solution,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-        ## Filling the IR emitter with `complex` operations:
+    ## Filling the IR emitter with `complex` operations:
 
-        Now that our new operations are defined, we can add support for them in the IR emitter.
-        We completed this for you below.
-        """
+    Now that our new operations are defined, we can add support for them in the IR emitter.
+    We completed this for you below.
+    """
     )
     return
 
@@ -691,7 +679,7 @@ def _(
             return res
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
-    return emit_complex_op, emit_integer_op, emit_op, emit_real_op
+    return (emit_op,)
 
 
 @app.cell(hide_code=True)
@@ -728,17 +716,17 @@ def _(I, Norm, print_ir, x, y):
 def _(mo):
     mo.md(
         """
-        ## Lowering the complex dialect
+    ## Lowering the complex dialect
 
-        Now that we emitted IR using the `complex` dialect, we can lower it to `arith`.
+    Now that we emitted IR using the `complex` dialect, we can lower it to `arith`.
 
-        To do this, follow these steps:
+    To do this, follow these steps:
 
-        * Write the patterns `re(create(x, y)) -> x` and `im(create(x, y))`
-        * Write patterns to rewrite `complex.add`, `complex.mul`, and `complex.norm` into `arith` and `complex.create`, `complex.re`, and `complex.im` ops. For instance, `add(x, y)` should be rewritten to `create(re(x) + re(y), im(x) + im(y))`.
+    * Write the patterns `re(create(x, y)) -> x` and `im(create(x, y))`
+    * Write patterns to rewrite `complex.add`, `complex.mul`, and `complex.norm` into `arith` and `complex.create`, `complex.re`, and `complex.im` ops. For instance, `add(x, y)` should be rewritten to `create(re(x) + re(y), im(x) + im(y))`.
 
-        This will effectively lower the `complex` dialect, as all these patterns will be applied until convergence. We give you the pattern `re(create(x, y)) -> x` and the lowering of `complex.mul`
-        """
+    This will effectively lower the `complex` dialect, as all these patterns will be applied until convergence. We give you the pattern `re(create(x, y)) -> x` and the lowering of `complex.mul`
+    """
     )
     return
 
@@ -824,14 +812,7 @@ def _(
             # Implement the lowering of norm
             # The formula is `norm(z) = (re(z) * re(z) + im(z) * im(z)) ^ 0.5`
             return
-    return (
-        FoldImCreateOp,
-        FoldReCreateOp,
-        LowerAddOp,
-        LowerMulOp,
-        LowerNormOp,
-        lower_complex,
-    )
+    return (lower_complex,)
 
 
 @app.cell(hide_code=True)
@@ -878,10 +859,10 @@ def _(I, Norm, print_ir_with_complex_lowering, x, y):
 def _(mo):
     mo.md(
         """
-        ### Solution
+    ### Solution
 
-        Hidden below is a possible lowering:
-        """
+    Hidden below is a possible lowering:
+    """
     )
     return
 
@@ -1002,23 +983,23 @@ def _(
                 pow = rewriter.insert(PowFOp(add, half)).result
 
                 rewriter.replace_matched_op([], new_results=[pow])
-    return (solution,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
-        ## Optimizing our dialects
+    ## Optimizing our dialects
 
-        As a last task, you have to write your own optimizations patterns to improve as much as possible the performance of the generated code. This includes reducing the amount of floating point power and multiplication functions.
+    As a last task, you have to write your own optimizations patterns to improve as much as possible the performance of the generated code. This includes reducing the amount of floating point power and multiplication functions.
 
-        Use `print_ir_with_pipeline` to test your code, it will run an optimization pass, then the lowering of `complex`, then another optimization pass.
+    Use `print_ir_with_pipeline` to test your code, it will run an optimization pass, then the lowering of `complex`, then another optimization pass.
 
-        Your objective is to optimize the function `Norm(z1) * Norm(z2)`.
+    Your objective is to optimize the function `Norm(z1) * Norm(z2)`.
 
-        As a hint, this expression is equivalent to `Norm(z1 * z2)`, which is much easier to express as a `complex` dialect optimization than an `arith` optimization. You may also add other `arith` and `complex` optimizations.
-        """
+    As a hint, this expression is equivalent to `Norm(z1 * z2)`, which is much easier to express as a `complex` dialect optimization than an `arith` optimization. You may also add other `arith` and `complex` optimizations.
+    """
     )
     return
 

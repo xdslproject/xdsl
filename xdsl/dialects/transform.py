@@ -2,19 +2,20 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Mapping, Sequence
-from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
     FunctionType,
-    IntAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
+    i1,
+    i64,
 )
 from xdsl.dialects.func import FuncOpCallableInterface
 from xdsl.dialects.utils import (
@@ -32,10 +33,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyOf,
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
@@ -112,10 +111,10 @@ class OperationType(TransformOpHandleType):
     """
 
     name = "transform.op"
-    operation: ParameterDef[StringAttr]
+    operation: StringAttr
 
     def __init__(self, operation: str):
-        super().__init__(parameters=[StringAttr(operation)])
+        super().__init__(StringAttr(operation))
 
 
 @irdl_attr_definition
@@ -125,10 +124,7 @@ class ParamType(TransformParamHandleType):
     """
 
     name = "transform.param"
-    type: ParameterDef[TypeAttribute]
-
-    def __init__(self, type: TypeAttribute):
-        super().__init__(parameters=[type])
+    type: TypeAttribute
 
 
 @irdl_attr_definition
@@ -150,11 +146,6 @@ class FailurePropagationModeAttr(
     EnumAttribute[FailurePropagationModeType], TypeAttribute
 ):
     name = "transform.failures"
-
-
-AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
-    Attribute, AnyOf([IntegerType, FailurePropagationModeAttr])
-]
 
 
 @irdl_op_definition
@@ -192,7 +183,7 @@ class ApplyRegisteredPassOp(IRDLOperation):
                 "options": options,
             },
             operands=[target],
-            result_types=[TransformHandleType()],
+            result_types=[target.type],
         )
 
 
@@ -318,12 +309,12 @@ class GetResultOp(IRDLOperation):
     def __init__(
         self,
         target: SSAValue,
-        raw_position_list: (Sequence[int] | Sequence[IntAttr] | DenseArrayBase),
+        raw_position_list: (Sequence[int] | DenseArrayBase),
         is_inverted: bool = False,
         is_all: bool = False,
     ):
         if isinstance(raw_position_list, Sequence):
-            raw_position_list = DenseArrayBase.create_dense_int(
+            raw_position_list = DenseArrayBase.from_list(
                 IntegerType(64), raw_position_list
             )
         super().__init__(
@@ -366,7 +357,7 @@ class IncludeOp(IRDLOperation):
     name = "transform.include"
 
     target = prop_def(SymbolRefAttr)
-    failure_propagation_mode = prop_def(Attribute)
+    failure_propagation_mode = prop_def()
     operands_input = var_operand_def(TransformHandleType)
     result = var_result_def(TransformHandleType)
 
@@ -486,7 +477,7 @@ class ParamConstantOp(IRDLOperation):
 
     name = "transform.param.constant"
 
-    value = prop_def(Attribute)
+    value = prop_def()
     param = result_def(ParamType)
 
     def __init__(self, value: Attribute, param_type: TypeAttribute):
@@ -566,7 +557,7 @@ class SequenceOp(IRDLOperation):
     name = "transform.sequence"
 
     body = region_def("single_block")
-    failure_propagation_mode = prop_def(Attribute)
+    failure_propagation_mode = prop_def()
     root = var_operand_def(AnyOpType)
     extra_bindings = var_operand_def(TransformHandleType)
 
@@ -612,9 +603,9 @@ class TileOp(IRDLOperation):
 
     target = operand_def(TransformHandleType)
     dynamic_sizes = var_operand_def(TransformHandleType)
-    static_sizes = opt_prop_def(DenseArrayBase)
-    interchange = opt_prop_def(DenseArrayBase)
-    scalable_sizes = opt_prop_def(DenseArrayBase)
+    static_sizes = opt_prop_def(DenseArrayBase.constr(i64))
+    interchange = opt_prop_def(DenseArrayBase.constr(i64))
+    scalable_sizes = opt_prop_def(DenseArrayBase.constr(i1))
 
     tiled_linalg_op = result_def(AnyOpType)
     loops = var_result_def(AnyOpType)
@@ -623,22 +614,16 @@ class TileOp(IRDLOperation):
         self,
         target: SSAValue,
         dynamic_sizes: Sequence[SSAValue],
-        static_sizes: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None = None,
-        interchange: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None = None,
-        scalable_sizes: (
-            DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None
-        ) = None,
+        static_sizes: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
+        interchange: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
+        scalable_sizes: DenseArrayBase[IntegerType] | Sequence[int] | None = None,
     ):
         if isinstance(static_sizes, Sequence):
-            static_sizes = DenseArrayBase.create_dense_int(
-                IntegerType(64), static_sizes
-            )
+            static_sizes = DenseArrayBase.from_list(i64, static_sizes)
         if isinstance(interchange, Sequence):
-            interchange = DenseArrayBase.create_dense_int(IntegerType(64), interchange)
+            interchange = DenseArrayBase.from_list(i64, interchange)
         if isinstance(scalable_sizes, Sequence):
-            scalable_sizes = DenseArrayBase.create_dense_int(
-                IntegerType(1), scalable_sizes
-            )
+            scalable_sizes = DenseArrayBase.from_list(i1, scalable_sizes)
         super().__init__(
             operands=(target, dynamic_sizes),
             properties={
@@ -692,20 +677,20 @@ class TileToForallOp(IRDLOperation):
         tile_sizes: Sequence[SSAValue],
         packed_num_threads: SSAValue | None,
         packed_tile_sizes: SSAValue | None,
-        static_num_threads: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
-        static_tile_sizes: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
-        mapping: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
+        static_num_threads: DenseArrayBase | Sequence[int] | None,
+        static_tile_sizes: DenseArrayBase | Sequence[int] | None,
+        mapping: DenseArrayBase | Sequence[int] | None,
     ):
         if isinstance(static_num_threads, Sequence):
-            static_num_threads = DenseArrayBase.create_dense_int(
+            static_num_threads = DenseArrayBase.from_list(
                 IntegerType(64), static_num_threads
             )
         if isinstance(static_tile_sizes, Sequence):
-            static_tile_sizes = DenseArrayBase.create_dense_int(
+            static_tile_sizes = DenseArrayBase.from_list(
                 IntegerType(64), static_tile_sizes
             )
         if isinstance(mapping, Sequence):
-            mapping = DenseArrayBase.create_dense_int(IntegerType(64), mapping)
+            mapping = DenseArrayBase.from_list(IntegerType(64), mapping)
 
         super().__init__(
             operands=[
@@ -754,7 +739,7 @@ class NamedSequenceOp(IRDLOperation):
 
     name = "transform.named_sequence"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     sym_visibility = opt_prop_def(StringAttr)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
@@ -826,7 +811,8 @@ class NamedSequenceOp(IRDLOperation):
     def print(self, printer: Printer):
         if self.sym_visibility:
             visibility = self.sym_visibility.data
-            printer.print(f" {visibility}")
+            printer.print_string(" ")
+            printer.print_string(visibility)
 
         print_func_op_like(
             printer,

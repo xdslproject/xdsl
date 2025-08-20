@@ -5,7 +5,6 @@ from xdsl.dialects import arith, memref, stencil
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     Float32Type,
-    FloatAttr,
     IntegerAttr,
     ModuleOp,
 )
@@ -69,13 +68,13 @@ def get_coeff_api_ops(op: csl_stencil.ApplyOp, wrapper: csl_wrapper.ModuleOp):
     neighbours = pattern - 1
     is_wse2 = wrapper.target.data == "wse2"
     if is_wse2:
-        empty: list[FloatAttr] = [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]]
+        empty = [0] + neighbours * [1.0]
         shape = (pattern,)
     else:
-        empty: list[FloatAttr] = [FloatAttr(f, elem_t) for f in neighbours * [1]]
+        empty = neighbours * [1.0]
         shape = (pattern - 1,)
 
-    cmap: dict[csl.Direction, list[FloatAttr]] = {
+    cmap: dict[csl.Direction, list[float]] = {
         csl.Direction.NORTH: empty,
         csl.Direction.SOUTH: empty.copy(),
         csl.Direction.EAST: empty.copy(),
@@ -86,13 +85,13 @@ def get_coeff_api_ops(op: csl_stencil.ApplyOp, wrapper: csl_wrapper.ModuleOp):
         direction, distance = get_dir_and_distance(c.offset)
         if not is_wse2:
             distance -= 1
-        cmap[direction][distance] = c.coeff
+        cmap[direction][distance] = c.coeff.value.data
 
     memref_t = memref.MemRefType(elem_t, shape)
     ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
 
     cnsts = {
-        d: arith.ConstantOp(DenseIntOrFPElementsAttr.create_dense_float(memref_t, v))
+        d: arith.ConstantOp(DenseIntOrFPElementsAttr.from_list(memref_t, v))
         for d, v in cmap.items()
     }
     addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}

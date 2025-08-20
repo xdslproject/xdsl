@@ -14,7 +14,7 @@ def test_append_to_frozen():
     i, j, k = 1, 2, 3
     list: IList[int] = IList([i, j])
     list.freeze()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="frozen list can not be modified"):
         list.append(k)
 
 
@@ -31,7 +31,7 @@ def test_extend_frozen():
     list0: IList[int] = IList([i, j, k])
     list1: IList[int] = IList([i, j, k])
     list0.freeze()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="frozen list can not be modified"):
         list0.extend(list1)
 
 
@@ -46,7 +46,7 @@ def test_insert_frozen():
     i, j, k = 1, 2, 3
     list: IList[int] = IList([i, j])
     list.freeze()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="frozen list can not be modified"):
         list.insert(1, k)
 
 
@@ -61,7 +61,7 @@ def test_remove_frozen():
     i, j, k = 1, 2, 3
     list: IList[int] = IList([i, j, k])
     list.freeze()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="frozen list can not be modified"):
         list.remove(k)
 
 
@@ -76,7 +76,7 @@ def test_pop_frozen():
     i, j, k = 1, 2, 3
     list: IList[int] = IList([i, j, k])
     list.freeze()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="frozen list can not be modified"):
         list.pop(-1)
 
 
@@ -91,7 +91,7 @@ def test_clear_frozen():
     i, j, k = 1, 2, 3
     list: IList[int] = IList([i, j, k])
     list.freeze()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="frozen list can not be modified"):
         list.clear()
 
 
@@ -106,7 +106,7 @@ def test_setitem_frozen():
     i, j, k = 1, 2, 3
     list: IList[int] = IList([i, j, k])
     list.freeze()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="frozen list can not be modified"):
         list[1] = 4
 
 
@@ -121,7 +121,7 @@ def test_delitem_frozen():
     i, j, k = 1, 2, 3
     list: IList[int] = IList([i, j, k])
     list.freeze()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="frozen list can not be modified"):
         del list[1]
 
 
@@ -156,7 +156,7 @@ def test_iadd_frozen():
     list0: IList[int] = IList([i, j])
     list1: IList[int] = IList([k])
     list0.freeze()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="frozen list can not be modified"):
         list0 += list1
 
 

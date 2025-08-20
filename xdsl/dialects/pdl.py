@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I16,
@@ -24,7 +26,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -76,9 +77,9 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
 
 
 def print_operands_with_types(printer: Printer, operands: Iterable[SSAValue]) -> None:
-    printer.print_list(operands, printer.print)
-    printer.print(" : ")
-    printer.print_list([operand.type for operand in operands], printer.print)
+    printer.print_list(operands, printer.print_ssa_value)
+    printer.print_string(" : ")
+    printer.print_list(operands, lambda o: printer.print_attribute(o.type))
 
 
 def has_binding_use(op: Operation) -> bool:
@@ -143,10 +144,7 @@ _RangeT = TypeVar(
 @irdl_attr_definition
 class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     name = "pdl.range"
-    element_type: ParameterDef[_RangeT]
-
-    def __init__(self, element_type: _RangeT):
-        super().__init__([element_type])
+    element_type: _RangeT
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -167,13 +165,13 @@ class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer) -> None:
         match self.element_type:
             case AttributeType():
-                printer.print("<attribute>")
+                printer.print_string("<attribute>")
             case OperationType():
-                printer.print("<operation>")
+                printer.print_string("<operation>")
             case TypeType():
-                printer.print("<type>")
+                printer.print_string("<type>")
             case ValueType():
-                printer.print("<value>")
+                printer.print_string("<value>")
 
 
 @irdl_op_definition
@@ -200,11 +198,10 @@ class ApplyNativeConstraintOp(IRDLOperation):
         return ApplyNativeConstraintOp(name, operands)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.constraint_name.data)
-        printer.print("(")
-        print_operands_with_types(printer, self.operands)
-        printer.print(")")
+        with printer.in_parens():
+            print_operands_with_types(printer, self.operands)
 
 
 @irdl_op_definition
@@ -246,14 +243,13 @@ class ApplyNativeRewriteOp(IRDLOperation):
         return ApplyNativeRewriteOp(name, operands, result_types)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.constraint_name.data)
-        printer.print("(")
-        print_operands_with_types(printer, self.operands)
-        printer.print(")")
+        with printer.in_parens():
+            print_operands_with_types(printer, self.operands)
         if len(self.results) != 0:
-            printer.print(" : ")
-            printer.print_list(self.result_types, printer.print)
+            printer.print_string(" : ")
+            printer.print_list(self.result_types, printer.print_attribute)
 
 
 @irdl_op_definition
@@ -263,7 +259,7 @@ class AttributeOp(IRDLOperation):
     """
 
     name = "pdl.attribute"
-    value = opt_prop_def(Attribute)
+    value = opt_prop_def()
     value_type = opt_operand_def(TypeType)
     output = result_def(AttributeType)
 
@@ -445,28 +441,31 @@ class OperationOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.opName is not None:
-            printer.print(" ", self.opName)
+            printer.print_string(" ")
+            printer.print_attribute(self.opName)
 
         if len(self.operand_values) != 0:
-            printer.print(" (")
-            print_operands_with_types(printer, self.operand_values)
-            printer.print(")")
+            printer.print_string(" ")
+            with printer.in_parens():
+                print_operands_with_types(printer, self.operand_values)
 
         def print_attribute_entry(entry: tuple[StringAttr, SSAValue]):
-            printer.print(entry[0], " = ", entry[1])
+            printer.print_attribute(entry[0])
+            printer.print_string(" = ")
+            printer.print_ssa_value(entry[1])
 
         if len(self.attributeValueNames) != 0:
-            printer.print(" {")
-            printer.print_list(
-                zip(self.attributeValueNames, self.attribute_values),
-                print_attribute_entry,
-            )
-            printer.print("}")
+            printer.print_string(" ")
+            with printer.in_braces():
+                printer.print_list(
+                    zip(self.attributeValueNames, self.attribute_values),
+                    print_attribute_entry,
+                )
 
         if len(self.type_values) != 0:
-            printer.print(" -> (")
-            print_operands_with_types(printer, self.type_values)
-            printer.print(")")
+            printer.print_string(" -> ")
+            with printer.in_parens():
+                print_operands_with_types(printer, self.type_values)
 
 
 def _visit_pdl_ops(op: Operation, visited: set[Operation]):
@@ -587,8 +586,10 @@ class PatternOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.sym_name is not None:
-            printer.print(" @", self.sym_name.data)
-        printer.print(" : benefit(", self.benefit.value.data, ") ", self.body)
+            printer.print_string(" @")
+            printer.print_string(self.sym_name.data)
+        printer.print_string(f" : benefit({self.benefit.value.data}) ")
+        printer.print_region(self.body)
 
 
 @irdl_op_definition
@@ -651,9 +652,10 @@ class RangeOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if len(self.arguments) == 0:
-            printer.print(" : ", self.result.type)
+            printer.print_string(" : ")
+            printer.print_attribute(self.result.type)
             return
-        printer.print(" ")
+        printer.print_string(" ")
         print_operands_with_types(printer, self.arguments)
 
 
@@ -773,11 +775,13 @@ class ResultsOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.index is None:
-            printer.print(" of ", self.parent_)
-            return
-        printer.print(
-            " ", self.index.value.data, " of ", self.parent_, " -> ", self.val.type
-        )
+            printer.print_string(" of ")
+            printer.print_ssa_value(self.parent_)
+        else:
+            printer.print_string(f" {self.index.value.data} of ")
+            printer.print_ssa_value(self.parent_)
+            printer.print_string(" -> ")
+            printer.print_attribute(self.val.type)
 
 
 @irdl_op_definition
@@ -849,7 +853,7 @@ class TypeOp(IRDLOperation):
     """
 
     name = "pdl.type"
-    constantType = opt_prop_def(Attribute)
+    constantType = opt_prop_def()
     result = result_def(TypeType)
 
     assembly_format = "attr-dict (`:` $constantType^)?"

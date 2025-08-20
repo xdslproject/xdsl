@@ -1,6 +1,8 @@
 import abc
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 T = TypeVar("T")
 TCov = TypeVar("TCov", covariant=True)

@@ -1,5 +1,3 @@
-from typing import TypeVar
-
 import pytest
 
 from xdsl.dialects.arith import (
@@ -71,8 +69,6 @@ from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
-_BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
-
 
 class Test_integer_arith_construction:
     operand_type = i32
@@ -135,7 +131,7 @@ def test_constant_construction():
     assert c3.value.type == f32
 
     value_type = TensorType(i32, [2, 2])
-    c5 = ConstantOp(DenseIntOrFPElementsAttr.create_dense_int(value_type, [1, 2, 3, 4]))
+    c5 = ConstantOp(DenseIntOrFPElementsAttr.from_list(value_type, [1, 2, 3, 4]))
     assert c5.value.type == value_type
 
 
@@ -406,48 +402,44 @@ def test_cmpf_get():
     assert cmpf_op.predicate.value.data == 1
 
 
-def test_cmpf_missmatch_type():
+def test_cmpf_mismatch_type():
     a = ConstantOp(FloatAttr(1.0, f32))
     b = ConstantOp(FloatAttr(2.0, f64))
 
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(
+        TypeError,
+        match="Comparison operands must have same type, but provided f32 and f64",
+    ):
         _cmpf_op = CmpfOp(a, b, 1)
-    assert (
-        e.value.args[0]
-        == "Comparison operands must have same type, but provided f32 and f64"
-    )
 
 
 def test_cmpi_mismatch_type():
     a = ConstantOp.from_int_and_width(1, i32)
     b = ConstantOp.from_int_and_width(2, i64)
 
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(
+        TypeError,
+        match="Comparison operands must have same type, but provided i32 and i64",
+    ):
         _cmpi_op = CmpiOp(a, b, 1)
-    assert (
-        e.value.args[0]
-        == "Comparison operands must have same type, but provided i32 and i64"
-    )
 
 
 def test_cmpf_incorrect_comparison():
     a = ConstantOp(FloatAttr(1.0, f32))
     b = ConstantOp(FloatAttr(2.0, f32))
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unknown comparison mnemonic: eq"):
         # 'eq' is a comparison op for cmpi but not cmpf
         _cmpf_op = CmpfOp(a, b, "eq")
-    assert e.value.args[0] == "Unknown comparison mnemonic: eq"
 
 
 def test_cmpi_incorrect_comparison():
     a = ConstantOp.from_int_and_width(1, i32)
     b = ConstantOp.from_int_and_width(2, i32)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unknown comparison mnemonic: oeq"):
         # 'oeq' is a comparison op for cmpf but not cmpi
         _cmpi_op = CmpiOp(a, b, "oeq")
-    assert e.value.args[0] == "Unknown comparison mnemonic: oeq"
 
 
 def test_cmpi_index_type():

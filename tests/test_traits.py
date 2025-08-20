@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
     MemRefType,
     NoneAttr,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
     UnrankedTensorType,
@@ -29,7 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, Operation, OpTrait, OpTraits, SSAValue
+from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
 from xdsl.irdl import (
     Block,
     IRDLOperation,
@@ -52,14 +53,17 @@ from xdsl.traits import (
     ConditionallySpeculatable,
     HasAncestor,
     HasParent,
+    MemoryEffectKind,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
     SameOperandsAndResultType,
     SymbolOpInterface,
     SymbolTable,
+    has_effects,
     is_speculatable,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -80,8 +84,8 @@ class LargerOperandTrait(OpTrait):
         # These asserts should be exceptions in a non-testing environment.
         assert len(op.results) == 1
         assert len(op.operands) == 1
-        assert isinstance(op.results[0].type, IntegerType)
-        assert isinstance(op.operands[0].type, IntegerType)
+        assert isa(op.results[0].type, IntegerType)
+        assert isa(op.operands[0].type, IntegerType)
         if op.results[0].type.width.data >= op.operands[0].type.width.data:
             raise VerifyException(
                 "Operation has a result bitwidth greater "
@@ -106,11 +110,11 @@ class BitwidthSumLessThanTrait(OpTrait):
         sum_bitwidth = 0
         for operand in op.operands:
             # This assert should be an exception in a non-testing environment.
-            assert isinstance(operand.type, IntegerType)
+            assert isa(operand.type, IntegerType)
             sum_bitwidth += operand.type.width.data
         for result in op.results:
             # This assert should be an exception in a non-testing environment.
-            assert isinstance(result.type, IntegerType)
+            assert isa(result.type, IntegerType)
             sum_bitwidth += result.type.width.data
 
         if sum_bitwidth >= self.max_sum:
@@ -192,15 +196,18 @@ class LargerOperandOp(IRDLOperation, ABC):
 class TestCopyOp(LargerOperandOp):
     name = "test.test_copy"
 
-    traits = OpTraits(LargerOperandOp.traits.traits | {BitwidthSumLessThanTrait(64)})
+    traits = traits_def(BitwidthSumLessThanTrait(64))
 
 
 def test_trait_inheritance():
     """
     Check that traits are correctly inherited from parent classes.
     """
-    assert TestCopyOp.traits == traits_def(
-        LargerOperandTrait(), BitwidthSumLessThanTrait(64)
+    assert TestCopyOp.traits.traits == frozenset(
+        (
+            LargerOperandTrait(),
+            BitwidthSumLessThanTrait(64),
+        )
     )
 
 
@@ -221,7 +228,13 @@ class WrongTraitsType(IRDLOperation):
 
 
 def test_traits_wrong_type():
-    with pytest.raises(Exception):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match=(
+            "pyrdl operation definition 'WrongTraitsType' traits field should be an "
+            "instance of'OpTraits'."
+        ),
+    ):
         irdl_op_definition(WrongTraitsType)
 
 
@@ -322,7 +335,7 @@ def test_symbol_op_interface():
     class SymNameOp(IRDLOperation):
         name = "sym_name"
 
-        sym_name = attr_def(StringAttr)
+        sym_name = attr_def(SymbolNameConstraint())
         traits = traits_def(SymbolOpInterface())
 
     op2 = SymNameOp(attributes={"sym_name": StringAttr("symbol_name")})
@@ -361,7 +374,7 @@ def test_optional_symbol_op_interface():
 class SymbolOp(IRDLOperation):
     name = "test.symbol"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
 
     traits = traits_def(SymbolOpInterface())
 
@@ -373,7 +386,7 @@ class SymbolOp(IRDLOperation):
 class PropSymbolOp(IRDLOperation):
     name = "test.symbol"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
 
     traits = traits_def(SymbolOpInterface())
 
@@ -980,6 +993,20 @@ def test_same_operands_and_result_type_trait_for_mixed_rank_and_mixed_shapes(
     )
 
     op.verify()
+
+
+def test_memory_effects():
+    from xdsl.dialects.test import TestPureOp, TestReadOp, TestWriteOp
+
+    assert not has_effects(TestPureOp(), MemoryEffectKind.ALLOC)
+    assert not has_effects(TestReadOp(), MemoryEffectKind.ALLOC)
+    assert not has_effects(TestWriteOp(), MemoryEffectKind.ALLOC)
+    assert not has_effects(TestPureOp(), MemoryEffectKind.READ)
+    assert has_effects(TestReadOp(), MemoryEffectKind.READ)
+    assert not has_effects(TestWriteOp(), MemoryEffectKind.READ)
+    assert not has_effects(TestPureOp(), MemoryEffectKind.WRITE)
+    assert not has_effects(TestReadOp(), MemoryEffectKind.WRITE)
+    assert has_effects(TestWriteOp(), MemoryEffectKind.WRITE)
 
 
 @irdl_op_definition

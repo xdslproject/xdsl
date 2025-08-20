@@ -25,7 +25,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -85,10 +84,10 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "dmp.exchange"
 
-    offset_: ParameterDef[builtin.DenseArrayBase]
-    size_: ParameterDef[builtin.DenseArrayBase]
-    source_offset_: ParameterDef[builtin.DenseArrayBase]
-    neighbor_: ParameterDef[builtin.DenseArrayBase]
+    offset_: builtin.DenseArrayBase[builtin.I64]
+    size_: builtin.DenseArrayBase[builtin.I64]
+    source_offset_: builtin.DenseArrayBase[builtin.I64]
+    neighbor_: builtin.DenseArrayBase[builtin.I64]
 
     def __init__(
         self,
@@ -99,12 +98,10 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
     ):
         data_type = builtin.i64
         super().__init__(
-            [
-                builtin.DenseArrayBase.from_list(data_type, offset),
-                builtin.DenseArrayBase.from_list(data_type, size),
-                builtin.DenseArrayBase.from_list(data_type, source_offset),
-                builtin.DenseArrayBase.from_list(data_type, neighbor),
-            ]
+            builtin.DenseArrayBase.from_list(data_type, offset),
+            builtin.DenseArrayBase.from_list(data_type, size),
+            builtin.DenseArrayBase.from_list(data_type, source_offset),
+            builtin.DenseArrayBase.from_list(data_type, neighbor),
         )
 
     @classmethod
@@ -134,27 +131,19 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def offset(self) -> tuple[int, ...]:
-        data = self.offset_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.offset_.get_values()
 
     @property
     def size(self) -> tuple[int, ...]:
-        data = self.size_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.size_.get_values()
 
     @property
     def source_offset(self) -> tuple[int, ...]:
-        data = self.source_offset_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.source_offset_.get_values()
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.neighbor_.get_values()
 
     @property
     def elem_count(self) -> int:
@@ -184,13 +173,19 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         )
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<at [")
-        printer.print_list(self.offset, lambda x: printer.print_string(str(x)))
-        printer.print_string("] size [")
-        printer.print_list(self.size, lambda x: printer.print_string(str(x)))
-        printer.print_string("] source offset [")
-        printer.print_list(self.source_offset, lambda x: printer.print_string(str(x)))
-        printer.print_string(f"] to {list(self.neighbor)}>")
+        with printer.in_angle_brackets():
+            printer.print_string("at ")
+            with printer.in_square_brackets():
+                printer.print_list(self.offset, printer.print_int)
+            printer.print_string(" size ")
+            with printer.in_square_brackets():
+                printer.print_list(self.size, printer.print_int)
+            printer.print_string(" source offset ")
+            with printer.in_square_brackets():
+                printer.print_list(self.source_offset, printer.print_int)
+            printer.print_string(" to ")
+            with printer.in_square_brackets():
+                printer.print_list(self.neighbor, printer.print_int)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -263,33 +258,29 @@ class ShapeAttr(ParametrizedAttribute):
 
     name = "dmp.shape_with_halo"
 
-    buff_lb_: ParameterDef[builtin.DenseArrayBase]
-    buff_ub_: ParameterDef[builtin.DenseArrayBase]
-    core_lb_: ParameterDef[builtin.DenseArrayBase]
-    core_ub_: ParameterDef[builtin.DenseArrayBase]
+    buff_lb_: builtin.DenseArrayBase[builtin.I64]
+    buff_ub_: builtin.DenseArrayBase[builtin.I64]
+    core_lb_: builtin.DenseArrayBase[builtin.I64]
+    core_ub_: builtin.DenseArrayBase[builtin.I64]
 
     @property
     def buff_lb(self) -> tuple[int, ...]:
         data = self.buff_lb_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def buff_ub(self) -> tuple[int, ...]:
         data = self.buff_ub_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def core_lb(self) -> tuple[int, ...]:
         data = self.core_lb_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def core_ub(self) -> tuple[int, ...]:
         data = self.core_ub_.get_values()
-        assert isa(data, tuple[int, ...])
         return data
 
     @property
@@ -308,10 +299,10 @@ class ShapeAttr(ParametrizedAttribute):
     ):
         data_type = builtin.i64
         return ShapeAttr(
-            [
+            *(
                 builtin.DenseArrayBase.from_list(data_type, tuple(data))
                 for data in (buff_lb, buff_ub, core_lb, core_ub)
-            ]
+            )
         )
 
     def buffer_start(self, dim: int) -> int:
@@ -405,16 +396,15 @@ class RankTopoAttr(ParametrizedAttribute):
 
     name = "dmp.topo"
 
-    shape: ParameterDef[builtin.DenseArrayBase]
+    shape: builtin.DenseArrayBase[builtin.I64]
 
-    def __init__(self, shape: Sequence[int] | Sequence[builtin.IntAttr]):
+    def __init__(self, shape: Sequence[int]):
         if len(shape) < 1:
             raise ValueError("dmp.grid must have at least one dimension!")
-        super().__init__([builtin.DenseArrayBase.from_list(builtin.i64, shape)])
+        super().__init__(builtin.DenseArrayBase.from_list(builtin.i64, shape))
 
     def as_tuple(self) -> tuple[int, ...]:
         shape = self.shape.get_values()
-        assert isa(shape, tuple[int, ...])
         return shape
 
     def node_count(self) -> int:
@@ -461,14 +451,12 @@ class GridSlice2dAttr(DomainDecompositionStrategy):
 
     name = "dmp.grid_slice_2d"
 
-    topology: ParameterDef[RankTopoAttr]
+    topology: RankTopoAttr
 
-    diagonals: ParameterDef[builtin.BoolAttr]
+    diagonals: builtin.BoolAttr
 
     def __init__(self, topo: tuple[int, ...]):
-        super().__init__(
-            [RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1)]
-        )
+        super().__init__(RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1))
 
     def _verify(self):
         assert len(self.topology.as_tuple()) >= 2, (
@@ -509,14 +497,12 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
 
     name = "dmp.grid_slice_3d"
 
-    topology: ParameterDef[RankTopoAttr]
+    topology: RankTopoAttr
 
-    diagonals: ParameterDef[builtin.BoolAttr]
+    diagonals: builtin.BoolAttr
 
     def __init__(self, topo: tuple[int, ...]):
-        super().__init__(
-            [RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1)]
-        )
+        super().__init__(RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1))
 
     def _verify(self):
         assert len(self.topology.as_tuple()) >= 3, (

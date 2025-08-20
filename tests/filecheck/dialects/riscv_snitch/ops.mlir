@@ -88,28 +88,30 @@ riscv_func.func @xdma() {
 
 riscv_func.func @simd() {
   %v = riscv.get_float_register : !riscv.freg
+  %v1 = riscv.get_float_register : !riscv.freg
   // CHECK: %v = riscv.get_float_register : !riscv.freg
+  // CHECK: %v1 = riscv.get_float_register : !riscv.freg
 
-  %0 = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
-  // CHECK-NEXT: %0 = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  %vfmul_s = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %vfmul_s = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
 
-  %1 = riscv_snitch.vfadd.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
-  // CHECK-NEXT: %1 = riscv_snitch.vfadd.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  %vfadd_s = riscv_snitch.vfadd.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %vfadd_s = riscv_snitch.vfadd.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
 
-  %2 = riscv_snitch.vfcpka.s.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
-  // CHECK-NEXT: %2 = riscv_snitch.vfcpka.s.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  %vfcpka_s_s = riscv_snitch.vfcpka.s.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %vfcpka_s_s = riscv_snitch.vfcpka.s.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
 
-  %3 = riscv_snitch.vfmac.s %v, %v, %v : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
-  // CHECK-NEXT: %3 = riscv_snitch.vfmac.s %v, %v, %v : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
+  %vfmac_s = riscv_snitch.vfmac.s %v1, %v, %v : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %vfmac_s = riscv_snitch.vfmac.s %v1, %v, %v : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
 
-  %4 = riscv_snitch.vfsum.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
-  // CHECK-NEXT: %4 = riscv_snitch.vfsum.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  %vfsum_s = riscv_snitch.vfsum.s %vfmac_s, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %vfsum_s = riscv_snitch.vfsum.s %vfmac_s, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
 
-  %5 = riscv_snitch.vfadd.h %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
-  // CHECK-NEXT: %5 = riscv_snitch.vfadd.h %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  %vfadd_h = riscv_snitch.vfadd.h %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %vfadd_h = riscv_snitch.vfadd.h %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
 
-  %6 = riscv_snitch.vfmax.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
-  // CHECK-NEXT: %6 = riscv_snitch.vfmax.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  %vfmax_s = riscv_snitch.vfmax.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %vfmax_s = riscv_snitch.vfmax.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
 
   riscv_func.return
 }
@@ -139,7 +141,7 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:        }) {stagger_mask = #builtin.int<0>, stagger_count = #builtin.int<0>} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:    %init = "test.op"() : () -> !riscv.freg<ft3>
 // CHECK-GENERIC-NEXT:    %z = "riscv_snitch.frep_outer"(%0, %init) ({
-// CHECK-GENERIC-NEXT:    ^0(%acc : !riscv.freg<ft3>):
+// CHECK-GENERIC-NEXT:    ^bb0(%acc : !riscv.freg<ft3>):
 // CHECK-GENERIC-NEXT:      %res = "riscv.fadd.d"(%acc, %acc) {fastmath = #riscv.fastmath<none>} : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_yield"(%res) : (!riscv.freg<ft3>) -> ()
 // CHECK-GENERIC-NEXT:    }) {stagger_mask = #builtin.int<0>, stagger_count = #builtin.int<0>} : (!riscv.reg, !riscv.freg<ft3>) -> !riscv.freg<ft3>
@@ -159,13 +161,14 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:   }) {sym_name = "xdma", function_type = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
 // CHECK-GENERIC-NEXT:       %v = "riscv.get_float_register"() : () -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %0 = "riscv_snitch.vfmul.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %1 = "riscv_snitch.vfadd.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %2 = "riscv_snitch.vfcpka.s.s"(%v, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %3 = "riscv_snitch.vfmac.s"(%v, %v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %4 = "riscv_snitch.vfsum.s"(%v, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %5 = "riscv_snitch.vfadd.h"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:       %6 = "riscv_snitch.vfmax.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %v1 = "riscv.get_float_register"() : () -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfmul_s = "riscv_snitch.vfmul.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfadd_s = "riscv_snitch.vfadd.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfcpka_s_s = "riscv_snitch.vfcpka.s.s"(%v, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfmac_s = "riscv_snitch.vfmac.s"(%v1, %v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfsum_s = "riscv_snitch.vfsum.s"(%vfmac_s, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfadd_h = "riscv_snitch.vfadd.h"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %vfmax_s = "riscv_snitch.vfmax.s"(%v, %v) {fastmath = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) {sym_name = "simd", function_type = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

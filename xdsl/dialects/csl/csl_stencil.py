@@ -4,8 +4,9 @@ from typing import TypeAlias, cast
 
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
-    AnyFloat,
+    I64,
     AnyTensorTypeConstr,
+    DenseArrayBase,
     Float16Type,
     Float32Type,
     FloatAttr,
@@ -13,6 +14,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
     TensorType,
+    i64,
 )
 from xdsl.dialects.experimental import dmp
 from xdsl.dialects.utils import AbstractYieldOperation
@@ -27,7 +29,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
-    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
@@ -74,21 +75,17 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "csl_stencil.exchange"
 
-    neighbor_param: ParameterDef[builtin.DenseArrayBase]
+    neighbor_param: DenseArrayBase[I64]
 
     def __init__(
         self,
-        neighbor: Sequence[int] | builtin.DenseArrayBase,
+        neighbor: Sequence[int] | DenseArrayBase,
     ):
         data_type = builtin.i64
         super().__init__(
-            [
-                (
-                    neighbor
-                    if isinstance(neighbor, builtin.DenseArrayBase)
-                    else builtin.DenseArrayBase.from_list(data_type, neighbor)
-                ),
-            ]
+            neighbor
+            if isinstance(neighbor, DenseArrayBase)
+            else DenseArrayBase.from_list(data_type, neighbor)
         )
 
     @classmethod
@@ -97,9 +94,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_param.get_values()
-        assert isa(data, tuple[int, ...])
-        return data
+        return self.neighbor_param.get_values()
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string(f"<to {list(self.neighbor)}>")
@@ -113,7 +108,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         )
         parser.parse_characters(">")
 
-        return [builtin.DenseArrayBase.from_list(builtin.i64, to)]
+        return [DenseArrayBase.from_list(i64, to)]
 
 
 @irdl_op_definition
@@ -146,7 +141,7 @@ class PrefetchOp(IRDLOperation):
         topo: dmp.RankTopoAttr,
         num_chunks: IntegerAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
-        result_type: memref.MemRefType[Attribute] | TensorType[Attribute] | None = None,
+        result_type: memref.MemRefType | TensorType[Attribute] | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
@@ -165,11 +160,8 @@ CslFloat: TypeAlias = Float16Type | Float32Type
 @irdl_attr_definition
 class CoeffAttr(ParametrizedAttribute):
     name = "csl_stencil.coeff"
-    offset: ParameterDef[stencil.IndexAttr]
-    coeff: ParameterDef[FloatAttr[AnyFloat]]
-
-    def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
-        super().__init__([offset, coeff])
+    offset: stencil.IndexAttr
+    coeff: FloatAttr
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -259,35 +251,35 @@ class ApplyOp(IRDLOperation):
 
     def print(self, printer: Printer):
         def print_arg(arg: SSAValue):
-            printer.print(arg)
-            printer.print(" : ")
-            printer.print(arg.type)
+            printer.print_ssa_value(arg)
+            printer.print_string(" : ")
+            printer.print_attribute(arg.type)
 
-        printer.print("(")
+        with printer.in_parens():
+            # args required by function signature, plus optional args for regions
+            args = [self.field, self.accumulator, *self.args_rchunk, *self.args_dexchng]
 
-        # args required by function signature, plus optional args for regions
-        args = [self.field, self.accumulator, *self.args_rchunk, *self.args_dexchng]
-
-        printer.print_list(args, print_arg)
+            printer.print_list(args, print_arg)
         if self.dest:
-            printer.print(") outs (")
-            printer.print_list(self.dest, print_arg)
+            printer.print_string(" outs ")
+            with printer.in_parens():
+                printer.print_list(self.dest, print_arg)
         else:
-            printer.print(") -> (")
-            printer.print_list(self.res.types, printer.print_attribute)
+            printer.print_string(" -> ")
+            with printer.in_parens():
+                printer.print_list(self.res.types, printer.print_attribute)
 
-        printer.print(") ")
-        printer.print("<")
-        printer.print_attr_dict(self.properties)
-        printer.print("> ")
+        printer.print_string(" ")
+        with printer.in_angle_brackets():
+            printer.print_attr_dict(self.properties)
+        printer.print_string(" ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
-        printer.print("(")
-        printer.print_region(self.receive_chunk, print_entry_block_args=True)
-        printer.print(", ")
-        printer.print_region(self.done_exchange, print_entry_block_args=True)
-        printer.print(")")
+        with printer.in_parens():
+            printer.print_region(self.receive_chunk, print_entry_block_args=True)
+            printer.print_string(", ")
+            printer.print_region(self.done_exchange, print_entry_block_args=True)
         if self.bounds is not None:
-            printer.print(" to ")
+            printer.print_string(" to ")
             self.bounds.print_parameters(printer)
 
     @classmethod
@@ -435,7 +427,7 @@ class ApplyOp(IRDLOperation):
                 accesses.append(offsets)
             yield stencil.AccessPattern(tuple(accesses))
 
-    def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+    def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr):
         self.coeffs = builtin.ArrayAttr(
             list(self.coeffs or []) + [CoeffAttr(offset, coeff)]
         )
@@ -467,7 +459,7 @@ class AccessOp(IRDLOperation):
         self,
         op: Operand,
         offset: stencil.IndexAttr,
-        result_type: TensorType[Attribute] | MemRefType[Attribute],
+        result_type: TensorType[Attribute] | MemRefType,
         offset_mapping: stencil.IndexAttr | None = None,
     ):
         super().__init__(
@@ -477,7 +469,7 @@ class AccessOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.op)
         printer.print_op_attributes(
             self.attributes,
@@ -490,17 +482,16 @@ class AccessOp(IRDLOperation):
             mapping = range(len(self.offset))
         offset = list(self.offset)
 
-        printer.print("[")
-        index = 0
-        for i in range(len(self.offset)):
-            if i in mapping:
-                printer.print(offset[index])
-                index += 1
-            else:
-                printer.print("_")
-            if i != len(self.offset) - 1:
-                printer.print(", ")
-        printer.print("]")
+        with printer.in_square_brackets():
+            index = 0
+            for i in range(len(self.offset)):
+                if i in mapping:
+                    printer.print_int(offset[index])
+                    index += 1
+                else:
+                    printer.print_string("_")
+                if i != len(self.offset) - 1:
+                    printer.print_string(", ")
 
         printer.print_string(" : ")
         printer.print_attribute(self.op.type)
@@ -562,7 +553,7 @@ class AccessOp(IRDLOperation):
 
     def verify_(self) -> None:
         if tuple(self.offset) == (0, 0):
-            if isa(self.op.type, memref.MemRefType[Attribute]):
+            if isa(self.op.type, memref.MemRefType):
                 if not self.result.type == self.op.type:
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type} but "

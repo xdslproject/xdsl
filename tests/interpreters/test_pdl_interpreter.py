@@ -64,9 +64,14 @@ def test_native_constraint():
         return isinstance(attr, StringAttr) and len(attr.data) == 4
 
     ctx = Context()
-    PDLMatcher.native_constraints["even_length_string"] = even_length_string
 
-    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
+    pattern_walker = PatternRewriteWalker(
+        PDLRewritePattern(
+            pdl_rewrite_op,
+            ctx,
+            native_constraints={"even_length_string": even_length_string},
+        )
+    )
 
     new_input_module_true = input_module_true.clone()
     pattern_walker.rewrite_module(new_input_module_true)
@@ -502,9 +507,12 @@ def test_native_constraint_constant_parameter():
         )
 
     ctx = Context()
-    PDLMatcher.native_constraints["length_string"] = length_string
 
-    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
+    pattern_walker = PatternRewriteWalker(
+        PDLRewritePattern(
+            pdl_rewrite_op, ctx, native_constraints={"length_string": length_string}
+        )
+    )
 
     new_input_module_true = input_module_true.clone()
     pattern_walker.rewrite_module(new_input_module_true)

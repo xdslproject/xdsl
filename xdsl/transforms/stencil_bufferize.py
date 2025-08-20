@@ -1,7 +1,9 @@
 from collections.abc import Generator
 from dataclasses import dataclass
 from itertools import chain
-from typing import Any, TypeVar, cast
+from typing import Any, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin
@@ -196,7 +198,7 @@ class LoadBufferFoldPattern(RewritePattern):
 
         # TODO: further analysis
         # For now, only handle usages in the same block
-        uses = op.res.uses.copy()
+        uses = tuple(op.res.uses)
         block = op.parent
         if not block or any(use.operation.parent is not block for use in uses):
             return
@@ -436,7 +438,7 @@ class CombineStoreFold(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CombineOp, rewriter: PatternRewriter):
         for i, r in enumerate(op.results):
-            if len(r.uses) != 1:
+            if not r.has_one_use():
                 continue
             store = next(iter(r.uses)).operation
             if not isinstance(store, StoreOp):

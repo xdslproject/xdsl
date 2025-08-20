@@ -2,9 +2,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import cast
 
+from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, ptr
-from xdsl.ir import Attribute, Operation, SSAValue
+from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -19,25 +20,34 @@ from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
 
-def offset_calculations(
-    memref_type: memref.MemRefType[Any], indices: Iterable[SSAValue]
-) -> tuple[list[Operation], SSAValue]:
+def get_target_ptr(
+    target_memref: SSAValue,
+    memref_type: memref.MemRefType[Any],
+    indices: Iterable[SSAValue],
+    builder: Builder,
+) -> SSAValue:
     """
-    Get operations calculating an offset which needs to be added to memref's base
-    pointer to access an element referenced by indices.
+    Get operations returning a pointer to an element of a memref referenced by indices.
     """
 
-    assert isinstance(memref_type.element_type, builtin.FixedBitwidthType)
+    memref_ptr = builder.insert_op(ptr.ToPtrOp(target_memref))
+    memref_ptr.res.name_hint = target_memref.name_hint
+
+    if not indices:
+        return memref_ptr.res
 
     match memref_type.layout:
         case builtin.NoneAttr():
             strides = builtin.ShapedType.strides_for_shape(memref_type.get_shape())
+            offset = 0
         case builtin.StridedLayoutAttr():
             strides = memref_type.layout.get_strides()
+            if (offset := memref_type.layout.get_offset()) is None:
+                raise DiagnosticException(
+                    f"Unsupported layout with dynamic offset {memref_type.layout}"
+                )
         case _:
             raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
-
-    ops: list[Operation] = []
 
     head: SSAValue | None = None
 
@@ -56,14 +66,10 @@ def offset_calculations(
             case _:
                 # Otherwise, multiply the stride (which by definition is the number of
                 # elements required to be skipped when incrementing that dimension).
-                ops.extend(
-                    (
-                        stride_op := arith.ConstantOp.from_int_and_width(
-                            stride, builtin.IndexType()
-                        ),
-                        offset_op := arith.MuliOp(increment, stride_op),
-                    )
+                stride_op = builder.insert_op(
+                    arith.ConstantOp.from_int_and_width(stride, builtin.IndexType())
                 )
+                offset_op = builder.insert_op(arith.MuliOp(increment, stride_op))
                 stride_op.result.name_hint = "pointer_dim_stride"
                 offset_op.result.name_hint = "pointer_dim_offset"
 
@@ -75,47 +81,38 @@ def offset_calculations(
             continue
 
         # Otherwise sum up the products.
-        add_op = arith.AddiOp(head, increment)
+        add_op = builder.insert_op(arith.AddiOp(head, increment))
         add_op.result.name_hint = "pointer_dim_stride"
-        ops.append(add_op)
         head = add_op.result
 
-    if head is None:
-        raise DiagnosticException("Got empty indices for offset calculations.")
+    if offset:
+        memref_offset_op = builder.insert_op(
+            arith.ConstantOp.from_int_and_width(offset, builtin.IndexType())
+        )
 
-    ops.extend(
-        [
-            bytes_per_element_op := ptr.TypeOffsetOp(
-                memref_type.element_type, builtin.IndexType()
-            ),
-            final_offset := arith.MuliOp(head, bytes_per_element_op),
-        ]
-    )
+        memref_offset_op.result.name_hint = "memref_base_offset"
+        if head is not None:
+            add_op = builder.insert_op(arith.AddiOp(head, memref_offset_op.result))
+            add_op.result.name_hint = "pointer_with_offset"
+            head = add_op.result
 
-    bytes_per_element_op.offset.name_hint = "bytes_per_element"
-    final_offset.result.name_hint = "scaled_pointer_offset"
+    if head is not None:
+        bytes_per_element_op = builder.insert_op(
+            ptr.TypeOffsetOp(memref_type.element_type, builtin.IndexType())
+        )
+        final_offset = builder.insert_op(arith.MuliOp(head, bytes_per_element_op))
+        target_ptr = builder.insert_op(
+            ptr.PtrAddOp(memref_ptr.res, final_offset.result)
+        )
 
-    return ops, final_offset.result
+        bytes_per_element_op.offset.name_hint = "bytes_per_element"
+        final_offset.result.name_hint = "scaled_pointer_offset"
+        target_ptr.result.name_hint = "offset_pointer"
+        pointer = target_ptr.result
+    else:
+        pointer = memref_ptr.res
 
-
-def get_target_ptr(
-    target_memref: SSAValue,
-    memref_type: memref.MemRefType[Any],
-    indices: Iterable[SSAValue],
-) -> tuple[list[Operation], SSAValue]:
-    """Get operations returning a pointer to an element of a memref referenced by indices."""
-
-    ops: list[Operation] = [memref_ptr := ptr.ToPtrOp(target_memref)]
-
-    if not indices:
-        return ops, memref_ptr.res
-
-    offset_ops, offset = offset_calculations(memref_type, indices)
-    ops = offset_ops + ops
-    ops.append(target_ptr := ptr.PtrAddOp(memref_ptr.res, offset))
-
-    target_ptr.result.name_hint = "offset_pointer"
-    return ops, target_ptr.result
+    return pointer
 
 
 @dataclass
@@ -123,11 +120,8 @@ class ConvertStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.memref.type, memref.MemRefType)
-
-        ops, target_ptr = get_target_ptr(op.memref, memref_type, op.indices)
-        ops.append(ptr.StoreOp(target_ptr, op.value))
-
-        rewriter.replace_matched_op(ops)
+        target_ptr = get_target_ptr(op.memref, memref_type, op.indices, rewriter)
+        rewriter.replace_matched_op(ptr.StoreOp(target_ptr, op.value))
 
 
 @dataclass
@@ -135,9 +129,8 @@ class ConvertLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.memref.type, memref.MemRefType)
-        ops, target_ptr = get_target_ptr(op.memref, memref_type, op.indices)
-        ops.append(load_result := ptr.LoadOp(target_ptr, memref_type.element_type))
-        rewriter.replace_matched_op(ops, new_results=[load_result.res])
+        target_ptr = get_target_ptr(op.memref, memref_type, op.indices, rewriter)
+        rewriter.replace_matched_op(ptr.LoadOp(target_ptr, memref_type.element_type))
 
 
 @dataclass
@@ -172,7 +165,7 @@ class LowerMemRefFuncOpPattern(RewritePattern):
             if not isinstance(arg_type := arg.type, memref.MemRefType):
                 continue
 
-            old_type = cast(memref.MemRefType[Attribute], arg_type)
+            old_type = cast(memref.MemRefType, arg_type)
             arg = rewriter.replace_value_with_new_type(arg, ptr.PtrType())
 
             if not arg.uses:

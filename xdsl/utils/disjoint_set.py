@@ -5,7 +5,9 @@ See external [documentation](https://en.wikipedia.org/wiki/Disjoint-set_data_str
 """
 
 from collections.abc import Hashable, Sequence
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 
 class IntDisjointSet:
@@ -90,7 +92,7 @@ class IntDisjointSet:
         rhs_count = self._count[rhs_root]
         # Choose the root of the larger tree as the new parent
         new_parent, new_child = (
-            (lhs_root, rhs_root) if lhs_count <= rhs_count else (rhs_root, lhs_root)
+            (lhs_root, rhs_root) if lhs_count >= rhs_count else (rhs_root, lhs_root)
         )
         self._parent[new_child] = new_parent
         self._count[new_parent] = lhs_count + rhs_count

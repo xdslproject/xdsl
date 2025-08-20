@@ -3,11 +3,21 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, SubiOp
-from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
+from xdsl.dialects.builtin import (
+    Builtin,
+    Float64Type,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    StringAttr,
+    TensorType,
+    i32,
+    i64,
+)
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
 from xdsl.ir import (
-    Attribute,
     Block,
     ErasedSSAValue,
     Operation,
@@ -30,7 +40,7 @@ from xdsl.utils.test_value import create_ssa_value
 class TestWithPropOp(IRDLOperation):
     name = "test.op_with_prop"
 
-    prop = prop_def(Attribute)
+    prop = prop_def()
 
 
 def test_ops_accessor():
@@ -114,16 +124,28 @@ def test_ops_accessor_III():
     region0 = Region([block0, block1])
     region1 = Region(block2)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="'ops' property of Region class is only available for single-block regions.",
+    ):
         region0.ops
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="'op' property of Region class is only available for single-operation single-block regions.",
+    ):
         region0.op
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="'op' property of Region class is only available for single-operation single-block regions.",
+    ):
         region1.op
 
-    with pytest.raises(Exception):
+    with pytest.raises(
+        ValueError,
+        match="Block is not a child of the region.",
+    ):
         region1.detach_block(block0)
 
     region0.detach_block(block0)
@@ -139,8 +161,8 @@ def test_op_operands_assign():
     op.operands = [val2, val1]
     op.verify()
 
-    assert len(val1.uses) == 1
-    assert len(val2.uses) == 1
+    assert val1.has_one_use()
+    assert val2.has_one_use()
     assert tuple(op.operands) == (val2, val1)
 
 
@@ -158,8 +180,8 @@ def test_op_operands_indexing():
     op.operands[0] = val2
     op.verify()
 
-    assert len(val1.uses) == 0
-    assert len(val2.uses) == 2
+    assert not list(val1.uses)
+    assert len(list(val2.uses)) == 2
     assert tuple(op.operands) == (val2, val2)
 
 
@@ -496,10 +518,10 @@ def test_region_clone_into_circular_blocks():
     """
     region_str = """
     {
-    ^0:
-        "test.op"() [^1] : () -> ()
-    ^1:
-        "test.op"() [^0] : () -> ()
+    ^bb0:
+        "test.op"() [^bb1] : () -> ()
+    ^bb1:
+        "test.op"() [^bb0] : () -> ()
     }
     """
     ctx = Context(allow_unregistered=True)
@@ -677,7 +699,7 @@ program_add_2 = """
 program_func = """
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%0 : i32, %1 : i32):
+  ^bb0(%0 : i32, %1 : i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
@@ -687,10 +709,10 @@ program_func = """
 program_successors = """
 "builtin.module"() ({
   "func.func"() ({
-  ^0:
-    "cf.br"() [^1] : () -> ()
-  ^1:
-    "cf.br"() [^0] : () -> ()
+  ^bb0:
+    "cf.br"() [^bb1] : () -> ()
+  ^bb1:
+    "cf.br"() [^bb0] : () -> ()
   }) {"sym_name" = "unconditional_br", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
 """
@@ -759,11 +781,11 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     program_func = """
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%0 : i32, %1 : i32):
+  ^bb0(%0 : i32, %1 : i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     %3 = "arith.constant"() {"value" = 2 : i32} : () -> i32
     "func.return"(%3) : (i32) -> ()
-  ^1(%4 : i32, %5 : i32):
+  ^bb1(%4 : i32, %5 : i32):
     "func.return"(%4) : (i32) -> ()
   }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
@@ -860,9 +882,8 @@ def test_region_index_fetch_region_unavailability():
     op = MultipleRegionsOp.build(regions=[[region0]])
 
     assert op.get_region_index(region0) == 0
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(ValueError, match="Region is not attached to the operation."):
         op.get_region_index(region1)
-    assert exc_info.value.args[0] == "Region is not attached to the operation."
 
 
 def test_detach_region():
@@ -882,6 +903,16 @@ def test_detach_region():
     assert op.get_region_index(region2) == 0
 
 
+def test_region_hashable():
+    a = Region()
+    b = Region()
+    assert a == a
+    assert a != b
+    assert hash(a) == hash(a)
+    assert a in {a}
+    assert b not in {a}
+
+
 @irdl_op_definition
 class CustomVerifyOp(IRDLOperation):
     name = "test.custom_verify_op"
@@ -898,18 +929,19 @@ class CustomVerifyOp(IRDLOperation):
 def test_op_custom_verify_is_called():
     a = ConstantOp.from_int_and_width(1, i64)
     b = CustomVerifyOp.get(a.result)
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match="Custom Verification Check"):
         b.verify()
-    assert e.value.args[0] == "Custom Verification Check"
 
 
 def test_op_custom_verify_is_done_last():
     a = ConstantOp.from_int_and_width(1, i32)
     # CustomVerify expects a i64, not i32
     b = CustomVerifyOp.get(a.result)
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException,
+        match="operand at position 0 does not verify:\nExpected attribute i64 but got i32",
+    ):
         b.verify()
-    assert "Custom Verification Check" not in e.value.args[0]
 
 
 def test_block_walk():
@@ -1062,3 +1094,76 @@ def test_find_ancestor_op_in_block():
 
     assert blk_top.find_ancestor_op_in_block(op1) is op3
     assert blk_top.find_ancestor_op_in_block(op4) is None
+
+
+def test_ssa_get_on_ssa():
+    ssa_value = create_ssa_value(i32)
+
+    assert SSAValue.get(ssa_value) == ssa_value
+    assert SSAValue.get(ssa_value, type=IntegerType) == ssa_value
+    assert SSAValue.get(ssa_value, type=IntegerType).type == i32
+
+    with pytest.raises(
+        ValueError,
+        match="SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> but got SSAValue with type i32",
+    ):
+        SSAValue.get(ssa_value, type=IndexType)
+
+
+def test_ssa_get_with_typeform():
+    ssa_value = create_ssa_value(i32)
+
+    assert SSAValue.get(ssa_value, type=IntegerType | IndexType) == ssa_value
+    assert SSAValue.get(ssa_value, type=IntegerType | IndexType).type == i32
+
+    with pytest.raises(
+        ValueError,
+        match="SSAValue.get: Expected xdsl.dialects.builtin.Float64Type | xdsl.dialects.builtin.IndexType but got SSAValue with type i32",
+    ):
+        SSAValue.get(ssa_value, type=Float64Type | IndexType)
+
+    tensor_type = TensorType(i32, [2, 2])
+    ssa_value_tensor = create_ssa_value(tensor_type)
+
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType]) == ssa_value_tensor
+    )
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType]).type == tensor_type
+    )
+
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType | IndexType])
+        == ssa_value_tensor
+    )
+    assert (
+        SSAValue.get(ssa_value_tensor, type=TensorType[IntegerType | IndexType]).type
+        == tensor_type
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"SSAValue.get: Expected xdsl.dialects.builtin.TensorType\[xdsl.dialects.builtin.Float64Type \| xdsl.dialects.builtin.IndexType\] but got SSAValue with type tensor<2x2xi32>.",
+    ):
+        SSAValue.get(ssa_value_tensor, type=TensorType[Float64Type | IndexType])
+
+
+def test_ssa_get_on_op():
+    op1 = test.TestOp(result_types=[i32])
+
+    assert SSAValue.get(op1).owner == op1
+    assert SSAValue.get(op1).type == i32
+    assert SSAValue.get(op1, type=IntegerType).owner == op1
+    assert SSAValue.get(op1, type=IntegerType).type == i32
+
+    with pytest.raises(
+        ValueError,
+        match="SSAValue.get: Expected <class 'xdsl.dialects.builtin.IndexType'> but got SSAValue with type i32",
+    ):
+        SSAValue.get(op1, type=IndexType)
+
+    op2 = test.TestOp(result_types=[i32, i32])
+    with pytest.raises(
+        ValueError, match="SSAValue.get: expected operation with a single result."
+    ):
+        SSAValue.get(op2)

@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from math import prod
-from typing import TypeVar, cast
+from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, mpi
@@ -106,9 +106,6 @@ class MpiLibraryInfo:
 
     # In place MPI All reduce
     MPI_IN_PLACE: int = -1
-
-
-_RewriteT = TypeVar("_RewriteT", bound=mpi.MPIBaseOp)
 
 
 @dataclass
@@ -265,7 +262,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
             return self.info.MPI_FLOAT
         if isinstance(mpi_type, builtin.Float64Type):
             return self.info.MPI_DOUBLE
-        if isinstance(mpi_type, IntegerType):
+        if isa(mpi_type, IntegerType):
             width: int = mpi_type.width.data
             if mpi_type.signedness.data == Signedness.UNSIGNED:
                 # unsigned branch

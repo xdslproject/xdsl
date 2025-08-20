@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterable, Sequence
-from typing import Annotated, ClassVar, cast
+from typing import ClassVar, cast
 
 from typing_extensions import Self
 
@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
     SignlessIntegerConstraint,
     StridedLayoutAttr,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     UnrankedMemRefType,
@@ -30,11 +31,15 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import (
-    parse_dynamic_index_list_without_types,
-    print_dynamic_index_list,
     split_dynamic_index_list,
 )
-from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
+from xdsl.dialects.utils.dynamic_index_list import (
+    DynamicIndexList,
+    verify_dynamic_index_list,
+)
+from xdsl.dialects.utils.reshape_ops_utils import (
+    ContiguousArrayOfIntArray,
+)
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
@@ -62,6 +67,10 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
+    MemoryAllocEffect,
+    MemoryFreeEffect,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     NoMemoryEffect,
     SymbolOpInterface,
 )
@@ -78,9 +87,11 @@ class LoadOp(IRDLOperation):
 
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-    memref = operand_def(MemRefType.constr(element_type=T))
+    memref = operand_def(MemRefType.constr(T))
     indices = var_operand_def(IndexType())
     res = result_def(T)
+
+    traits = traits_def(MemoryReadEffect())
 
     irdl_options = [ParsePropInAttrDict()]
     assembly_format = "$memref `[` $indices `]` attr-dict `:` type($memref)"
@@ -94,7 +105,7 @@ class LoadOp(IRDLOperation):
         if not isinstance(memref_type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_type = cast(MemRefType[Attribute], memref_type)
+        memref_type = cast(MemRefType, memref_type)
 
         if memref_type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
@@ -103,10 +114,8 @@ class LoadOp(IRDLOperation):
     def get(
         cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
     ) -> Self:
-        ssa_value = SSAValue.get(ref)
-        ssa_value_type = ssa_value.type
-        ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
-        return cls(operands=[ref, indices], result_types=[ssa_value_type.element_type])
+        ssa_value = SSAValue.get(ref, type=MemRefType)
+        return cls(operands=[ref, indices], result_types=[ssa_value.type.element_type])
 
 
 @irdl_op_definition
@@ -118,8 +127,10 @@ class StoreOp(IRDLOperation):
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
     value = operand_def(T)
-    memref = operand_def(MemRefType.constr(element_type=T))
+    memref = operand_def(MemRefType.constr(T))
     indices = var_operand_def(IndexType())
+
+    traits = traits_def(MemoryWriteEffect())
 
     irdl_options = [ParsePropInAttrDict()]
     assembly_format = "$value `,` $memref `[` $indices `]` attr-dict `:` type($memref)"
@@ -128,7 +139,7 @@ class StoreOp(IRDLOperation):
         if not isinstance(memref_type := self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_type = cast(MemRefType[Attribute], memref_type)
+        memref_type = cast(MemRefType, memref_type)
 
         if memref_type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")
@@ -158,14 +169,14 @@ class AllocOp(IRDLOperation):
     dynamic_sizes = var_operand_def(IndexType)
     symbol_operands = var_operand_def(IndexType)
 
-    memref = result_def(MemRefType[Attribute])
+    memref = result_def(MemRefType)
 
     # TODO how to constraint the IntegerAttr type?
     alignment = opt_prop_def(IntegerAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(AllocOpHasCanonicalizationPatterns())
+    traits = traits_def(AllocOpHasCanonicalizationPatterns(), MemoryAllocEffect())
 
     def __init__(
         self,
@@ -309,10 +320,12 @@ class AllocaOp(IRDLOperation):
     dynamic_sizes = var_operand_def(IndexType)
     symbol_operands = var_operand_def(IndexType)
 
-    memref = result_def(MemRefType[Attribute])
+    memref = result_def(MemRefType)
 
     # TODO how to constraint the IntegerAttr type?
     alignment = opt_prop_def(IntegerAttr)
+
+    traits = traits_def(MemoryAllocEffect())
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -359,20 +372,22 @@ class AtomicRMWOp(IRDLOperation):
     T: ClassVar = VarConstraint("T", AnyFloatConstr | SignlessIntegerConstraint)
 
     value = operand_def(T)
-    memref = operand_def(MemRefType.constr(element_type=T))
+    memref = operand_def(MemRefType.constr(T))
     indices = var_operand_def(IndexType)
 
     kind = prop_def(IntegerAttr[I64])
 
     result = result_def(T)
 
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+
 
 @irdl_op_definition
 class DeallocOp(IRDLOperation):
     name = "memref.dealloc"
-    memref = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
-    )
+    memref = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+
+    traits = traits_def(MemoryFreeEffect())
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> DeallocOp:
@@ -384,7 +399,7 @@ class DeallocOp(IRDLOperation):
 @irdl_op_definition
 class GetGlobalOp(IRDLOperation):
     name = "memref.get_global"
-    memref = result_def(MemRefType[Attribute])
+    memref = result_def(MemRefType)
     name_ = prop_def(SymbolRefAttr, prop_name="name")
 
     traits = traits_def(NoMemoryEffect())
@@ -404,14 +419,14 @@ class GetGlobalOp(IRDLOperation):
 class GlobalOp(IRDLOperation):
     name = "memref.global"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     sym_visibility = prop_def(StringAttr)
     type = prop_def(MemRefType)
     initial_value = prop_def(UnitAttr | DenseIntOrFPElementsAttr)
     constant = opt_prop_def(UnitAttr)
     alignment = opt_prop_def(IntegerAttr[I64])
 
-    traits = traits_def(SymbolOpInterface())
+    traits = traits_def(SymbolOpInterface(), MemoryAllocEffect())
 
     def verify_(self) -> None:
         if self.alignment is not None:
@@ -450,9 +465,7 @@ class GlobalOp(IRDLOperation):
 class DimOp(IRDLOperation):
     name = "memref.dim"
 
-    source = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
-    )
+    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
     index = operand_def(IndexType)
 
     result = result_def(IndexType)
@@ -470,7 +483,7 @@ class DimOp(IRDLOperation):
 class RankOp(IRDLOperation):
     name = "memref.rank"
 
-    source = operand_def(MemRefType[Attribute])
+    source = operand_def(MemRefType)
 
     rank = result_def(IndexType)
 
@@ -481,14 +494,9 @@ class RankOp(IRDLOperation):
         return RankOp.build(operands=[memref], result_types=[IndexType()])
 
 
-ReassociationAttr = ArrayAttr[
-    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
-]
-
-
 class AlterShapeOperation(IRDLOperation, abc.ABC):
     result = result_def(MemRefType)
-    reassociation = prop_def(ReassociationAttr)
+    reassociation = prop_def(ContiguousArrayOfIntArray())
 
     traits = traits_def(NoMemoryEffect())
 
@@ -519,62 +527,15 @@ class ExpandShapeOp(AlterShapeOperation):
     src = operand_def(MemRefType)
     output_shape = var_operand_def(IndexType)
 
-    static_output_shape = prop_def(DenseArrayBase)
+    static_output_shape = prop_def(DenseArrayBase.constr(i64))
 
-    @classmethod
-    def parse(cls, parser: Parser) -> ExpandShapeOp:
-        src = parser.parse_unresolved_operand()
-        reassociation = parser.parse_attribute()
-        parser.parse_keyword("output_shape")
-        parser.parse_punctuation("[")
-        output_shape: list[SSAValue] = []
-        static_output_shape: list[int] = []
-        while (
-            x := parser.parse_optional_operand() or parser.parse_optional_integer()
-        ) is not None:
-            if isinstance(x, int):
-                static_output_shape.append(x)
-            else:
-                output_shape.append(x)
-            parser.parse_optional_punctuation(",")
-        parser.parse_punctuation("]")
-        attr_dict = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        src = parser.resolve_operand(src, parser.parse_type())
-        parser.parse_keyword("into")
-        result_type = parser.parse_type()
+    assembly_format = (
+        "$src $reassociation `output_shape`"
+        "custom<DynamicIndexList>($output_shape, $static_output_shape) attr-dict `:`"
+        "type($src) `into` type($result)"
+    )
 
-        return cls(
-            operands=[src, output_shape],
-            properties={
-                "reassociation": reassociation,
-                "static_output_shape": DenseArrayBase.create_dense_int(
-                    IntegerType(64), static_output_shape
-                ),
-            },
-            attributes=attr_dict,
-            result_types=[result_type],
-        )
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_operand(self.src)
-        printer.print_string(" ")
-        printer.print_attribute(self.reassociation)
-        printer.print_string(" output_shape [")
-        printer.print_list(self.output_shape, printer.print_operand)
-        t = self.static_output_shape.get_values()
-        if self.output_shape and t:
-            printer.print_string(", ")
-        printer.print_list(t, lambda x: printer.print_string(str(x)))
-        printer.print_string("]")
-        if self.attributes:
-            printer.print(" ")
-            printer.print_attr_dict(self.attributes)
-        printer.print_string(" : ")
-        printer.print_attribute(self.src.type)
-        printer.print_string(" into ")
-        printer.print_attribute(self.result.type)
+    custom_directives = (DynamicIndexList,)
 
 
 @irdl_op_definition
@@ -601,8 +562,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
         Create an ExtractStridedMetaDataOp that extracts the metadata from the
         operation (source) that produces a memref.
         """
-        source_type = SSAValue.get(source).type
-        assert isa(source_type, MemRefType[Attribute])
+        source_type = SSAValue.get(source, type=MemRefType).type
         source_shape = source_type.get_shape()
         # Return a rank zero memref with the memref type
         base_buffer_type = MemRefType(
@@ -660,9 +620,9 @@ class SubviewOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(MemRefType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -671,10 +631,20 @@ class SubviewOp(IRDLOperation):
         lambda: (MemRefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
     )
 
+    assembly_format = (
+        "$source ``"
+        "custom<DynamicIndexList>($offsets, $static_offsets)"
+        "custom<DynamicIndexList>($sizes, $static_sizes)"
+        "custom<DynamicIndexList>($strides, $static_strides)"
+        "attr-dict `:` type($source) `to` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
     def verify_(self) -> None:
-        static_offsets = cast(tuple[int, ...], self.static_offsets.get_values())
-        static_sizes = cast(tuple[int, ...], self.static_sizes.get_values())
-        static_strides = cast(tuple[int, ...], self.static_strides.get_values())
+        static_offsets = self.static_offsets.get_values()
+        static_sizes = self.static_sizes.get_values()
+        static_strides = self.static_strides.get_values()
         verify_dynamic_index_list(
             static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
         )
@@ -697,11 +667,11 @@ class SubviewOp(IRDLOperation):
         result_type: Attribute,
     ):
         if not isinstance(static_offsets, DenseArrayBase):
-            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
+            static_offsets = DenseArrayBase.from_list(i64, static_offsets)
         if not isinstance(static_sizes, DenseArrayBase):
-            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
+            static_sizes = DenseArrayBase.from_list(i64, static_sizes)
         if not isinstance(static_strides, DenseArrayBase):
-            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
+            static_strides = DenseArrayBase.from_list(i64, static_strides)
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],
@@ -744,7 +714,7 @@ class SubviewOp(IRDLOperation):
     @staticmethod
     def from_static_parameters(
         source: SSAValue | Operation,
-        source_type: MemRefType[Attribute],
+        source_type: MemRefType,
         offsets: Sequence[int],
         sizes: Sequence[int],
         strides: Sequence[int],
@@ -804,97 +774,20 @@ class SubviewOp(IRDLOperation):
             return_type,
         )
 
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        print_dynamic_index_list(
-            printer,
-            SubviewOp.DYNAMIC_INDEX,
-            self.offsets,
-            (cast(int, offset) for offset in self.static_offsets.get_values()),
-        )
-        printer.print_string(" ")
-        print_dynamic_index_list(
-            printer,
-            SubviewOp.DYNAMIC_INDEX,
-            self.sizes,
-            (cast(int, size) for size in self.static_sizes.get_values()),
-        )
-        printer.print_string(" ")
-        print_dynamic_index_list(
-            printer,
-            SubviewOp.DYNAMIC_INDEX,
-            self.strides,
-            (cast(int, stride) for stride in self.static_strides.get_values()),
-        )
-        printer.print_op_attributes(self.attributes, print_keyword=True)
-        printer.print_string(" : ")
-        printer.print_attribute(self.source.type)
-        printer.print_string(" to ")
-        printer.print_attribute(self.result.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> SubviewOp:
-        index = IndexType()
-        unresolved_source = parser.parse_unresolved_operand()
-        pos = parser.pos
-        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        pos = parser.pos
-        dynamic_offsets = parser.resolve_operands(
-            dynamic_offsets, (index,) * len(dynamic_offsets), pos
-        )
-        pos = parser.pos
-        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_sizes = parser.resolve_operands(
-            dynamic_sizes, (index,) * len(dynamic_sizes), pos
-        )
-        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_strides = parser.resolve_operands(
-            dynamic_strides, (index,) * len(dynamic_strides), pos
-        )
-        attrs = parser.parse_optional_attr_dict_with_keyword()
-        parser.parse_punctuation(":")
-        operand_type = parser.parse_attribute()
-        source = parser.resolve_operand(unresolved_source, operand_type)
-        parser.parse_characters("to")
-        res_type = parser.parse_attribute()
-
-        op = SubviewOp(
-            source,
-            dynamic_offsets,
-            dynamic_sizes,
-            dynamic_strides,
-            static_offsets,
-            static_sizes,
-            static_strides,
-            res_type,
-        )
-        if attrs is not None:
-            op.attributes |= attrs.data
-        return op
-
 
 @irdl_op_definition
 class CastOp(IRDLOperation):
     name = "memref.cast"
 
-    source = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
-    )
-    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute]))
+    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    dest = result_def(base(MemRefType) | base(UnrankedMemRefType))
 
     traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(
         source: SSAValue | Operation,
-        type: MemRefType[Attribute] | UnrankedMemRefType[Attribute],
+        type: MemRefType | UnrankedMemRefType,
     ):
         return CastOp.build(operands=[source], result_types=[type])
 
@@ -903,24 +796,22 @@ class CastOp(IRDLOperation):
 class MemorySpaceCastOp(IRDLOperation):
     name = "memref.memory_space_cast"
 
-    source = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
-    )
-    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute]))
+    source = operand_def(base(MemRefType) | base(UnrankedMemRefType))
+    dest = result_def(base(MemRefType) | base(UnrankedMemRefType))
 
     traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
         source: SSAValue | Operation,
-        dest: MemRefType[Attribute] | UnrankedMemRefType[Attribute],
+        dest: MemRefType | UnrankedMemRefType,
     ):
         super().__init__(operands=[source], result_types=[dest])
 
     @staticmethod
     def from_type_and_target_space(
         source: SSAValue | Operation,
-        type: MemRefType[Attribute],
+        type: MemRefType,
         dest_memory_space: Attribute,
     ) -> MemorySpaceCastOp:
         dest = MemRefType(
@@ -932,8 +823,8 @@ class MemorySpaceCastOp(IRDLOperation):
         return MemorySpaceCastOp(source, dest)
 
     def verify_(self) -> None:
-        source = cast(MemRefType[Attribute], self.source.type)
-        dest = cast(MemRefType[Attribute], self.dest.type)
+        source = cast(MemRefType, self.source.type)
+        dest = cast(MemRefType, self.dest.type)
         if source.get_shape() != dest.get_shape():
             raise VerifyException(
                 "Expected source and destination to have the same shape."
@@ -950,19 +841,33 @@ class ReinterpretCastOp(IRDLOperation):
 
     name = "memref.reinterpret_cast"
 
-    source = operand_def(MemRefType[Attribute])
+    source = operand_def(MemRefType)
 
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
 
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
 
-    result = result_def(MemRefType[Attribute])
+    result = result_def(MemRefType)
+
+    traits = traits_def(NoMemoryEffect())
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    assembly_format = (
+        "$source `to` `offset` `` `:`"
+        "custom<DynamicIndexList>($offsets, $static_offsets)"
+        "`` `,` `sizes` `` `:`"
+        "custom<DynamicIndexList>($sizes, $static_sizes)"
+        "`` `,` `strides` `` `:`"
+        "custom<DynamicIndexList>($strides, $static_strides)"
+        "attr-dict `:` type($source) `to` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
 
     def __init__(
         self,
@@ -976,11 +881,11 @@ class ReinterpretCastOp(IRDLOperation):
         result_type: Attribute,
     ):
         if not isinstance(static_offsets, DenseArrayBase):
-            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
+            static_offsets = DenseArrayBase.from_list(i64, static_offsets)
         if not isinstance(static_sizes, DenseArrayBase):
-            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
+            static_sizes = DenseArrayBase.from_list(i64, static_sizes)
         if not isinstance(static_strides, DenseArrayBase):
-            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
+            static_strides = DenseArrayBase.from_list(i64, static_strides)
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],
@@ -1023,102 +928,10 @@ class ReinterpretCastOp(IRDLOperation):
             result_type,
         )
 
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        printer.print_string(" to offset: ")
-        print_dynamic_index_list(
-            printer,
-            ReinterpretCastOp.DYNAMIC_INDEX,
-            self.offsets,
-            (cast(int, offset) for offset in self.static_offsets.get_values()),
-        )
-        printer.print_string(", sizes: ")
-        print_dynamic_index_list(
-            printer,
-            ReinterpretCastOp.DYNAMIC_INDEX,
-            self.sizes,
-            (cast(int, size) for size in self.static_sizes.get_values()),
-        )
-        printer.print_string(", strides: ")
-        print_dynamic_index_list(
-            printer,
-            ReinterpretCastOp.DYNAMIC_INDEX,
-            self.strides,
-            (cast(int, stride) for stride in self.static_strides.get_values()),
-        )
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" : ")
-        printer.print_attribute(self.source.type)
-        printer.print_string(" to ")
-        printer.print_attribute(self.result.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ReinterpretCastOp:
-        index = IndexType()
-        unresolved_source = parser.parse_unresolved_operand()
-
-        parser.parse_keyword("to")
-
-        # offsets
-        parser.parse_keyword("offset")
-        parser.parse_punctuation(":")
-        pos = parser.pos
-        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        pos = parser.pos
-        dynamic_offsets = parser.resolve_operands(
-            dynamic_offsets, (index,) * len(dynamic_offsets), pos
-        )
-        pos = parser.pos
-        parser.parse_punctuation(",")
-
-        # sizes
-        parser.parse_keyword("sizes")
-        parser.parse_punctuation(":")
-        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_sizes = parser.resolve_operands(
-            dynamic_sizes, (index,) * len(dynamic_sizes), pos
-        )
-        parser.parse_punctuation(",")
-
-        # strides
-        parser.parse_keyword("strides")
-        parser.parse_punctuation(":")
-        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_strides = parser.resolve_operands(
-            dynamic_strides, (index,) * len(dynamic_strides), pos
-        )
-        attrs = parser.parse_optional_attr_dict_with_keyword()
-        parser.parse_punctuation(":")
-        operand_type = parser.parse_attribute()
-        source = parser.resolve_operand(unresolved_source, operand_type)
-        parser.parse_characters("to")
-        result_type = parser.parse_attribute()
-
-        op = ReinterpretCastOp(
-            source,
-            dynamic_offsets,
-            dynamic_sizes,
-            dynamic_strides,
-            static_offsets,
-            static_sizes,
-            static_strides,
-            result_type,
-        )
-        if attrs is not None:
-            op.attributes |= attrs.data
-        return op
-
     def verify_(self):
-        static_offsets = cast(tuple[int, ...], self.static_offsets.get_values())
-        static_sizes = cast(tuple[int, ...], self.static_sizes.get_values())
-        static_strides = cast(tuple[int, ...], self.static_strides.get_values())
+        static_offsets = self.static_offsets.get_values()
+        static_sizes = self.static_sizes.get_values()
+        static_strides = self.static_strides.get_values()
 
         verify_dynamic_index_list(
             static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
@@ -1130,8 +943,8 @@ class ReinterpretCastOp(IRDLOperation):
             static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments"
         )
 
-        assert isa(self.source.type, MemRefType[Attribute])
-        assert isa(self.result.type, MemRefType[Attribute])
+        assert isa(self.source.type, MemRefType)
+        assert isa(self.result.type, MemRefType)
 
         if len(self.result.type.shape) != len(self.static_sizes):
             raise VerifyException(
@@ -1142,7 +955,7 @@ class ReinterpretCastOp(IRDLOperation):
         for dim, (actual, expected) in enumerate(
             zip(
                 self.result.type.get_shape(),
-                cast(tuple[int], self.static_sizes.get_values()),
+                self.static_sizes.get_values(),
                 strict=True,
             )
         ):
@@ -1171,6 +984,8 @@ class DmaStartOp(IRDLOperation):
     tag = operand_def(MemRefType[IntegerType])
     tag_indices = var_operand_def(IndexType)
 
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+
     irdl_options = [AttrSizedOperandSegments()]
 
     @staticmethod
@@ -1196,8 +1011,8 @@ class DmaStartOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isa(self.src.type, MemRefType[Attribute])
-        assert isa(self.dest.type, MemRefType[Attribute])
+        assert isa(self.src.type, MemRefType)
+        assert isa(self.dest.type, MemRefType)
         assert isa(self.tag.type, MemRefType[IntegerType])
 
         if len(self.src.type.shape) != len(self.src_indices):
@@ -1231,6 +1046,8 @@ class DmaWaitOp(IRDLOperation):
 
     num_elements = operand_def(IndexType)
 
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+
     @staticmethod
     def get(
         tag: SSAValue | Operation,
@@ -1246,7 +1063,7 @@ class DmaWaitOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isa(self.tag.type, MemRefType[Attribute])
+        assert isa(self.tag.type, MemRefType)
 
         if len(self.tag.type.shape) != len(self.tag_indices):
             raise VerifyException(
@@ -1263,12 +1080,14 @@ class CopyOp(IRDLOperation):
     source = operand_def(MemRefType)
     destination = operand_def(MemRefType)
 
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+
     def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
         super().__init__(operands=[source, destination])
 
     def verify_(self) -> None:
-        source = cast(MemRefType[Attribute], self.source.type)
-        destination = cast(MemRefType[Attribute], self.destination.type)
+        source = cast(MemRefType, self.source.type)
+        destination = cast(MemRefType, self.destination.type)
         if source.get_shape() != destination.get_shape():
             raise VerifyException(
                 "Expected source and destination to have the same shape."

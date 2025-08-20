@@ -19,9 +19,8 @@ class VectorStoreToPtr(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: vector.StoreOp, rewriter: PatternRewriter):
         assert isa(memref_type := op.base.type, memref.MemRefType)
-        ops, target_ptr = get_target_ptr(op.base, memref_type, op.indices)
-        ops.append(ptr.StoreOp(addr=target_ptr, value=op.vector))
-        rewriter.replace_matched_op(ops)
+        target_ptr = get_target_ptr(op.base, memref_type, op.indices, rewriter)
+        rewriter.replace_matched_op(ptr.StoreOp(addr=target_ptr, value=op.vector))
 
 
 @dataclass
@@ -29,9 +28,8 @@ class VectorLoadToPtr(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: vector.LoadOp, rewriter: PatternRewriter):
         assert isa(memref_type := op.base.type, memref.MemRefType)
-        ops, target_ptr = get_target_ptr(op.base, memref_type, op.indices)
-        ops.append(ptr.LoadOp(target_ptr, op.result.type))
-        rewriter.replace_matched_op(ops)
+        target_ptr = get_target_ptr(op.base, memref_type, op.indices, rewriter)
+        rewriter.replace_matched_op(ptr.LoadOp(target_ptr, op.result.type))
 
 
 @dataclass(frozen=True)

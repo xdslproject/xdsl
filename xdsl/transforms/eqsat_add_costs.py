@@ -1,28 +1,47 @@
+from dataclasses import dataclass, field
+
+from typing_extensions import TypeVar
+
 from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat
 from xdsl.dialects.builtin import IntAttr
 from xdsl.ir import Block, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.hints import isa
+
+_DefaultCostT = TypeVar("_DefaultCostT", bound=int | None)
 
 
-def get_eqsat_cost(value: SSAValue) -> int | None:
+def get_eqsat_cost(
+    value: SSAValue, *, default: _DefaultCostT = None
+) -> int | _DefaultCostT:
+    """
+    Calculate or fetch the cost of computing a value.
+
+    If it's a block argument, return 0.
+    If it's an eclass op, take the minimal cost of its arguments.
+    If the cost is none, then return the default value provided, which is `None` by
+    default.
+    """
     if not isinstance(value, OpResult):
         return 0
     if isinstance(value.op, eqsat.EClassOp):
         if (min_cost_index := value.op.min_cost_index) is not None:
-            return get_eqsat_cost(value.op.operands[min_cost_index.data])
+            return get_eqsat_cost(
+                value.op.operands[min_cost_index.data], default=default
+            )
     cost_attribute = value.op.attributes.get(eqsat.EQSAT_COST_LABEL)
     if cost_attribute is None:
-        return None
-    if not isinstance(cost_attribute, IntAttr):
+        return default
+    if not isa(cost_attribute, IntAttr):
         raise DiagnosticException(
             f"Unexpected value {cost_attribute} for key {eqsat.EQSAT_COST_LABEL} in {value.op}"
         )
     return cost_attribute.data
 
 
-def add_eqsat_costs(block: Block):
+def add_eqsat_costs(block: Block, default: int | None):
     for op in block.ops:
         if not op.results:
             # No need to annotate ops without results
@@ -37,7 +56,7 @@ def add_eqsat_costs(block: Block):
                 f"results: {op}"
             )
 
-        costs = tuple(get_eqsat_cost(value) for value in op.operands)
+        costs = tuple(get_eqsat_cost(value, default=default) for value in op.operands)
         if None in costs:
             continue
 
@@ -51,6 +70,7 @@ def add_eqsat_costs(block: Block):
             op.attributes[eqsat.EQSAT_COST_LABEL] = IntAttr(cost)
 
 
+@dataclass(frozen=True)
 class EqsatAddCostsPass(ModulePass):
     """
     Add costs to all operations in blocks that contain eqsat.eclass ops.
@@ -60,9 +80,15 @@ class EqsatAddCostsPass(ModulePass):
     operations of the operands + 1, if these are all non-`None`, and `None` otherwise.
     The cost is stored as an `IntAttr`, and cannot be computed for operations with
     multiple results.
+
+    If the cost cannot be calculated, the default value can be provided with the
+    `default` optional parameter.
     """
 
     name = "eqsat-add-costs"
+
+    default: int | None = field(default=None)
+    "Default cost to assign if it cannot be calculated."
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         eclass_parent_blocks = set(
@@ -71,4 +97,4 @@ class EqsatAddCostsPass(ModulePass):
             if o.parent is not None and isinstance(o, eqsat.EClassOp)
         )
         for block in eclass_parent_blocks:
-            add_eqsat_costs(block)
+            add_eqsat_costs(block, default=self.default)

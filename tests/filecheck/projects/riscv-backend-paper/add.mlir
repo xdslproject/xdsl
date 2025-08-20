@@ -20,7 +20,7 @@ builtin.module {
             ],
             iterator_types = ["parallel", "parallel"]
         } ins(%A, %B : memref<2x3xf64>, memref<2x3xf64>) outs(%C : memref<2x3xf64>) {
-        ^0(%a : f64, %b : f64, %c : f64):
+        ^bb0(%a : f64, %b : f64, %c : f64):
             %sum = arith.addf %a, %b : f64
             linalg.yield %sum : f64
         }

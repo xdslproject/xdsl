@@ -49,7 +49,7 @@ class ReshapeReshapeOpPattern(RewritePattern):
             # Input defined by another transpose? If not, no match.
             return
 
-        new_op = ReshapeOp.from_input_and_type(reshape_input_op.arg, op.res.type)
+        new_op = ReshapeOp(reshape_input_op.arg, op.res.type)
         rewriter.replace_matched_op(new_op)
 
 
@@ -72,8 +72,8 @@ class FoldConstantReshapeOpPattern(RewritePattern):
 
         assert isa(op.res.type, TensorTypeF64)
 
-        new_value = DenseIntOrFPElementsAttr.create_dense_float(
-            type=op.res.type, data=reshape_input_op.value.get_float_values()
+        new_value = DenseIntOrFPElementsAttr.from_list(
+            type=op.res.type, data=reshape_input_op.value.get_values()
         )
         new_op = ConstantOp(new_value)
         rewriter.replace_matched_op(new_op)

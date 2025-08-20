@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from dataclasses import dataclass
 from math import prod
 from typing import Any, cast
 
@@ -11,11 +12,11 @@ from xdsl.context import Context
 from xdsl.dialects import memref, riscv, riscv_func
 from xdsl.dialects.builtin import (
     AnyFloat,
+    DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FixedBitwidthType,
     Float32Type,
     Float64Type,
-    IntegerType,
     MemRefType,
     ModuleOp,
     NoneAttr,
@@ -23,9 +24,9 @@ from xdsl.dialects.builtin import (
     StridedLayoutAttr,
     SymbolRefAttr,
     UnrealizedConversionCastOp,
+    i32,
 )
-from xdsl.interpreters.utils.ptr import TypedPtr
-from xdsl.ir import Attribute, Operation, Region, SSAValue
+from xdsl.ir import Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -252,7 +253,10 @@ class ConvertMemRefLoadOp(RewritePattern):
         )
 
 
+@dataclass
 class ConvertMemRefGlobalOp(RewritePattern):
+    xlen: int = 32
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.GlobalOp, rewriter: PatternRewriter):
         initial_value = op.initial_value
@@ -262,32 +266,14 @@ class ConvertMemRefGlobalOp(RewritePattern):
                 f"Unsupported memref.global initial value: {initial_value}"
             )
 
-        memref_type = cast(memref.MemRefType[Any], op.type)
-        element_type = memref_type.element_type
+        if len(initial_value.data.data) % (self.xlen // 8):
+            raise DiagnosticException(
+                f"memref.global value size not divisible by xlen ({self.xlen}) not yet "
+                "supported."
+            )
 
-        # Only handle a small subset of elements
-        # Might be useful as a helper for other passes in the future
-        match element_type:
-            case IntegerType():
-                bitwidth = element_type.width.data
-                if bitwidth != 32:
-                    raise DiagnosticException(
-                        f"Unsupported memref element type for riscv lowering: {element_type}"
-                    )
-                ints = initial_value.get_int_values()
-                ptr = TypedPtr.new_int32(ints).raw
-            case Float32Type():
-                floats = initial_value.get_float_values()
-                ptr = TypedPtr.new_float32(floats).raw
-            case Float64Type():
-                floats = initial_value.get_float_values()
-                ptr = TypedPtr.new_float64(floats).raw
-            case _:
-                raise DiagnosticException(
-                    f"Unsupported memref element type for riscv lowering: {element_type}"
-                )
-
-        text = ",".join(hex(i) for i in ptr.int32.get_list(42))
+        i32_attr = DenseArrayBase(i32, initial_value.data)
+        text = ",".join(hex(i) for i in i32_attr.iter_values())
 
         section = riscv.AssemblySectionOp(".data")
         with ImplicitBuilder(section.data):
@@ -337,7 +323,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
         result = op.result
         source_type = source.type
         assert isinstance(source_type, MemRefType)
-        source_type = cast(MemRefType[Attribute], source_type)
+        source_type = cast(MemRefType, source_type)
         result_type = result.type
 
         result_layout_attr = result_type.layout
@@ -414,6 +400,8 @@ class ConvertMemRefSubviewOp(RewritePattern):
 class ConvertMemRefToRiscvPass(ModulePass):
     name = "convert-memref-to-riscv"
 
+    xlen: int = 32
+
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         contains_malloc = PatternRewriteWalker(ConvertMemRefAllocOp()).rewrite_module(
             op
@@ -427,7 +415,7 @@ class ConvertMemRefToRiscvPass(ModulePass):
                     ConvertMemRefDeallocOp(),
                     ConvertMemRefStoreOp(),
                     ConvertMemRefLoadOp(),
-                    ConvertMemRefGlobalOp(),
+                    ConvertMemRefGlobalOp(xlen=self.xlen),
                     ConvertMemRefGetGlobalOp(),
                     ConvertMemRefSubviewOp(),
                 ]
