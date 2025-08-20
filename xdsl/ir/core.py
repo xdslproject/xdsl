@@ -1027,7 +1027,7 @@ class Operation(_IRNode):
     This list should be empty for non-terminator operations.
     """
 
-    successor_uses: tuple[Use, ...] = field(default=())
+    _successor_uses: tuple[Use, ...] = field(default=())
     """
     The uses for each successor.
     They are stored separately from the successors to allow for more efficient
@@ -1157,12 +1157,16 @@ class Operation(_IRNode):
     def successors(self, new: Sequence[Block]):
         new = tuple(new)
         new_uses = tuple(Use(self, idx) for idx in range(len(new)))
-        for successor, use in zip(self._successors, self.successor_uses):
+        for successor, use in zip(self._successors, self._successor_uses):
             successor.remove_use(use)
         for successor, use in zip(new, new_uses):
             successor.add_use(use)
         self._successors = new
-        self.successor_uses = new_uses
+        self._successor_uses = new_uses
+
+    @property
+    def successor_uses(self) -> Sequence[Use]:
+        return self._successor_uses
 
     def __post_init__(self):
         assert self.name != ""
