@@ -9,28 +9,28 @@
 
 // -----
 
-// CHECK: Invalid value 0, expected one of {32, 1, 64, 16, 8}
+// CHECK: EmitC array element type 'i0' is not a supported EmitC type.
 "test.op"() {
   bad_type = !emitc.array<1xi0>>
 }: ()->()
 
 // -----
 
-// CHECK: Unexpected attribute memref<1xi32>
+// CHECK: EmitC array element type 'memref<1xi32>' is not a supported EmitC type.
 "test.op"() {
   bad_type = !emitc.array<1xmemref<1xi32>>
 }: ()->()
 
 // -----
 
-// CHECK: Unexpected attribute !emitc.array<3xf32>
+// CHECK: EmitC array element type cannot be another EmitC_ArrayType.
 "test.op"() {
   nested = !emitc.array<2x!emitc.array<3xf32>>
 }: ()->()
 
 // -----
 
-// CHECK: Unexpected attribute tensor<1x!emitc.array<1xf32>>
+// CHECK: EmitC array element type 'tensor<1x!emitc.array<1xf32>>' is not a supported EmitC type.
 "test.op"() {
   tensor_with_emitc_array = !emitc.array<1xtensor<1x!emitc.array<1xf32>>>
 }: ()->()
@@ -72,7 +72,7 @@
 
 // -----
 
-// CHECK: Unexpected attribute !emitc.lvalue<i32>
+// CHECK: EmitC array element type '!emitc.lvalue<i32>' is not a supported EmitC type.
 "test.op"() {
   lvalue_element_type = !emitc.array<4x!emitc.lvalue<i32>>
 }: ()->()
@@ -142,7 +142,7 @@
 
 // -----
 
-// CHECK: Unexpected attribute f80
+// CHECK: EmitC array element type 'f80' is not a supported EmitC type.
 "test.op"() {
   unsupported_f80 = !emitc.array<1xf80>
 }: ()->()
