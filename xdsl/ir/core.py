@@ -1157,12 +1157,12 @@ class Operation(_IRNode):
     def successors(self, new: Sequence[Block]):
         new = tuple(new)
         new_uses = tuple(Use(self, idx) for idx in range(len(new)))
-        for successor, use in zip(self._successors, self._successor_uses):
+        for successor, use in zip(self._successors, self.successor_uses):
             successor.remove_use(use)
         for successor, use in zip(new, new_uses):
             successor.add_use(use)
         self._successors = new
-        self._successor_uses = new_uses
+        self.successor_uses = new_uses
 
     def __post_init__(self):
         assert self.name != ""
@@ -2147,7 +2147,7 @@ class OpSuccessors(Sequence[Block]):
 
     def __setitem__(self, idx: int, successor: Block) -> None:
         successors = self._op._successors  # pyright: ignore[reportPrivateUsage]
-        successor_uses = self._op._successor_uses  # pyright: ignore[reportPrivateUsage]
+        successor_uses = self._op.successor_uses
         successors[idx].remove_use(successor_uses[idx])
         successor.add_use(successor_uses[idx])
         new_successors = (*successors[:idx], successor, *successors[idx + 1 :])
