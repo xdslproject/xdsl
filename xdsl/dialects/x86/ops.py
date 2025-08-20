@@ -31,7 +31,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Generic, cast
+from typing import IO, Generic, Literal, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -1056,51 +1056,49 @@ class RSS_Operation(
         )
 
 
-class IRS_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+class DSSI_Operation(
+    Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC
 ):
     """
-    A base class for x86 operations that have one immediate value, an inout register,
-    and one source register.
+    A base class for x86 operations that have one destination register, one source
+    register and an immediate value.
     """
 
-    register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
-    source = operand_def(R2InvT)
-    immediate = attr_def(IntegerAttr)
+    destination = result_def(R1InvT)
+    source0 = operand_def(R2InvT)
+    source1 = operand_def(R3InvT)
+    immediate = attr_def(IntegerAttr[IntegerType[8]])
 
     def __init__(
         self,
-        register_in: Operation | SSAValue,
-        source: Operation | SSAValue,
-        immediate: int | IntegerAttr,
+        source0: Operation | SSAValue,
+        source1: Operation | SSAValue,
+        immediate: int | IntegerAttr[IntegerType[Literal[8]]],
         *,
         comment: str | StringAttr | None = None,
+        destination: R1InvT,
     ):
-        register_in = SSAValue.get(register_in)
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, IntegerType(8, Signedness.UNSIGNED))
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
-            operands=[register_in, source],
+            operands=[source0, source1],
             attributes={
                 "immediate": immediate,
                 "comment": comment,
             },
-            result_types=[register_in.type],
+            result_types=[destination],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.immediate, self.register_in, self.source
+        return self.destination, self.source0, self.source1, self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
+        temp = parse_immediate_value(parser, IntegerType(8, Signedness.UNSIGNED))
         attributes["immediate"] = temp
         return attributes
 
@@ -1108,11 +1106,6 @@ class IRS_Operation(
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
-
-    def get_register_constraints(self) -> RegisterConstraints:
-        return RegisterConstraints(
-            (self.source,), (), ((self.register_in, self.register_out),)
-        )
 
 
 # endregion
@@ -3106,7 +3099,9 @@ class DM_VbroadcastssOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]
 
 
 @irdl_op_definition
-class IRS_ShufpsOp(IRS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
+class DSSI_ShufpsOp(
+    DSSI_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
     """
     Selects a single precision floating-point value of an input quadruplet using a
     two-bit control and move to a designated element of the destination operand.
@@ -3122,7 +3117,7 @@ class IRS_ShufpsOp(IRS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     See external [documentation](https://www.felixcloutier.com/x86/shufps)
     """
 
-    name = "x86.irs.shufps"
+    name = "x86.dssi.shufps"
 
 
 class GetAnyRegisterOperation(

@@ -5,7 +5,7 @@ from xdsl.dialects.x86.ops import (
     DMI_Operation,
     DS_Operation,
     DSI_Operation,
-    IRS_Operation,
+    DSSI_Operation,
     M_Operation,
     MI_Operation,
     MS_Operation,
@@ -265,25 +265,28 @@ def test_rss_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestIRSOperation(IRS_Operation[GeneralRegisterType, GeneralRegisterType]):
-    """Test operation that inherits from RSS_Operation for testing register constraints."""
+class TestDSSIOperation(
+    DSSI_Operation[GeneralRegisterType, GeneralRegisterType, GeneralRegisterType]
+):
+    """Test operation that inherits from DSSI_Operation for testing register constraints."""
 
-    name = "test.rss_operation"
+    name = "test.dssi_operation"
 
 
 def test_irs_operation_register_constraints():
     # Create an instance of our test RSS_Operation
-    irs_op = TestIRSOperation(
-        test_value.create_ssa_value(reg_type(0)),
+    dssi_op = TestDSSIOperation(
         test_value.create_ssa_value(reg_type(1)),
+        test_value.create_ssa_value(reg_type(2)),
         5,
+        destination=reg_type(0),
     )
 
-    irs_c = irs_op.get_register_constraints()
+    dssi_c = dssi_op.get_register_constraints()
 
-    assert tuple(irs_c.ins) == (irs_op.source,)
-    assert irs_c.outs == ()
-    assert irs_c.inouts == ((irs_op.register_in, irs_op.register_out),)
+    assert tuple(dssi_c.ins) == (dssi_op.source0, dssi_op.source1)
+    assert dssi_c.outs == (dssi_op.destination,)
+    assert dssi_c.inouts == ()
 
 
 @irdl_op_definition
