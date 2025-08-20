@@ -1073,13 +1073,16 @@ class DSSI_Operation(
         self,
         source0: Operation | SSAValue,
         source1: Operation | SSAValue,
-        immediate: int | IntegerAttr[IntegerType[Literal[8]]],
+        immediate: int
+        | IntegerAttr[IntegerType[Literal[8], Literal[Signedness.UNSIGNED]]],
         *,
         comment: str | StringAttr | None = None,
         destination: R1InvT,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(8, Signedness.UNSIGNED))
+            immediate = IntegerAttr(
+                immediate, IntegerType[8, Signedness.UNSIGNED](8, Signedness.UNSIGNED)
+            )
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
