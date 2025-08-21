@@ -286,7 +286,7 @@ def _(mo, xmo):
     }"""
 
     mo.accordion({"Solution": xmo.module_html(x_minus_x_text_solution)})
-    return
+    return (x_minus_x_text_solution,)
 
 
 @app.cell
@@ -380,7 +380,7 @@ def _(mo, x_plus_zero_text_solution, xmo):
     }"""
 
     mo.accordion({"Solution": xmo.module_html(x_plus_zero_text_solution)})
-    return
+    return (x_div_x_text_solution,)
 
 
 @app.cell
@@ -427,7 +427,7 @@ def _(mo, xmo):
     }"""
 
     mo.accordion({"Solution": xmo.module_html(x_div_one_text_solution)})
-    return
+    return (x_div_one_text_solution,)
 
 
 @app.cell(hide_code=True)
@@ -500,6 +500,35 @@ def _(
     ```
     """
     return (info_text,)
+
+
+@app.cell
+def _(
+    ApplyPDLPass,
+    InsertPoint,
+    Parser,
+    Rewriter,
+    ctx,
+    dce,
+    main,
+    x_div_one_text_solution,
+    x_div_x_text_solution,
+    x_minus_x_text_solution,
+    x_plus_zero_text_solution,
+):
+    def test_solutions():
+        _solutions_text = x_minus_x_text_solution + x_plus_zero_text_solution + x_div_x_text_solution + x_div_one_text_solution
+        _module = Parser(ctx, _solutions_text).parse_module()
+        _cloned_func = main.module.body.ops.first.clone()
+        Rewriter.insert_op(_cloned_func, InsertPoint.at_start(_module.body.block))
+        ApplyPDLPass().apply(ctx, _module)
+        dce(_module)
+        _results_text = str(_cloned_func)
+        assert _results_text == """\
+    func.func @main(%a : f64, %b : f64, %c : f64) -> f64 {
+      func.return %c : f64
+    }"""
+    return
 
 
 if __name__ == "__main__":
