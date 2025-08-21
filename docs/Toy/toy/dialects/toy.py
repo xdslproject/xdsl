@@ -23,6 +23,7 @@ from xdsl.ir import (
     Block,
     Dialect,
     Operation,
+    OpTraits,
     Region,
     SSAValue,
 )
@@ -30,7 +31,6 @@ from xdsl.irdl import (
     IRDLOperation,
     attr_def,
     irdl_op_definition,
-    lazy_traits_def,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -47,7 +47,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.traits import (
     CallableOpInterface,
-    CanonicalizationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     HasShapeInferencePatternsTrait,
     IsTerminator,
@@ -366,6 +366,12 @@ class ReturnOp(IRDLOperation):
             )
 
 
+class ReshapeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        return (ReshapeReshapeOpPattern(), FoldConstantReshapeOpPattern())
+
+
 @irdl_op_definition
 class ReshapeOp(IRDLOperation):
     """
@@ -381,14 +387,7 @@ class ReshapeOp(IRDLOperation):
     arg = operand_def(AnyTensorTypeF64)
     res = result_def(TensorTypeF64)
 
-    traits = lazy_traits_def(
-        lambda: (
-            Pure(),
-            CanonicalizationPatternsTrait(
-                (ReshapeReshapeOpPattern(), FoldConstantReshapeOpPattern())
-            ),
-        )
-    )
+    traits = traits_def(Pure(), ReshapeOpHasCanonicalizationPatternsTrait())
 
     def __init__(self, arg: SSAValue, result_type: TensorTypeF64 | Sequence[int]):
         if not isinstance(result_type, TensorType):
@@ -445,17 +444,23 @@ class TransposeOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
         return (TransposeOpInferShapeInferencePattern(),)
 
 
+class TransposeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        return (SimplifyRedundantTranspose(),)
+
+
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
     name = "toy.transpose"
     arg = operand_def(AnyTensorTypeF64)
     res = result_def(AnyTensorTypeF64)
 
-    traits = lazy_traits_def(
+    traits = OpTraits(
         lambda: (
             Pure(),
             TransposeOpHasShapeInferencePatternsTrait(),
-            CanonicalizationPatternsTrait((SimplifyRedundantTranspose(),)),
+            TransposeOpHasCanonicalizationPatternsTrait(),
         )
     )
 
