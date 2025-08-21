@@ -205,10 +205,9 @@ def _(arith, builtin):
 
 @app.cell
 def _(pyast_ctx):
+    @pyast_ctx.parse_program
     def main(a: float, b: float, c: float) -> float:
         return (c + (a - a)) / (b / b)
-
-    main = pyast_ctx.parse_program(main)
     return (main,)
 
 
