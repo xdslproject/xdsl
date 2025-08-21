@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Mapping, Sequence
-from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -34,7 +33,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyOf,
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
@@ -148,11 +146,6 @@ class FailurePropagationModeAttr(
     EnumAttribute[FailurePropagationModeType], TypeAttribute
 ):
     name = "transform.failures"
-
-
-AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
-    Attribute, AnyOf([IntegerType, FailurePropagationModeAttr])
-]
 
 
 @irdl_op_definition
