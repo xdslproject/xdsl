@@ -219,8 +219,13 @@ def _(mo):
 
 @app.cell
 def _(main):
-    print(main(1, 2, 3))
-    print(main(4, 5, 6))
+    main(1, 2, 3)
+    return
+
+
+@app.cell
+def _(main):
+    main(4, 5, 6)
     return
 
 
