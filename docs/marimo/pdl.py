@@ -238,7 +238,7 @@ def _(main, xmo):
 
 @app.cell
 def _(mo):
-    rewrites_text = """\
+    x_minus_x_text = """\
     pdl.pattern @x_minus_x : benefit(2) {
       %t = pdl.type
       %x = pdl.operand
@@ -249,8 +249,25 @@ def _(mo):
         %c0_res = pdl.result 0 of %c0_op
         pdl.replace %x_minus_x with (%c0_res : !pdl.value)
       }
-    }
+    }"""
 
+    x_minus_x_text_area = mo.ui.code_editor(x_minus_x_text, language="javascript")
+    return (x_minus_x_text_area,)
+
+
+@app.cell
+def _(info_text, mo, x_minus_x_text_area):
+    mo.vstack((
+        mo.md("### Exercise 1\nFill out the matching region below:"),
+        x_minus_x_text_area,
+        mo.md(info_text))
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    rewrites_text = """\
     pdl.pattern @x_plus_zero : benefit(2) {
       %t = pdl.type
       %x = pdl.operand
@@ -293,9 +310,8 @@ def _(mo):
 
 
 @app.cell
-def _(exercise_text, first_text_area, mo):
-    _first_info_text = exercise_text(first_text_area.value)
-    mo.vstack(("Fill out the patterns below to optimize the input:", first_text_area, mo.md(_first_info_text)))
+def _(first_text_area, info_text, mo):
+    mo.vstack(("Fill out the patterns below to optimize the input:", first_text_area, mo.md(info_text)))
     return
 
 
@@ -327,37 +343,48 @@ def _():
 
 
 @app.cell
-def _(ApplyPDLPass, InsertPoint, Parser, Rewriter, ctx, dce, main):
-    def exercise_text(module_text: str) -> str:
-        error_text = ""
-        results_text = ""
-        try:
-            module = Parser(ctx, module_text).parse_module()
-            cloned_func = main.module.body.ops.first.clone()
-            Rewriter.insert_op(cloned_func, InsertPoint.at_start(module.body.block))
-            ApplyPDLPass().apply(ctx, module)
-            dce(module)
-            results_text = str(cloned_func)
-        except Exception as e:
-            error_text = str(e)
-        if error_text:
-            info_text = f"""
+def _(
+    ApplyPDLPass,
+    InsertPoint,
+    Parser,
+    Rewriter,
+    ctx,
+    dce,
+    first_text_area,
+    main,
+    x_minus_x_text_area,
+):
+
+
+
+    _error_text = ""
+    _results_text = ""
+    try:
+        _module = Parser(ctx, x_minus_x_text_area.value + first_text_area.value).parse_module()
+        _cloned_func = main.module.body.ops.first.clone()
+        Rewriter.insert_op(_cloned_func, InsertPoint.at_start(_module.body.block))
+        ApplyPDLPass().apply(ctx, _module)
+        dce(_module)
+        _results_text = str(_cloned_func)
+    except Exception as e:
+        _error_text = str(e)
+    if _error_text:
+        info_text = f"""
     Error:
 
     ```
-    {error_text}
+    {_error_text}
     ```
     """
-        else:
-            info_text = f"""
+    else:
+        info_text = f"""
     Here are the outputs when running the function:
 
     ```
-    {results_text}
+    {_results_text}
     ```
     """
-        return info_text
-    return (exercise_text,)
+    return (info_text,)
 
 
 if __name__ == "__main__":
