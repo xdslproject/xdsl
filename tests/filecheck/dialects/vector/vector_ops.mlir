@@ -17,8 +17,6 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
   %read = vector.transfer_read %base[%i, %i], %i {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : memref<4x4xindex>, vector<4xindex>
   %read_1 = vector.transfer_read %base[%i, %i], %i {in_bounds = [true]} : memref<4x4xindex>, vector<4xindex>
   vector.transfer_write %read, %base[%i, %i] {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : vector<4xindex>, memref<4x4xindex>
-  %sum = vector.reduction <add>, %fvec : vector<2xf32> into f32
-  %sum_1 = vector.reduction <add>, %fvec, %c0 : vector<2xf32> into f32
   func.return
 }
 
@@ -40,10 +38,21 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
 // CHECK-NEXT:     %read = vector.transfer_read %base[%i, %i], %i {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : memref<4x4xindex>, vector<4xindex>
 // CHECK-NEXT:     %read_1 = vector.transfer_read %base[%i, %i], %i {in_bounds = [true]} : memref<4x4xindex>, vector<4xindex>
 // CHECK-NEXT:     vector.transfer_write %read, %base[%i, %i] {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : vector<4xindex>, memref<4x4xindex>
-// CHECK-NEXT:     %sum = vector.reduction <add>, %fvec : vector<2xf32> into f32
-// CHECK-NEXT:     %sum_1 = vector.reduction <add>, %fvec, %c0 : vector<2xf32> into f32
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
+
+// CHECK-LABEL: @reduction_ops
+func.func @reduction_ops(%v_f32: vector<4xf32>, %v_i32: vector<4xi32>, %acc_f32: f32, %acc_i32: i32) -> (f32, f32, i32, i32) {
+  // CHECK: %sum = vector.reduction <add>, %v_f32 : vector<4xf32> into f32
+  %sum = vector.reduction <add>, %v_f32 : vector<4xf32> into f32
+  // CHECK: %sum_acc = vector.reduction <add>, %v_f32, %acc_f32 : vector<4xf32> into f32
+  %sum_acc = vector.reduction <add>, %v_f32, %acc_f32 : vector<4xf32> into f32
+  // CHECK: %max = vector.reduction <maxsi>, %v_i32 : vector<4xi32> into i32
+  %max = vector.reduction <maxsi>, %v_i32 : vector<4xi32> into i32
+  // CHECK: %max_acc = vector.reduction <maxsi>, %v_i32, %acc_i32 : vector<4xi32> into i32
+  %max_acc = vector.reduction <maxsi>, %v_i32, %acc_i32 : vector<4xi32> into i32
+  func.return %sum, %sum_acc, %max, %max_acc : f32, f32, i32, i32
+}
 
 // CHECK-LABEL: @extract_const_idx
 func.func @extract_const_idx(%arg0: vector<4x8x16xf32>)
