@@ -5,7 +5,7 @@ from typing import cast
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, ptr
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -19,6 +19,39 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
+_index_type = builtin.IndexType()
+
+
+def get_bytes_offset(
+    elements_offset: SSAValue, element_type: Attribute, builder: Builder
+) -> SSAValue:
+    """
+    Returns the offset in bytes given an offset in elements and the element type.
+    """
+    bytes_per_element_op = builder.insert_op(
+        ptr.TypeOffsetOp(element_type, _index_type)
+    )
+    bytes_offset = builder.insert_op(
+        arith.MuliOp(elements_offset, bytes_per_element_op)
+    )
+    bytes_per_element_op.offset.name_hint = "bytes_per_element"
+    bytes_offset.result.name_hint = "scaled_pointer_offset"
+
+    return bytes_offset.result
+
+
+def get_offset_pointer(
+    pointer: SSAValue,
+    bytes_offset: SSAValue,
+    builder: Builder,
+) -> SSAValue:
+    """
+    Returns the pointer incremented by the given number of bytes.
+    """
+    target_ptr = builder.insert_op(ptr.PtrAddOp(pointer, bytes_offset))
+    target_ptr.result.name_hint = "offset_pointer"
+    return target_ptr.result
+
 
 def get_target_ptr(
     target_memref: SSAValue,
@@ -31,7 +64,8 @@ def get_target_ptr(
     """
 
     memref_ptr = builder.insert_op(ptr.ToPtrOp(target_memref))
-    memref_ptr.res.name_hint = target_memref.name_hint
+    pointer = memref_ptr.res
+    pointer.name_hint = target_memref.name_hint
 
     if not indices:
         return memref_ptr.res
@@ -97,20 +131,8 @@ def get_target_ptr(
             head = add_op.result
 
     if head is not None:
-        bytes_per_element_op = builder.insert_op(
-            ptr.TypeOffsetOp(memref_type.element_type, builtin.IndexType())
-        )
-        final_offset = builder.insert_op(arith.MuliOp(head, bytes_per_element_op))
-        target_ptr = builder.insert_op(
-            ptr.PtrAddOp(memref_ptr.res, final_offset.result)
-        )
-
-        bytes_per_element_op.offset.name_hint = "bytes_per_element"
-        final_offset.result.name_hint = "scaled_pointer_offset"
-        target_ptr.result.name_hint = "offset_pointer"
-        pointer = target_ptr.result
-    else:
-        pointer = memref_ptr.res
+        offset = get_bytes_offset(head, memref_type.element_type, builder)
+        pointer = get_offset_pointer(pointer, offset, builder)
 
     return pointer
 
