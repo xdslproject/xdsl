@@ -1,5 +1,6 @@
 import ast
 import functools
+import textwrap
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
@@ -107,8 +108,12 @@ class PyASTContext:
         func_file = func_frame.f_code.co_filename
         func_globals = func_frame.f_globals
 
+        # Remove leading indentation from the source code to avoid parsing errors
+        source = getsource(func.__code__)
+        source = textwrap.dedent(source)
+
         # Retrieve the AST for the function body, without the decorator
-        func_ast = ast.parse(getsource(func.__code__)).body[0]
+        func_ast = ast.parse(source).body[0]
         assert isinstance(func_ast, ast.FunctionDef)
         assert func_ast.name == func.__name__
         assert len(func_ast.decorator_list) == 1
