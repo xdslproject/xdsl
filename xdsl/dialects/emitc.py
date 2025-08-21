@@ -163,7 +163,7 @@ class EmitC_ArrayType(
     name = "emitc.array"
 
     shape: ArrayAttr[IntAttr]
-    element_type: EmitCArrayElementType
+    element_type: EmitCArrayElementTypeCovT
 
     def __init__(
         self,
@@ -192,7 +192,7 @@ class EmitC_ArrayType(
         return tuple(i.data for i in self.shape.data)
 
     def get_element_type(self) -> EmitCArrayElementTypeCovT:
-        return cast(EmitCArrayElementTypeCovT, self.element_type)
+        return self.element_type
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser):
