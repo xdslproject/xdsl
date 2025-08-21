@@ -43,40 +43,43 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Here is an example pattern in PDL to rewrite `x + x` to `x * 2`:""")
+    mo.md(r"""Here is an example pattern in PDL to rewrite `x + 1` to `x + 2`:""")
     return
 
 
-@app.cell
-def _():
-    return
-
-
-app._unparsable_cell(
-    r"""
-
+@app.cell(hide_code=True)
+def _(Parser, ctx, xmo):
+    example_text = """
     func.func @impl() -> i32 {
-      %0 = arith.constant 4 : i32
-      %1 = arith.constant 0 : i32
-      %2 = arith.addi %0, %1 : i32
-      func.return %2 : i32
+      %c4 = arith.constant 4 : i32
+      %c1 = arith.constant 1 : i32
+      %x = arith.addi %c4, %c1 : i32
+      func.return %x : i32
     }
 
     pdl.pattern : benefit(2) {
       %0 = pdl.type
       %1 = pdl.operand
       %2 = pdl.attribute = 0 : i32
-      %3 = pdl.operation \"arith.constant\" {\"value\" = %2} -> (%0 : !pdl.type)
+      %3 = pdl.operation "arith.constant" {"value" = %2} -> (%0 : !pdl.type)
       %4 = pdl.result 0 of %3
-      %5 = pdl.operation \"arith.addi\" (%1, %4 : !pdl.value, !pdl.value) -> (%0 : !pdl.type)
+      %5 = pdl.operation "arith.addi" (%1, %4 : !pdl.value, !pdl.value) -> (%0 : !pdl.type)
       pdl.rewrite %5 {
         pdl.replace %5 with (%1 : !pdl.value)
       }
     }
+    """
 
-    """,
-    name="_"
-)
+
+    example_module = Parser(ctx, example_text).parse_module()
+
+    xmo.module_html(example_module)
+    return
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell(hide_code=True)
@@ -92,24 +95,23 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _():
-    from xdsl.dialects import arith, builtin
+def _(arith, builtin):
     from xdsl.frontend.pyast.context import PyASTContext
     from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 
     # Set up the AST parsing context
-    ctx = PyASTContext()
-    ctx.register_type(float, builtin.f64)
-    ctx.register_function(float.__add__, arith.AddfOp)
-    ctx.register_function(float.__sub__, arith.SubfOp)
-    ctx.register_function(float.__mul__, arith.MulfOp)
-    ctx.register_function(float.__truediv__, arith.DivfOp)
-    return (ctx,)
+    pyast_ctx = PyASTContext()
+    pyast_ctx.register_type(float, builtin.f64)
+    pyast_ctx.register_function(float.__add__, arith.AddfOp)
+    pyast_ctx.register_function(float.__sub__, arith.SubfOp)
+    pyast_ctx.register_function(float.__mul__, arith.MulfOp)
+    pyast_ctx.register_function(float.__truediv__, arith.DivfOp)
+    return (pyast_ctx,)
 
 
 @app.cell
-def _(ctx):
-    @ctx.parse_program
+def _(pyast_ctx):
+    @pyast_ctx.parse_program
     def main(a: float, b: float, c: float) -> float:
         return (c + (a - a)) / (b / b)
     return (main,)
@@ -142,7 +144,16 @@ def _(main, xmo):
 
 @app.cell
 def _():
-    return
+    from xdsl.dialects import arith, builtin, pdl, func
+    from xdsl.context import Context
+    from xdsl.parser import Parser
+
+    ctx = Context()
+    ctx.load_dialect(builtin.Builtin)
+    ctx.load_dialect(arith.Arith)
+    ctx.load_dialect(pdl.PDL)
+    ctx.load_dialect(func.Func)
+    return Parser, arith, builtin, ctx
 
 
 if __name__ == "__main__":
