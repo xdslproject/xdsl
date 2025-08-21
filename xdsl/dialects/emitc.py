@@ -8,7 +8,9 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
 from collections.abc import Iterable, Sequence
-from typing import Literal, cast
+from typing import Generic, Literal, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -140,19 +142,28 @@ Constraint for valid element types in EmitC arrays.
 """
 
 
+EmitCArrayElementTypeCovT = TypeVar(
+    "EmitCArrayElementTypeCovT",
+    bound=EmitCArrayElementType,
+    covariant=True,
+    default=EmitCArrayElementType,
+)
+
+
 @irdl_attr_definition
 class EmitC_ArrayType(
+    Generic[EmitCArrayElementTypeCovT],
     ParametrizedAttribute,
     TypeAttribute,
     ShapedType,
-    ContainerType[EmitCArrayElementType],
+    ContainerType[EmitCArrayElementTypeCovT],
 ):
     """EmitC array type"""
 
     name = "emitc.array"
 
     shape: ArrayAttr[IntAttr]
-    element_type: EmitCArrayElementType
+    element_type: EmitCArrayElementTypeCovT
 
     def __init__(
         self,
@@ -180,7 +191,7 @@ class EmitC_ArrayType(
     def get_shape(self) -> tuple[int, ...]:
         return tuple(i.data for i in self.shape.data)
 
-    def get_element_type(self) -> EmitCArrayElementType:
+    def get_element_type(self) -> EmitCArrayElementTypeCovT:
         return self.element_type
 
     @classmethod
