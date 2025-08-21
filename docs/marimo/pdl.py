@@ -317,7 +317,7 @@ def _(info_text, mo, x_plus_zero_text_area):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, xmo):
     x_plus_zero_text_solution = """\
     pdl.pattern @x_plus_zero : benefit(2) {
@@ -457,7 +457,7 @@ def _():
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     ApplyPDLPass,
     InsertPoint,
@@ -502,7 +502,7 @@ def _(
     return (info_text,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     ApplyPDLPass,
     InsertPoint,
