@@ -1298,9 +1298,8 @@ class ReductionOp(IRDLOperation):
     name = "vector.reduction"
 
     _T: ClassVar = VarConstraint("T", AnyAttr())
-    _V: ClassVar = VarConstraint("V", VectorType.constr(_T))
 
-    vector = operand_def(_V)
+    vector = operand_def(VectorType.constr(_T))
     acc = opt_operand_def(_T)
     dest = result_def(_T)
     kind = prop_def(CombiningKindAttr)
