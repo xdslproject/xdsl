@@ -8,7 +8,9 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
 from collections.abc import Iterable, Sequence
-from typing import Literal, cast
+from typing import Generic, Literal, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -29,7 +31,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    AttributeCovT,
     Dialect,
     ParametrizedAttribute,
     SSAValue,
@@ -141,24 +142,33 @@ Constraint for valid element types in EmitC arrays.
 """
 
 
+EmitCArrayElementTypeCovT = TypeVar(
+    "EmitCArrayElementTypeCovT",
+    bound=EmitCArrayElementType,
+    covariant=True,
+    default=EmitCArrayElementType,
+)
+
+
 @irdl_attr_definition
 class EmitC_ArrayType(
+    Generic[EmitCArrayElementTypeCovT],
     ParametrizedAttribute,
     TypeAttribute,
     ShapedType,
-    ContainerType[AttributeCovT],
+    ContainerType[EmitCArrayElementTypeCovT],
 ):
     """EmitC array type"""
 
     name = "emitc.array"
 
     shape: ArrayAttr[IntAttr]
-    element_type: AttributeCovT
+    element_type: EmitCArrayElementTypeCovT
 
     def __init__(
         self,
         shape: Iterable[int | IntAttr],
-        element_type: AttributeCovT,
+        element_type: EmitCArrayElementType,
     ):
         shape = ArrayAttr(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
@@ -175,26 +185,13 @@ class EmitC_ArrayType(
                     "EmitC array dimensions must have non-negative size"
                 )
 
-        element_type = self.get_element_type()
-
-        if isinstance(element_type, EmitC_ArrayType):
-            raise VerifyException(
-                "EmitC array element type cannot be another EmitC_ArrayType."
-            )
-
-        # Check that the element type is a supported EmitC type.
-        if not EmitCArrayElementTypeConstr.verifies(element_type):
-            raise VerifyException(
-                f"EmitC array element type '{element_type}' is not a supported EmitC type."
-            )
-
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
     def get_shape(self) -> tuple[int, ...]:
         return tuple(i.data for i in self.shape.data)
 
-    def get_element_type(self) -> AttributeCovT:
+    def get_element_type(self) -> EmitCArrayElementTypeCovT:
         return self.element_type
 
     @classmethod

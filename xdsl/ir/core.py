@@ -1164,6 +1164,10 @@ class Operation(_IRNode):
         self._successors = new
         self._successor_uses = new_uses
 
+    @property
+    def successor_uses(self) -> Sequence[Use]:
+        return self._successor_uses
+
     def __post_init__(self):
         assert self.name != ""
         assert isinstance(self.name, str)
