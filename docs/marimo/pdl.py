@@ -241,19 +241,22 @@ def _(main, xmo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     x_minus_x_text = """\
     pdl.pattern @x_minus_x : benefit(2) {
       %t = pdl.type
       %x = pdl.operand
-      %x_minus_x = pdl.operation "arith.subf" (%x, %x : !pdl.value, !pdl.value) -> (%t : !pdl.type)
-      pdl.rewrite %x_minus_x {
-        %c0_attr = pdl.attribute = 0.0 : f64
-        %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
-        %c0_res = pdl.result 0 of %c0_op
-        pdl.replace %x_minus_x with (%c0_res : !pdl.value)
-      }
+
+      // Add op to match here
+
+      // Uncomment these lines:
+      // pdl.rewrite %x_minus_x {
+      //   %c0_attr = pdl.attribute = 0.0 : f64
+      //   %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
+      //   %c0_res = pdl.result 0 of %c0_op
+      //   pdl.replace %x_minus_x with (%c0_res : !pdl.value)
+      // }
     }"""
 
     x_minus_x_text_area = mo.ui.code_editor(x_minus_x_text, language="javascript")
@@ -263,7 +266,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(info_text, mo, x_minus_x_text_area):
     mo.vstack((
-        mo.md("### Exercise 1\nFill out the matching region below:"),
+        mo.md("### Exercise 1\nFill out the matching region below to implement `x - x -> 0`:"),
         x_minus_x_text_area,
         mo.md(info_text))
     )
@@ -289,19 +292,23 @@ def _(mo, xmo):
     return (x_minus_x_text_solution,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     x_plus_zero_text = """\
     pdl.pattern @x_plus_zero : benefit(2) {
       %t = pdl.type
       %x = pdl.operand
-      %c0_attr = pdl.attribute = 0.0 : f64
-      %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
-      %c0_res = pdl.result 0 of %c0_op
-      %x_times_zero_op = pdl.operation "arith.addf" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
-      pdl.rewrite %x_times_zero_op {
-        pdl.replace %x_times_zero_op with (%x : !pdl.value)
-      }
+
+      // Implement matching ops here
+      // %c0_attr = 
+      // %c0_op = 
+      // %c0_res = pdl.result 0 of %c0_op
+      // %x_times_zero_op = 
+
+      // Uncomment these lines:
+      // pdl.rewrite %x_times_zero_op {
+      //   pdl.replace %x_times_zero_op with (%x : !pdl.value)
+      // }
     }"""
     x_plus_zero_text_area = mo.ui.code_editor(x_plus_zero_text, language="javascript")
     return (x_plus_zero_text_area,)
@@ -310,7 +317,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(info_text, mo, x_plus_zero_text_area):
     mo.vstack((
-        mo.md("### Exercise 2\nFill out the matching region below:"),
+        mo.md("### Exercise 2\nFill out the matching region below to implement `x + 0 -> x`:"),
         x_plus_zero_text_area,
         mo.md(info_text))
     )
@@ -336,7 +343,7 @@ def _(mo, xmo):
     return (x_plus_zero_text_solution,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     x_div_x_text = """\
     pdl.pattern @x_div_x : benefit(2) {
@@ -344,20 +351,17 @@ def _(mo):
       %x = pdl.operand
       %x_div_x_op = pdl.operation "arith.divf" (%x, %x : !pdl.value, !pdl.value) -> (%t : !pdl.type)
       pdl.rewrite %x_div_x_op {
-        %c1_attr = pdl.attribute = 1.0 : f64
-        %c1_op = pdl.operation "arith.constant" {"value" = %c1_attr} -> (%t : !pdl.type)
-        %c1_res = pdl.result 0 of %c1_op
-        pdl.replace %x_div_x_op with (%c1_res : !pdl.value)
+        // Implement rewrite region here
       }
     }"""
     x_div_x_text_area = mo.ui.code_editor(x_div_x_text, language="javascript")
     return (x_div_x_text_area,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(info_text, mo, x_div_x_text_area):
     mo.vstack((
-        mo.md("### Exercise 3\nFill out the matching region below:"),
+        mo.md("### Exercise 3\nFill out the matching region to implement `x / x -> 1`:"),
         x_div_x_text_area,
         mo.md(info_text))
     )
@@ -383,28 +387,32 @@ def _(mo, x_plus_zero_text_solution, xmo):
     return (x_div_x_text_solution,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     x_div_one_text = """\
     pdl.pattern @x_div_one : benefit(2) {
       %t = pdl.type
       %x = pdl.operand
-      %c1_attr = pdl.attribute = 1.0 : f64
-      %c1_op = pdl.operation "arith.constant" {"value" = %c1_attr} -> (%t : !pdl.type)
-      %c1_res = pdl.result 0 of %c1_op
-      %x_div_one_op = pdl.operation "arith.divf" (%x, %c1_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
-      pdl.rewrite %x_div_one_op {
-        pdl.replace %x_div_one_op with (%x : !pdl.value)
-      }
+
+      // Implement matching ops here
+      // %c1_attr = 
+      // %c1_op = 
+      // %c1_res = pdl.result 0 of %c1_op
+      // %x_div_one_op = 
+
+      // Uncomment these lines:
+      // pdl.rewrite %x_div_one_op {
+      //   pdl.replace %x_div_one_op with (%x : !pdl.value)
+      // }
     }"""
     x_div_one_text_area = mo.ui.code_editor(x_div_one_text, language="javascript")
     return (x_div_one_text_area,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(info_text, mo, x_div_one_text_area):
     mo.vstack((
-        mo.md("### Exercise 4\nFill out the matching region below:"),
+        mo.md("### Exercise 4\nFill out the matching region below to implement `x / 1 -> x`:"),
         x_div_one_text_area,
         mo.md(info_text))
     )
