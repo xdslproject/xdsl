@@ -458,10 +458,10 @@ class CanonicalizationPatternsTrait(OpTrait):
     """
     Provides the rewrite patterns to canonicalize an operation.
 
-    If initialised with a tuple of patterns, these are used every time, otherwise
-    queries the operation type via the `HasCanonicalizationPatternsInterface`.
-
     Each rewrite pattern must have the trait's op as root.
+
+    To provide patterns, either subclass this trait and add it to the operation's
+    traits, or subclass `HasCanonicalizationPatternsInterface`.
     """
 
     def verify(self, op: Operation) -> None:
@@ -488,7 +488,7 @@ class HasCanonicalizationPatternsTrait(CanonicalizationPatternsTrait):
     Each rewrite pattern must have the trait's op as root.
 
     Note: this class will be deprecated soon, please use
-    `HasCanonicalizationPatternsTrait` instead.
+    `HasCanonicalizationPatternsInterface` instead.
     """
 
     def get_patterns(
