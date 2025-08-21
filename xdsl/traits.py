@@ -454,15 +454,38 @@ class CallableOpInterface(OpTrait, abc.ABC):
 
 
 @dataclass(frozen=True)
-class HasCanonicalizationPatternsTrait(OpTrait):
+class CanonicalizationPatternsTrait(OpTrait):
+    """
+    Provides the rewrite patterns to canonicalize an operation.
+
+    If initialised with a tuple of patterns, these are used every time, otherwise
+    queries the operation type via the `HasCanonicalizationPatternsInterface`.
+
+    Each rewrite pattern must have the trait's op as root.
+    """
+
+    _patterns: tuple[RewritePattern, ...] = field()
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    def get_patterns(self) -> tuple[RewritePattern, ...]:
+        return self._patterns
+
+
+@dataclass(frozen=True)
+class HasCanonicalizationPatternsTrait(CanonicalizationPatternsTrait):
     """
     Provides the rewrite passes to canonicalize an operation.
 
     Each rewrite pattern must have the trait's op as root.
     """
 
-    def verify(self, op: Operation) -> None:
-        return
+    def __init__(self):
+        super().__init__(())
+
+    def get_patterns(self) -> tuple[RewritePattern, ...]:
+        return type(self).get_canonicalization_patterns()
 
     @classmethod
     @abc.abstractmethod
