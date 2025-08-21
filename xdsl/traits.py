@@ -458,9 +458,6 @@ class CanonicalizationPatternsTrait(OpTrait):
     """
     Provides the rewrite patterns to canonicalize an operation.
 
-    If initialised with a tuple of patterns, these are used every time, otherwise
-    queries the operation type via the `HasCanonicalizationPatternsInterface`.
-
     Each rewrite pattern must have the trait's op as root.
     """
 
