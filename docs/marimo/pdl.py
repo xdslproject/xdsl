@@ -244,7 +244,7 @@ def _(mo):
       %x = pdl.operand
       %x_minus_x = pdl.operation "arith.subf" (%x, %x : !pdl.value, !pdl.value) -> (%t : !pdl.type)
       pdl.rewrite %x_minus_x {
-        %c0_attr = pdl.attribute = 0.0 : f32
+        %c0_attr = pdl.attribute = 0.0 : f64
         %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
         %c0_res = pdl.result 0 of %c0_op
         pdl.replace %x_minus_x with (%c0_res : !pdl.value)
@@ -267,51 +267,85 @@ def _(info_text, mo, x_minus_x_text_area):
 
 @app.cell
 def _(mo):
-    rewrites_text = """\
+    x_plus_zero_text = """\
     pdl.pattern @x_plus_zero : benefit(2) {
       %t = pdl.type
       %x = pdl.operand
-      %c0_attr = pdl.attribute = 0.0 : f32
+      %c0_attr = pdl.attribute = 0.0 : f64
       %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
       %c0_res = pdl.result 0 of %c0_op
       %x_times_zero_op = pdl.operation "arith.addf" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
       pdl.rewrite %x_times_zero_op {
         pdl.replace %x_times_zero_op with (%x : !pdl.value)
       }
-    }
+    }"""
+    x_plus_zero_text_area = mo.ui.code_editor(x_plus_zero_text, language="javascript")
+    return (x_plus_zero_text_area,)
 
+
+@app.cell
+def _(info_text, mo, x_plus_zero_text_area):
+    mo.vstack((
+        mo.md("### Exercise 2\nFill out the matching region below:"),
+        x_plus_zero_text_area,
+        mo.md(info_text))
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    x_div_x_text = """\
     pdl.pattern @x_div_x : benefit(2) {
       %t = pdl.type
       %x = pdl.operand
       %x_div_x_op = pdl.operation "arith.divf" (%x, %x : !pdl.value, !pdl.value) -> (%t : !pdl.type)
       pdl.rewrite %x_div_x_op {
-        %c1_attr = pdl.attribute = 1.0 : f32
+        %c1_attr = pdl.attribute = 1.0 : f64
         %c1_op = pdl.operation "arith.constant" {"value" = %c1_attr} -> (%t : !pdl.type)
         %c1_res = pdl.result 0 of %c1_op
         pdl.replace %x_div_x_op with (%c1_res : !pdl.value)
       }
-    }
+    }"""
+    x_div_x_text_area = mo.ui.code_editor(x_div_x_text, language="javascript")
+    return (x_div_x_text_area,)
 
+
+@app.cell
+def _(info_text, mo, x_div_x_text_area):
+    mo.vstack((
+        mo.md("### Exercise 3\nFill out the matching region below:"),
+        x_div_x_text_area,
+        mo.md(info_text))
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    x_div_one_text = """\
     pdl.pattern @x_div_one : benefit(2) {
       %t = pdl.type
       %x = pdl.operand
-      %c1_attr = pdl.attribute = 1.0 : f32
+      %c1_attr = pdl.attribute = 1.0 : f64
       %c1_op = pdl.operation "arith.constant" {"value" = %c1_attr} -> (%t : !pdl.type)
       %c1_res = pdl.result 0 of %c1_op
       %x_div_one_op = pdl.operation "arith.divf" (%x, %c1_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
       pdl.rewrite %x_div_one_op {
         pdl.replace %x_div_one_op with (%x : !pdl.value)
       }
-    }
-    """
-
-    first_text_area = mo.ui.code_editor(rewrites_text, language="javascript")
-    return (first_text_area,)
+    }"""
+    x_div_one_text_area = mo.ui.code_editor(x_div_one_text, language="javascript")
+    return (x_div_one_text_area,)
 
 
 @app.cell
-def _(first_text_area, info_text, mo):
-    mo.vstack(("Fill out the patterns below to optimize the input:", first_text_area, mo.md(info_text)))
+def _(info_text, mo, x_div_one_text_area):
+    mo.vstack((
+        mo.md("### Exercise 4\nFill out the matching region below:"),
+        x_div_one_text_area,
+        mo.md(info_text))
+    )
     return
 
 
@@ -350,9 +384,11 @@ def _(
     Rewriter,
     ctx,
     dce,
-    first_text_area,
     main,
+    x_div_one_text_area,
+    x_div_x_text_area,
     x_minus_x_text_area,
+    x_plus_zero_text_area,
 ):
 
 
@@ -360,7 +396,8 @@ def _(
     _error_text = ""
     _results_text = ""
     try:
-        _module = Parser(ctx, x_minus_x_text_area.value + first_text_area.value).parse_module()
+        _patterns_text = x_minus_x_text_area.value + x_plus_zero_text_area.value + x_div_x_text_area.value + x_div_one_text_area.value
+        _module = Parser(ctx, _patterns_text).parse_module()
         _cloned_func = main.module.body.ops.first.clone()
         Rewriter.insert_op(_cloned_func, InsertPoint.at_start(_module.body.block))
         ApplyPDLPass().apply(ctx, _module)
