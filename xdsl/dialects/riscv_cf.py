@@ -44,8 +44,7 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
 
 
 class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv_cf import (
             ElideConstantBranches,
         )

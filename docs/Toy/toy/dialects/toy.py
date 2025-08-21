@@ -366,8 +366,7 @@ class ReturnOp(IRDLOperation):
 
 
 class ReshapeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from ..rewrites.optimise_toy import (
             FoldConstantReshapeOpPattern,
             ReshapeReshapeOpPattern,
@@ -423,8 +422,7 @@ class TransposeOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
 
 
 class TransposeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from ..rewrites.optimise_toy import SimplifyRedundantTranspose
 
         return (SimplifyRedundantTranspose(),)

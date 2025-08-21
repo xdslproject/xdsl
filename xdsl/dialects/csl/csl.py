@@ -1080,8 +1080,7 @@ class SetTileCodeOp(IRDLOperation):
 
 
 class DsdOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.csl import (
             GetDsdAndLengthFolding,
             GetDsdAndOffsetFolding,
@@ -1098,8 +1097,7 @@ class DsdOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class IncrementDsdOffsetOpHasCanonicalizationPatternsTrait(
     HasCanonicalizationPatternsTrait
 ):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.csl import (
             ChainedDsdOffsetFolding,
         )
@@ -1108,8 +1106,7 @@ class IncrementDsdOffsetOpHasCanonicalizationPatternsTrait(
 
 
 class SetDsdLengthOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.csl import (
             ChainedDsdLengthFolding,
         )
@@ -1118,8 +1115,7 @@ class SetDsdLengthOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatterns
 
 
 class SetDsdStrideOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.csl import (
             ChainedDsdStrideFolding,
         )

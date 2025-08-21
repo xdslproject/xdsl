@@ -24,8 +24,7 @@ from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
 
 
 class MyTestOpHasCanonicalizationPatternsTrait(traits.HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+    def get_canonicalization_patterns(self) -> tuple[RewritePattern, ...]:
         return (Rewrite(),)
 
 
