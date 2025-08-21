@@ -86,7 +86,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(Parser, ctx, xmo):
     times_zero_text = """
-    pdl.pattern : benefit(2) {
+    pdl.pattern @x_times_zero : benefit(2) {
       %t = pdl.type
       %x = pdl.operand
       %c0_attr = pdl.attribute = 0 : i32
@@ -145,20 +145,31 @@ def _(mo):
     The rewrite takes a number of arguments which correspond to the operation being rewritten.
     In practice, there is almost always one operation being matched on.
 
-
-
+    Here's the matching region with comments:
 
     ```
-      %t = pdl.type
-      %x = pdl.operand
-      %c0_attr = pdl.attribute = 0 : i32
-      %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
-      %c0_res = pdl.result 0 of %c0_op
-      %x_times_zero_op = pdl.operation "arith.muli" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
-      pdl.rewrite %x_times_zero_op {
-        pdl.replace %x_times_zero_op with (%c0_res : !pdl.value)
-      }
+    // 1. The type that we're operating on
+    %t = pdl.type
+    // 2. The lhs operand to the operation
+    %x = pdl.operand
+    // 3. The zero attribute of our target type
+    %c0_attr = pdl.attribute = 0 : i32
+    // 4. A specification of the constant operation we want to match on
+    %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
+    // 5. The result value of the constant operation
+    %c0_res = pdl.result 0 of %c0_op
+    // 6. Finally, the operation that we want to rewrite
+    %x_times_zero_op = pdl.operation "arith.muli" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
+    ```
 
+    Note that in this region, we don't have to provide all of the components of the matched operation, instead we only have to provide the constraints that we care about.
+
+    This example's rewrite operation is quite simple, replacing the matched operation with the zero operand:
+
+    ```
+    pdl.rewrite %x_times_zero_op {
+      pdl.replace %x_times_zero_op with (%c0_res : !pdl.value)
+    }
     ```
     """
     )
@@ -166,47 +177,10 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(builtin, first_op, times_zero_op, xmo):
-    example_module = builtin.ModuleOp([first_op.clone(), times_zero_op.clone()])
-
-    xmo.module_html(example_module)
-    return (example_module,)
-
-
-@app.cell
 def _(mo):
     mo.md(
         r"""
-    The module contains both the function `func` that the rewrite will be applied to, and a single PDL pattern.
-    The PDL pattern is in two parts: a declarative matching region, and an imperative rewrite region.
-    These contain operations in the same dialect, but have different behaviours.
-
-    The
-    """
-    )
-    return
-
-
-@app.cell
-def _(ApplyPDLPass, ctx, example_module, xmo):
-    _result_module = example_module.clone()
-
-    ApplyPDLPass().apply(ctx, _result_module)
-
-    xmo.module_html(_result_module)
-    return
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-    ## Input Function
+    ## Exercises
 
     In this notebook, you'll write patterns in PDL to transform this input function:
     """
@@ -256,26 +230,134 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(main, xmo):
-    xmo.module_html(main.module)
+    xmo.module_html(main.module.body.ops.first)
     return
 
 
 @app.cell
+def _(mo):
+    rewrites_text = """\
+    pdl.pattern @x_minus_x : benefit(2) {
+      %t = pdl.type
+      %x = pdl.operand
+      %x_minus_x = pdl.operation "arith.subf" (%x, %x : !pdl.value, !pdl.value) -> (%t : !pdl.type)
+      pdl.rewrite %x_minus_x {
+        %c0_attr = pdl.attribute = 0.0 : f32
+        %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
+        %c0_res = pdl.result 0 of %c0_op
+        pdl.replace %x_minus_x with (%c0_res : !pdl.value)
+      }
+    }
+
+    pdl.pattern @x_plus_zero : benefit(2) {
+      %t = pdl.type
+      %x = pdl.operand
+      %c0_attr = pdl.attribute = 0.0 : f32
+      %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
+      %c0_res = pdl.result 0 of %c0_op
+      %x_times_zero_op = pdl.operation "arith.addf" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
+      pdl.rewrite %x_times_zero_op {
+        pdl.replace %x_times_zero_op with (%x : !pdl.value)
+      }
+    }
+
+    pdl.pattern @x_div_x : benefit(2) {
+      %t = pdl.type
+      %x = pdl.operand
+      %x_div_x_op = pdl.operation "arith.divf" (%x, %x : !pdl.value, !pdl.value) -> (%t : !pdl.type)
+      pdl.rewrite %x_div_x_op {
+        %c1_attr = pdl.attribute = 1.0 : f32
+        %c1_op = pdl.operation "arith.constant" {"value" = %c1_attr} -> (%t : !pdl.type)
+        %c1_res = pdl.result 0 of %c1_op
+        pdl.replace %x_div_x_op with (%c1_res : !pdl.value)
+      }
+    }
+
+    pdl.pattern @x_div_one : benefit(2) {
+      %t = pdl.type
+      %x = pdl.operand
+      %c1_attr = pdl.attribute = 1.0 : f32
+      %c1_op = pdl.operation "arith.constant" {"value" = %c1_attr} -> (%t : !pdl.type)
+      %c1_res = pdl.result 0 of %c1_op
+      %x_div_one_op = pdl.operation "arith.divf" (%x, %c1_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
+      pdl.rewrite %x_div_one_op {
+        pdl.replace %x_div_one_op with (%x : !pdl.value)
+      }
+    }
+    """
+
+    first_text_area = mo.ui.code_editor(rewrites_text, language="javascript")
+    return (first_text_area,)
+
+
+@app.cell
+def _(exercise_text, first_text_area, mo):
+    _first_info_text = exercise_text(first_text_area.value)
+    mo.vstack(("Fill out the patterns below to optimize the input:", first_text_area, mo.md(_first_info_text)))
+    return
+
+
+@app.cell(hide_code=True)
 def _():
     from xdsl.dialects import arith, builtin, pdl, func
     from xdsl.context import Context
     from xdsl.parser import Parser
     from xdsl.transforms.apply_pdl import ApplyPDLPass
     from xdsl.transforms.dead_code_elimination import dce
+    from xdsl.rewriter import Rewriter
+    from xdsl.builder import InsertPoint
 
     ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(arith.Arith)
     ctx.load_dialect(pdl.PDL)
     ctx.load_dialect(func.Func)
-    return ApplyPDLPass, Parser, arith, builtin, ctx
+    return (
+        ApplyPDLPass,
+        InsertPoint,
+        Parser,
+        Rewriter,
+        arith,
+        builtin,
+        ctx,
+        dce,
+    )
+
+
+@app.cell
+def _(ApplyPDLPass, InsertPoint, Parser, Rewriter, ctx, dce, main):
+    def exercise_text(module_text: str) -> str:
+        error_text = ""
+        results_text = ""
+        try:
+            module = Parser(ctx, module_text).parse_module()
+            cloned_func = main.module.body.ops.first.clone()
+            Rewriter.insert_op(cloned_func, InsertPoint.at_start(module.body.block))
+            ApplyPDLPass().apply(ctx, module)
+            dce(module)
+            results_text = str(cloned_func)
+        except Exception as e:
+            error_text = str(e)
+        if error_text:
+            info_text = f"""
+    Error:
+
+    ```
+    {error_text}
+    ```
+    """
+        else:
+            info_text = f"""
+    Here are the outputs when running the function:
+
+    ```
+    {results_text}
+    ```
+    """
+        return info_text
+    return (exercise_text,)
 
 
 if __name__ == "__main__":
