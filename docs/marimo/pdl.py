@@ -43,37 +43,157 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Here is an example pattern in PDL to rewrite `x + 1` to `x + 2`:""")
+    mo.md(r"""First let's look at the pattern that rewrites `first` to `second`:""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(Parser, builtin, ctx, xmo):
+    first_text = """
+    func.func @first(%x : i32) -> i32 {
+      %c0 = arith.constant 0 : i32
+      %y = arith.muli %x, %c0 : i32
+      func.return %y : i32
+    }
+    """
+
+    second_text = """
+    func.func @second(%x : i32) -> i32 {
+      %c0 = arith.constant 0 : i32
+      func.return %c0 : i32
+    }
+    """
+
+    first_op = Parser(ctx, first_text).parse_op()
+    second_op = Parser(ctx, second_text).parse_op()
+
+    xmo.module_html(builtin.ModuleOp([first_op.clone(), second_op.clone()]))
+    return first_op, second_op
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    Note that these are equivalent, as `x * 0 = 0` for all `x`.
+
+    The following pattern implements the rewrite:
+    """
+    )
     return
 
 
 @app.cell(hide_code=True)
 def _(Parser, ctx, xmo):
-    example_text = """
-    func.func @impl() -> i32 {
-      %c4 = arith.constant 4 : i32
-      %c1 = arith.constant 1 : i32
-      %x = arith.addi %c4, %c1 : i32
-      func.return %x : i32
-    }
-
+    times_zero_text = """
     pdl.pattern : benefit(2) {
-      %0 = pdl.type
-      %1 = pdl.operand
-      %2 = pdl.attribute = 0 : i32
-      %3 = pdl.operation "arith.constant" {"value" = %2} -> (%0 : !pdl.type)
-      %4 = pdl.result 0 of %3
-      %5 = pdl.operation "arith.addi" (%1, %4 : !pdl.value, !pdl.value) -> (%0 : !pdl.type)
-      pdl.rewrite %5 {
-        pdl.replace %5 with (%1 : !pdl.value)
+      %t = pdl.type
+      %x = pdl.operand
+      %c0_attr = pdl.attribute = 0 : i32
+      %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
+      %c0_res = pdl.result 0 of %c0_op
+      %x_times_zero_op = pdl.operation "arith.muli" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
+      pdl.rewrite %x_times_zero_op {
+        pdl.replace %x_times_zero_op with (%c0_res : !pdl.value)
       }
     }
     """
 
+    times_zero_op = Parser(ctx, times_zero_text).parse_op()
 
-    example_module = Parser(ctx, example_text).parse_module()
+    xmo.module_html(times_zero_op)
+    return (times_zero_op,)
+
+
+@app.cell(hide_code=True)
+def _(ApplyPDLPass, builtin, ctx, first_op, second_op, times_zero_op):
+    def test_rewrite():
+        input_copy = first_op.clone()
+        input_copy.sym_name = builtin.StringAttr("second")
+        pattern_copy = times_zero_op.clone()
+        module = builtin.ModuleOp([input_copy, pattern_copy])
+        ApplyPDLPass().apply(ctx, module)
+        assert str(input_copy) == str(second_op)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    Let's look at the pattern in more detail.
+
+    The [`pdl.pattern` operation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-pdlpatternop) has an optional name, a "benefit" field, and a body.
+
+    ```
+    pdl.pattern : benefit(2) {
+      ...
+    }
+    ```
+
+    The non-negative benefit is used in the case where multiple patterns match the same program.
+
+    The body consists of two parts, a declarative matching region terminated with a [`pdl.rewrite` operation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-pdlrewriteop) containing an imperative rewrite region:
+
+    ``` C
+    // Match old IR
+    pdl.rewrite %root {
+      // Create new IR
+    }
+    ```
+
+    The rewrite takes a number of arguments which correspond to the operation being rewritten.
+    In practice, there is almost always one operation being matched on.
+
+
+
+
+    ```
+      %t = pdl.type
+      %x = pdl.operand
+      %c0_attr = pdl.attribute = 0 : i32
+      %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
+      %c0_res = pdl.result 0 of %c0_op
+      %x_times_zero_op = pdl.operation "arith.muli" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
+      pdl.rewrite %x_times_zero_op {
+        pdl.replace %x_times_zero_op with (%c0_res : !pdl.value)
+      }
+
+    ```
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(builtin, first_op, times_zero_op, xmo):
+    example_module = builtin.ModuleOp([first_op.clone(), times_zero_op.clone()])
 
     xmo.module_html(example_module)
+    return (example_module,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    The module contains both the function `func` that the rewrite will be applied to, and a single PDL pattern.
+    The PDL pattern is in two parts: a declarative matching region, and an imperative rewrite region.
+    These contain operations in the same dialect, but have different behaviours.
+
+    The
+    """
+    )
+    return
+
+
+@app.cell
+def _(ApplyPDLPass, ctx, example_module, xmo):
+    _result_module = example_module.clone()
+
+    ApplyPDLPass().apply(ctx, _result_module)
+
+    xmo.module_html(_result_module)
     return
 
 
@@ -147,13 +267,15 @@ def _():
     from xdsl.dialects import arith, builtin, pdl, func
     from xdsl.context import Context
     from xdsl.parser import Parser
+    from xdsl.transforms.apply_pdl import ApplyPDLPass
+    from xdsl.transforms.dead_code_elimination import dce
 
     ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(arith.Arith)
     ctx.load_dialect(pdl.PDL)
     ctx.load_dialect(func.Func)
-    return Parser, arith, builtin, ctx
+    return ApplyPDLPass, Parser, arith, builtin, ctx
 
 
 if __name__ == "__main__":
