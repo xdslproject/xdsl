@@ -1311,13 +1311,13 @@ class ReductionOp(IRDLOperation):
         self,
         vector: SSAValue | Operation,
         kind: CombiningKindAttr,
-        result_type: Attribute,
         acc: SSAValue | Operation | None = None,
         fastmath: FastMathFlagsAttr | None = None,
     ):
+        vector = SSAValue.get(vector)
         super().__init__(
             operands=[vector, acc],
-            result_types=[result_type],
+            result_types=[vector.type],
             properties={
                 "kind": kind,
                 "fastmath": fastmath,
