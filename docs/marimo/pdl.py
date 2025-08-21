@@ -10,10 +10,34 @@ def _():
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
+    import xdsl
     from xdsl.utils import marimo as xmo
-    return (xmo,)
+    from xdsl.dialects import arith, builtin, pdl, func
+    from xdsl.context import Context
+    from xdsl.parser import Parser
+    from xdsl.transforms.apply_pdl import ApplyPDLPass
+    from xdsl.transforms.dead_code_elimination import dce
+    from xdsl.rewriter import Rewriter
+    from xdsl.builder import InsertPoint
+
+    ctx = Context()
+    ctx.load_dialect(builtin.Builtin)
+    ctx.load_dialect(arith.Arith)
+    ctx.load_dialect(pdl.PDL)
+    ctx.load_dialect(func.Func)
+    return (
+        ApplyPDLPass,
+        InsertPoint,
+        Parser,
+        Rewriter,
+        arith,
+        builtin,
+        ctx,
+        dce,
+        xmo,
+    )
 
 
 @app.cell(hide_code=True)
@@ -436,33 +460,6 @@ def _(mo, xmo):
 
     mo.accordion({"Solution": xmo.module_html(x_div_one_text_solution)})
     return
-
-
-@app.cell(hide_code=True)
-def _():
-    from xdsl.dialects import arith, builtin, pdl, func
-    from xdsl.context import Context
-    from xdsl.parser import Parser
-    from xdsl.transforms.apply_pdl import ApplyPDLPass
-    from xdsl.transforms.dead_code_elimination import dce
-    from xdsl.rewriter import Rewriter
-    from xdsl.builder import InsertPoint
-
-    ctx = Context()
-    ctx.load_dialect(builtin.Builtin)
-    ctx.load_dialect(arith.Arith)
-    ctx.load_dialect(pdl.PDL)
-    ctx.load_dialect(func.Func)
-    return (
-        ApplyPDLPass,
-        InsertPoint,
-        Parser,
-        Rewriter,
-        arith,
-        builtin,
-        ctx,
-        dce,
-    )
 
 
 @app.cell(hide_code=True)
