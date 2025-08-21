@@ -46,7 +46,7 @@ def get_offset_pointer(
     builder: Builder,
 ) -> SSAValue:
     """
-    Returns the pointer scaled by an offset in bytes.
+    Returns the pointer incremented by the given number of bytes.
     """
     target_ptr = builder.insert_op(ptr.PtrAddOp(pointer, bytes_offset))
     target_ptr.result.name_hint = "offset_pointer"
