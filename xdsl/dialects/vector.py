@@ -36,8 +36,8 @@ from xdsl.dialects.utils import (
 from xdsl.dialects.utils.dynamic_index_list import DynamicIndexList
 from xdsl.ir import (
     Attribute,
-    Data,
     Dialect,
+    EnumAttribute,
     Operation,
     SSAValue,
 )
@@ -1276,7 +1276,7 @@ class CombiningKindFlag(StrEnum):
 
 
 @irdl_attr_definition
-class CombiningKindAttr(Data[CombiningKindFlag]):
+class CombiningKindAttr(EnumAttribute[CombiningKindFlag]):
     """
     A mirror of LLVM's vector.kind attribute.
     """
