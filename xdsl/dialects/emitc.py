@@ -183,6 +183,9 @@ class EmitC_ArrayType(
         if not self.shape.data:
             raise VerifyException("EmitC array shape must not be empty")
 
+        if isinstance(self.element_type, EmitC_ArrayType):
+            raise VerifyException("nested EmitC arrays are not allowed")
+
         for dim_attr in self.shape.data:
             if dim_attr.data < 0:
                 raise VerifyException(
@@ -229,8 +232,6 @@ class EmitCTypeConstraint(AttrConstraint):
 
         if isa(attr, EmitC_ArrayType):
             elem_type = attr.get_element_type()
-            if isinstance(elem_type, EmitC_ArrayType):
-                raise VerifyException("nested EmitC arrays are not allowed")
             self.verify(elem_type, constraint_context)
             return
 
