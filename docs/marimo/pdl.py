@@ -92,7 +92,7 @@ def _(Parser, builtin, ctx, xmo):
     second_op = Parser(ctx, second_text).parse_op()
 
     xmo.module_html(builtin.ModuleOp([first_op.clone(), second_op.clone()]))
-    return
+    return first_op, second_op
 
 
 @app.cell(hide_code=True)
@@ -126,11 +126,11 @@ def _(Parser, ctx, xmo):
     times_zero_op = Parser(ctx, times_zero_text).parse_op()
 
     xmo.module_html(times_zero_op)
-    return
+    return (times_zero_op,)
 
 
 @app.cell(hide_code=True)
-def _():
+def _(ApplyPDLPass, builtin, ctx, first_op, second_op, times_zero_op):
     def test_rewrite():
         input_copy = first_op.clone()
         input_copy.sym_name = builtin.StringAttr("second")
@@ -195,6 +195,8 @@ def _(mo):
       pdl.replace %x_times_zero_op with (%c0_res : !pdl.value)
     }
     ```
+
+    Please refer to the [dialect reference](https://mlir.llvm.org/docs/Dialects/PDLOps/) for the full list of operations and types.
     """
     )
     return
@@ -313,7 +315,7 @@ def _(mo, xmo):
     }"""
 
     mo.accordion({"Solution": xmo.module_html(x_minus_x_text_solution)})
-    return
+    return (x_minus_x_text_solution,)
 
 
 @app.cell(hide_code=True)
@@ -408,7 +410,7 @@ def _(mo, x_plus_zero_text_solution, xmo):
     }"""
 
     mo.accordion({"Solution": xmo.module_html(x_plus_zero_text_solution)})
-    return
+    return (x_div_x_text_solution,)
 
 
 @app.cell(hide_code=True)
@@ -459,7 +461,7 @@ def _(mo, xmo):
     }"""
 
     mo.accordion({"Solution": xmo.module_html(x_div_one_text_solution)})
-    return
+    return (x_div_one_text_solution,)
 
 
 @app.cell(hide_code=True)
@@ -508,7 +510,19 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _():
+def _(
+    ApplyPDLPass,
+    InsertPoint,
+    Parser,
+    Rewriter,
+    ctx,
+    dce,
+    main,
+    x_div_one_text_solution,
+    x_div_x_text_solution,
+    x_minus_x_text_solution,
+    x_plus_zero_text_solution,
+):
     def test_solutions():
         _solutions_text = x_minus_x_text_solution + x_plus_zero_text_solution + x_div_x_text_solution + x_div_one_text_solution
         _module = Parser(ctx, _solutions_text).parse_module()
