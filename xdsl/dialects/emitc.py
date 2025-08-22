@@ -219,9 +219,7 @@ class EmitCTypeConstraint(AttrConstraint):
     See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
     """
 
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if isa(attr, TensorType):
             elem_type = attr.get_element_type()
             if isinstance(elem_type, EmitC_ArrayType):
@@ -249,7 +247,6 @@ class EmitCTypeConstraint(AttrConstraint):
                 self.verify(t, constraint_context)
             return
 
-        assert constraint_context is not None
         EmitCArrayElementTypeConstr.verify(attr, constraint_context)
 
     def mapping_type_vars(
