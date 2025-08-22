@@ -728,26 +728,24 @@ class IntegerType(
         return f[format_index]
 
 
-i64 = IntegerType[64, Signedness.SIGNLESS](64)
-i32 = IntegerType[32, Signedness.SIGNLESS](32)
-i16 = IntegerType[16, Signedness.SIGNLESS](16)
-i8 = IntegerType[8, Signedness.SIGNLESS](8)
-i1 = IntegerType[1, Signedness.SIGNLESS](1)
-I64 = IntegerType[64, Signedness.SIGNLESS]
-I32 = IntegerType[32, Signedness.SIGNLESS]
-I16 = IntegerType[16, Signedness.SIGNLESS]
-I8 = IntegerType[8, Signedness.SIGNLESS]
-I1 = IntegerType[1, Signedness.SIGNLESS]
+I64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.SIGNLESS]]
+I32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.SIGNLESS]]
+I16: TypeAlias = IntegerType[Literal[16], Literal[Signedness.SIGNLESS]]
+I8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.SIGNLESS]]
+I1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.SIGNLESS]]
+i64: I64 = IntegerType(64)
+i32: I32 = IntegerType(32)
+i16: I16 = IntegerType(16)
+i8: I8 = IntegerType(8)
+i1: I1 = IntegerType(1)
 
 _IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
 
-SignlessIntegerConstraint = ParamAttrConstraint(
-    IntegerType, [IntAttr, SignednessAttr(Signedness.SIGNLESS)]
-)
-"""Type constraint for signless IntegerType."""
-
-AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstraint]
+AnySignlessIntegerType: TypeAlias = IntegerType[int, Literal[Signedness.SIGNLESS]]
 """Type alias constrained to signless IntegerType."""
+
+SignlessIntegerConstraint = irdl_to_attr_constraint(AnySignlessIntegerType)
+"""Type constraint for signless IntegerType."""
 
 
 @irdl_attr_definition
