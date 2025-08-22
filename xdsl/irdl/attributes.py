@@ -568,6 +568,12 @@ def irdl_to_attr_constraint(
         attr_data = cast(type[ConstraintConvertible[AttributeInvT]], irdl)
         return attr_data.base_constr()
 
+    if origin is Literal:
+        literal_args = get_args(irdl)
+        if len(literal_args) == 1:
+            return irdl_to_attr_constraint(literal_args[0])
+        return AnyOf(literal_args)
+
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):
         raise PyRDLTypeError(
