@@ -252,15 +252,11 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
     See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
     """
 
-    _constrs = EmitCIntegerTypeConstr | EmitCFloatTypeConstr
+    _constrs = EmitCArrayElementTypeConstr
     if _constrs.verifies(type_attr):
         return True
 
     match type_attr:
-        case IndexType():
-            return True
-        case EmitC_OpaqueType():
-            return True
         case EmitC_ArrayType():
             elem_type = cast(Attribute, type_attr.get_element_type())
             return not isinstance(
@@ -278,8 +274,6 @@ def is_supported_emitc_type(type_attr: Attribute) -> bool:
                 not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
                 for t in type_attr.types
             )
-        case EmitC_PtrDiffT():
-            return True
         case _:
             return False
 
