@@ -464,6 +464,8 @@ class CanonicalizationPatternsTrait(OpTrait):
     traits, or subclass `HasCanonicalizationPatternsInterface`.
     """
 
+    _patterns: tuple[RewritePattern, ...] | None = field(default=None)
+
     def verify(self, op: Operation) -> None:
         return
 
@@ -471,6 +473,8 @@ class CanonicalizationPatternsTrait(OpTrait):
         self,
         op: type[Operation],
     ) -> tuple[RewritePattern, ...]:
+        if (patterns := self._patterns) is not None:
+            return patterns
         from xdsl.interfaces import HasCanonicalizationPatternsInterface
 
         if not issubclass(op, HasCanonicalizationPatternsInterface):
