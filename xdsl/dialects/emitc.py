@@ -7,8 +7,8 @@ Those can be translated to C/C++ via the Cpp emitter.
 See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
-from collections.abc import Iterable, Sequence
-from typing import Generic, Literal, cast
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Generic, Literal
 
 from typing_extensions import TypeVar
 
@@ -37,12 +37,16 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrConstraint,
+    ConstraintContext,
+    IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_prop_def,
+    param_def,
     prop_def,
     var_operand_def,
     var_result_def,
@@ -179,6 +183,9 @@ class EmitC_ArrayType(
         if not self.shape.data:
             raise VerifyException("EmitC array shape must not be empty")
 
+        if isinstance(self.element_type, EmitC_ArrayType):
+            raise VerifyException("nested EmitC arrays are not allowed")
+
         for dim_attr in self.shape.data:
             if dim_attr.data < 0:
                 raise VerifyException(
@@ -209,6 +216,50 @@ class EmitC_ArrayType(
             printer.print_attribute(self.element_type)
 
 
+class EmitCTypeConstraint(AttrConstraint):
+    """
+    Check if a type is supported by EmitC.
+    See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
+    """
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if isa(attr, TensorType):
+            elem_type = attr.get_element_type()
+            if isinstance(elem_type, EmitC_ArrayType):
+                raise VerifyException("EmitC type cannot be a tensor of EmitC arrays")
+            self.verify(elem_type, constraint_context)
+            return
+
+        if isa(attr, EmitC_ArrayType):
+            elem_type = attr.get_element_type()
+            self.verify(elem_type, constraint_context)
+            return
+
+        if isinstance(attr, EmitC_PointerType):
+            self.verify(attr.pointee_type, constraint_context)
+            return
+
+        if isinstance(attr, TupleType):
+            for t in attr.types:
+                if isinstance(t, EmitC_ArrayType):
+                    raise VerifyException(
+                        "EmitC type cannot be a tuple of EmitC arrays"
+                    )
+                self.verify(t, constraint_context)
+            return
+
+        EmitCArrayElementTypeConstr.verify(attr, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
+
+
+EmitCTypeConstr = EmitCTypeConstraint()
+
+
 @irdl_attr_definition
 class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
     """
@@ -218,18 +269,13 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "emitc.lvalue"
-    value_type: TypeAttribute
+    value_type: Attribute = param_def(EmitCTypeConstr)
 
     def verify(self) -> None:
         """
         Verify the LValueType.
         See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L1095)
         """
-        # Check that the wrapped type is valid. This especially forbids nested lvalue types.
-        if not is_supported_emitc_type(self.value_type):
-            raise VerifyException(
-                f"!emitc.lvalue must wrap supported emitc type, but got {self.value_type}"
-            )
         if isinstance(self.value_type, EmitC_ArrayType):
             raise VerifyException("!emitc.lvalue cannot wrap !emitc.array type")
 
@@ -244,38 +290,6 @@ class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
     def verify(self) -> None:
         if isinstance(self.pointee_type, EmitC_LValueType):
             raise VerifyException("pointers to lvalues are not allowed")
-
-
-def is_supported_emitc_type(type_attr: Attribute) -> bool:
-    """
-    Check if a type is supported by EmitC.
-    See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
-    """
-
-    _constrs = EmitCArrayElementTypeConstr
-    if _constrs.verifies(type_attr):
-        return True
-
-    match type_attr:
-        case EmitC_ArrayType():
-            elem_type = cast(Attribute, type_attr.get_element_type())
-            return not isinstance(
-                elem_type, EmitC_ArrayType
-            ) and is_supported_emitc_type(elem_type)
-        case EmitC_PointerType():
-            return is_supported_emitc_type(type_attr.pointee_type)
-        case TensorType():
-            elem_type = cast(Attribute, type_attr.get_element_type())
-            if isinstance(elem_type, EmitC_ArrayType):
-                return False
-            return is_supported_emitc_type(elem_type)
-        case TupleType():
-            return all(
-                not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
-                for t in type_attr.types
-            )
-        case _:
-            return False
 
 
 @irdl_op_definition
