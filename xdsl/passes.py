@@ -68,8 +68,8 @@ class ModulePass(ABC):
         self, ctx: Context, op: builtin.ModuleOp
     ) -> tuple[Context, builtin.ModuleOp]:
         """
-        Creates deep copies of the inputs, and returns the result of calling `apply` on
-        them.
+        Creates deep copies of the module and the context, and returns the result of
+        calling `apply` on them.
         """
         ctx = ctx.clone()
         op = op.clone()
