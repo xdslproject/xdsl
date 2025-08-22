@@ -43,6 +43,7 @@ from xdsl.irdl import (
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
+    op_type_rewrite_pattern,
 )
 from xdsl.traits import (
     CallableOpInterface,
@@ -368,11 +369,6 @@ class ReturnOp(IRDLOperation):
 class ReshapeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from ..rewrites.optimise_toy import (
-            FoldConstantReshapeOpPattern,
-            ReshapeReshapeOpPattern,
-        )
-
         return (ReshapeReshapeOpPattern(), FoldConstantReshapeOpPattern())
 
 
@@ -397,6 +393,32 @@ class ReshapeOp(IRDLOperation):
         if not isinstance(result_type, TensorType):
             result_type = TensorType(f64, result_type)
         return super().__init__(result_types=[result_type], operands=[arg])
+
+
+class ReshapeReshapeOpPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ReshapeOp, rewriter: PatternRewriter):
+        """
+        Reshape(Reshape(x)) = Reshape(x)
+        """
+        if isinstance(op.arg.owner, ReshapeOp):
+            rewriter.replace_matched_op(ReshapeOp(op.arg.owner.arg, op.res.type))
+
+
+class FoldConstantReshapeOpPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ReshapeOp, rewriter: PatternRewriter):
+        """
+        Reshaping a constant can be done at compile time
+        """
+        if isinstance(op.arg.owner, ConstantOp):
+            rewriter.replace_matched_op(
+                ConstantOp(
+                    DenseIntOrFPElementsAttr.from_list(
+                        type=op.res.type, data=op.arg.owner.value.get_values()
+                    )
+                )
+            )
 
 
 class TransposeOpInferShapeInferencePattern(RewritePattern):
@@ -425,8 +447,6 @@ class TransposeOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
 class TransposeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from ..rewrites.optimise_toy import SimplifyRedundantTranspose
-
         return (SimplifyRedundantTranspose(),)
 
 
@@ -453,6 +473,16 @@ class TransposeOp(IRDLOperation):
             output_type = arg.type
 
         super().__init__(operands=[arg], result_types=[output_type])
+
+
+class SimplifyRedundantTranspose(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: TransposeOp, rewriter: PatternRewriter):
+        """
+        Fold transpose(transpose(x)) -> x
+        """
+        if isinstance(op.arg.owner, TransposeOp):
+            rewriter.replace_op(op, [], [op.arg.owner.arg])
 
 
 class CastOpInferShapeInferencePattern(RewritePattern):
