@@ -173,14 +173,14 @@ class StoreOp(IRDLOperation):
 
 _IntArrayConstr = irdl_to_attr_constraint(ArrayAttr[IntAttr])
 _MaskConstr = irdl_to_attr_constraint(DenseArrayBase[I64])
-_V1_SHAPE = "V1_SHAPE"
-_V2_SHAPE = "V2_SHAPE"
-_MASK = "MASK"
 
 
 @dataclass(frozen=True)
 class ShuffleResultConstraint(AttrConstraint[VectorType]):
     element_constr: AttrConstraint
+    v1_shape_constr: VarConstraint
+    v2_shape_constr: VarConstraint
+    mask_constraint: VarConstraint
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         # We can only verify the element type here, and not the relations to other shapes
@@ -189,32 +189,19 @@ class ShuffleResultConstraint(AttrConstraint[VectorType]):
         if not attr.shape.data:
             raise VerifyException("Result vector type must not be 0-D.")
 
-    def v1(self) -> AttrConstraint[VectorType]:
-        return VectorType.constr(
-            self.element_constr, shape=VarConstraint(_V1_SHAPE, _IntArrayConstr)
-        )
-
-    def v2(self) -> AttrConstraint[VectorType]:
-        return VectorType.constr(
-            self.element_constr, shape=VarConstraint(_V2_SHAPE, _IntArrayConstr)
-        )
-
-    def mask(self) -> AttrConstraint[DenseArrayBase[I64]]:
-        return VarConstraint(_MASK, _MaskConstr)
-
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         res = self.element_constr.can_infer(var_constraint_names) and (
-            _V1_SHAPE in var_constraint_names
-            and _V2_SHAPE in var_constraint_names
-            and _MASK in var_constraint_names
+            self.v1_shape_constr.name in var_constraint_names
+            and self.v2_shape_constr.name in var_constraint_names
+            and self.mask_constraint.name in var_constraint_names
         )
         assert res
         return res
 
     def infer(self, context: ConstraintContext) -> VectorType:
-        v1_shape = context.get_variable(_V1_SHAPE)
-        v2_shape = context.get_variable(_V2_SHAPE)
-        mask = context.get_variable(_MASK)
+        v1_shape = context.get_variable(self.v1_shape_constr.name)
+        v2_shape = context.get_variable(self.v2_shape_constr.name)
+        mask = context.get_variable(self.mask_constraint.name)
         assert v1_shape is not None
         assert v2_shape is not None
         assert mask is not None
@@ -242,7 +229,10 @@ class ShuffleResultConstraint(AttrConstraint[VectorType]):
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[VectorType]:
         return ShuffleResultConstraint(
-            self.element_constr.mapping_type_vars(type_var_mapping)
+            self.element_constr.mapping_type_vars(type_var_mapping),
+            self.v1_shape_constr.mapping_type_vars(type_var_mapping),
+            self.v2_shape_constr.mapping_type_vars(type_var_mapping),
+            self.mask_constraint.mapping_type_vars(type_var_mapping),
         )
 
 
@@ -289,11 +279,14 @@ class ShuffleOp(IRDLOperation):
     name = "vector.shuffle"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    RES: ClassVar = ShuffleResultConstraint(T)
+    V1_SHAPE: ClassVar = VarConstraint("V1_SHAPE", _IntArrayConstr)
+    V2_SHAPE: ClassVar = VarConstraint("V2_SHAPE", _IntArrayConstr)
+    MASK: ClassVar = VarConstraint("MASK", _MaskConstr)
+    RES: ClassVar = ShuffleResultConstraint(T, V1_SHAPE, V2_SHAPE, MASK)
 
-    v1 = operand_def(RES.v1())
-    v2 = operand_def(RES.v2())
-    mask = prop_def(RES.mask())
+    v1 = operand_def(VectorType.constr(T, shape=V1_SHAPE))
+    v2 = operand_def(VectorType.constr(T, shape=V2_SHAPE))
+    mask = prop_def(MASK)
     result = result_def(RES)
 
     irdl_options = [ParsePropInAttrDict()]
