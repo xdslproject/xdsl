@@ -9,6 +9,7 @@ This can be more convenient than adding the traits explicitly.
 
 import abc
 from dataclasses import dataclass
+from typing import cast
 
 from xdsl.ir import Operation
 from xdsl.irdl import traits_def
@@ -17,7 +18,7 @@ from xdsl.traits import HasCanonicalizationPatternsTrait
 
 
 @dataclass(frozen=True)
-class HasCanonicalizationPatternsInterfaceTrait(HasCanonicalizationPatternsTrait):
+class _HasCanonicalizationPatternsInterfaceTrait(HasCanonicalizationPatternsTrait):
     """
     Gets the canonicalization patterns from the operation's implementation
     of `HasCanonicalizationPatternsInterface`.
@@ -30,12 +31,7 @@ class HasCanonicalizationPatternsInterfaceTrait(HasCanonicalizationPatternsTrait
         self,
         op: type[Operation],
     ) -> tuple[RewritePattern, ...]:
-        from xdsl.interfaces import HasCanonicalizationPatternsInterface
-
-        if not issubclass(op, HasCanonicalizationPatternsInterface):
-            raise ValueError(
-                f"{op.__name__} must subclass {HasCanonicalizationPatternsInterface.__name__}"
-            )
+        op = cast(type[HasCanonicalizationPatternsInterface], op)
         return op.get_canonicalization_patterns()
 
 
@@ -47,7 +43,7 @@ class HasCanonicalizationPatternsInterface(Operation, abc.ABC):
     Wraps `CanonicalizationPatternsTrait`.
     """
 
-    traits = traits_def(HasCanonicalizationPatternsInterfaceTrait())
+    traits = traits_def(_HasCanonicalizationPatternsInterfaceTrait())
 
     @classmethod
     @abc.abstractmethod
