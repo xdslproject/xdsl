@@ -101,7 +101,7 @@ def _(mo):
         r"""
     Note that these are equivalent, as `x * 0 = 0` for all `x`.
 
-    The following pattern implements the rewrite:
+    The following pattern implements the rewrite for 32-bit integers:
     """
     )
     return
