@@ -17,7 +17,7 @@ from xdsl.traits import HasCanonicalizationPatternsTrait
 
 
 @dataclass(frozen=True)
-class CanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+class HasCanonicalizationPatternsInterfaceTrait(HasCanonicalizationPatternsTrait):
     """
     Gets the canonicalization patterns from the operation's implementation
     of `HasCanonicalizationPatternsInterface`.
@@ -47,7 +47,7 @@ class HasCanonicalizationPatternsInterface(Operation, abc.ABC):
     Wraps `CanonicalizationPatternsTrait`.
     """
 
-    traits = traits_def(CanonicalizationPatternsTrait())
+    traits = traits_def(HasCanonicalizationPatternsInterfaceTrait())
 
     @classmethod
     @abc.abstractmethod
