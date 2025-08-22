@@ -130,6 +130,30 @@ class ShapedType(Attribute, ABC):
         return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
 
 
+class StaticShapeConstraint(AttrConstraint[ShapedType]):
+    """
+    Constrain attribute to be a ShapedType with static shape.
+    """
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if not isa(attr, ShapedType):
+            raise VerifyException(
+                f"expected ShapedType attribute, but got '{type(attr)}'"
+            )
+        if not attr.has_static_shape():
+            raise VerifyException(
+                f"expected static shape, but got '{attr.get_shape()}'"
+            )
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> StaticShapeConstraint:
+        return self
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return {ShapedType}
+
+
 _ContainerElementTypeT = TypeVar(
     "_ContainerElementTypeT", bound=Attribute, default=Attribute, covariant=True
 )
