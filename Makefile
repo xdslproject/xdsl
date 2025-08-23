@@ -91,6 +91,7 @@ tests-marimo: uv-installed
 			  fi; \
 			fi; \
 			if [[ " $${files_requiring_micropip[@]} " =~ " $$file " ]]; then \
+                                echo "Skipping $$file (micropip not available)"; \
 				continue; \
 			fi; \
 			echo "Running $$file"; \
