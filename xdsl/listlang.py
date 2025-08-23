@@ -1,4 +1,4 @@
-#type: ignore
+# type: ignore
 
 import io
 import re
