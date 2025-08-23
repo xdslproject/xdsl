@@ -10,7 +10,11 @@ def _():
     # Uncomment the following two lines to install local version of xDSL.
     # Adjust version string as required
     import micropip
-    await micropip.install("xdsl @ https://xdsl--5103.org.readthedocs.build/5103/xdsl-0.0.0-py3-none-any.whl")
+    return (mo, micropip)
+
+@app.cell
+def _(mo, micropip):
+    await micropip.install("xdsl @ http://127.0.0.1:8000/xdsl-0.0.0-py3-none-any.whl")
 
     from xdsl.listlang import printtest
     return (mo, printtest)
@@ -42,8 +46,20 @@ def _(mo):
 
 
 @app.cell
-def _(expr_str, mo, printtest):
-    res = printtest(expr_str)
+def _(mo):
+    get_state, set_state = mo.state("")
+    return (get_state, set_state)
+
+@app.cell
+def _(expr_str, mo, printtest, get_state, set_state):
+    from xdsl.listlang import ParseError
+
+    try:
+        res = printtest(expr_str)
+        set_state(res)
+    except ParseError:
+        res = get_state()
+
     print(res)
     mo.md(
     f"""
