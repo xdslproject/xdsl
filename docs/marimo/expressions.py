@@ -7,6 +7,25 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
+
+    # Use the locally built xDSL version
+    import micropip
+
+    def get_url():
+        import re
+        url = str(mo.notebook_location())[5:]
+        url = re.sub('([^/])/([a-f0-9-]+)', '\\1/', url, count=1)
+        buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
+        if buildnumber != url:
+            print(buildnumber)
+            url = url + buildnumber + "/"
+
+        return url
+
+    await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
+
+    from xdsl.printer import Printer
+
     return (mo,)
 
 
