@@ -17,10 +17,7 @@ expr_str
 
 ```python {marimo}
 
-def foo(s):
-  string (s.value)
-
-res = foo(expr_str)
+res = expr_str
 
 mo.md(f"Expr String: <pre> {res} </pre>")
 ```
