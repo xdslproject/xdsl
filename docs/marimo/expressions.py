@@ -24,7 +24,9 @@ async def _():
 
         return url
 
-    await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
+    import sys
+    if sys.platform == 'emscripten':
+        await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
 
     from xdsl.printer import Printer
 
