@@ -23,7 +23,7 @@ def _():
 
         return url
 
-    asyncio.run(micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl"))
+    await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
 
     from xdsl.printer import Printer
 
