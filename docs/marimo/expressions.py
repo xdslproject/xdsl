@@ -8,23 +8,23 @@ app = marimo.App(width="medium")
 async def _():
     import marimo as mo
 
-    # Use the locally built xDSL version
-    import micropip
-    # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
-    # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
-    # the wheel both locally and when deployed to makethedocs. 
-    def get_url():
-        import re
-        url = str(mo.notebook_location())[5:]
-        url = re.sub('([^/])/([a-f0-9-]+)', '\\1/', url, count=1)
-        buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
-        if buildnumber != url:
-            print(buildnumber)
-            url = url + buildnumber + "/"
+    # Use the locally built xDSL wheel when running in Marimo
+    if mo.running_in_notebook():
+
+        # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
+        # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
+        # the wheel both locally and when deployed to makethedocs. 
+        def get_url():
+            import re
+            url = str(mo.notebook_location())[5:]
+            url = re.sub('([^/])/([a-f0-9-]+)', '\\1/', url, count=1)
+            buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
+            if buildnumber != url:
+                print(buildnumber)
+                url = url + buildnumber + "/"
 
         return url
-
-    if mo.running_in_notebook():
+        import micropip
         await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
 
     from xdsl.printer import Printer
