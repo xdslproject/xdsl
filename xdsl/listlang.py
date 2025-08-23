@@ -202,9 +202,7 @@ def parse_integer(ctx: ParsingContext) -> Located:
 ## Expressions
 
 
-def _parse_opt_expr_p0(
-    ctx: ParsingContext, builder: Builder
-) -> Located:
+def _parse_opt_expr_p0(ctx: ParsingContext, builder: Builder) -> Located:
     """
     Atom priority level.
     """
@@ -301,9 +299,7 @@ def _parse_expr_p0(ctx: ParsingContext, builder: Builder) -> Located:
     return Located(expr.loc, expr.value)
 
 
-def _parse_opt_expr_p1(
-    ctx: ParsingContext, builder: Builder
-) -> Located:
+def _parse_opt_expr_p1(ctx: ParsingContext, builder: Builder) -> Located:
     """
     Multiplication priority level.
     """
@@ -343,9 +339,7 @@ def _parse_expr_p1(ctx: ParsingContext, builder: Builder) -> Located:
     return Located(expr.loc, expr.value)
 
 
-def _parse_opt_expr_p2(
-    ctx: ParsingContext, builder: Builder
-) -> Located:
+def _parse_opt_expr_p2(ctx: ParsingContext, builder: Builder) -> Located:
     """
     Addition priority level.
     """
@@ -412,9 +406,7 @@ def parse_opt_any_comparator(ctx: ParsingContext) -> Located:
     return res
 
 
-def _parse_opt_expr_p3(
-    ctx: ParsingContext, builder: Builder
-) -> Located:
+def _parse_opt_expr_p3(ctx: ParsingContext, builder: Builder) -> Located:
     """
     Comparison operators priority level.
     """
@@ -456,9 +448,7 @@ def _parse_expr_p3(ctx: ParsingContext, builder: Builder) -> Located:
     return Located(expr.loc, expr.value)
 
 
-def parse_opt_expr(
-    ctx: ParsingContext, builder: Builder
-) -> Located:
+def parse_opt_expr(ctx: ParsingContext, builder: Builder) -> Located:
     return _parse_opt_expr_p3(ctx, builder)
 
 
@@ -505,9 +495,7 @@ def parse_opt_statement(ctx: ParsingContext, builder: Builder) -> Located:
 ## Blocks
 
 
-def parse_block_content(
-    ctx: ParsingContext, builder: Builder
-) -> Located:
+def parse_block_content(ctx: ParsingContext, builder: Builder) -> Located:
     """
     Parses the content of a block and returns its trailing expression, if there
     is one. The first location is the start of the block content, while the
@@ -524,9 +512,7 @@ def parse_block_content(
     return Located(start_loc, parse_opt_expr(ctx, builder))
 
 
-def parse_block(
-    ctx: ParsingContext, builder: Builder
-) -> Located:
+def parse_block(ctx: ParsingContext, builder: Builder) -> Located:
     """
     Parses a block and returns its trailing expression, if there is one. The
     first location is the start of the block content, while the second location
