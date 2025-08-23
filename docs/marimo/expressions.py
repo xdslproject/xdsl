@@ -10,7 +10,6 @@ def _():
 
     # Use the locally built xDSL version
     import micropip
-    import asyncio
     # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
     # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
     # the wheel both locally and when deployed to makethedocs. 
