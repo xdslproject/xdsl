@@ -15,9 +15,11 @@ def _():
         import re
         url = str(mo.notebook_location())[5:]
         url = re.sub('([^/])/([a-f0-9-]+)', '\\1/', url, count=1)
-        build_number = re.sub('.*--([0-9+]).*, '\\1', url, count=1)
-	if build_number:
-            url += build_number + "/"
+        buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
+        if buildnumber != url:
+            print(buildnumber)
+            url = url + buildnumber + "/"
+
         return url
 
     print(get_url())
