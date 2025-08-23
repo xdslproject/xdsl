@@ -5,11 +5,12 @@ app = marimo.App(width="medium")
 
 
 @app.cell
-async def _():
+def _():
     import marimo as mo
 
     # Use the locally built xDSL version
     import micropip
+    import asyncio
 
     def get_url():
         import re
@@ -22,7 +23,7 @@ async def _():
 
         return url
 
-    await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
+    asyncio.run(micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl"))
 
     from xdsl.printer import Printer
 
