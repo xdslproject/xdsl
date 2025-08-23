@@ -1,16 +1,26 @@
-# Expression Test Theo
-
+# Expressions in IR
 
 ```python {marimo}
 import marimo as mo
+```
 
-def to_mlir2(stra):
-    return str(len(stra))
+A small test-page to test mkdocs-marimo.
 
+## Input
+
+```python {marimo}
 expr_str = mo.ui.text(value = "1 + 2", debounce=False)
 expr_str
+```
 
-mo.md(f"Expr String: <pre>{to_mlir2(str(expr_str))}</pre>")
+## Output
 
-#mo.md(f"Expr String: <pre>{to_mlir(expr_str.value)}</pre>")
+```python {marimo}
+
+def foo(s):
+  string (s.value)
+
+res = foo(expr_str)
+
+mo.md(f"Expr String: <pre> {res} </pre>")
 ```
