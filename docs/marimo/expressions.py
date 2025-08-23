@@ -23,7 +23,8 @@ async def _():
                 print(buildnumber)
                 url = url + buildnumber + "/"
 
-        return url
+            return url
+
         import micropip
         await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
 
