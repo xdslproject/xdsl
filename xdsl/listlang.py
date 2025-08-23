@@ -1,14 +1,13 @@
-from dataclasses import dataclass
-import re
 import io
+import re
+from dataclasses import dataclass
 
-from xdsl.dialects import arith, builtin, scf
 from xdsl.builder import Builder
-from xdsl.utils.scoped_dict import ScopedDict
+from xdsl.dialects import arith, builtin, scf
 from xdsl.ir import Attribute, Block, SSAValue
-from xdsl.rewriter import InsertPoint
 from xdsl.printer import Printer
-
+from xdsl.rewriter import InsertPoint
+from xdsl.utils.scoped_dict import ScopedDict
 
 RESERVED_KEYWORDS = ["let", "if", "else", "true", "false"]
 
@@ -113,13 +112,17 @@ class CodeCursor:
     def skip_whitespaces(self):
         self.pos = self._whitespace_end()
 
-    def next_regex(self, regex: re.Pattern[str]) -> Located[re.Match[str] | None]:
+    def next_regex(
+        self, regex: re.Pattern[str]
+    ) -> Located[re.Match[str] | None]:
         match = self.peek_regex(regex)
         if match.value is not None:
             self.pos = match.value.end()
         return match
 
-    def peek_regex(self, regex: re.Pattern[str]) -> Located[re.Match[str] | None]:
+    def peek_regex(
+        self, regex: re.Pattern[str]
+    ) -> Located[re.Match[str] | None]:
         pos = self._whitespace_end()
         return Located(Location(pos), regex.match(self.code, pos))
 
@@ -173,7 +176,8 @@ def parse_punct(ctx: ParsingContext, punct: Punctuation) -> Location:
 def parse_opt_identifier(ctx: ParsingContext) -> Located[str | None]:
     matched = ctx.cursor.next_regex(IDENT)
     return Located(
-        matched.loc, matched.value.group() if matched.value is not None else None
+        matched.loc,
+        matched.value.group() if matched.value is not None else None,
     )
 
 
@@ -186,7 +190,8 @@ def parse_identifier(ctx: ParsingContext) -> Located[str]:
 def parse_opt_integer(ctx: ParsingContext) -> Located[int | None]:
     matched = ctx.cursor.next_regex(INTEGER)
     return Located(
-        matched.loc, int(matched.value.group()) if matched.value is not None else None
+        matched.loc,
+        int(matched.value.group()) if matched.value is not None else None,
     )
 
 
@@ -219,14 +224,17 @@ def _parse_opt_expr_p0(
         if not isinstance(cond.value.typ, ListLangBool):
             raise ParseError(
                 cond.loc.pos,
-                f"expected {ListLangBool()} type for condition, got {cond.value.typ}",
+                f"expected {ListLangBool()} type for condition, "
+                f"got {cond.value.typ}",
             )
 
         then_block = Block()
         then_builder = Builder(InsertPoint.at_start(then_block))
         then_block_expr = parse_block(ctx, then_builder)
         if then_block_expr.value.value is None:
-            raise ParseError(then_block_expr.value.loc.pos, "expected block expression")
+            raise ParseError(
+                then_block_expr.value.loc.pos, "expected block expression"
+            )
         then_builder.insert_op(scf.YieldOp(then_block_expr.value.value.value))
 
         parse_punct(ctx, ELSE)
@@ -235,14 +243,18 @@ def _parse_opt_expr_p0(
         else_builder = Builder(InsertPoint.at_start(else_block))
         else_block_expr = parse_block(ctx, else_builder)
         if else_block_expr.value.value is None:
-            raise ParseError(else_block_expr.value.loc.pos, "expected block expression")
+            raise ParseError(
+                else_block_expr.value.loc.pos, "expected block expression"
+            )
         else_builder.insert_op(scf.YieldOp(else_block_expr.value.value.value))
 
         if then_block_expr.value.value.typ != else_block_expr.value.value.typ:
             raise ParseError(
                 else_block_expr.value.loc.pos,
-                f"else-block expression should be of type {then_block_expr.value.value.typ} "
-                f"to match then-block, but got {else_block_expr.value.value.typ}",
+                "else-block expression should be "
+                f"of type {then_block_expr.value.value.typ} "
+                f"to match then-block, but "
+                f"got {else_block_expr.value.value.typ}",
             )
 
         if_op = builder.insert_op(
@@ -270,13 +282,17 @@ def _parse_opt_expr_p0(
 
     # Parse false constant.
     if false := parse_opt_punct(ctx, FALSE):
-        val = builder.insert_op(arith.ConstantOp(builtin.IntegerAttr(0, XDSL_BOOL)))
+        val = builder.insert_op(
+            arith.ConstantOp(builtin.IntegerAttr(0, XDSL_BOOL))
+        )
         val.result.name_hint = "false"
         return Located(false.loc, TypedExpression(val.result, ListLangBool()))
 
     # Parse true constant.
     if true := parse_opt_punct(ctx, TRUE):
-        val = builder.insert_op(arith.ConstantOp(builtin.IntegerAttr(1, XDSL_BOOL)))
+        val = builder.insert_op(
+            arith.ConstantOp(builtin.IntegerAttr(1, XDSL_BOOL))
+        )
         val.result.name_hint = "true"
         return Located(true.loc, TypedExpression(val.result, ListLangBool()))
 
@@ -290,7 +306,9 @@ def _parse_opt_expr_p0(
     return Located(Location(ctx.cursor.pos), None)
 
 
-def _parse_expr_p0(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+def _parse_expr_p0(
+    ctx: ParsingContext, builder: Builder
+) -> Located[TypedExpression]:
     if (expr := _parse_opt_expr_p0(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression")
     return Located(expr.loc, expr.value)
@@ -314,13 +332,15 @@ def _parse_opt_expr_p1(
     if not isinstance(lhs.value.typ, ListLangInt):
         raise ParseError(
             lhs.loc.pos,
-            f"expected expression of type {ListLangInt()} in multiplication, got {lhs.value.typ}",
+            f"expected expression of type {ListLangInt()} "
+            f"in multiplication, got {lhs.value.typ}",
         )
 
     if not isinstance(rhs.value.typ, ListLangInt):
         raise ParseError(
             rhs.loc.pos,
-            f"expected expression of type {ListLangInt()} in multiplication, got {rhs.value.typ}",
+            f"expected expression of type {ListLangInt()} "
+            f"in multiplication, got {rhs.value.typ}",
         )
 
     mul_op = builder.insert_op(arith.MuliOp(lhs.value.value, rhs.value.value))
@@ -330,7 +350,9 @@ def _parse_opt_expr_p1(
     return Located(lhs.loc, TypedExpression(mul_op.result, lhs.value.typ))
 
 
-def _parse_expr_p1(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+def _parse_expr_p1(
+    ctx: ParsingContext, builder: Builder
+) -> Located[TypedExpression]:
     if (expr := _parse_opt_expr_p1(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression")
     return Located(expr.loc, expr.value)
@@ -354,13 +376,15 @@ def _parse_opt_expr_p2(
     if not isinstance(lhs.value.typ, ListLangInt):
         raise ParseError(
             lhs.loc.pos,
-            f"expected expression of type {ListLangInt()} in addition, got {lhs.value.typ}",
+            f"expected expression of type {ListLangInt()} in addition, "
+            f"got {lhs.value.typ}",
         )
 
     if not isinstance(rhs.value.typ, ListLangInt):
         raise ParseError(
             rhs.loc.pos,
-            f"expected expression of type {ListLangInt()} in addition, got {rhs.value.typ}",
+            f"expected expression of type {ListLangInt()} in addition, "
+            f"got {rhs.value.typ}",
         )
 
     add_op = builder.insert_op(arith.AddiOp(lhs.value.value, rhs.value.value))
@@ -370,7 +394,9 @@ def _parse_opt_expr_p2(
     return Located(lhs.loc, TypedExpression(add_op.result, lhs.value.typ))
 
 
-def _parse_expr_p2(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+def _parse_expr_p2(
+    ctx: ParsingContext, builder: Builder
+) -> Located[TypedExpression]:
     if (expr := _parse_opt_expr_p2(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression")
     return Located(expr.loc, expr.value)
@@ -421,13 +447,15 @@ def _parse_opt_expr_p3(
     if not isinstance(lhs.value.typ, ListLangInt):
         raise ParseError(
             lhs.loc.pos,
-            f"expected expression of type {ListLangInt()} in comparison, got {lhs.value.typ}",
+            f"expected expression of type {ListLangInt()} in comparison, "
+            f"got {lhs.value.typ}",
         )
 
     if not isinstance(rhs.value.typ, ListLangInt):
         raise ParseError(
             rhs.loc.pos,
-            f"expected expression of type {ListLangInt()} in comparison, got {rhs.value.typ}",
+            f"expected expression of type {ListLangInt()} in comparison, "
+            f"got {rhs.value.typ}",
         )
 
     cmpi_op = builder.insert_op(
@@ -439,7 +467,9 @@ def _parse_opt_expr_p3(
     return Located(lhs.loc, TypedExpression(cmpi_op.result, ListLangBool()))
 
 
-def _parse_expr_p3(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+def _parse_expr_p3(
+    ctx: ParsingContext, builder: Builder
+) -> Located[TypedExpression]:
     if (expr := _parse_opt_expr_p3(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression")
     return Located(expr.loc, expr.value)
@@ -451,17 +481,21 @@ def parse_opt_expr(
     return _parse_opt_expr_p3(ctx, builder)
 
 
-def parse_expr(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+def parse_expr(
+    ctx: ParsingContext, builder: Builder
+) -> Located[TypedExpression]:
     return _parse_expr_p3(ctx, builder)
 
 
 ## Statements
 
 
-def parse_opt_let_statement(ctx: ParsingContext, builder: Builder) -> Located[bool]:
+def parse_opt_let_statement(
+    ctx: ParsingContext, builder: Builder
+) -> Located[bool]:
     """
-    Parses a let statement and adds its binding to the provided context if it is there.
-    Returns True if a binding was found, False otherwise.
+    Parses a let statement and adds its binding to the provided context if it
+    is there. Returns True if a binding was found, False otherwise.
     """
 
     if not (let := parse_opt_punct(ctx, LET)):
@@ -538,7 +572,9 @@ def parse_block(
 ## Program
 
 
-def parse_program(code: str, builder: Builder) -> Located[TypedExpression | None]:
+def parse_program(
+    code: str, builder: Builder
+) -> Located[TypedExpression | None]:
     """
     Parses a program.
     If the program has a result expression, returns it. The location of the
