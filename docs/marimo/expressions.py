@@ -20,7 +20,6 @@ async def _():
             url = re.sub('([^/])/([a-f0-9-]+)', '\\1/', url, count=1)
             buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
             if buildnumber != url:
-                print(buildnumber)
                 url = url + buildnumber + "/"
 
             return url
