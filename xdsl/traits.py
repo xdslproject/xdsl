@@ -461,8 +461,11 @@ class HasCanonicalizationPatternsTrait(OpTrait):
     Each rewrite pattern must have the trait's op as root.
     """
 
-    def verify(self, op: Operation) -> None:
-        return
+    def get_patterns(
+        self,
+        op: type[Operation],
+    ) -> tuple[RewritePattern, ...]:
+        return type(self).get_canonicalization_patterns()
 
     @classmethod
     @abc.abstractmethod
