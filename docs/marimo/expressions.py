@@ -47,7 +47,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    expr_str = mo.ui.text(value = "3", debounce=False)
+    expr_str = mo.ui.text(value = "1 + 2", debounce=False)
     expr_str
     return (expr_str,)
 
