@@ -10,7 +10,8 @@ def _():
     # Uncomment the following two lines to install local version of xDSL.
     # Adjust version string as required
     import micropip
-    await micropip.install("xdsl @ " + mo.notebook_location() + "/xdsl-0.0.0-py3-none-any.whl")
+    print(mo.notebook_location())
+    await micropip.install("xdsl @ " + str(mo.notebook_location()) + "/xdsl-0.0.0-py3-none-any.whl")
 
     from xdsl.listlang import printtest
     return (mo, printtest)
