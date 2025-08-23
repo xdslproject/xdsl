@@ -70,7 +70,8 @@ These may be useful for projects wanting to replicate the xDSL testing setup.
 
 ## Getting Started
 
-Check out the dedicated [Getting Started guide](https://xdsl.readthedocs.io/stable/) for a comprehensive tutorial.
+Check out the dedicated [Getting Started guide](https://xdsl.readthedocs.io/stable/)
+for a comprehensive tutorial.
 
 To get familiar with xDSL, we recommend starting with our Jupyter notebooks. The
 notebooks consist of examples and documentation concerning the core xDSL data
