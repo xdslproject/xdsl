@@ -15,9 +15,6 @@ def _():
 @app.cell
 def _(mo, micropip):
     await micropip.install("xdsl @ https://xdsl--5103.org.readthedocs.build/5103/xdsl-0.0.0-py3-none-any.whl")
-    return (mo, micropip)
-
-@
 
     from xdsl.listlang import printtest
     return (mo, printtest)
