@@ -16,10 +16,13 @@ def _():
         url = str(mo.notebook_location())[5:]
         url = re.sub('([^/])/([a-f0-9-]+)', '\\1/', url, count=1)
         buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
+        print("bn: " + buildnumber)
+        print("url: " + url)
         if buildnumber != url:
             print(buildnumber)
             url = url + buildnumber + "/"
 
+        print("url2: " + url)
         return url
 
     print(get_url())
