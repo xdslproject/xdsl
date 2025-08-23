@@ -560,11 +560,15 @@ def _():
         module = builtin.ModuleOp([])
         builder = Builder(InsertPoint.at_start(module.body.block))
 
-        parse_program(program, builder)
+        parse_program(code, builder)
 
         output = io.StringIO()
         Printer(stream=output).print_op(module)
         return output.getvalue()
+
+    def printtest(code) -> str:
+        return program_to_mlir(code.value)
+
     return (mo,)
 
 
@@ -582,7 +586,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    expr_str = mo.ui.text(value = "1 + 2", debounce=False)
+    expr_str = mo.ui.text(value = "3", debounce=False)
     expr_str
     return (expr_str,)
 
@@ -595,7 +599,9 @@ def _(mo):
 
 @app.cell
 def _(expr_str, mo):
-    mo.md(f"Expr String: {expr_str}")
+    res = printtest(expr_str)
+    print(res)
+    mo.md(f"Expr String: {res}")
     return
 
 
