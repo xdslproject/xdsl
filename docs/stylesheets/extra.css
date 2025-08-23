@@ -26,6 +26,11 @@ h2 {
     /* background: linear-gradient(0deg, var(--md-primary-fg-color) 0%, var(--md-primary-fg-color--dark) 160%); */
     background: var(--md-primary-fg-color);
   }
+
+  .markdown {
+    font-family: monospace;
+    white-space: pre;
+  }
 }
 
 [data-md-color-scheme="slate"] {
@@ -52,3 +57,4 @@ h2 {
 .animate-delayed-show-200 {
   visibility: hidden}
 }
+

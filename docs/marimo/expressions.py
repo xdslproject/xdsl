@@ -45,7 +45,12 @@ def _(mo):
 def _(expr_str, mo, printtest):
     res = printtest(expr_str)
     print(res)
-    mo.md(f"Expr String: {res}")
+    mo.md(
+    f"""
+    {res}
+    """
+    )
+
     return
 
 
