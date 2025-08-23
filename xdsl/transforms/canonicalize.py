@@ -20,9 +20,7 @@ class CanonicalizationRewritePattern(RewritePattern):
         if not traits:
             return
         patterns = tuple(
-            pattern
-            for trait in traits
-            for pattern in trait.get_canonicalization_patterns()
+            pattern for trait in traits for pattern in trait.get_patterns(type(op))
         )
         if len(patterns) == 1:
             patterns[0].match_and_rewrite(op, rewriter)
