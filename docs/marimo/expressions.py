@@ -5,7 +5,7 @@ app = marimo.App(width="medium")
 
 
 @app.cell
-def _():
+async def _():
     import marimo as mo
 
     # Use the locally built xDSL version
