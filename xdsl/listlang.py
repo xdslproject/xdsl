@@ -551,11 +551,15 @@ def program_to_mlir(code: str) -> str:
     module = builtin.ModuleOp([])
     builder = Builder(InsertPoint.at_start(module.body.block))
 
-    parse_program(program, builder)
+    parse_program(code, builder)
 
     output = io.StringIO()
     Printer(stream=output).print_op(module)
     return output.getvalue()
+
+
+def printtest(code) -> str:
+        return program_to_mlir(code.value)
 
 if __name__ == "__main__":
 
@@ -566,3 +570,4 @@ if __name__ == "__main__":
 
     print(output)
     print()
+
