@@ -61,6 +61,7 @@ class Location:
 @dataclass
 class Located:
     loc: Location
+    value: object
 
     def __bool__(self) -> bool:
         return bool(self.value)
@@ -111,13 +112,13 @@ class CodeCursor:
     def skip_whitespaces(self):
         self.pos = self._whitespace_end()
 
-    def next_regex(self, regex: re.Pattern[str]) -> Located[re.Match[str] | None]:
+    def next_regex(self, regex: re.Pattern[str]) -> Located:
         match = self.peek_regex(regex)
         if match.value is not None:
             self.pos = match.value.end()
         return match
 
-    def peek_regex(self, regex: re.Pattern[str]) -> Located[re.Match[str] | None]:
+    def peek_regex(self, regex: re.Pattern[str]) -> Located:
         pos = self._whitespace_end()
         return Located(Location(pos), regex.match(self.code, pos))
 
@@ -154,7 +155,7 @@ class TypedExpression:
 ## Utils
 
 
-def parse_opt_punct(ctx: ParsingContext, punct: Punctuation) -> Located[bool]:
+def parse_opt_punct(ctx: ParsingContext, punct: Punctuation) -> Located:
     """
     Returns True if the punctuation was successfully parsed.
     """
@@ -168,7 +169,7 @@ def parse_punct(ctx: ParsingContext, punct: Punctuation) -> Location:
     return located.loc
 
 
-def parse_opt_identifier(ctx: ParsingContext) -> Located[str | None]:
+def parse_opt_identifier(ctx: ParsingContext) -> Located:
     matched = ctx.cursor.next_regex(IDENT)
     return Located(
         matched.loc,
@@ -176,13 +177,13 @@ def parse_opt_identifier(ctx: ParsingContext) -> Located[str | None]:
     )
 
 
-def parse_identifier(ctx: ParsingContext) -> Located[str]:
+def parse_identifier(ctx: ParsingContext) -> Located:
     if (ident := parse_opt_identifier(ctx)).value is None:
         raise ParseError.from_ctx(ctx, "expected variable identifier")
     return Located(ident.loc, ident.value)
 
 
-def parse_opt_integer(ctx: ParsingContext) -> Located[int | None]:
+def parse_opt_integer(ctx: ParsingContext) -> Located:
     matched = ctx.cursor.next_regex(INTEGER)
     return Located(
         matched.loc,
@@ -190,7 +191,7 @@ def parse_opt_integer(ctx: ParsingContext) -> Located[int | None]:
     )
 
 
-def parse_integer(ctx: ParsingContext) -> Located[int]:
+def parse_integer(ctx: ParsingContext) -> Located:
     if (lit := parse_opt_integer(ctx)).value is None:
         raise ParseError.from_ctx(ctx, "expected integer constant")
     return Located(lit.loc, lit.value)
@@ -201,7 +202,7 @@ def parse_integer(ctx: ParsingContext) -> Located[int]:
 
 def _parse_opt_expr_p0(
     ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression | None]:
+) -> Located:
     """
     Atom priority level.
     """
@@ -292,7 +293,7 @@ def _parse_opt_expr_p0(
     return Located(Location(ctx.cursor.pos), None)
 
 
-def _parse_expr_p0(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+def _parse_expr_p0(ctx: ParsingContext, builder: Builder) -> Located:
     if (expr := _parse_opt_expr_p0(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression")
     return Located(expr.loc, expr.value)
@@ -300,7 +301,7 @@ def _parse_expr_p0(ctx: ParsingContext, builder: Builder) -> Located[TypedExpres
 
 def _parse_opt_expr_p1(
     ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression | None]:
+) -> Located:
     """
     Multiplication priority level.
     """
@@ -334,7 +335,7 @@ def _parse_opt_expr_p1(
     return Located(lhs.loc, TypedExpression(mul_op.result, lhs.value.typ))
 
 
-def _parse_expr_p1(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+def _parse_expr_p1(ctx: ParsingContext, builder: Builder) -> Located:
     if (expr := _parse_opt_expr_p1(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression")
     return Located(expr.loc, expr.value)
@@ -342,7 +343,7 @@ def _parse_expr_p1(ctx: ParsingContext, builder: Builder) -> Located[TypedExpres
 
 def _parse_opt_expr_p2(
     ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression | None]:
+) -> Located:
     """
     Addition priority level.
     """
@@ -376,17 +377,17 @@ def _parse_opt_expr_p2(
     return Located(lhs.loc, TypedExpression(add_op.result, lhs.value.typ))
 
 
-def _parse_expr_p2(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+def _parse_expr_p2(ctx: ParsingContext, builder: Builder) -> Located:
     if (expr := _parse_opt_expr_p2(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression")
     return Located(expr.loc, expr.value)
 
 
-def parse_opt_any_comparator(ctx: ParsingContext) -> Located[str | None]:
+def parse_opt_any_comparator(ctx: ParsingContext) -> Located:
     ctx.cursor.skip_whitespaces()
     loc = Location(ctx.cursor.pos)
 
-    def parse_unchecked() -> Located[str | None]:
+    def parse_unchecked() -> Located:
         if parse_opt_punct(ctx, EQUAL_CMP):
             return Located(loc, "eq")
 
@@ -411,7 +412,7 @@ def parse_opt_any_comparator(ctx: ParsingContext) -> Located[str | None]:
 
 def _parse_opt_expr_p3(
     ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression | None]:
+) -> Located:
     """
     Comparison operators priority level.
     """
@@ -447,7 +448,7 @@ def _parse_opt_expr_p3(
     return Located(lhs.loc, TypedExpression(cmpi_op.result, ListLangBool()))
 
 
-def _parse_expr_p3(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+def _parse_expr_p3(ctx: ParsingContext, builder: Builder) -> Located:
     if (expr := _parse_opt_expr_p3(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression")
     return Located(expr.loc, expr.value)
@@ -455,18 +456,18 @@ def _parse_expr_p3(ctx: ParsingContext, builder: Builder) -> Located[TypedExpres
 
 def parse_opt_expr(
     ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression | None]:
+) -> Located:
     return _parse_opt_expr_p3(ctx, builder)
 
 
-def parse_expr(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+def parse_expr(ctx: ParsingContext, builder: Builder) -> Located:
     return _parse_expr_p3(ctx, builder)
 
 
 ## Statements
 
 
-def parse_opt_let_statement(ctx: ParsingContext, builder: Builder) -> Located[bool]:
+def parse_opt_let_statement(ctx: ParsingContext, builder: Builder) -> Located:
     """
     Parses a let statement and adds its binding to the provided context if it
     is there. Returns True if a binding was found, False otherwise.
@@ -495,7 +496,7 @@ def parse_opt_let_statement(ctx: ParsingContext, builder: Builder) -> Located[bo
     return let
 
 
-def parse_opt_statement(ctx: ParsingContext, builder: Builder) -> Located[bool]:
+def parse_opt_statement(ctx: ParsingContext, builder: Builder) -> Located:
     return parse_opt_let_statement(ctx, builder)
 
 
@@ -504,7 +505,7 @@ def parse_opt_statement(ctx: ParsingContext, builder: Builder) -> Located[bool]:
 
 def parse_block_content(
     ctx: ParsingContext, builder: Builder
-) -> Located[Located[TypedExpression | None]]:
+) -> Located:
     """
     Parses the content of a block and returns its trailing expression, if there
     is one. The first location is the start of the block content, while the
@@ -523,7 +524,7 @@ def parse_block_content(
 
 def parse_block(
     ctx: ParsingContext, builder: Builder
-) -> Located[Located[TypedExpression | None]]:
+) -> Located:
     """
     Parses a block and returns its trailing expression, if there is one. The
     first location is the start of the block content, while the second location
@@ -546,7 +547,7 @@ def parse_block(
 ## Program
 
 
-def parse_program(code: str, builder: Builder) -> Located[TypedExpression | None]:
+def parse_program(code: str, builder: Builder) -> Located:
     """
     Parses a program.
     If the program has a result expression, returns it. The location of the
