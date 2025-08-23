@@ -73,12 +73,7 @@ def _(expr_str, mo, printtest, get_state, set_state):
     except ParseError:
         res = get_state()
 
-    print(res)
-    mo.md(
-    f"""
-    {res}
-    """
-    )
+    mo.md(f"{res}")
 
     return
 
