@@ -50,9 +50,9 @@ jobs:
       run: |
         cd xdsl
         if [ "$COLLECT_COVERAGE" = "true" ]; then
-          uv run pytest -W error --cov --ignore=docs/marimo/expressions.py
+          uv run pytest -W error --cov
         else
-          uv run pytest -W error --ignore=docs/marimo/expressions.py
+          uv run pytest -W error
         fi
 
     - name: Execute lit tests

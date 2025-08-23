@@ -39,7 +39,7 @@ jobs:
     - name: Run examples/tutorials
       run: |
         # mlir_interoperation.ipynb is dependent on MLIR, and is tested in the MLIR-enabled workflow.
-        uv run pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb --ignore=docs/marimo/expressions.py
+        uv run pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
 
     - name: Test marimo notebooks
       run: |
