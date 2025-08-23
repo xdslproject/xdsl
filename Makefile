@@ -82,12 +82,16 @@ tests-marimo: uv-installed
 		error_log="/tmp/marimo_test_$$$$.log"; \
 		failed_tests=""; \
 		files_requiring_mlir_opt=("docs/marimo/mlir_interoperation.py"); \
+		files_requiring_micropip=("docs/marimo/expressions.py"); \
 		for file in docs/marimo/*.py; do \
 			if [[ " $${files_requiring_mlir_opt[@]} " =~ " $$file " ]]; then \
 				if ! command -v mlir-opt &> /dev/null; then \
 					echo "Skipping $$file (mlir-opt is not available)"; \
 					continue; \
 			  fi; \
+			fi; \
+			if [[ " $${files_requiring_micropip[@]} " =~ " $$file " ]]; then \
+				continue; \
 			fi; \
 			echo "Running $$file"; \
 			if ! output=$$(uv run python -W error "$$file" 2>&1); then \
