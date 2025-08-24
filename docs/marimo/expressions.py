@@ -29,8 +29,8 @@ async def _():
 
     from xdsl.printer import Printer
 
-    from xdsl.listlang import printtest
-    return (mo, printtest)
+    from xdsl.listlang import program_to_mlir
+    return (mo, program_to_mlir)
 
 
 @app.cell(hide_code=True)
@@ -64,10 +64,13 @@ def _(mo):
     return (get_state, set_state)
 
 @app.cell
-def _(expr_str, mo, printtest, get_state, set_state):
+def _(expr_str, mo, program_to_mlir, get_state, set_state):
     from xdsl.listlang import ParseError
 
     try:
+
+        def printtest(code) -> str:
+            return program_to_mlir(code.value)
         res = printtest(expr_str)
         set_state(res)
     except ParseError:
