@@ -29,7 +29,7 @@ async def _():
 
     from xdsl.printer import Printer
 
-    from xdsl.listlang import program_to_mlir
+    from xdsl.frontend.expression.main import program_to_mlir
     return (mo, program_to_mlir)
 
 
@@ -65,7 +65,7 @@ def _(mo):
 
 @app.cell
 def _(expr_str, mo, program_to_mlir, get_state, set_state):
-    from xdsl.listlang import ParseError
+    from xdsl.frontend.expression.main import ParseError
 
     try:
         def printtest(code) -> str:
