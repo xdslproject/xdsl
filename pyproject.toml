@@ -61,6 +61,10 @@ docs = [
     "mkdocstrings[python]>=0.27.0",
     "pymdown-extensions>=10.7",
     "riscemu==2.2.7",
+    "matplotlib>=3.10.3",
+    "pandas>=2.3.0",
+    "python-lsp-server>=1.13.0",
+    "basedpyright>=1.31.0",
 ]
 
 [project.urls]
