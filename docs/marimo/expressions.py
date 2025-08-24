@@ -68,9 +68,11 @@ def _(expr_str, mo, program_to_mlir, get_state, set_state):
     from xdsl.listlang import ParseError
 
     try:
-
         def printtest(code) -> str:
-            return program_to_mlir(code.value)
+            output = program_to_mlir(code.value)
+            output = output.replace("\n", "<br>")
+            return output
+
         res = printtest(expr_str)
         set_state(res)
     except ParseError:
