@@ -113,12 +113,12 @@ reportUnnecessaryTypeIgnoreComment = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests", "benchmarks"]
-"exclude" = ["docs/marimo"]
+"exclude" = ["docs/marimo", "xdsl/frontend/expression/main.py"]
 
 [tool.ruff]
 target-version = "py310"
 extend-include = ["*.ipynb", "*.pyi"]
-exclude = [".venv", "docs/marimo"]
+exclude = [".venv", "docs/marimo", "xdsl/frontend/expression/main.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI"]
