@@ -18,10 +18,13 @@ async def _():
         def get_url():
             import re
             url = str(mo.notebook_location())[5:]
-            url = re.sub('([^/])/([a-f0-9-]+)', '\\1/', url, count=1)
+            print(f"DEBUG: notebook url (full): {url}")
+            url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
             buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
             if buildnumber != url:
                 url = url + buildnumber + "/"
+
+            print(f"DEBUG: notebook url (trimmed): {url}")
 
             return url
 
