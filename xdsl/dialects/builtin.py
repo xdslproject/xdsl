@@ -2323,7 +2323,7 @@ class MemRefType(
 
     shape: ArrayAttr[IntAttr]
     element_type: _MemRefTypeElement
-    layout: StridedLayoutAttr | AffineMapAttr | NoneAttr
+    layout: MemRefLayoutAttr | NoneAttr
     memory_space: Attribute
 
     def __init__(
