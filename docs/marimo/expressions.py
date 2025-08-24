@@ -70,7 +70,10 @@ def _(expr_str, mo, program_to_mlir, get_state, set_state):
     try:
         def printtest(code) -> str:
             output = program_to_mlir(code.value)
+            output = output.replace("builtin.module {\n", "")
             output = output.replace("\n", "<br>")
+            output = output.replace("}", "")
+
             return output
 
         res = printtest(expr_str)
