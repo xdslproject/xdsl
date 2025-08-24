@@ -26,6 +26,9 @@ async def _():
             if buildnumber != url:
                 url = url + buildnumber + "/"
 
+            if url == "https://xdsl.readthedocs.io/":
+                url = url + "latest/"
+
             print(f"DEBUG: notebook url (trimmed): {url}")
 
             return url
