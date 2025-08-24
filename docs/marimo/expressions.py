@@ -5,8 +5,31 @@ app = marimo.App(width="medium")
 
 
 @app.cell
-def _():
+async def _():
     import marimo as mo
+    import sys
+
+    # Use the locally built xDSL wheel when running in Marimo
+    if sys.platform == "emscripten":
+
+        # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
+        # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
+        # the wheel both locally and when deployed to makethedocs.
+        def get_url():
+            import re
+            url = str(mo.notebook_location())[5:]
+            url = re.sub('([^/])/([a-f0-9-]+)', '\\1/', url, count=1)
+            buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
+            if buildnumber != url:
+                url = url + buildnumber + "/"
+
+            return url
+
+        import micropip
+        await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
+
+    from xdsl.printer import Printer
+
     return (mo,)
 
 

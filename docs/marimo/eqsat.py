@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.11"
+__generated_with = "0.14.17"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -49,9 +49,7 @@ def _():
 def _(ctx, input_module):
     from xdsl.transforms.eqsat_create_eclasses import EqsatCreateEclassesPass
 
-    eclass_module = input_module.clone()
-
-    EqsatCreateEclassesPass().apply(ctx, eclass_module)
+    _, eclass_module = EqsatCreateEclassesPass().apply_to_clone(ctx, input_module)
 
     xmo.module_html(eclass_module)
     return (eclass_module,)
@@ -86,10 +84,8 @@ def _():
 def _(ctx, saturated_module):
     from xdsl.transforms.eqsat_add_costs import EqsatAddCostsPass
 
-    cost_module = saturated_module.clone()
-
     # Use a default cost since the resulting IR is currently recursive and we can't handle that
-    EqsatAddCostsPass(default=1000).apply(ctx, cost_module)
+    _, cost_module = EqsatAddCostsPass(default=1000).apply_to_clone(ctx, saturated_module)
 
     xmo.module_html(cost_module)
     return (cost_module,)
@@ -105,9 +101,7 @@ def _():
 def _(cost_module, ctx):
     from xdsl.transforms.eqsat_extract import EqsatExtractPass
 
-    extracted_module = cost_module.clone()
-
-    EqsatExtractPass().apply(ctx, extracted_module)
+    _, extracted_module = EqsatExtractPass().apply_to_clone(ctx, cost_module)
 
     xmo.module_html(extracted_module)
     return (extracted_module,)
