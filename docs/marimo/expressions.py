@@ -6,10 +6,11 @@ app = marimo.App(width="medium")
 
 @app.cell
 async def _():
+    import sys
     import marimo as mo
 
     # Use the locally built xDSL wheel when running in Marimo
-    if mo.running_in_notebook():
+    if sys.platform == 'emscripten':
 
         # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
         # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
