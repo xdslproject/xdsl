@@ -7,13 +7,14 @@ app = marimo.App(width="medium")
 @app.cell
 async def _():
     import marimo as mo
+    import sys
 
     # Use the locally built xDSL wheel when running in Marimo
-    if mo.running_in_notebook():
+    if sys.platform == "emscripten":
 
         # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
         # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
-        # the wheel both locally and when deployed to makethedocs. 
+        # the wheel both locally and when deployed to makethedocs.
         def get_url():
             import re
             url = str(mo.notebook_location())[5:]
