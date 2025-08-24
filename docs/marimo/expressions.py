@@ -24,7 +24,7 @@ async def _():
             url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
             buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
             if buildnumber != url:
-                url = url + buildnumber + "/
+                url = url + buildnumber + "/"
 
             print(f"DEBUG: notebook url (trimmed): {url}")
 
