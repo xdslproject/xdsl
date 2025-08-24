@@ -113,7 +113,7 @@ reportUnnecessaryTypeIgnoreComment = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests", "benchmarks"]
-"exclude" = ["docs/marimo"]
+"exclude" = ["docs/marimo", "xdsl/listlang.py"]
 
 [tool.ruff]
 target-version = "py310"
