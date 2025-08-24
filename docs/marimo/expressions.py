@@ -6,10 +6,11 @@ app = marimo.App(width="medium")
 
 @app.cell
 async def _():
+    import sys
     import marimo as mo
 
     # Use the locally built xDSL wheel when running in Marimo
-    if mo.running_in_notebook():
+    if sys.platform == 'emscripten':
 
         # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
         # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
@@ -17,10 +18,18 @@ async def _():
         def get_url():
             import re
             url = str(mo.notebook_location())[5:]
-            url = re.sub('([^/])/([a-f0-9-]+)', '\\1/', url, count=1)
+            directory = str(mo.notebook_dir())
+            print(f"DEBUG: notebook url (full): {url}")
+            print(f"DEBUG: notebook dir: {directory}")
+            url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
             buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
             if buildnumber != url:
                 url = url + buildnumber + "/"
+
+            if url == "https://xdsl.readthedocs.io/":
+                url = url + "latest/"
+
+            print(f"DEBUG: notebook url (trimmed): {url}")
 
             return url
 
