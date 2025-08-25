@@ -38,7 +38,7 @@ async def _():
 
     from xdsl.printer import Printer
 
-    from xdsl.frontend.expression.main import program_to_mlir
+    from xdsl.frontend.list-lang.main import program_to_mlir
     return (mo, program_to_mlir)
 
 
