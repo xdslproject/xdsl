@@ -1028,3 +1028,29 @@ def test_modify_traits():
 
     with pytest.raises(VerifyException, match="Nope"):
         op.verify()
+
+
+def test_modify_parent_traits():
+    """
+    Test that adding traits do not modify parent traits when they are inherited.
+    """
+
+    class ParentOp(IRDLOperation, ABC):
+        name = "test.parent"
+
+        traits = traits_def(LargerOperandTrait())
+
+    @irdl_op_definition
+    class ModifiedOp(ParentOp):
+        name = "test.modified"
+
+    @irdl_op_definition
+    class NotModifiedOp(ParentOp):
+        name = "test.not_modified"
+
+    ModifiedOp.traits.add_trait(BitwidthSumLessThanTrait(64))
+
+    assert ModifiedOp.has_trait(LargerOperandTrait)
+    assert ModifiedOp.has_trait(BitwidthSumLessThanTrait(64))
+    assert NotModifiedOp.has_trait(LargerOperandTrait)
+    assert not NotModifiedOp.has_trait(BitwidthSumLessThanTrait(64))
