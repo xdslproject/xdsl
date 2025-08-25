@@ -74,7 +74,7 @@ def _(mo):
 
 @app.cell
 def _(expr_str, mo, program_to_mlir, get_state, set_state):
-    from xdsl.frontend.expression.main import ParseError
+    from xdsl.frontend.listlang.main import ParseError
 
     try:
         def printtest(code) -> str:
