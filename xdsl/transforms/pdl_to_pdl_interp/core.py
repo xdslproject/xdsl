@@ -1,29 +1,25 @@
-from abc import ABC
+"""
+PDL to PDL_interp Transformation
+"""
+
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Optional, cast
+
+from xdsl.context import Context
+from xdsl.dialects import pdl
+from xdsl.ir import Operation, SSAValue
+from xdsl.parser import Parser
 
 # =============================================================================
 # Core Data Structures - Positions
 # =============================================================================
 
 
-class PositionKind(Enum):
-    OPERATION = "operation"
-    OPERAND = "operand"
-    OPERAND_GROUP = "operand_group"
-    RESULT = "result"
-    RESULT_GROUP = "result_group"
-    ATTRIBUTE = "attribute"
-    TYPE = "type"
-    USERS = "users"
-
-
-@dataclass
+@dataclass(frozen=True)
 class Position(ABC):
     """Base class for all position types"""
 
-    kind: PositionKind
     parent: Optional["Position"] = None
 
     def get_operation_depth(self) -> int:
@@ -32,15 +28,17 @@ class Position(ABC):
             return self.depth
         return self.parent.get_operation_depth() if self.parent else 0
 
+    @abstractmethod
+    def ranking(self) -> int:
+        """Cost metric for ordering positions"""
+        ...
 
-@dataclass
+
+@dataclass(frozen=True)
 class OperationPosition(Position):
     """Represents an operation in the IR"""
 
     depth: int = 0
-
-    def __post_init__(self):
-        super().__init__(PositionKind.OPERATION, self.parent)
 
     def is_root(self) -> bool:
         return self.depth == 0
@@ -48,64 +46,70 @@ class OperationPosition(Position):
     def is_operand_defining_op(self) -> bool:
         return isinstance(self.parent, (OperandPosition | OperandGroupPosition))
 
+    def ranking(self):
+        return 0
 
-@dataclass
+
+@dataclass(frozen=True)
 class OperandPosition(Position):
     """Represents an operand of an operation"""
 
     operand_number: int = -1
 
-    def __post_init__(self):
-        super().__init__(PositionKind.OPERAND, self.parent)
+    def ranking(self):
+        return 1
 
 
-@dataclass
+@dataclass(frozen=True)
 class OperandGroupPosition(Position):
     """Represents a group of operands"""
 
     group_number: int | None = None
     is_variadic: bool = False
 
-    def __post_init__(self):
-        super().__init__(PositionKind.OPERAND_GROUP, self.parent)
+    def ranking(self):
+        return 2
 
 
-@dataclass
+@dataclass(frozen=True)
 class ResultPosition(Position):
     """Represents a result of an operation"""
 
     result_number: int = -1
 
-    def __post_init__(self):
-        super().__init__(PositionKind.RESULT, self.parent)
+    def ranking(self):
+        return 3
 
 
-@dataclass
+# TODO: ResultGroupPosition?
+
+
+@dataclass(frozen=True)
 class AttributePosition(Position):
     """Represents an attribute of an operation"""
 
     attribute_name: str = ""
 
-    def __post_init__(self):
-        super().__init__(PositionKind.ATTRIBUTE, self.parent)
+    def ranking(self):
+        return 4
 
 
-@dataclass
+@dataclass(frozen=True)
 class TypePosition(Position):
     """Represents the type of a value"""
 
-    def __post_init__(self):
-        super().__init__(PositionKind.TYPE, self.parent)
+    def ranking(self):
+        return 5
 
 
-@dataclass
+@dataclass(frozen=True)
 class UsersPosition(Position):
     """Represents users of a value"""
 
     use_representative: bool = False
 
-    def __post_init__(self):
-        super().__init__(PositionKind.USERS, self.parent)
+    def ranking(self):
+        return 6
 
 
 # =============================================================================
@@ -113,96 +117,97 @@ class UsersPosition(Position):
 # =============================================================================
 
 
-class PredicateKind(Enum):
-    # Questions
-    IS_NOT_NULL = "is_not_null"
-    OPERATION_NAME = "operation_name"
-    OPERAND_COUNT = "operand_count"
-    RESULT_COUNT = "result_count"
-    TYPE_CONSTRAINT = "type_constraint"
-    ATTRIBUTE_CONSTRAINT = "attribute_constraint"
-    EQUAL_TO = "equal_to"
-
-    # Answers
-    TRUE = "true"
-    FALSE = "false"
-    UNSIGNED = "unsigned"
-    STRING = "string"
-    TYPE = "type"
-    ATTRIBUTE = "attribute"
-
-
-@dataclass
+@dataclass(frozen=True)
 class Predicate(ABC):
     """Base predicate class"""
 
-    kind: PredicateKind
+    @abstractmethod
+    def ranking(self) -> int:
+        """Cost metric for ordering Predicates"""
+        ...
 
 
-@dataclass
+@dataclass(frozen=True)
 class Question(Predicate):
     """Represents a question/check to perform"""
 
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Answer(Predicate):
     """Represents an expected answer to a question"""
 
     value: Any = None
 
+    def ranking(self) -> int:
+        """Ranking for ordering Answers"""
+        return 0
 
-# Specific Question Types
-@dataclass
+
+# Question Types
+@dataclass(frozen=True)
 class IsNotNullQuestion(Question):
-    def __post_init__(self):
-        super().__init__(PredicateKind.IS_NOT_NULL)
+    def ranking(self) -> int:
+        """Ranking for ordering Questions"""
+        return 1
 
 
-@dataclass
+@dataclass(frozen=True)
 class OperationNameQuestion(Question):
-    def __post_init__(self):
-        super().__init__(PredicateKind.OPERATION_NAME)
+    def ranking(self) -> int:
+        """Ranking for ordering Questions"""
+        return 2
 
 
-@dataclass
+@dataclass(frozen=True)
 class OperandCountQuestion(Question):
-    def __post_init__(self):
-        super().__init__(PredicateKind.OPERAND_COUNT)
+    def ranking(self) -> int:
+        """Ranking for ordering Questions"""
+        return 3
 
 
-@dataclass
+@dataclass(frozen=True)
 class ResultCountQuestion(Question):
-    def __post_init__(self):
-        super().__init__(PredicateKind.RESULT_COUNT)
+    def ranking(self) -> int:
+        """Ranking for ordering Questions"""
+        return 4
 
 
-@dataclass
+@dataclass(frozen=True)
 class EqualToQuestion(Question):
     other_position: Position
 
-    def __post_init__(self):
-        super().__init__(PredicateKind.EQUAL_TO)
+    def ranking(self) -> int:
+        """Ranking for ordering Questions"""
+        return 5
 
 
 # Answer Types
-@dataclass
+@dataclass(frozen=True)
 class TrueAnswer(Answer):
-    def __post_init__(self):
-        super().__init__(PredicateKind.TRUE, True)
+    def ranking(self) -> int:
+        """Ranking for ordering Answers"""
+        # TODO: should this be 6 or restart the count for Answers?
+        return 6
 
 
-@dataclass
+@dataclass(frozen=True)
 class UnsignedAnswer(Answer):
-    def __post_init__(self):
-        super().__init__(PredicateKind.UNSIGNED, self.value)
+    value: int = 0
+
+    def ranking(self) -> int:
+        """Ranking for ordering Answers"""
+        return 7
 
 
-@dataclass
+@dataclass(frozen=True)
 class StringAnswer(Answer):
-    def __post_init__(self):
-        super().__init__(PredicateKind.STRING, self.value)
+    value: str = ""
+
+    def ranking(self) -> int:
+        """Ranking for ordering Answers"""
+        return 8
 
 
 # =============================================================================
@@ -228,14 +233,14 @@ class PredicateBuilder:
     """Utility for constructing predicates and positions"""
 
     def __init__(self):
-        self._position_cache: dict[tuple, Position] = {}
+        self._position_cache: dict[tuple[Any, ...], Position] = {}
 
     def get_root(self) -> OperationPosition:
         """Get the root operation position"""
         key = ("root",)
         if key not in self._position_cache:
             self._position_cache[key] = OperationPosition(depth=0, parent=None)
-        return self._position_cache[key]
+        return cast(OperationPosition, self._position_cache[key])
 
     def get_operand_defining_op(self, operand_pos: Position) -> OperationPosition:
         """Get the operation that defines an operand"""
@@ -245,7 +250,7 @@ class PredicateBuilder:
             self._position_cache[key] = OperationPosition(
                 depth=depth, parent=operand_pos
             )
-        return self._position_cache[key]
+        return cast(OperationPosition, self._position_cache[key])
 
     def get_operand(
         self, op_pos: OperationPosition, operand_num: int
@@ -256,7 +261,7 @@ class PredicateBuilder:
             self._position_cache[key] = OperandPosition(
                 operand_number=operand_num, parent=op_pos
             )
-        return self._position_cache[key]
+        return cast(OperandPosition, self._position_cache[key])
 
     def get_result(self, op_pos: OperationPosition, result_num: int) -> ResultPosition:
         """Get a result position"""
@@ -265,7 +270,7 @@ class PredicateBuilder:
             self._position_cache[key] = ResultPosition(
                 result_number=result_num, parent=op_pos
             )
-        return self._position_cache[key]
+        return cast(ResultPosition, self._position_cache[key])
 
     def get_attribute(
         self, op_pos: OperationPosition, attr_name: str
@@ -276,14 +281,14 @@ class PredicateBuilder:
             self._position_cache[key] = AttributePosition(
                 attribute_name=attr_name, parent=op_pos
             )
-        return self._position_cache[key]
+        return cast(AttributePosition, self._position_cache[key])
 
     def get_type(self, pos: Position) -> TypePosition:
         """Get a type position"""
         key = ("type", pos)
         if key not in self._position_cache:
             self._position_cache[key] = TypePosition(parent=pos)
-        return self._position_cache[key]
+        return cast(TypePosition, self._position_cache[key])
 
     # Predicate builders
     def get_is_not_null(self) -> tuple[Question, Answer]:
@@ -298,8 +303,8 @@ class PredicateBuilder:
     def get_result_count(self, count: int) -> tuple[Question, Answer]:
         return (ResultCountQuestion(), UnsignedAnswer(value=count))
 
-    def get_equal_to(self, other_pos: Position) -> tuple[Question, Answer]:
-        return (EqualToQuestion(other_position=other_pos), TrueAnswer())
+    def get_equal_to(self, other_position: Position) -> tuple[Question, Answer]:
+        return (EqualToQuestion(other_position=other_position), TrueAnswer())
 
 
 # =============================================================================
@@ -320,7 +325,10 @@ class MatcherNode(ABC):
 class BoolNode(MatcherNode):
     """Boolean predicate node"""
 
-    answer: Answer = None
+    answer: Answer
+    success_node: MatcherNode | None = None
+    failure_node: MatcherNode | None = None
+
     success_node: MatcherNode | None = None
 
 
@@ -328,7 +336,7 @@ class BoolNode(MatcherNode):
 class SwitchNode(MatcherNode):
     """Multi-way switch node"""
 
-    children: dict[Answer, MatcherNode] = field(default_factory=dict)
+    children: dict[Answer, MatcherNode | None] = field(default_factory=lambda: {})
 
 
 @dataclass
@@ -430,7 +438,6 @@ class OptimalBranching:
         cycle_cost = sum(parent_depths[node] for node in cycle)
 
         # Update parents to break cycle
-        _rep = cycle[0]
         for i, node in enumerate(cycle[:-1]):
             self.parents[node] = cycle[i + 1]
 
@@ -448,28 +455,43 @@ class PatternAnalyzer:
     def __init__(self, builder: PredicateBuilder):
         self.builder = builder
 
-    def detect_roots(self, pattern) -> list[Any]:
-        """Detect root operations in a pattern (pseudo-code interface)"""
-        # PSEUDO: Find operations whose results aren't consumed by other ops
-        roots = []
-        used_ops = set()
+    def detect_roots(self, pattern: pdl.PatternOp) -> list[pdl.OperationOp]:
+        """Detect root operations in a pattern"""
+        used: set[pdl.OperationOp] = set()
 
-        for op in pattern.get_operations():
-            for operand in op.get_operands():
-                if hasattr(operand, "defining_op"):
-                    used_ops.add(operand.defining_op)
+        for operation_op in pattern.body.ops:
+            if not isinstance(operation_op, pdl.OperationOp):
+                continue
+            for operand in operation_op.operand_values:
+                result_op = operand.owner
+                if isinstance(result_op, pdl.ResultOp | pdl.ResultsOp):
+                    assert isinstance(
+                        used_op := result_op.parent_.owner, pdl.OperationOp
+                    )
+                    used.add(used_op)
 
-        for op in pattern.get_operations():
-            if op not in used_ops:
-                roots.append(op)
+        rewriter = pattern.body.block.last_op
+        assert isinstance(rewriter, pdl.RewriteOp)
+        if rewriter.root is not None:
+            assert isinstance(root := rewriter.root.owner, pdl.OperationOp)
+            if root in used:
+                used.remove(root)
 
+        roots = [
+            op
+            for op in pattern.body.ops
+            if isinstance(op, pdl.OperationOp) and op not in used
+        ]
         return roots
 
     def extract_tree_predicates(
-        self, value, position: Position, inputs: dict[Any, Position]
+        self,
+        value: Operation | SSAValue,
+        position: Position,
+        inputs: dict[Operation | SSAValue, Position],
     ) -> list[PositionalPredicate]:
         """Extract predicates by walking the operation tree"""
-        predicates = []
+        predicates: list[PositionalPredicate] = []
 
         # Avoid revisiting values
         if value in inputs:
@@ -481,67 +503,82 @@ class PatternAnalyzer:
 
         inputs[value] = position
 
-        # PSEUDO: Interface to PDL IR
-        if value.is_operation():
+        # Handle different PDL value types
+        if isinstance(value, Operation) and isinstance(position, OperationPosition):
             predicates.extend(
                 self._extract_operation_predicates(value, position, inputs)
             )
-        elif value.is_operand():
+        elif isinstance(value, SSAValue) and isinstance(position, OperandPosition):
             predicates.extend(self._extract_operand_predicates(value, position, inputs))
 
         return predicates
 
     def _extract_operation_predicates(
-        self, op_value, op_pos: OperationPosition, inputs: dict[Any, Position]
+        self,
+        op_value: Operation,
+        op_pos: OperationPosition,
+        inputs: dict[Operation | SSAValue, Position],
     ) -> list[PositionalPredicate]:
         """Extract predicates for an operation"""
-        predicates = []
+        predicates: list[PositionalPredicate] = []
 
-        # PSEUDO: Access PDL operation properties
+        # Access PDL operation properties
         if not op_pos.is_root():
             q, a = self.builder.get_is_not_null()
             predicates.append(PositionalPredicate(op_pos, q, a))
 
-        # Operation name check
-        if op_name := op_value.get_operation_name():
+        # Operation name check for pdl.operation
+        if isinstance(op_value, pdl.OperationOp) and op_value.opName:
+            op_name = op_value.opName.data
             q, a = self.builder.get_operation_name(op_name)
             predicates.append(PositionalPredicate(op_pos, q, a))
 
         # Operand count check
-        operand_count = op_value.get_operand_count()
-        q, a = self.builder.get_operand_count(operand_count)
-        predicates.append(PositionalPredicate(op_pos, q, a))
+        if isinstance(op_value, pdl.OperationOp):
+            operand_count = len(op_value.operand_values)
+            if operand_count > 0:
+                q, a = self.builder.get_operand_count(operand_count)
+                predicates.append(PositionalPredicate(op_pos, q, a))
 
         # Result count check
-        result_count = op_value.get_result_count()
-        q, a = self.builder.get_result_count(result_count)
-        predicates.append(PositionalPredicate(op_pos, q, a))
+        if isinstance(op_value, pdl.OperationOp):
+            # PDL operations typically have one result of OperationType
+            result_count = 1
+            q, a = self.builder.get_result_count(result_count)
+            predicates.append(PositionalPredicate(op_pos, q, a))
 
-        # Recurse into operands
-        for i, operand in enumerate(op_value.get_operands()):
-            operand_pos = self.builder.get_operand(op_pos, i)
-            predicates.extend(
-                self.extract_tree_predicates(operand, operand_pos, inputs)
-            )
+        # Extract operand predicates
+        if isinstance(op_value, pdl.OperationOp):
+            for i, operand in enumerate(op_value.operand_values):
+                operand_pos = self.builder.get_operand(op_pos, i)
+                predicates.extend(
+                    self.extract_tree_predicates(operand, operand_pos, inputs)
+                )
 
         return predicates
 
     def _extract_operand_predicates(
-        self, operand_value, operand_pos: OperandPosition, inputs: dict[Any, Position]
+        self,
+        operand_value: SSAValue,
+        operand_pos: OperandPosition,
+        inputs: dict[Operation | SSAValue, Position],
     ) -> list[PositionalPredicate]:
         """Extract predicates for an operand"""
-        predicates = []
+        predicates: list[PositionalPredicate] = []
 
-        # Not null check
-        q, a = self.builder.get_is_not_null()
-        predicates.append(PositionalPredicate(operand_pos, q, a))
+        # Not-null check for non-root operands
+        if operand_pos.parent:
+            q, a = self.builder.get_is_not_null()
+            predicates.append(PositionalPredicate(operand_pos, q, a))
 
         # If operand has a defining operation, recurse
-        if defining_op := operand_value.get_defining_operation():
-            def_op_pos = self.builder.get_operand_defining_op(operand_pos)
-            predicates.extend(
-                self.extract_tree_predicates(defining_op, def_op_pos, inputs)
-            )
+        # Check if operand has a defining operation
+        if operand_value.owner:
+            op_pos = self.builder.get_operand_defining_op(operand_pos)
+            if isinstance(operand_value.owner, Operation):
+                predicates.extend(
+                    self.extract_tree_predicates(operand_value.owner, op_pos, inputs)
+                )
 
         return predicates
 
@@ -568,15 +605,15 @@ class OrderedPredicate:
             self.primary_score,
             self.secondary_score,
             -self.position.get_operation_depth(),  # Prefer lower depth
-            -self.position.kind.value,  # Position dependency
-            -self.question.kind.value,  # Predicate dependency
+            -hash(self.position.ranking()),  # Position dependency
+            -hash(self.question.ranking()),  # Predicate dependency
             -self.tie_breaker,  # Deterministic order
         ) > (
             other.primary_score,
             other.secondary_score,
             -other.position.get_operation_depth(),
-            -other.position.kind.value,
-            -other.question.kind.value,
+            -hash(other.position.ranking()),
+            -hash(other.question.ranking()),
             -other.tie_breaker,
         )
 
@@ -590,8 +627,8 @@ class PredicateTreeBuilder:
     def build_predicate_tree(self, patterns: list[Any]) -> MatcherNode:
         """Build optimized matcher tree from multiple patterns"""
 
-        # Extract predicates from all patterns
-        all_pattern_predicates = []
+        # Extract predicates for all patterns
+        all_pattern_predicates: list[tuple[Any, list[PositionalPredicate]]] = []
         for pattern in patterns:
             predicates = self._extract_pattern_predicates(pattern)
             all_pattern_predicates.append((pattern, predicates))
@@ -613,31 +650,38 @@ class PredicateTreeBuilder:
             )
 
         # Add exit node and optimize
-        self._insert_exit_node(root_node)
-        self._optimize_tree(root_node)
+        if root_node is not None:
+            root_node = self._optimize_tree(root_node)
+            root_node = self._insert_exit_node(root_node)
+            return root_node
+        else:
+            # Return a default exit node if no patterns were processed
+            return ExitNode()
 
-        return root_node
-
-    def _extract_pattern_predicates(self, pattern) -> list[PositionalPredicate]:
+    def _extract_pattern_predicates(
+        self, pattern: pdl.PatternOp
+    ) -> list[PositionalPredicate]:
         """Extract all predicates for a single pattern"""
         roots = self.analyzer.detect_roots(pattern)
 
         # For simplicity, use first root (in real implementation,
         # would use optimal root selection)
+        if len(roots) > 1:
+            raise NotImplementedError("Multiple roots not yet supported")
         root = roots[0] if roots else None
         if not root:
             return []
 
-        inputs = {}
+        inputs: dict[Operation | SSAValue, Position] = {}
         root_pos = self.analyzer.builder.get_root()
 
         return self.analyzer.extract_tree_predicates(root, root_pos, inputs)
 
     def _create_ordered_predicates(
-        self, all_pattern_predicates
-    ) -> dict[tuple, OrderedPredicate]:
+        self, all_pattern_predicates: list[tuple[Any, list[PositionalPredicate]]]
+    ) -> dict[tuple[Position, Question], OrderedPredicate]:
         """Create ordered predicates with frequency analysis"""
-        predicate_map = {}
+        predicate_map: dict[tuple[Position, Question], OrderedPredicate] = {}
         tie_breaker = 0
 
         # Collect unique predicates
@@ -661,7 +705,7 @@ class PredicateTreeBuilder:
         # Calculate secondary scores
         for pattern, predicates in all_pattern_predicates:
             pattern_primary_sum = 0
-            pattern_predicates = []
+            pattern_predicates: list[OrderedPredicate] = []
 
             for pred in predicates:
                 key = (pred.position, pred.question)
@@ -679,7 +723,7 @@ class PredicateTreeBuilder:
         self,
         node: MatcherNode | None,
         pattern: Any,
-        pattern_predicates: dict[tuple, PositionalPredicate],
+        pattern_predicates: dict[tuple[Position, Question], PositionalPredicate],
         sorted_predicates: list[OrderedPredicate],
         predicate_index: int,
     ) -> MatcherNode:
@@ -743,21 +787,12 @@ class PredicateTreeBuilder:
             node.position == predicate.position and node.question == predicate.question
         )
 
-    def _insert_exit_node(self, root: MatcherNode):
+    def _insert_exit_node(self, root: MatcherNode) -> MatcherNode:
         """Insert exit node at end of failure paths"""
+        root.failure_node = ExitNode()
+        return root
 
-        def insert_exit_recursive(node):
-            if node is None:
-                return ExitNode()
-            if node.failure_node is None:
-                node.failure_node = ExitNode()
-            else:
-                node.failure_node = insert_exit_recursive(node.failure_node)
-            return node
-
-        return insert_exit_recursive(root)
-
-    def _optimize_tree(self, root: MatcherNode):
+    def _optimize_tree(self, root: MatcherNode) -> MatcherNode:
         """Optimize the tree by collapsing single-child switches to bools"""
         if isinstance(root, SwitchNode) and len(root.children) == 1:
             # Convert switch to bool node
@@ -765,20 +800,23 @@ class PredicateTreeBuilder:
             bool_node = BoolNode(
                 position=root.position,
                 question=root.question,
-                answer=answer,
                 success_node=child,
                 failure_node=root.failure_node,
+                answer=answer,
             )
             return bool_node
 
         # Recursively optimize children
         if isinstance(root, SwitchNode):
             for answer in root.children:
-                root.children[answer] = self._optimize_tree(root.children[answer])
+                child_node = root.children[answer]
+                if child_node is not None:
+                    root.children[answer] = self._optimize_tree(child_node)
         elif isinstance(root, BoolNode):
-            root.success_node = self._optimize_tree(root.success_node)
+            if root.success_node is not None:
+                root.success_node = self._optimize_tree(root.success_node)
 
-        if root.failure_node:
+        if root.failure_node is not None:
             root.failure_node = self._optimize_tree(root.failure_node)
 
         return root
@@ -803,6 +841,12 @@ class PDLInterpCodeGenerator:
         self.block_counter = 0
         self.value_counter = 0
 
+        # pdl_interp.FuncOp(
+        #     name,
+        #     # type,
+
+        # )
+
         code = [f"pdl_interp.func @{name}(%arg0: !pdl.operation) {{"]
 
         # Generate body
@@ -814,14 +858,11 @@ class PDLInterpCodeGenerator:
 
     def _generate_matcher_code(self, node: MatcherNode, block_name: str) -> list[str]:
         """Generate code for a matcher node"""
-        if node is None:
-            return []
-
         if isinstance(node, ExitNode):
             return ["pdl_interp.finalize"]
 
         elif isinstance(node, SuccessNode):
-            code = []
+            code: list[str] = []
             # Record successful match
             code.append(
                 "pdl_interp.record_match @rewriters::@pdl_generated_rewriter(...)"
@@ -846,9 +887,12 @@ class PDLInterpCodeGenerator:
 
     def _generate_bool_node_code(self, node: BoolNode) -> list[str]:
         """Generate code for boolean predicate node"""
-        code = []
+        code: list[str] = []
 
         # Get value at position
+        if node.position is None:
+            return ["// Error: node position is None"]
+
         value_access = self._generate_value_access(node.position)
         code.extend(value_access["setup"])
         current_value = value_access["result"]
@@ -859,28 +903,36 @@ class PDLInterpCodeGenerator:
         failure_block = f"^bb{self.block_counter}"
         self.block_counter += 1
 
-        predicate_code = self._generate_predicate_check(
-            node.question, node.answer, current_value, success_block, failure_block
-        )
-        code.extend(predicate_code)
+        if node.question is None:
+            code.append("// Error: node question is None")
+        else:
+            predicate_code = self._generate_predicate_check(
+                node.question, None, current_value, success_block, failure_block
+            )
+            code.extend(predicate_code)
 
         # Success block
         code.append(f"{success_block}:")
-        success_code = self._generate_matcher_code(node.success_node, success_block)
-        code.extend(f"  {line}" for line in success_code)
+        if node.success_node is not None:
+            success_code = self._generate_matcher_code(node.success_node, success_block)
+            code.extend(f"  {line}" for line in success_code)
 
         # Failure block
         code.append(f"{failure_block}:")
-        failure_code = self._generate_matcher_code(node.failure_node, failure_block)
-        code.extend(f"  {line}" for line in failure_code)
+        if node.failure_node is not None:
+            failure_code = self._generate_matcher_code(node.failure_node, failure_block)
+            code.extend(f"  {line}" for line in failure_code)
 
         return code
 
     def _generate_switch_node_code(self, node: SwitchNode) -> list[str]:
         """Generate code for switch node"""
-        code = []
+        code: list[str] = []
 
         # Get value at position
+        if node.position is None:
+            return ["// Error: node position is None"]
+
         value_access = self._generate_value_access(node.position)
         code.extend(value_access["setup"])
         current_value = value_access["result"]
@@ -889,8 +941,8 @@ class PDLInterpCodeGenerator:
         default_block = f"^bb{self.block_counter}"
         self.block_counter += 1
 
-        case_blocks = []
-        case_values = []
+        case_blocks: list[str] = []
+        case_values: list[str] = []
 
         for answer, child_node in node.children.items():
             case_block = f"^bb{self.block_counter}"
@@ -899,27 +951,34 @@ class PDLInterpCodeGenerator:
             case_values.append(self._answer_to_string(answer))
 
         # Generate switch instruction
-        switch_op = self._generate_switch_operation(
-            node.question, current_value, case_values, default_block, case_blocks
-        )
+        if node.question is not None:
+            switch_op = self._generate_switch_operation(
+                node.question, current_value, case_values, default_block, case_blocks
+            )
+        else:
+            switch_op = ["// Error: node question is None"]
         code.extend(switch_op)
 
         # Generate case blocks
-        for i, (answer, child_node) in enumerate(node.children.items()):
-            code.append(f"{case_blocks[i]}:")
-            child_code = self._generate_matcher_code(child_node, case_blocks[i])
-            code.extend(f"  {line}" for line in child_code)
+        for i, (_, child_node) in enumerate(node.children.items()):
+            if i < len(case_blocks):
+                case_block = case_blocks[i]
+                code.append(f"{case_block}:")
+                if child_node is not None:
+                    case_code = self._generate_matcher_code(child_node, case_block)
+                    code.extend(f"  {line}" for line in case_code)
 
-        # Default/failure block
+        # Default block
         code.append(f"{default_block}:")
-        failure_code = self._generate_matcher_code(node.failure_node, default_block)
-        code.extend(f"  {line}" for line in failure_code)
+        if node.failure_node is not None:
+            default_code = self._generate_matcher_code(node.failure_node, default_block)
+            code.extend(f"  {line}" for line in default_code)
 
         return code
 
     def _generate_value_access(self, position: Position) -> dict[str, Any]:
         """Generate code to access value at position"""
-        setup_code = []
+        setup_code: list[str] = []
 
         if isinstance(position, OperationPosition):
             if position.is_root():
@@ -964,7 +1023,7 @@ class PDLInterpCodeGenerator:
     def _generate_predicate_check(
         self,
         question: Question,
-        answer: Answer,
+        answer: Answer | None,
         value: str,
         success_block: str,
         failure_block: str,
@@ -976,28 +1035,39 @@ class PDLInterpCodeGenerator:
             ]
 
         elif isinstance(question, OperationNameQuestion):
-            op_name = answer.value
+            op_name = answer.value if answer and hasattr(answer, "value") else "unknown"
             return [
                 f'pdl_interp.check_operation_name of {value} is "{op_name}" -> {success_block}, {failure_block}'
             ]
 
         elif isinstance(question, OperandCountQuestion):
-            count = answer.value
+            count = (
+                answer.value
+                if answer and hasattr(answer, "value") and answer.value is not None
+                else 0
+            )
             return [
                 f"pdl_interp.check_operand_count of {value} is {count} -> {success_block}, {failure_block}"
             ]
 
         elif isinstance(question, ResultCountQuestion):
-            count = answer.value
+            count = (
+                answer.value
+                if answer and hasattr(answer, "value") and answer.value is not None
+                else 0
+            )
             return [
                 f"pdl_interp.check_result_count of {value} is {count} -> {success_block}, {failure_block}"
             ]
 
         elif isinstance(question, EqualToQuestion):
-            other_access = self._generate_value_access(question.other_position)
-            return other_access["setup"] + [
-                f"pdl_interp.are_equal {value}, {other_access['result']} -> {success_block}, {failure_block}"
-            ]
+            if hasattr(question, "other_position"):
+                other_access = self._generate_value_access(question.other_position)
+                return other_access["setup"] + [
+                    f"pdl_interp.are_equal {value}, {other_access['result']} -> {success_block}, {failure_block}"
+                ]
+            else:
+                return ["// Error: other_position is None for equal check"]
 
         return [f"// Unknown predicate check for {value}"]
 
@@ -1026,9 +1096,14 @@ class PDLInterpCodeGenerator:
 
         return [f"// Unknown switch operation for {value}"]
 
-    def _answer_to_string(self, answer: Answer) -> str:
+    def _answer_to_string(self, answer: Any) -> str:
         """Convert answer to string representation"""
-        return str(answer.value) if answer.value is not None else "null"
+        if hasattr(answer, "value") and answer.value is not None:
+            return str(answer.value)
+        elif isinstance(answer, str):
+            return answer
+        else:
+            return str(answer) if answer is not None else "null"
 
 
 # =============================================================================
@@ -1067,50 +1142,176 @@ class PDLToPDLInterpTransformer:
 
 
 def demo_transformation():
-    """Demonstrate the transformation with a simple example"""
+    """Demonstrate the transformation with a comprehensive example"""
 
-    # Mock PDL pattern (pseudo-code representation)
+    print("=== PDL to PDL_interp Transformation Demo ===\n")
+
+    # Mock PDL pattern that mimics real PDL structure
     class MockPDLPattern:
-        def __init__(self, name):
+        def __init__(self, name: str, operations: list["MockOperation"]):
             self.name = name
+            self.operations = operations
+            self.body = MockRegion(operations)
 
-        def get_operations(self):
-            # Simplified representation
-            return [
-                MockOperation("arith.mulf"),
-                MockOperation("arith.absf"),
-                MockOperation("math.sin"),
-            ]
+        def __str__(self):
+            return f"PDL Pattern: {self.name}"
+
+    class MockRegion:
+        def __init__(self, operations: list["MockOperation"]):
+            self.block = MockBlock(operations)
+
+    class MockBlock:
+        def __init__(self, operations: list["MockOperation"]):
+            self.ops = operations
 
     class MockOperation:
-        def __init__(self, name):
-            self.name = name
+        def __init__(self, op_name: str, operand_count: int = 1, result_count: int = 1):
+            self.name = op_name
+            self._operand_count = operand_count
+            self._result_count = result_count
+            self.opName = MockStringAttr(op_name)
+            self.operand_values = [f"operand_{i}" for i in range(operand_count)]
+            self.results = [MockResult(self)]
 
-        def get_operation_name(self):
+        def get_operation_name(self) -> str:
             return self.name
 
-        def get_operand_count(self):
-            return 2 if self.name == "arith.mulf" else 1
+        def get_operand_count(self) -> int:
+            return self._operand_count
 
-        def get_result_count(self):
-            return 1
+        def get_result_count(self) -> int:
+            return self._result_count
 
-        def get_operands(self):
-            return []  # Simplified
+        def get_operands(self) -> list[str]:
+            return self.operand_values
 
-    # Create transformer
-    transformer = PDLToPDLInterpTransformer()
+        def __str__(self):
+            return f"{self.name}({', '.join(self.operand_values)})"
 
-    # Mock patterns
-    patterns = [MockPDLPattern("example_pattern")]
+    class MockStringAttr:
+        def __init__(self, value: str):
+            self.data = value
 
-    # Transform
-    result = transformer.transform(patterns)
+    class MockResult:
+        def __init__(self, owner: MockOperation):
+            self.owner = owner
+            self.uses = []
 
-    print("Generated PDL_interp code:")
-    print("=" * 50)
-    print(result)
+    # Create realistic test patterns
+    patterns = [
+        # Pattern 1: Binary arithmetic operation (multiply)
+        MockPDLPattern(
+            "arith_mul_pattern",
+            [MockOperation("arith.mulf", operand_count=2, result_count=1)],
+        ),
+        # Pattern 2: Unary operation (absolute value)
+        MockPDLPattern(
+            "math_abs_pattern",
+            [MockOperation("math.absf", operand_count=1, result_count=1)],
+        ),
+        # Pattern 3: Chained operations
+        MockPDLPattern(
+            "complex_pattern",
+            [
+                MockOperation("arith.addf", operand_count=2, result_count=1),
+                MockOperation("math.sqrt", operand_count=1, result_count=1),
+            ],
+        ),
+    ]
+
+    print(f"Created {len(patterns)} test patterns:")
+    for i, pattern in enumerate(patterns, 1):
+        print(f"  {i}. {pattern}")
+        for op in pattern.operations:
+            print(f"     - {op}")
+
+    print("\n" + "=" * 60)
+
+    try:
+        # Create transformer
+        transformer = PDLToPDLInterpTransformer()
+
+        # Transform patterns
+        print("Starting transformation...")
+        result = transformer.transform(patterns)
+
+        print("\n" + "=" * 60)
+        print("Generated PDL_interp matcher code:")
+        print("-" * 40)
+        print(result)
+        print("-" * 40)
+
+        # Analyze the result
+        lines = result.split("\n")
+        print("\nCode analysis:")
+        print(f"  - Generated {len(lines)} lines of code")
+        print(f"  - Contains {result.count('pdl_interp.')} PDL_interp operations")
+        print(f"  - Has {result.count('^bb')} basic blocks")
+
+        print("\nTransformation completed successfully! ✓")
+
+    except Exception as e:
+        print(f"\nTransformation failed with error: {e}")
+        print("This is expected as the implementation is still a framework.")
+        print("In a real implementation, this would generate working PDL_interp IR.")
+
+    print("\n" + "=" * 60)
+    print("Demo completed. This shows the structure of a PDL->PDL_interp transformer.")
+
+
+def run_simple_test():
+    """Run a minimal test to verify basic functionality"""
+    print("\n=== Simple Functionality Test ===")
+
+    try:
+        # Test basic position creation
+        builder = PredicateBuilder()
+        root_pos = builder.get_root()
+        _operand_pos = builder.get_operand(root_pos, 0)
+
+        print("✓ Created positions")
+
+        # Test predicate creation
+        q, a = builder.get_operation_name("test.op")
+        print(f"✓ Created predicate: {q.kind} -> {a.kind}")
+
+        print("✓ Basic functionality test passed!")
+
+    except Exception as e:
+        print(f"✗ Basic functionality test failed: {e}")
 
 
 if __name__ == "__main__":
-    demo_transformation()
+    pattern = """pdl.pattern : benefit(1) {
+  %x = pdl.operand
+  %type = pdl.type
+  %one = pdl.attribute = 1 : i32
+  %constop = pdl.operation "arith.constant" {"value" = %one} -> (%type : !pdl.type)
+  %const = pdl.result 0 of %constop
+  %mulop = pdl.operation "arith.muli" (%x, %const : !pdl.value, !pdl.value) -> (%type : !pdl.type)
+  pdl.rewrite %mulop {
+    pdl.replace %mulop with (%x : !pdl.value)
+  }
+}"""
+    ctx = Context()
+    ctx.load_dialect(pdl.PDL)
+    # ctx.load_dialect(Test)
+
+    parser = Parser(ctx, pattern)
+    pattern = parser.parse_op()
+    print(pattern)
+
+    assert isinstance(pattern, pdl.PatternOp)
+
+    x = PredicateTreeBuilder()._extract_pattern_predicates(pattern)  # pyright: ignore[reportPrivateUsage]
+
+    print(x)
+
+    y = PredicateTreeBuilder().build_predicate_tree([pattern])
+    print(y)
+
+    code = PDLInterpCodeGenerator().generate_matcher_function(y)
+
+    _ = None
+    # demo_transformation()
+    # run_simple_test()
