@@ -6,15 +6,15 @@ app = marimo.App(width="medium")
 
 @app.cell
 async def _():
-    import sys
     import marimo as mo
+    import sys
 
     # Use the locally built xDSL wheel when running in Marimo
-    if sys.platform == 'emscripten':
+    if sys.platform == "emscripten":
 
         # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
         # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
-        # the wheel both locally and when deployed to makethedocs. 
+        # the wheel both locally and when deployed to makethedocs.
         def get_url():
             import re
             url = str(mo.notebook_location())[5:]
@@ -38,7 +38,8 @@ async def _():
 
     from xdsl.printer import Printer
 
-    return (mo,)
+    from xdsl.frontend.expression.main import program_to_mlir
+    return (mo, program_to_mlir)
 
 
 @app.cell(hide_code=True)
@@ -67,8 +68,30 @@ def _(mo):
 
 
 @app.cell
-def _(expr_str, mo):
-    mo.md(f"Expr String: {expr_str}")
+def _(mo):
+    get_state, set_state = mo.state("")
+    return (get_state, set_state)
+
+@app.cell
+def _(expr_str, mo, program_to_mlir, get_state, set_state):
+    from xdsl.frontend.expression.main import ParseError
+
+    try:
+        def printtest(code) -> str:
+            output = program_to_mlir(code.value)
+            output = output.replace("builtin.module {\n", "")
+            output = output.replace("\n", "<br>")
+            output = output.replace("}", "")
+
+            return output
+
+        res = printtest(expr_str)
+        set_state(res)
+    except ParseError:
+        res = get_state()
+
+    mo.md(f"{res}")
+
     return
 
 
