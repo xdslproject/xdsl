@@ -183,25 +183,23 @@ class ApplyNativeConstraintOp(IRDLOperation):
     name = "pdl.apply_native_constraint"
     constraint_name = prop_def(StringAttr, prop_name="name")
     args = var_operand_def(AnyPDLTypeConstr)
+    res = var_result_def(AnyPDLTypeConstr)
 
-    def __init__(self, name: str | StringAttr, args: Sequence[SSAValue]) -> None:
+    assembly_format = (
+        "$name (`(` $args^ `:` type($args) `)`)? (`:` type($res)^)? attr-dict"
+    )
+
+    def __init__(
+        self,
+        name: str | StringAttr,
+        args: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+    ) -> None:
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__(operands=[args], properties={"name": name})
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ApplyNativeConstraintOp:
-        name = parser.parse_str_literal()
-        parser.parse_punctuation("(")
-        operands = parse_operands_with_types(parser)
-        parser.parse_punctuation(")")
-        return ApplyNativeConstraintOp(name, operands)
-
-    def print(self, printer: Printer) -> None:
-        printer.print_string(" ")
-        printer.print_string_literal(self.constraint_name.data)
-        with printer.in_parens():
-            print_operands_with_types(printer, self.operands)
+        super().__init__(
+            result_types=[result_types], operands=[args], properties={"name": name}
+        )
 
 
 @irdl_op_definition
