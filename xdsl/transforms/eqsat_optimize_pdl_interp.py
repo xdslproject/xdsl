@@ -67,10 +67,10 @@ class MatcherOptimizer:
         assert (incoming_edge := are_equal_block.first_use) is not None
         incoming_edges: list[Use] = [incoming_edge]
 
-        outgoing_edges = [are_equal_op._successor_uses[0]]  # pyright: ignore[reportPrivateUsage]
+        outgoing_edges = [are_equal_op.successor_uses[0]]
 
         block_dependencies: set[SSAValue] = {
-            result for op in are_equal_block.ops for result in op.operands
+            operand for op in are_equal_block.ops for operand in op.operands
         }
         insertion_edge = None
         while True:
@@ -78,10 +78,7 @@ class MatcherOptimizer:
             pred = incoming_edge.operation.parent_block()
             assert pred is not None
             outgoing_edge = incoming_edge
-            incoming_edge = next(iter(pred.uses), None)
-            if incoming_edge is None:
-                insertion_edge = outgoing_edge
-                break
+            incoming_edge = pred.first_use
             for succ in outgoing_edge.operation.successors:
                 if succ == outgoing_edge.operation.successors[outgoing_edge.index]:
                     continue
@@ -100,8 +97,15 @@ class MatcherOptimizer:
                             break
                         should_move_block = True  # block defines a value that is used by the blocks to move.
                         continue
+                if insertion_edge is not None:
+                    # encountered a GDO that is used.
+                    break
             if insertion_edge is not None:
                 break
+            if incoming_edge is None:
+                # We reached the beginning of the chain of blocks
+                # and haven't found a GetDefiningOp so we quit.
+                return False
             terminator = pred.last_op
             assert terminator is not None, "Expected each block to have a terminator"
             if any(
@@ -112,6 +116,7 @@ class MatcherOptimizer:
                 if not isinstance(terminator, pdl_interp.AreEqualOp):
                     # We make an exception for AreEqualOp: this allows blocks checking equality to be reordered.
                     should_move_block = True
+                # should_move_block = True
             if not should_move_block:
                 continue
             blocks_to_move.append(pred)
@@ -121,6 +126,7 @@ class MatcherOptimizer:
                 block_dependencies.update(op.operands)
 
         assert insertion_edge is not None
+        # print(f"Moving {len(blocks_to_move)} blocks to {insertion_edge.operation.name}")
 
         #  initial    move  2      move  4
         #  ┌─────┐    ┌─────┐      ┌─────┐
@@ -145,10 +151,15 @@ class MatcherOptimizer:
         #     │       └──┬──┘      └──┬──┘│
         #     ▼          ▼            └───┘
 
-        for block, incoming, outgoing in zip(
-            reversed(blocks_to_move), reversed(incoming_edges), reversed(outgoing_edges)
-        ):
+        # iterate over `blocks_to_move` in reverse:
+        for i in range(len(blocks_to_move) - 1, -1, -1):
+            block = blocks_to_move[i]
+            incoming = incoming_edges[i]
+            outgoing = outgoing_edges[i]
+            next_incoming = incoming_edges[i - 1] if i > 0 else None
+
             assert outgoing.operation.parent_block() is block
+            assert incoming.operation.successors[incoming.index] is block
             if incoming.operation is insertion_edge.operation:
                 insertion_edge = outgoing
                 continue
@@ -156,9 +167,14 @@ class MatcherOptimizer:
             insertion_edge.operation.successors[insertion_edge.index] = block
             outgoing_dest = outgoing.operation.successors[outgoing.index]
             outgoing.operation.successors[outgoing.index] = insertion_dest
-            if incoming.operation != insertion_edge.operation:
-                incoming.operation.successors[incoming.index] = outgoing_dest
-            insertion_edge = outgoing.operation._successor_uses[outgoing.index]  # pyright: ignore[reportPrivateUsage]
+            incoming.operation.successors[incoming.index] = outgoing_dest
+            if next_incoming == outgoing:
+                # We have changed `outgoing`'s operation. Since this edge pointed to the next block,
+                # we need to update next_incoming with the updated edge that now points to the block.
+                incoming_edges[i - 1] = incoming.operation.successor_uses[
+                    incoming.index
+                ]
+            insertion_edge = outgoing.operation.successor_uses[outgoing.index]
 
         return True
 
