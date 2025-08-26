@@ -12,8 +12,8 @@ from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
-from xdsl.parser import Parser
-from xdsl.rewriter import InsertPoint
+from xdsl.passes import ModulePass
+from xdsl.rewriter import InsertPoint, Rewriter
 
 # =============================================================================
 # Core Data Structures - Positions
@@ -1815,7 +1815,7 @@ class MatcherGenerator:
                 break
 
         # Create the record match operation
-        if matched_values:
+        if False and matched_values:
             # Get root operation name if available
             root_kind = None
             if hasattr(pattern, "root_op_name"):
@@ -1855,87 +1855,29 @@ def lower_pdl_to_pdl_interp(module: ModuleOp, matcher_func: pdl_interp.FuncOp) -
 # =============================================================================
 
 
-class PDLToPDLInterpTransformer:
-    """Main transformer class that orchestrates the entire conversion"""
+class ConvertPDLToPDLInterpPass(ModulePass):
+    """
+    Pass to convert PDL operations to PDL interpreter operations.
+    This is a somewhat faithful port of the implementation in MLIR, but it may not generate the same exact results.
 
-    def __init__(self):
-        self.tree_builder = PredicateTreeBuilder()
-        self.code_generator = ()
+    Currently the pass only generates the matcher code (not the rewriter), and does not yet support multiple patterns.
+    """
 
-    def transform(self, pdl_patterns: list[Any]) -> str:
-        """Transform PDL patterns to pdl_interp code"""
+    name = "convert-pdl-to-pdl-interp"
 
-        print("=== PDL to PDL_interp Transformation ===")
-        print(f"Processing {len(pdl_patterns)} patterns...")
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
+        patterns = [
+            pattern for pattern in op.body.ops if isinstance(pattern, pdl.PatternOp)
+        ]
 
-        # Stage 1: Build predicate tree
-        print("\nStage 1: Building predicate tree...")
-        matcher_tree = self.tree_builder.build_predicate_tree(pdl_patterns)
+        if len(patterns) != 1:
+            raise NotImplementedError("Currently only single pattern is supported")
 
-        # Stage 2: Generate code
-        print("Stage 2: Generating pdl_interp code...")
-        generated_code = self.code_generator.generate_matcher_function(matcher_tree)
+        y = PredicateTreeBuilder().build_predicate_tree(patterns)
+        matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+        mg = MatcherGenerator(matcher_func)
+        mg.values[OperationPosition(None, depth=0)] = matcher_func.body.block.args[0]
+        mg.generate_matcher(y, matcher_func.body)
 
-        print("Stage 3: Transformation complete!\n")
-        return generated_code
-
-
-if __name__ == "__main__":
-    pattern = """pdl.pattern : benefit(1) {
-  %x = pdl.operand
-  %type = pdl.type
-  %one = pdl.attribute = 1 : i32
-  %constop = pdl.operation "arith.constant" {"value" = %one} -> (%type : !pdl.type)
-  %const = pdl.result 0 of %constop
-  %mulop = pdl.operation "arith.muli" (%x, %const : !pdl.value, !pdl.value) -> (%type : !pdl.type)
-  pdl.rewrite %mulop {
-    pdl.replace %mulop with (%x : !pdl.value)
-  }
-}"""
-    pattern = """
-pdl.pattern @exp_lft_cube_rev : benefit(1) {
-  %0 = pdl.type : f32
-  %1 = pdl.operand : %0
-  %2 = pdl.operation "math.exp" (%1 : !pdl.value) -> (%0 : !pdl.type)
-  %3 = pdl.result 0 of %2
-  %4 = pdl.attribute = 3.000000e+00 : f32
-  %5 = pdl.operation "arith.constant" {"value" = %4} -> (%0 : !pdl.type)
-  %6 = pdl.result 0 of %5
-  %7 = pdl.operation "math.powf" (%3, %6 : !pdl.value, !pdl.value) -> (%0 : !pdl.type)
-  %8 = pdl.result 0 of %7
-  pdl.rewrite %7 {
-    %9 = pdl.attribute = 3.000000e+00 : f32
-    %10 = pdl.operation "arith.constant" {"value" = %9} -> (%0 : !pdl.type)
-    %11 = pdl.result 0 of %10
-    %12 = pdl.operation "arith.mulf" (%1, %11 : !pdl.value, !pdl.value) -> (%0 : !pdl.type)
-    %13 = pdl.result 0 of %12
-    %14 = pdl.operation "math.exp" (%13 : !pdl.value) -> (%0 : !pdl.type)
-    %15 = pdl.result 0 of %14
-    pdl.replace %7 with (%15 : !pdl.value)
-  }
-}
-"""
-    ctx = Context()
-    ctx.load_dialect(pdl.PDL)
-    # ctx.load_dialect(Test)
-
-    parser = Parser(ctx, pattern)
-    pattern = parser.parse_op()
-    print(pattern)
-
-    assert isinstance(pattern, pdl.PatternOp)
-
-    x = PredicateTreeBuilder()._extract_pattern_predicates(pattern)  # pyright: ignore[reportPrivateUsage]
-
-    print(x)
-
-    y = PredicateTreeBuilder().build_predicate_tree([pattern])
-    print(y)
-
-    matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
-
-    mg = MatcherGenerator(matcher_func)
-    mg.values[OperationPosition(None, depth=0)] = matcher_func.body.block.args[0]
-    mg.generate_matcher(y, matcher_func.body)
-
-    _ = None
+        rewriter = Rewriter()
+        rewriter.replace_op(patterns[0], matcher_func)
