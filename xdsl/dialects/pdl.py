@@ -854,7 +854,7 @@ class TypeOp(IRDLOperation):
     """
 
     name = "pdl.type"
-    constantType = opt_prop_def()
+    constantType = opt_prop_def(TypeAttribute)
     result = result_def(TypeType)
 
     assembly_format = "attr-dict (`:` $constantType^)?"
@@ -875,7 +875,7 @@ class TypesOp(IRDLOperation):
     """
 
     name = "pdl.types"
-    constantTypes = opt_prop_def(ArrayAttr)
+    constantTypes = opt_prop_def(ArrayAttr[TypeAttribute])
     result = result_def(RangeType[TypeType])
 
     assembly_format = "attr-dict (`:` $constantTypes^)?"
