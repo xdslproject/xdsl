@@ -3,13 +3,17 @@ PDL to PDL_interp Transformation
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Optional, cast
 
+from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import pdl
-from xdsl.ir import Operation, SSAValue
+from xdsl.dialects import pdl, pdl_interp
+from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
 from xdsl.parser import Parser
+from xdsl.rewriter import InsertPoint
 
 # =============================================================================
 # Core Data Structures - Positions
@@ -34,11 +38,11 @@ class Position(ABC):
         ...
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class OperationPosition(Position):
     """Represents an operation in the IR"""
 
-    depth: int = 0
+    depth: int
 
     def is_root(self) -> bool:
         return self.depth == 0
@@ -50,45 +54,42 @@ class OperationPosition(Position):
         return 0
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class OperandPosition(Position):
     """Represents an operand of an operation"""
 
-    operand_number: int = -1
+    operand_number: int
 
     def ranking(self):
         return 1
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class OperandGroupPosition(Position):
     """Represents a group of operands"""
 
-    group_number: int | None = None
-    is_variadic: bool = False
+    group_number: int | None
+    is_variadic: bool
 
     def ranking(self):
         return 2
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ResultPosition(Position):
     """Represents a result of an operation"""
 
-    result_number: int = -1
+    result_number: int
 
     def ranking(self):
         return 3
 
 
-# TODO: ResultGroupPosition?
-
-
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class AttributePosition(Position):
     """Represents an attribute of an operation"""
 
-    attribute_name: str = ""
+    attribute_name: str
 
     def ranking(self):
         return 4
@@ -102,14 +103,72 @@ class TypePosition(Position):
         return 5
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class UsersPosition(Position):
     """Represents users of a value"""
 
-    use_representative: bool = False
+    use_representative: bool
 
     def ranking(self):
         return 6
+
+
+@dataclass(frozen=True, kw_only=True)
+class ResultGroupPosition(Position):
+    """Represents a group of results"""
+
+    group_number: int | None
+    is_variadic: bool
+
+    def ranking(self):
+        return 3  # Same as ResultPosition
+
+
+@dataclass(frozen=True)
+class AllOperandsPosition(Position):
+    """Represents all operands of an operation"""
+
+    def ranking(self):
+        return 2  # Same as OperandGroupPosition
+
+
+@dataclass(frozen=True)
+class AllResultsPosition(Position):
+    """Represents all results of an operation"""
+
+    def ranking(self):
+        return 3  # Same as ResultPosition/ResultGroupPosition
+
+
+@dataclass(frozen=True, kw_only=True)
+class AttributeLiteralPosition(Position):
+    """Represents a literal attribute value"""
+
+    value: Attribute
+
+    def ranking(self):
+        return 7  # Literals rank after regular positions
+
+
+@dataclass(frozen=True, kw_only=True)
+class TypeLiteralPosition(Position):
+    """Represents a literal type value"""
+
+    value: Attribute  # Can be a single type or array of types
+
+    def ranking(self):
+        return 8  # Literals rank after regular positions
+
+
+@dataclass(frozen=True, kw_only=True)
+class ConstraintPosition(Position):
+    """Represents a result from a constraint"""
+
+    constraint: "ConstraintQuestion"
+    result_index: int
+
+    def ranking(self):
+        return 9  # Constraints rank last
 
 
 # =============================================================================
@@ -138,11 +197,7 @@ class Question(Predicate):
 class Answer(Predicate):
     """Represents an expected answer to a question"""
 
-    value: Any = None
-
-    def ranking(self) -> int:
-        """Ranking for ordering Answers"""
-        return 0
+    pass
 
 
 # Question Types
@@ -183,6 +238,43 @@ class EqualToQuestion(Question):
         return 5
 
 
+@dataclass(frozen=True)
+class OperandCountAtLeastQuestion(Question):
+    def ranking(self) -> int:
+        return 3  # Same priority as exact count
+
+
+@dataclass(frozen=True)
+class ResultCountAtLeastQuestion(Question):
+    def ranking(self) -> int:
+        return 4  # Same priority as exact count
+
+
+@dataclass(frozen=True)
+class AttributeConstraintQuestion(Question):
+    def ranking(self) -> int:
+        return 10
+
+
+@dataclass(frozen=True)
+class TypeConstraintQuestion(Question):
+    def ranking(self) -> int:
+        return 11
+
+
+@dataclass(frozen=True)
+class ConstraintQuestion(Question):
+    """Represents a native constraint check"""
+
+    name: str
+    arg_positions: list[Position]
+    result_types: list[pdl.AnyPDLType]
+    is_negated: bool
+
+    def ranking(self) -> int:
+        return 12
+
+
 # Answer Types
 @dataclass(frozen=True)
 class TrueAnswer(Answer):
@@ -208,6 +300,22 @@ class StringAnswer(Answer):
     def ranking(self) -> int:
         """Ranking for ordering Answers"""
         return 8
+
+
+@dataclass(frozen=True)
+class AttributeAnswer(Answer):
+    value: Attribute
+
+    def ranking(self) -> int:
+        return 9
+
+
+@dataclass(frozen=True)
+class TypeAnswer(Answer):
+    value: TypeAttribute | ArrayAttr[TypeAttribute]
+
+    def ranking(self) -> int:
+        return 10
 
 
 # =============================================================================
@@ -306,6 +414,105 @@ class PredicateBuilder:
     def get_equal_to(self, other_position: Position) -> tuple[Question, Answer]:
         return (EqualToQuestion(other_position=other_position), TrueAnswer())
 
+    def get_operand_count_at_least(self, count: int) -> tuple[Question, Answer]:
+        """Get predicate for minimum operand count (variadic case)"""
+        return (OperandCountAtLeastQuestion(), UnsignedAnswer(value=count))
+
+    def get_result_count_at_least(self, count: int) -> tuple[Question, Answer]:
+        """Get predicate for minimum result count (variadic case)"""
+        return (ResultCountAtLeastQuestion(), UnsignedAnswer(value=count))
+
+    def get_attribute_constraint(
+        self, attr_value: Attribute
+    ) -> tuple[Question, Answer]:
+        """Get predicate for attribute value constraint"""
+        return (AttributeConstraintQuestion(), AttributeAnswer(value=attr_value))
+
+    def get_type_constraint(
+        self, type_value: TypeAttribute | ArrayAttr[TypeAttribute]
+    ) -> tuple[Question, Answer]:
+        """Get predicate for type value constraint"""
+        return (TypeConstraintQuestion(), TypeAnswer(value=type_value))
+
+    def get_operand_group(
+        self, op_pos: OperationPosition, group_num: int, is_variadic: bool
+    ) -> OperandGroupPosition:
+        """Get an operand group position"""
+        key = ("operand_group", op_pos, group_num, is_variadic)
+        if key not in self._position_cache:
+            self._position_cache[key] = OperandGroupPosition(
+                group_number=group_num, is_variadic=is_variadic, parent=op_pos
+            )
+        return cast(OperandGroupPosition, self._position_cache[key])
+
+    def get_result_group(
+        self, op_pos: OperationPosition, group_num: int | None, is_variadic: bool
+    ) -> ResultGroupPosition:
+        """Get a result group position"""
+        key = ("result_group", op_pos, group_num, is_variadic)
+        if key not in self._position_cache:
+            self._position_cache[key] = ResultGroupPosition(
+                group_number=group_num, is_variadic=is_variadic, parent=op_pos
+            )
+        return cast(ResultGroupPosition, self._position_cache[key])
+
+    def get_all_operands(self, op_pos: OperationPosition) -> AllOperandsPosition:
+        """Get position representing all operands of an operation"""
+        key = ("all_operands", op_pos)
+        if key not in self._position_cache:
+            self._position_cache[key] = AllOperandsPosition(parent=op_pos)
+        return cast(AllOperandsPosition, self._position_cache[key])
+
+    def get_all_results(self, op_pos: OperationPosition) -> AllResultsPosition:
+        """Get position representing all results of an operation"""
+        key = ("all_results", op_pos)
+        if key not in self._position_cache:
+            self._position_cache[key] = AllResultsPosition(parent=op_pos)
+        return cast(AllResultsPosition, self._position_cache[key])
+
+    def get_attribute_literal(self, value: Attribute) -> AttributeLiteralPosition:
+        """Get position for a literal attribute value"""
+        key = ("attribute_literal", value)
+        if key not in self._position_cache:
+            self._position_cache[key] = AttributeLiteralPosition(
+                value=value, parent=None
+            )
+        return cast(AttributeLiteralPosition, self._position_cache[key])
+
+    def get_type_literal(self, value: Attribute) -> TypeLiteralPosition:
+        """Get position for a literal type value"""
+        key = ("type_literal", value)
+        if key not in self._position_cache:
+            self._position_cache[key] = TypeLiteralPosition(value=value, parent=None)
+        return cast(TypeLiteralPosition, self._position_cache[key])
+
+    def get_constraint(
+        self,
+        name: str,
+        arg_positions: list[Position],
+        result_types: list[pdl.AnyPDLType],
+        is_negated: bool = False,
+    ) -> tuple[Question, Answer]:
+        """Get predicate for a native constraint"""
+        question = ConstraintQuestion(
+            name=name,
+            arg_positions=arg_positions,
+            result_types=result_types,
+            is_negated=is_negated,
+        )
+        return (question, TrueAnswer())
+
+    def get_constraint_position(
+        self, constraint_question: ConstraintQuestion, result_index: int
+    ) -> ConstraintPosition:
+        """Get position for a constraint result"""
+        key = ("constraint_pos", constraint_question, result_index)
+        if key not in self._position_cache:
+            self._position_cache[key] = ConstraintPosition(
+                constraint=constraint_question, result_index=result_index, parent=None
+            )
+        return cast(ConstraintPosition, self._position_cache[key])
+
 
 # =============================================================================
 # Matcher Tree Nodes
@@ -321,13 +528,14 @@ class MatcherNode(ABC):
     failure_node: Optional["MatcherNode"] = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class BoolNode(MatcherNode):
     """Boolean predicate node"""
 
-    answer: Answer
     success_node: MatcherNode | None = None
     failure_node: MatcherNode | None = None
+
+    answer: Answer
 
     success_node: MatcherNode | None = None
 
@@ -339,12 +547,12 @@ class SwitchNode(MatcherNode):
     children: dict[Answer, MatcherNode | None] = field(default_factory=lambda: {})
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SuccessNode(MatcherNode):
     """Successful pattern match"""
 
-    pattern: Any = None  # PDL pattern reference
-    root: Any = None  # Root value
+    pattern: pdl.PatternOp  # PDL pattern reference
+    root: SSAValue | None = None  # Root value
 
 
 @dataclass
@@ -489,96 +697,394 @@ class PatternAnalyzer:
         value: Operation | SSAValue,
         position: Position,
         inputs: dict[Operation | SSAValue, Position],
+        ignore_operand: int | None = None,
     ) -> list[PositionalPredicate]:
         """Extract predicates by walking the operation tree"""
         predicates: list[PositionalPredicate] = []
 
-        # Avoid revisiting values
-        if value in inputs:
-            if inputs[value] != position:
-                # Add equality constraint
-                q, a = self.builder.get_equal_to(inputs[value])
-                predicates.append(PositionalPredicate(position, q, a))
+        # Check if this value has been visited before
+        existing_pos = inputs.get(value)
+        if existing_pos is not None:
+            # If this is an input value that has been visited in the tree,
+            # add a constraint to ensure both instances refer to the same value
+            defining_op = value.owner if isinstance(value, SSAValue) else value
+            if isinstance(
+                defining_op,
+                pdl.AttributeOp
+                | pdl.OperandOp
+                | pdl.OperandsOp
+                | pdl.OperationOp
+                | pdl.TypeOp
+                | pdl.TypesOp,
+            ):
+                # Order positions by depth (deeper position gets the equality predicate)
+                if position.get_operation_depth() > existing_pos.get_operation_depth():
+                    deeper_pos, shallower_pos = position, existing_pos
+                else:
+                    deeper_pos, shallower_pos = existing_pos, position
+
+                q, a = self.builder.get_equal_to(shallower_pos)
+                predicates.append(PositionalPredicate(deeper_pos, q, a))
             return predicates
 
         inputs[value] = position
 
-        # Handle different PDL value types
-        if isinstance(value, Operation) and isinstance(position, OperationPosition):
+        # Dispatch based on position type (not value type!)
+        if isinstance(position, AttributePosition):
             predicates.extend(
-                self._extract_operation_predicates(value, position, inputs)
+                self._extract_attribute_predicates(value, position, inputs)
             )
-        elif isinstance(value, SSAValue) and isinstance(position, OperandPosition):
-            predicates.extend(self._extract_operand_predicates(value, position, inputs))
+        elif isinstance(position, OperationPosition):
+            predicates.extend(
+                self._extract_operation_predicates(
+                    value, position, inputs, ignore_operand
+                )
+            )
+        elif isinstance(position, TypePosition):
+            predicates.extend(self._extract_type_predicates(value, position, inputs))
+        elif isinstance(position, OperandPosition | OperandGroupPosition):
+            assert isinstance(value, SSAValue)
+            predicates.extend(
+                self._extract_operand_tree_predicates(value, position, inputs)
+            )
+        else:
+            raise TypeError(f"Unexpected position kind: {type(position)}")
+
+        return predicates
+
+    def _get_num_non_range_values(self, values: Sequence[SSAValue]) -> int:
+        """Returns the number of non-range elements within values"""
+        return sum(1 for v in values if not isinstance(v.type, pdl.RangeType))
+
+    def _extract_attribute_predicates(
+        self,
+        attr_value: Operation | SSAValue,
+        attr_pos: AttributePosition,
+        inputs: dict[Operation | SSAValue, Position],
+    ) -> list[PositionalPredicate]:
+        """Extract predicates for an attribute"""
+        predicates: list[PositionalPredicate] = []
+
+        q, a = self.builder.get_is_not_null()
+        predicates.append(PositionalPredicate(attr_pos, q, a))
+
+        # Get the actual attribute operation
+        if isinstance(attr_value, SSAValue):
+            attr_op = attr_value.owner
+        else:
+            attr_op = attr_value
+
+        if isinstance(attr_op, pdl.AttributeOp):
+            if attr_op.value_type:
+                type_pos = self.builder.get_type(attr_pos)
+                predicates.extend(
+                    self.extract_tree_predicates(attr_op.value_type, type_pos, inputs)
+                )
+
+            elif attr_op.value:
+                q, a = self.builder.get_attribute_constraint(attr_op.value)
+                predicates.append(PositionalPredicate(attr_pos, q, a))
 
         return predicates
 
     def _extract_operation_predicates(
         self,
-        op_value: Operation,
+        op_value: Operation | SSAValue,
         op_pos: OperationPosition,
         inputs: dict[Operation | SSAValue, Position],
+        ignore_operand: int | None = None,
     ) -> list[PositionalPredicate]:
         """Extract predicates for an operation"""
         predicates: list[PositionalPredicate] = []
 
-        # Access PDL operation properties
         if not op_pos.is_root():
             q, a = self.builder.get_is_not_null()
             predicates.append(PositionalPredicate(op_pos, q, a))
 
-        # Operation name check for pdl.operation
-        if isinstance(op_value, pdl.OperationOp) and op_value.opName:
+        # Get the actual operation
+        if isinstance(op_value, SSAValue):
+            assert isinstance(op_value.owner, Operation)
+            op_value = op_value.owner
+
+        if not isinstance(op_value, pdl.OperationOp):
+            return predicates
+
+        # Operation name check
+        if op_value.opName:
             op_name = op_value.opName.data
             q, a = self.builder.get_operation_name(op_name)
             predicates.append(PositionalPredicate(op_pos, q, a))
 
-        # Operand count check
-        if isinstance(op_value, pdl.OperationOp):
-            operand_count = len(op_value.operand_values)
-            if operand_count > 0:
-                q, a = self.builder.get_operand_count(operand_count)
+        operands = op_value.operand_values
+        min_operands = self._get_num_non_range_values(operands)
+        if min_operands != len(operands):
+            # Has variadic operands - check minimum
+            if min_operands > 0:
+                q, a = self.builder.get_operand_count_at_least(min_operands)
                 predicates.append(PositionalPredicate(op_pos, q, a))
-
-        # Result count check
-        if isinstance(op_value, pdl.OperationOp):
-            # PDL operations typically have one result of OperationType
-            result_count = 1
-            q, a = self.builder.get_result_count(result_count)
+        else:
+            # All non-variadic - check exact count
+            q, a = self.builder.get_operand_count(min_operands)
             predicates.append(PositionalPredicate(op_pos, q, a))
 
-        # Extract operand predicates
-        if isinstance(op_value, pdl.OperationOp):
-            for i, operand in enumerate(op_value.operand_values):
-                operand_pos = self.builder.get_operand(op_pos, i)
+        types = op_value.type_values
+        min_results = self._get_num_non_range_values(types)
+        if min_results == len(types):
+            # All non-variadic - check exact count
+            q, a = self.builder.get_result_count(len(types))
+            predicates.append(PositionalPredicate(op_pos, q, a))
+        elif min_results > 0:
+            # Has variadic results - check minimum
+            q, a = self.builder.get_result_count_at_least(min_results)
+            predicates.append(PositionalPredicate(op_pos, q, a))
+
+        # Process attributes
+        for attr_name, attr in zip(
+            op_value.attributeValueNames, op_value.attribute_values
+        ):
+            attr_pos = self.builder.get_attribute(op_pos, attr_name.data)
+            predicates.extend(self.extract_tree_predicates(attr, attr_pos, inputs))
+
+        if len(operands) == 1 and isinstance(operands[0].type, pdl.RangeType):
+            # Special case: single variadic operand represents all operands
+            if op_pos.is_root() or op_pos.is_operand_defining_op():
+                all_operands_pos = self.builder.get_all_operands(op_pos)
+                predicates.extend(
+                    self.extract_tree_predicates(operands[0], all_operands_pos, inputs)
+                )
+        else:
+            # Process individual operands
+            found_variable_length = False
+            for i, operand in enumerate(operands):
+                is_variadic = isinstance(operand.type, pdl.RangeType)
+                found_variable_length = found_variable_length or is_variadic
+
+                if ignore_operand is not None and i == ignore_operand:
+                    continue
+
+                # Switch to group-based positioning after first variadic
+                if found_variable_length:
+                    operand_pos = self.builder.get_operand_group(op_pos, i, is_variadic)
+                else:
+                    operand_pos = self.builder.get_operand(op_pos, i)
+
                 predicates.extend(
                     self.extract_tree_predicates(operand, operand_pos, inputs)
                 )
 
+        if len(types) == 1 and isinstance(types[0].type, pdl.RangeType):
+            # Single variadic result represents all results
+            all_results_pos = self.builder.get_all_results(op_pos)
+            type_pos = self.builder.get_type(all_results_pos)
+            predicates.extend(self.extract_tree_predicates(types[0], type_pos, inputs))
+        else:
+            # Process individual results
+            found_variable_length = False
+            for i, type_value in enumerate(types):
+                is_variadic = isinstance(type_value.type, pdl.RangeType)
+                found_variable_length = found_variable_length or is_variadic
+
+                # Switch to group-based positioning after first variadic
+                if found_variable_length:
+                    result_pos = self.builder.get_result_group(op_pos, i, is_variadic)
+                else:
+                    result_pos = self.builder.get_result(op_pos, i)
+
+                # Add not-null check for each result
+                q, a = self.builder.get_is_not_null()
+                predicates.append(PositionalPredicate(result_pos, q, a))
+
+                # Process the result type
+                type_pos = self.builder.get_type(result_pos)
+                predicates.extend(
+                    self.extract_tree_predicates(type_value, type_pos, inputs)
+                )
+
         return predicates
 
-    def _extract_operand_predicates(
+    def _extract_operand_tree_predicates(
         self,
         operand_value: SSAValue,
-        operand_pos: OperandPosition,
+        operand_pos: OperandPosition | OperandGroupPosition,
         inputs: dict[Operation | SSAValue, Position],
     ) -> list[PositionalPredicate]:
-        """Extract predicates for an operand"""
+        """Extract predicates for an operand or operand group"""
         predicates: list[PositionalPredicate] = []
 
-        # Not-null check for non-root operands
-        if operand_pos.parent:
-            q, a = self.builder.get_is_not_null()
-            predicates.append(PositionalPredicate(operand_pos, q, a))
+        # Get the defining operation
+        defining_op = operand_value.owner
+        is_variadic = isinstance(operand_value.type, pdl.RangeType)
 
-        # If operand has a defining operation, recurse
-        # Check if operand has a defining operation
-        if operand_value.owner:
-            op_pos = self.builder.get_operand_defining_op(operand_pos)
-            if isinstance(operand_value.owner, Operation):
+        if isinstance(defining_op, pdl.OperandOp | pdl.OperandsOp):
+            if isinstance(defining_op, pdl.OperandOp):
+                q, a = self.builder.get_is_not_null()
+                predicates.append(PositionalPredicate(operand_pos, q, a))
+            elif (
+                isinstance(operand_pos, OperandGroupPosition)
+                and operand_pos.group_number
+            ):
+                q, a = self.builder.get_is_not_null()
+                predicates.append(PositionalPredicate(operand_pos, q, a))
+
+            if defining_op.value_type:
+                type_pos = self.builder.get_type(operand_pos)
                 predicates.extend(
-                    self.extract_tree_predicates(operand_value.owner, op_pos, inputs)
+                    self.extract_tree_predicates(
+                        defining_op.value_type, type_pos, inputs
+                    )
                 )
+
+        elif isinstance(defining_op, pdl.ResultOp | pdl.ResultsOp):
+            index = defining_op.index
+            if index is not None:
+                q, a = self.builder.get_is_not_null()
+                predicates.append(PositionalPredicate(operand_pos, q, a))
+
+            # Get the parent operation position
+            parent_op = defining_op.parent_
+            defining_op_pos = self.builder.get_operand_defining_op(operand_pos)
+
+            # Parent operation should not be null
+            q, a = self.builder.get_is_not_null()
+            predicates.append(PositionalPredicate(defining_op_pos, q, a))
+
+            if isinstance(defining_op, pdl.ResultOp):
+                result_pos = self.builder.get_result(
+                    defining_op_pos, index.value.data if index else 0
+                )
+            else:  # ResultsOp
+                result_pos = self.builder.get_result_group(
+                    defining_op_pos, index.value.data if index else None, is_variadic
+                )
+
+            q, a = self.builder.get_equal_to(operand_pos)
+            predicates.append(PositionalPredicate(result_pos, q, a))
+
+            # Recursively process the parent operation
+            predicates.extend(
+                self.extract_tree_predicates(parent_op, defining_op_pos, inputs)
+            )
+
+        return predicates
+
+    def _extract_type_predicates(
+        self,
+        type_value: Operation | SSAValue,
+        type_pos: TypePosition,
+        inputs: dict[Operation | SSAValue, Position],
+    ) -> list[PositionalPredicate]:
+        """Extract predicates for a type"""
+        predicates: list[PositionalPredicate] = []
+
+        # Get the actual type operation
+        if isinstance(type_value, SSAValue):
+            type_op = type_value.owner
+        else:
+            type_op = type_value
+
+        if isinstance(type_op, pdl.TypeOp) and type_op.constantType:
+            q, a = self.builder.get_type_constraint(type_op.constantType)
+            predicates.append(PositionalPredicate(type_pos, q, a))
+        elif isinstance(type_op, pdl.TypesOp) and type_op.constantTypes:
+            q, a = self.builder.get_type_constraint(type_op.constantTypes)
+            predicates.append(PositionalPredicate(type_pos, q, a))
+
+        return predicates
+
+    def extract_non_tree_predicates(
+        self,
+        pattern: pdl.PatternOp,
+        inputs: dict[Operation | SSAValue, Position],
+    ) -> list[PositionalPredicate]:
+        """Extract predicates that cannot be determined via tree walking"""
+        predicates: list[PositionalPredicate] = []
+
+        for op in pattern.body.ops:
+            if isinstance(op, pdl.AttributeOp):
+                if op not in inputs:
+                    if op.value:
+                        # Create literal position for constant attribute
+                        attr_pos = self.builder.get_attribute_literal(op.value)
+                        inputs[op] = attr_pos
+
+            elif isinstance(op, pdl.ApplyNativeConstraintOp):
+                # Collect all argument positions
+                arg_positions: list[Position] = []
+                for arg in op.args:
+                    assert (pos := inputs.get(arg)) is not None
+                    arg_positions.append(pos)
+
+                # Find the furthest position (deepest)
+                furthest_pos = max(
+                    arg_positions, key=lambda p: p.get_operation_depth() if p else 0
+                )
+
+                # Create the constraint predicate
+                result_types = [r.type for r in op.res]
+                # TODO: is_negated is not part of the dialect definition yet
+                is_negated = False
+                q, a = self.builder.get_constraint(
+                    op.name, arg_positions, result_types, is_negated
+                )
+
+                # Register positions for constraint results
+                for i, result in enumerate(op.results):
+                    assert isinstance(q, ConstraintQuestion)
+                    constraint_pos = self.builder.get_constraint_position(q, i)
+                    existing = inputs.get(result)
+                    if existing:
+                        # Add equality constraint if result already has a position
+                        deeper, shallower = (
+                            (constraint_pos, existing)
+                            if constraint_pos.get_operation_depth()
+                            > existing.get_operation_depth()
+                            else (existing, constraint_pos)
+                        )
+                        eq_q, eq_a = self.builder.get_equal_to(shallower)
+                        predicates.append(PositionalPredicate(deeper, eq_q, eq_a))
+                    else:
+                        inputs[result] = constraint_pos
+
+                predicates.append(PositionalPredicate(furthest_pos, q, a))
+
+            elif isinstance(op, pdl.ResultOp):
+                # Ensure result exists
+                if op not in inputs:
+                    parent_pos = inputs.get(op.parent_)
+                    if parent_pos and isinstance(parent_pos, OperationPosition):
+                        result_pos = self.builder.get_result(
+                            parent_pos, op.index.value.data
+                        )
+                        inputs[op] = result_pos
+                        q, a = self.builder.get_is_not_null()
+                        predicates.append(PositionalPredicate(result_pos, q, a))
+
+            elif isinstance(op, pdl.ResultsOp):
+                # Handle result groups
+                if op not in inputs:
+                    parent_pos = inputs.get(op.parent_)
+                    if parent_pos and isinstance(parent_pos, OperationPosition):
+                        is_variadic = isinstance(op.val.type, pdl.RangeType)
+                        index = op.index.value.data if op.index else None
+                        result_pos = self.builder.get_result_group(
+                            parent_pos, index, is_variadic
+                        )
+                        inputs[op] = result_pos
+                        if index is not None:
+                            q, a = self.builder.get_is_not_null()
+                            predicates.append(PositionalPredicate(result_pos, q, a))
+
+            elif isinstance(op, pdl.TypeOp):
+                # Handle constant types
+                if op not in inputs and op.constantType:
+                    type_pos = self.builder.get_type_literal(op.constantType)
+                    inputs[op] = type_pos
+
+            elif isinstance(op, pdl.TypesOp):
+                # Handle constant type arrays
+                if op not in inputs and op.constantTypes:
+                    type_pos = self.builder.get_type_literal(op.constantTypes)
+                    inputs[op] = type_pos
 
         return predicates
 
@@ -794,18 +1300,6 @@ class PredicateTreeBuilder:
 
     def _optimize_tree(self, root: MatcherNode) -> MatcherNode:
         """Optimize the tree by collapsing single-child switches to bools"""
-        if isinstance(root, SwitchNode) and len(root.children) == 1:
-            # Convert switch to bool node
-            answer, child = next(iter(root.children.items()))
-            bool_node = BoolNode(
-                position=root.position,
-                question=root.question,
-                success_node=child,
-                failure_node=root.failure_node,
-                answer=answer,
-            )
-            return bool_node
-
         # Recursively optimize children
         if isinstance(root, SwitchNode):
             for answer in root.children:
@@ -819,6 +1313,18 @@ class PredicateTreeBuilder:
         if root.failure_node is not None:
             root.failure_node = self._optimize_tree(root.failure_node)
 
+        if isinstance(root, SwitchNode) and len(root.children) == 1:
+            # Convert switch to bool node
+            answer, child = next(iter(root.children.items()))
+            bool_node = BoolNode(
+                position=root.position,
+                question=root.question,
+                success_node=child,
+                failure_node=root.failure_node,
+                answer=answer,
+            )
+            return bool_node
+
         return root
 
 
@@ -827,283 +1333,521 @@ class PredicateTreeBuilder:
 # =============================================================================
 
 
-class PDLInterpCodeGenerator:
-    """Generates pdl_interp code from matcher trees"""
+class MatcherGenerator:
+    """Generates PDL interpreter matcher from matcher tree"""
 
-    def __init__(self):
-        self.block_counter = 0
-        self.value_counter = 0
+    def __init__(self, matcher_func: pdl_interp.FuncOp):
+        self.matcher_func = matcher_func
+        self.values: dict[Position, SSAValue] = {}
+        self.failure_block_stack: list[Block] = []
+        self.builder = Builder(InsertPoint.at_start(matcher_func.body.block))
+        self.constraint_op_map: dict[
+            ConstraintQuestion, pdl_interp.ApplyConstraintOp
+        ] = {}
 
-    def generate_matcher_function(
-        self, root: MatcherNode, name: str = "matcher"
-    ) -> str:
-        """Generate complete pdl_interp matcher function"""
-        self.block_counter = 0
-        self.value_counter = 0
+    def lower(self, patterns: list[pdl.PatternOp]) -> None:
+        """Lower PDL patterns to PDL interpreter"""
 
-        # pdl_interp.FuncOp(
-        #     name,
-        #     # type,
+        # Build the predicate tree
+        tree_builder = PredicateTreeBuilder()
+        root = tree_builder.build_predicate_tree(patterns)
 
-        # )
+        # Get the entry block and add root operation argument
+        entry_block = self.matcher_func.body.block
 
-        code = [f"pdl_interp.func @{name}(%arg0: !pdl.operation) {{"]
+        # The first argument is the root operation
+        builder = PredicateBuilder()
+        root_pos = builder.get_root()
+        self.values[root_pos] = entry_block.args[0]
 
-        # Generate body
-        entry_block = self._generate_matcher_code(root, "entry")
-        code.extend(f"  {line}" for line in entry_block)
+        # Generate the matcher
+        first_matcher_block = self.generate_matcher(root, self.matcher_func.body)
 
-        code.append("}")
-        return "\n".join(code)
+        # Merge first matcher block into entry if different
+        if first_matcher_block != entry_block:
+            entry_block.add_ops(first_matcher_block.ops)
+            first_matcher_block.erase()
 
-    def _generate_matcher_code(self, node: MatcherNode, block_name: str) -> list[str]:
-        """Generate code for a matcher node"""
+    def generate_matcher(
+        self, node: MatcherNode, region: Region, block: Block | None = None
+    ) -> Block:
+        """Generate PDL interpreter operations for a matcher node"""
+
+        # Create block if needed
+        if block is None:
+            block = Block()
+            region.add_block(block)
+
+        # Handle exit node - just add finalize
         if isinstance(node, ExitNode):
-            return ["pdl_interp.finalize"]
+            finalize_op = pdl_interp.FinalizeOp()
+            self.builder.insert_op(finalize_op, InsertPoint.at_end(block))
+            return block
 
-        elif isinstance(node, SuccessNode):
-            code: list[str] = []
-            # Record successful match
-            code.append(
-                "pdl_interp.record_match @rewriters::@pdl_generated_rewriter(...)"
-            )
+        # Handle failure node
+        failure_block = None
+        if node.failure_node:
+            failure_block = self.generate_matcher(node.failure_node, region)
+            self.failure_block_stack.append(failure_block)
+        else:
+            assert self.failure_block_stack, "Expected valid failure block"
+            failure_block = self.failure_block_stack[-1]
 
-            # Continue to failure node
-            if node.failure_node:
-                failure_code = self._generate_matcher_code(
-                    node.failure_node, f"^bb{self.block_counter}"
-                )
-                code.extend(failure_code)
+        # Get value for position if exists
+        current_block = block
+        val = None
+        if node.position:
+            val = self.get_value_at(current_block, node.position)
 
-            return code
-
-        elif isinstance(node, BoolNode):
-            return self._generate_bool_node_code(node)
-
+        # Dispatch based on node type
+        if isinstance(node, BoolNode):
+            assert val is not None
+            self.generate_bool_node(node, current_block, val)
         elif isinstance(node, SwitchNode):
-            return self._generate_switch_node_code(node)
+            assert val is not None
+            self.generate_switch_node(node, current_block, val)
+        elif isinstance(node, SuccessNode):
+            self.generate_success_node(node, current_block)
 
-        return []
+        # Pop failure block if we pushed one
+        if node.failure_node:
+            self.failure_block_stack.pop()
 
-    def _generate_bool_node_code(self, node: BoolNode) -> list[str]:
-        """Generate code for boolean predicate node"""
-        code: list[str] = []
+        return block
 
-        # Get value at position
-        if node.position is None:
-            return ["// Error: node position is None"]
+    def get_value_at(self, block: Block, position: Position) -> SSAValue:
+        """Get or create SSA value for a position"""
 
-        value_access = self._generate_value_access(node.position)
-        code.extend(value_access["setup"])
-        current_value = value_access["result"]
+        # Check cache
+        if position in self.values:
+            return self.values[position]
 
-        # Generate predicate check
-        success_block = f"^bb{self.block_counter}"
-        self.block_counter += 1
-        failure_block = f"^bb{self.block_counter}"
-        self.block_counter += 1
+        # Get parent value if needed
+        parent_val = None
+        if position.parent:
+            parent_val = self.get_value_at(block, position.parent)
 
-        if node.question is None:
-            code.append("// Error: node question is None")
-        else:
-            predicate_code = self._generate_predicate_check(
-                node.question, None, current_value, success_block, failure_block
-            )
-            code.extend(predicate_code)
-
-        # Success block
-        code.append(f"{success_block}:")
-        if node.success_node is not None:
-            success_code = self._generate_matcher_code(node.success_node, success_block)
-            code.extend(f"  {line}" for line in success_code)
-
-        # Failure block
-        code.append(f"{failure_block}:")
-        if node.failure_node is not None:
-            failure_code = self._generate_matcher_code(node.failure_node, failure_block)
-            code.extend(f"  {line}" for line in failure_code)
-
-        return code
-
-    def _generate_switch_node_code(self, node: SwitchNode) -> list[str]:
-        """Generate code for switch node"""
-        code: list[str] = []
-
-        # Get value at position
-        if node.position is None:
-            return ["// Error: node position is None"]
-
-        value_access = self._generate_value_access(node.position)
-        code.extend(value_access["setup"])
-        current_value = value_access["result"]
-
-        # Generate switch operation
-        default_block = f"^bb{self.block_counter}"
-        self.block_counter += 1
-
-        case_blocks: list[str] = []
-        case_values: list[str] = []
-
-        for answer, child_node in node.children.items():
-            case_block = f"^bb{self.block_counter}"
-            self.block_counter += 1
-            case_blocks.append(case_block)
-            case_values.append(self._answer_to_string(answer))
-
-        # Generate switch instruction
-        if node.question is not None:
-            switch_op = self._generate_switch_operation(
-                node.question, current_value, case_values, default_block, case_blocks
-            )
-        else:
-            switch_op = ["// Error: node question is None"]
-        code.extend(switch_op)
-
-        # Generate case blocks
-        for i, (_, child_node) in enumerate(node.children.items()):
-            if i < len(case_blocks):
-                case_block = case_blocks[i]
-                code.append(f"{case_block}:")
-                if child_node is not None:
-                    case_code = self._generate_matcher_code(child_node, case_block)
-                    code.extend(f"  {line}" for line in case_code)
-
-        # Default block
-        code.append(f"{default_block}:")
-        if node.failure_node is not None:
-            default_code = self._generate_matcher_code(node.failure_node, default_block)
-            code.extend(f"  {line}" for line in default_code)
-
-        return code
-
-    def _generate_value_access(self, position: Position) -> dict[str, Any]:
-        """Generate code to access value at position"""
-        setup_code: list[str] = []
+        # Create value based on position type
+        self.builder.insertion_point = InsertPoint.at_end(block)
+        value = None
 
         if isinstance(position, OperationPosition):
-            if position.is_root():
-                return {"setup": [], "result": "%arg0"}
+            if position.is_operand_defining_op():
+                assert parent_val is not None
+                # Get defining operation of operand
+                defining_op = pdl_interp.GetDefiningOpOp(parent_val)
+                self.builder.insert(defining_op)
+                value = defining_op.input_op
             else:
-                # Get defining op of parent
-                parent_access = self._generate_value_access(position.parent)
-                setup_code.extend(parent_access["setup"])
-
-                result_val = f"%{self.value_counter}"
-                self.value_counter += 1
-                setup_code.append(
-                    f"{result_val} = pdl_interp.get_defining_op of {parent_access['result']} : !pdl.operation"
-                )
-                return {"setup": setup_code, "result": result_val}
+                # Passthrough
+                value = parent_val
 
         elif isinstance(position, OperandPosition):
-            parent_access = self._generate_value_access(position.parent)
-            setup_code.extend(parent_access["setup"])
-
-            result_val = f"%{self.value_counter}"
-            self.value_counter += 1
-            setup_code.append(
-                f"{result_val} = pdl_interp.get_operand {position.operand_number} of {parent_access['result']}"
+            assert parent_val is not None
+            get_operand_op = pdl_interp.GetOperandOp(
+                position.operand_number, parent_val
             )
-            return {"setup": setup_code, "result": result_val}
+            self.builder.insert(get_operand_op)
+            value = get_operand_op.value
+
+        elif isinstance(position, OperandGroupPosition):
+            assert parent_val is not None
+            # Get operands (possibly variadic)
+            result_type = (
+                pdl.RangeType(pdl.ValueType())
+                if position.is_variadic
+                else pdl.ValueType()
+            )
+            raise NotImplementedError("pdl_interp.get_operands is not yet implemented")
+            get_operands_op = pdl_interp.GetOperandsOp(
+                position.group_number, parent_val, result_type
+            )
+            self.builder.insert(get_operands_op)
+            value = get_operands_op.value
+
+        elif isinstance(position, AllOperandsPosition):
+            # Get all operands as a range
+            assert parent_val is not None
+            result_type = pdl.RangeType(pdl.ValueType())
+            raise NotImplementedError("pdl_interp.get_operands is not yet implemented")
+            # Using None for index to get all operands
+            get_operands_op = pdl_interp.GetOperandsOp(None, parent_val, result_type)
+            self.builder.insert(get_operands_op)
+            value = get_operands_op.value
 
         elif isinstance(position, ResultPosition):
-            parent_access = self._generate_value_access(position.parent)
-            setup_code.extend(parent_access["setup"])
+            assert parent_val is not None
+            get_result_op = pdl_interp.GetResultOp(position.result_number, parent_val)
+            self.builder.insert(get_result_op)
+            value = get_result_op.value
 
-            result_val = f"%{self.value_counter}"
-            self.value_counter += 1
-            setup_code.append(
-                f"{result_val} = pdl_interp.get_result {position.result_number} of {parent_access['result']}"
+        elif isinstance(position, ResultGroupPosition):
+            assert parent_val is not None
+            # Get results (possibly variadic)
+            result_type = (
+                pdl.RangeType(pdl.ValueType())
+                if position.is_variadic
+                else pdl.ValueType()
             )
-            return {"setup": setup_code, "result": result_val}
+            get_results_op = pdl_interp.GetResultsOp(
+                position.group_number, parent_val, result_type
+            )
+            self.builder.insert(get_results_op)
+            value = get_results_op.value
 
-        # Add other position types as needed
-        return {"setup": setup_code, "result": f"%unknown_{self.value_counter}"}
+        elif isinstance(position, AllResultsPosition):
+            # Get all results as a range
+            assert parent_val is not None
+            result_type = pdl.RangeType(pdl.ValueType())
+            # Using None for index to get all results
+            get_results_op = pdl_interp.GetResultsOp(None, parent_val, result_type)
+            self.builder.insert(get_results_op)
+            value = get_results_op.value
 
-    def _generate_predicate_check(
-        self,
-        question: Question,
-        answer: Answer | None,
-        value: str,
-        success_block: str,
-        failure_block: str,
-    ) -> list[str]:
-        """Generate predicate check operation"""
+        elif isinstance(position, AttributePosition):
+            assert parent_val is not None
+            get_attr_op = pdl_interp.GetAttributeOp(position.attribute_name, parent_val)
+            self.builder.insert(get_attr_op)
+            value = get_attr_op.value
+
+        elif isinstance(position, AttributeLiteralPosition):
+            # Create a constant attribute
+            create_attr_op = pdl_interp.CreateAttributeOp(position.value)
+            self.builder.insert(create_attr_op)
+            value = create_attr_op.attribute
+
+        elif isinstance(position, TypePosition):
+            assert parent_val is not None
+            # Get type of value or attribute
+            if parent_val.type == pdl.AttributeType():
+                # Would use GetAttributeTypeOp if it existed
+                get_type_op = pdl_interp.GetValueTypeOp(parent_val)
+            else:
+                get_type_op = pdl_interp.GetValueTypeOp(parent_val)
+            self.builder.insert(get_type_op)
+            value = get_type_op.result
+
+        elif isinstance(position, TypeLiteralPosition):
+            # Create a constant type or types
+            raw_type_attr = position.value
+            if isinstance(raw_type_attr, TypeAttribute):
+                create_type_op = pdl_interp.CreateTypeOp(raw_type_attr)
+                self.builder.insert(create_type_op)
+                value = create_type_op.result
+            else:
+                # Assume it's an ArrayAttr of types
+                assert isinstance(raw_type_attr, ArrayAttr)
+                type_attr = cast(ArrayAttr[TypeAttribute], raw_type_attr)
+                create_types_op = pdl_interp.CreateTypesOp(type_attr)
+                self.builder.insert(create_types_op)
+                value = create_types_op.result
+
+        elif isinstance(position, ConstraintPosition):
+            # The constraint op has already been created, find it in the map
+            constraint_op = self.constraint_op_map.get(position.constraint)
+            assert constraint_op is not None
+            value = constraint_op.results[position.result_index]
+
+        elif isinstance(position, UsersPosition):
+            # Handle getting users of a value
+            # This would require GetUsersOp which may not be implemented
+            # For now, just use parent value
+            raise NotImplementedError("UsersPosition not implemented in lowering")
+
+        else:
+            raise NotImplementedError(f"Unhandled position type {type(position)}")
+
+        # Cache and return
+        if value:
+            self.values[position] = value
+        assert value is not None
+        return value
+
+    def generate_bool_node(self, node: BoolNode, block: Block, val: SSAValue) -> None:
+        """Generate operations for a boolean predicate node"""
+
+        question = node.question
+        answer = node.answer
+        region = block.parent
+        assert region is not None, "Block must be in a region"
+
+        # Handle getValue queries first for constraint questions
+        args: list[SSAValue] = []
+        if isinstance(question, EqualToQuestion):
+            args = [self.get_value_at(block, question.other_position)]
+        elif isinstance(question, ConstraintQuestion):
+            for position in question.arg_positions:
+                args.append(self.get_value_at(block, position))
+
+        # Create success block
+        success_block = Block()
+        region.add_block(success_block)
+        failure_block = self.failure_block_stack[-1]
+
+        # Generate predicate check operation based on question type
         if isinstance(question, IsNotNullQuestion):
-            return [
-                f"pdl_interp.is_not_null {value} -> {success_block}, {failure_block}"
-            ]
+            check_op = pdl_interp.IsNotNullOp(val, success_block, failure_block)
 
         elif isinstance(question, OperationNameQuestion):
-            op_name = answer.value if answer and hasattr(answer, "value") else "unknown"
-            return [
-                f'pdl_interp.check_operation_name of {value} is "{op_name}" -> {success_block}, {failure_block}'
-            ]
-
-        elif isinstance(question, OperandCountQuestion):
-            count = (
-                answer.value
-                if answer and hasattr(answer, "value") and answer.value is not None
-                else 0
+            assert isinstance(answer, StringAnswer)
+            check_op = pdl_interp.CheckOperationNameOp(
+                answer.value, val, success_block, failure_block
             )
-            return [
-                f"pdl_interp.check_operand_count of {value} is {count} -> {success_block}, {failure_block}"
-            ]
 
-        elif isinstance(question, ResultCountQuestion):
-            count = (
-                answer.value
-                if answer and hasattr(answer, "value") and answer.value is not None
-                else 0
+        elif isinstance(question, OperandCountQuestion | OperandCountAtLeastQuestion):
+            assert isinstance(answer, UnsignedAnswer)
+            compare_at_least = isinstance(question, OperandCountAtLeastQuestion)
+            check_op = pdl_interp.CheckOperandCountOp(
+                val, answer.value, success_block, failure_block, compare_at_least
             )
-            return [
-                f"pdl_interp.check_result_count of {value} is {count} -> {success_block}, {failure_block}"
-            ]
+
+        elif isinstance(question, ResultCountQuestion | ResultCountAtLeastQuestion):
+            assert isinstance(answer, UnsignedAnswer)
+            compare_at_least = isinstance(question, ResultCountAtLeastQuestion)
+            check_op = pdl_interp.CheckResultCountOp(
+                val, answer.value, success_block, failure_block, compare_at_least
+            )
 
         elif isinstance(question, EqualToQuestion):
-            if hasattr(question, "other_position"):
-                other_access = self._generate_value_access(question.other_position)
-                return other_access["setup"] + [
-                    f"pdl_interp.are_equal {value}, {other_access['result']} -> {success_block}, {failure_block}"
-                ]
+            # Get the other value to compare with
+            other_val = self.get_value_at(block, question.other_position)
+            assert isinstance(answer, TrueAnswer)
+            check_op = pdl_interp.AreEqualOp(
+                val, other_val, success_block, failure_block
+            )
+
+        elif isinstance(question, AttributeConstraintQuestion):
+            assert isinstance(answer, AttributeAnswer)
+            check_op = pdl_interp.CheckAttributeOp(
+                answer.value, val, success_block, failure_block
+            )
+
+        elif isinstance(question, TypeConstraintQuestion):
+            assert isinstance(answer, TypeAnswer)
+            if isinstance(val.type, pdl.RangeType):
+                # Check multiple types
+                raise NotImplementedError(
+                    "pdl_interp.check_types is not yet implemented"
+                )
+                check_op = pdl_interp.CheckTypesOp(
+                    val, answer.value, success_block, failure_block
+                )
             else:
-                return ["// Error: other_position is None for equal check"]
+                # Check single type
+                assert isinstance(answer.value, TypeAttribute)
+                check_op = pdl_interp.CheckTypeOp(
+                    answer.value, val, success_block, failure_block
+                )
 
-        return [f"// Unknown predicate check for {value}"]
+        elif isinstance(question, ConstraintQuestion):
+            check_op = pdl_interp.ApplyConstraintOp(
+                question.name,
+                args,
+                success_block,
+                failure_block,
+                question.result_types,
+                question.is_negated,
+            )
+            # Store the constraint op for later result access
+            self.constraint_op_map[question] = check_op
 
-    def _generate_switch_operation(
-        self,
-        question: Question,
-        value: str,
-        case_values: list[str],
-        default_block: str,
-        case_blocks: list[str],
-    ) -> list[str]:
-        """Generate switch operation"""
+        else:
+            raise NotImplementedError(f"Unhandled question type {type(question)}")
+
+        self.builder.insert_op(check_op, InsertPoint.at_end(block))
+
+        # Generate matcher for success node
+        if node.success_node:
+            self.generate_matcher(node.success_node, region, success_block)
+
+    def generate_switch_node(
+        self, node: SwitchNode, block: Block, val: SSAValue
+    ) -> None:
+        """Generate operations for a switch node"""
+
+        question = node.question
+        region = block.parent
+        assert region is not None, "Block must be in a region"
+        default_dest = self.failure_block_stack[-1]
+
+        # Handle at-least questions specially
+        if isinstance(
+            question, OperandCountAtLeastQuestion | ResultCountAtLeastQuestion
+        ):
+            # Sort children in reverse numerical order
+            sorted_children = sorted(
+                node.children.items(),
+                key=lambda x: cast(UnsignedAnswer, x[0]).value,
+                reverse=True,
+            )
+
+            # Build cascading checks
+            self.failure_block_stack.append(default_dest)
+
+            for answer, child_node in sorted_children:
+                if child_node:
+                    child_block = self.generate_matcher(child_node, region)
+                    predicate_block = Block()
+                    region.add_block(predicate_block)
+
+                    self.builder.insertion_point = InsertPoint.at_end(predicate_block)
+                    assert isinstance(answer, UnsignedAnswer)
+
+                    if isinstance(question, OperandCountAtLeastQuestion):
+                        check_op = pdl_interp.CheckOperandCountOp(
+                            val, answer.value, child_block, default_dest, True
+                        )
+                    else:  # ResultCountAtLeastQuestion
+                        check_op = pdl_interp.CheckResultCountOp(
+                            val, answer.value, child_block, default_dest, True
+                        )
+
+                    self.builder.insert(check_op)
+                    self.failure_block_stack[-1] = predicate_block
+
+            # Move operations from first predicate block to current block
+            first_predicate_block = self.failure_block_stack.pop()
+            self.builder.insertion_point = InsertPoint.at_end(block)
+            for op in first_predicate_block.ops:
+                block.add_op(op)
+            first_predicate_block.erase()
+            return
+
+        # Generate child blocks and collect case values
+        case_blocks: list[Block] = []
+        case_values: list[Any] = []
+
+        for answer, child_node in node.children.items():
+            if child_node:
+                child_block = self.generate_matcher(child_node, region)
+                case_blocks.append(child_block)
+                case_values.append(answer)
+
+        # Position builder at end of current block
+        self.builder.insertion_point = InsertPoint.at_end(block)
+
+        # Create switch operation based on question type
         if isinstance(question, OperationNameQuestion):
-            values_str = ", ".join(f'"{v}"' for v in case_values)
-            blocks_str = ", ".join(case_blocks)
-            return [
-                f"pdl_interp.switch_operation_name {value} [{values_str}] -> {default_block}, [{blocks_str}]"
-            ]
+            # Extract string values from StringAnswer objects
+            switch_values = [cast(StringAnswer, ans).value for ans in case_values]
+            switch_attr = ArrayAttr([StringAttr(v) for v in switch_values])
+            switch_op = pdl_interp.SwitchOperationNameOp(
+                switch_attr, val, default_dest, case_blocks
+            )
 
         elif isinstance(question, OperandCountQuestion):
-            values_str = ", ".join(case_values)
-            blocks_str = ", ".join(case_blocks)
-            return [
-                f"pdl_interp.switch_operand_count {value} [{values_str}] -> {default_block}, [{blocks_str}]"
-            ]
+            # Extract integer values from UnsignedAnswer objects
+            switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
+            switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
+            raise NotImplementedError(
+                "pdl_interp.switch_operand_count is not yet implemented"
+            )
+            switch_op = pdl_interp.SwitchOperandCountOp(
+                switch_attr, val, default_dest, case_blocks
+            )
 
-        return [f"// Unknown switch operation for {value}"]
+        elif isinstance(question, ResultCountQuestion):
+            # Extract integer values from UnsignedAnswer objects
+            switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
+            switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
+            raise NotImplementedError(
+                "pdl_interp.switch_result_count is not yet implemented"
+            )
+            switch_op = pdl_interp.SwitchResultCountOp(
+                switch_attr, val, default_dest, case_blocks
+            )
 
-    def _answer_to_string(self, answer: Any) -> str:
-        """Convert answer to string representation"""
-        if hasattr(answer, "value") and answer.value is not None:
-            return str(answer.value)
-        elif isinstance(answer, str):
-            return answer
+        elif isinstance(question, TypeConstraintQuestion):
+            # Extract type attributes from TypeAnswer objects
+            switch_values = [cast(TypeAnswer, ans).value for ans in case_values]
+            raise NotImplementedError("pdl_interp.switch_types is not yet implemented")
+            if isinstance(val.type, pdl.RangeType):
+                switch_attr = ArrayAttr(switch_values)
+
+                switch_op = pdl_interp.SwitchTypesOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+            else:
+                switch_attr = ArrayAttr(switch_values)
+                switch_op = pdl_interp.SwitchTypeOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+
+        elif isinstance(question, AttributeConstraintQuestion):
+            # Extract attribute values from AttributeAnswer objects
+            switch_values = [cast(AttributeAnswer, ans).value for ans in case_values]
+            switch_attr = ArrayAttr(switch_values)
+            raise NotImplementedError(
+                "pdl_interp.switch_attributes is not yet implemented"
+            )
+            switch_op = pdl_interp.SwitchAttributeOp(
+                switch_attr, val, default_dest, case_blocks
+            )
+
         else:
-            return str(answer) if answer is not None else "null"
+            raise NotImplementedError(f"Unhandled question type {type(question)}")
+
+        self.builder.insert(switch_op)
+
+    def generate_success_node(self, node: SuccessNode, block: Block) -> None:
+        """Generate operations for a successful match"""
+
+        self.builder.insertion_point = InsertPoint.at_end(block)
+
+        # In the full implementation, we would:
+        # 1. Generate the rewriter function
+        # 2. Collect used match values
+        # 3. Create RecordMatchOp with all necessary info
+
+        # For now, create a simplified record match
+        # Get the pattern and root
+        pattern = node.pattern
+        _root = node.root
+
+        # Create a dummy rewriter reference
+        rewriter_ref = StringAttr("dummy_rewriter")
+
+        # Collect matched values (simplified)
+        matched_values: list[SSAValue] = []
+        for pos, val in self.values.items():
+            if isinstance(pos, OperationPosition) and pos.is_root():
+                matched_values.append(val)
+                break
+
+        # Create the record match operation
+        if matched_values:
+            # Get root operation name if available
+            root_kind = None
+            if hasattr(pattern, "root_op_name"):
+                root_kind = pattern.root_op_name
+
+            benefit = IntegerAttr.from_int_and_width(1, 16)  # Default benefit
+
+            record_op = pdl_interp.RecordMatchOp(
+                rewriter_ref,
+                root_kind if root_kind else "",
+                None,  # generated_ops
+                benefit,
+                [],  # inputs
+                matched_values,  # matched_ops
+                self.failure_block_stack[-1] if self.failure_block_stack else None,
+            )
+            self.builder.insert(record_op)
+        else:
+            # If no match values, just finalize
+            finalize_op = pdl_interp.FinalizeOp()
+            self.builder.insert(finalize_op)
+
+
+def lower_pdl_to_pdl_interp(module: ModuleOp, matcher_func: pdl_interp.FuncOp) -> None:
+    """Main entry point to lower PDL patterns to PDL interpreter"""
+
+    # Collect all patterns
+    patterns = [op for op in module.body.ops if isinstance(op, pdl.PatternOp)]
+
+    # Create generator and lower
+    generator = MatcherGenerator(matcher_func)
+    generator.lower(patterns)
 
 
 # =============================================================================
@@ -1116,7 +1860,7 @@ class PDLToPDLInterpTransformer:
 
     def __init__(self):
         self.tree_builder = PredicateTreeBuilder()
-        self.code_generator = PDLInterpCodeGenerator()
+        self.code_generator = ()
 
     def transform(self, pdl_patterns: list[Any]) -> str:
         """Transform PDL patterns to pdl_interp code"""
@@ -1136,151 +1880,6 @@ class PDLToPDLInterpTransformer:
         return generated_code
 
 
-# =============================================================================
-# Example Usage and Demo
-# =============================================================================
-
-
-def demo_transformation():
-    """Demonstrate the transformation with a comprehensive example"""
-
-    print("=== PDL to PDL_interp Transformation Demo ===\n")
-
-    # Mock PDL pattern that mimics real PDL structure
-    class MockPDLPattern:
-        def __init__(self, name: str, operations: list["MockOperation"]):
-            self.name = name
-            self.operations = operations
-            self.body = MockRegion(operations)
-
-        def __str__(self):
-            return f"PDL Pattern: {self.name}"
-
-    class MockRegion:
-        def __init__(self, operations: list["MockOperation"]):
-            self.block = MockBlock(operations)
-
-    class MockBlock:
-        def __init__(self, operations: list["MockOperation"]):
-            self.ops = operations
-
-    class MockOperation:
-        def __init__(self, op_name: str, operand_count: int = 1, result_count: int = 1):
-            self.name = op_name
-            self._operand_count = operand_count
-            self._result_count = result_count
-            self.opName = MockStringAttr(op_name)
-            self.operand_values = [f"operand_{i}" for i in range(operand_count)]
-            self.results = [MockResult(self)]
-
-        def get_operation_name(self) -> str:
-            return self.name
-
-        def get_operand_count(self) -> int:
-            return self._operand_count
-
-        def get_result_count(self) -> int:
-            return self._result_count
-
-        def get_operands(self) -> list[str]:
-            return self.operand_values
-
-        def __str__(self):
-            return f"{self.name}({', '.join(self.operand_values)})"
-
-    class MockStringAttr:
-        def __init__(self, value: str):
-            self.data = value
-
-    class MockResult:
-        def __init__(self, owner: MockOperation):
-            self.owner = owner
-            self.uses = []
-
-    # Create realistic test patterns
-    patterns = [
-        # Pattern 1: Binary arithmetic operation (multiply)
-        MockPDLPattern(
-            "arith_mul_pattern",
-            [MockOperation("arith.mulf", operand_count=2, result_count=1)],
-        ),
-        # Pattern 2: Unary operation (absolute value)
-        MockPDLPattern(
-            "math_abs_pattern",
-            [MockOperation("math.absf", operand_count=1, result_count=1)],
-        ),
-        # Pattern 3: Chained operations
-        MockPDLPattern(
-            "complex_pattern",
-            [
-                MockOperation("arith.addf", operand_count=2, result_count=1),
-                MockOperation("math.sqrt", operand_count=1, result_count=1),
-            ],
-        ),
-    ]
-
-    print(f"Created {len(patterns)} test patterns:")
-    for i, pattern in enumerate(patterns, 1):
-        print(f"  {i}. {pattern}")
-        for op in pattern.operations:
-            print(f"     - {op}")
-
-    print("\n" + "=" * 60)
-
-    try:
-        # Create transformer
-        transformer = PDLToPDLInterpTransformer()
-
-        # Transform patterns
-        print("Starting transformation...")
-        result = transformer.transform(patterns)
-
-        print("\n" + "=" * 60)
-        print("Generated PDL_interp matcher code:")
-        print("-" * 40)
-        print(result)
-        print("-" * 40)
-
-        # Analyze the result
-        lines = result.split("\n")
-        print("\nCode analysis:")
-        print(f"  - Generated {len(lines)} lines of code")
-        print(f"  - Contains {result.count('pdl_interp.')} PDL_interp operations")
-        print(f"  - Has {result.count('^bb')} basic blocks")
-
-        print("\nTransformation completed successfully! ✓")
-
-    except Exception as e:
-        print(f"\nTransformation failed with error: {e}")
-        print("This is expected as the implementation is still a framework.")
-        print("In a real implementation, this would generate working PDL_interp IR.")
-
-    print("\n" + "=" * 60)
-    print("Demo completed. This shows the structure of a PDL->PDL_interp transformer.")
-
-
-def run_simple_test():
-    """Run a minimal test to verify basic functionality"""
-    print("\n=== Simple Functionality Test ===")
-
-    try:
-        # Test basic position creation
-        builder = PredicateBuilder()
-        root_pos = builder.get_root()
-        _operand_pos = builder.get_operand(root_pos, 0)
-
-        print("✓ Created positions")
-
-        # Test predicate creation
-        q, a = builder.get_operation_name("test.op")
-        print(f"✓ Created predicate: {q.kind} -> {a.kind}")
-
-        print("✓ Basic functionality test passed!")
-
-    except Exception as e:
-        print(f"✗ Basic functionality test failed: {e}")
-
-
 if __name__ == "__main__":
     pattern = """pdl.pattern : benefit(1) {
   %x = pdl.operand
@@ -1293,6 +1892,29 @@ if __name__ == "__main__":
     pdl.replace %mulop with (%x : !pdl.value)
   }
 }"""
+    pattern = """
+pdl.pattern @exp_lft_cube_rev : benefit(1) {
+  %0 = pdl.type : f32
+  %1 = pdl.operand : %0
+  %2 = pdl.operation "math.exp" (%1 : !pdl.value) -> (%0 : !pdl.type)
+  %3 = pdl.result 0 of %2
+  %4 = pdl.attribute = 3.000000e+00 : f32
+  %5 = pdl.operation "arith.constant" {"value" = %4} -> (%0 : !pdl.type)
+  %6 = pdl.result 0 of %5
+  %7 = pdl.operation "math.powf" (%3, %6 : !pdl.value, !pdl.value) -> (%0 : !pdl.type)
+  %8 = pdl.result 0 of %7
+  pdl.rewrite %7 {
+    %9 = pdl.attribute = 3.000000e+00 : f32
+    %10 = pdl.operation "arith.constant" {"value" = %9} -> (%0 : !pdl.type)
+    %11 = pdl.result 0 of %10
+    %12 = pdl.operation "arith.mulf" (%1, %11 : !pdl.value, !pdl.value) -> (%0 : !pdl.type)
+    %13 = pdl.result 0 of %12
+    %14 = pdl.operation "math.exp" (%13 : !pdl.value) -> (%0 : !pdl.type)
+    %15 = pdl.result 0 of %14
+    pdl.replace %7 with (%15 : !pdl.value)
+  }
+}
+"""
     ctx = Context()
     ctx.load_dialect(pdl.PDL)
     # ctx.load_dialect(Test)
@@ -1310,8 +1932,10 @@ if __name__ == "__main__":
     y = PredicateTreeBuilder().build_predicate_tree([pattern])
     print(y)
 
-    code = PDLInterpCodeGenerator().generate_matcher_function(y)
+    matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+
+    mg = MatcherGenerator(matcher_func)
+    mg.values[OperationPosition(None, depth=0)] = matcher_func.body.block.args[0]
+    mg.generate_matcher(y, matcher_func.body)
 
     _ = None
-    # demo_transformation()
-    # run_simple_test()
