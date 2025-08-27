@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Generic, cast
 
 from typing_extensions import TypeVar
+
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, scf
 from xdsl.ir import Attribute, Block, SSAValue
@@ -73,8 +74,11 @@ class Located(Generic[T]):  # noqa: UP046
 
 
 class ListLangType:
-    def __str__(self) -> str: ...
-    def xdsl(self) -> Attribute: ...
+    def __str__(self) -> str:
+        ...
+
+    def xdsl(self) -> Attribute:
+        ...
 
 
 @dataclass
@@ -117,17 +121,13 @@ class CodeCursor:
     def skip_whitespaces(self):
         self.pos = self._whitespace_end()
 
-    def next_regex(
-        self, regex: re.Pattern[str]
-    ) -> Located[re.Match[str] | None]:
+    def next_regex(self, regex: re.Pattern[str]) -> Located[re.Match[str] | None]:
         match = self.peek_regex(regex)
         if match.value is not None:
             self.pos = match.value.end()
         return match
 
-    def peek_regex(
-        self, regex: re.Pattern[str]
-    ) -> Located[re.Match[str] | None]:
+    def peek_regex(self, regex: re.Pattern[str]) -> Located[re.Match[str] | None]:
         pos = self._whitespace_end()
         return Located(Location(pos), regex.match(self.code, pos))
 
@@ -233,9 +233,7 @@ def _parse_opt_expr_atom(
         then_builder = Builder(InsertPoint.at_start(then_block))
         then_block_expr = parse_block(ctx, then_builder)
         if then_block_expr.value.value is None:
-            raise ParseError(
-                then_block_expr.value.loc.pos, "expected block expression"
-            )
+            raise ParseError(then_block_expr.value.loc.pos, "expected block expression")
         then_builder.insert_op(scf.YieldOp(then_block_expr.value.value.value))
 
         parse_punct(ctx, ELSE)
@@ -244,9 +242,7 @@ def _parse_opt_expr_atom(
         else_builder = Builder(InsertPoint.at_start(else_block))
         else_block_expr = parse_block(ctx, else_builder)
         if else_block_expr.value.value is None:
-            raise ParseError(
-                else_block_expr.value.loc.pos, "expected block expression"
-            )
+            raise ParseError(else_block_expr.value.loc.pos, "expected block expression")
         else_builder.insert_op(scf.YieldOp(else_block_expr.value.value.value))
 
         if then_block_expr.value.value.typ != else_block_expr.value.value.typ:
@@ -283,17 +279,13 @@ def _parse_opt_expr_atom(
 
     # Parse false constant.
     if false := parse_opt_punct(ctx, FALSE):
-        val = builder.insert_op(
-            arith.ConstantOp(builtin.IntegerAttr(0, XDSL_BOOL))
-        )
+        val = builder.insert_op(arith.ConstantOp(builtin.IntegerAttr(0, XDSL_BOOL)))
         val.result.name_hint = "false"
         return Located(false.loc, TypedExpression(val.result, ListLangBool()))
 
     # Parse true constant.
     if true := parse_opt_punct(ctx, TRUE):
-        val = builder.insert_op(
-            arith.ConstantOp(builtin.IntegerAttr(1, XDSL_BOOL))
-        )
+        val = builder.insert_op(arith.ConstantOp(builtin.IntegerAttr(1, XDSL_BOOL)))
         val.result.name_hint = "true"
         return Located(true.loc, TypedExpression(val.result, ListLangBool()))
 
@@ -319,7 +311,8 @@ class BinaryOp:
         builder: Builder,
         lhs: Located[TypedExpression],
         rhs: Located[TypedExpression],
-    ) -> TypedExpression: ...
+    ) -> TypedExpression:
+        ...
 
 
 class Multiplication(BinaryOp):
@@ -346,9 +339,7 @@ class Multiplication(BinaryOp):
                 f"in multiplication, got {rhs.value.typ}",
             )
 
-        mul_op = builder.insert_op(
-            arith.MuliOp(lhs.value.value, rhs.value.value)
-        )
+        mul_op = builder.insert_op(arith.MuliOp(lhs.value.value, rhs.value.value))
         mul_op.result.name_hint = (
             f"{lhs.value.value.name_hint}_times_{rhs.value.value.name_hint}"
         )
@@ -379,9 +370,7 @@ class Addition(BinaryOp):
                 f"in addition, got {rhs.value.typ}",
             )
 
-        add_op = builder.insert_op(
-            arith.AddiOp(lhs.value.value, rhs.value.value)
-        )
+        add_op = builder.insert_op(arith.AddiOp(lhs.value.value, rhs.value.value))
         add_op.result.name_hint = (
             f"{lhs.value.value.name_hint}_plus_{rhs.value.value.name_hint}"
         )
@@ -453,9 +442,7 @@ def parse_opt_expr(
 
         def parse_next_operator_glyph() -> BinaryOp | None:
             operators = PARSE_BINOP_PRIORITY[level - 1]
-            return next(
-                (op for op in operators if op.parse_opt_glyph(ctx)), None
-            )
+            return next((op for op in operators if op.parse_opt_glyph(ctx)), None)
 
         while (selected_op := parse_next_operator_glyph()) is not None:
             if (rhs := priority_level_parser(level - 1)).value is None:
@@ -473,9 +460,7 @@ def parse_opt_expr(
     return priority_level_parser(len(PARSE_BINOP_PRIORITY))
 
 
-def parse_expr(
-    ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression]:
+def parse_expr(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
     if (expr := parse_opt_expr(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression")
     return Located(expr.loc, expr.value)
@@ -484,9 +469,7 @@ def parse_expr(
 ## Statements
 
 
-def parse_opt_let_statement(
-    ctx: ParsingContext, builder: Builder
-) -> Located[bool]:
+def parse_opt_let_statement(ctx: ParsingContext, builder: Builder) -> Located[bool]:
     """
     Parses a let statement and adds its binding to the provided context if it
     is there. Returns True if a binding was found, False otherwise.
@@ -566,9 +549,7 @@ def parse_block(
 ## Program
 
 
-def parse_program(
-    code: str, builder: Builder
-) -> Located[TypedExpression | None]:
+def parse_program(code: str, builder: Builder) -> Located[TypedExpression | None]:
     """
     Parses a program.
     If the program has a result expression, returns it. The location of the
