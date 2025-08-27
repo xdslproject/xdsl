@@ -390,9 +390,7 @@ class BaseAttr(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
         return attr
 
     def get_bases(self) -> set[type[Attribute]] | None:
-        if is_runtime_final(self.attr):
-            return {self.attr}
-        return None
+        return {self.attr}
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
@@ -685,9 +683,7 @@ class ParamAttrConstraint(
         return attr
 
     def get_bases(self) -> set[type[Attribute]] | None:
-        if is_runtime_final(self.base_attr):
-            return {self.base_attr}
-        return None
+        return {self.base_attr}
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]

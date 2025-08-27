@@ -81,23 +81,27 @@ class AttrD(Base):
     param: AttrA | AttrC
 
 
+class AttrE(ParametrizedAttribute):
+    name = "test.attr_e"
+
+
 @pytest.mark.parametrize(
     "constraint, expected",
     [
         (AnyAttr(), None),
         (EqAttrConstraint(AttrB(AttrA())), {AttrB}),
-        (BaseAttr(Base), None),
+        (BaseAttr(Base), {Base}),
         (BaseAttr(AttrA), {AttrA}),
         (EqAttrConstraint(AttrB(AttrA())) | BaseAttr(AttrA), {AttrA, AttrB}),
         (
             EqAttrConstraint(AttrD(AttrA())) | EqAttrConstraint(AttrD(AttrC())),
             {AttrD},
         ),
-        (AllOf((AnyAttr(), BaseAttr(Base))), None),
+        (AllOf((AnyAttr(), BaseAttr(Base))), {Base}),
         (AllOf((AnyAttr(), BaseAttr(AttrA))), {AttrA}),
         (ParamAttrConstraint(AttrB, [BaseAttr(AttrA)]), {AttrB}),
-        (ParamAttrConstraint(Base, [BaseAttr(AttrA)]), None),
-        (VarConstraint("T", BaseAttr(Base)), None),
+        (ParamAttrConstraint(Base, [BaseAttr(AttrA)]), {Base}),
+        (VarConstraint("T", BaseAttr(Base)), {Base}),
         (VarConstraint("T", BaseAttr(AttrA)), {AttrA}),
         (
             AllOf(
@@ -335,6 +339,10 @@ def test_any_of_overlapping(c1: AttrConstraint, c2: AttrConstraint, msg: str):
             BaseAttr(AttrA),
             BaseAttr(AttrC),
             EqAttrConstraint(AttrD(AttrC())),
+        ),
+        (
+            BaseAttr(Base),
+            BaseAttr(AttrE),
         ),
     ],
 )

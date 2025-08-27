@@ -82,6 +82,7 @@ from xdsl.irdl.declarative_assembly_format import (
 from xdsl.parser import BaseParser, ParserState
 from xdsl.utils.lexer import Input
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRToken, MLIRTokenKind
+from xdsl.utils.runtime_final import is_runtime_final
 
 
 @dataclass
@@ -529,7 +530,13 @@ class FormatParser(BaseParser):
             is_optional = isinstance(attr_def, OptionalDef)
 
             bases = attr_def.constr.get_bases()
-            unique_base = bases.pop() if bases is not None and len(bases) == 1 else None
+            if bases is not None and len(bases) == 1:
+                unique_base = bases.pop()
+                if not is_runtime_final(unique_base):
+                    # Make sure abstract superclasses don't count as unique bases
+                    unique_base = None
+            else:
+                unique_base = None
 
             if qualified:
                 # Ensure qualified attributes stay qualified
