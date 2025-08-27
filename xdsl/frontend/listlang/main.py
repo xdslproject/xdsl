@@ -1,8 +1,9 @@
 import io
 import re
 from dataclasses import dataclass
-from typing import Generic, TypeVar, cast
+from typing import Generic, cast
 
+from typing_extensions import TypeVar
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, scf
 from xdsl.ir import Attribute, Block, SSAValue
