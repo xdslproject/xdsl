@@ -5,7 +5,7 @@ from typing import Generic, cast
 
 from typing_extensions import TypeVar
 
-import xdsl.frontend.list_dialect as list_dialect
+import xdsl.frontend.listlang.list_dialect as list_dialect
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, scf
 from xdsl.ir import Attribute, Block, SSAValue
