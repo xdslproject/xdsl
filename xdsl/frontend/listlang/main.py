@@ -63,7 +63,7 @@ class Location:
 
 
 @dataclass
-class Located[T]:
+class Located:
     loc: Location
     value: T
 
@@ -118,7 +118,7 @@ class CodeCursor:
 
     def next_regex(
         self, regex: re.Pattern[str]
-    ) -> Located[re.Match[str] | None]:
+    ) -> Located:
         match = self.peek_regex(regex)
         if match.value is not None:
             self.pos = match.value.end()
@@ -126,7 +126,7 @@ class CodeCursor:
 
     def peek_regex(
         self, regex: re.Pattern[str]
-    ) -> Located[re.Match[str] | None]:
+    ) -> Located:
         pos = self._whitespace_end()
         return Located(Location(pos), regex.match(self.code, pos))
 
@@ -163,7 +163,7 @@ class TypedExpression:
 ## Utils
 
 
-def parse_opt_punct(ctx: ParsingContext, punct: Punctuation) -> Located[bool]:
+def parse_opt_punct(ctx: ParsingContext, punct: Punctuation) -> Located:
     """
     Returns True if the punctuation was successfully parsed.
     """
@@ -177,7 +177,7 @@ def parse_punct(ctx: ParsingContext, punct: Punctuation) -> Location:
     return located.loc
 
 
-def parse_opt_identifier(ctx: ParsingContext) -> Located[str | None]:
+def parse_opt_identifier(ctx: ParsingContext) -> Located:
     matched = ctx.cursor.next_regex(IDENT)
     return Located(
         matched.loc,
@@ -185,13 +185,13 @@ def parse_opt_identifier(ctx: ParsingContext) -> Located[str | None]:
     )
 
 
-def parse_identifier(ctx: ParsingContext) -> Located[str]:
+def parse_identifier(ctx: ParsingContext) -> Located:
     if (ident := parse_opt_identifier(ctx)).value is None:
         raise ParseError.from_ctx(ctx, "expected variable identifier")
     return Located(ident.loc, ident.value)
 
 
-def parse_opt_integer(ctx: ParsingContext) -> Located[int | None]:
+def parse_opt_integer(ctx: ParsingContext) -> Located:
     matched = ctx.cursor.next_regex(INTEGER)
     return Located(
         matched.loc,
@@ -199,7 +199,7 @@ def parse_opt_integer(ctx: ParsingContext) -> Located[int | None]:
     )
 
 
-def parse_integer(ctx: ParsingContext) -> Located[int]:
+def parse_integer(ctx: ParsingContext) -> Located:
     if (lit := parse_opt_integer(ctx)).value is None:
         raise ParseError.from_ctx(ctx, "expected integer constant")
     return Located(lit.loc, lit.value)
@@ -210,7 +210,7 @@ def parse_integer(ctx: ParsingContext) -> Located[int]:
 
 def _parse_opt_expr_atom(
     ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression | None]:
+) -> Located:
     # Parse parenthesis expression.
     if parse_opt_punct(ctx, LPAREN):
         expr = parse_expr(ctx, builder)
@@ -326,14 +326,14 @@ def _parse_opt_expr_atom(
 
 def _parse_expr_atom(
     ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression]:
+) -> Located:
     if (expr := _parse_opt_expr_atom(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression atom")
     return Located(expr.loc, expr.value)
 
 
 class BinaryOp:
-    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located:
         """
         Returns true if the expected glyph was found.
         """
@@ -342,20 +342,20 @@ class BinaryOp:
     def build(
         self,
         builder: Builder,
-        lhs: Located[TypedExpression],
-        rhs: Located[TypedExpression],
+        lhs: Located,
+        rhs: Located,
     ) -> TypedExpression: ...
 
 
 class Multiplication(BinaryOp):
-    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located:
         return parse_opt_punct(ctx, STAR)
 
     def build(
         self,
         builder: Builder,
-        lhs: Located[TypedExpression],
-        rhs: Located[TypedExpression],
+        lhs: Located,
+        rhs: Located,
     ) -> TypedExpression:
         if not isinstance(lhs.value.typ, ListLangInt):
             raise ParseError(
@@ -381,14 +381,14 @@ class Multiplication(BinaryOp):
 
 
 class Addition(BinaryOp):
-    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located:
         return parse_opt_punct(ctx, PLUS)
 
     def build(
         self,
         builder: Builder,
-        lhs: Located[TypedExpression],
-        rhs: Located[TypedExpression],
+        lhs: Located,
+        rhs: Located,
     ) -> TypedExpression:
         if not isinstance(lhs.value.typ, ListLangInt):
             raise ParseError(
@@ -418,14 +418,14 @@ class Comparator(BinaryOp):
     glyph: Punctuation
     arith_code: str
 
-    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located:
         return parse_opt_punct(ctx, self.glyph)
 
     def build(
         self,
         builder: Builder,
-        lhs: Located[TypedExpression],
-        rhs: Located[TypedExpression],
+        lhs: Located,
+        rhs: Located,
     ) -> TypedExpression:
         if not isinstance(lhs.value.typ, ListLangInt):
             raise ParseError(
@@ -452,14 +452,14 @@ class Comparator(BinaryOp):
 
 
 class BoolAnd(BinaryOp):
-    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located:
         return parse_opt_punct(ctx, BOOL_AND)
 
     def build(
         self,
         builder: Builder,
-        lhs: Located[TypedExpression],
-        rhs: Located[TypedExpression],
+        lhs: Located,
+        rhs: Located,
     ) -> TypedExpression:
         if not isinstance(lhs.value.typ, ListLangBool):
             raise ParseError(
@@ -485,14 +485,14 @@ class BoolAnd(BinaryOp):
 
 
 class BoolOr(BinaryOp):
-    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located:
         return parse_opt_punct(ctx, BOOL_OR)
 
     def build(
         self,
         builder: Builder,
-        lhs: Located[TypedExpression],
-        rhs: Located[TypedExpression],
+        lhs: Located,
+        rhs: Located,
     ) -> TypedExpression:
         if not isinstance(lhs.value.typ, ListLangBool):
             raise ParseError(
@@ -534,8 +534,8 @@ PARSE_BINOP_PRIORITY: tuple[tuple[BinaryOp, ...], ...] = (
 
 def parse_opt_expr(
     ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression | None]:
-    def priority_level_parser(level: int) -> Located[TypedExpression | None]:
+) -> Located:
+    def priority_level_parser(level: int) -> Located:
         if level == 0:
             return _parse_opt_expr_atom(ctx, builder)
 
@@ -561,14 +561,14 @@ def parse_opt_expr(
             )
             lhs = Located(lhs.loc, expr)
 
-        return cast(Located[TypedExpression | None], lhs)
+        return cast(Located, lhs)
 
     return priority_level_parser(len(PARSE_BINOP_PRIORITY))
 
 
 def parse_expr(
     ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression]:
+) -> Located:
     if (expr := parse_opt_expr(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression")
     return Located(expr.loc, expr.value)
@@ -579,7 +579,7 @@ def parse_expr(
 
 def parse_opt_let_statement(
     ctx: ParsingContext, builder: Builder
-) -> Located[bool]:
+) -> Located:
     """
     Parses a let statement and adds its binding to the provided context if it
     is there. Returns True if a binding was found, False otherwise.
@@ -608,7 +608,7 @@ def parse_opt_let_statement(
     return let
 
 
-def parse_opt_statement(ctx: ParsingContext, builder: Builder) -> Located[bool]:
+def parse_opt_statement(ctx: ParsingContext, builder: Builder) -> Located:
     return parse_opt_let_statement(ctx, builder)
 
 
@@ -617,7 +617,7 @@ def parse_opt_statement(ctx: ParsingContext, builder: Builder) -> Located[bool]:
 
 def parse_block_content(
     ctx: ParsingContext, builder: Builder
-) -> Located[Located[TypedExpression | None]]:
+) -> Located:
     """
     Parses the content of a block and returns its trailing expression, if there
     is one. The first location is the start of the block content, while the
@@ -636,7 +636,7 @@ def parse_block_content(
 
 def parse_block(
     ctx: ParsingContext, builder: Builder
-) -> Located[Located[TypedExpression | None]]:
+) -> Located:
     """
     Parses a block and returns its trailing expression, if there is one. The
     first location is the start of the block content, while the second location
@@ -661,7 +661,7 @@ def parse_block(
 
 def parse_program(
     code: str, builder: Builder
-) -> Located[TypedExpression | None]:
+) -> Located:
     """
     Parses a program.
     If the program has a result expression, returns it. The location of the
