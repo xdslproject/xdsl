@@ -1,6 +1,7 @@
 import io
 import re
 from dataclasses import dataclass
+from typing import cast
 
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, scf
@@ -42,6 +43,9 @@ GT_CMP = Punctuation(re.compile(r">"), "greater than comparator")
 LTE_CMP = Punctuation(re.compile(r"<="), "less than or equal comparator")
 GTE_CMP = Punctuation(re.compile(r">="), "greater than or equal comparator")
 
+BOOL_AND = Punctuation(re.compile(r"&&"), "boolean and")
+BOOL_OR = Punctuation(re.compile(r"\|\|"), "boolean or")
+BOOL_NEG = Punctuation(re.compile(r"!"), "boolean negation")
 
 LPAREN = Punctuation(re.compile(r"\("), "left parenthesis")
 RPAREN = Punctuation(re.compile(r"\)"), "right parenthesis")
@@ -204,13 +208,9 @@ def parse_integer(ctx: ParsingContext) -> Located[int]:
 ## Expressions
 
 
-def _parse_opt_expr_p0(
+def _parse_opt_expr_atom(
     ctx: ParsingContext, builder: Builder
 ) -> Located[TypedExpression | None]:
-    """
-    Atom priority level.
-    """
-
     # Parse parenthesis expression.
     if parse_opt_punct(ctx, LPAREN):
         expr = parse_expr(ctx, builder)
@@ -296,6 +296,24 @@ def _parse_opt_expr_p0(
         val.result.name_hint = "true"
         return Located(true.loc, TypedExpression(val.result, ListLangBool()))
 
+    # Parse boolean negation.
+    if neg := parse_opt_punct(ctx, BOOL_NEG):
+        to_negate = _parse_expr_atom(ctx, builder)
+        if not isinstance(to_negate.value.typ, ListLangBool):
+            raise ParseError(
+                to_negate.loc.pos,
+                f"expected {ListLangBool()} type for negation, "
+                f"got {to_negate.value.typ}",
+            )
+        true = builder.insert_op(
+            arith.ConstantOp(builtin.IntegerAttr(1, XDSL_BOOL))
+        )
+        negated = builder.insert_op(
+            arith.XOrIOp(to_negate.value.value, true.result)
+        )
+        negated.result.name_hint = f"not_{to_negate.value.value.name_hint}"
+        return Located(neg.loc, TypedExpression(negated.result, ListLangBool()))
+
     # Parse binding.
     if (ident := parse_opt_identifier(ctx)).value is not None:
         if ident.value not in ctx.bindings:
@@ -306,185 +324,254 @@ def _parse_opt_expr_p0(
     return Located(Location(ctx.cursor.pos), None)
 
 
-def _parse_expr_p0(
+def _parse_expr_atom(
     ctx: ParsingContext, builder: Builder
 ) -> Located[TypedExpression]:
-    if (expr := _parse_opt_expr_p0(ctx, builder)).value is None:
-        raise ParseError(expr.loc.pos, "expected expression")
+    if (expr := _parse_opt_expr_atom(ctx, builder)).value is None:
+        raise ParseError(expr.loc.pos, "expected expression atom")
     return Located(expr.loc, expr.value)
 
 
-def _parse_opt_expr_p1(
-    ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression | None]:
-    """
-    Multiplication priority level.
-    """
+class BinaryOp:
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+        """
+        Returns true if the expected glyph was found.
+        """
+        ...
 
-    if (lhs := _parse_opt_expr_p0(ctx, builder)).value is None:
-        return lhs
+    def build(
+        self,
+        builder: Builder,
+        lhs: Located[TypedExpression],
+        rhs: Located[TypedExpression],
+    ) -> TypedExpression: ...
 
-    if not parse_opt_punct(ctx, STAR):
-        return lhs
 
-    rhs = _parse_expr_p1(ctx, builder)
+class Multiplication(BinaryOp):
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+        return parse_opt_punct(ctx, STAR)
 
-    if not isinstance(lhs.value.typ, ListLangInt):
-        raise ParseError(
-            lhs.loc.pos,
-            f"expected expression of type {ListLangInt()} "
-            f"in multiplication, got {lhs.value.typ}",
+    def build(
+        self,
+        builder: Builder,
+        lhs: Located[TypedExpression],
+        rhs: Located[TypedExpression],
+    ) -> TypedExpression:
+        if not isinstance(lhs.value.typ, ListLangInt):
+            raise ParseError(
+                lhs.loc.pos,
+                f"expected expression of type {ListLangInt()} "
+                f"in multiplication, got {lhs.value.typ}",
+            )
+
+        if not isinstance(rhs.value.typ, ListLangInt):
+            raise ParseError(
+                rhs.loc.pos,
+                f"expected expression of type {ListLangInt()} "
+                f"in multiplication, got {rhs.value.typ}",
+            )
+
+        mul_op = builder.insert_op(
+            arith.MuliOp(lhs.value.value, rhs.value.value)
         )
-
-    if not isinstance(rhs.value.typ, ListLangInt):
-        raise ParseError(
-            rhs.loc.pos,
-            f"expected expression of type {ListLangInt()} "
-            f"in multiplication, got {rhs.value.typ}",
+        mul_op.result.name_hint = (
+            f"{lhs.value.value.name_hint}_times_{rhs.value.value.name_hint}"
         )
-
-    mul_op = builder.insert_op(arith.MuliOp(lhs.value.value, rhs.value.value))
-    mul_op.result.name_hint = (
-        f"{lhs.value.value.name_hint}_times_{rhs.value.value.name_hint}"
-    )
-    return Located(lhs.loc, TypedExpression(mul_op.result, lhs.value.typ))
+        return TypedExpression(mul_op.result, lhs.value.typ)
 
 
-def _parse_expr_p1(
-    ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression]:
-    if (expr := _parse_opt_expr_p1(ctx, builder)).value is None:
-        raise ParseError(expr.loc.pos, "expected expression")
-    return Located(expr.loc, expr.value)
+class Addition(BinaryOp):
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+        return parse_opt_punct(ctx, PLUS)
 
+    def build(
+        self,
+        builder: Builder,
+        lhs: Located[TypedExpression],
+        rhs: Located[TypedExpression],
+    ) -> TypedExpression:
+        if not isinstance(lhs.value.typ, ListLangInt):
+            raise ParseError(
+                lhs.loc.pos,
+                f"expected expression of type {ListLangInt()} "
+                f"in addition, got {lhs.value.typ}",
+            )
 
-def _parse_opt_expr_p2(
-    ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression | None]:
-    """
-    Addition priority level.
-    """
+        if not isinstance(rhs.value.typ, ListLangInt):
+            raise ParseError(
+                rhs.loc.pos,
+                f"expected expression of type {ListLangInt()} "
+                f"in addition, got {rhs.value.typ}",
+            )
 
-    if (lhs := _parse_opt_expr_p1(ctx, builder)).value is None:
-        return lhs
-
-    if not parse_opt_punct(ctx, PLUS):
-        return lhs
-
-    rhs = _parse_expr_p2(ctx, builder)
-
-    if not isinstance(lhs.value.typ, ListLangInt):
-        raise ParseError(
-            lhs.loc.pos,
-            f"expected expression of type {ListLangInt()} in addition, "
-            f"got {lhs.value.typ}",
+        add_op = builder.insert_op(
+            arith.AddiOp(lhs.value.value, rhs.value.value)
         )
-
-    if not isinstance(rhs.value.typ, ListLangInt):
-        raise ParseError(
-            rhs.loc.pos,
-            f"expected expression of type {ListLangInt()} in addition, "
-            f"got {rhs.value.typ}",
+        add_op.result.name_hint = (
+            f"{lhs.value.value.name_hint}_plus_{rhs.value.value.name_hint}"
         )
-
-    add_op = builder.insert_op(arith.AddiOp(lhs.value.value, rhs.value.value))
-    add_op.result.name_hint = (
-        f"{lhs.value.value.name_hint}_plus_{rhs.value.value.name_hint}"
-    )
-    return Located(lhs.loc, TypedExpression(add_op.result, lhs.value.typ))
+        return TypedExpression(add_op.result, lhs.value.typ)
 
 
-def _parse_expr_p2(
-    ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression]:
-    if (expr := _parse_opt_expr_p2(ctx, builder)).value is None:
-        raise ParseError(expr.loc.pos, "expected expression")
-    return Located(expr.loc, expr.value)
+@dataclass
+class Comparator(BinaryOp):
+    glyph: Punctuation
+    arith_code: str
 
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+        return parse_opt_punct(ctx, self.glyph)
 
-def parse_opt_any_comparator(ctx: ParsingContext) -> Located[str | None]:
-    ctx.cursor.skip_whitespaces()
-    loc = Location(ctx.cursor.pos)
+    def build(
+        self,
+        builder: Builder,
+        lhs: Located[TypedExpression],
+        rhs: Located[TypedExpression],
+    ) -> TypedExpression:
+        if not isinstance(lhs.value.typ, ListLangInt):
+            raise ParseError(
+                lhs.loc.pos,
+                f"expected expression of type {ListLangInt()} "
+                f"in comparison, got {lhs.value.typ}",
+            )
 
-    def parse_unchecked() -> Located[str | None]:
-        if parse_opt_punct(ctx, EQUAL_CMP):
-            return Located(loc, "eq")
+        if not isinstance(rhs.value.typ, ListLangInt):
+            raise ParseError(
+                rhs.loc.pos,
+                f"expected expression of type {ListLangInt()} "
+                f"in comparison, got {rhs.value.typ}",
+            )
 
-        if parse_opt_punct(ctx, LT_CMP):
-            return Located(loc, "ult")
-
-        if parse_opt_punct(ctx, GT_CMP):
-            return Located(loc, "ugt")
-
-        if parse_opt_punct(ctx, LTE_CMP):
-            return Located(loc, "ule")
-
-        if parse_opt_punct(ctx, GTE_CMP):
-            return Located(loc, "uge")
-
-        return Located(loc, None)
-
-    res = parse_unchecked()
-    assert res.value is None or res.value in arith.CMPI_COMPARISON_OPERATIONS
-    return res
-
-
-def _parse_opt_expr_p3(
-    ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression | None]:
-    """
-    Comparison operators priority level.
-    """
-
-    if (lhs := _parse_opt_expr_p2(ctx, builder)).value is None:
-        return lhs
-
-    if (cmp := parse_opt_any_comparator(ctx)).value is None:
-        return lhs
-
-    rhs = _parse_expr_p3(ctx, builder)
-
-    if not isinstance(lhs.value.typ, ListLangInt):
-        raise ParseError(
-            lhs.loc.pos,
-            f"expected expression of type {ListLangInt()} in comparison, "
-            f"got {lhs.value.typ}",
+        cmpi_op = builder.insert_op(
+            arith.CmpiOp(lhs.value.value, rhs.value.value, self.arith_code)
         )
-
-    if not isinstance(rhs.value.typ, ListLangInt):
-        raise ParseError(
-            rhs.loc.pos,
-            f"expected expression of type {ListLangInt()} in comparison, "
-            f"got {rhs.value.typ}",
+        cmpi_op.result.name_hint = (
+            f"{lhs.value.value.name_hint}_"
+            f"{self.arith_code}_{rhs.value.value.name_hint}"
         )
-
-    cmpi_op = builder.insert_op(
-        arith.CmpiOp(lhs.value.value, rhs.value.value, cmp.value)
-    )
-    cmpi_op.result.name_hint = (
-        f"{lhs.value.value.name_hint}_{cmp.value}_{rhs.value.value.name_hint}"
-    )
-    return Located(lhs.loc, TypedExpression(cmpi_op.result, ListLangBool()))
+        return TypedExpression(cmpi_op.result, ListLangBool())
 
 
-def _parse_expr_p3(
-    ctx: ParsingContext, builder: Builder
-) -> Located[TypedExpression]:
-    if (expr := _parse_opt_expr_p3(ctx, builder)).value is None:
-        raise ParseError(expr.loc.pos, "expected expression")
-    return Located(expr.loc, expr.value)
+class BoolAnd(BinaryOp):
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+        return parse_opt_punct(ctx, BOOL_AND)
+
+    def build(
+        self,
+        builder: Builder,
+        lhs: Located[TypedExpression],
+        rhs: Located[TypedExpression],
+    ) -> TypedExpression:
+        if not isinstance(lhs.value.typ, ListLangBool):
+            raise ParseError(
+                lhs.loc.pos,
+                f"expected expression of type {ListLangBool()} "
+                f"in boolean and, got {lhs.value.typ}",
+            )
+
+        if not isinstance(rhs.value.typ, ListLangBool):
+            raise ParseError(
+                rhs.loc.pos,
+                f"expected expression of type {ListLangBool()} "
+                f"in boolean and, got {rhs.value.typ}",
+            )
+
+        and_op = builder.insert_op(
+            arith.AndIOp(lhs.value.value, rhs.value.value)
+        )
+        and_op.result.name_hint = (
+            f"{lhs.value.value.name_hint}_and_{rhs.value.value.name_hint}"
+        )
+        return TypedExpression(and_op.result, lhs.value.typ)
+
+
+class BoolOr(BinaryOp):
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+        return parse_opt_punct(ctx, BOOL_OR)
+
+    def build(
+        self,
+        builder: Builder,
+        lhs: Located[TypedExpression],
+        rhs: Located[TypedExpression],
+    ) -> TypedExpression:
+        if not isinstance(lhs.value.typ, ListLangBool):
+            raise ParseError(
+                lhs.loc.pos,
+                f"expected expression of type {ListLangBool()} "
+                f"in boolean or, got {lhs.value.typ}",
+            )
+
+        if not isinstance(rhs.value.typ, ListLangBool):
+            raise ParseError(
+                rhs.loc.pos,
+                f"expected expression of type {ListLangBool()} "
+                f"in boolean or, got {rhs.value.typ}",
+            )
+
+        or_op = builder.insert_op(arith.OrIOp(lhs.value.value, rhs.value.value))
+        or_op.result.name_hint = (
+            f"{lhs.value.value.name_hint}_or_{rhs.value.value.name_hint}"
+        )
+        return TypedExpression(or_op.result, lhs.value.typ)
+
+
+PARSE_BINOP_PRIORITY: tuple[tuple[BinaryOp, ...], ...] = (
+    (Multiplication(),),
+    (Addition(),),
+    (
+        Comparator(EQUAL_CMP, "eq"),
+        Comparator(LTE_CMP, "ule"),
+        Comparator(GTE_CMP, "uge"),
+        Comparator(GT_CMP, "ugt"),
+        Comparator(LT_CMP, "ult"),
+    ),
+    (
+        BoolAnd(),
+        BoolOr(),
+    ),
+)
 
 
 def parse_opt_expr(
     ctx: ParsingContext, builder: Builder
 ) -> Located[TypedExpression | None]:
-    return _parse_opt_expr_p3(ctx, builder)
+    def priority_level_parser(level: int) -> Located[TypedExpression | None]:
+        if level == 0:
+            return _parse_opt_expr_atom(ctx, builder)
+
+        if (lhs := priority_level_parser(level - 1)).value is None:
+            return lhs
+
+        lhs = Located(lhs.loc, lhs.value)
+
+        def parse_next_operator_glyph() -> BinaryOp | None:
+            operators = PARSE_BINOP_PRIORITY[level - 1]
+            return next(
+                (op for op in operators if op.parse_opt_glyph(ctx)), None
+            )
+
+        while (selected_op := parse_next_operator_glyph()) is not None:
+            if (rhs := priority_level_parser(level - 1)).value is None:
+                raise ParseError(rhs.loc.pos, "expected expression")
+
+            expr = selected_op.build(
+                builder,
+                Located(lhs.loc, lhs.value),
+                Located(rhs.loc, rhs.value),
+            )
+            lhs = Located(lhs.loc, expr)
+
+        return cast(Located[TypedExpression | None], lhs)
+
+    return priority_level_parser(len(PARSE_BINOP_PRIORITY))
 
 
 def parse_expr(
     ctx: ParsingContext, builder: Builder
 ) -> Located[TypedExpression]:
-    return _parse_expr_p3(ctx, builder)
+    if (expr := parse_opt_expr(ctx, builder)).value is None:
+        raise ParseError(expr.loc.pos, "expected expression")
+    return Located(expr.loc, expr.value)
 
 
 ## Statements
@@ -594,6 +681,7 @@ def program_to_mlir(code: str) -> str:
     Printer(stream=output).print_op(module)
     return output.getvalue()
 
+
 if __name__ == "__main__":
     import fileinput
 
@@ -602,4 +690,3 @@ if __name__ == "__main__":
     output = program_to_mlir(program)
 
     print(output)
-    print()
