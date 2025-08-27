@@ -65,7 +65,7 @@ class Location:
 @dataclass
 class Located:
     loc: Location
-    value: T
+    value: object
 
     def __bool__(self) -> bool:
         return bool(self.value)
