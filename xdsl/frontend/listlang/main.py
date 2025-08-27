@@ -5,6 +5,7 @@ from typing import Generic, cast
 
 from typing_extensions import TypeVar
 
+import xdsl.frontend.list_dialect as list_dialect
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, scf
 from xdsl.ir import Attribute, Block, SSAValue
@@ -38,6 +39,7 @@ FALSE = Punctuation(re.compile(r"false"), "'false'")
 
 STAR = Punctuation(re.compile(r"\*"), "star")
 PLUS = Punctuation(re.compile(r"\+"), "plus")
+RANGE = Punctuation(re.compile(r"\.\."), "range")
 
 EQUAL_CMP = Punctuation(re.compile(r"=="), "equality comparator")
 LT_CMP = Punctuation(re.compile(r"<"), "less than comparator")
@@ -45,6 +47,9 @@ GT_CMP = Punctuation(re.compile(r">"), "greater than comparator")
 LTE_CMP = Punctuation(re.compile(r"<="), "less than or equal comparator")
 GTE_CMP = Punctuation(re.compile(r">="), "greater than or equal comparator")
 
+BOOL_AND = Punctuation(re.compile(r"&&"), "boolean and")
+BOOL_OR = Punctuation(re.compile(r"\|\|"), "boolean or")
+BOOL_NEG = Punctuation(re.compile(r"!"), "boolean negation")
 
 LPAREN = Punctuation(re.compile(r"\("), "left parenthesis")
 RPAREN = Punctuation(re.compile(r"\)"), "right parenthesis")
@@ -84,7 +89,7 @@ class ListLangInt(ListLangType):
     def __str__(self) -> str:
         return "int"
 
-    def xdsl(self) -> Attribute:
+    def xdsl(self) -> builtin.IntegerType:
         return XDSL_INT
 
 
@@ -93,8 +98,19 @@ class ListLangBool(ListLangType):
     def __str__(self) -> str:
         return "bool"
 
-    def xdsl(self) -> Attribute:
+    def xdsl(self) -> builtin.IntegerType:
         return XDSL_BOOL
+
+
+@dataclass
+class ListLangList(ListLangType):
+    element_type: ListLangBool | ListLangInt
+
+    def __str__(self) -> str:
+        return f"list<{self.element_type}>"
+
+    def xdsl(self) -> list_dialect.ListType:
+        return list_dialect.ListType(self.element_type.xdsl())
 
 
 @dataclass
@@ -286,6 +302,20 @@ def _parse_opt_expr_atom(
         val.result.name_hint = "true"
         return Located(true.loc, TypedExpression(val.result, ListLangBool()))
 
+    # Parse boolean negation.
+    if neg := parse_opt_punct(ctx, BOOL_NEG):
+        to_negate = _parse_expr_atom(ctx, builder)
+        if not isinstance(to_negate.value.typ, ListLangBool):
+            raise ParseError(
+                to_negate.loc.pos,
+                f"expected {ListLangBool()} type for negation, "
+                f"got {to_negate.value.typ}",
+            )
+        true = builder.insert_op(arith.ConstantOp(builtin.IntegerAttr(1, XDSL_BOOL)))
+        negated = builder.insert_op(arith.XOrIOp(to_negate.value.value, true.result))
+        negated.result.name_hint = f"not_{to_negate.value.value.name_hint}"
+        return Located(neg.loc, TypedExpression(negated.result, ListLangBool()))
+
     # Parse binding.
     if (ident := parse_opt_identifier(ctx)).value is not None:
         if ident.value not in ctx.bindings:
@@ -294,6 +324,12 @@ def _parse_opt_expr_atom(
         return Located(ident.loc, TypedExpression(binding.value, binding.typ))
 
     return Located(Location(ctx.cursor.pos), None)
+
+
+def _parse_expr_atom(ctx: ParsingContext, builder: Builder) -> Located[TypedExpression]:
+    if (expr := _parse_opt_expr_atom(ctx, builder)).value is None:
+        raise ParseError(expr.loc.pos, "expected expression atom")
+    return Located(expr.loc, expr.value)
 
 
 class BinaryOp:
@@ -373,6 +409,45 @@ class Addition(BinaryOp):
         return TypedExpression(add_op.result, lhs.value.typ)
 
 
+class ListRange(BinaryOp):
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+        return parse_opt_punct(ctx, RANGE)
+
+    def build(
+        self,
+        builder: Builder,
+        lhs: Located[TypedExpression],
+        rhs: Located[TypedExpression],
+    ) -> TypedExpression:
+        lower = lhs
+        upper = rhs
+
+        if not isinstance(lower.value.typ, ListLangInt):
+            raise ParseError(
+                lower.loc.pos,
+                f"expected {ListLangInt()} type for range lower bound, "
+                f"got {lower.value.typ}",
+            )
+
+        if not isinstance(upper.value.typ, ListLangInt):
+            raise ParseError(
+                upper.loc.pos,
+                f"expected {ListLangInt()} type for range upper bound, "
+                f"got {upper.value.typ}",
+            )
+
+        list_type = ListLangList(ListLangInt())
+        list_range = builder.insert(
+            list_dialect.RangeOp(
+                lower.value.value,
+                upper.value.value,
+                list_type.xdsl(),
+            )
+        )
+        list_range.result.name_hint = "int_list"
+        return TypedExpression(list_range.result, list_type)
+
+
 @dataclass
 class Comparator(BinaryOp):
     glyph: Punctuation
@@ -410,15 +485,82 @@ class Comparator(BinaryOp):
         return TypedExpression(cmpi_op.result, ListLangBool())
 
 
+class BoolAnd(BinaryOp):
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+        return parse_opt_punct(ctx, BOOL_AND)
+
+    def build(
+        self,
+        builder: Builder,
+        lhs: Located[TypedExpression],
+        rhs: Located[TypedExpression],
+    ) -> TypedExpression:
+        if not isinstance(lhs.value.typ, ListLangBool):
+            raise ParseError(
+                lhs.loc.pos,
+                f"expected expression of type {ListLangBool()} "
+                f"in boolean and, got {lhs.value.typ}",
+            )
+
+        if not isinstance(rhs.value.typ, ListLangBool):
+            raise ParseError(
+                rhs.loc.pos,
+                f"expected expression of type {ListLangBool()} "
+                f"in boolean and, got {rhs.value.typ}",
+            )
+
+        and_op = builder.insert_op(arith.AndIOp(lhs.value.value, rhs.value.value))
+        and_op.result.name_hint = (
+            f"{lhs.value.value.name_hint}_and_{rhs.value.value.name_hint}"
+        )
+        return TypedExpression(and_op.result, lhs.value.typ)
+
+
+class BoolOr(BinaryOp):
+    def parse_opt_glyph(self, ctx: ParsingContext) -> Located[bool]:
+        return parse_opt_punct(ctx, BOOL_OR)
+
+    def build(
+        self,
+        builder: Builder,
+        lhs: Located[TypedExpression],
+        rhs: Located[TypedExpression],
+    ) -> TypedExpression:
+        if not isinstance(lhs.value.typ, ListLangBool):
+            raise ParseError(
+                lhs.loc.pos,
+                f"expected expression of type {ListLangBool()} "
+                f"in boolean or, got {lhs.value.typ}",
+            )
+
+        if not isinstance(rhs.value.typ, ListLangBool):
+            raise ParseError(
+                rhs.loc.pos,
+                f"expected expression of type {ListLangBool()} "
+                f"in boolean or, got {rhs.value.typ}",
+            )
+
+        or_op = builder.insert_op(arith.OrIOp(lhs.value.value, rhs.value.value))
+        or_op.result.name_hint = (
+            f"{lhs.value.value.name_hint}_or_{rhs.value.value.name_hint}"
+        )
+        return TypedExpression(or_op.result, lhs.value.typ)
+
+
 PARSE_BINOP_PRIORITY: tuple[tuple[BinaryOp, ...], ...] = (
     (Multiplication(),),
     (Addition(),),
     (
+        ListRange(),
         Comparator(EQUAL_CMP, "eq"),
-        Comparator(LT_CMP, "ult"),
-        Comparator(GT_CMP, "ugt"),
         Comparator(LTE_CMP, "ule"),
         Comparator(GTE_CMP, "uge"),
+        Comparator(GT_CMP, "ugt"),
+        Comparator(LT_CMP, "ult"),
+    ),
+    (
+        BoolAnd(),
+        BoolOr(),
     ),
 )
 
@@ -573,4 +715,3 @@ if __name__ == "__main__":
     output = program_to_mlir(program)
 
     print(output)
-    print()
