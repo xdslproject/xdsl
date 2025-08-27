@@ -74,11 +74,9 @@ class Located(Generic[T]):  # noqa: UP046
 
 
 class ListLangType:
-    def __str__(self) -> str:
-        ...
+    def __str__(self) -> str: ...
 
-    def xdsl(self) -> Attribute:
-        ...
+    def xdsl(self) -> Attribute: ...
 
 
 @dataclass
@@ -225,8 +223,7 @@ def _parse_opt_expr_atom(
         if not isinstance(cond.value.typ, ListLangBool):
             raise ParseError(
                 cond.loc.pos,
-                f"expected {ListLangBool()} type for condition, "
-                f"got {cond.value.typ}",
+                f"expected {ListLangBool()} type for condition, got {cond.value.typ}",
             )
 
         then_block = Block()
@@ -311,8 +308,7 @@ class BinaryOp:
         builder: Builder,
         lhs: Located[TypedExpression],
         rhs: Located[TypedExpression],
-    ) -> TypedExpression:
-        ...
+    ) -> TypedExpression: ...
 
 
 class Multiplication(BinaryOp):
@@ -409,8 +405,7 @@ class Comparator(BinaryOp):
             arith.CmpiOp(lhs.value.value, rhs.value.value, self.arith_code)
         )
         cmpi_op.result.name_hint = (
-            f"{lhs.value.value.name_hint}_"
-            f"{self.arith_code}_{rhs.value.value.name_hint}"
+            f"{lhs.value.value.name_hint}_{self.arith_code}_{rhs.value.value.name_hint}"
         )
         return TypedExpression(cmpi_op.result, ListLangBool())
 
