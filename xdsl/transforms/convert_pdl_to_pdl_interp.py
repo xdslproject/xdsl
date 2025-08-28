@@ -749,9 +749,9 @@ class PatternAnalyzer:
 
     def extract_tree_predicates(
         self,
-        value: Operation | SSAValue,
+        value: SSAValue,
         position: Position,
-        inputs: dict[Operation | SSAValue, Position],
+        inputs: dict[SSAValue, Position],
         ignore_operand: int | None = None,
     ) -> list[PositionalPredicate]:
         """Extract predicates by walking the operation tree"""
@@ -762,7 +762,7 @@ class PatternAnalyzer:
         if existing_pos is not None:
             # If this is an input value that has been visited in the tree,
             # add a constraint to ensure both instances refer to the same value
-            defining_op = value.owner if isinstance(value, SSAValue) else value
+            defining_op = value.owner
             if isinstance(
                 defining_op,
                 pdl.AttributeOp
@@ -815,7 +815,7 @@ class PatternAnalyzer:
         self,
         attr_value: Operation | SSAValue,
         attr_pos: AttributePosition,
-        inputs: dict[Operation | SSAValue, Position],
+        inputs: dict[SSAValue, Position],
     ) -> list[PositionalPredicate]:
         """Extract predicates for an attribute"""
         predicates: list[PositionalPredicate] = []
@@ -846,7 +846,7 @@ class PatternAnalyzer:
         self,
         op_value: Operation | SSAValue,
         op_pos: OperationPosition,
-        inputs: dict[Operation | SSAValue, Position],
+        inputs: dict[SSAValue, Position],
         ignore_operand: int | None = None,
     ) -> list[PositionalPredicate]:
         """Extract predicates for an operation"""
@@ -961,7 +961,7 @@ class PatternAnalyzer:
         self,
         operand_value: SSAValue,
         operand_pos: OperandPosition | OperandGroupPosition,
-        inputs: dict[Operation | SSAValue, Position],
+        inputs: dict[SSAValue, Position],
     ) -> list[PositionalPredicate]:
         """Extract predicates for an operand or operand group"""
         predicates: list[PositionalPredicate] = []
@@ -1026,7 +1026,7 @@ class PatternAnalyzer:
         self,
         type_value: Operation | SSAValue,
         type_pos: TypePosition,
-        inputs: dict[Operation | SSAValue, Position],
+        inputs: dict[SSAValue, Position],
     ) -> list[PositionalPredicate]:
         """Extract predicates for a type"""
         predicates: list[PositionalPredicate] = []
@@ -1049,7 +1049,7 @@ class PatternAnalyzer:
     def extract_non_tree_predicates(
         self,
         pattern: pdl.PatternOp,
-        inputs: dict[Operation | SSAValue, Position],
+        inputs: dict[SSAValue, Position],
     ) -> list[PositionalPredicate]:
         """Extract predicates that cannot be determined via tree walking"""
         predicates: list[PositionalPredicate] = []
@@ -1060,7 +1060,7 @@ class PatternAnalyzer:
                     if op.value:
                         # Create literal position for constant attribute
                         attr_pos = self.builder.get_attribute_literal(op.value)
-                        inputs[op] = attr_pos
+                        inputs[op.output] = attr_pos
 
             elif isinstance(op, pdl.ApplyNativeConstraintOp):
                 # Collect all argument positions
@@ -1105,8 +1105,8 @@ class PatternAnalyzer:
             elif isinstance(op, pdl.ResultOp):
                 # Ensure result exists
                 if op.val not in inputs:
-                    assert isinstance(op.parent_.owner, Operation)
-                    parent_pos = inputs.get(op.parent_.owner)
+                    assert isinstance(op.parent_.owner, pdl.OperationOp)
+                    parent_pos = inputs.get(op.parent_.owner.op)
                     if parent_pos and isinstance(parent_pos, OperationPosition):
                         result_pos = self.builder.get_result(
                             parent_pos, op.index.value.data
@@ -1117,8 +1117,8 @@ class PatternAnalyzer:
             elif isinstance(op, pdl.ResultsOp):
                 # Handle result groups
                 if op.val not in inputs:
-                    assert isinstance(op.parent_.owner, Operation)
-                    parent_pos = inputs.get(op.parent_.owner)
+                    assert isinstance(op.parent_.owner, pdl.OperationOp)
+                    parent_pos = inputs.get(op.parent_.owner.op)
                     if parent_pos and isinstance(parent_pos, OperationPosition):
                         is_variadic = isinstance(op.val.type, pdl.RangeType)
                         index = op.index.value.data if op.index else None
@@ -1133,13 +1133,13 @@ class PatternAnalyzer:
                 # Handle constant types
                 if op not in inputs and op.constantType:
                     type_pos = self.builder.get_type_literal(op.constantType)
-                    inputs[op] = type_pos
+                    inputs[op.result] = type_pos
 
             elif isinstance(op, pdl.TypesOp):
                 # Handle constant type arrays
                 if op not in inputs and op.constantTypes:
                     type_pos = self.builder.get_type_literal(op.constantTypes)
-                    inputs[op] = type_pos
+                    inputs[op.result] = type_pos
 
         return predicates
 
@@ -1233,10 +1233,10 @@ class PredicateTreeBuilder:
         if not root:
             return []
 
-        inputs: dict[Operation | SSAValue, Position] = {}
+        inputs: dict[SSAValue, Position] = {}
         root_pos = self.analyzer.builder.get_root()
 
-        predicates = self.analyzer.extract_tree_predicates(root, root_pos, inputs)
+        predicates = self.analyzer.extract_tree_predicates(root.op, root_pos, inputs)
 
         predicates.extend(self.analyzer.extract_non_tree_predicates(pattern, inputs))
 
