@@ -2,9 +2,10 @@
 PDL to PDL_interp Transformation
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from enum import IntEnum
 from typing import Any, Optional, cast
 
 from xdsl.builder import Builder
@@ -14,6 +15,42 @@ from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
 from xdsl.passes import ModulePass
 from xdsl.rewriter import InsertPoint, Rewriter
+
+
+class Kind(IntEnum):
+    OperationPosition = 0
+    OperandPosition = 1
+    OperandGroupPos = 2
+    AttributePos = 3
+    ConstraintResultPos = 4
+    ResultPos = 5
+    ResultGroupPos = 6
+    TypePos = 7
+    AttributeLiteralPos = 8
+    TypeLiteralPos = 9
+    UsersPos = 10
+    ForEachPos = 11  # Not implemented yet
+
+    #   Questions, ordered by dependency and decreasing priority
+    IsNotNullQuestion = 12
+    OperationNameQuestion = 13
+    TypeQuestion = 14
+    AttributeQuestion = 15
+    OperandCountAtLeastQuestion = 16
+    OperandCountQuestion = 17
+    ResultCountAtLeastQuestion = 18
+    ResultCountQuestion = 19
+    EqualToQuestion = 20
+    ConstraintQuestion = 21
+
+    #   Answers
+    AttributeAnswer = 22
+    FalseAnswer = 23
+    OperationNameAnswer = 24
+    TrueAnswer = 25
+    TypeAnswer = 26
+    UnsignedAnswer = 27
+
 
 # =============================================================================
 # Core Data Structures - Positions
@@ -32,10 +69,9 @@ class Position(ABC):
             return self.depth
         return self.parent.get_operation_depth() if self.parent else 0
 
-    @abstractmethod
-    def ranking(self) -> int:
-        """Cost metric for ordering positions"""
-        ...
+    @property
+    def kind(self) -> Kind:
+        raise NotImplementedError()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -50,8 +86,15 @@ class OperationPosition(Position):
     def is_operand_defining_op(self) -> bool:
         return isinstance(self.parent, (OperandPosition | OperandGroupPosition))
 
-    def ranking(self):
-        return 0
+    def __repr__(self):
+        if self.is_root():
+            return "root"
+        else:
+            return self.parent.__repr__() + ".defining_op"
+
+    @property
+    def kind(self) -> Kind:
+        return Kind.OperationPosition
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -60,8 +103,12 @@ class OperandPosition(Position):
 
     operand_number: int
 
-    def ranking(self):
-        return 1
+    def __repr__(self):
+        return f"{self.parent.__repr__()}.operand[{self.operand_number}]"
+
+    @property
+    def kind(self) -> Kind:
+        return Kind.OperandPosition
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -71,8 +118,9 @@ class OperandGroupPosition(Position):
     group_number: int | None
     is_variadic: bool
 
-    def ranking(self):
-        return 2
+    @property
+    def kind(self) -> Kind:
+        return Kind.OperandGroupPos
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -81,8 +129,12 @@ class ResultPosition(Position):
 
     result_number: int
 
-    def ranking(self):
-        return 3
+    def __repr__(self):
+        return f"{self.parent.__repr__()}.result[{self.result_number}]"
+
+    @property
+    def kind(self) -> Kind:
+        return Kind.ResultPos
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -91,16 +143,21 @@ class AttributePosition(Position):
 
     attribute_name: str
 
-    def ranking(self):
-        return 4
+    def __repr__(self):
+        return f"{self.parent.__repr__()}.attribute[{self.attribute_name}]"
+
+    @property
+    def kind(self) -> Kind:
+        return Kind.AttributePos
 
 
 @dataclass(frozen=True)
 class TypePosition(Position):
     """Represents the type of a value"""
 
-    def ranking(self):
-        return 5
+    @property
+    def kind(self) -> Kind:
+        return Kind.TypePos
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -109,8 +166,9 @@ class UsersPosition(Position):
 
     use_representative: bool
 
-    def ranking(self):
-        return 6
+    @property
+    def kind(self) -> Kind:
+        return Kind.UsersPos
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -120,24 +178,9 @@ class ResultGroupPosition(Position):
     group_number: int | None
     is_variadic: bool
 
-    def ranking(self):
-        return 3  # Same as ResultPosition
-
-
-@dataclass(frozen=True)
-class AllOperandsPosition(Position):
-    """Represents all operands of an operation"""
-
-    def ranking(self):
-        return 2  # Same as OperandGroupPosition
-
-
-@dataclass(frozen=True)
-class AllResultsPosition(Position):
-    """Represents all results of an operation"""
-
-    def ranking(self):
-        return 3  # Same as ResultPosition/ResultGroupPosition
+    @property
+    def kind(self) -> Kind:
+        return Kind.ResultGroupPos
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -146,8 +189,9 @@ class AttributeLiteralPosition(Position):
 
     value: Attribute
 
-    def ranking(self):
-        return 7  # Literals rank after regular positions
+    @property
+    def kind(self) -> Kind:
+        return Kind.AttributeLiteralPos
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -156,8 +200,9 @@ class TypeLiteralPosition(Position):
 
     value: Attribute  # Can be a single type or array of types
 
-    def ranking(self):
-        return 8  # Literals rank after regular positions
+    @property
+    def kind(self) -> Kind:
+        return Kind.TypeLiteralPos
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -167,8 +212,9 @@ class ConstraintPosition(Position):
     constraint: "ConstraintQuestion"
     result_index: int
 
-    def ranking(self):
-        return 9  # Constraints rank last
+    @property
+    def kind(self) -> Kind:
+        return Kind.ConstraintResultPos
 
 
 # =============================================================================
@@ -180,10 +226,9 @@ class ConstraintPosition(Position):
 class Predicate(ABC):
     """Base predicate class"""
 
-    @abstractmethod
-    def ranking(self) -> int:
-        """Cost metric for ordering Predicates"""
-        ...
+    @property
+    def kind(self) -> Kind:
+        raise NotImplementedError()
 
 
 @dataclass(frozen=True)
@@ -203,63 +248,67 @@ class Answer(Predicate):
 # Question Types
 @dataclass(frozen=True)
 class IsNotNullQuestion(Question):
-    def ranking(self) -> int:
-        """Ranking for ordering Questions"""
-        return 1
+    @property
+    def kind(self) -> Kind:
+        return Kind.IsNotNullQuestion
 
 
 @dataclass(frozen=True)
 class OperationNameQuestion(Question):
-    def ranking(self) -> int:
-        """Ranking for ordering Questions"""
-        return 2
+    @property
+    def kind(self) -> Kind:
+        return Kind.OperationNameQuestion
 
 
 @dataclass(frozen=True)
 class OperandCountQuestion(Question):
-    def ranking(self) -> int:
-        """Ranking for ordering Questions"""
-        return 3
+    @property
+    def kind(self) -> Kind:
+        return Kind.OperandCountQuestion
 
 
 @dataclass(frozen=True)
 class ResultCountQuestion(Question):
-    def ranking(self) -> int:
-        """Ranking for ordering Questions"""
-        return 4
+    @property
+    def kind(self) -> Kind:
+        return Kind.ResultCountQuestion
 
 
 @dataclass(frozen=True)
 class EqualToQuestion(Question):
     other_position: Position
 
-    def ranking(self) -> int:
-        """Ranking for ordering Questions"""
-        return 5
+    @property
+    def kind(self) -> Kind:
+        return Kind.EqualToQuestion
 
 
 @dataclass(frozen=True)
 class OperandCountAtLeastQuestion(Question):
-    def ranking(self) -> int:
-        return 3  # Same priority as exact count
+    @property
+    def kind(self) -> Kind:
+        return Kind.OperandCountAtLeastQuestion
 
 
 @dataclass(frozen=True)
 class ResultCountAtLeastQuestion(Question):
-    def ranking(self) -> int:
-        return 4  # Same priority as exact count
+    @property
+    def kind(self) -> Kind:
+        return Kind.ResultCountAtLeastQuestion
 
 
 @dataclass(frozen=True)
 class AttributeConstraintQuestion(Question):
-    def ranking(self) -> int:
-        return 10
+    @property
+    def kind(self) -> Kind:
+        return Kind.AttributeQuestion
 
 
 @dataclass(frozen=True)
 class TypeConstraintQuestion(Question):
-    def ranking(self) -> int:
-        return 11
+    @property
+    def kind(self) -> Kind:
+        return Kind.TypeQuestion
 
 
 @dataclass(frozen=True)
@@ -271,51 +320,53 @@ class ConstraintQuestion(Question):
     result_types: list[pdl.AnyPDLType]
     is_negated: bool
 
-    def ranking(self) -> int:
-        return 12
+    @property
+    def kind(self) -> Kind:
+        return Kind.ConstraintQuestion
 
 
 # Answer Types
 @dataclass(frozen=True)
 class TrueAnswer(Answer):
-    def ranking(self) -> int:
-        """Ranking for ordering Answers"""
-        # TODO: should this be 6 or restart the count for Answers?
-        return 6
+    @property
+    def kind(self) -> Kind:
+        return Kind.TrueAnswer
 
 
 @dataclass(frozen=True)
 class UnsignedAnswer(Answer):
     value: int = 0
 
-    def ranking(self) -> int:
-        """Ranking for ordering Answers"""
-        return 7
+    @property
+    def kind(self) -> Kind:
+        return Kind.UnsignedAnswer
 
 
 @dataclass(frozen=True)
 class StringAnswer(Answer):
     value: str = ""
 
-    def ranking(self) -> int:
-        """Ranking for ordering Answers"""
-        return 8
+    @property
+    def kind(self) -> Kind:
+        return Kind.OperationNameAnswer
 
 
 @dataclass(frozen=True)
 class AttributeAnswer(Answer):
     value: Attribute
 
-    def ranking(self) -> int:
-        return 9
+    @property
+    def kind(self) -> Kind:
+        return Kind.AttributeAnswer
 
 
 @dataclass(frozen=True)
 class TypeAnswer(Answer):
     value: TypeAttribute | ArrayAttr[TypeAttribute]
 
-    def ranking(self) -> int:
-        return 10
+    @property
+    def kind(self) -> Kind:
+        return Kind.TypeAnswer
 
 
 # =============================================================================
@@ -456,19 +507,23 @@ class PredicateBuilder:
             )
         return cast(ResultGroupPosition, self._position_cache[key])
 
-    def get_all_operands(self, op_pos: OperationPosition) -> AllOperandsPosition:
+    def get_all_operands(self, op_pos: OperationPosition) -> OperandGroupPosition:
         """Get position representing all operands of an operation"""
-        key = ("all_operands", op_pos)
+        key = ("operand_group", op_pos, None, True)
         if key not in self._position_cache:
-            self._position_cache[key] = AllOperandsPosition(parent=op_pos)
-        return cast(AllOperandsPosition, self._position_cache[key])
+            self._position_cache[key] = OperandGroupPosition(
+                group_number=None, is_variadic=True, parent=op_pos
+            )
+        return cast(OperandGroupPosition, self._position_cache[key])
 
-    def get_all_results(self, op_pos: OperationPosition) -> AllResultsPosition:
+    def get_all_results(self, op_pos: OperationPosition) -> ResultGroupPosition:
         """Get position representing all results of an operation"""
-        key = ("all_results", op_pos)
+        key = ("result_group", op_pos, None, True)
         if key not in self._position_cache:
-            self._position_cache[key] = AllResultsPosition(parent=op_pos)
-        return cast(AllResultsPosition, self._position_cache[key])
+            self._position_cache[key] = ResultGroupPosition(
+                group_number=None, is_variadic=True, parent=op_pos
+            )
+        return cast(ResultGroupPosition, self._position_cache[key])
 
     def get_attribute_literal(self, value: Attribute) -> AttributeLiteralPosition:
         """Get position for a literal attribute value"""
@@ -921,7 +976,7 @@ class PatternAnalyzer:
                 predicates.append(PositionalPredicate(operand_pos, q, a))
             elif (
                 isinstance(operand_pos, OperandGroupPosition)
-                and operand_pos.group_number
+                and operand_pos.group_number is not None
             ):
                 q, a = self.builder.get_is_not_null()
                 predicates.append(PositionalPredicate(operand_pos, q, a))
@@ -1111,15 +1166,15 @@ class OrderedPredicate:
             self.primary_score,
             self.secondary_score,
             -self.position.get_operation_depth(),  # Prefer lower depth
-            -hash(self.position.ranking()),  # Position dependency
-            -hash(self.question.ranking()),  # Predicate dependency
+            -self.position.kind.value,  # Position dependency
+            -self.question.kind.value,  # Predicate dependency
             -self.tie_breaker,  # Deterministic order
         ) > (
             other.primary_score,
             other.secondary_score,
             -other.position.get_operation_depth(),
-            -hash(other.position.ranking()),
-            -hash(other.question.ranking()),
+            -other.position.kind.value,
+            -other.question.kind.value,
             -other.tie_breaker,
         )
 
@@ -1465,16 +1520,6 @@ class MatcherGenerator:
             self.builder.insert(get_operands_op)
             value = get_operands_op.value
 
-        elif isinstance(position, AllOperandsPosition):
-            # Get all operands as a range
-            assert parent_val is not None
-            result_type = pdl.RangeType(pdl.ValueType())
-            raise NotImplementedError("pdl_interp.get_operands is not yet implemented")
-            # Using None for index to get all operands
-            get_operands_op = pdl_interp.GetOperandsOp(None, parent_val, result_type)
-            self.builder.insert(get_operands_op)
-            value = get_operands_op.value
-
         elif isinstance(position, ResultPosition):
             assert parent_val is not None
             get_result_op = pdl_interp.GetResultOp(position.result_number, parent_val)
@@ -1492,15 +1537,6 @@ class MatcherGenerator:
             get_results_op = pdl_interp.GetResultsOp(
                 position.group_number, parent_val, result_type
             )
-            self.builder.insert(get_results_op)
-            value = get_results_op.value
-
-        elif isinstance(position, AllResultsPosition):
-            # Get all results as a range
-            assert parent_val is not None
-            result_type = pdl.RangeType(pdl.ValueType())
-            # Using None for index to get all results
-            get_results_op = pdl_interp.GetResultsOp(None, parent_val, result_type)
             self.builder.insert(get_results_op)
             value = get_results_op.value
 
