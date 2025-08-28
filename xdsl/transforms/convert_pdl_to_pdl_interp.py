@@ -2,6 +2,7 @@
 PDL to PDL_interp Transformation
 """
 
+import sys
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -12,7 +13,15 @@ from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue, TypeAttribute
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.passes import ModulePass
 from xdsl.rewriter import InsertPoint, Rewriter
 
@@ -29,7 +38,7 @@ class Kind(IntEnum):
     AttributeLiteralPos = 8
     TypeLiteralPos = 9
     UsersPos = 10
-    ForEachPos = 11  # Not implemented yet
+    ForEachPos = 11
 
     #   Questions, ordered by dependency and decreasing priority
     IsNotNullQuestion = 12
@@ -169,6 +178,17 @@ class UsersPosition(Position):
     @property
     def kind(self) -> Kind:
         return Kind.UsersPos
+
+
+@dataclass(frozen=True, kw_only=True)
+class ForEachPosition(Position):
+    """Represents an iterative choice of an operation from a set of users."""
+
+    id: int
+
+    @property
+    def kind(self) -> Kind:
+        return Kind.ForEachPos
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -411,6 +431,16 @@ class PredicateBuilder:
             )
         return cast(OperationPosition, self._position_cache[key])
 
+    def get_passthrough_op(self, parent_pos: Position) -> OperationPosition:
+        """Get an operation position with the given parent."""
+        key = ("passthrough_op", parent_pos)
+        if key not in self._position_cache:
+            depth = parent_pos.get_operation_depth() + 1
+            self._position_cache[key] = OperationPosition(
+                depth=depth, parent=parent_pos
+            )
+        return cast(OperationPosition, self._position_cache[key])
+
     def get_operand(
         self, op_pos: OperationPosition, operand_num: int
     ) -> OperandPosition:
@@ -448,6 +478,22 @@ class PredicateBuilder:
         if key not in self._position_cache:
             self._position_cache[key] = TypePosition(parent=pos)
         return cast(TypePosition, self._position_cache[key])
+
+    def get_users(self, pos: Position, use_representative: bool) -> UsersPosition:
+        """Get a users position."""
+        key = ("users", pos, use_representative)
+        if key not in self._position_cache:
+            self._position_cache[key] = UsersPosition(
+                parent=pos, use_representative=use_representative
+            )
+        return cast(UsersPosition, self._position_cache[key])
+
+    def get_for_each(self, pos: Position, for_each_id: int) -> ForEachPosition:
+        """Get a for-each position."""
+        key = ("for_each", pos, for_each_id)
+        if key not in self._position_cache:
+            self._position_cache[key] = ForEachPosition(parent=pos, id=for_each_id)
+        return cast(ForEachPosition, self._position_cache[key])
 
     # Predicate builders
     def get_is_not_null(self) -> tuple[Question, Answer]:
@@ -627,89 +673,172 @@ class RootOrderingEntry:
     """Entry in the root ordering cost graph"""
 
     cost: tuple[int, int]  # (depth, tie_breaker)
-    connector: Any  # Value that connects the roots
+    connector: SSAValue  # Value that connects the roots
 
 
 class OptimalBranching:
     """Edmonds' optimal branching algorithm for minimum spanning arborescence"""
 
-    def __init__(self, graph: dict[Any, dict[Any, RootOrderingEntry]], root: Any):
+    graph: dict[SSAValue, dict[SSAValue, RootOrderingEntry]]
+    root: SSAValue
+    parents: dict[SSAValue, SSAValue | None]
+
+    def __init__(
+        self, graph: dict[SSAValue, dict[SSAValue, RootOrderingEntry]], root: SSAValue
+    ):
         self.graph = graph
         self.root = root
-        self.parents: dict[Any, Any] = {}
+        self.parents = {}
 
     def solve(self) -> int:
         """Solve for optimal branching, returns total cost"""
         self.parents.clear()
         self.parents[self.root] = None
         total_cost = 0
+        parent_depths: dict[SSAValue, int] = {}
 
-        # Find minimum incoming edge for each node
-        for target in self.graph:
-            if target in self.parents:
+        nodes = list(self.graph.keys())
+        for node in nodes:
+            if node in self.parents:
                 continue
 
-            # Follow chain of minimum parents
-            node = target
-            parent_depths: dict[Any, int] = {}
+            path: list[SSAValue] = []
+            curr = node
+            while curr not in self.parents:
+                if curr in path:  # Cycle detected
+                    cycle_start_index = path.index(curr)
+                    cycle = path[cycle_start_index:]
+                    self._contract_cycle(cycle)
+                    # Restart solving on the contracted graph
+                    return self.solve()
 
-            while node not in self.parents:
-                if node not in self.graph:
-                    break
+                path.append(curr)
+
+                if curr not in self.graph or not self.graph[curr]:
+                    # Node has no incoming edges, cannot be part of a solution unless it's the root
+                    return sys.maxsize
 
                 # Find best parent
-                best_parent = None
-                best_cost = None
-
-                for source, entry in self.graph[node].items():
-                    if best_parent is None or entry.cost < cast(
-                        tuple[int, int], best_cost
-                    ):
-                        best_parent = source
-                        best_cost = entry.cost
-
-                if best_parent is None:
-                    break
-                assert best_cost is not None
-
-                self.parents[node] = best_parent
-                parent_depths[node] = best_cost[0]
-                total_cost += best_cost[0]
-                node = best_parent
-
-            # Check for cycles and contract if needed
-            if node in parent_depths:
-                cycle = self._get_cycle(node)
-                total_cost += self._contract_cycle(cycle, parent_depths)
+                best_parent = min(
+                    self.graph[curr].items(), key=lambda item: item[1].cost
+                )
+                self.parents[curr] = best_parent[0]
+                cost = best_parent[1].cost[0]
+                parent_depths[curr] = cost
+                total_cost += cost
+                curr = best_parent[0]
 
         return total_cost
 
-    def _get_cycle(self, start: Any) -> list[Any]:
-        """Get cycle starting from the given node"""
-        cycle: list[Any] = []
-        node = start
-        while True:
-            cycle.append(node)
-            node = self.parents[node]
-            if node == start:
-                break
-        return cycle
+    def _contract_cycle(self, cycle: list[SSAValue]) -> None:
+        """Contract a cycle in the graph."""
+        rep = cycle[0]
+        cycle_set = set(cycle)
 
-    def _contract_cycle(self, cycle: list[Any], parent_depths: dict[Any, int]) -> int:
-        """Contract a cycle in the graph"""
-        # Simplified cycle contraction
-        cycle_cost = sum(parent_depths[node] for node in cycle)
+        # Cost of edges within the cycle
+        cycle_costs: dict[SSAValue, int] = {}
+        for node in cycle:
+            parent = self.parents[node]
+            assert parent is not None
+            cycle_costs[node] = self.graph[node][parent].cost[0]
 
-        # Update parents to break cycle
-        for i, node in enumerate(cycle[:-1]):
-            self.parents[node] = cycle[i + 1]
+        # Create new graph with contracted node
+        new_graph: dict[SSAValue, dict[SSAValue, RootOrderingEntry]] = {}
+        new_graph[rep] = {}
+        actual_targets: dict[SSAValue, SSAValue] = {}
+        actual_sources: dict[SSAValue, SSAValue] = {}
 
-        return cycle_cost
+        for target, sources in self.graph.items():
+            if target in cycle_set:
+                for source, entry in sources.items():
+                    if source not in cycle_set:  # Edge entering the cycle
+                        new_cost = entry.cost[0] - cycle_costs[target]
+                        if (
+                            source not in new_graph[rep]
+                            or new_graph[rep][source].cost[0] > new_cost
+                        ):
+                            new_graph[rep][source] = RootOrderingEntry(
+                                (new_cost, entry.cost[1]), entry.connector
+                            )
+                            actual_targets[source] = target
+            else:  # Target is outside the cycle
+                new_graph[target] = {}
+                best_source_in_cycle = None
+                best_entry_in_cycle = None
+                for source, entry in sources.items():
+                    if source not in cycle_set:
+                        new_graph[target][source] = entry
+                    else:  # Edge leaving the cycle
+                        if (
+                            best_entry_in_cycle is None
+                            or best_entry_in_cycle.cost > entry.cost
+                        ):
+                            best_entry_in_cycle = entry
+                            best_source_in_cycle = source
+                if best_entry_in_cycle:
+                    new_graph[target][rep] = best_entry_in_cycle
+                    assert best_source_in_cycle is not None
+                    actual_sources[target] = best_source_in_cycle
+
+        self.graph = new_graph
+        if self.root in cycle_set:
+            self.root = rep
+
+        # Solve recursively and expand the cycle
+        sub_solver = OptimalBranching(self.graph, self.root)
+        sub_solver.solve()
+        self.parents = sub_solver.parents
+
+        # Expand the cycle
+        parent_of_rep = self.parents.get(rep)
+        entry_node = actual_targets.get(parent_of_rep) if parent_of_rep else None
+
+        for i, node in enumerate(cycle):
+            if node == entry_node:
+                self.parents[node] = parent_of_rep
+            else:
+                self.parents[node] = cycle[i - 1] if i > 0 else cycle[-1]
+
+        for child, parent in list(self.parents.items()):
+            if parent == rep:
+                self.parents[child] = actual_sources.get(child)
+
+    def pre_order_traversal(
+        self, nodes: Sequence[SSAValue]
+    ) -> list[tuple[SSAValue, SSAValue | None]]:
+        """Returns the computed edges as visited in the preorder traversal."""
+        children: dict[SSAValue, list[SSAValue]] = {node: [] for node in nodes}
+        for node in nodes:
+            if node != self.root:
+                parent = self.parents.get(node)
+                if parent is not None:
+                    children[parent].append(node)
+
+        result: list[tuple[SSAValue, SSAValue | None]] = []
+        queue: list[tuple[SSAValue, SSAValue | None]] = [(self.root, None)]
+        visited = {self.root}
+
+        while queue:
+            node, parent = queue.pop(0)
+            result.append((node, parent))
+            for child in sorted(children.get(node, []), key=lambda x: nodes.index(x)):
+                if child not in visited:
+                    visited.add(child)
+                    queue.append((child, node))
+        return result
 
 
 # =============================================================================
 # Pattern Analysis
 # =============================================================================
+
+
+@dataclass(frozen=True)
+class OpIndex:
+    """An op accepting a value at an optional index."""
+
+    parent: SSAValue
+    index: int | None
 
 
 class PatternAnalyzer:
@@ -718,9 +847,9 @@ class PatternAnalyzer:
     def __init__(self, builder: PredicateBuilder):
         self.builder = builder
 
-    def detect_roots(self, pattern: pdl.PatternOp) -> list[pdl.OperationOp]:
+    def detect_roots(self, pattern: pdl.PatternOp) -> list[OpResult[pdl.OperationType]]:
         """Detect root operations in a pattern"""
-        used: set[pdl.OperationOp] = set()
+        used: set[SSAValue] = set()
 
         for operation_op in pattern.body.ops:
             if not isinstance(operation_op, pdl.OperationOp):
@@ -728,24 +857,167 @@ class PatternAnalyzer:
             for operand in operation_op.operand_values:
                 result_op = operand.owner
                 if isinstance(result_op, pdl.ResultOp | pdl.ResultsOp):
-                    assert isinstance(
-                        used_op := result_op.parent_.owner, pdl.OperationOp
-                    )
-                    used.add(used_op)
+                    used.add(result_op.parent_)
 
         rewriter = pattern.body.block.last_op
         assert isinstance(rewriter, pdl.RewriteOp)
         if rewriter.root is not None:
-            assert isinstance(root := rewriter.root.owner, pdl.OperationOp)
-            if root in used:
-                used.remove(root)
+            if rewriter.root in used:
+                used.remove(rewriter.root)
 
         roots = [
-            op
+            op.op
             for op in pattern.body.ops
-            if isinstance(op, pdl.OperationOp) and op not in used
+            if isinstance(op, pdl.OperationOp) and op.op not in used
         ]
         return roots
+
+    def build_cost_graph(
+        self, roots: Sequence[SSAValue]
+    ) -> tuple[
+        dict[SSAValue, dict[SSAValue, RootOrderingEntry]],
+        dict[SSAValue, dict[SSAValue, OpIndex]],
+    ]:
+        """Builds the cost graph for connecting candidate roots."""
+        graph: dict[SSAValue, dict[SSAValue, RootOrderingEntry]] = {}
+        parent_maps: dict[SSAValue, dict[SSAValue, OpIndex]] = {}
+        connectors_roots_depths: dict[SSAValue, list[tuple[SSAValue, int]]] = {}
+
+        @dataclass
+        class Entry:
+            value: SSAValue
+            parent: SSAValue | None
+            index: int | None
+            depth: int
+
+        for root in roots:
+            to_visit = [Entry(root, None, None, 0)]
+            parent_map: dict[SSAValue, OpIndex] = {}
+            parent_maps[root] = parent_map
+            visited_values: set[SSAValue] = set()
+
+            while to_visit:
+                entry = to_visit.pop(0)
+                if entry.value in visited_values:
+                    continue
+                visited_values.add(entry.value)
+
+                if entry.parent is not None:
+                    parent_map[entry.value] = OpIndex(entry.parent, entry.index)
+
+                if entry.value not in connectors_roots_depths:
+                    connectors_roots_depths[entry.value] = []
+                connectors_roots_depths[entry.value].append((root, entry.depth))
+
+                defining_op = entry.value.owner
+                if isinstance(defining_op, pdl.OperationOp):
+                    operands = defining_op.operand_values
+                    if len(operands) == 1 and isinstance(
+                        operands[0].type, pdl.RangeType
+                    ):
+                        to_visit.append(
+                            Entry(operands[0], entry.value, None, entry.depth + 1)
+                        )
+                    else:
+                        for i, operand in enumerate(operands):
+                            to_visit.append(
+                                Entry(operand, entry.value, i, entry.depth + 1)
+                            )
+                elif isinstance(defining_op, pdl.ResultOp | pdl.ResultsOp):
+                    to_visit.append(
+                        Entry(
+                            defining_op.parent_,
+                            entry.value,
+                            defining_op.index.value.data if defining_op.index else None,
+                            entry.depth,
+                        )
+                    )
+
+        next_id = 0
+        for value, roots_depths in connectors_roots_depths.items():
+            if len(roots_depths) <= 1:
+                continue
+
+            for source_root, _ in roots_depths:
+                for target_root, depth in roots_depths:
+                    if source_root == target_root:
+                        continue
+                    if target_root not in graph:
+                        graph[target_root] = {}
+                    entry = graph[target_root].get(source_root)
+
+                    if entry is None or entry.cost[0] > depth:
+                        tie_breaker = entry.cost[1] if entry else next_id
+                        if entry is None:
+                            next_id += 1
+                        graph[target_root][source_root] = RootOrderingEntry(
+                            (depth, tie_breaker), value
+                        )
+        return graph, parent_maps
+
+    def _use_operand_group(self, op: pdl.OperationOp, index: int) -> bool:
+        """Checks if an operand at an index should be queried as a group."""
+        return any(
+            isinstance(op.operand_values[i].type, pdl.RangeType)
+            for i in range(index + 1)
+        )
+
+    def visit_upward(
+        self,
+        predicates: list[PositionalPredicate],
+        op_index: OpIndex,
+        inputs: dict[SSAValue, Position],
+        pos: Position,
+        root_id: int,
+    ) -> Position:
+        """Visit a node during upward traversal and generate predicates."""
+        value = op_index.parent
+        defining_op = value.owner
+
+        if isinstance(defining_op, pdl.OperationOp):
+            users_pos = self.builder.get_users(pos, use_representative=True)
+            for_each_pos = self.builder.get_for_each(users_pos, root_id)
+            op_pos = self.builder.get_passthrough_op(for_each_pos)
+
+            if op_index.index is None:
+                operand_pos = self.builder.get_all_operands(op_pos)
+            elif self._use_operand_group(defining_op, op_index.index):
+                is_variadic = isinstance(
+                    defining_op.operand_values[op_index.index].type, pdl.RangeType
+                )
+                operand_pos = self.builder.get_operand_group(
+                    op_pos, op_index.index, is_variadic
+                )
+            else:
+                operand_pos = self.builder.get_operand(op_pos, op_index.index)
+
+            q, a = self.builder.get_equal_to(pos)
+            predicates.append(PositionalPredicate(operand_pos, q, a))
+
+            assert value not in inputs, "Duplicate upward visit"
+            inputs[value] = op_pos
+
+            predicates.extend(
+                self.extract_tree_predicates(
+                    value, op_pos, inputs, ignore_operand=op_index.index
+                )
+            )
+            return op_pos
+
+        elif isinstance(defining_op, pdl.ResultOp | pdl.ResultsOp):
+            assert isinstance(pos, OperationPosition)
+            if isinstance(defining_op, pdl.ResultOp):
+                assert op_index.index is not None
+                new_pos = self.builder.get_result(pos, op_index.index)
+            else:
+                is_variadic = isinstance(value.type, pdl.RangeType)
+                new_pos = self.builder.get_result_group(
+                    pos, op_index.index, is_variadic
+                )
+            inputs.setdefault(value, new_pos)
+            return new_pos
+
+        raise TypeError(f"Unexpected op type in upward traversal: {type(defining_op)}")
 
     def extract_tree_predicates(
         self,
@@ -990,7 +1262,9 @@ class PatternAnalyzer:
                 )
 
         elif isinstance(defining_op, pdl.ResultOp | pdl.ResultsOp):
-            index = defining_op.index
+            index_attr = defining_op.index
+            index = index_attr.value.data if index_attr is not None else None
+
             if index is not None:
                 q, a = self.builder.get_is_not_null()
                 predicates.append(PositionalPredicate(operand_pos, q, a))
@@ -1005,11 +1279,11 @@ class PatternAnalyzer:
 
             if isinstance(defining_op, pdl.ResultOp):
                 result_pos = self.builder.get_result(
-                    defining_op_pos, index.value.data if index else 0
+                    defining_op_pos, index if index is not None else 0
                 )
             else:  # ResultsOp
                 result_pos = self.builder.get_result_group(
-                    defining_op_pos, index.value.data if index else None, is_variadic
+                    defining_op_pos, index, is_variadic
                 )
 
             q, a = self.builder.get_equal_to(operand_pos)
@@ -1056,7 +1330,7 @@ class PatternAnalyzer:
 
         for op in pattern.body.ops:
             if isinstance(op, pdl.AttributeOp):
-                if op not in inputs:
+                if op.output not in inputs:
                     if op.value:
                         # Create literal position for constant attribute
                         attr_pos = self.builder.get_attribute_literal(op.value)
@@ -1079,7 +1353,7 @@ class PatternAnalyzer:
                 # TODO: is_negated is not part of the dialect definition yet
                 is_negated = False
                 q, a = self.builder.get_constraint(
-                    op.name, arg_positions, result_types, is_negated
+                    op.constraint_name.data, arg_positions, result_types, is_negated
                 )
 
                 # Register positions for constraint results
@@ -1131,13 +1405,13 @@ class PatternAnalyzer:
 
             elif isinstance(op, pdl.TypeOp):
                 # Handle constant types
-                if op not in inputs and op.constantType:
+                if op.result not in inputs and op.constantType:
                     type_pos = self.builder.get_type_literal(op.constantType)
                     inputs[op.result] = type_pos
 
             elif isinstance(op, pdl.TypesOp):
                 # Handle constant type arrays
-                if op not in inputs and op.constantTypes:
+                if op.result not in inputs and op.constantTypes:
                     type_pos = self.builder.get_type_literal(op.constantTypes)
                     inputs[op.result] = type_pos
 
@@ -1158,7 +1432,7 @@ class OrderedPredicate:
     primary_score: int = 0  # Frequency across patterns
     secondary_score: int = 0  # Squared sum within patterns
     tie_breaker: int = 0  # Insertion order
-    pattern_answers: dict[Any, Answer] = field(default_factory=lambda: {})
+    pattern_answers: dict[pdl.PatternOp, Answer] = field(default_factory=lambda: {})
 
     def __lt__(self, other: "OrderedPredicate") -> bool:
         """Comparison for priority ordering"""
@@ -1178,27 +1452,91 @@ class OrderedPredicate:
             -other.tie_breaker,
         )
 
+    def __hash__(self):
+        """The hash is based on the immutable identity of the predicate."""
+        return hash((self.position, self.question))
+
+
+def _depends_on(pred_a: OrderedPredicate, pred_b: OrderedPredicate) -> bool:
+    """Returns true if predicate 'b' depends on a result of predicate 'a'."""
+    constraint_q_a = pred_a.question
+    if not isinstance(constraint_q_a, ConstraintQuestion):
+        return False
+
+    def position_depends_on_a(pos: Position) -> bool:
+        if isinstance(pos, ConstraintPosition):
+            return pos.constraint == constraint_q_a
+        return False
+
+    if isinstance(pred_b.question, ConstraintQuestion):
+        # Does any argument of b use a?
+        return any(position_depends_on_a(arg) for arg in pred_b.question.arg_positions)
+    if isinstance(pred_b.question, EqualToQuestion):
+        return position_depends_on_a(pred_b.position) or position_depends_on_a(
+            pred_b.question.other_position
+        )
+    return position_depends_on_a(pred_b.position)
+
+
+def _stable_topological_sort(
+    predicates: list[OrderedPredicate],
+) -> list[OrderedPredicate]:
+    """Sorts predicates topologically while maintaining stability for independent items."""
+    # Build dependency graph
+    dependencies: dict[OrderedPredicate, set[OrderedPredicate]] = {
+        p: set() for p in predicates
+    }
+    for i, pred_b in enumerate(predicates):
+        for j in range(i + 1, len(predicates)):
+            pred_a = predicates[j]
+            if _depends_on(pred_a, pred_b):
+                dependencies[pred_b].add(pred_a)  # b depends on a
+
+    sorted_list: list[OrderedPredicate] = []
+    pred_list: list[OrderedPredicate] = predicates[:]
+
+    while pred_list:
+        # Find all items with no dependencies within the current list
+        to_sort = [
+            p for p in pred_list if all(dep not in pred_list for dep in dependencies[p])
+        ]
+        if not to_sort:
+            raise ValueError("Cycle detected in predicate dependencies")
+
+        # Append them to the sorted list
+        sorted_list.extend(to_sort)
+
+        # Remove them from the list to be sorted
+        pred_list = [p for p in pred_list if p not in to_sort]
+
+    return sorted_list
+
 
 class PredicateTreeBuilder:
     """Builds optimized predicate matching trees"""
 
     def __init__(self):
         self.analyzer = PatternAnalyzer(PredicateBuilder())
+        self._pattern_roots: dict[pdl.PatternOp, SSAValue] = {}
 
-    def build_predicate_tree(self, patterns: list[Any]) -> MatcherNode:
+    def build_predicate_tree(self, patterns: list[pdl.PatternOp]) -> MatcherNode:
         """Build optimized matcher tree from multiple patterns"""
 
         # Extract predicates for all patterns
-        all_pattern_predicates: list[tuple[Any, list[PositionalPredicate]]] = []
+        all_pattern_predicates: list[
+            tuple[pdl.PatternOp, list[PositionalPredicate]]
+        ] = []
         for pattern in patterns:
-            predicates = self._extract_pattern_predicates(pattern)
+            predicates, root = self._extract_pattern_predicates(pattern)
             all_pattern_predicates.append((pattern, predicates))
+            self._pattern_roots[pattern] = root
 
         # Create ordered predicates with frequency analysis
         ordered_predicates = self._create_ordered_predicates(all_pattern_predicates)
 
         # Sort predicates by priority
         sorted_predicates = sorted(ordered_predicates.values())
+        sorted_predicates = _stable_topological_sort(sorted_predicates)
 
         # Build matcher tree by propagating patterns
         root_node = None
@@ -1221,29 +1559,71 @@ class PredicateTreeBuilder:
 
     def _extract_pattern_predicates(
         self, pattern: pdl.PatternOp
-    ) -> list[PositionalPredicate]:
+    ) -> tuple[list[PositionalPredicate], SSAValue]:
         """Extract all predicates for a single pattern"""
+        predicates: list[PositionalPredicate] = []
+        inputs: dict[SSAValue, Position] = {}
+
         roots = self.analyzer.detect_roots(pattern)
 
-        # For simplicity, use first root (in real implementation,
-        # would use optimal root selection)
-        if len(roots) > 1:
-            raise NotImplementedError("Multiple roots not yet supported")
-        root = roots[0] if roots else None
-        if not root:
-            return []
+        rewriter = pattern.body.block.last_op
+        assert isinstance(rewriter, pdl.RewriteOp)
+        explicit_root = rewriter.root
 
-        inputs: dict[SSAValue, Position] = {}
+        graph, parent_maps = self.analyzer.build_cost_graph(roots)
+
+        best_root = explicit_root
+        best_edges = None
+
+        if best_root is None:
+            best_cost = sys.maxsize
+            for root_candidate in roots:
+                solver = OptimalBranching(graph, root_candidate)
+                cost = solver.solve()
+                if cost < best_cost:
+                    best_cost = cost
+                    best_root = root_candidate
+                    best_edges = solver.pre_order_traversal(roots)
+        else:
+            solver = OptimalBranching(graph, best_root)
+            solver.solve()
+            best_edges = solver.pre_order_traversal(roots)
+
+        assert best_root is not None
+        assert best_edges is not None
+
+        # Downward traversal from the best root
         root_pos = self.analyzer.builder.get_root()
+        predicates.extend(
+            self.analyzer.extract_tree_predicates(best_root, root_pos, inputs)
+        )
 
-        predicates = self.analyzer.extract_tree_predicates(root.op, root_pos, inputs)
+        # Upward traversal for other connected roots
+        for i, (target, source) in enumerate(best_edges):
+            if target in inputs:
+                continue
+
+            assert source is not None
+            connector = graph[target][source].connector
+            assert connector in inputs, "Connector not yet traversed"
+            pos = inputs[connector]
+
+            path_to_target: list[OpIndex] = []
+            curr = connector
+            while curr != target:
+                op_index = parent_maps[target][curr]
+                path_to_target.append(op_index)
+                curr = op_index.parent
+
+            for op_index in reversed(path_to_target):
+                pos = self.analyzer.visit_upward(predicates, op_index, inputs, pos, i)
 
         predicates.extend(self.analyzer.extract_non_tree_predicates(pattern, inputs))
-
-        return predicates
+        return predicates, best_root
 
     def _create_ordered_predicates(
-        self, all_pattern_predicates: list[tuple[Any, list[PositionalPredicate]]]
+        self,
+        all_pattern_predicates: list[tuple[pdl.PatternOp, list[PositionalPredicate]]],
     ) -> dict[tuple[Position, Question], OrderedPredicate]:
         """Create ordered predicates with frequency analysis"""
         predicate_map: dict[tuple[Position, Question], OrderedPredicate] = {}
@@ -1292,7 +1672,7 @@ class PredicateTreeBuilder:
     def _propagate_pattern(
         self,
         node: MatcherNode | None,
-        pattern: Any,
+        pattern: pdl.PatternOp,
         pattern_predicates: dict[tuple[Position, Question], PositionalPredicate],
         sorted_predicates: list[OrderedPredicate],
         predicate_index: int,
@@ -1301,7 +1681,8 @@ class PredicateTreeBuilder:
 
         # Base case: reached end of predicates
         if predicate_index >= len(sorted_predicates):
-            return SuccessNode(pattern=pattern, root=None, failure_node=node)
+            root_val = self._pattern_roots.get(pattern)
+            return SuccessNode(pattern=pattern, root=root_val, failure_node=node)
 
         current_predicate = sorted_predicates[predicate_index]
         pred_key = (current_predicate.position, current_predicate.question)
@@ -1359,7 +1740,10 @@ class PredicateTreeBuilder:
 
     def _insert_exit_node(self, root: MatcherNode) -> MatcherNode:
         """Insert exit node at end of failure paths"""
-        root.failure_node = ExitNode()
+        curr = root
+        while curr.failure_node:
+            curr = curr.failure_node
+        curr.failure_node = ExitNode()
         return root
 
     def _optimize_tree(self, root: MatcherNode) -> MatcherNode:
@@ -1425,12 +1809,7 @@ class MatcherGenerator:
         self.values[root_pos] = entry_block.args[0]
 
         # Generate the matcher
-        first_matcher_block = self.generate_matcher(root, self.matcher_func.body)
-
-        # Merge first matcher block into entry if different
-        if first_matcher_block != entry_block:
-            entry_block.add_ops(first_matcher_block.ops)
-            first_matcher_block.erase()
+        self.generate_matcher(root, self.matcher_func.body, block=entry_block)
 
     def generate_matcher(
         self, node: MatcherNode, region: Region, block: Block | None = None
@@ -1594,11 +1973,9 @@ class MatcherGenerator:
             value = constraint_op.results[position.result_index]
 
         elif isinstance(position, UsersPosition):
-            # Handle getting users of a value
-            # This would require GetUsersOp which may not be implemented
-            # For now, just use parent value
             raise NotImplementedError("UsersPosition not implemented in lowering")
-
+        elif isinstance(position, ForEachPosition):
+            raise NotImplementedError("ForEachPosition not implemented in lowering")
         else:
             raise NotImplementedError(f"Unhandled position type {type(position)}")
 
@@ -1685,13 +2062,13 @@ class MatcherGenerator:
                 )
 
         elif isinstance(question, ConstraintQuestion):
+            # TODO: question.result_types is not part of the dialect definition yet
             check_op = pdl_interp.ApplyConstraintOp(
                 question.name,
                 args,
                 success_block,
                 failure_block,
-                question.result_types,
-                question.is_negated,
+                is_negated=question.is_negated,
             )
             # Store the constraint op for later result access
             self.constraint_op_map[question] = check_op
@@ -1726,41 +2103,48 @@ class MatcherGenerator:
                 reverse=True,
             )
 
-            # Build cascading checks
-            self.failure_block_stack.append(default_dest)
-
+            current_failure_target = default_dest
             for answer, child_node in sorted_children:
                 if child_node:
-                    child_block = self.generate_matcher(child_node, region)
-                    predicate_block = Block()
-                    region.add_block(predicate_block)
+                    success_block = self.generate_matcher(child_node, region)
+                    current_check_block = Block()
+                    region.add_block(current_check_block)
 
-                    self.builder.insertion_point = InsertPoint.at_end(predicate_block)
+                    self.builder.insertion_point = InsertPoint.at_end(
+                        current_check_block
+                    )
                     assert isinstance(answer, UnsignedAnswer)
-
                     if isinstance(question, OperandCountAtLeastQuestion):
                         check_op = pdl_interp.CheckOperandCountOp(
-                            val, answer.value, child_block, default_dest, True
+                            val,
+                            answer.value,
+                            success_block,
+                            current_failure_target,
+                            True,
                         )
-                    else:  # ResultCountAtLeastQuestion
+                    else:
                         check_op = pdl_interp.CheckResultCountOp(
-                            val, answer.value, child_block, default_dest, True
+                            val,
+                            answer.value,
+                            success_block,
+                            current_failure_target,
+                            True,
                         )
-
                     self.builder.insert(check_op)
-                    self.failure_block_stack[-1] = predicate_block
+                    current_failure_target = current_check_block
 
-            # Move operations from first predicate block to current block
-            first_predicate_block = self.failure_block_stack.pop()
-            self.builder.insertion_point = InsertPoint.at_end(block)
-            for op in first_predicate_block.ops:
-                block.add_op(op)
-            first_predicate_block.erase()
+            # Move ops from the first check block into the main block
+            if block.parent:
+                for op in list(current_failure_target.ops):
+                    op.detach()
+                    block.add_op(op)
+                current_failure_target.erase()
+
             return
 
         # Generate child blocks and collect case values
         case_blocks: list[Block] = []
-        case_values: list[Any] = []
+        case_values: list[Answer] = []
 
         for answer, child_node in node.children.items():
             if child_node:
@@ -1836,52 +2220,10 @@ class MatcherGenerator:
 
     def generate_success_node(self, node: SuccessNode, block: Block) -> None:
         """Generate operations for a successful match"""
-
         self.builder.insertion_point = InsertPoint.at_end(block)
-
-        # In the full implementation, we would:
-        # 1. Generate the rewriter function
-        # 2. Collect used match values
-        # 3. Create RecordMatchOp with all necessary info
-
-        # For now, create a simplified record match
-        # Get the pattern and root
-        pattern = node.pattern
-        _root = node.root
-
-        # Create a dummy rewriter reference
-        rewriter_ref = StringAttr("dummy_rewriter")
-
-        # Collect matched values (simplified)
-        matched_values: list[SSAValue] = []
-        for pos, val in self.values.items():
-            if isinstance(pos, OperationPosition) and pos.is_root():
-                matched_values.append(val)
-                break
-
-        # Create the record match operation
-        if False and matched_values:
-            # Get root operation name if available
-            root_kind = None
-            if hasattr(pattern, "root_op_name"):
-                root_kind = pattern.root_op_name
-
-            benefit = IntegerAttr.from_int_and_width(1, 16)  # Default benefit
-
-            record_op = pdl_interp.RecordMatchOp(
-                rewriter_ref,
-                root_kind if root_kind else "",
-                None,  # generated_ops
-                benefit,
-                [],  # inputs
-                matched_values,  # matched_ops
-                self.failure_block_stack[-1] if self.failure_block_stack else None,
-            )
-            self.builder.insert(record_op)
-        else:
-            # If no match values, just finalize
-            finalize_op = pdl_interp.FinalizeOp()
-            self.builder.insert(finalize_op)
+        finalize_op = pdl_interp.FinalizeOp()
+        self.builder.insert(finalize_op)
+        return
 
 
 def lower_pdl_to_pdl_interp(module: ModuleOp, matcher_func: pdl_interp.FuncOp) -> None:
@@ -1914,15 +2256,15 @@ class ConvertPDLToPDLInterpPass(ModulePass):
         patterns = [
             pattern for pattern in op.body.ops if isinstance(pattern, pdl.PatternOp)
         ]
+        if not patterns:
+            return
 
-        if len(patterns) != 1:
-            raise NotImplementedError("Currently only single pattern is supported")
-
-        y = PredicateTreeBuilder().build_predicate_tree(patterns)
         matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
-        mg = MatcherGenerator(matcher_func)
-        mg.values[OperationPosition(None, depth=0)] = matcher_func.body.block.args[0]
-        mg.generate_matcher(y, matcher_func.body)
+        generator = MatcherGenerator(matcher_func)
+        generator.lower(patterns)
 
+        # Replace all pattern ops with the single matcher func
         rewriter = Rewriter()
-        rewriter.replace_op(patterns[0], matcher_func)
+        for pattern in patterns:
+            rewriter.erase_op(pattern)
+        op.body.block.add_op(matcher_func)
