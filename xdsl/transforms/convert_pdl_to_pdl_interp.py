@@ -1104,27 +1104,27 @@ class PatternAnalyzer:
 
             elif isinstance(op, pdl.ResultOp):
                 # Ensure result exists
-                if op not in inputs:
-                    parent_pos = inputs.get(op.parent_)
+                if op.val not in inputs:
+                    assert isinstance(op.parent_.owner, Operation)
+                    parent_pos = inputs.get(op.parent_.owner)
                     if parent_pos and isinstance(parent_pos, OperationPosition):
                         result_pos = self.builder.get_result(
                             parent_pos, op.index.value.data
                         )
-                        inputs[op] = result_pos
                         q, a = self.builder.get_is_not_null()
                         predicates.append(PositionalPredicate(result_pos, q, a))
 
             elif isinstance(op, pdl.ResultsOp):
                 # Handle result groups
-                if op not in inputs:
-                    parent_pos = inputs.get(op.parent_)
+                if op.val not in inputs:
+                    assert isinstance(op.parent_.owner, Operation)
+                    parent_pos = inputs.get(op.parent_.owner)
                     if parent_pos and isinstance(parent_pos, OperationPosition):
                         is_variadic = isinstance(op.val.type, pdl.RangeType)
                         index = op.index.value.data if op.index else None
                         result_pos = self.builder.get_result_group(
                             parent_pos, index, is_variadic
                         )
-                        inputs[op] = result_pos
                         if index is not None:
                             q, a = self.builder.get_is_not_null()
                             predicates.append(PositionalPredicate(result_pos, q, a))
@@ -1236,7 +1236,11 @@ class PredicateTreeBuilder:
         inputs: dict[Operation | SSAValue, Position] = {}
         root_pos = self.analyzer.builder.get_root()
 
-        return self.analyzer.extract_tree_predicates(root, root_pos, inputs)
+        predicates = self.analyzer.extract_tree_predicates(root, root_pos, inputs)
+
+        predicates.extend(self.analyzer.extract_non_tree_predicates(pattern, inputs))
+
+        return predicates
 
     def _create_ordered_predicates(
         self, all_pattern_predicates: list[tuple[Any, list[PositionalPredicate]]]
@@ -1266,16 +1270,21 @@ class PredicateTreeBuilder:
         # Calculate secondary scores
         for pattern, predicates in all_pattern_predicates:
             pattern_primary_sum = 0
-            pattern_predicates: list[OrderedPredicate] = []
+            seen_keys: set[tuple[Position, Question]] = (
+                set()
+            )  # Track unique keys per pattern
 
+            # First pass: collect unique predicates for this pattern
             for pred in predicates:
                 key = (pred.position, pred.question)
-                ordered_pred = predicate_map[key]
-                pattern_predicates.append(ordered_pred)
-                pattern_primary_sum += ordered_pred.primary_score**2
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    ordered_pred = predicate_map[key]
+                    pattern_primary_sum += ordered_pred.primary_score**2
 
-            # Add to secondary score
-            for ordered_pred in pattern_predicates:
+            # Second pass: add secondary score to each unique predicate
+            for key in seen_keys:
+                ordered_pred = predicate_map[key]
                 ordered_pred.secondary_score += pattern_primary_sum
 
         return predicate_map
