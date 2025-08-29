@@ -476,7 +476,7 @@ class RecordMatchOp(IRDLOperation):
     traits = traits_def(IsTerminator())
     rewriter = prop_def(SymbolRefAttr)
     rootKind = opt_prop_def(StringAttr)
-    generatedOps = opt_prop_def(ArrayAttr)
+    generatedOps = opt_prop_def(ArrayAttr[StringAttr])
     benefit = prop_def(IntegerAttr[I16])
 
     inputs = var_operand_def(AnyPDLTypeConstr)
@@ -495,8 +495,8 @@ class RecordMatchOp(IRDLOperation):
     def __init__(
         self,
         rewriter: str | SymbolRefAttr,
-        root_kind: str | StringAttr,
-        generated_ops: list[OperationType] | None,
+        root_kind: str | StringAttr | None,
+        generated_ops: list[StringAttr] | None,
         benefit: int | IntegerAttr[I16],
         inputs: Sequence[SSAValue],
         matched_ops: Sequence[SSAValue],
