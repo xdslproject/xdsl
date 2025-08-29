@@ -2705,9 +2705,7 @@ class ConvertPDLToPDLInterpPass(ModulePass):
             return
 
         matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
-        rewriter_module = ModuleOp(
-            [], attributes={"sym_name": StringAttr("pdl_interp.rewriters")}
-        )
+        rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
 
         generator = MatcherGenerator(matcher_func, rewriter_module)
         generator.lower(patterns)
