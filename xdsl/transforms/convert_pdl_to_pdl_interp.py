@@ -2228,13 +2228,9 @@ class MatcherGenerator:
             # Extract attribute values from AttributeAnswer objects
             switch_values = [cast(AttributeAnswer, ans).value for ans in case_values]
             switch_attr = ArrayAttr(switch_values)
-            raise NotImplementedError(
-                "pdl_interp.switch_attributes is not yet implemented"
-            )
             switch_op = pdl_interp.SwitchAttributeOp(
-                switch_attr, val, default_dest, case_blocks
+                val, switch_attr, default_dest, case_blocks
             )
-
         else:
             raise NotImplementedError(f"Unhandled question type {type(question)}")
 
