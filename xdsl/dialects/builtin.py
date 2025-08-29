@@ -419,6 +419,34 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         )
 
 
+class StaticShapeArrayConstraint(AttrConstraint[ArrayAttr[IntAttr]]):
+    """
+    Constrain an ArrayAttr[IntAttr] to represent a static shape
+    (all dimensions must not be DYNAMIC_INDEX).
+    """
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if not isa(attr, ArrayAttr[IntAttr]):
+            raise VerifyException(
+                f"expected ArrayAttr[IntAttr] attribute, but got '{type(attr)}'"
+            )
+
+        # Check that no dimensions are dynamic
+        for dim in attr.data:
+            if dim.data == DYNAMIC_INDEX:
+                raise VerifyException(
+                    "expected static shape, but got dynamic dimension"
+                )
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint[ArrayAttr[IntAttr]]:
+        return self
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return None
+
+
 class Signedness(ConstraintConvertible, Enum):
     "Signedness semantics for integer"
 
