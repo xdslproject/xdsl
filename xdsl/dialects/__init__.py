@@ -73,6 +73,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Comb
 
+    def get_complex():
+        from xdsl.dialects.complex import Complex
+
+        return Complex
+
     def get_csl():
         from xdsl.dialects.csl import CSL
 
@@ -362,6 +367,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "cf": get_cf,
         "cmath": get_cmath,
         "comb": get_comb,
+        "complex": get_complex,
         "csl": get_csl,
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
