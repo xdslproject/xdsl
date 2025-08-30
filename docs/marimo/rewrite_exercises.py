@@ -173,7 +173,7 @@ def _(
 
         # Create a new function and inserts it inside the module.
         func = FuncOp("main", (arg_types, [get_mlir_type(expr)]))
-        builder.insert(func)
+        builder.insert_op(func)
 
         # Associate each symbol with its MLIR name.
         arg_values = {arg: value for arg, value in zip(expr.free_symbols, func.args)}
@@ -190,7 +190,7 @@ def _(
         result = emit_op(expr, builder, arg_values)
 
         # Insert a return statement at the end of the function.
-        builder.insert(ReturnOp(result))
+        builder.insert_op(ReturnOp(result))
         return module
     return (emit_ir,)
 
@@ -267,7 +267,7 @@ def _(
 
         # Handle constants
         if isinstance(expr, Integer):
-            constant_op = builder.insert(
+            constant_op = builder.insert_op(
                 ConstantOp(IntegerAttr(int(expr), IntegerType(64)))
             )
             return constant_op.result
@@ -275,13 +275,13 @@ def _(
         if isinstance(expr, Add):
             lhs = emit_integer_op(expr.args[0], builder, args)
             rhs = emit_integer_op(expr.args[1], builder, args)
-            add_op = builder.insert(AddiOp(lhs, rhs))
+            add_op = builder.insert_op(AddiOp(lhs, rhs))
             return add_op.result
 
         if isinstance(expr, Mul):
             lhs = emit_integer_op(expr.args[0], builder, args)
             rhs = emit_integer_op(expr.args[1], builder, args)
-            add_op = builder.insert(MuliOp(lhs, rhs))
+            add_op = builder.insert_op(MuliOp(lhs, rhs))
             return add_op.result
 
         # Hint: Implement here support for Add and Mul
@@ -297,12 +297,12 @@ def _(
         # back to a float expression.
         if expr.is_integer:
             res = emit_integer_op(expr, builder, args)
-            op = builder.insert(SIToFPOp(res, Float64Type()))
+            op = builder.insert_op(SIToFPOp(res, Float64Type()))
             return op.result
 
         # Handle constants
         if isinstance(expr, Float):
-            constant_op = builder.insert(
+            constant_op = builder.insert_op(
                 ConstantOp(FloatAttr(float(expr), Float64Type()))
             )
             return constant_op
@@ -314,35 +314,35 @@ def _(
         if isinstance(expr, Add):
             lhs = emit_real_op(expr.args[0], builder, args)
             rhs = emit_real_op(expr.args[1], builder, args)
-            add_op = builder.insert(AddfOp(lhs, rhs))
+            add_op = builder.insert_op(AddfOp(lhs, rhs))
             return add_op.result
 
         if isinstance(expr, Mul):
             lhs = emit_real_op(expr.args[0], builder, args)
             rhs = emit_real_op(expr.args[1], builder, args)
-            add_op = builder.insert(MulfOp(lhs, rhs))
+            add_op = builder.insert_op(MulfOp(lhs, rhs))
             return add_op.result
 
         if isinstance(expr, Pow):
             lhs = emit_real_op(expr.args[0], builder, args)
             rhs = emit_real_op(expr.args[1], builder, args)
-            add_op = builder.insert(PowFOp(lhs, rhs))
+            add_op = builder.insert_op(PowFOp(lhs, rhs))
             return add_op.result
 
         if isinstance(expr, Abs):
             # The arith.select solution
             if False:
                 arg = emit_real_op(expr.args[0], builder, args)
-                zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
-                neg = builder.insert(SubfOp(zero, arg)).result
-                is_neg = builder.insert(CmpfOp(arg, zero, "olt")).result
-                select = builder.insert(SelectOp(is_neg, neg, arg)).result
+                zero = builder.insert_op(ConstantOp(FloatAttr(0, Float64Type()))).result
+                neg = builder.insert_op(SubfOp(zero, arg)).result
+                is_neg = builder.insert_op(CmpfOp(arg, zero, "olt")).result
+                select = builder.insert_op(SelectOp(is_neg, neg, arg)).result
                 return select
 
             # The scf.if solution
             arg = emit_real_op(expr.args[0], builder, args)
-            zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
-            is_neg = builder.insert(CmpfOp(arg, zero, "olt")).result
+            zero = builder.insert_op(ConstantOp(FloatAttr(0, Float64Type()))).result
+            is_neg = builder.insert_op(CmpfOp(arg, zero, "olt")).result
 
             lhs_region = Region([Block()])
             builder2 = Builder(InsertPoint.at_end(lhs_region.block))
@@ -353,17 +353,17 @@ def _(
             builder3 = Builder(InsertPoint.at_end(rhs_region.block))
             builder3.insert(YieldOp(neg))
 
-            if_res = builder.insert(
+            if_res = builder.insert_op(
                 IfOp(is_neg, Float64Type(), lhs_region, rhs_region)
             ).results[0]
 
             return if_res
 
         if isinstance(expr, Sum):
-            zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
+            zero = builder.insert_op(ConstantOp(FloatAttr(0, Float64Type()))).result
             lb = emit_integer_op(expr.args[1][1], builder, args)
             ub = emit_integer_op(expr.args[1][2], builder, args)
-            step = builder.insert(ConstantOp(IntegerAttr(0, IntegerType(64))))
+            step = builder.insert_op(ConstantOp(IntegerAttr(0, IntegerType(64))))
             region = Region([Block(arg_types=[IntegerType(64), Float64Type()])])
             accumulator = region.block.args[1]
 
@@ -374,7 +374,7 @@ def _(
             add = b2.insert(AddfOp(arg, accumulator)).result
             b2.insert(YieldOp(add))
 
-            return builder.insert(ForOp(lb, ub, step, [zero], region)).results[0]
+            return builder.insert_op(ForOp(lb, ub, step, [zero], region)).results[0]
 
         # Hint: Implement here support for Add, Mul, and Pow (and later Abs and Sum)
 
