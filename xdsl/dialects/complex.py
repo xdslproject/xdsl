@@ -5,19 +5,25 @@ from typing import ClassVar, cast
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
+    AnyAttr,
     AnyFloat,
     AnyFloatConstr,
     ArrayAttr,
     ArrayOfConstraint,
     ComplexType,
+    FloatAttr,
+    IntegerAttr,
     IntegerType,
+    ParamAttrConstraint,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyOf,
     EqIntConstraint,
     IRDLOperation,
     RangeOf,
     VarConstraint,
+    base,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -181,13 +187,23 @@ class ConjOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class ConstantOp(IRDLOperation):
     name = "complex.constant"
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | base(IntegerType))
     value = prop_def(
-        ArrayOfConstraint(RangeOf(ComplexTypeConstr).of_length(EqIntConstraint(2)))
+        ArrayOfConstraint(
+            RangeOf(
+                AnyOf(
+                    [
+                        ParamAttrConstraint(IntegerAttr, (AnyAttr(), T)),
+                        ParamAttrConstraint(FloatAttr, (AnyAttr(), T)),
+                    ]
+                )
+            ).of_length(EqIntConstraint(2))
+        )
     )
 
     # In contrast to other operations, `complex.constant` can
     # have any complex result type, not just floating point:
-    complex = result_def(ComplexType.constr())
+    complex = result_def(ComplexType.constr(T))
 
     traits = traits_def(Pure(), ConstantLike())
 
