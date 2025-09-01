@@ -21,6 +21,22 @@ class ListType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
+class LengthOp(IRDLOperation):
+    name = "list.length"
+
+    li = operand_def(ListType)
+    result = result_def(builtin.i32)
+
+    def __init__(self, li: SSAValue):
+        super().__init__(
+            operands=[li],
+            result_types=[builtin.i32],
+        )
+
+    assembly_format = "$li attr-dict `:` type($li) `->` type($result)"
+
+
+@irdl_op_definition
 class RangeOp(IRDLOperation):
     name = "list.range"
 
@@ -37,4 +53,4 @@ class RangeOp(IRDLOperation):
     assembly_format = "$lower `to` $upper attr-dict `:` type($result)"
 
 
-LIST_DIALECT = Dialect("list", [RangeOp], [ListType])
+LIST_DIALECT = Dialect("list", [LengthOp, RangeOp], [ListType])
