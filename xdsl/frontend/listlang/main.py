@@ -31,6 +31,7 @@ class Punctuation:
 LET = Punctuation(re.compile(r"let"), "'let'")
 EQUAL = Punctuation(re.compile(r"="), "equal")
 SEMICOLON = Punctuation(re.compile(r";"), "semicolon")
+SINGLE_PERIOD = Punctuation(re.compile(r"\.(?!\.)"), "period")
 
 IF = Punctuation(re.compile(r"if"), "'if'")
 ELSE = Punctuation(re.compile(r"else"), "'else'")
@@ -80,8 +81,9 @@ class Located(Generic[T]):  # noqa: UP046
 
 class ListLangType:
     def __str__(self) -> str: ...
-
     def xdsl(self) -> Attribute: ...
+    def get_method(self, method: str) -> "Method | None":
+        return None
 
 
 @dataclass
@@ -111,6 +113,13 @@ class ListLangList(ListLangType):
 
     def xdsl(self) -> list_dialect.ListType:
         return list_dialect.ListType(self.element_type.xdsl())
+
+    def get_method(self, method: str) -> "Method | None":
+        match method:
+            case "len":
+                return ListLenMethod()
+            case _:
+                return None
 
 
 @dataclass
@@ -223,6 +232,9 @@ def parse_integer(ctx: ParsingContext) -> Located[int]:
 ## Expressions
 
 
+### Atoms
+
+
 def _parse_opt_expr_atom(
     ctx: ParsingContext, builder: Builder
 ) -> Located[TypedExpression | None]:
@@ -330,6 +342,84 @@ def _parse_expr_atom(ctx: ParsingContext, builder: Builder) -> Located[TypedExpr
     if (expr := _parse_opt_expr_atom(ctx, builder)).value is None:
         raise ParseError(expr.loc.pos, "expected expression atom")
     return Located(expr.loc, expr.value)
+
+
+### Methods
+
+
+class Method:
+    name: str
+
+    def get_lambda_arg_type(self) -> ListLangType | None:
+        """
+        Returns the type of the argument of the method's lambda
+        if there is one, or None if there is no lambda.
+        """
+        ...
+
+    def build(
+        self,
+        builder: Builder,
+        x: Located[TypedExpression],
+        lambd: Located[Block] | None,
+    ) -> TypedExpression:
+        """
+        Builds the method's execution.
+
+        The lambda's content is provided in a free-standing block that must be
+        inlined as needed. The location of the block is the location of the
+        result expression of the lambda.
+        """
+        ...
+
+
+class ListLenMethod(Method):
+    name = "len"
+
+    def get_lambda_arg_type(self) -> ListLangType | None:
+        return None
+
+    def build(
+        self,
+        builder: Builder,
+        x: Located[TypedExpression],
+        lambd: Located[Block] | None,
+    ) -> TypedExpression:
+        assert lambd is None
+        assert isinstance(x.value.typ, ListLangList)
+
+        len_op = builder.insert_op(list_dialect.LengthOp(x.value.value))
+        return TypedExpression(len_op.result, ListLangInt())
+
+
+def _parse_opt_expr_atom_with_methods(
+    ctx: ParsingContext, builder: Builder
+) -> Located[TypedExpression | None]:
+    if (x := _parse_opt_expr_atom(ctx, builder)).value is None:
+        return x
+    x = Located(x.loc, x.value)
+
+    while parse_opt_punct(ctx, SINGLE_PERIOD):
+        method_name = parse_identifier(ctx)
+        parse_punct(ctx, LPAREN)
+
+        if (method := x.value.typ.get_method(method_name.value)) is None:
+            raise ParseError(
+                method_name.loc.pos,
+                f"unknown method '{method_name.value}' for type {x.value.typ}",
+            )
+
+        if method.get_lambda_arg_type() is not None:
+            ...  # TODO: support methods with lambda parameter
+
+        parse_punct(ctx, RPAREN)
+
+        x = Located(x.loc, method.build(builder, x, None))
+
+    return cast(Located[TypedExpression | None], x)
+
+
+### Binary operators
 
 
 class BinaryOp:
@@ -565,12 +655,15 @@ PARSE_BINOP_PRIORITY: tuple[tuple[BinaryOp, ...], ...] = (
 )
 
 
+### Expression parser
+
+
 def parse_opt_expr(
     ctx: ParsingContext, builder: Builder
 ) -> Located[TypedExpression | None]:
     def priority_level_parser(level: int) -> Located[TypedExpression | None]:
         if level == 0:
-            return _parse_opt_expr_atom(ctx, builder)
+            return _parse_opt_expr_atom_with_methods(ctx, builder)
 
         if (lhs := priority_level_parser(level - 1)).value is None:
             return lhs
