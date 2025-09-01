@@ -6,6 +6,7 @@ from typing import ClassVar, cast
 
 from typing_extensions import deprecated
 
+from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     I1,
     AffineMapAttr,
@@ -33,14 +34,22 @@ from xdsl.dialects.utils import (
     verify_dynamic_index_list,
 )
 from xdsl.dialects.utils.dynamic_index_list import DynamicIndexList
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    EnumAttribute,
+    Operation,
+    SSAValue,
+)
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
     base,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
@@ -51,12 +60,13 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position
+from xdsl.utils.str_enum import StrEnum
 
 DYNAMIC_INDEX: int = -(2**63)
 
@@ -1245,23 +1255,96 @@ class TransferWriteOp(VectorTransferOperation):
         )
 
 
+class CombiningKindFlag(StrEnum):
+    """
+    Values specifying the kind of combining operation.
+    """
+
+    ADD = "add"
+    MUL = "mul"
+    MINUI = "minui"
+    MINSI = "minsi"
+    MINNUMF = "minnumf"
+    MAXUI = "maxui"
+    MAXSI = "maxsi"
+    MAXNUMF = "maxnumf"
+    AND = "and"
+    OR = "or"
+    XOR = "xor"
+    MAXIMUMF = "maximumf"
+    MINIMUMF = "minimumf"
+
+
+@irdl_attr_definition
+class CombiningKindAttr(EnumAttribute[CombiningKindFlag]):
+    """
+    A mirror of LLVM's vector.kind attribute.
+    """
+
+    name = "vector.kind"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> CombiningKindFlag:
+        with parser.in_angle_brackets():
+            return CombiningKindFlag(parser.parse_identifier())
+
+
+@irdl_op_definition
+class ReductionOp(IRDLOperation):
+    name = "vector.reduction"
+
+    _T: ClassVar = VarConstraint("T", AnyAttr())
+
+    vector = operand_def(VectorType.constr(_T))
+    acc = opt_operand_def(_T)
+    dest = result_def(_T)
+    kind = prop_def(CombiningKindAttr)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+
+    assembly_format = "$kind `,` $vector (`,` $acc^)? (`fastmath` `` $fastmath^)? attr-dict `:` type($vector) `into` type($dest)"
+
+    def __init__(
+        self,
+        vector: SSAValue | Operation,
+        kind: CombiningKindAttr,
+        acc: SSAValue | Operation | None = None,
+        fastmath: FastMathFlagsAttr | None = None,
+    ):
+        vector = SSAValue.get(vector)
+        super().__init__(
+            operands=[vector, acc],
+            result_types=[vector.type],
+            properties={
+                "kind": kind,
+                "fastmath": fastmath,
+            },
+        )
+
+
 Vector = Dialect(
     "vector",
     [
-        LoadOp,
-        StoreOp,
         BroadcastOp,
+        CreateMaskOp,
+        ExtractElementOp,
+        ExtractOp,
         FMAOp,
+        InsertElementOp,
+        InsertOp,
+        LoadOp,
         MaskedLoadOp,
         MaskedStoreOp,
         PrintOp,
-        CreateMaskOp,
-        ExtractOp,
-        ExtractElementOp,
-        InsertOp,
-        InsertElementOp,
+        ReductionOp,
+        StoreOp,
         TransferReadOp,
         TransferWriteOp,
     ],
-    [],
+    [
+        CombiningKindAttr,
+    ],
 )

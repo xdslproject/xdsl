@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from math import prod
 from operator import add, lt, neg
-from typing import Annotated, Generic, TypeAlias, cast
+from typing import Generic, TypeAlias, cast
 
 from typing_extensions import TypeVar
 
@@ -809,8 +809,8 @@ class CombineOp(IRDLOperation):
 
     name = "stencil.combine"
 
-    dim = attr_def(IntegerAttr[Annotated[IndexType, IndexType()]])
-    index = attr_def(IntegerAttr[Annotated[IndexType, IndexType()]])
+    dim = attr_def(IntegerAttr[IndexType])
+    index = attr_def(IntegerAttr[IndexType])
     lower = var_operand_def(TempType)
     upper = var_operand_def(TempType)
     lowerext = var_operand_def(TempType)
@@ -954,7 +954,7 @@ class IndexOp(IRDLOperation):
     """
 
     name = "stencil.index"
-    dim = attr_def(IntegerAttr[Annotated[IndexType, IndexType()]])
+    dim = attr_def(IntegerAttr[IndexType])
     offset = attr_def(IndexAttr)
     idx = result_def(builtin.IndexType())
 
