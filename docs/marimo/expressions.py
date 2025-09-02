@@ -111,14 +111,47 @@ def _(mo):
     mo.md(r"""# Module post-modification""")
     return
 
+@app.cell
+def _(mo):
+    pass_list = ["constant-fold-interp","canonicalize"]
+    return pass_list
 
 @app.cell
-def _(mo, res):
+def _(mo):
+    slider_choices = ["Before"] + ["After " + name for name in pass_list]
+    slider = mo.ui.slider(start=0, stop=len(slider_choices) - 1, label="Slider", value=0)
+    slider
+    return slider
+
+@app.cell
+def _(mo, res, pass_list, slider):
+    from xdsl.passes import PassPipeline
+    from xdsl.transforms import get_all_passes
+    from xdsl.context import Context
+
     module = res
 
-    res_str2 = module_str_to_marimo_md(str(module))
 
-    mo.md(res_str2)
+    module_list = [module.clone()]
+
+    def callback(pass1, module, pass2):
+        module_list.append(module.clone())
+
+    pipeline = PassPipeline.parse_spec(get_all_passes(), ",".join(pass_list), callback)
+
+    pipeline.apply(Context(), module)
+    module_list.append(module.clone())
+
+    res_str_0 = module_str_to_marimo_md(str(module_list[0]))
+    res_str_1 = module_str_to_marimo_md(str(module_list[1]))
+    res_str_2 = module_str_to_marimo_md(str(module_list[2]))
+    mo.md(res_str_0 + "<br>" + res_str_1 + "<br>" + res_str_2)
+    return
+
+@app.cell
+def _(mo, slider):
+    mo.md(f"slidver.value {slider.value}")
+    return
 
 if __name__ == "__main__":
     app.run()
