@@ -24,7 +24,7 @@ from xdsl.dialects.arith import (
     SubiOp,
     XOrIOp,
 )
-from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness, i32
+from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness, i8, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 
@@ -283,7 +283,7 @@ def test_floordivsi(lhs_value: int, rhs_value: int, result: int):
     assert ret[0] == result
 
 
-@pytest.mark.parametrize("x", [1, 0, -1, 127])
+@pytest.mark.parametrize("x", [1, 0, -1, 127, 1111])
 def test_indexcast_to_i32(x: int):
     x_op = test.TestOp(result_types=[IndexType()])
     indexcast = IndexCastOp(x_op, i32)
@@ -294,7 +294,7 @@ def test_indexcast_to_i32(x: int):
     assert ret[0] == x
 
 
-@pytest.mark.parametrize("x", [1, 0, -1, 127])
+@pytest.mark.parametrize("x", [1, 0, -1, 127, 1111])
 def test_indexcast_from_i32(x: int):
     x_op = test.TestOp(result_types=[i32])
     indexcast = IndexCastOp(x_op, IndexType())
@@ -303,3 +303,29 @@ def test_indexcast_from_i32(x: int):
 
     assert len(ret) == 1
     assert ret[0] == x
+
+
+@pytest.mark.parametrize(
+    "x,expected", [(1, 1), (0, 0), (-1, -1), (127, 127), (1111, 87)]
+)
+def test_indexcast_to_i8(x: int, expected: int):
+    x_op = test.TestOp(result_types=[IndexType()])
+    indexcast = IndexCastOp(x_op, i8)
+
+    ret = interpreter.run_op(indexcast, (x,))
+
+    assert len(ret) == 1
+    assert ret[0] == expected
+
+
+@pytest.mark.parametrize(
+    "x,expected", [(1, 1), (0, 0), (-1, -1), (127, 127), (255, -1)]
+)
+def test_indexcast_from_i8(x: int, expected: int):
+    x_op = test.TestOp(result_types=[i8])
+    indexcast = IndexCastOp(x_op, IndexType())
+
+    ret = interpreter.run_op(indexcast, (x,))
+
+    assert len(ret) == 1
+    assert ret[0] == expected

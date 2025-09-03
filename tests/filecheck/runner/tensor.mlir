@@ -23,15 +23,17 @@ builtin.module {
             scf.yield %y_modified : tensor<4xi32>
         }
         %9 = tensor.dim %y, %0 : tensor<4xi32>
+        printf.print_format "enumerating:\n"
         scf.for %i_2 = %0 to %9 step %1 {
             %10 = tensor.extract %y[%i_2] : tensor<4xi32>
-            printf.print_format "{}", %10 : i32
+            printf.print_format "{}\n", %10 : i32
         }
         func.return %x, %y : tensor<?xi32>, tensor<4xi32>
     }
 }
 
-// CHECK:      11
+// CHECK:      enumerating:
+// CHECK-NEXT: 11
 // CHECK-NEXT: 12
 // CHECK-NEXT: 13
 // CHECK-NEXT: 14
