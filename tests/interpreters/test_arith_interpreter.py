@@ -90,7 +90,7 @@ def test_muli(lhs_value: int, rhs_value: int):
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
 @pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
-def test_andi(lhs_value: int, rhs_value: int, expected: int):
+def test_andi(lhs_value: int, rhs_value: int):
     muli = AndIOp(lhs_op, rhs_op)
 
     ret = interpreter.run_op(muli, (lhs_value, rhs_value))
