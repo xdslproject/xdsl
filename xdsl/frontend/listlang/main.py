@@ -1,14 +1,24 @@
 import io
 import re
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Generic, cast
+from typing import cast
 
 from typing_extensions import TypeVar
 
 import xdsl.frontend.listlang.list_dialect as list_dialect
+import xdsl.frontend.listlang.lowerings as lowerings
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, scf
-from xdsl.ir import Attribute, Block, SSAValue
+from xdsl.frontend.listlang.lang_types import (
+    ListLangBool,
+    ListLangInt,
+    ListLangList,
+    ListLangType,
+    TypedExpression,
+)
+from xdsl.frontend.listlang.source import CodeCursor, Located, Location, ParseError
+from xdsl.ir import Block, SSAValue
 from xdsl.printer import Printer
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.scoped_dict import ScopedDict
@@ -17,9 +27,6 @@ RESERVED_KEYWORDS = ["let", "if", "else", "true", "false"]
 
 IDENT = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*")
 INTEGER = re.compile(r"[0-9]+")
-
-COMMENTS = r"(?:\/\/[^\n\r]+?(?:\*\)|[\n\r]))"
-WHITESPACES = re.compile(r"(?:\s|" + COMMENTS + r")*")
 
 
 @dataclass
@@ -32,6 +39,7 @@ LET = Punctuation(re.compile(r"let"), "'let'")
 EQUAL = Punctuation(re.compile(r"="), "equal")
 SEMICOLON = Punctuation(re.compile(r";"), "semicolon")
 SINGLE_PERIOD = Punctuation(re.compile(r"\.(?!\.)"), "period")
+COMMA = Punctuation(re.compile(r","), "comma")
 
 IF = Punctuation(re.compile(r"if"), "'if'")
 ELSE = Punctuation(re.compile(r"else"), "'else'")
@@ -41,6 +49,8 @@ FALSE = Punctuation(re.compile(r"false"), "'false'")
 STAR = Punctuation(re.compile(r"\*"), "star")
 PLUS = Punctuation(re.compile(r"\+"), "plus")
 RANGE = Punctuation(re.compile(r"\.\."), "range")
+PIPE = Punctuation(re.compile(r"\|"), "pipe")
+
 
 EQUAL_CMP = Punctuation(re.compile(r"=="), "equality comparator")
 LT_CMP = Punctuation(re.compile(r"<"), "less than comparator")
@@ -58,101 +68,10 @@ LCURL = Punctuation(re.compile(r"\{"), "left curly bracket")
 RCURL = Punctuation(re.compile(r"\}"), "right curly bracket")
 
 
-XDSL_INT = builtin.IntegerType(32)
-XDSL_BOOL = builtin.IntegerType(1)
-
-
-@dataclass
-class Location:
-    pos: int
-
-
-T = TypeVar("T")
-
-
-@dataclass
-class Located(Generic[T]):  # noqa: UP046
-    loc: Location
-    value: T
-
-    def __bool__(self) -> bool:
-        return bool(self.value)
-
-
-class ListLangType:
-    def __str__(self) -> str: ...
-    def xdsl(self) -> Attribute: ...
-    def get_method(self, method: str) -> "Method | None":
-        return None
-
-
-@dataclass
-class ListLangInt(ListLangType):
-    def __str__(self) -> str:
-        return "int"
-
-    def xdsl(self) -> builtin.IntegerType:
-        return XDSL_INT
-
-
-@dataclass
-class ListLangBool(ListLangType):
-    def __str__(self) -> str:
-        return "bool"
-
-    def xdsl(self) -> builtin.IntegerType:
-        return XDSL_BOOL
-
-
-@dataclass
-class ListLangList(ListLangType):
-    element_type: ListLangBool | ListLangInt
-
-    def __str__(self) -> str:
-        return f"list<{self.element_type}>"
-
-    def xdsl(self) -> list_dialect.ListType:
-        return list_dialect.ListType(self.element_type.xdsl())
-
-    def get_method(self, method: str) -> "Method | None":
-        match method:
-            case "len":
-                return ListLenMethod()
-            case _:
-                return None
-
-
 @dataclass
 class Binding:
     value: SSAValue
     typ: ListLangType
-
-
-class CodeCursor:
-    code: str
-    pos: int
-
-    def __init__(self, code: str):
-        self.code = code
-        self.pos = 0
-
-    def _whitespace_end(self) -> int:
-        match = WHITESPACES.match(self.code, self.pos)
-        assert match is not None
-        return match.end()
-
-    def skip_whitespaces(self):
-        self.pos = self._whitespace_end()
-
-    def next_regex(self, regex: re.Pattern[str]) -> Located[re.Match[str] | None]:
-        match = self.peek_regex(regex)
-        if match.value is not None:
-            self.pos = match.value.end()
-        return match
-
-    def peek_regex(self, regex: re.Pattern[str]) -> Located[re.Match[str] | None]:
-        pos = self._whitespace_end()
-        return Located(Location(pos), regex.match(self.code, pos))
 
 
 class ParsingContext:
@@ -163,25 +82,8 @@ class ParsingContext:
         self.cursor = CodeCursor(code)
         self.bindings = ScopedDict()
 
-
-@dataclass
-class ParseError(Exception):
-    position: int
-    msg: str
-
-    @staticmethod
-    def from_ctx(ctx: ParsingContext, msg: str) -> "ParseError":
-        return ParseError(ctx.cursor.pos, msg)
-
-    @staticmethod
-    def from_loc(loc: Location, msg: str) -> "ParseError":
-        return ParseError(loc.pos, msg)
-
-
-@dataclass
-class TypedExpression:
-    value: SSAValue
-    typ: ListLangType
+    def error(self, msg: str) -> ParseError:
+        return ParseError(self.cursor.pos, msg)
 
 
 ## Utils
@@ -197,7 +99,7 @@ def parse_opt_punct(ctx: ParsingContext, punct: Punctuation) -> Located[bool]:
 
 def parse_punct(ctx: ParsingContext, punct: Punctuation) -> Location:
     if not (located := parse_opt_punct(ctx, punct)):
-        raise ParseError.from_ctx(ctx, f"expected {punct.name}")
+        raise ctx.error(f"expected {punct.name}")
     return located.loc
 
 
@@ -211,7 +113,7 @@ def parse_opt_identifier(ctx: ParsingContext) -> Located[str | None]:
 
 def parse_identifier(ctx: ParsingContext) -> Located[str]:
     if (ident := parse_opt_identifier(ctx)).value is None:
-        raise ParseError.from_ctx(ctx, "expected variable identifier")
+        raise ctx.error("expected variable identifier")
     return Located(ident.loc, ident.value)
 
 
@@ -225,8 +127,24 @@ def parse_opt_integer(ctx: ParsingContext) -> Located[int | None]:
 
 def parse_integer(ctx: ParsingContext) -> Located[int]:
     if (lit := parse_opt_integer(ctx)).value is None:
-        raise ParseError.from_ctx(ctx, "expected integer constant")
+        raise ctx.error("expected integer constant")
     return Located(lit.loc, lit.value)
+
+
+T = TypeVar("T")
+
+
+# TODO: Drop Python 3.11 support to use proper type parameters.
+# Linting is disabled for the time being.
+def parse_comma_separated(  # noqa: UP047
+    ctx: ParsingContext, p: Callable[[], Located[T | None]]
+) -> Sequence[Located[T]]:
+    result: list[Located[T]] = []
+    while (res := p()).value is not None:
+        result.append(Located(res.loc, res.value))
+        if not parse_opt_punct(ctx, COMMA).value:
+            break
+    return result
 
 
 ## Expressions
@@ -243,6 +161,15 @@ def _parse_opt_expr_atom(
         expr = parse_expr(ctx, builder)
         parse_punct(ctx, RPAREN)
         return Located(expr.loc, expr.value)
+
+    # Parse block expression.
+    if (block := parse_opt_block(ctx, builder)).value is not None:
+        if block.value.value is None:
+            raise ParseError(
+                block.value.loc.pos,
+                "expected final expression for block in expression position",
+            )
+        return Located(block.loc, block.value.value)
 
     # Parse if-expr.
     if if_expr := parse_opt_punct(ctx, IF):
@@ -297,20 +224,24 @@ def _parse_opt_expr_atom(
     # Parse integer constant.
     if (lit := parse_opt_integer(ctx)).value is not None:
         val = builder.insert_op(
-            arith.ConstantOp(builtin.IntegerAttr(lit.value, XDSL_INT))
+            arith.ConstantOp(builtin.IntegerAttr(lit.value, ListLangInt().xdsl()))
         )
         val.result.name_hint = f"c{lit.value}"
         return Located(lit.loc, TypedExpression(val.result, ListLangInt()))
 
     # Parse false constant.
     if false := parse_opt_punct(ctx, FALSE):
-        val = builder.insert_op(arith.ConstantOp(builtin.IntegerAttr(0, XDSL_BOOL)))
+        val = builder.insert_op(
+            arith.ConstantOp(builtin.IntegerAttr(0, ListLangBool().xdsl()))
+        )
         val.result.name_hint = "false"
         return Located(false.loc, TypedExpression(val.result, ListLangBool()))
 
     # Parse true constant.
     if true := parse_opt_punct(ctx, TRUE):
-        val = builder.insert_op(arith.ConstantOp(builtin.IntegerAttr(1, XDSL_BOOL)))
+        val = builder.insert_op(
+            arith.ConstantOp(builtin.IntegerAttr(1, ListLangBool().xdsl()))
+        )
         val.result.name_hint = "true"
         return Located(true.loc, TypedExpression(val.result, ListLangBool()))
 
@@ -323,7 +254,9 @@ def _parse_opt_expr_atom(
                 f"expected {ListLangBool()} type for negation, "
                 f"got {to_negate.value.typ}",
             )
-        true = builder.insert_op(arith.ConstantOp(builtin.IntegerAttr(1, XDSL_BOOL)))
+        true = builder.insert_op(
+            arith.ConstantOp(builtin.IntegerAttr(1, ListLangBool().xdsl()))
+        )
         negated = builder.insert_op(arith.XOrIOp(to_negate.value.value, true.result))
         negated.result.name_hint = f"not_{to_negate.value.value.name_hint}"
         return Located(neg.loc, TypedExpression(negated.result, ListLangBool()))
@@ -347,51 +280,6 @@ def _parse_expr_atom(ctx: ParsingContext, builder: Builder) -> Located[TypedExpr
 ### Methods
 
 
-class Method:
-    name: str
-
-    def get_lambda_arg_type(self) -> ListLangType | None:
-        """
-        Returns the type of the argument of the method's lambda
-        if there is one, or None if there is no lambda.
-        """
-        ...
-
-    def build(
-        self,
-        builder: Builder,
-        x: Located[TypedExpression],
-        lambd: Located[Block] | None,
-    ) -> TypedExpression:
-        """
-        Builds the method's execution.
-
-        The lambda's content is provided in a free-standing block that must be
-        inlined as needed. The location of the block is the location of the
-        result expression of the lambda.
-        """
-        ...
-
-
-class ListLenMethod(Method):
-    name = "len"
-
-    def get_lambda_arg_type(self) -> ListLangType | None:
-        return None
-
-    def build(
-        self,
-        builder: Builder,
-        x: Located[TypedExpression],
-        lambd: Located[Block] | None,
-    ) -> TypedExpression:
-        assert lambd is None
-        assert isinstance(x.value.typ, ListLangList)
-
-        len_op = builder.insert_op(list_dialect.LengthOp(x.value.value))
-        return TypedExpression(len_op.result, ListLangInt())
-
-
 def _parse_opt_expr_atom_with_methods(
     ctx: ParsingContext, builder: Builder
 ) -> Located[TypedExpression | None]:
@@ -409,12 +297,45 @@ def _parse_opt_expr_atom_with_methods(
                 f"unknown method '{method_name.value}' for type {x.value.typ}",
             )
 
-        if method.get_lambda_arg_type() is not None:
-            ...  # TODO: support methods with lambda parameter
+        lambda_info = None
+        if (args := method.get_lambda_arg_type(x.value.typ)) is not None:
+            first_pipe_loc = parse_punct(ctx, PIPE)
+            arg_idents = parse_comma_separated(ctx, lambda: parse_opt_identifier(ctx))
+            parse_punct(ctx, PIPE)
+
+            if len(arg_idents) != len(args):
+                raise ParseError(
+                    first_pipe_loc.pos,
+                    f"expected {len(args)} arguments in {x.value.typ} method "
+                    f"'{method.name}' but got {len(arg_idents)}",
+                )
+
+            lambda_block = Block([], arg_types=[x.xdsl() for x in args])
+            ctx.bindings = ScopedDict(ctx.bindings)
+
+            for ident, typ, val in zip(arg_idents, args, lambda_block.args):
+                if ident.value in RESERVED_KEYWORDS:
+                    raise ParseError.from_loc(
+                        ident.loc, f"'{ident.value}' is a reserved keyword"
+                    )
+                val.name_hint = ident.value
+                ctx.bindings[ident.value] = Binding(val, typ)
+
+            lambda_builder = Builder(InsertPoint.at_start(lambda_block))
+            lambda_expr = parse_expr(ctx, lambda_builder)
+            lambda_builder.insert_op(list_dialect.YieldOp(lambda_expr.value.value))
+
+            assert ctx.bindings.parent is not None
+            ctx.bindings = ctx.bindings.parent
+
+            lambda_info = Located(
+                lambda_expr.loc, (lambda_block, lambda_expr.value.typ)
+            )
 
         parse_punct(ctx, RPAREN)
 
-        x = Located(x.loc, method.build(builder, x, None))
+        x = Located(x.loc, method.build(builder, x, lambda_info))
+        x.value.value.name_hint = method.name
 
     return cast(Located[TypedExpression | None], x)
 
@@ -754,57 +675,121 @@ def parse_block_content(
     return Located(start_loc, parse_opt_expr(ctx, builder))
 
 
-def parse_block(
-    ctx: ParsingContext, builder: Builder
-) -> Located[Located[TypedExpression | None]]:
+def parse_opt_block(
+    ctx: ParsingContext,
+    builder: Builder,
+) -> Located[Located[TypedExpression | None] | None]:
     """
     Parses a block and returns its trailing expression, if there is one. The
-    first location is the start of the block content, while the second location
+    first location is the start of the block, while the second location
     is the start of where the trailing expression is or would be.
 
     The scope of bindings within the block is contained, meaning a new scope
     level is added to the binding dictionary when parsing the block.
     """
 
+    if not (lcurl := parse_opt_punct(ctx, LCURL)).value:
+        return Located(lcurl.loc, None)
     ctx.bindings = ScopedDict(ctx.bindings)
-    parse_punct(ctx, LCURL)
     res = parse_block_content(ctx, builder)
     parse_punct(ctx, RCURL)
     assert ctx.bindings.parent is not None
     ctx.bindings = ctx.bindings.parent
 
-    return res
+    return Located(lcurl.loc, res.value)
+
+
+def parse_block(
+    ctx: ParsingContext,
+    builder: Builder,
+) -> Located[Located[TypedExpression | None]]:
+    """
+    Parses a block and returns its trailing expression, if there is one. The
+    first location is the start of the block, while the second location
+    is the start of where the trailing expression is or would be.
+
+    The scope of bindings within the block is contained, meaning a new scope
+    level is added to the binding dictionary when parsing the block.
+    """
+
+    if (block := parse_opt_block(ctx, builder)).value is None:
+        raise ParseError(block.loc.pos, "expected block")
+    return Located(block.loc, block.value)
 
 
 ## Program
 
 
-def parse_program(code: str, builder: Builder) -> Located[TypedExpression | None]:
+def parse_program(code: str, builder: Builder):
     """
     Parses a program.
-    If the program has a result expression, returns it. The location of the
-    return value is where the type expression is or would be.
+    Builds the operations associated with the program, and prints the
+    final expression.
     """
+    expr = parse_block_content(ParsingContext(code), builder).value.value
+    if expr is None:
+        return
+    expr.typ.print(builder, expr.value)
 
-    return parse_block_content(ParsingContext(code), builder).value
 
-
-def program_to_mlir(code: str) -> str:
+def program_to_mlir_module(code: str) -> builtin.ModuleOp:
     module = builtin.ModuleOp([])
     builder = Builder(InsertPoint.at_start(module.body.block))
 
     parse_program(code, builder)
 
+    return module
+
+
+def program_to_mlir_string(code: str):
     output = io.StringIO()
-    Printer(stream=output).print_op(module)
+    Printer(stream=output).print_op(program_to_mlir_module(code))
     return output.getvalue()
 
 
 if __name__ == "__main__":
-    import fileinput
+    import argparse
+    import sys
 
-    program = "\n".join(fileinput.input())
+    from xdsl.context import Context
+    from xdsl.transforms import printf_to_llvm
 
-    output = program_to_mlir(program)
+    arg_parser = argparse.ArgumentParser(
+        prog="list-lang",
+        description="Parses list-lang programs and transforms them.",
+    )
 
-    print(output)
+    arg_parser.add_argument(
+        "filename",
+        nargs="?",
+        type=argparse.FileType("r"),
+        default=sys.stdin,
+        help="file to read (defaults to stdin)",
+    )
+
+    arg_parser.add_argument(
+        "--to", choices=["tensor", "interp", "mlir"], help="conversion target"
+    )
+
+    args = arg_parser.parse_args()
+
+    module = program_to_mlir_module(args.filename.read())
+
+    def lower_down_to(target: str | None):
+        if target is None:
+            return
+        ctx = Context()
+        lowerings.LowerListToTensor().apply(ctx, module)
+        if target == "tensor":
+            return
+        lowerings.WrapModuleInFunc().apply(ctx, module)
+        if target == "interp":
+            return
+        printf_to_llvm.PrintfToLLVM().apply(ctx, module)
+        if target == "mlir":
+            return
+
+    lower_down_to(args.to)
+
+    Printer().print_op(module)
+    print()
