@@ -289,7 +289,7 @@ def generate_mpi_calls_for(
 
             if emit_debug:
                 yield printf.PrintFormatOp(
-                    f"Rank {{}}: sending {ex.source_area()} -> {{}}", rank, dest_rank
+                    f"Rank {{}}: sending {ex.source_area()} -> {{}}\n", rank, dest_rank
                 )
 
             # isend call
@@ -352,7 +352,7 @@ def generate_mpi_calls_for(
                         )
                         + [
                             printf.PrintFormatOp(
-                                f"Rank {{}} receiving from {ex.neighbor}",
+                                f"Rank {{}} receiving from {ex.neighbor}\n",
                                 rank,
                             )
                         ]
