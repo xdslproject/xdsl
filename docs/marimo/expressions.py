@@ -24,6 +24,8 @@ async def _():
             url_parsed = urllib.parse.urlparse(url)
             scheme = url_parsed.scheme
             netloc = url_parsed.netloc
+            path = url_parsed.path
+
             print(f"DEBUG: notebook url (parsed): {url_parsed}")
 
             url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
