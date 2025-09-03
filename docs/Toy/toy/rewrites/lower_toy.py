@@ -434,7 +434,7 @@ class PrintOpLowering(RewritePattern):
             )
             new_vals.append(load.result)
 
-        rewriter.replace_matched_op(printf.PrintFormatOp(format_str + "\n", *new_vals))
+        rewriter.replace_matched_op(printf.PrintFormatOp(format_str, *new_vals))
 
 
 class ReturnOpLowering(RewritePattern):
