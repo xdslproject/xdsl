@@ -63,7 +63,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    expr_str = mo.ui.text_area(value = "let c = 1 + 2;\nc + 3", rows = 10, full_width = True, debounce=False)
+    expr_str = mo.ui.code_editor(value = "let c = 1 + 2;\nc + 3", language = "rust", debounce=False)
     expr_str
     return (expr_str,)
 
