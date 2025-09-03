@@ -29,6 +29,8 @@ async def _():
             if url == "https://xdsl.readthedocs.io/":
                 url = url + "latest/"
 
+            url = "http://127.0.0.1:8000"
+
             print(f"DEBUG: notebook url (trimmed): {url}")
 
             return url
