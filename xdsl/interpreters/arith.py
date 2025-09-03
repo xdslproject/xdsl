@@ -1,7 +1,7 @@
 from math import copysign, isnan
 from typing import cast
 
-from xdsl.dialects import arith
+from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import FloatAttr, IntegerAttr
 from xdsl.interpreter import (
     Interpreter,
@@ -11,6 +11,32 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
+
+
+def _int_bitwidth(
+    interpreter: Interpreter, typ: builtin.IndexType | builtin.IntegerType
+) -> int:
+    if isa(typ, builtin.IntegerType):
+        return typ.width.data
+    if isa(typ, builtin.IndexType):
+        return interpreter.index_bitwidth
+    raise ValueError("unexpected integer type")
+
+
+def _sign_extend(value: int, from_bitwidth: int) -> int:
+    """
+    Canonicalizes the value to positive or negative.
+    """
+    sign_bit = 1 << (from_bitwidth - 1)
+    return (value & (sign_bit - 1)) - (value & sign_bit)
+
+
+def _truncate(value: int, to_bitwidth: int) -> int:
+    truncated = value & ((1 << to_bitwidth) - 1)
+    if truncated & (1 << (to_bitwidth - 1)):
+        return truncated - (1 << to_bitwidth)
+    return truncated
 
 
 @register_impls
@@ -37,6 +63,18 @@ class ArithFunctions(InterpreterFunctions):
     @impl(arith.MuliOp)
     def run_muli(self, interpreter: Interpreter, op: arith.MuliOp, args: PythonValues):
         return (args[0] * args[1],)
+
+    @impl(arith.AndIOp)
+    def run_andi(self, interpreter: Interpreter, op: arith.AndIOp, args: PythonValues):
+        return (args[0] & args[1],)
+
+    @impl(arith.OrIOp)
+    def run_ori(self, interpreter: Interpreter, op: arith.OrIOp, args: PythonValues):
+        return (args[0] | args[1],)
+
+    @impl(arith.XOrIOp)
+    def run_xori(self, interpreter: Interpreter, op: arith.XOrIOp, args: PythonValues):
+        return (args[0] ^ args[1],)
 
     @impl(arith.SubfOp)
     def run_subf(self, interpreter: Interpreter, op: arith.SubfOp, args: PythonValues):
@@ -157,3 +195,22 @@ class ArithFunctions(InterpreterFunctions):
         (lhs, rhs) = args
         assert rhs != 0
         return (lhs // rhs,)
+
+    @impl(arith.IndexCastOp)
+    def run_indexcast(
+        self, interpreter: Interpreter, op: arith.IndexCastOp, args: PythonValues
+    ):
+        assert len(args) == 1
+        result = args[0]
+
+        assert isa(op.input.type, builtin.IndexType | builtin.IntegerType)
+
+        input_bitwidth = _int_bitwidth(interpreter, op.input.type)
+        result_bitwidth = _int_bitwidth(interpreter, op.result.type)
+
+        if input_bitwidth > result_bitwidth:
+            result = _truncate(result, result_bitwidth)
+        elif input_bitwidth < result_bitwidth:
+            result = _sign_extend(result, input_bitwidth)
+
+        return (result,)
