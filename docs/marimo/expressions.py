@@ -8,6 +8,7 @@ app = marimo.App(width="medium")
 async def _():
     import sys
     import marimo as mo
+    import urllib
 
     # Use the locally built xDSL wheel when running in Marimo
     if sys.platform == 'emscripten':
@@ -17,21 +18,27 @@ async def _():
         # the wheel both locally and when deployed to makethedocs. 
         def get_url():
             import re
-            url = str(mo.notebook_location())[5:]
-            directory = str(mo.notebook_dir())
+            url = str(mo.notebook_location()).replace("blob:", "")
             print(f"DEBUG: notebook url (full): {url}")
-            print(f"DEBUG: notebook dir: {directory}")
+
+            url_parsed = urllib.parse.urlparse(url)
+            scheme = url_parsed.scheme
+            netloc = url_parsed.netloc
+            print(f"DEBUG: notebook url (parsed): {url_parsed}")
+
             url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
             buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
+
+            new_url = scheme + "://" + netloc
+
             if buildnumber != url:
-                url = url + buildnumber + "/"
+                new_url = new_url + "/" + buildnumber + "/"
+            elif url == "https://xdsl.readthedocs.io/":
+                new_url = new_url + "/latest/"
 
-            if url == "https://xdsl.readthedocs.io/":
-                url = url + "latest/"
+            print(f"DEBUG: notebook url (trimmed): {new_url}")
 
-            print(f"DEBUG: notebook url (trimmed): {url}")
-
-            return url
+            return new_url
 
         import micropip
         await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")

@@ -81,9 +81,11 @@ def gen_marimo_old():
 
         with mkdocs_gen_files.open(doc_path, "w") as fd:
             # Hide the header then inline the notebook
-            fd.write(f"""\
+            fd.write(
+                f"""\
     <iframe style="border: 0px" height="3500em" scrolling="no" width="100%" src="{url}"></iframe>
-    """)
+    """
+            )
 
     with open("docs/marimo/README.md") as rf:
         marimo_readme = rf.read()
@@ -92,7 +94,7 @@ def gen_marimo_old():
         fd.write(marimo_readme.replace(".py", ".html"))
 
 
-def gen_marimo_new():
+def gen_marimo_new_md():
     import subprocess
 
     for path in NEW_MARIMO_NOTEBOOKS:
@@ -127,5 +129,92 @@ def gen_marimo_new():
             fd.write(output)
 
 
+def gen_marimo_new_marimo():
+    import subprocess
+    import tempfile
+
+    for path in NEW_MARIMO_NOTEBOOKS:
+        # Create a temporary directory for marimo export
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Run marimo export to temporary directory
+            subprocess.run(
+                [
+                    "marimo",
+                    "export",
+                    "html-wasm",
+                    # "--no-show-code",
+                    "--no-sandbox",
+                    str(path),
+                    "-o",
+                    str(temp_path),
+                ],
+                stdout=subprocess.PIPE,
+                check=True,
+                encoding="utf-8",
+            )
+
+            # Copy all generated files to mkdocs using mkdocs_gen_files
+            notebook_name = path.stem
+
+            # Copy index.html
+            index_html_path = temp_path / "index.html"
+            if index_html_path.exists():
+                with mkdocs_gen_files.open(
+                    f"marimo/html/{notebook_name}/index.html", "w"
+                ) as fd:
+                    fd.write(index_html_path.read_text())
+
+            # Copy assets directory if it exists
+            assets_dir = temp_path / "assets"
+            if assets_dir.exists():
+                for asset_file in assets_dir.rglob("*"):
+                    if asset_file.is_file():
+                        relative_path = asset_file.relative_to(temp_path)
+                        with mkdocs_gen_files.open(
+                            f"marimo/html/{notebook_name}/{relative_path}", "wb"
+                        ) as fd:
+                            fd.write(asset_file.read_bytes())
+
+            # Copy other static files (icons, manifests, etc.)
+            for file_path in temp_path.glob("*"):
+                if file_path.is_file() and file_path.name != "index.html":
+                    with mkdocs_gen_files.open(
+                        f"marimo/html/{notebook_name}/{file_path.name}", "wb"
+                    ) as fd:
+                        fd.write(file_path.read_bytes())
+
+        # Create a markdown file that mkdocs can link to
+        doc_path = path.relative_to(docs_root).with_suffix(".html")
+
+        with mkdocs_gen_files.open(doc_path, "w") as fd:
+            # Create an HTML page that redirects to the generated marimo app
+            relative_path = f"html/{notebook_name}/index.html"
+            fd.write(
+                f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Redirecting to Marimo App...</title>
+    <meta http-equiv="refresh" content="0; url={relative_path}">
+    <style>
+        body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; }}
+        .loading {{ color: #666; }}
+        a {{ color: #007acc; text-decoration: none; }}
+        a:hover {{ text-decoration: underline; }}
+    </style>
+</head>
+<body>
+    <div class="loading">
+        <p>Redirecting to interactive Marimo notebook...</p>
+        <p>If you are not redirected automatically, <a href="{relative_path}">click here</a>.</p>
+    </div>
+</body>
+</html>"""
+            )
+
+
 gen_marimo_old()
-gen_marimo_new()
+gen_marimo_new_md()
+gen_marimo_new_marimo()
