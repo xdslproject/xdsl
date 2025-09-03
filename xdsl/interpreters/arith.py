@@ -203,6 +203,8 @@ class ArithFunctions(InterpreterFunctions):
         assert len(args) == 1
         result = args[0]
 
+        assert isa(op.input.type, builtin.IndexType | builtin.IntegerType)
+
         input_bitwidth = _int_bitwidth(interpreter, op.input.type)
         result_bitwidth = _int_bitwidth(interpreter, op.result.type)
 
