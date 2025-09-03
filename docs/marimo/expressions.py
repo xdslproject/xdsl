@@ -22,6 +22,7 @@ async def _():
             print(f"DEBUG: notebook url (full): {url}")
 
             url_parsed = urllib.parse.urlparse(url)
+            scheme = url_parsed.scheme
             netloc = url_parsed.netloc
             print(f"DEBUG: notebook url (parsed): {url_parsed}")
 
@@ -32,11 +33,11 @@ async def _():
             buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
 
             if buildnumber != url:
-                url = netloc + buildnumber + "/"
+                url = scheme + netloc + "/" + buildnumber + "/"
             elif url == "https://xdsl.readthedocs.io/":
-                url = netloc + "latest/"
+                url = scheme + netloc + "/latest/"
             else:
-                url = netloc
+                url = scheme + netloc
 
             print(f"DEBUG: notebook url (trimmed): {url}")
 
