@@ -8,6 +8,7 @@ app = marimo.App(width="medium")
 async def _():
     import sys
     import marimo as mo
+    import urllib
 
     # Use the locally built xDSL wheel when running in Marimo
     if sys.platform == 'emscripten':
@@ -18,18 +19,24 @@ async def _():
         def get_url():
             import re
             url = str(mo.notebook_location()).replace("blob:", "")
-            directory = str(mo.notebook_dir())
             print(f"DEBUG: notebook url (full): {url}")
+
+            url_parsed = urllib.parse.urlparse(url)
+            netloc = url_parsed.netloc
+            print(f"DEBUG: notebook url (parsed): {url_parsed}")
+
+            directory = str(mo.notebook_dir())
             print(f"DEBUG: notebook dir: {directory}")
+
             url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
             buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
-            if buildnumber != url:
-                url = url + buildnumber + "/"
-            elif url == "https://xdsl.readthedocs.io/":
-                url = url + "latest/"
 
+            if buildnumber != url:
+                url = netloc + buildnumber + "/"
+            elif url == "https://xdsl.readthedocs.io/":
+                url = netloc + "latest/"
             else:
-                url = "http://127.0.0.1:8000"
+                url = netloc
 
             print(f"DEBUG: notebook url (trimmed): {url}")
 
