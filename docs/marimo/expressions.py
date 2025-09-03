@@ -32,12 +32,12 @@ async def _():
             url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
             buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
 
+            url = scheme + "://" + netloc
+
             if buildnumber != url:
-                url = scheme + netloc + "/" + buildnumber + "/"
+                url = url + "/" + buildnumber + "/"
             elif url == "https://xdsl.readthedocs.io/":
-                url = scheme + netloc + "/latest/"
-            else:
-                url = scheme + netloc
+                url = url + "/latest/"
 
             print(f"DEBUG: notebook url (trimmed): {url}")
 
