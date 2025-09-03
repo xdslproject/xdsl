@@ -442,25 +442,46 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    ### TODO
+    ## Lowering our abstractions to MLIR
 
-    * scf.for example
-        * Show how this is compiled to scf.for
-        * Same things as above, this should be clear why regions are useful
-        * Show LICM example
+    Once our frontend produces MLIR IR, we can use passes to lower (compile) our `list` dialect to existing MLIR dialect. From there, we can use existing MLIR passes to lower our code to LLVM.
 
-    * Show one example of a function
-        * Could be cool to explain how a function can be defined
-
-    ## Control flow with Block (and lowering to LLVM)
-
-    * Compilation to basic blocks
-        * Mention phi nodes in one sentence
-        * Show how this is compiled to basic blocks
-        * Give basic idea of dominance, but not too much
-        * Show why regions are useful for optimizations, especially with larger examples
+    As we are dealing with arrays, we can compile our code to the `tensor` abstraction, along with the `scf` abstraction for control flow such as loops.
     """
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    _initial_code = r"""let a = 0..10;
+    let c = a.map(|x| x + a.len());
+    c"""
+
+    example_editor8 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
+    pass_editor8 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
+
+    mo.vstack([example_editor8, pass_editor8])
+
+    return example_editor8, pass_editor8
+
+
+@app.cell
+def _(example_editor8, get_compilation_outputs_with_passes, pass_editor8):
+    outputs8 = get_compilation_outputs_with_passes(example_editor8, pass_editor8)
+    return (outputs8,)
+
+
+@app.cell
+def _(mo, pass_editor8):
+    slider8 = mo.ui.slider(start=0, stop=len(pass_editor8.value.split(",")))
+    slider8
+    return (slider8,)
+
+
+@app.cell
+def _(mo, outputs8, slider8):
+    mo.vstack([*outputs8[slider8.value]])
     return
 
 
