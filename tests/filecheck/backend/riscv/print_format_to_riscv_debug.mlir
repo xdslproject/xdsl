@@ -2,8 +2,8 @@
 
 %i32, %i64, %f32, %f64 = "test.op"() : () -> (i32, i64, f32, f64)
 
-printf.print_format "Hello world!"
-printf.print_format "bitwidths {} {} {} {}", %i32 : i32, %i64 : i64, %f32 : f32, %f64 : f64
+printf.print_format "Hello world!\n"
+printf.print_format "bitwidths {} {} {} {}\n", %i32 : i32, %i64 : i64, %f32 : f32, %f64 : f64
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %i32, %i64, %f32, %f64 = "test.op"() : () -> (i32, i64, f32, f64)
