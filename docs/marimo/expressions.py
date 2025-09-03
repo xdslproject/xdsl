@@ -25,11 +25,11 @@ async def _():
             buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
             if buildnumber != url:
                 url = url + buildnumber + "/"
-
-            if url == "https://xdsl.readthedocs.io/":
+            elif url == "https://xdsl.readthedocs.io/":
                 url = url + "latest/"
 
-            url = "http://127.0.0.1:8000"
+            else:
+                url = "http://127.0.0.1:8000"
 
             print(f"DEBUG: notebook url (trimmed): {url}")
 
