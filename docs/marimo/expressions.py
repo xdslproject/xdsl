@@ -17,7 +17,7 @@ async def _():
         # the wheel both locally and when deployed to makethedocs. 
         def get_url():
             import re
-            url = str(mo.notebook_location())[5:]
+            url = str(mo.notebook_location()).replace("blob:", "")
             directory = str(mo.notebook_dir())
             print(f"DEBUG: notebook url (full): {url}")
             print(f"DEBUG: notebook dir: {directory}")
