@@ -33,8 +33,8 @@ async def _():
 
             if buildnumber != url:
                 new_url = new_url + "/" + buildnumber + "/"
-            elif url == "https://xdsl.readthedocs.io/":
-                new_url = new_url + "/latest/"
+            elif netloc == "xdsl.readthedocs.io":
+                new_url = new_url + (path.split("/")[1])
 
             print(f"DEBUG: notebook url (trimmed): {new_url}")
 
