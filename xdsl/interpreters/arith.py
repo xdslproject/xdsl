@@ -38,6 +38,18 @@ class ArithFunctions(InterpreterFunctions):
     def run_muli(self, interpreter: Interpreter, op: arith.MuliOp, args: PythonValues):
         return (args[0] * args[1],)
 
+    @impl(arith.AndIOp)
+    def run_andi(self, interpreter: Interpreter, op: arith.AndIOp, args: PythonValues):
+        return (args[0] & args[1],)
+
+    @impl(arith.OrIOp)
+    def run_ori(self, interpreter: Interpreter, op: arith.OrIOp, args: PythonValues):
+        return (args[0] | args[1],)
+
+    @impl(arith.XOrIOp)
+    def run_xori(self, interpreter: Interpreter, op: arith.XOrIOp, args: PythonValues):
+        return (args[0] ^ args[1],)
+
     @impl(arith.SubfOp)
     def run_subf(self, interpreter: Interpreter, op: arith.SubfOp, args: PythonValues):
         return (args[0] - args[1],)
@@ -157,3 +169,10 @@ class ArithFunctions(InterpreterFunctions):
         (lhs, rhs) = args
         assert rhs != 0
         return (lhs // rhs,)
+
+    @impl(arith.IndexCastOp)
+    def run_indexcast(
+        self, interpreter: Interpreter, op: arith.IndexCastOp, args: PythonValues
+    ):
+        assert len(args) == 1
+        return args
