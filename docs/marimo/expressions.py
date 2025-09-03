@@ -142,7 +142,7 @@ def _(mo, res, pass_list, slider):
     from xdsl.transforms import get_all_passes
     from xdsl.context import Context
 
-    module = res
+    module = res.clone()
 
 
     module_list = [module.clone()]
@@ -155,11 +155,9 @@ def _(mo, res, pass_list, slider):
     pipeline.apply(Context(), module)
     module_list.append(module.clone())
 
-    res_str_0 = module_str_to_marimo_md(str(module_list[0]))
-    res_str_1 = module_str_to_marimo_md(str(module_list[1]))
-    res_str_2 = module_str_to_marimo_md(str(module_list[2]))
-    mo.md(res_str_0 + "<br>" + res_str_1 + "<br>" + res_str_2)
-    return
+    res_str_0 = module_str_to_marimo_md(str(module_list[slider.value]))
+
+    mo.md(res_str_0)
 
 if __name__ == "__main__":
     app.run()
