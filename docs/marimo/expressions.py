@@ -26,22 +26,19 @@ async def _():
             netloc = url_parsed.netloc
             print(f"DEBUG: notebook url (parsed): {url_parsed}")
 
-            directory = str(mo.notebook_dir())
-            print(f"DEBUG: notebook dir: {directory}")
-
             url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
             buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
 
-            url = scheme + "://" + netloc
+            new_url = scheme + "://" + netloc
 
             if buildnumber != url:
-                url = url + "/" + buildnumber + "/"
+                new_url = new_url + "/" + buildnumber + "/"
             elif url == "https://xdsl.readthedocs.io/":
-                url = url + "/latest/"
+                new_url = new_url + "/latest/"
 
-            print(f"DEBUG: notebook url (trimmed): {url}")
+            print(f"DEBUG: notebook url (trimmed): {new_url}")
 
-            return url
+            return new_url
 
         import micropip
         await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
