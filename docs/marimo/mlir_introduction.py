@@ -214,7 +214,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ### `scf.for`
+    ### `scf.for`
 
     * scf.for example
         * Show how this is compiled to scf.for
@@ -233,32 +233,6 @@ def _(mo):
         * Show why regions are useful for optimizations, especially with larger examples
     """
     )
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-    ## Our own list dialect
-
-    Add lists in the language now
-
-    * Loop fusion for instance
-    * length of map?
-
-    Introducing the list dialect:
-    * Show the operations, let people play with it and lower it.
-    * Show how we can constant fold at a high level
-    * Show some optimizations
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r""" """)
     return
 
 
