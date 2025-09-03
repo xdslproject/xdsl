@@ -127,10 +127,14 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    slider_choices = ["Before"] + ["After " + name for name in pass_list]
+    slider_choices = ["IR before a pass was executed"] + ["IR after " + name for name in pass_list]
     slider = mo.ui.slider(start=0, stop=len(slider_choices) - 1, label="Slider", value=0)
-    slider
-    return slider
+    return slider, slider_choices
+
+@app.cell
+def _(mo, slider, slider_choices):
+    stack = mo.hstack([slider, mo.md(slider_choices[slider.value])])
+    stack
 
 @app.cell
 def _(mo, res, pass_list, slider):
@@ -155,11 +159,6 @@ def _(mo, res, pass_list, slider):
     res_str_1 = module_str_to_marimo_md(str(module_list[1]))
     res_str_2 = module_str_to_marimo_md(str(module_list[2]))
     mo.md(res_str_0 + "<br>" + res_str_1 + "<br>" + res_str_2)
-    return
-
-@app.cell
-def _(mo, slider):
-    mo.md(f"slidver.value {slider.value}")
     return
 
 if __name__ == "__main__":
