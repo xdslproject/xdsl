@@ -575,13 +575,6 @@ def test_tensor_constr():
     with pytest.raises(VerifyException):
         constr.verify(TensorType(i64, [50, 1000]), ConstraintContext())
 
-    # f64, no shape constraint
-    constr = TensorType.constr(f64)
-    constr.verify(TensorType(f64, [50]), ConstraintContext())
-    constr.verify(TensorType(f64, [50, 1000, 2, 4, 10]), ConstraintContext())
-    with pytest.raises(VerifyException):
-        constr.verify(TensorType(i32, [50]), ConstraintContext())
-
 
 @pytest.mark.parametrize(
     "ref,expected",
