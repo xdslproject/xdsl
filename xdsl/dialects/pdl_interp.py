@@ -506,10 +506,6 @@ class RecordMatchOp(IRDLOperation):
             rewriter = SymbolRefAttr(rewriter)
         if isinstance(root_kind, str):
             root_kind = StringAttr(root_kind)
-        if (
-            generated_ops is None
-        ):  # TODO: if generatedOps is actually optional (check this), we shouldn't even pass an empty list
-            generated_ops = []
         if isinstance(benefit, int):
             benefit = IntegerAttr.from_int_and_width(benefit, 16)
         super().__init__(
@@ -517,7 +513,9 @@ class RecordMatchOp(IRDLOperation):
             properties={
                 "rewriter": rewriter,
                 "rootKind": root_kind,
-                "generatedOps": ArrayAttr(generated_ops),
+                "generatedOps": generated_ops
+                if generated_ops is None
+                else ArrayAttr(generated_ops),
                 "benefit": benefit,
             },
             successors=[dest],
