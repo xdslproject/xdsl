@@ -17,11 +17,11 @@ from xdsl.frontend.listlang.lang_types import (
     ListLangType,
     TypedExpression,
 )
+from xdsl.frontend.listlang.scoped_dict_shadow import ScopedDict
 from xdsl.frontend.listlang.source import CodeCursor, Located, Location, ParseError
 from xdsl.ir import Block, SSAValue
 from xdsl.printer import Printer
 from xdsl.rewriter import InsertPoint
-from xdsl.utils.scoped_dict import ScopedDict
 
 RESERVED_KEYWORDS = ["let", "if", "else", "true", "false"]
 
@@ -774,18 +774,22 @@ if __name__ == "__main__":
     args = arg_parser.parse_args()
 
     module = program_to_mlir_module(args.filename.read())
+    module.verify()
 
     def lower_down_to(target: str | None):
         if target is None:
             return
         ctx = Context()
         lowerings.LowerListToTensor().apply(ctx, module)
+        module.verify()
         if target == "tensor":
             return
         lowerings.WrapModuleInFunc().apply(ctx, module)
+        module.verify()
         if target == "interp":
             return
         printf_to_llvm.PrintfToLLVM().apply(ctx, module)
+        module.verify()
         if target == "mlir":
             return
 
