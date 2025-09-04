@@ -35,7 +35,7 @@ class LowerLengthOp(RewritePattern):
         zero_index = rewriter.insert_op(
             arith.ConstantOp(builtin.IntegerAttr(0, builtin.IndexType()))
         )
-        dim = rewriter.insert_op(tensor.DimOp(op.result, zero_index))
+        dim = rewriter.insert_op(tensor.DimOp(op.li, zero_index))
         cast = arith.IndexCastOp(dim, builtin.i32)
         cast.result.name_hint = op.result.name_hint
         rewriter.replace_matched_op(cast)

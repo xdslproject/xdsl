@@ -54,8 +54,8 @@ class ListLangBool(ListLangType):
             scf.IfOp(
                 value,
                 [],
-                Region(Block([printf.PrintFormatOp("true")])),
-                Region(Block([printf.PrintFormatOp("false")])),
+                Region(Block([printf.PrintFormatOp("true"), scf.YieldOp()])),
+                Region(Block([printf.PrintFormatOp("false"), scf.YieldOp()])),
             )
         )
 
