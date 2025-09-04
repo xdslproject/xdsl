@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     TensorType,
     f32,
+    i1,
     i32,
     i64,
 )
@@ -21,6 +22,7 @@ interpreter.register_implementations(BuiltinFunctions())
 def test_values():
     assert interpreter.value_for_attribute(IntegerAttr(1, i32), i32) == 1
     assert interpreter.value_for_attribute(IntegerAttr(2, i64), i64) == 2
+    assert interpreter.value_for_attribute(IntegerAttr(0, i1), i1) == 0
 
     assert interpreter.value_for_attribute(FloatAttr(3.0, f32), f32) == 3.0
 
