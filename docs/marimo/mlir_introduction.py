@@ -1,0 +1,489 @@
+import marimo
+
+__generated_with = "0.15.0"
+app = marimo.App()
+
+
+@app.cell(hide_code=True)
+async def _():
+    import sys
+    import marimo as mo
+    import urllib
+
+    # Use the locally built xDSL wheel when running in Marimo
+    if sys.platform == 'emscripten':
+
+        # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
+        # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
+        # the wheel both locally and when deployed to makethedocs. 
+        def get_url():
+            import re
+            url = str(mo.notebook_location()).replace("blob:", "")
+            print(f"DEBUG: notebook url (full): {url}")
+
+            url_parsed = urllib.parse.urlparse(url)
+            scheme = url_parsed.scheme
+            netloc = url_parsed.netloc
+            path = url_parsed.path
+
+            print(f"DEBUG: notebook url (parsed): {url_parsed}")
+
+            url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
+            buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
+
+            new_url = scheme + "://" + netloc
+
+            if buildnumber != url:
+                new_url = new_url + "/" + buildnumber + "/"
+            elif netloc == "xdsl.readthedocs.io":
+                new_url = new_url + "/" + (path.split("/")[1])
+
+            print(f"DEBUG: notebook url (trimmed): {new_url}")
+
+            return new_url
+
+        import micropip
+        await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
+
+    from xdsl.printer import Printer
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    from typing import Any
+
+    from xdsl.frontend.listlang.main import ParseError, parse_program
+    from xdsl.dialects import builtin
+    from xdsl.builder import Builder, InsertPoint
+    from xdsl.passes import PassPipeline
+    from xdsl.transforms import get_all_passes
+    from xdsl.context import Context
+
+    def to_mlir(code: str) -> builtin.ModuleOp:
+        module = builtin.ModuleOp([])
+        builder = Builder(InsertPoint.at_start(module.body.block))
+        parse_program(code, builder)
+        return module
+
+    def module_to_md(module: builtin.ModuleOp) -> mo.md:
+        output = "```mlir\n" + "\n".join(str(op) for op in module.ops) + "\n```"
+        return mo.md(output)
+
+    def compilation_output(code_editor: Any) -> mo.md:
+        try:
+            return module_to_md(to_mlir(code_editor.value))
+        except ParseError as e:
+            return mo.md(f"Compilation error: {e}")
+
+    def get_compilation_outputs_with_passes(code_editor: Any, pass_editor: Any) -> list[tuple[str, mo.md]] | ParseError:
+        try:
+            module = to_mlir(code_editor.value)
+            module_list = [module.clone()]
+
+            def callback(pass1, module, pass2):
+                module_list.append(module.clone())
+
+            pipeline = PassPipeline.parse_spec(get_all_passes(), pass_editor.value, callback)
+            labels = ["IR before a pass was executed"] + ["IR after " + p.name for p in pipeline.passes]
+            pipeline.apply(Context(), module)
+            module_list.append(module.clone())
+            return [(label, module_to_md(module)) for label, module in zip(labels, module_list)]
+        except ParseError as e:
+            return e
+    return (
+        compilation_output,
+        get_compilation_outputs_with_passes,
+        module_to_md,
+        to_mlir,
+    )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    # Introduction to MLIR
+
+    This notebook introduces the basics of interacting with MLIR through a simple DSL to manipulate arrays.
+    The notebook will explain the core concepts around MLIR, show how to read and understand MLIR code, and how to use existing transformations to build a compilation pipeline.
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    ## A first example
+
+    We will start by defining a small language to manipulate lists of integers. This language will be very simple for now, and will be extended throughout the notebook to introduce more concepts. All variables are immutable, and we only support integer literals, addition and multiplication for now. The language is compatible with Rust syntax, and here is a first example:
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    example1 = r"""
+    let x = 2;
+    let y = 3;
+    x + y
+    """
+
+    mo.md("```rust" + example1 + "```")
+    return (example1,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""We have written a small compiler that translates this simple language to MLIR IR. Here is the MLIR code generated for the example above:""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(example1, module_to_md, to_mlir):
+    module_to_md(to_mlir(example1))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    Note the following:
+
+    * An MLIR program is a sequence of operations (arith.constant, arith.addi in this example)
+    * Variables are prefixed with a `%` sign
+    * Operations:
+        * Have a name (arith.constant for constants, and arith.addi for addition)
+        * Produce results (all produce one result here, but they can produce zero or multiple)
+        * Have a list of operands (the add has two operands %x and %y, and the constants have none)
+        * Can have additional static information (2 and 3 in the arith.constant)
+        * Specify some of the types of their operands and results (i32 for all operations here)
+
+
+    To try to understand this more, you can change the following example, and see how the generated MLIR code change.
+    Try to use booleans (`true`, `false`, `&&`, `||`) and comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`).
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    _initial_code = r"""let a = true;
+    let b = false;
+    a && b"""
+
+    example_editor2 = mo.ui.code_editor(language="rust", value=_initial_code)
+    example_editor2
+    return (example_editor2,)
+
+
+@app.cell(hide_code=True)
+def _(compilation_output, example_editor2):
+    compilation_output(example_editor2)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    Some things you might have noticed:
+
+    * Booleans are represented as `i1` (a single bit integer)
+    * All comparisons operations are encoded as `arith.cmpi` operations, with an opcode (eq, ult, ule, ...) and two operands
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    ## Static Single-Assignment (SSA)
+
+    MLIR IR uses single static-assignment form (SSA), meaning that each variable are defined once. Since our language does not have mutability, the effect is that we cannot "shadow" variables.
+
+    Look how the following code is implemented in MLIR IR:
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    _initial_code = r"""let c = 4 + 5;
+    let c1 = c + 2;
+    c1"""
+
+    example_editor3 = mo.ui.code_editor(language="rust", value=_initial_code)
+    example_editor3
+    return (example_editor3,)
+
+
+@app.cell(hide_code=True)
+def _(compilation_output, example_editor3):
+    compilation_output(example_editor3)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    ## Applying compilation passes
+
+    Now that we have showed some MLIR IR code, let's see how we can manipulate MLIR IR with passes. Here are a few important MLIR IR passes that are relevant for most compilers:
+
+    * `dce` (Dead code elimination): This pass removes code that is not used.
+    * `cse` (Common subexpression elimination): This pass merges operations that are exactly the same.
+    * `constant-fold-interp` (Constant folding): This pass constant fold operations, so `3 + 4` gets rewritten to `7`.
+
+    Here is a code snippet where you can apply a pass pipeline to MLIR code, and see the effect of each pass. Try to understand what each pass does, and look how reordering passes may have an effect on the resulting operations.
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    _initial_code = r"""let a = true;
+    let b = false;
+    a && b"""
+
+    example_editor4 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
+    pass_editor4 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
+
+    mo.vstack([example_editor4, pass_editor4])
+    return example_editor4, pass_editor4
+
+
+@app.cell(hide_code=True)
+def _(example_editor4, get_compilation_outputs_with_passes, pass_editor4):
+    outputs4 = get_compilation_outputs_with_passes(example_editor4, pass_editor4)
+    return (outputs4,)
+
+
+@app.cell
+def _(mo, pass_editor4):
+    slider4 = mo.ui.slider(start=0, stop=len(pass_editor4.value.split(",")))
+    slider4
+    return (slider4,)
+
+
+@app.cell
+def _(mo, outputs4, slider4):
+    mo.vstack([*outputs4[slider4.value]])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    ## Control flow with Regions
+
+    Now that we have showed how computations work, let's look at how to model control-flow.
+
+    ### `scf.if`
+
+    As a simple first example of control-flow, let's look at a ternary condition. The following example computes the minimum between `x` and `y`:
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    example5 = r"""
+    let x = 5;
+    let y = 7;
+    if x < y {x} else {y}
+    """
+
+    mo.md("```rust" + example5 + "```")
+    return (example5,)
+
+
+@app.cell
+def _(example5, module_to_md, to_mlir):
+    module_to_md(to_mlir(example5))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    We can see the following in the generated MLIR IR:
+
+    * The `if` is represented using an `scf.if` operation. `scf` stands for "structured control-flow".
+    * `scf.if` contains two **regions**. A region is a section of code that contains another list of operation (we will explain this more in details later).
+    * Only one region is executed, this logic comes from `scf.if`. In general, operations that have regions decide when they are executed through compilation passes.
+    * Each region ends with an `scf.yield`, this is the "value" that is leaving the region when the region gets executed, and that gets returned by the `scf.if` operation.
+
+    Try to change the following program, and look at the effect of different optimization passes!
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    _initial_code = r"""let x = 5;
+    let y = 7;
+    if x < y {x} else {y}"""
+
+    example_editor6 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
+    pass_editor6 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
+
+    mo.vstack([example_editor6, pass_editor6])
+    return example_editor6, pass_editor6
+
+
+@app.cell(hide_code=True)
+def _(example_editor6, get_compilation_outputs_with_passes, pass_editor6):
+    outputs6 = get_compilation_outputs_with_passes(example_editor6, pass_editor6)
+    return (outputs6,)
+
+
+@app.cell(hide_code=True)
+def _(mo, pass_editor6):
+    slider6 = mo.ui.slider(start=0, stop=len(pass_editor6.value.split(",")))
+    slider6
+    return (slider6,)
+
+
+@app.cell(hide_code=True)
+def _(mo, outputs6, slider6):
+    mo.vstack([*outputs6[slider6.value]])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    ## Adding lists to our DSL
+
+    ### Adding abstractions with dialects
+
+    Now that we have seen most of the core concepts of MLIR IR, let's now add support for lists in our DSL.
+    Our list DSL has the following operations:
+
+    * Creating a list from a range (`x..y`)
+    * Getting the length of a list (`list.len()`)
+    * Mapping a function over a list (`list.map(|x| x + 1)`)
+
+    In order to represent these lists and operations in MLIR IR, we will create our custom new operations and types.
+    This is done through defining what's called a **dialect**, a namespace for a set of operations and types. One of the main advantages of defining a custom dialect for our lists, is that we can now define simple optimizations that are specific to our dialect, and that would be hard to do otherwise. For instance, we can extend the `canonicalize` pass to understand how to optimize `list.map` operations.
+
+    Here is an example of a program using lists, feel free to modify it and see the generated MLIR code:
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    _initial_code = r"""let a = 0..10;
+    let c = a.map(|x| x + a.len());
+    c"""
+
+    example_editor7 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
+    pass_editor7 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
+
+    mo.vstack([example_editor7, pass_editor7])
+
+    return example_editor7, pass_editor7
+
+
+@app.cell(hide_code=True)
+def _(example_editor7, get_compilation_outputs_with_passes, pass_editor7):
+    outputs7 = get_compilation_outputs_with_passes(example_editor7, pass_editor7)
+    return (outputs7,)
+
+
+@app.cell
+def _(mo, pass_editor7):
+    slider7 = mo.ui.slider(start=0, stop=len(pass_editor7.value.split(",")))
+    slider7
+    return (slider7,)
+
+
+@app.cell
+def _(mo, outputs7, slider7):
+    mo.vstack([*outputs7[slider7.value]])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    Note the following:
+
+    * The list type is represented as `!list.list`. This is how custom types are represented in MLIR IR `!dialect.type`.
+    * The custom operations, as well as the custom type all start with `list`, which is the name of our dialect.
+    * `list.map` uses a region to represent the function to be applied on each element of the list. This region has an argument,
+        `x`, which is the element of the list being processed. The `list.yield` operation is used to return the new value for
+        the element.
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    ## Lowering our abstractions to MLIR
+
+    Once our frontend produces MLIR IR, we can use passes to lower (compile) our `list` dialect to existing MLIR dialect. From there, we can use existing MLIR passes to lower our code to LLVM.
+
+    As we are dealing with arrays, we can compile our code to the `tensor` abstraction, along with the `scf` abstraction for control flow such as loops.
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    _initial_code = r"""let a = 0..10;
+    let c = a.map(|x| x + a.len());
+    c"""
+
+    example_editor8 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
+    pass_editor8 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
+
+    mo.vstack([example_editor8, pass_editor8])
+
+    return example_editor8, pass_editor8
+
+
+@app.cell
+def _(example_editor8, get_compilation_outputs_with_passes, pass_editor8):
+    outputs8 = get_compilation_outputs_with_passes(example_editor8, pass_editor8)
+    return (outputs8,)
+
+
+@app.cell
+def _(mo, pass_editor8):
+    slider8 = mo.ui.slider(start=0, stop=len(pass_editor8.value.split(",")))
+    slider8
+    return (slider8,)
+
+
+@app.cell
+def _(mo, outputs8, slider8):
+    mo.vstack([*outputs8[slider8.value]])
+    return
+
+
+if __name__ == "__main__":
+    app.run()
