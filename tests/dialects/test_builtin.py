@@ -538,6 +538,12 @@ def test_DenseIntOrFPElementsAttr_values():
 
 
 def test_tensor_constr():
+    # No constraint
+    constr = TensorType.constr()
+    constr.verify(TensorType(i32, [1]), ConstraintContext())
+    constr.verify(TensorType(i32, [50, 1000, 2]), ConstraintContext())
+    constr.verify(TensorType(f64, [50]), ConstraintContext())
+
     # int32 constraint
     constr = TensorType.constr(i32)
     constr.verify(TensorType(i32, [1]), ConstraintContext())
@@ -571,8 +577,8 @@ def test_tensor_constr():
 
     # f64, no shape constraint
     constr = TensorType.constr(f64)
-    constr.verify(TensorType(i32, [50]), ConstraintContext())
-    constr.verify(TensorType(i32, [50, 1000, 2, 4, 10]), ConstraintContext())
+    constr.verify(TensorType(f64, [50]), ConstraintContext())
+    constr.verify(TensorType(f64, [50, 1000, 2, 4, 10]), ConstraintContext())
     with pytest.raises(VerifyException):
         constr.verify(TensorType(i32, [50]), ConstraintContext())
 
