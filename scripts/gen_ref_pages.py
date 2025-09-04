@@ -58,6 +58,7 @@ with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
 
 NEW_MARIMO_NOTEBOOKS = [
     docs_root / "marimo" / "expressions.py",
+    docs_root / "marimo" / "mlir_introduction.py",
 ]
 """
 Notebooks expected to be run inline in mkdocs-marimo.
