@@ -27,6 +27,8 @@ def xtype_for_el_type(
     el_type: Attribute, index_bitwidth: Literal[32, 64]
 ) -> PackableType[Any]:
     match el_type:
+        case builtin.i1:
+            return ptr.int8
         case builtin.i32:
             return ptr.int32
         case builtin.i64:
