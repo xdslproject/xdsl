@@ -67,8 +67,7 @@ def _(mo):
         return module
 
     def module_to_md(module: builtin.ModuleOp) -> mo.md:
-        output = "```mlir\n" + "\n".join(str(op) for op in module.ops) + "\n```"
-        return mo.md(output)
+        return mo.ui.code_editor(language = "rust", value = "\n".join(str(op) for op in module.ops), disabled = True)
 
     def compilation_output(code_editor: Any) -> mo.md:
         try:
@@ -132,7 +131,7 @@ def _(mo):
     x + y
     """
 
-    mo.md("```rust" + example1 + "```")
+    mo.ui.code_editor(language = "rust", value = example1, disabled = True)
     return (example1,)
 
 
@@ -306,7 +305,7 @@ def _(mo):
     if x < y {x} else {y}
     """
 
-    mo.md("```rust" + example5 + "```")
+    mo.ui.code_editor(language = "rust", value = example5, disabled = True)
     return (example5,)
 
 
