@@ -34,6 +34,8 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
+    f16,
+    f32,
     i8,
     i16,
 )
@@ -355,12 +357,8 @@ DsdElementTypeConstr = (
 )
 
 
-f16_pointer = PtrType(
-    Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
-)
-f32_pointer = PtrType(
-    Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
-)
+f16_pointer = PtrType(f16, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR))
+f32_pointer = PtrType(f32, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR))
 i8_value = IntegerType(8, Signedness.SIGNED)
 u16_value = IntegerType(16, Signedness.UNSIGNED)
 i16_value = IntegerType(16, Signedness.SIGNED)
