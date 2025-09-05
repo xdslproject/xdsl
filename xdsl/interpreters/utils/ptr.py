@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     Float32Type,
     Float64Type,
     PackableType,
+    i8,
     i32,
     i64,
 )
@@ -72,6 +73,7 @@ class RawPtr:
         return TypedPtr(self, xtype=Float64Type())
 
 
+int8 = i8
 int32 = i32
 int64 = i64
 float32 = Float32Type()

@@ -1133,15 +1133,15 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
     ) -> None:
         if isinstance(type, int):
             if type == 16:
-                type = Float16Type()
+                type = f16
             elif type == 32:
-                type = Float32Type()
+                type = f32
             elif type == 64:
-                type = Float64Type()
+                type = f64
             elif type == 80:
-                type = Float80Type()
+                type = f80
             elif type == 128:
-                type = Float128Type()
+                type = f128
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
 
@@ -1273,6 +1273,16 @@ class ComplexType(
 
     def pack(self, values: Sequence[tuple[float, float] | tuple[int, int]]) -> bytes:
         return self.element_type.pack(tuple(val for vals in values for val in vals))  # pyright: ignore[reportArgumentType]
+
+    @staticmethod
+    def constr(
+        element_type: IRDLAttrConstraint[ComplexElementCovT] | None = None,
+    ) -> AttrConstraint[ComplexType[ComplexElementCovT]]:
+        if element_type is None:
+            return BaseAttr[ComplexType[ComplexElementCovT]](ComplexType)
+        return ParamAttrConstraint[ComplexType[ComplexElementCovT]](
+            ComplexType, (element_type,)
+        )
 
 
 @irdl_attr_definition
