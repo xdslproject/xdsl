@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.0"
+__generated_with = "0.15.2"
 app = marimo.App()
 
 
@@ -46,12 +46,13 @@ async def _():
         await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
 
     from xdsl.printer import Printer
-    return (mo,)
+    return Printer, mo
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _(Printer, mo):
     from typing import Any
+    from io import StringIO
 
     from xdsl.frontend.listlang.main import ParseError, parse_program
     from xdsl.dialects import builtin
@@ -59,6 +60,7 @@ def _(mo):
     from xdsl.passes import PassPipeline
     from xdsl.transforms import get_all_passes
     from xdsl.context import Context
+    from xdsl.frontend.listlang.lowerings import LowerListToTensor
 
     def to_mlir(code: str) -> builtin.ModuleOp:
         module = builtin.ModuleOp([])
@@ -67,7 +69,13 @@ def _(mo):
         return module
 
     def module_to_md(module: builtin.ModuleOp) -> mo.md:
-        return mo.ui.code_editor(language = "rust", value = "\n".join(str(op) for op in module.ops), disabled = True)
+        output = StringIO()
+        printer = Printer(output)
+        for op in module.ops:
+            printer.print_op(op)
+            printer.print_string("\n")
+    
+        return mo.ui.code_editor(language = "rust", value = output.getvalue()[:-1], disabled = True)
 
     def compilation_output(code_editor: Any) -> mo.md:
         try:
@@ -82,8 +90,9 @@ def _(mo):
 
             def callback(pass1, module, pass2):
                 module_list.append(module.clone())
-
-            pipeline = PassPipeline.parse_spec(get_all_passes(), pass_editor.value, callback)
+            all_passes = get_all_passes()
+            all_passes["lower-list-to-tensor"] = lambda: LowerListToTensor()
+            pipeline = PassPipeline.parse_spec(all_passes, pass_editor.value, callback)
             labels = ["IR before a pass was executed"] + ["IR after " + p.name for p in pipeline.passes]
             pipeline.apply(Context(), module)
             module_list.append(module.clone())
@@ -125,11 +134,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    example1 = r"""
-    let x = 2;
+    example1 = r"""let x = 2;
     let y = 3;
-    x + y
-    """
+    x + y"""
 
     mo.ui.code_editor(language = "rust", value = example1, disabled = True)
     return (example1,)
@@ -172,6 +179,15 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
+    reset_button2 = mo.ui.button(label="reset")
+    reset_button2
+    return (reset_button2,)
+
+
+@app.cell(hide_code=True)
+def _(mo, reset_button2):
+    reset_button2
+
     _initial_code = r"""let a = true;
     let b = false;
     a && b"""
@@ -214,8 +230,17 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
+    reset_button3 = mo.ui.button(label="reset")
+    reset_button3
+    return (reset_button3,)
+
+
+@app.cell(hide_code=True)
+def _(mo, reset_button3):
+    reset_button3
+
     _initial_code = r"""let c = 4 + 5;
     let c1 = c + 2;
     c1"""
@@ -249,8 +274,17 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
+    reset_button4 = mo.ui.button(label="reset")
+    reset_button4
+    return (reset_button4,)
+
+
+@app.cell(hide_code=True)
+def _(mo, reset_button4):
+    reset_button4
+
     _initial_code = r"""let a = true;
     let b = false;
     a && b"""
@@ -332,8 +366,17 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
+    reset_button6 = mo.ui.button(label="reset")
+    reset_button6
+    return (reset_button6,)
+
+
+@app.cell(hide_code=True)
+def _(mo, reset_button6):
+    reset_button6
+
     _initial_code = r"""let x = 5;
     let y = 7;
     if x < y {x} else {y}"""
@@ -388,8 +431,17 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
+    reset_button7 = mo.ui.button(label="reset")
+    reset_button7
+    return (reset_button7,)
+
+
+@app.cell(hide_code=True)
+def _(mo, reset_button7):
+    reset_button7
+
     _initial_code = r"""let a = 0..10;
     let c = a.map(|x| x + a.len());
     c"""
@@ -398,7 +450,6 @@ def _(mo):
     pass_editor7 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
 
     mo.vstack([example_editor7, pass_editor7])
-
     return example_editor7, pass_editor7
 
 
@@ -451,17 +502,25 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
+    reset_button8 = mo.ui.button(label="reset")
+    reset_button8
+    return (reset_button8,)
+
+
+@app.cell(hide_code=True)
+def _(mo, reset_button8):
+    reset_button8
+
     _initial_code = r"""let a = 0..10;
     let c = a.map(|x| x + a.len());
     c"""
 
     example_editor8 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor8 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
+    pass_editor8 = mo.ui.code_editor(value="dce,cse,canonicalize,lower-list-to-tensor,cse,licm,canonicalize", max_height=1, label="Passes:")
 
     mo.vstack([example_editor8, pass_editor8])
-
     return example_editor8, pass_editor8
 
 
