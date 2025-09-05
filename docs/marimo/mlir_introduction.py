@@ -324,7 +324,7 @@ def _(mo):
         r"""
     ## Control flow with Regions
 
-    Now that we have showed how computations work, let's look at how to model control-flow.
+    Now that we have shown how computations work, let's look at how to model control-flow.
 
     ### `scf.if`
 
