@@ -11,18 +11,12 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
     ArrayOfConstraint,
-    BFloat16Type,
     BoolAttr,
     BytesAttr,
     ComplexType,
     ContainerOf,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    Float80Type,
-    Float128Type,
     FloatAttr,
     IndexType,
     IntAttr,
@@ -41,9 +35,12 @@ from xdsl.dialects.builtin import (
     VectorBaseTypeConstraint,
     VectorRankConstraint,
     VectorType,
+    bf16,
     f16,
     f32,
     f64,
+    f80,
+    f128,
     i1,
     i8,
     i16,
@@ -68,24 +65,24 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def test_FloatType_bitwidths():
-    assert BFloat16Type().bitwidth == 16
-    assert Float16Type().bitwidth == 16
-    assert Float32Type().bitwidth == 32
-    assert Float64Type().bitwidth == 64
-    assert Float80Type().bitwidth == 80
-    assert Float128Type().bitwidth == 128
+    assert bf16.bitwidth == 16
+    assert f16.bitwidth == 16
+    assert f32.bitwidth == 32
+    assert f64.bitwidth == 64
+    assert f80.bitwidth == 80
+    assert f128.bitwidth == 128
 
 
 def test_FloatType_formats():
     with pytest.raises(NotImplementedError):
-        BFloat16Type().format
-    assert Float16Type().format == "<e"
-    assert Float32Type().format == "<f"
-    assert Float64Type().format == "<d"
+        bf16.format
+    assert f16.format == "<e"
+    assert f32.format == "<f"
+    assert f64.format == "<d"
     with pytest.raises(NotImplementedError):
-        Float80Type().format
+        f80.format
     with pytest.raises(NotImplementedError):
-        Float128Type().format
+        f128.format
 
 
 def test_IntegerType_verifier():
@@ -148,9 +145,7 @@ def test_IntegerType_size():
     assert IntegerType(64).size == 8
 
 
-@pytest.mark.parametrize(
-    "elem_ty", [IntegerType(1), IntegerType(32), Float16Type(), Float32Type()]
-)
+@pytest.mark.parametrize("elem_ty", [IntegerType(1), IntegerType(32), f16, f32])
 def test_ComplexType_size(elem_ty: AnyFloat | IntegerType):
     assert ComplexType(elem_ty).size == elem_ty.size * 2
 
