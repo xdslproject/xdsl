@@ -222,9 +222,9 @@ def _(mo):
         r"""
     ## Static Single-Assignment (SSA)
 
-    MLIR IR uses single static-assignment form (SSA), meaning that each variable are defined once. Since our language does not have mutability, the effect is that we cannot "shadow" variables.
+    MLIR IR uses **single static-assignment form** (SSA). In short, this means that every value (variable) is defined only once, and temporary values are defined for each intermediate expressions. In particular, this means that shadowed variables are redefined with a new name. In this notebook, temporary variables are preceeded by an underscore, and shadowed variables have an integer append to their name.
 
-    Look how the following code is implemented in MLIR IR:
+    As an exercise, try to modify the following program so that the generated MLIR code contains no new intermediate values, and no new values introduced by shadowing.
     """
     )
     return
@@ -242,8 +242,8 @@ def _(mo, reset_button3):
     reset_button3
 
     _initial_code = r"""let c = 4 + 5;
-    let c1 = c + 2;
-    c1"""
+    let c = c + 2;
+    c"""
 
     example_editor3 = mo.ui.code_editor(language="rust", value=_initial_code)
     example_editor3
@@ -264,7 +264,6 @@ def _(mo):
 
     Now that we have showed some MLIR IR code, let's see how we can manipulate MLIR IR with passes. Here are a few important MLIR IR passes that are relevant for most compilers:
 
-    * `dce` (Dead code elimination): This pass removes code that is not used.
     * `cse` (Common subexpression elimination): This pass merges operations that are exactly the same.
     * `constant-fold-interp` (Constant folding): This pass constant fold operations, so `3 + 4` gets rewritten to `7`.
 
@@ -497,6 +496,10 @@ def _(mo):
     Once our frontend produces MLIR IR, we can use passes to lower (compile) our `list` dialect to existing MLIR dialect. From there, we can use existing MLIR passes to lower our code to LLVM.
 
     As we are dealing with arrays, we can compile our code to the `tensor` abstraction, along with the `scf` abstraction for control flow such as loops.
+
+    The tensor type we are using is `tensor<?xi32>`. This represents tensors of rank 1, with an arbitrary dimenson. We can construct an empty tensor with `tensor.empty`, and write in it with `tensor.insert`. Tensors have *value-semantics*, meaning that a `tensor.insert` returns a new tensor, and the previous one can still be reused. The way tensors are layed out in memory is defined by a lowering pass called bufferization.
+
+    In order to write an entire tensor, we use `scf.for`. This is an operation with a single region with two arguments. The region argument is the iterator value, and the second one is the value that is passed to the region and then returned. It is used to represent the accumulation of a value using SSA.
     """
     )
     return
