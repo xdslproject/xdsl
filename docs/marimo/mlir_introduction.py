@@ -74,8 +74,8 @@ def _(Printer, mo):
         for op in module.ops:
             printer.print_op(op)
             printer.print_string("\n")
-    
-        return mo.ui.code_editor(language = "rust", value = output.getvalue()[:-1], disabled = True)
+
+        return mo.md("`"*3 + "mlir\n" + output.getvalue()[:-1] + "\n" + "`"*3)
 
     def compilation_output(code_editor: Any) -> mo.md:
         try:
