@@ -527,8 +527,11 @@ def irdl_to_attr_constraint(
         type_vars = get_type_var_from_generic_class(cast(type, origin))
         args: tuple[IRDLAttrConstraint | int | TypeForm[int], ...] = get_args(irdl)
 
+        # Here, we use `__default__` to check for default values, instead of `has_default`.
+        # This is so users that are not using typing-extensions can still use it, as well
+        # as marimo notebooks, which seems to replace `typing-extensions` with `typing`.
         if len(args) < len(type_vars) and all(
-            arg.has_default() for arg in type_vars[len(args) :]
+            hasattr(arg, "__default__") for arg in type_vars[len(args) :]
         ):
             # Check for default values
             args += tuple(arg.__default__ for arg in type_vars[len(args) :])
