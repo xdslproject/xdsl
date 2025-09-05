@@ -6,7 +6,7 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
-from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
+from xdsl.dialects.builtin import Builtin, ModuleOp, f32, f64, i32, i64
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -518,8 +518,8 @@ def test_inline_region_before():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.before(module.body.blocks[1]))
@@ -552,8 +552,8 @@ def test_inline_region_after():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.after(module.body.blocks[0]))
@@ -586,8 +586,8 @@ def test_inline_region_at_start():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.at_start(module.body))
@@ -620,8 +620,8 @@ def test_inline_region_at_end():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.at_end(module.body))

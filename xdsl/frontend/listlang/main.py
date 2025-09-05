@@ -285,7 +285,7 @@ def _parse_opt_expr_atom_with_methods(
 ) -> Located[TypedExpression | None]:
     if (x := _parse_opt_expr_atom(ctx, builder)).value is None:
         return x
-    x = Located(x.loc, x.value)
+    x: Located[TypedExpression | None] = Located(x.loc, x.value)
 
     while parse_opt_punct(ctx, SINGLE_PERIOD):
         method_name = parse_identifier(ctx)
@@ -337,7 +337,7 @@ def _parse_opt_expr_atom_with_methods(
         x = Located(x.loc, method.build(builder, x, lambda_info))
         x.value.value.name_hint = method.name
 
-    return cast(Located[TypedExpression | None], x)
+    return x
 
 
 ### Binary operators

@@ -13,13 +13,13 @@ class Location:
     pos: int
 
 
-T = TypeVar("T")
+_LocatedCovT = TypeVar("_LocatedCovT", covariant=True)
 
 
-@dataclass
-class Located(Generic[T]):  # noqa: UP046
+@dataclass(frozen=True)
+class Located(Generic[_LocatedCovT]):
     loc: Location
-    value: T
+    value: _LocatedCovT
 
     def __bool__(self) -> bool:
         return bool(self.value)
