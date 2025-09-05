@@ -226,5 +226,5 @@ with open("docs/marimo/README.md") as rf:
 with mkdocs_gen_files.open("marimo/index.md", "w") as fd:
     for name in NEW_MARIMO_NOTEBOOK_NAMES:
         # Replace occurrences of notebook names in NEW_MARIMO_NOTEBOOK_NAMES with no .py suffix
-        marimo_readme = marimo_readme.replace(name, name[:-3] + ".md")
+        marimo_readme = marimo_readme.replace(name, "html/" + name[:-3] + "/index.html")
     fd.write(marimo_readme.replace(".py", ".html"))
