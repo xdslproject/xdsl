@@ -262,12 +262,16 @@ def _(mo):
         r"""
     ## Applying compilation passes
 
-    Now that we have showed some MLIR IR code, let's see how we can manipulate MLIR IR with passes. Here are a few important MLIR IR passes that are relevant for most compilers:
+    Now that we have showed some MLIR IR code, let's see how we can manipulate MLIR IR with passes. Here are two very important MLIR passes that are relevant in most compilers:
 
-    * `cse` (Common subexpression elimination): This pass merges operations that are exactly the same.
-    * `constant-fold-interp` (Constant folding): This pass constant fold operations, so `3 + 4` gets rewritten to `7`.
+    * `cse` (Common sub-expression elimination): This pass finds operations that are identical, and replace one with the other to reduce the number of computations.
+    * `canonicalize`: This pass does three different optimizations in one:
+        * It removes operations without side-effects that are not used.
+        * It constant fold operations, meaning that operations with only constant inputs will be replaced by a constant.
+        * It applies simple local optimizations, such as `x - x = 0`.
 
-    Here is a code snippet where you can apply a pass pipeline to MLIR code, and see the effect of each pass. Try to understand what each pass does, and look how reordering passes may have an effect on the resulting operations.
+
+    In this notebook, we will define compiler pipelines using a comma-separated list of pass names (for instance, `cse,canonicalize`). The following two code editors will allow you to write a program, a pass pipeline, and see the resulting MLIR IR at each step of the pipeline.
     """
     )
     return
@@ -381,7 +385,7 @@ def _(mo, reset_button6):
     if x < y {x} else {y}"""
 
     example_editor6 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor6 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
+    pass_editor6 = mo.ui.code_editor(value="cse,canonicalize", max_height=1, label="Passes:")
 
     mo.vstack([example_editor6, pass_editor6])
     return example_editor6, pass_editor6
@@ -446,7 +450,7 @@ def _(mo, reset_button7):
     c"""
 
     example_editor7 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor7 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
+    pass_editor7 = mo.ui.code_editor(value="cse,canonicalize", max_height=1, label="Passes:")
 
     mo.vstack([example_editor7, pass_editor7])
     return example_editor7, pass_editor7
@@ -521,7 +525,7 @@ def _(mo, reset_button8):
     c"""
 
     example_editor8 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor8 = mo.ui.code_editor(value="dce,cse,canonicalize,lower-list-to-tensor,cse,licm,canonicalize", max_height=1, label="Passes:")
+    pass_editor8 = mo.ui.code_editor(value="cse,canonicalize,lower-list-to-tensor,cse,licm,canonicalize", max_height=1, label="Passes:")
 
     mo.vstack([example_editor8, pass_editor8])
     return example_editor8, pass_editor8
