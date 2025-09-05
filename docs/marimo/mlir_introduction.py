@@ -241,9 +241,9 @@ def _(mo):
 def _(mo, reset_button3):
     reset_button3
 
-    _initial_code = r"""let c = 4 + 5;
-    let c = c + 2;
-    c"""
+    _initial_code = r"""let x = 3 + 10 + 7;
+    let x = x + 1;
+    x * 2"""
 
     example_editor3 = mo.ui.code_editor(language="rust", value=_initial_code)
     example_editor3
