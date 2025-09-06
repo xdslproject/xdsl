@@ -87,8 +87,8 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    interact_x = mo.ui.slider(start=1, stop=20, label="x", value=3)
-    interact_y = mo.ui.slider(start=1, stop=20, label="y", value=5)
+    interact_x = mo.ui.slider(start=1, stop=30, label="x", value=13)
+    interact_y = mo.ui.slider(start=1, stop=30, label="y", value=26)
     mo.hstack([interact_x, interact_y], justify="start")
     return interact_x, interact_y
 
@@ -98,16 +98,25 @@ def _(interact_x, interact_y, mo):
     interactive_example_add = "### Addition `+`\n" + ("`" * 3) + "rust\n" + "let x = " + str(interact_x.value) + ";\n" + "let y = " + str(interact_y.value) + ";\n" + "x + y" + "\n" + ("`" * 3)
     code_add = mo.md(interactive_example_add)
     result_add = interact_x.value + interact_y.value
-    slider_add = mo.ui.slider(start=1, stop=40, label=("x + y = " + str(result_add)), value=result_add, disabled=True)
-    stack_add = mo.vstack([code_add, slider_add])
+    slider_add = mo.ui.slider(start=1, stop=1000, label="x + y", value=result_add, disabled=True)
+    hstack_add = mo.hstack([slider_add, mo.md(str(result_add))], justify="start")
+    stack_add = mo.vstack([code_add, hstack_add])
 
     interactive_example_mul = "### Multiplication `*`\n" + ("`" * 3) + "rust\n" + "let x = " + str(interact_x.value) + ";\n" + "let y = " + str(interact_y.value) + ";\n" + "x * y" + "\n" + ("`" * 3)
     code_mul = mo.md(interactive_example_mul)
     result_mul = interact_x.value * interact_y.value
-    slider_mul = mo.ui.slider(start=1, stop=400, label=("x * y = " + str(result_mul)), value=result_mul, disabled=True)
-    stack_mul = mo.vstack([code_mul, slider_mul])
+    slider_mul = mo.ui.slider(start=1, stop=1000, label="x * y", value=result_mul, disabled=True)
+    hstack_mul = mo.hstack([slider_mul, mo.md(str(result_mul))], justify="start")
+    stack_mul = mo.vstack([code_mul, hstack_mul])
 
-    mo.hstack([stack_add, stack_mul])
+    code_examples = mo.hstack([stack_add, stack_mul])
+
+    check = "✅ " if 10 * result_add == result_mul else "❌" 
+
+    challenge = mo.md("<br>\n### Exercise\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
+                     f", &nbsp;&nbsp;&nbsp; {10*result_add} = {result_mul} &nbsp;&nbsp; {check}")
+
+    mo.vstack([code_examples, challenge])
     return
 
 
