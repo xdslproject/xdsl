@@ -496,7 +496,7 @@ class RecordMatchOp(IRDLOperation):
         self,
         rewriter: str | SymbolRefAttr,
         root_kind: str | StringAttr | None,
-        generated_ops: list[StringAttr] | None,
+        generated_ops: ArrayAttr[StringAttr] | None,
         benefit: int | IntegerAttr[I16],
         inputs: Sequence[SSAValue],
         matched_ops: Sequence[SSAValue],
@@ -513,9 +513,7 @@ class RecordMatchOp(IRDLOperation):
             properties={
                 "rewriter": rewriter,
                 "rootKind": root_kind,
-                "generatedOps": generated_ops
-                if generated_ops is None
-                else ArrayAttr(generated_ops),
+                "generatedOps": generated_ops,
                 "benefit": benefit,
             },
             successors=[dest],
