@@ -55,10 +55,13 @@ if os.environ.get("SKIP_GEN_PAGES") != "1":
 with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
     nav_file.writelines(nav.build_literate_nav())
 
+NEW_MARIMO_NOTEBOOK_NAMES = [
+    "expressions.py",
+    "mlir_introduction.py",
+]
 
 NEW_MARIMO_NOTEBOOKS = [
-    docs_root / "marimo" / "expressions.py",
-    docs_root / "marimo" / "mlir_introduction.py",
+    docs_root / "marimo" / name for name in NEW_MARIMO_NOTEBOOK_NAMES
 ]
 """
 Notebooks expected to be run inline in mkdocs-marimo.
@@ -87,12 +90,6 @@ def gen_marimo_old():
     <iframe style="border: 0px" height="3500em" scrolling="no" width="100%" src="{url}"></iframe>
     """
             )
-
-    with open("docs/marimo/README.md") as rf:
-        marimo_readme = rf.read()
-
-    with mkdocs_gen_files.open("marimo/index.md", "w") as fd:
-        fd.write(marimo_readme.replace(".py", ".html"))
 
 
 def gen_marimo_new_md():
@@ -219,3 +216,14 @@ def gen_marimo_new_marimo():
 gen_marimo_old()
 gen_marimo_new_md()
 gen_marimo_new_marimo()
+
+# Replace links in the marimo README
+with open("docs/marimo/README.md") as rf:
+    marimo_readme = rf.read()
+
+with mkdocs_gen_files.open("marimo/index.md", "w") as fd:
+    for name in NEW_MARIMO_NOTEBOOK_NAMES:
+        # Replace occurrences of notebook names in NEW_MARIMO_NOTEBOOK_NAMES with
+        # readonly html versions.
+        marimo_readme = marimo_readme.replace(name, "html/" + name[:-3] + "/index.html")
+    fd.write(marimo_readme.replace(".py", ".html"))
