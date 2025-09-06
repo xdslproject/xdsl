@@ -55,9 +55,11 @@ if os.environ.get("SKIP_GEN_PAGES") != "1":
 with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
     nav_file.writelines(nav.build_literate_nav())
 
+
 NEW_MARIMO_NOTEBOOK_NAMES = [
     "expressions.py",
     "mlir_introduction.py",
+    "eqsat.py",
 ]
 
 NEW_MARIMO_NOTEBOOKS = [
