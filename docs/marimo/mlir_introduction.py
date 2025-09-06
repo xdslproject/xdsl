@@ -159,7 +159,7 @@ def _(interact_x, interact_y, mo):
 
     check = "✅ " if 10 * result_add == result_mul else "❌" 
 
-    challenge = mo.md("<br>\n### Exercise:\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
+    challenge = mo.md("<br>\n### Exercise\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
                      f", &nbsp;&nbsp;&nbsp; {10*result_add} = {result_mul} &nbsp;&nbsp; {check}")
 
     mo.vstack([code_examples, challenge])
