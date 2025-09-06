@@ -61,6 +61,7 @@ docs = [
     "mkdocstrings[python]>=0.27.0",
     "pymdown-extensions>=10.7",
     "riscemu==2.2.7",
+    "micropip>=0.7",
 ]
 
 [project.urls]
