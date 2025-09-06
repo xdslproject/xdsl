@@ -744,7 +744,7 @@ class ResultsOp(IRDLOperation):
     """
 
     name = "pdl.results"
-    index = opt_prop_def(IntegerAttr[IntegerType])
+    index = opt_prop_def(IntegerAttr[I32])
     parent_ = operand_def(OperationType)
     val = result_def(base(ValueType) | base(RangeType[ValueType]))
 
