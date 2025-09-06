@@ -3,7 +3,8 @@ import marimo
 __generated_with = "0.14.17"
 app = marimo.App(width="medium")
 
-with app.setup:
+@app.cell(hide_code=True)
+async def _():
     import marimo as mo
     import urllib
 
@@ -40,16 +41,11 @@ with app.setup:
             return new_url
 
         import micropip
-        import asyncio
+        await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
 
-        async def install_xdsl():
-            await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
+    from xdsl.utils import marimo as xmo
 
-        asyncio.run(install_xdsl())
-
-    import xdsl.utils.marimo as xmo
-    from xdsl.dialects.eqsat import EClassOp
-
+    return mo, xmo
 
 @app.cell(hide_code=True)
 def _():
