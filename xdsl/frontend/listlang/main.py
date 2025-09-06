@@ -133,7 +133,8 @@ def parse_integer(ctx: ParsingContext) -> Located[int]:
 
 def name_hint_without_prefix(value: SSAValue) -> str:
     """
-    Get the name hint of a value, removing a possible underscore prefix if needed.
+    Get the name hint of a value, removing a possible underscore
+    prefix if needed.
     """
     name = value.name_hint
     assert name is not None
