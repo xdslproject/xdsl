@@ -7,16 +7,17 @@ app = marimo.App()
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-    return mo
-
-
-def _():
-    from xdsl.utils import marimo as xmo
-    return xmo
+    return (mo,)
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _():
+    from xdsl.utils import marimo as xmo
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(mo, xmo):
     from typing import Any
     from io import StringIO
 
@@ -35,18 +36,9 @@ def _(mo):
         parse_program(code, builder)
         return module
 
-    def module_to_md(module: builtin.ModuleOp) -> mo.md:
-        output = StringIO()
-        printer = Printer(output)
-        for op in module.ops:
-            printer.print_op(op)
-            printer.print_string("\n")
-
-        return mo.md("`"*3 + "mlir\n" + output.getvalue()[:-1] + "\n" + "`"*3)
-
     def compilation_output(code_editor: Any) -> mo.md:
         try:
-            return module_to_md(to_mlir(code_editor.value))
+            return xmo.module_md(to_mlir(code_editor.value))
         except ParseError as e:
             return mo.md(f"Compilation error: {e}")
 
@@ -63,15 +55,10 @@ def _(mo):
             labels = ["IR before a pass was executed"] + ["IR after " + p.name for p in pipeline.passes]
             pipeline.apply(Context(), module)
             module_list.append(module.clone())
-            return [(label, module_to_md(module)) for label, module in zip(labels, module_list)]
+            return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list)]
         except ParseError as e:
             return e
-    return (
-        compilation_output,
-        get_compilation_outputs_with_passes,
-        module_to_md,
-        to_mlir,
-    )
+    return compilation_output, get_compilation_outputs_with_passes, to_mlir
 
 
 @app.cell(hide_code=True)
@@ -153,8 +140,8 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(example1, module_to_md, to_mlir):
-    module_to_md(to_mlir(example1))
+def _(example1, to_mlir, xmo):
+    xmo.module_md(to_mlir(example1))
     return
 
 
@@ -351,8 +338,8 @@ def _(mo):
 
 
 @app.cell
-def _(example5, module_to_md, to_mlir):
-    module_to_md(to_mlir(example5))
+def _(example5, to_mlir, xmo):
+    xmo.module_md(to_mlir(example5))
     return
 
 
@@ -552,7 +539,6 @@ def _(mo, pass_editor8):
 def _(mo, outputs8, slider8):
     mo.vstack([*outputs8[slider8.value]])
     return
-
 
 
 if __name__ == "__main__":

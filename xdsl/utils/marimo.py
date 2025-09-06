@@ -1,11 +1,13 @@
 from collections import Counter
 from collections.abc import Sequence
+from io import StringIO
 
 import marimo as mo
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PassPipeline
+from xdsl.printer import Printer
 
 
 def asm_html(asm: str) -> mo.Html:
@@ -20,6 +22,16 @@ def module_html(module: ModuleOp) -> mo.Html:
     Returns a Marimo-optimised representation of the module passed in.
     """
     return mo.ui.code_editor(str(module), language="javascript", disabled=True)
+
+
+def module_md(module: ModuleOp) -> mo.Html:
+    output = StringIO()
+    printer = Printer(output)
+    for op in module.ops:
+        printer.print_op(op)
+        printer.print_string("\n")
+
+    return mo.md("`" * 3 + "mlir\n" + output.getvalue()[:-1] + "\n" + "`" * 3)
 
 
 def _spec_str(p: ModulePass | PassPipeline) -> str:

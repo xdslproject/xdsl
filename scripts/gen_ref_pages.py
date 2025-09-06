@@ -92,7 +92,7 @@ def gen_marimo_old():
             )
 
 
-SYNC_XDSL_IMPORT = """
+SYNC_XDSL_IMPORT = """\
 def _():
     from xdsl.utils import marimo as xmo
     return xmo
