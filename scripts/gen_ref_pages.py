@@ -92,41 +92,6 @@ def gen_marimo_old():
             )
 
 
-def gen_marimo_new_md():
-    import subprocess
-
-    for path in NEW_MARIMO_NOTEBOOKS:
-        doc_path = path.relative_to(docs_root).with_suffix(".md")
-
-        with mkdocs_gen_files.open(doc_path, "w") as fd:
-            # Run marimo export and capture output
-            result = subprocess.run(
-                ["marimo", "export", "md", "--no-sandbox", str(path)],
-                stdout=subprocess.PIPE,
-                check=True,
-                encoding="utf-8",
-            )
-            output = result.stdout
-
-            # Rewrite code block headers as specified
-            import re
-
-            # Replace broken markdown syntax
-            output = re.sub(
-                r"python \{\.marimo[^\}]*\}",
-                "python {marimo}",
-                output,
-            )
-            # Replace broken test functions
-            output = re.sub(
-                "def test",
-                "def _test",
-                output,
-            )
-
-            fd.write(output)
-
-
 def gen_marimo_new_marimo():
     import subprocess
     import tempfile
@@ -214,7 +179,6 @@ def gen_marimo_new_marimo():
 
 
 gen_marimo_old()
-gen_marimo_new_md()
 gen_marimo_new_marimo()
 
 # Replace links in the marimo README
