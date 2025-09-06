@@ -1,60 +1,29 @@
 import marimo
 
-__generated_with = "0.14.17"
+__generated_with = "0.15.2"
 app = marimo.App(width="medium")
 
-@app.cell(hide_code=True)
-async def _():
-    import marimo as mo
-    import urllib
-
-    # Use the locally built xDSL wheel when running in Marimo on the web
-    if mo.notebook_dir() != mo.notebook_location():
-
-        # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
-        # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
-        # the wheel both locally and when deployed to makethedocs.
-        def get_url():
-            import re
-            url = str(mo.notebook_location()).replace("blob:", "")
-            print(f"DEBUG: notebook url (full): {url}")
-
-            url_parsed = urllib.parse.urlparse(url)
-            scheme = url_parsed.scheme
-            netloc = url_parsed.netloc
-            path = url_parsed.path
-
-            print(f"DEBUG: notebook url (parsed): {url_parsed}")
-
-            url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
-            buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
-
-            new_url = scheme + "://" + netloc
-
-            if buildnumber != url:
-                new_url = new_url + "/" + buildnumber + "/"
-            elif netloc == "xdsl.readthedocs.io":
-                new_url = new_url + "/" + (path.split("/")[1])
-
-            print(f"DEBUG: notebook url (trimmed): {new_url}")
-
-            return new_url
-
-        import micropip
-        await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
-
-    from xdsl.utils import marimo as xmo
-
-    return mo, xmo
 
 @app.cell(hide_code=True)
 def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""# Embedding Equality Saturation in IR""")
     return
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         r"""
     This notebook presents the `eqsat` dialect with examples.
@@ -67,7 +36,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(ctx, input_module_string):
+def _(ctx, input_module_string, xmo):
     from xdsl.parser import Parser
     from xdsl.utils.lexer import Input
 
@@ -78,13 +47,13 @@ def _(ctx, input_module_string):
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(r"""We start by adding eclass ops, which represent a union of multiple ways of calculating the same value:""")
     return
 
 
 @app.cell(hide_code=True)
-def _(ctx, input_module):
+def _(ctx, input_module, xmo):
     from xdsl.transforms.eqsat_create_eclasses import EqsatCreateEclassesPass
 
     _, eclass_module = EqsatCreateEclassesPass().apply_to_clone(ctx, input_module)
@@ -94,13 +63,13 @@ def _(ctx, input_module):
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(r"""We then execute the `apply-pdl-interp-eqsat` pass, which applies the rewrites non-destructively.""")
     return
 
 
 @app.cell(hide_code=True)
-def _(Parser, ctx, eclass_module, pdl_interp_module_string):
+def _(Parser, ctx, eclass_module, pdl_interp_module_string, xmo):
     from xdsl.transforms.apply_eqsat_pdl_interp import apply_eqsat_pdl_interp
 
     saturated_module = eclass_module.clone()
@@ -113,13 +82,13 @@ def _(Parser, ctx, eclass_module, pdl_interp_module_string):
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(r"""We then add the costs, which for now is just the number of operations to compute a given result:""")
     return
 
 
 @app.cell(hide_code=True)
-def _(ctx, saturated_module):
+def _(ctx, saturated_module, xmo):
     from xdsl.transforms.eqsat_add_costs import EqsatAddCostsPass
 
     # Use a default cost since the resulting IR is currently recursive and we can't handle that
@@ -130,13 +99,13 @@ def _(ctx, saturated_module):
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(r"""And then we extract to get the optimal result:""")
     return
 
 
 @app.cell(hide_code=True)
-def _(cost_module, ctx):
+def _(cost_module, ctx, xmo):
     from xdsl.transforms.eqsat_extract import EqsatExtractPass
 
     _, extracted_module = EqsatExtractPass().apply_to_clone(ctx, cost_module)
@@ -148,6 +117,7 @@ def _(cost_module, ctx):
 @app.cell
 def _(extracted_module):
     def test_no_eclass():
+        from xdsl.dialects.eqsat import EClassOp
         "Test that the extracted module doesn't contain eclass ops"
         eclass_ops = tuple(op for op in extracted_module.walk() if isinstance(op, EClassOp))
         assert not eclass_ops
