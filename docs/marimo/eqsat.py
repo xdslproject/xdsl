@@ -40,7 +40,12 @@ with app.setup:
             return new_url
 
         import micropip
-        await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
+        import asyncio
+
+        async def install_xdsl():
+            await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
+
+        asyncio.run(install_xdsl())
 
     import xdsl.utils.marimo as xmo
     from xdsl.dialects.eqsat import EClassOp
