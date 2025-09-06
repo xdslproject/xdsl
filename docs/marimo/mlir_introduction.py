@@ -111,10 +111,9 @@ def _(Printer, mo):
 def _(mo):
     mo.md(
         r"""
-    # Introduction to MLIR
+    # An Interactive Introduction to SSA & MLIR
 
-    This notebook introduces the basics of interacting with MLIR through a simple DSL to manipulate arrays.
-    The notebook will explain the core concepts around MLIR, show how to read and understand MLIR code, and how to use existing transformations to build a compilation pipeline.
+    You will explore the core concepts of SSA & MLIR by interacting with a compiler for a small Rust-like Array DSL.
     """
     )
     return
