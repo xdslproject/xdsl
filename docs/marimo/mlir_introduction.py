@@ -123,6 +123,44 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
+    ## Interact with our examples
+
+    This notebook is *reactive*, meaning you can interact with our code examples. Try the sliders!
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    interact_x = mo.ui.slider(start=1, stop=20, label="x", value=3)
+    interact_y = mo.ui.slider(start=1, stop=20, label="y", value=5)
+    mo.hstack([interact_x, interact_y], justify="start")
+    return interact_x, interact_y
+
+
+@app.cell(hide_code=True)
+def _(interact_x, interact_y, mo):
+    interactive_example_add = "### Addition\n" + ("`" * 3) + "rust\n" + "let x = " + str(interact_x.value) + ";\n" + "let y = " + str(interact_y.value) + ";\n" + "x + y" + "\n" + ("`" * 3)
+    code_add = mo.md(interactive_example_add)
+    result_add = interact_x.value + interact_y.value
+    slider_add = mo.ui.slider(start=1, stop=40, label=("x + y = " + str(result_add)), value=result_add, disabled=True)
+    stack_add = mo.vstack([code_add, slider_add])
+
+    interactive_example_mul = "### Multiplication\n" + ("`" * 3) + "rust\n" + "let x = " + str(interact_x.value) + ";\n" + "let y = " + str(interact_y.value) + ";\n" + "x * y" + "\n" + ("`" * 3)
+    code_mul = mo.md(interactive_example_mul)
+    result_mul = interact_x.value * interact_y.value
+    slider_mul = mo.ui.slider(start=1, stop=400, label=("x * y = " + str(result_mul)), value=result_mul, disabled=True)
+    stack_mul = mo.vstack([code_mul, slider_mul])
+
+    mo.hstack([stack_add, stack_mul])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     ## A first example
 
     We will start by defining a small language to manipulate lists of integers. This language will be very simple for now, and will be extended throughout the notebook to introduce more concepts. All variables are immutable, and we only support integer literals, addition and multiplication for now. The language is compatible with Rust syntax, and here is a first example:
