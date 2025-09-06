@@ -3,11 +3,49 @@ import marimo
 __generated_with = "0.14.17"
 app = marimo.App(width="medium")
 
-with app.setup:
+@app.cell(hide_code=True)
+async def _():
     import marimo as mo
-    import xdsl.utils.marimo as xmo
-    from xdsl.dialects.eqsat import EClassOp
+    import urllib
 
+    # Use the locally built xDSL wheel when running in Marimo on the web
+    if mo.notebook_dir() != mo.notebook_location():
+
+        # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
+        # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
+        # the wheel both locally and when deployed to makethedocs.
+        def get_url():
+            import re
+            url = str(mo.notebook_location()).replace("blob:", "")
+            print(f"DEBUG: notebook url (full): {url}")
+
+            url_parsed = urllib.parse.urlparse(url)
+            scheme = url_parsed.scheme
+            netloc = url_parsed.netloc
+            path = url_parsed.path
+
+            print(f"DEBUG: notebook url (parsed): {url_parsed}")
+
+            url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
+            buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
+
+            new_url = scheme + "://" + netloc
+
+            if buildnumber != url:
+                new_url = new_url + "/" + buildnumber + "/"
+            elif netloc == "xdsl.readthedocs.io":
+                new_url = new_url + "/" + (path.split("/")[1])
+
+            print(f"DEBUG: notebook url (trimmed): {new_url}")
+
+            return new_url
+
+        import micropip
+        await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
+
+    from xdsl.utils import marimo as xmo
+
+    return mo, xmo
 
 @app.cell(hide_code=True)
 def _():
