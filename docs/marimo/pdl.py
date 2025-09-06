@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.17"
+__generated_with = "0.15.2"
 app = marimo.App(width="medium")
 
 
@@ -10,10 +10,14 @@ def _():
     return (mo,)
 
 
+@app.cell
+def _():
+    from xdsl.utils import marimo as xmo
+    return (xmo,)
+
+
 @app.cell(hide_code=True)
 def _():
-    import xdsl
-    from xdsl.utils import marimo as xmo
     from xdsl.dialects import arith, builtin, pdl, func
     from xdsl.context import Context
     from xdsl.parser import Parser
@@ -36,7 +40,6 @@ def _():
         builtin,
         ctx,
         dce,
-        xmo,
     )
 
 

@@ -58,8 +58,9 @@ with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
 
 NEW_MARIMO_NOTEBOOK_NAMES = [
     "expressions.py",
-    "mlir_introduction.py",
     "eqsat.py",
+    "mlir_introduction.py",
+    "pdl.py",
 ]
 
 NEW_MARIMO_NOTEBOOKS = [
