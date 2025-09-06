@@ -4,12 +4,11 @@ __generated_with = "0.14.17"
 app = marimo.App(width="medium")
 
 with app.setup:
-    import sys
     import marimo as mo
     import urllib
 
-    # Use the locally built xDSL wheel when running in Marimo
-    if sys.platform == 'emscripten':
+    # Use the locally built xDSL wheel when running in Marimo on the web
+    if mo.notebook_dir() != mo.notebook_location():
 
         # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
         # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
