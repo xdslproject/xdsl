@@ -55,13 +55,14 @@ from xdsl.irdl import (
     ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
+    EqIntConstraint,
     GenericData,
     IntConstraint,
     IntTypeVarConstraint,
     IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
-    NotEqual,
+    Not,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -421,9 +422,12 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
 
 
 # Use compositional constraint approach for static shape validation
-StaticShapeArrayConstraint = MessageConstraint(
-    ArrayOfConstraint(IntAttrConstraint(NotEqual(DYNAMIC_INDEX))),
-    "expected static shape, but got dynamic dimension",
+StaticShapeArrayConstraint: AttrConstraint[ArrayAttr[IntAttr]] = cast(
+    AttrConstraint[ArrayAttr[IntAttr]],
+    MessageConstraint(
+        ArrayOfConstraint(Not(IntAttrConstraint(EqIntConstraint(DYNAMIC_INDEX)))),
+        "expected static shape, but got dynamic dimension",
+    ),
 )
 
 
