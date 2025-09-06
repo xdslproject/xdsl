@@ -7,16 +7,17 @@ app = marimo.App()
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-    return mo
-
-
-def _():
-    from xdsl.utils import marimo as xmo
-    return xmo
+    return (mo,)
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _():
+    from xdsl.utils import marimo as xmo
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(mo, xmo):
     from typing import Any
     from io import StringIO
 
@@ -35,18 +36,9 @@ def _(mo):
         parse_program(code, builder)
         return module
 
-    def module_to_md(module: builtin.ModuleOp) -> mo.md:
-        output = StringIO()
-        printer = Printer(output)
-        for op in module.ops:
-            printer.print_op(op)
-            printer.print_string("\n")
-
-        return mo.md("`"*3 + "mlir\n" + output.getvalue()[:-1] + "\n" + "`"*3)
-
     def compilation_output(code_editor: Any) -> mo.md:
         try:
-            return module_to_md(to_mlir(code_editor.value))
+            return xmo.module_md(to_mlir(code_editor.value))
         except ParseError as e:
             return mo.md(f"Compilation error: {e}")
 
@@ -63,15 +55,10 @@ def _(mo):
             labels = ["IR before a pass was executed"] + ["IR after " + p.name for p in pipeline.passes]
             pipeline.apply(Context(), module)
             module_list.append(module.clone())
-            return [(label, module_to_md(module)) for label, module in zip(labels, module_list)]
+            return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list)]
         except ParseError as e:
             return e
-    return (
-        compilation_output,
-        get_compilation_outputs_with_passes,
-        module_to_md,
-        to_mlir,
-    )
+    return compilation_output, get_compilation_outputs_with_passes, to_mlir
 
 
 @app.cell(hide_code=True)
@@ -100,8 +87,8 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    interact_x = mo.ui.slider(start=1, stop=20, label="x", value=3)
-    interact_y = mo.ui.slider(start=1, stop=20, label="y", value=5)
+    interact_x = mo.ui.slider(start=1, stop=30, label="x", value=13)
+    interact_y = mo.ui.slider(start=1, stop=30, label="y", value=26)
     mo.hstack([interact_x, interact_y], justify="start")
     return interact_x, interact_y
 
@@ -111,16 +98,25 @@ def _(interact_x, interact_y, mo):
     interactive_example_add = "### Addition `+`\n" + ("`" * 3) + "rust\n" + "let x = " + str(interact_x.value) + ";\n" + "let y = " + str(interact_y.value) + ";\n" + "x + y" + "\n" + ("`" * 3)
     code_add = mo.md(interactive_example_add)
     result_add = interact_x.value + interact_y.value
-    slider_add = mo.ui.slider(start=1, stop=40, label=("x + y = " + str(result_add)), value=result_add, disabled=True)
-    stack_add = mo.vstack([code_add, slider_add])
+    slider_add = mo.ui.slider(start=1, stop=1000, label="x + y", value=result_add, disabled=True)
+    hstack_add = mo.hstack([slider_add, mo.md(str(result_add))], justify="start")
+    stack_add = mo.vstack([code_add, hstack_add])
 
     interactive_example_mul = "### Multiplication `*`\n" + ("`" * 3) + "rust\n" + "let x = " + str(interact_x.value) + ";\n" + "let y = " + str(interact_y.value) + ";\n" + "x * y" + "\n" + ("`" * 3)
     code_mul = mo.md(interactive_example_mul)
     result_mul = interact_x.value * interact_y.value
-    slider_mul = mo.ui.slider(start=1, stop=400, label=("x * y = " + str(result_mul)), value=result_mul, disabled=True)
-    stack_mul = mo.vstack([code_mul, slider_mul])
+    slider_mul = mo.ui.slider(start=1, stop=1000, label="x * y", value=result_mul, disabled=True)
+    hstack_mul = mo.hstack([slider_mul, mo.md(str(result_mul))], justify="start")
+    stack_mul = mo.vstack([code_mul, hstack_mul])
 
-    mo.hstack([stack_add, stack_mul])
+    code_examples = mo.hstack([stack_add, stack_mul])
+
+    check = "✅ " if 10 * result_add == result_mul else "❌" 
+
+    challenge = mo.md("<br>\n### Exercise\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
+                     f", &nbsp;&nbsp;&nbsp; {10*result_add} = {result_mul} &nbsp;&nbsp; {check}")
+
+    mo.vstack([code_examples, challenge])
     return
 
 
@@ -153,8 +149,8 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(example1, module_to_md, to_mlir):
-    module_to_md(to_mlir(example1))
+def _(example1, to_mlir, xmo):
+    xmo.module_md(to_mlir(example1))
     return
 
 
@@ -351,8 +347,8 @@ def _(mo):
 
 
 @app.cell
-def _(example5, module_to_md, to_mlir):
-    module_to_md(to_mlir(example5))
+def _(example5, to_mlir, xmo):
+    xmo.module_md(to_mlir(example5))
     return
 
 
@@ -552,7 +548,6 @@ def _(mo, pass_editor8):
 def _(mo, outputs8, slider8):
     mo.vstack([*outputs8[slider8.value]])
     return
-
 
 
 if __name__ == "__main__":

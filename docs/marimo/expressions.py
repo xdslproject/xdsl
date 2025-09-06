@@ -1,18 +1,19 @@
 import marimo
 
-__generated_with = "0.15.0"
+__generated_with = "0.15.2"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-    return mo
+    return (mo,)
 
+
+@app.cell(hide_code=True)
 def _():
     from xdsl.utils import marimo as xmo
-    return xmo
-
+    return (xmo,)
 
 
 @app.cell(hide_code=True)
@@ -47,7 +48,7 @@ def _(mo):
 
 
 @app.cell
-def _(expr_str, get_state, mo, set_state):
+def _(expr_str, get_state, mo, set_state, xmo):
     from xdsl.frontend.listlang.main import ParseError, parse_program
     from xdsl.dialects import builtin
     from xdsl.builder import Builder, InsertPoint
@@ -57,12 +58,6 @@ def _(expr_str, get_state, mo, set_state):
         builder = Builder(InsertPoint.at_start(module.body.block))
         parse_program(code, builder)
         return module
-
-    def module_str_to_marimo_md(module: str) -> str:
-        output = module[:].replace("builtin.module {\n", "")
-        output = output.replace("\n", "<br>")
-        output = output.replace("}", "")
-        return output
 
     try:
         def convert(code) -> str:
@@ -74,11 +69,10 @@ def _(expr_str, get_state, mo, set_state):
     except ParseError:
         res = get_state()
 
-    res_str = module_str_to_marimo_md(str(res))
+    res_str = xmo.module_md(res).text.replace("\n", "<br>")
 
     mo.md(f"{res_str}")
-
-    return res
+    return (res,)
 
 
 @app.cell
@@ -86,24 +80,29 @@ def _(mo):
     mo.md(r"""# Module post-modification""")
     return
 
-@app.cell
-def _(mo):
-    pass_list = ["constant-fold-interp","canonicalize"]
-    return pass_list
 
 @app.cell
-def _(mo):
+def _():
+    pass_list = ["constant-fold-interp","canonicalize"]
+    return (pass_list,)
+
+
+@app.cell
+def _(mo, pass_list):
     slider_choices = ["IR before a pass was executed"] + ["IR after " + name for name in pass_list]
     slider = mo.ui.slider(start=0, stop=len(slider_choices) - 1, label="Slider", value=0)
     return slider, slider_choices
+
 
 @app.cell
 def _(mo, slider, slider_choices):
     stack = mo.hstack([slider, mo.md(slider_choices[slider.value])])
     stack
+    return
+
 
 @app.cell
-def _(mo, res, pass_list, slider):
+def _(mo, pass_list, res, slider, xmo):
     from xdsl.passes import PassPipeline
     from xdsl.transforms import get_all_passes
     from xdsl.context import Context
@@ -121,9 +120,11 @@ def _(mo, res, pass_list, slider):
     pipeline.apply(Context(), module)
     module_list.append(module.clone())
 
-    res_str_0 = module_str_to_marimo_md(str(module_list[slider.value]))
+    res_str_0 = xmo.module_md(module_list[slider.value]).text.replace("\n", "<br>")
 
     mo.md(res_str_0)
+    return
+
 
 if __name__ == "__main__":
     app.run()
