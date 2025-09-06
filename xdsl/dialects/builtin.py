@@ -55,12 +55,14 @@ from xdsl.irdl import (
     ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
+    EqIntConstraint,
     GenericData,
     IntConstraint,
     IntTypeVarConstraint,
     IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
+    Not,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -417,6 +419,16 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         return IntAttrConstraint(
             self.int_constraint.mapping_type_vars(type_var_mapping)
         )
+
+
+# Use compositional constraint approach for static shape validation
+StaticShapeArrayConstraint: AttrConstraint[ArrayAttr[IntAttr]] = cast(
+    AttrConstraint[ArrayAttr[IntAttr]],
+    MessageConstraint(
+        ArrayOfConstraint(Not(IntAttrConstraint(EqIntConstraint(DYNAMIC_INDEX)))),
+        "expected static shape, but got dynamic dimension",
+    ),
+)
 
 
 class Signedness(ConstraintConvertible, Enum):

@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     BytesAttr,
     ComplexType,
     ContainerOf,
+    ContainerType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -27,6 +28,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     ShapedType,
     Signedness,
+    StaticShapeArrayConstraint,
     StridedLayoutAttr,
     SymbolRefAttr,
     TensorType,
@@ -47,7 +49,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, Data
+from xdsl.ir import Attribute, AttributeCovT, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AnyInt,
     AtMost,
@@ -59,6 +61,7 @@ from xdsl.irdl import (
     TypeVarConstraint,
     eq,
     irdl_attr_definition,
+    param_def,
 )
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -959,3 +962,43 @@ def test_array_of_constraint():
     assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ContainerOf(
         BaseAttr(B)
     )
+
+
+################################################################################
+# StaticShapeArrayConstraint
+################################################################################
+
+
+@irdl_attr_definition
+class TestStaticShapeArrayType(
+    ParametrizedAttribute,
+    TypeAttribute,
+    ShapedType,
+    ContainerType[AttributeCovT],
+):
+    name = "test.static_shape"
+    element_type: AttributeCovT
+
+    shape: ArrayAttr[Attribute] = param_def(StaticShapeArrayConstraint)
+
+    def get_num_dims(self) -> int:
+        return 0
+
+    def get_shape(self) -> tuple[int, ...]:
+        return ()
+
+    def get_element_type(self) -> AttributeCovT:
+        return self.element_type
+
+
+def test_static_shape_array_constraint():
+    # Test valid static shape
+    static_shape = ArrayAttr([IntAttr(1), IntAttr(2), IntAttr(3)])
+    TestStaticShapeArrayType(i32, static_shape)
+
+    # Test dynamic shape rejection
+    dynamic_shape = ArrayAttr([IntAttr(1), IntAttr(-1), IntAttr(3)])
+    with pytest.raises(
+        VerifyException, match="expected static shape, but got dynamic dimension"
+    ):
+        TestStaticShapeArrayType(i32, dynamic_shape)

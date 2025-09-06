@@ -766,6 +766,46 @@ class MessageConstraint(AttrConstraint[AttributeCovT]):
 
 
 @dataclass(frozen=True)
+class Not(AttrConstraint[AttributeCovT]):
+    """Negate an attribute constraint."""
+
+    constraint: AttrConstraint[AttributeCovT]
+    """The constraint to negate."""
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        # Store whether the inner constraint succeeded or failed
+        constraint_satisfied = False
+        try:
+            self.constraint.verify(attr, constraint_context)
+            constraint_satisfied = True
+        except VerifyException:
+            # Constraint failed, which means Not should succeed
+            constraint_satisfied = False
+
+        if constraint_satisfied:
+            raise VerifyException(
+                f"expected attribute to not satisfy {self.constraint}, but {attr} does"
+            )
+
+    def variables(self) -> set[str]:
+        return self.constraint.variables()
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return self.constraint.get_bases()
+
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
+        return False
+
+    def infer(self, context: ConstraintContext) -> AttributeCovT:
+        raise ValueError("Cannot infer attribute from Not constraint")
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> Not[AttributeCovT]:
+        return Not(self.constraint.mapping_type_vars(type_var_mapping))
+
+
+@dataclass(frozen=True)
 class IntConstraint(ABC):
     """Constrain an integer to certain values."""
 
