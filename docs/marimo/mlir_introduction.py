@@ -5,52 +5,18 @@ app = marimo.App()
 
 
 @app.cell(hide_code=True)
-async def _():
-    import sys
+def _():
     import marimo as mo
-    import urllib
+    return mo
 
-    # Use the locally built xDSL wheel when running in Marimo
-    if sys.platform == 'emscripten':
 
-        # Get the current notebook URL, drop the 'blob' URL components that seem to be added,
-        # and add the buildnumber that a makethedocs PR build seems to add. This allows to load
-        # the wheel both locally and when deployed to makethedocs. 
-        def get_url():
-            import re
-            url = str(mo.notebook_location()).replace("blob:", "")
-            print(f"DEBUG: notebook url (full): {url}")
-
-            url_parsed = urllib.parse.urlparse(url)
-            scheme = url_parsed.scheme
-            netloc = url_parsed.netloc
-            path = url_parsed.path
-
-            print(f"DEBUG: notebook url (parsed): {url_parsed}")
-
-            url = re.sub('([^/])/([a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+)', '\\1/', url, count=1)
-            buildnumber = re.sub('.*--([0-9+]+).*', '\\1', url, count=1)
-
-            new_url = scheme + "://" + netloc
-
-            if buildnumber != url:
-                new_url = new_url + "/" + buildnumber + "/"
-            elif netloc == "xdsl.readthedocs.io":
-                new_url = new_url + "/" + (path.split("/")[1])
-
-            print(f"DEBUG: notebook url (trimmed): {new_url}")
-
-            return new_url
-
-        import micropip
-        await micropip.install("xdsl @ " + get_url() + "/xdsl-0.0.0-py3-none-any.whl")
-
-    from xdsl.printer import Printer
-    return Printer, mo
+def _():
+    from xdsl.utils import marimo as xmo
+    return xmo
 
 
 @app.cell(hide_code=True)
-def _(Printer, mo):
+def _(mo):
     from typing import Any
     from io import StringIO
 
@@ -58,6 +24,7 @@ def _(Printer, mo):
     from xdsl.dialects import builtin
     from xdsl.builder import Builder, InsertPoint
     from xdsl.passes import PassPipeline
+    from xdsl.printer import Printer
     from xdsl.transforms import get_all_passes
     from xdsl.context import Context
     from xdsl.frontend.listlang.lowerings import LowerListToTensor
@@ -585,6 +552,7 @@ def _(mo, pass_editor8):
 def _(mo, outputs8, slider8):
     mo.vstack([*outputs8[slider8.value]])
     return
+
 
 
 if __name__ == "__main__":

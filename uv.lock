@@ -1430,6 +1430,46 @@ wheels = [
 ]
 
 [[package]]
+name = "micropip"
+version = "0.7.2"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version == '3.11.*'",
+    "python_full_version < '3.11'",
+]
+dependencies = [
+    { name = "packaging", marker = "python_full_version < '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f7/14/2801c64f5aff127521d16e574b87a7af93176ef0d488d8c1acce9d0d1641/micropip-0.7.2.tar.gz", hash = "sha256:e50f67efb5bdec33d4e5f6930206f8715e9a3c6f4006224c59fbc9def359960e", size = 1718933, upload-time = "2024-11-26T10:27:34.072Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5a/18/75709500db9e76e1191c410e6b19e04b7ba0fa9c51a188a7625b79f8caf7/micropip-0.7.2-py3-none-any.whl", hash = "sha256:d2b63ea316a2a9dcbfeadd4f855d8cec7d54f65b3849e638a7cc627e6d35e4d5", size = 46904, upload-time = "2024-11-26T10:27:32.976Z" },
+]
+
+[[package]]
+name = "micropip"
+version = "0.9.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version == '3.12.*'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3d/6f/aeef5f7696480704c133206511ff785dd86b76b6eba77391d14de162c1ab/micropip-0.9.0.tar.gz", hash = "sha256:d72c3224537a14e5d9d02f29e945bf7cde02404ec744291e8f6a310cedf60b66", size = 1783814, upload-time = "2025-02-01T15:55:25.23Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/27/6d/195810e3e73e5f351dc6082cada41bb4d5b0746a6804155ba6bae4304612/micropip-0.9.0-py3-none-any.whl", hash = "sha256:babcf68c1849e229aa887564bc5f2de50273c3212e73c9aff8e3e6e80f2b6a23", size = 114896, upload-time = "2025-02-01T15:55:23.436Z" },
+]
+
+[[package]]
+name = "micropip"
+version = "0.10.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.13'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/f2/d4a2c5ab1fb78f31210c09faddf75f353b86250100f832354d9d9adfd6e6/micropip-0.10.1.tar.gz", hash = "sha256:f9f82234852818d4ca2973a8201af1be22fe51c92ad275e86a4170bd28467fff", size = 1785645, upload-time = "2025-07-05T12:29:39.689Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/79/3dda562c22b4978493adda6a7810f43b513b46cef82cbfd2aef48c3e29e0/micropip-0.10.1-py3-none-any.whl", hash = "sha256:126a501fecb40fc87f7edb67974a45f32db87e8ff3d932452aefbbcde27e53f5", size = 115174, upload-time = "2025-07-05T12:29:38.123Z" },
+]
+
+[[package]]
 name = "mistune"
 version = "3.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -3649,6 +3689,9 @@ dev = [
 ]
 docs = [
     { name = "lzstring2" },
+    { name = "micropip", version = "0.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "micropip", version = "0.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.12.*'" },
+    { name = "micropip", version = "0.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "mkdocs" },
     { name = "mkdocs-awesome-nav" },
     { name = "mkdocs-gen-files" },
@@ -3704,6 +3747,7 @@ dev = [
 ]
 docs = [
     { name = "lzstring2", git = "https://github.com/superlopuh/lz-string.git" },
+    { name = "micropip", specifier = ">=0.7" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-awesome-nav", specifier = ">=3.1.2" },
     { name = "mkdocs-gen-files", specifier = ">=0.5.0" },

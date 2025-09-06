@@ -92,6 +92,36 @@ def gen_marimo_old():
             )
 
 
+SYNC_XDSL_IMPORT = """
+def _():
+    from xdsl.utils import marimo as xmo
+    return xmo
+"""
+
+
+def replace_xdsl_import(path: Path, destination_dir: Path):
+    # Copy over the original notebook, replacing SYNC_XDSL_IMPORT with the contents of ./marimo_import_xdsl_wheel.py
+
+    # Read the original notebook
+    notebook_text = path.read_text(encoding="utf-8")
+
+    # Read the contents of marimo_import_xdsl_wheel.py
+    import_path = Path(__file__).parent / "marimo_import_xdsl_wheel.py"
+    import_code = import_path.read_text(encoding="utf-8").rstrip()
+
+    # Replace the SYNC_XDSL_IMPORT string with the import_code
+    # Do not use regex; use simple string replacement
+    if SYNC_XDSL_IMPORT not in notebook_text:
+        raise ValueError("SYNC_XDSL_IMPORT string not found in notebook text")
+    notebook_text = notebook_text.replace(SYNC_XDSL_IMPORT, import_code)
+
+    # Write the modified notebook to the temp directory
+    modified_notebook_path = destination_dir / path.name
+    modified_notebook_path.write_text(notebook_text, encoding="utf-8")
+
+    return modified_notebook_path
+
+
 def gen_marimo_new_marimo():
     import subprocess
     import tempfile
@@ -101,6 +131,8 @@ def gen_marimo_new_marimo():
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
 
+            modified_notebook_path = replace_xdsl_import(path, temp_path)
+
             # Run marimo export to temporary directory
             subprocess.run(
                 [
@@ -109,7 +141,7 @@ def gen_marimo_new_marimo():
                     "html-wasm",
                     # "--no-show-code",
                     "--no-sandbox",
-                    str(path),
+                    str(modified_notebook_path),
                     "-o",
                     str(temp_path),
                 ],
