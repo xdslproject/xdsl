@@ -111,9 +111,9 @@ def _(Printer, mo):
 def _(mo):
     mo.md(
         r"""
-    # An Interactive Introduction to SSA & MLIR
+    # An Introduction to SSA & MLIR
 
-    You will explore the core concepts of SSA & MLIR by interacting with a compiler for a small Rust-like Array DSL.
+    We explore the ideas behind SSA & MLIR through a small Rust-like Array DSL.
     """
     )
     return
@@ -123,9 +123,9 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    ## Interact with our examples
+    ## Interactive & Reactive!
 
-    This notebook is *reactive*, meaning you can interact with our code examples. Try the sliders!
+    This notebook is *reactive*, meaning you can *interact* with our examples. Try the sliders!
     """
     )
     return
@@ -141,13 +141,13 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(interact_x, interact_y, mo):
-    interactive_example_add = "### Addition\n" + ("`" * 3) + "rust\n" + "let x = " + str(interact_x.value) + ";\n" + "let y = " + str(interact_y.value) + ";\n" + "x + y" + "\n" + ("`" * 3)
+    interactive_example_add = "### Addition `+`\n" + ("`" * 3) + "rust\n" + "let x = " + str(interact_x.value) + ";\n" + "let y = " + str(interact_y.value) + ";\n" + "x + y" + "\n" + ("`" * 3)
     code_add = mo.md(interactive_example_add)
     result_add = interact_x.value + interact_y.value
     slider_add = mo.ui.slider(start=1, stop=40, label=("x + y = " + str(result_add)), value=result_add, disabled=True)
     stack_add = mo.vstack([code_add, slider_add])
 
-    interactive_example_mul = "### Multiplication\n" + ("`" * 3) + "rust\n" + "let x = " + str(interact_x.value) + ";\n" + "let y = " + str(interact_y.value) + ";\n" + "x * y" + "\n" + ("`" * 3)
+    interactive_example_mul = "### Multiplication `*`\n" + ("`" * 3) + "rust\n" + "let x = " + str(interact_x.value) + ";\n" + "let y = " + str(interact_y.value) + ";\n" + "x * y" + "\n" + ("`" * 3)
     code_mul = mo.md(interactive_example_mul)
     result_mul = interact_x.value * interact_y.value
     slider_mul = mo.ui.slider(start=1, stop=400, label=("x * y = " + str(result_mul)), value=result_mul, disabled=True)
