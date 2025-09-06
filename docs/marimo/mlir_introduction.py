@@ -74,8 +74,8 @@ def _(Printer, mo):
         for op in module.ops:
             printer.print_op(op)
             printer.print_string("\n")
-    
-        return mo.ui.code_editor(language = "rust", value = output.getvalue()[:-1], disabled = True)
+
+        return mo.md("`"*3 + "mlir\n" + output.getvalue()[:-1] + "\n" + "`"*3)
 
     def compilation_output(code_editor: Any) -> mo.md:
         try:
@@ -222,9 +222,9 @@ def _(mo):
         r"""
     ## Static Single-Assignment (SSA)
 
-    MLIR IR uses single static-assignment form (SSA), meaning that each variable are defined once. Since our language does not have mutability, the effect is that we cannot "shadow" variables.
+    MLIR IR uses **single static-assignment form** (SSA). In short, this means that every value (variable) is defined only once, and temporary values are defined for each intermediate expressions. In particular, this means that shadowed variables are redefined with a new name. In this notebook, temporary variables are preceeded by an underscore, and shadowed variables have an integer append to their name.
 
-    Look how the following code is implemented in MLIR IR:
+    As an exercise, try to modify the following program so that the generated MLIR code contains no new intermediate values, and no new values introduced by shadowing.
     """
     )
     return
@@ -241,9 +241,9 @@ def _(mo):
 def _(mo, reset_button3):
     reset_button3
 
-    _initial_code = r"""let c = 4 + 5;
-    let c1 = c + 2;
-    c1"""
+    _initial_code = r"""let x = 3 + 10 + 7;
+    let x = x + 1;
+    x * 2"""
 
     example_editor3 = mo.ui.code_editor(language="rust", value=_initial_code)
     example_editor3
@@ -262,13 +262,16 @@ def _(mo):
         r"""
     ## Applying compilation passes
 
-    Now that we have showed some MLIR IR code, let's see how we can manipulate MLIR IR with passes. Here are a few important MLIR IR passes that are relevant for most compilers:
+    Now that we have showed some MLIR IR code, let's see how we can manipulate MLIR IR with passes. Here are two very important MLIR passes that are relevant in most compilers:
 
-    * `dce` (Dead code elimination): This pass removes code that is not used.
-    * `cse` (Common subexpression elimination): This pass merges operations that are exactly the same.
-    * `constant-fold-interp` (Constant folding): This pass constant fold operations, so `3 + 4` gets rewritten to `7`.
+    * `cse` (Common sub-expression elimination): This pass finds operations that are identical, and replace one with the other to reduce the number of computations.
+    * `canonicalize`: This pass does three different optimizations in one:
+        * It removes operations without side-effects that are not used.
+        * It constant fold operations, meaning that operations with only constant inputs will be replaced by a constant.
+        * It applies simple local optimizations, such as `x - x = 0`.
 
-    Here is a code snippet where you can apply a pass pipeline to MLIR code, and see the effect of each pass. Try to understand what each pass does, and look how reordering passes may have an effect on the resulting operations.
+
+    In this notebook, we will define compiler pipelines using a comma-separated list of pass names (for instance, `cse,canonicalize`). The following two code editors will allow you to write a program, a pass pipeline, and see the resulting MLIR IR at each step of the pipeline.
     """
     )
     return
@@ -321,7 +324,7 @@ def _(mo):
         r"""
     ## Control flow with Regions
 
-    Now that we have showed how computations work, let's look at how to model control-flow.
+    Now that we have shown how computations work, let's look at how to model control-flow.
 
     ### `scf.if`
 
@@ -382,7 +385,7 @@ def _(mo, reset_button6):
     if x < y {x} else {y}"""
 
     example_editor6 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor6 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
+    pass_editor6 = mo.ui.code_editor(value="cse,canonicalize", max_height=1, label="Passes:")
 
     mo.vstack([example_editor6, pass_editor6])
     return example_editor6, pass_editor6
@@ -447,7 +450,7 @@ def _(mo, reset_button7):
     c"""
 
     example_editor7 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor7 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
+    pass_editor7 = mo.ui.code_editor(value="cse,canonicalize", max_height=1, label="Passes:")
 
     mo.vstack([example_editor7, pass_editor7])
     return example_editor7, pass_editor7
@@ -497,6 +500,10 @@ def _(mo):
     Once our frontend produces MLIR IR, we can use passes to lower (compile) our `list` dialect to existing MLIR dialect. From there, we can use existing MLIR passes to lower our code to LLVM.
 
     As we are dealing with arrays, we can compile our code to the `tensor` abstraction, along with the `scf` abstraction for control flow such as loops.
+
+    The tensor type we are using is `tensor<?xi32>`. This represents tensors of rank 1, with an arbitrary dimenson. We can construct an empty tensor with `tensor.empty`, and write in it with `tensor.insert`. Tensors have *value-semantics*, meaning that a `tensor.insert` returns a new tensor, and the previous one can still be reused. The way tensors are layed out in memory is defined by a lowering pass called bufferization.
+
+    In order to write an entire tensor, we use `scf.for`. This is an operation with a single region with two arguments. The region argument is the iterator value, and the second one is the value that is passed to the region and then returned. It is used to represent the accumulation of a value using SSA.
     """
     )
     return
@@ -518,7 +525,7 @@ def _(mo, reset_button8):
     c"""
 
     example_editor8 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor8 = mo.ui.code_editor(value="dce,cse,canonicalize,lower-list-to-tensor,cse,licm,canonicalize", max_height=1, label="Passes:")
+    pass_editor8 = mo.ui.code_editor(value="cse,canonicalize,lower-list-to-tensor,cse,licm,canonicalize", max_height=1, label="Passes:")
 
     mo.vstack([example_editor8, pass_editor8])
     return example_editor8, pass_editor8
