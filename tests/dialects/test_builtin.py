@@ -984,7 +984,7 @@ class TestStaticShapeArrayType(
     name = "test.static_shape"
     element_type: AttributeCovT
 
-    shape: ArrayAttr[IntAttr] = param_def(StaticShapeArrayConstraint())
+    shape: ArrayAttr[Attribute] = param_def(StaticShapeArrayConstraint)
 
     def get_num_dims(self) -> int:
         return 0

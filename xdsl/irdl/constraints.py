@@ -920,6 +920,23 @@ class AtMost(IntConstraint):
 
 
 @dataclass(frozen=True)
+class NotEqual(IntConstraint):
+    """Constrain an integer to not be equal to a given value."""
+
+    value: int
+    """The value the integer must not be equal to."""
+
+    def verify(self, i: int, constraint_context: ConstraintContext) -> None:
+        if i == self.value:
+            raise VerifyException(f"expected integer != {self.value}, got {i}")
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> IntConstraint:
+        return self
+
+
+@dataclass(frozen=True)
 class IntVarConstraint(IntConstraint):
     """
     Constrain an integer with the given constraint, and constrain all occurences
