@@ -334,6 +334,50 @@ def _(mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(r"""## Get your hand's dirty - with the `arith` dialect""")
+    return
+
+
+@app.cell
+def _(match_check, mo):
+    mo.md("### Match an MLIR Program &nbsp;&nbsp;" + match_check)
+    return
+
+
+@app.cell
+def _(mo, to_mlir, xmo):
+    match_listlang = r"""
+    let c = 100;
+    let x = 42;
+    x + c
+    """
+
+    match_instruction = mo.md("Write a small program that yields the following MLIR output:")
+
+    match_editor = mo.ui.code_editor(value = "", max_height=1, placeholder="let ...")
+    mo.vstack([match_instruction, xmo.module_md(to_mlir(match_listlang)), match_editor])
+    return match_editor, match_listlang
+
+
+@app.cell
+def _(match_editor, match_listlang, mo, to_mlir, xmo):
+    match_mlir = to_mlir(match_editor.value)
+    match_mlir_md = xmo.module_md(match_mlir)
+
+    match_check = "✅ " if str(match_mlir) == str(to_mlir(match_listlang)) else "❌"
+
+    mo.vstack([match_mlir_md, match_check])
+    return (match_check,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""### Write your own MLIR program""")
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
