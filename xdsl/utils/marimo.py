@@ -43,6 +43,21 @@ def module_md(module: ModuleOp) -> mo.Html:
     return mo.md("`" * 3 + "mlir\n" + module_str(module) + "\n" + "`" * 3)
 
 
+def pipeline_titles(passes: Sequence[ModulePass]) -> list[str]:
+    total_key_count = Counter(str(p) for p in passes)
+    d_key_count = Counter[str]()
+    titles: list[str] = []
+    for p in passes:
+        spec = str(p)
+        d_key_count[spec] += 1
+        if total_key_count[spec] != 1:
+            titles.append(f"{spec} ({d_key_count[spec]})")
+        else:
+            titles.append(spec)
+
+    return titles
+
+
 def pipeline_html(
     ctx: Context, module: ModuleOp, passes: Sequence[tuple[mo.Html, ModulePass]]
 ) -> tuple[Context, ModuleOp, mo.Html]:
@@ -60,16 +75,9 @@ def pipeline_html(
     res = module.clone()
     ctx = ctx.clone()
     d: list[mo.Html] = []
-    total_key_count = Counter(str(p) for _, p in passes)
-    d_key_count = Counter[str]()
-    for text, p in passes:
+    titles = pipeline_titles(tuple(p for _, p in passes))
+    for header, (text, p) in zip(titles, passes):
         p.apply(ctx, res)
-        spec = str(p)
-        d_key_count[spec] += 1
-        if total_key_count[spec] != 1:
-            header = f"{spec} ({d_key_count[spec]})"
-        else:
-            header = spec
         html_res = module_html(res)
         d.append(
             mo.vstack(
