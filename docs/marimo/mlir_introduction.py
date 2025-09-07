@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.15.2"
-app = marimo.App(width="full")
+app = marimo.App()
 
 
 @app.cell(hide_code=True)
