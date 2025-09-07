@@ -459,8 +459,96 @@ def _(compilation_output, example_editor3, mo, to_mlir, xmo):
     _user_output = compilation_output(example_editor3)
     _result_output = xmo.module_md(to_mlir(_result_rust3))
     check_ssa = "✅ " if _user_output.text == _result_output.text else "❌"
-    mo.hstack([_user_output, _result_output])
+    _result_md = mo.md("✅ Correct!" if _user_output.text == _result_output.text else "❌ The two outputs are different")
+    mo.vstack([mo.hstack([_user_output, _result_output], justify="space-between"), _result_md], align="center")
     return (check_ssa,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    ## Control flow with Regions
+
+    Now that we have shown how computations work, let's look at how to model control-flow.
+
+    ### `scf.if`
+
+    As a simple first example of control-flow, let's look at a ternary condition. The following example computes the minimum between `x` and `y`:
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    example5 = r"""
+    let x = 5;
+    let y = 7;
+    if x < y {x} else {y}
+    """
+
+    mo.ui.code_editor(language = "rust", value = example5, disabled = True)
+    return (example5,)
+
+
+@app.cell
+def _(example5, to_mlir, xmo):
+    xmo.module_md(to_mlir(example5))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, reset_button6):
+    reset_button6
+
+    _initial_code = r"""let x = 5;
+    let y = 7;
+    if x < y {x} else {y}"""
+
+    example_editor6 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
+    pass_editor6 = mo.ui.code_editor(value="cse,canonicalize", max_height=1, label="Passes:")
+
+    mo.vstack([example_editor6, pass_editor6])
+    return example_editor6, pass_editor6
+
+
+@app.cell
+def _(mo):
+    reset_button6 = mo.ui.button(label="reset")
+    reset_button6
+    return (reset_button6,)
+
+
+@app.cell(hide_code=True)
+def _(example_editor6, get_compilation_outputs_with_passes, pass_editor6):
+    outputs6 = get_compilation_outputs_with_passes(example_editor6, pass_editor6)
+    labels6, modules6 = zip(*outputs6)
+    return labels6, outputs6
+
+
+@app.cell
+def _(mo):
+    get_state6, set_state6 = mo.state(0)
+    return get_state6, set_state6
+
+
+@app.cell
+def _(get_state6, labels6, mo, set_state6):
+    slider6 = mo.ui.slider(start=0, stop=len(labels6) - 1, value=get_state6(), on_change=set_state6)
+    return (slider6,)
+
+
+@app.cell
+def _(get_state6, labels6, mo, outputs6, set_state6):
+    tabs6 = mo.ui.tabs(dict(outputs6), value=labels6[get_state6()], on_change=lambda k: set_state6(labels6.index(k)))
+    return (tabs6,)
+
+
+@app.cell
+def _(mo, slider6, tabs6):
+    mo.vstack((slider6, tabs6))
+    return
 
 
 @app.cell(hide_code=True)
@@ -556,6 +644,23 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
+    We can see the following in the generated MLIR IR:
+
+    * The `if` is represented using an `scf.if` operation. `scf` stands for "structured control-flow".
+    * `scf.if` contains two **regions**. A region is a section of code that contains another list of operation (we will explain this more in details later).
+    * Only one region is executed, this logic comes from `scf.if`. In general, operations that have regions decide when they are executed through compilation passes.
+    * Each region ends with an `scf.yield`, this is the "value" that is leaving the region when the region gets executed, and that gets returned by the `scf.if` operation.
+
+    Try to change the following program, and look at the effect of different optimization passes!
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     ### Find programs that can be optimized
 
     Can you write, for each of the passes, a program that gets optimized by it?
@@ -614,110 +719,6 @@ def _(get_state4, labels4, mo, outputs4, set_state4):
 @app.cell
 def _(mo, slider4, tabs4):
     mo.vstack((slider4, tabs4))
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-    ## Control flow with Regions
-
-    Now that we have shown how computations work, let's look at how to model control-flow.
-
-    ### `scf.if`
-
-    As a simple first example of control-flow, let's look at a ternary condition. The following example computes the minimum between `x` and `y`:
-    """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    example5 = r"""
-    let x = 5;
-    let y = 7;
-    if x < y {x} else {y}
-    """
-
-    mo.ui.code_editor(language = "rust", value = example5, disabled = True)
-    return (example5,)
-
-
-@app.cell
-def _(example5, to_mlir, xmo):
-    xmo.module_md(to_mlir(example5))
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-    We can see the following in the generated MLIR IR:
-
-    * The `if` is represented using an `scf.if` operation. `scf` stands for "structured control-flow".
-    * `scf.if` contains two **regions**. A region is a section of code that contains another list of operation (we will explain this more in details later).
-    * Only one region is executed, this logic comes from `scf.if`. In general, operations that have regions decide when they are executed through compilation passes.
-    * Each region ends with an `scf.yield`, this is the "value" that is leaving the region when the region gets executed, and that gets returned by the `scf.if` operation.
-
-    Try to change the following program, and look at the effect of different optimization passes!
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    reset_button6 = mo.ui.button(label="reset")
-    reset_button6
-    return (reset_button6,)
-
-
-@app.cell(hide_code=True)
-def _(mo, reset_button6):
-    reset_button6
-
-    _initial_code = r"""let x = 5;
-    let y = 7;
-    if x < y {x} else {y}"""
-
-    example_editor6 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor6 = mo.ui.code_editor(value="cse,canonicalize", max_height=1, label="Passes:")
-
-    mo.vstack([example_editor6, pass_editor6])
-    return example_editor6, pass_editor6
-
-
-@app.cell(hide_code=True)
-def _(example_editor6, get_compilation_outputs_with_passes, pass_editor6):
-    outputs6 = get_compilation_outputs_with_passes(example_editor6, pass_editor6)
-    labels6, modules6 = zip(*outputs6)
-    return labels6, outputs6
-
-
-@app.cell
-def _(mo):
-    get_state6, set_state6 = mo.state(0)
-    return get_state6, set_state6
-
-
-@app.cell
-def _(get_state6, labels6, mo, set_state6):
-    slider6 = mo.ui.slider(start=0, stop=len(labels6) - 1, value=get_state6(), on_change=set_state6)
-    return (slider6,)
-
-
-@app.cell
-def _(get_state6, labels6, mo, outputs6, set_state6):
-    tabs6 = mo.ui.tabs(dict(outputs6), value=labels6[get_state6()], on_change=lambda k: set_state6(labels6.index(k)))
-    return (tabs6,)
-
-
-@app.cell
-def _(mo, slider6, tabs6):
-    mo.vstack((slider6, tabs6))
     return
 
 
