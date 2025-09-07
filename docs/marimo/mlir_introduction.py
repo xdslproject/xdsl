@@ -75,7 +75,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(check, mo):
-    mo.md(f"<br>\n## Interactive & Reactive! &nbsp; &nbsp;{check}\n\nThis notebook is *reactive*, meaning you can *interact* with our examples. Try the sliders!")
+    mo.md(f"""<br>\n## Interactive & Reactive! &nbsp; &nbsp;{check}\n\nThis notebook is *reactive*, meaning you can *interact* with our examples. Try the sliders!""")
     return
 
 
@@ -169,7 +169,7 @@ def _(editor_add_expr, mo, prefix, to_mlir, xmo):
         res = mo.md(r"""
     /// attention | Error!
 
-    'let' expressions are not supported.
+    'let' expressions are not allowed in this exercise.
     ///
         """)
         exp_val = ""
@@ -178,7 +178,7 @@ def _(editor_add_expr, mo, prefix, to_mlir, xmo):
         res = mo.md(r"""
     /// attention | Error!
 
-    Constants are not supported.
+    Constants are not allowed in this exercise.
     ///
         """)
         exp_val = ""
