@@ -36,6 +36,15 @@ def _(mo, xmo):
         parse_program(code, builder)
         return module
 
+    def to_str_without_module(module: builtin.ModuleOp) -> str:
+        output = StringIO()
+        printer = Printer(stream=output)
+        for op in module.ops:
+            printer.print_op(op)
+            printer.print_string("\n")
+        return output.getvalue()
+    
+
     def compilation_output(code_editor: Any) -> mo.md:
         try:
             return xmo.module_md(to_mlir(code_editor.value))
@@ -58,7 +67,12 @@ def _(mo, xmo):
             return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list)]
         except ParseError as e:
             return e
-    return compilation_output, get_compilation_outputs_with_passes, to_mlir
+    return (
+        compilation_output,
+        get_compilation_outputs_with_passes,
+        to_mlir,
+        to_str_without_module,
+    )
 
 
 @app.cell(hide_code=True)
@@ -226,9 +240,9 @@ def _(mo):
 
     ### The Components of an MLIR Operation
 
-    <span data-tooltip="The return value of the operation">`%c1`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`constant`</span> <span data-tooltip="Call-site specific static information">1</span> `:` <span data-tooltip="The type of the return value"> !i32</span><br>
-    <span data-tooltip="The return value of the operation">`%result`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`addi`</span> <span data-tooltip="A list of operands">`%c1`, `%c1`</span> `:` <span data-tooltip="The type of the operands and return values"> !i32</span><br>
-    <span data-tooltip="The dialect (namespace) of the operation">`printf`</span>`.`<span data-tooltip="The name of the operation">`print_format`</span> <span data-tooltip="Call-site specific static information">`"{}"`</span>`,`  <span data-tooltip="A list of operands">`%result`</span>  `:` <span data-tooltip="The type of the operand"> !i32</span>
+    <span data-tooltip="The return value of the operation">`%c1`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`constant`</span> <span data-tooltip="Call-site specific static information">1</span> `:` <span data-tooltip="The type of the return value"> i32</span><br>
+    <span data-tooltip="The return value of the operation">`%result`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`addi`</span> <span data-tooltip="A list of operands">`%c1`, `%c1`</span> `:` <span data-tooltip="The type of the operands and return values"> i32</span><br>
+    <span data-tooltip="The dialect (namespace) of the operation">`printf`</span>`.`<span data-tooltip="The name of the operation">`print_format`</span> <span data-tooltip="Call-site specific static information">`"{}"`</span>`,`  <span data-tooltip="A list of operands">`%result`</span>  `:` <span data-tooltip="The type of the operand"> i32</span>
 
     Explore by hovering over the IR.
     ///
@@ -394,12 +408,12 @@ def _(lmo, mo):
 
 
 @app.cell
-def _(mo, to_mlir, write_editor, write_listlang):
+def _(mo, to_mlir, to_str_without_module, write_editor, write_listlang):
     write_mlir = to_mlir(write_listlang)
 
     write_check = "✅ " if str(write_mlir) == str(write_editor.value) else "❌"
 
-    write_hint = "/// details | Need a hint?\n" + "`"*3 + "mlir\n" + str(to_mlir(write_listlang)) + "\n" + "`" * 3 + "\n///"
+    write_hint = "/// details | Need a hint?\n" + "`"*3 + "mlir\n" + to_str_without_module(to_mlir(write_listlang)) + "\n" + "`" * 3 + "\n///"
 
     mo.vstack([mo.md(write_check), mo.md(write_hint)])
     return
