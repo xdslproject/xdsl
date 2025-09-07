@@ -18,7 +18,7 @@ def interp(module: builtin.ModuleOp) -> str:
     _i.register_implementations(PrintfFunctions())
     _i.run_ssacfg_region(module.body, ())
 
-    return _io.getvalue()
+    return _io.getvalue().lower()
 
 
 def rust_md(code: str) -> mo.Html:
