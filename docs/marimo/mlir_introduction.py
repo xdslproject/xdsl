@@ -166,11 +166,21 @@ def _(editor_add_expr, mo, prefix, to_mlir, xmo):
 
     exp_val = editor_add_expr.value
     if exp_val.count("let"):
-        res = mo.md("'let' expressions not supported")
+        res = mo.md(r"""
+    /// attention | Error!
+
+    'let' expressions are not supported.
+    ///
+        """)
         exp_val = ""
 
     elif num_there(exp_val):
-        res = mo.md("constants not supported")
+        res = mo.md(r"""
+    /// attention | Error!
+
+    Constants are not supported.
+    ///
+        """)
         exp_val = ""
 
     else:
