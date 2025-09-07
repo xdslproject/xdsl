@@ -200,6 +200,9 @@ class ModulePass(ABC):
             return ()
         return (pass_instance,)
 
+    def __str__(self) -> str:
+        return str(self.pipeline_pass_spec())
+
 
 class PassOptionInfo(NamedTuple):
     """The name, expected type, and default value for one option of a module pass."""

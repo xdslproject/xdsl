@@ -6,7 +6,7 @@ import marimo as mo
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.passes import ModulePass, PassPipeline
+from xdsl.passes import ModulePass
 from xdsl.printer import Printer
 
 
@@ -43,16 +43,6 @@ def module_md(module: ModuleOp) -> mo.Html:
     return mo.md("`" * 3 + "mlir\n" + module_str(module) + "\n" + "`" * 3)
 
 
-def _spec_str(p: ModulePass | PassPipeline) -> str:
-    """
-    A string representation of the pass passed in, to display to the user.
-    """
-    if isinstance(p, PassPipeline):
-        return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
-    else:
-        return str(p.pipeline_pass_spec())
-
-
 def pipeline_html(
     ctx: Context, module: ModuleOp, passes: Sequence[tuple[mo.Html, ModulePass]]
 ) -> tuple[Context, ModuleOp, mo.Html]:
@@ -70,11 +60,11 @@ def pipeline_html(
     res = module.clone()
     ctx = ctx.clone()
     d: list[mo.Html] = []
-    total_key_count = Counter(_spec_str(p) for _, p in passes)
+    total_key_count = Counter(str(p) for _, p in passes)
     d_key_count = Counter[str]()
     for text, p in passes:
         p.apply(ctx, res)
-        spec = _spec_str(p)
+        spec = str(p)
         d_key_count[spec] += 1
         if total_key_count[spec] != 1:
             header = f"{spec} ({d_key_count[spec]})"
