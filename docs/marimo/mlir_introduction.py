@@ -294,11 +294,11 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
     bool_3_stack = mo.vstack([mo.md("### Case 3"), lmo.rust_md(bool_3_prefix),  bool_3_cmp, mo.md(bool_3_check)])
 
-    bool_4_prefix = "let x = 27; let y = 18;"
+    bool_4_prefix = "let x = 27; let y = 7;"
 
     bool_4_module = to_mlir(bool_4_prefix + bool_edit.value)
     bool_4_output = lmo.interp(bool_4_module)
-    bool_4_expected = "false"
+    bool_4_expected = "true"
     bool_4_ok = bool_4_output == bool_4_expected
     bool_4_check = "✅ " if bool_4_ok else "❌" 
 
