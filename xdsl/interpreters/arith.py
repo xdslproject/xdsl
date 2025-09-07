@@ -10,6 +10,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
+from xdsl.utils.comparisons import to_signed
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -54,27 +55,45 @@ class ArithFunctions(InterpreterFunctions):
 
     @impl(arith.SubiOp)
     def run_subi(self, interpreter: Interpreter, op: arith.SubiOp, args: PythonValues):
-        return (args[0] - args[1],)
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
+        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
+        return (to_signed(lhs - rhs, _int_bitwidth(interpreter, op.result.type)),)
 
     @impl(arith.AddiOp)
     def run_addi(self, interpreter: Interpreter, op: arith.AddiOp, args: PythonValues):
-        return (args[0] + args[1],)
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
+        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
+        return (to_signed(lhs + rhs, _int_bitwidth(interpreter, op.result.type)),)
 
     @impl(arith.MuliOp)
     def run_muli(self, interpreter: Interpreter, op: arith.MuliOp, args: PythonValues):
-        return (args[0] * args[1],)
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
+        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
+        return (to_signed(lhs * rhs, _int_bitwidth(interpreter, op.result.type)),)
 
     @impl(arith.AndIOp)
     def run_andi(self, interpreter: Interpreter, op: arith.AndIOp, args: PythonValues):
-        return (args[0] & args[1],)
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
+        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
+        return (to_signed(lhs & rhs, _int_bitwidth(interpreter, op.result.type)),)
 
     @impl(arith.OrIOp)
     def run_ori(self, interpreter: Interpreter, op: arith.OrIOp, args: PythonValues):
-        return (args[0] | args[1],)
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
+        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
+        return (to_signed(lhs | rhs, _int_bitwidth(interpreter, op.result.type)),)
 
     @impl(arith.XOrIOp)
     def run_xori(self, interpreter: Interpreter, op: arith.XOrIOp, args: PythonValues):
-        return (args[0] ^ args[1],)
+        assert isa(op.result.type, builtin.IndexType | builtin.IntegerType)
+        lhs = to_signed(args[0], _int_bitwidth(interpreter, op.result.type))
+        rhs = to_signed(args[1], _int_bitwidth(interpreter, op.result.type))
+        return (to_signed(lhs ^ rhs, _int_bitwidth(interpreter, op.result.type)),)
 
     @impl(arith.SubfOp)
     def run_subf(self, interpreter: Interpreter, op: arith.SubfOp, args: PythonValues):

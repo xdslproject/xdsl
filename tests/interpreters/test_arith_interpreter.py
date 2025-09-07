@@ -4,7 +4,7 @@ from math import copysign, isnan
 
 import pytest
 
-from xdsl.dialects import arith, test
+from xdsl.dialects import arith, builtin, test
 from xdsl.dialects.arith import (
     AddfOp,
     AddiOp,
@@ -91,9 +91,9 @@ def test_muli(lhs_value: int, rhs_value: int):
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
 @pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
 def test_andi(lhs_value: int, rhs_value: int):
-    muli = AndIOp(lhs_op, rhs_op)
+    andi = AndIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(muli, (lhs_value, rhs_value))
+    ret = interpreter.run_op(andi, (lhs_value, rhs_value))
 
     assert len(ret) == 1
     assert ret[0] == lhs_value & rhs_value
@@ -102,9 +102,9 @@ def test_andi(lhs_value: int, rhs_value: int):
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
 @pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
 def test_ori(lhs_value: int, rhs_value: int):
-    muli = OrIOp(lhs_op, rhs_op)
+    ori = OrIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(muli, (lhs_value, rhs_value))
+    ret = interpreter.run_op(ori, (lhs_value, rhs_value))
 
     assert len(ret) == 1
     assert ret[0] == lhs_value | rhs_value
@@ -113,12 +113,25 @@ def test_ori(lhs_value: int, rhs_value: int):
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
 @pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
 def test_xori(lhs_value: int, rhs_value: int):
-    muli = XOrIOp(lhs_op, rhs_op)
+    xori = XOrIOp(lhs_op, rhs_op)
 
-    ret = interpreter.run_op(muli, (lhs_value, rhs_value))
+    ret = interpreter.run_op(xori, (lhs_value, rhs_value))
 
     assert len(ret) == 1
     assert ret[0] == lhs_value ^ rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1])
+def test_xori_i1(lhs_value: int, rhs_value: int):
+    lhs_op = test.TestOp(result_types=[builtin.i1])
+    rhs_op = test.TestOp(result_types=[builtin.i1])
+    xori = XOrIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(xori, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == -(abs(lhs_value) ^ abs(rhs_value))
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
