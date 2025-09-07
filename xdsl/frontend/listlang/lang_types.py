@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import xdsl.frontend.listlang.list_dialect as list_dialect
 from xdsl.builder import Builder
-from xdsl.dialects import builtin, printf, scf
+from xdsl.dialects import builtin, printf
 from xdsl.frontend.listlang.source import Located, ParseError
 from xdsl.ir import Attribute, Block, Region, SSAValue
 from xdsl.utils.hints import isa
@@ -50,14 +50,7 @@ class ListLangBool(ListLangType):
         return builtin.IntegerType(1)
 
     def print(self, builder: Builder, value: SSAValue):
-        builder.insert_op(
-            scf.IfOp(
-                value,
-                [],
-                Region(Block([printf.PrintFormatOp("true"), scf.YieldOp()])),
-                Region(Block([printf.PrintFormatOp("false"), scf.YieldOp()])),
-            )
-        )
+        builder.insert_op(printf.PrintFormatOp("{}", value))
 
 
 LIST_ELEMENT_TYPE = ListLangBool | ListLangInt
