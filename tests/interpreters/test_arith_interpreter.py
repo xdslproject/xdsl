@@ -4,7 +4,7 @@ from math import copysign, isnan
 
 import pytest
 
-from xdsl.dialects import arith, builtin, func, test
+from xdsl.dialects import arith, builtin, test
 from xdsl.dialects.arith import (
     AddfOp,
     AddiOp,
@@ -27,8 +27,6 @@ from xdsl.dialects.arith import (
 from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness, i8, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
-from xdsl.interpreters.func import FuncFunctions
-from xdsl.ir import Block, Region
 
 interpreter = Interpreter(ModuleOp([]))
 interpreter.register_implementations(ArithFunctions())
@@ -123,21 +121,17 @@ def test_xori(lhs_value: int, rhs_value: int):
     assert ret[0] == lhs_value ^ rhs_value
 
 
-def test_xori_i1():
-    ops = [
-        (lhs_op := arith.ConstantOp(builtin.IntegerAttr(1, builtin.i1))),
-        (rhs_op := arith.ConstantOp(builtin.IntegerAttr(1, builtin.i1))),
-        (xor_op := XOrIOp(lhs_op, rhs_op)),
-        func.ReturnOp(xor_op),
-    ]
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_xori_i1(lhs_value: int, rhs_value: int):
+    lhs_op = test.TestOp(result_types=[builtin.i1])
+    rhs_op = test.TestOp(result_types=[builtin.i1])
+    xori = XOrIOp(lhs_op, rhs_op)
 
-    func_op = func.FuncOp("main", ((), ()), Region([Block(ops)]))
-    interpreter.register_implementations(FuncFunctions())
-
-    ret = interpreter.call_op(func_op, ())
+    ret = interpreter.run_op(xori, (lhs_value, rhs_value))
 
     assert len(ret) == 1
-    assert ret[0] == 0
+    assert ret[0] == lhs_value ^ rhs_value
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
