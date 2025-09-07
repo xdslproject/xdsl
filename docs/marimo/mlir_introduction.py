@@ -555,6 +555,23 @@ def _(mo, slider6, tabs6):
 def _(mo):
     mo.md(
         r"""
+    We can see the following in the generated MLIR IR:
+
+    * The `if` is represented using an `scf.if` operation. `scf` stands for "structured control-flow".
+    * `scf.if` contains two **regions**. A region is a section of code that contains another list of operation (we will explain this more in details later).
+    * Only one region is executed, this logic comes from `scf.if`. In general, operations that have regions decide when they are executed through compilation passes.
+    * Each region ends with an `scf.yield`, this is the "value" that is leaving the region when the region gets executed, and that gets returned by the `scf.if` operation.
+
+    Try to change the following program, and look at the effect of different optimization passes!
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     <br>
     ## Applying compilation passes
 
@@ -637,23 +654,6 @@ def _(mo):
     pass_6_boxes, pass_6_mo = build_example(6, pass_6_mlir)
 
     mo.vstack([mo.hstack([pass_1_mo, pass_2_mo]), mo.md("<br>"), mo.hstack([pass_3_mo, pass_4_mo]), mo.md("<br>"), mo.hstack([pass_5_mo, pass_6_mo])])
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-    We can see the following in the generated MLIR IR:
-
-    * The `if` is represented using an `scf.if` operation. `scf` stands for "structured control-flow".
-    * `scf.if` contains two **regions**. A region is a section of code that contains another list of operation (we will explain this more in details later).
-    * Only one region is executed, this logic comes from `scf.if`. In general, operations that have regions decide when they are executed through compilation passes.
-    * Each region ends with an `scf.yield`, this is the "value" that is leaving the region when the region gets executed, and that gets returned by the `scf.if` operation.
-
-    Try to change the following program, and look at the effect of different optimization passes!
-    """
-    )
     return
 
 
