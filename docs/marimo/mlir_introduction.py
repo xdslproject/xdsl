@@ -337,7 +337,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Get your hand's dirty - with the `arith` dialect""")
+    mo.md(r"""## Get your hands dirty - with the `arith` dialect""")
     return
 
 
