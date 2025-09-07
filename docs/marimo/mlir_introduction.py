@@ -53,7 +53,7 @@ def _(mo, xmo):
             all_passes["lower-list-to-tensor"] = lambda: LowerListToTensor()
             pipeline = PassPipeline.parse_spec(all_passes, pass_editor.value, callback)
             titles = xmo.pipeline_titles(pipeline.passes)
-            labels = ["IR before a pass was executed"] + ["IR after " + t for t in titles]
+            labels = ["Initial IR"] + ["IR after " + t for t in titles]
             pipeline.apply(Context(), module)
             module_list.append(module.clone())
             return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
@@ -149,7 +149,7 @@ def _(mo):
 
     example1 = "x * y + z"
 
-    editor_add_expr = mo.ui.code_editor(value = example1, max_height=1)
+    editor_add_expr = mo.ui.code_editor(language="rust", value = example1, max_height=1)
     editor_add_expr
     return editor_add_expr, prefix
 
@@ -337,7 +337,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Get your hand's dirty - with the `arith` dialect""")
+    mo.md(r"""## Get your hands dirty - with the `arith` dialect""")
     return
 
 
@@ -407,11 +407,11 @@ def _(mo, to_mlir, write_editor, write_listlang, xmo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _(check_ssa, mo):
     mo.md(
-        r"""
+        rf"""
     <br>
-    ## Static Single-Assignment (SSA)
+    ## Static Single-Assignment (SSA)  {check_ssa}
 
     MLIR IR uses **single static-assignment form** (SSA). In short, this means that every value (variable) is defined only once, and temporary values are defined for each intermediate expressions. We add an `_` on each variable name introduced to satisfy SSA.
 
@@ -458,125 +458,10 @@ def _(compilation_output, example_editor3, mo, to_mlir, xmo):
 
     _user_output = compilation_output(example_editor3)
     _result_output = xmo.module_md(to_mlir(_result_rust3))
-    mo.hstack([_user_output, _result_output])
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-    <br>
-    ## Applying compilation passes
-
-    Once we have an MLIR IR program, we can apply a compilation **pass**.
-
-    We already define the following passes:
-
-    * `cse` (Constant Sub-expression Elimination): De-duplicate identical operations.
-    * `dce` (Dead-Code Elimination): Removes unused side-effect free operations.
-    * `constant-fold-interp`: Evaluate operations that only have constant inputs.
-
-    For each of the following programs, can you find out which passes should be applied?
-    """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    def build_example(num: int, mlir_str: str) -> tuple[list[mo.ui.checkbox], mo.vstack]:
-        title = mo.md(f"### Example {num}")
-        pass_md = mo.md("`" * 3 + "mlir\n" + pass_1_mlir + "`" * 3)
-        pass_boxes = [mo.ui.checkbox(label="cse"), mo.ui.checkbox(label="dce"), mo.ui.checkbox(label="constant-fold-interp")]
-        pass_mo = mo.vstack([title, pass_md, *pass_boxes])
-        return (pass_boxes, pass_mo)
-
-    pass_1_mlir = r"""%x = arith.constant 3 : i32
-    %res = arith.subi %x, %x : i32
-    """
-    pass_1_boxes, pass_1_mo = build_example(1, pass_1_mlir)
-
-    pass_2_mlir = r"""%t = arith.addi %x, %x : i32
-    printf.print_format "{}", %t : i32
-    """
-    pass_2_boxes, pass_2_mo = build_example(2, pass_2_mlir)
-
-    pass_3_mlir = r"""%t = arith.muli %x, %y : i32
-    %u = arith.muli %x, %y : i32
-    %z = arith.addi %t, %u : i32
-    printf.print_format "{}", %z : i32"""
-    pass_3_boxes, pass_3_mo = build_example(3, pass_3_mlir)
-
-    pass_4_mlir = r"""%t = arith.addi %x, %y : i32
-    %_c2 = arith.constant 2 : i32
-    %_c4 = arith.constant 4 : i32
-    %u = arith.addi %_c2, %_c4 : i32
-    %_x_times_u = arith.muli %x, %u : i32
-    printf.print_format "{}", %_x_times_u : i32"""
-    pass_4_boxes, pass_4_mo = build_example(4, pass_4_mlir)
-
-    mo.vstack([mo.hstack([pass_1_mo, pass_2_mo]), mo.md("<br>"), mo.hstack([pass_3_mo, pass_4_mo])])
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Try to apply the optimizations on your programs here!""")
-    return
-
-
-@app.cell
-def _(mo):
-    reset_button4 = mo.ui.button(label="reset")
-    reset_button4
-    return (reset_button4,)
-
-
-@app.cell(hide_code=True)
-def _(mo, reset_button4):
-    reset_button4
-
-    _initial_code = r"""let a = true;
-    let b = false;
-    a && b"""
-
-    example_editor4 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor4 = mo.ui.code_editor(value="dce,cse,canonicalize", max_height=1, label="Passes:")
-
-    mo.vstack([example_editor4, pass_editor4])
-    return example_editor4, pass_editor4
-
-
-@app.cell(hide_code=True)
-def _(example_editor4, get_compilation_outputs_with_passes, pass_editor4):
-    outputs4 = get_compilation_outputs_with_passes(example_editor4, pass_editor4)
-    labels4, modules4 = zip(*outputs4)
-    return labels4, outputs4
-
-
-@app.cell
-def _(mo):
-    get_state4, set_state4 = mo.state(0)
-    return get_state4, set_state4
-
-
-@app.cell
-def _(get_state4, labels4, mo, set_state4):
-    slider4 = mo.ui.slider(start=0, stop=len(labels4) - 1, value=get_state4(), on_change=set_state4)
-    return (slider4,)
-
-
-@app.cell
-def _(get_state4, labels4, mo, outputs4, set_state4):
-    tabs4 = mo.ui.tabs(dict(outputs4), value=labels4[get_state4()], on_change=lambda k: set_state4(labels4.index(k)))
-    return (tabs4,)
-
-
-@app.cell
-def _(mo, slider4, tabs4):
-    mo.vstack((slider4, tabs4))
-    return
+    check_ssa = "✅ " if _user_output.text == _result_output.text else "❌"
+    _result_md = mo.md("✅ Correct!" if _user_output.text == _result_output.text else "❌ The two outputs are different")
+    mo.vstack([mo.hstack([_user_output, _result_output], justify="space-between"), _result_md], align="center")
+    return (check_ssa,)
 
 
 @app.cell(hide_code=True)
@@ -614,30 +499,6 @@ def _(example5, to_mlir, xmo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-    We can see the following in the generated MLIR IR:
-
-    * The `if` is represented using an `scf.if` operation. `scf` stands for "structured control-flow".
-    * `scf.if` contains two **regions**. A region is a section of code that contains another list of operation (we will explain this more in details later).
-    * Only one region is executed, this logic comes from `scf.if`. In general, operations that have regions decide when they are executed through compilation passes.
-    * Each region ends with an `scf.yield`, this is the "value" that is leaving the region when the region gets executed, and that gets returned by the `scf.if` operation.
-
-    Try to change the following program, and look at the effect of different optimization passes!
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    reset_button6 = mo.ui.button(label="reset")
-    reset_button6
-    return (reset_button6,)
-
-
-@app.cell(hide_code=True)
 def _(mo, reset_button6):
     reset_button6
 
@@ -650,6 +511,13 @@ def _(mo, reset_button6):
 
     mo.vstack([example_editor6, pass_editor6])
     return example_editor6, pass_editor6
+
+
+@app.cell
+def _(mo):
+    reset_button6 = mo.ui.button(label="reset")
+    reset_button6
+    return (reset_button6,)
 
 
 @app.cell(hide_code=True)
@@ -680,6 +548,177 @@ def _(get_state6, labels6, mo, outputs6, set_state6):
 @app.cell
 def _(mo, slider6, tabs6):
     mo.vstack((slider6, tabs6))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    <br>
+    ## Applying compilation passes
+
+    Once we have an MLIR IR program, we can apply a compilation **pass**.
+
+    We already define the following passes:
+
+    * `cse` (Constant Sub-expression Elimination): De-duplicate identical operations.
+    * `dce` (Dead-Code Elimination): Removes unused side-effect free operations.
+    * `constant-fold-interp`: Evaluate operations that only have constant inputs.
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    ### How to optimize these examples?
+
+    For each of the following programs, can you find out which passes should be applied?
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    def build_example(num: int, mlir_str: str) -> tuple[list[mo.ui.checkbox], mo.vstack]:
+        title = mo.md(f"#### Example {num}")
+        pass_md = mo.md("`" * 3 + "mlir\n" + mlir_str + "`" * 3)
+        pass_boxes = [mo.ui.checkbox(label="cse"), mo.ui.checkbox(label="dce"), mo.ui.checkbox(label="constant-fold-interp")]
+        pass_mo = mo.vstack([title, pass_md, *pass_boxes])
+        return (pass_boxes, pass_mo)
+
+    pass_1_mlir = r"""%x = arith.constant 3 : i32
+    %y = arith.constant 15 : i32
+    %res = arith.subi %x, %y : i32
+    """
+    pass_1_boxes, pass_1_mo = build_example(1, pass_1_mlir)
+
+    pass_2_mlir = r"""%t = arith.addi %x, %x : i32
+    %t2 = arith.addi %t, %t : i32
+    printf.print_format "{}", %t2 : i32
+    """
+    pass_2_boxes, pass_2_mo = build_example(2, pass_2_mlir)
+
+    pass_3_mlir = r"""%t = arith.muli %x, %y : i32
+    %u = arith.muli %x, %y : i32
+    %z = arith.addi %t, %u : i32
+    printf.print_format "{}", %z : i32
+    """
+    pass_3_boxes, pass_3_mo = build_example(3, pass_3_mlir)
+
+    pass_4_mlir = r"""%t = arith.addi %x, %y : i32
+    %t2 = arith.addi %y, %x : i32
+    %res = arith.addi %t, %t2 : i32
+    printf.print_format "{}", %res : i32
+    """
+    pass_4_boxes, pass_4_mo = build_example(4, pass_4_mlir)
+
+
+    pass_5_mlir = r"""%c1 = arith.constant -1 : i32
+    %c0 = arith.constant 0 : i32
+    %t = arith.addi %x, %c0 : i32
+    %u = arith.muli %x, %c1 : i32
+    %res = arith.addi %t, %u : i32
+    printf.print_format "{}", %res : i32
+    """
+    pass_5_boxes, pass_5_mo = build_example(5, pass_5_mlir)
+
+    pass_6_mlir = r"""%c2 = arith.constant 2 : i32
+    %c4 = arith.constant 4 : i32
+    %u = arith.addi %c2, %c4 : i32
+    %t = arith.addi %x, %y : i32
+    %res = arith.muli %x, %u : i32
+    printf.print_format "{}", %res : i32
+    """
+    pass_6_boxes, pass_6_mo = build_example(6, pass_6_mlir)
+
+    mo.vstack([mo.hstack([pass_1_mo, pass_2_mo]), mo.md("<br>"), mo.hstack([pass_3_mo, pass_4_mo]), mo.md("<br>"), mo.hstack([pass_5_mo, pass_6_mo])])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    We can see the following in the generated MLIR IR:
+
+    * The `if` is represented using an `scf.if` operation. `scf` stands for "structured control-flow".
+    * `scf.if` contains two **regions**. A region is a section of code that contains another list of operation (we will explain this more in details later).
+    * Only one region is executed, this logic comes from `scf.if`. In general, operations that have regions decide when they are executed through compilation passes.
+    * Each region ends with an `scf.yield`, this is the "value" that is leaving the region when the region gets executed, and that gets returned by the `scf.if` operation.
+
+    Try to change the following program, and look at the effect of different optimization passes!
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    ### Find programs that can be optimized
+
+    Can you write, for each of the passes, a program that gets optimized by it?
+
+    TODO : EXAMPLES HERE
+
+    Here is a more complex pipeline : "cse,dce,constant-fold-interp". Can you write a program that gets optimized at each step?
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    reset_button4 = mo.ui.button(label="reset")
+    reset_button4
+    return (reset_button4,)
+
+
+@app.cell(hide_code=True)
+def _(mo, reset_button4):
+    reset_button4
+
+    example_editor4 = mo.ui.code_editor(language="rust", placeholder="let a = ...")
+    pass_editor4 = mo.ui.code_editor(value="cse,dce,constant-fold-interp", max_height=1, label="Passes:")
+
+    example_editor4
+    return example_editor4, pass_editor4
+
+
+@app.cell(hide_code=True)
+def _(example_editor4, get_compilation_outputs_with_passes, pass_editor4):
+    outputs4 = get_compilation_outputs_with_passes(example_editor4, pass_editor4)
+    labels4, modules4 = zip(*outputs4)
+    return labels4, outputs4
+
+
+@app.cell
+def _(mo):
+    get_state4, set_state4 = mo.state(0)
+    return get_state4, set_state4
+
+
+@app.cell
+def _(get_state4, labels4, mo, set_state4):
+    slider4 = mo.ui.slider(start=0, stop=len(labels4) - 1, value=get_state4(), on_change=set_state4)
+    return (slider4,)
+
+
+@app.cell
+def _(get_state4, labels4, mo, outputs4, set_state4):
+    tabs4 = mo.ui.tabs(dict(outputs4), value=labels4[get_state4()], on_change=lambda k: set_state4(labels4.index(k)))
+    return (tabs4,)
+
+
+@app.cell
+def _(mo, slider4, tabs4):
+    mo.vstack((slider4, tabs4))
     return
 
 
