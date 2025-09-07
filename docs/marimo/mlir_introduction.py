@@ -120,13 +120,24 @@ def _(interact_x, interact_y, mo):
     return
 
 
+@app.cell
+def _():
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-    ## A first example
+    ## Arithmetic Expressions
 
-    We will start by defining a small language to manipulate lists of integers. This language will be very simple for now, and will be extended throughout the notebook to introduce more concepts. All variables are immutable, and we only support integer literals, addition and multiplication for now. The language is compatible with Rust syntax, and here is a first example:
+    Let's explore how our language treats arithmetic expressions.
+
+    ```rust
+    let x = 3;
+    let y = 5;
+    let z = 7;
+    ```
     """
     )
     return
@@ -134,23 +145,79 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    example1 = r"""let x = 2;
-    let y = 3;
-    x + y"""
+    prefix = r"""
+       let x = 3;
+       let y = 5;
+       let z = 7;
+    """
 
-    mo.ui.code_editor(language = "rust", value = example1, disabled = True)
-    return (example1,)
+    example1 = "x * y + z"
+
+    editor_add_expr = mo.ui.code_editor(value = example1, max_height=1)
+    editor_add_expr
+    return editor_add_expr, prefix
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We have written a small compiler that translates this simple language to MLIR IR. Here is the MLIR code generated for the example above:""")
+    mo.md(r"""Our compiler translates the code above into MLIR's intermediate representation (IR):""")
     return
 
 
 @app.cell(hide_code=True)
-def _(example1, to_mlir, xmo):
-    xmo.module_md(to_mlir(example1))
+def _(editor_add_expr, mo, prefix, to_mlir, xmo):
+    def num_there(s):
+        return any(i.isdigit() for i in s)
+
+    exp_val = editor_add_expr.value
+    if exp_val.count("let"):
+        res = mo.md("'let' expressions not supported")
+        exp_val = ""
+
+    elif num_there(exp_val):
+        res = mo.md("constants not supported")
+        exp_val = ""
+
+    else:
+        # TODO: Instead of showing the parsing error, can we show the last output
+        # plus the error message?
+        res = xmo.module_md(to_mlir(prefix + exp_val))
+
+    res
+    return
+
+
+@app.cell
+def _(mo):
+    # TODO: hook up the interpreter to actually compute 22 vs. 38.
+
+    exp_output = 22
+    exp_check = "✅ " if exp_output == 38 else "❌" 
+    mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise\nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    /// details | MLIR IR - What do we see?
+
+    1) An MLIR program consists of a list of *operations* (e.g., `arith.constant`, `arith.addi`, `arith.muli`).<br>
+    2) The *result* of each operation is assigned to a variable.<br>
+    3) Each variable name begins with **%**.<br>
+    4) Some operations (e.g., `printf.print_format`) do not yield results and do not define new variables.
+
+    ### The Components of an MLIR Operation
+
+    <span data-tooltip="The return value of the operation">`%c1`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`constant`</span> <span data-tooltip="Call-site specific static information">1</span> `:` <span data-tooltip="The type of the return value"> !i32</span><br>
+    <span data-tooltip="The return value of the operation">`%result`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`addi`</span> <span data-tooltip="A list of operands">`%c1`, `%c1`</span> `:` <span data-tooltip="The type of the operands and return values"> !i32</span><br>
+    <span data-tooltip="The dialect (namespace) of the operation">`printf`</span>`.`<span data-tooltip="The name of the operation">`print_format`</span> <span data-tooltip="Call-site specific static information">`"{}"`</span> `:` <span data-tooltip="The type of the operand"> !i32</span>
+
+    Explore by hovering over the IR.
+    ///
+    """
+    )
     return
 
 
@@ -158,17 +225,7 @@ def _(example1, to_mlir, xmo):
 def _(mo):
     mo.md(
         r"""
-    Note the following:
-
-    * An MLIR program is a sequence of operations (arith.constant, arith.addi in this example)
-    * Variables are prefixed with a `%` sign
-    * Operations:
-        * Have a name (arith.constant for constants, and arith.addi for addition)
-        * Produce results (all produce one result here, but they can produce zero or multiple)
-        * Have a list of operands (the add has two operands %x and %y, and the constants have none)
-        * Can have additional static information (2 and 3 in the arith.constant)
-        * Specify some of the types of their operands and results (i32 for all operations here)
-
+    ## Boolean Expressions 
 
     To try to understand this more, you can change the following example, and see how the generated MLIR code change.
     Try to use booleans (`true`, `false`, `&&`, `||`) and comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`).
