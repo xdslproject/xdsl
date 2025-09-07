@@ -378,6 +378,33 @@ def _(mo):
     return
 
 
+@app.cell
+def _(lmo, mo):
+    write_listlang = r"""
+    let c = 57;
+    let x = 47;
+    x * c
+    """
+
+    write_instruction = mo.md("Write MLIR syntax that matches the program above:")
+
+    write_editor = mo.ui.code_editor(value = "", max_height=1, placeholder="%c = ...")
+    mo.vstack([write_instruction, lmo.rust_md(write_listlang), write_editor])
+    return write_editor, write_listlang
+
+
+@app.cell
+def _(mo, to_mlir, write_editor, write_listlang):
+    write_mlir = to_mlir(write_listlang)
+
+    write_check = "✅ " if str(write_mlir) == str(write_editor.value) else "❌"
+
+    write_hint = "/// details | Need a hint?\n" + "`"*3 + "mlir\n" + str(to_mlir(write_listlang)) + "\n" + "`" * 3 + "\n///"
+
+    mo.vstack([mo.md(write_check), mo.md(write_hint)])
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
