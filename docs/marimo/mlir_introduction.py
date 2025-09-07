@@ -217,7 +217,7 @@ def _(mo):
 
     <span data-tooltip="The return value of the operation">`%c1`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`constant`</span> <span data-tooltip="Call-site specific static information">1</span> `:` <span data-tooltip="The type of the return value"> !i32</span><br>
     <span data-tooltip="The return value of the operation">`%result`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`addi`</span> <span data-tooltip="A list of operands">`%c1`, `%c1`</span> `:` <span data-tooltip="The type of the operands and return values"> !i32</span><br>
-    <span data-tooltip="The dialect (namespace) of the operation">`printf`</span>`.`<span data-tooltip="The name of the operation">`print_format`</span> <span data-tooltip="Call-site specific static information">`"{}"`</span> `:` <span data-tooltip="The type of the operand"> !i32</span>
+    <span data-tooltip="The dialect (namespace) of the operation">`printf`</span>`.`<span data-tooltip="The name of the operation">`print_format`</span> <span data-tooltip="Call-site specific static information">`"{}"`</span>`,`  <span data-tooltip="A list of operands">`%result`</span>  `:` <span data-tooltip="The type of the operand"> !i32</span>
 
     Explore by hovering over the IR.
     ///
