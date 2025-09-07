@@ -24,14 +24,23 @@ def module_html(module: ModuleOp) -> mo.Html:
     return mo.ui.code_editor(str(module), language="javascript", disabled=True)
 
 
-def module_md(module: ModuleOp) -> mo.Html:
+def module_str(module: ModuleOp) -> str:
+    """
+    Returns a string representation of the module passed in, without the
+    outer `builtin.module` operation.
+    """
     output = StringIO()
     printer = Printer(output)
-    for op in module.ops:
+    for i, op in enumerate(module.ops):
+        if i != 0:
+            printer.print_string("\n")
         printer.print_op(op)
-        printer.print_string("\n")
 
-    return mo.md("`" * 3 + "mlir\n" + output.getvalue()[:-1] + "\n" + "`" * 3)
+    return output.getvalue()
+
+
+def module_md(module: ModuleOp) -> mo.Html:
+    return mo.md("`" * 3 + "mlir\n" + module_str(module) + "\n" + "`" * 3)
 
 
 def _spec_str(p: ModulePass | PassPipeline) -> str:

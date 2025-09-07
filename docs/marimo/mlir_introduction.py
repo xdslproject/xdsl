@@ -226,9 +226,9 @@ def _(mo):
 
     ### The Components of an MLIR Operation
 
-    <span data-tooltip="The return value of the operation">`%c1`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`constant`</span> <span data-tooltip="Call-site specific static information">1</span> `:` <span data-tooltip="The type of the return value"> !i32</span><br>
-    <span data-tooltip="The return value of the operation">`%result`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`addi`</span> <span data-tooltip="A list of operands">`%c1`, `%c1`</span> `:` <span data-tooltip="The type of the operands and return values"> !i32</span><br>
-    <span data-tooltip="The dialect (namespace) of the operation">`printf`</span>`.`<span data-tooltip="The name of the operation">`print_format`</span> <span data-tooltip="Call-site specific static information">`"{}"`</span>`,`  <span data-tooltip="A list of operands">`%result`</span>  `:` <span data-tooltip="The type of the operand"> !i32</span>
+    <span data-tooltip="The return value of the operation">`%c1`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`constant`</span> <span data-tooltip="Call-site specific static information">1</span> `:` <span data-tooltip="The type of the return value"> i32</span><br>
+    <span data-tooltip="The return value of the operation">`%result`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`addi`</span> <span data-tooltip="A list of operands">`%c1`, `%c1`</span> `:` <span data-tooltip="The type of the operands and return values"> i32</span><br>
+    <span data-tooltip="The dialect (namespace) of the operation">`printf`</span>`.`<span data-tooltip="The name of the operation">`print_format`</span> <span data-tooltip="Call-site specific static information">`"{}"`</span>`,`  <span data-tooltip="A list of operands">`%result`</span>  `:` <span data-tooltip="The type of the operand"> i32</span>
 
     Explore by hovering over the IR.
     ///
@@ -394,12 +394,12 @@ def _(lmo, mo):
 
 
 @app.cell
-def _(mo, to_mlir, write_editor, write_listlang):
+def _(mo, to_mlir, write_editor, write_listlang, xmo):
     write_mlir = to_mlir(write_listlang)
 
     write_check = "✅ " if str(write_mlir) == str(write_editor.value) else "❌"
 
-    write_hint = "/// details | Need a hint?\n" + "`"*3 + "mlir\n" + str(to_mlir(write_listlang)) + "\n" + "`" * 3 + "\n///"
+    write_hint = "/// details | Need a hint?\n" + "`"*3 + "mlir\n" + xmo.module_str(to_mlir(write_listlang)) + "\n" + "`" * 3 + "\n///"
 
     mo.vstack([mo.md(write_check), mo.md(write_hint)])
     return
@@ -441,8 +441,9 @@ def _(mo, reset_button3):
 
 
 @app.cell(hide_code=True)
-def _(compilation_output, example_editor3):
-    compilation_output(example_editor3)
+def _(compilation_output, example_editor3, mo):
+    output1234 = compilation_output(example_editor3)
+    mo.hstack([output1234, output1234])
     return
 
 
