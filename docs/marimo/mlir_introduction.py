@@ -227,62 +227,103 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
+def _(exp_check, mo):
+    mo.md(
+         "<br>\n## Boolean Expressions &nbsp;&nbsp;" + exp_check + r"""
+
+    Find a Boolean expression that holds for all cases below. Use `true`, `false`, `&&`, `||`, `==`, `!=`, `<`, `>`, `<=`, `>=`.
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    _initial_code = r"""x < y"""
+
+    bool_edit = mo.ui.code_editor(language="rust", value=_initial_code)
+    bool_edit
+    return (bool_edit,)
+
+
+@app.cell(hide_code=True)
+def _(bool_edit, mo, to_mlir, xmo):
+    bool_1_prefix = r"let x = 10; let y = 12;"
+
+    bool_1_output = "false"
+    bool_1_expected = "true"
+    bool_1_ok = bool_1_output == bool_1_expected
+    bool_1_check = "✅ " if bool_1_ok else "❌"
+
+    bool_1_cmp = mo.md(f"expected: {bool_1_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
+    bool_1_stack = mo.vstack([mo.md("### Case 1"), xmo.rust_md(bool_1_prefix),  bool_1_cmp, mo.md(bool_1_check)])
+
+    bool_2_prefix = "let x = 13; let y = 18;"
+
+    bool_2_output = "false"
+    bool_2_expected = "false"
+    bool_2_ok = bool_2_output == bool_2_expected
+    bool_2_check = "✅ " if bool_2_ok else "❌"
+
+    bool_2_cmp = mo.md(f"expected: {bool_2_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_2_output}")
+    bool_2_stack = mo.vstack([mo.md("### Case 2"), xmo.rust_md(bool_2_prefix), bool_2_cmp, mo.md(bool_2_check)])
+
+    bool_res = xmo.module_md(to_mlir(bool_1_prefix + bool_edit.value))
+
+    bool_3_prefix = r"let x = 8; let y = 2;"
+
+    bool_3_output = "false"
+    bool_3_expected = "true"
+    bool_3_ok = bool_3_output == bool_3_expected
+    bool_3_check = "✅ " if bool_3_ok else "❌" 
+
+    bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
+    bool_3_stack = mo.vstack([mo.md("### Case 3"), xmo.rust_md(bool_3_prefix),  bool_3_cmp, mo.md(bool_3_check)])
+
+    bool_4_prefix = "let x = 27; let y = 18;"
+
+    bool_4_output = "false"
+    bool_4_expected = "false"
+    bool_4_ok = bool_4_output == bool_4_expected
+    bool_4_check = "✅ " if bool_4_ok else "❌" 
+
+    bool_4_cmp = mo.md(f"expected: {bool_4_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_4_output}")
+    bool_4_stack = mo.vstack([mo.md("### Case 4"), xmo.rust_md(bool_4_prefix), bool_4_cmp, mo.md(bool_4_check)])
+
+    bool_res = xmo.module_md(to_mlir(bool_1_prefix + bool_edit.value))
+
+
+    bool_all_ok = bool_1_ok and bool_2_ok and bool_3_ok and bool_4_ok
+    bool_all_check = "✅ " if bool_all_ok else "❌" 
+
+    mo.vstack([bool_res, mo.hstack([bool_1_stack, bool_2_stack]), mo.md("<br>"), 
+    mo.hstack([bool_3_stack, bool_4_stack])])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    /// details | What did you notice?
+
+    - Booleans are represented as `i1` (a single bit integer)
+    - All comparison operations are
+        - encoded as `arith.cmpi` operations
+        - have an opcode (`eq`, `ult`, `ule`, ...)
+        - have two operands of a potentially wider integer type, e.g., `i32`
+        - and return their boolean result as `i1`
+    ///
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
     <br>
-    ## Boolean Expressions 
-
-    To try to understand this more, you can change the following example, and see how the generated MLIR code change.
-    Try to use booleans (`true`, `false`, `&&`, `||`) and comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`).
-    """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    reset_button2 = mo.ui.button(label="reset")
-    reset_button2
-    return (reset_button2,)
-
-
-@app.cell(hide_code=True)
-def _(mo, reset_button2):
-    reset_button2
-
-    _initial_code = r"""let a = true;
-    let b = false;
-    a && b"""
-
-    example_editor2 = mo.ui.code_editor(language="rust", value=_initial_code)
-    example_editor2
-    return (example_editor2,)
-
-
-@app.cell(hide_code=True)
-def _(compilation_output, example_editor2):
-    compilation_output(example_editor2)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-    Some things you might have noticed:
-
-    * Booleans are represented as `i1` (a single bit integer)
-    * All comparisons operations are encoded as `arith.cmpi` operations, with an opcode (eq, ult, ule, ...) and two operands
-    """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
     ## Static Single-Assignment (SSA)
 
     MLIR IR uses **single static-assignment form** (SSA). In short, this means that every value (variable) is defined only once, and temporary values are defined for each intermediate expressions. In particular, this means that shadowed variables are redefined with a new name. In this notebook, temporary variables are preceeded by an underscore, and shadowed variables have an integer append to their name.
