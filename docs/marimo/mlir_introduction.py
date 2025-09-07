@@ -106,7 +106,7 @@ def _(interact_x, interact_y, mo):
 
     code_examples = mo.hstack([stack_add, stack_mul])
 
-    check = "✅ " if 10 * result_add == result_mul else "❌" 
+    check = "✅ " if 10 * result_add == result_mul else "❌"
 
     challenge = mo.md("<br>\n### Exercise\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
                      f", &nbsp;&nbsp;&nbsp; {10*result_add} = {result_mul} &nbsp;&nbsp; {check}")
@@ -209,7 +209,7 @@ def _():
 @app.cell
 def _(arithmetic_module, lmo, mo):
     exp_output = lmo.interp(arithmetic_module)
-    exp_check = "✅ " if exp_output == "38" else "❌" 
+    exp_check = "✅ " if exp_output == "38" else "❌"
     mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise\nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
     return (exp_check,)
 
@@ -290,7 +290,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_3_output = lmo.interp(bool_3_module)
     bool_3_expected = "true"
     bool_3_ok = bool_3_output == bool_3_expected
-    bool_3_check = "✅ " if bool_3_ok else "❌" 
+    bool_3_check = "✅ " if bool_3_ok else "❌"
 
     bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
     bool_3_stack = mo.vstack([mo.md("### Case 3 &nbsp;&nbsp;" + bool_3_check), lmo.rust_md(bool_3_prefix), bool_3_cmp])
@@ -301,7 +301,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_4_output = lmo.interp(bool_4_module)
     bool_4_expected = "true"
     bool_4_ok = bool_4_output == bool_4_expected
-    bool_4_check = "✅ " if bool_4_ok else "❌" 
+    bool_4_check = "✅ " if bool_4_ok else "❌"
 
     bool_4_cmp = mo.md(f"expected: {bool_4_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_4_output}")
     bool_4_stack = mo.vstack([mo.md("### Case 4 &nbsp;&nbsp;" + bool_4_check), lmo.rust_md(bool_4_prefix), bool_4_cmp])
@@ -310,9 +310,9 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
 
 
     bool_all_ok = bool_1_ok and bool_2_ok and bool_3_ok and bool_4_ok
-    bool_all_check = "✅ " if bool_all_ok else "❌" 
+    bool_all_check = "✅ " if bool_all_ok else "❌"
 
-    mo.vstack([bool_res, mo.hstack([bool_1_stack, bool_2_stack]), mo.md("<br>"), 
+    mo.vstack([bool_res, mo.hstack([bool_1_stack, bool_2_stack]), mo.md("<br>"),
     mo.hstack([bool_3_stack, bool_4_stack])])
     return (bool_all_check,)
 
@@ -508,19 +508,31 @@ def _(mo, reset_button4):
 @app.cell(hide_code=True)
 def _(example_editor4, get_compilation_outputs_with_passes, pass_editor4):
     outputs4 = get_compilation_outputs_with_passes(example_editor4, pass_editor4)
-    return (outputs4,)
+    labels4, modules4 = zip(*outputs4)
+    return labels4, outputs4
 
 
 @app.cell
-def _(mo, pass_editor4):
-    slider4 = mo.ui.slider(start=0, stop=len(pass_editor4.value.split(",")))
-    slider4
+def _(mo):
+    get_state4, set_state4 = mo.state(0)
+    return get_state4, set_state4
+
+
+@app.cell
+def _(get_state4, labels4, mo, set_state4):
+    slider4 = mo.ui.slider(start=0, stop=len(labels4) - 1, value=get_state4(), on_change=set_state4)
     return (slider4,)
 
 
 @app.cell
-def _(mo, outputs4, slider4):
-    mo.vstack([*outputs4[slider4.value]])
+def _(get_state4, labels4, mo, outputs4, set_state4):
+    tabs4 = mo.ui.tabs(dict(outputs4), value=labels4[get_state4()], on_change=lambda k: set_state4(labels4.index(k)))
+    return (tabs4,)
+
+
+@app.cell
+def _(mo, slider4, tabs4):
+    mo.vstack((slider4, tabs4))
     return
 
 
@@ -600,19 +612,31 @@ def _(mo, reset_button6):
 @app.cell(hide_code=True)
 def _(example_editor6, get_compilation_outputs_with_passes, pass_editor6):
     outputs6 = get_compilation_outputs_with_passes(example_editor6, pass_editor6)
-    return (outputs6,)
+    labels6, modules6 = zip(*outputs6)
+    return labels6, outputs6
 
 
-@app.cell(hide_code=True)
-def _(mo, pass_editor6):
-    slider6 = mo.ui.slider(start=0, stop=len(pass_editor6.value.split(",")))
-    slider6
+@app.cell
+def _(mo):
+    get_state6, set_state6 = mo.state(0)
+    return get_state6, set_state6
+
+
+@app.cell
+def _(get_state6, labels6, mo, set_state6):
+    slider6 = mo.ui.slider(start=0, stop=len(labels6) - 1, value=get_state6(), on_change=set_state6)
     return (slider6,)
 
 
-@app.cell(hide_code=True)
-def _(mo, outputs6, slider6):
-    mo.vstack([*outputs6[slider6.value]])
+@app.cell
+def _(get_state6, labels6, mo, outputs6, set_state6):
+    tabs6 = mo.ui.tabs(dict(outputs6), value=labels6[get_state6()], on_change=lambda k: set_state6(labels6.index(k)))
+    return (tabs6,)
+
+
+@app.cell
+def _(mo, slider6, tabs6):
+    mo.vstack((slider6, tabs6))
     return
 
 
@@ -665,19 +689,31 @@ def _(mo, reset_button7):
 @app.cell(hide_code=True)
 def _(example_editor7, get_compilation_outputs_with_passes, pass_editor7):
     outputs7 = get_compilation_outputs_with_passes(example_editor7, pass_editor7)
-    return (outputs7,)
+    labels7, modules7 = zip(*outputs7)
+    return labels7, outputs7
 
 
 @app.cell
-def _(mo, pass_editor7):
-    slider7 = mo.ui.slider(start=0, stop=len(pass_editor7.value.split(",")))
-    slider7
+def _(mo):
+    get_state7, set_state7 = mo.state(0)
+    return get_state7, set_state7
+
+
+@app.cell
+def _(get_state7, labels7, mo, set_state7):
+    slider7 = mo.ui.slider(start=0, stop=len(labels7) - 1, value=get_state7(), on_change=set_state7)
     return (slider7,)
 
 
 @app.cell
-def _(mo, outputs7, slider7):
-    mo.vstack([*outputs7[slider7.value]])
+def _(get_state7, labels7, mo, outputs7, set_state7):
+    tabs7 = mo.ui.tabs(dict(outputs7), value=labels7[get_state7()], on_change=lambda k: set_state7(labels7.index(k)))
+    return (tabs7,)
+
+
+@app.cell
+def _(mo, slider7, tabs7):
+    mo.vstack((slider7, tabs7))
     return
 
 
