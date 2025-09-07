@@ -36,15 +36,6 @@ def _(mo, xmo):
         parse_program(code, builder)
         return module
 
-    def to_str_without_module(module: builtin.ModuleOp) -> str:
-        output = StringIO()
-        printer = Printer(stream=output)
-        for op in module.ops:
-            printer.print_op(op)
-            printer.print_string("\n")
-        return output.getvalue()
-
-
     def compilation_output(code_editor: Any) -> mo.md:
         try:
             return xmo.module_md(to_mlir(code_editor.value))
