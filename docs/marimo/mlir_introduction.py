@@ -412,9 +412,9 @@ def _(mo):
     <br>
     ## Static Single-Assignment (SSA)
 
-    MLIR IR uses **single static-assignment form** (SSA). In short, this means that every value (variable) is defined only once, and temporary values are defined for each intermediate expressions. In particular, this means that shadowed variables are redefined with a new name. In this notebook, temporary variables are preceeded by an underscore, and shadowed variables have an integer append to their name.
+    MLIR IR uses **single static-assignment form** (SSA). In short, this means that every value (variable) is defined only once, and temporary values are defined for each intermediate expressions. We add an `_` on each variable name introduced to satisfy SSA.
 
-    As an exercise, try to modify the following program so that the generated MLIR code contains no new intermediate values, and no new values introduced by shadowing.
+    Try to SSA-ify the following rust program to make it look like the result on the right!
     """
     )
     return
@@ -441,9 +441,23 @@ def _(mo, reset_button3):
 
 
 @app.cell(hide_code=True)
-def _(compilation_output, example_editor3, mo):
-    output1234 = compilation_output(example_editor3)
-    mo.hstack([output1234, output1234])
+def _(compilation_output, example_editor3, mo, to_mlir, xmo):
+    _result_rust3 = r"""
+    let c3 = 3;
+    let c10 = 10;
+    let t13 = c3 + c10;
+    let c7 = 7;
+    let x1 = t13 + c7;
+    let c1 = 1;
+    let x2 = x1 + c1;
+    let c2 = 2;
+    let res = x2 * c2;
+    res
+    """
+
+    _user_output = compilation_output(example_editor3)
+    _result_output = xmo.module_md(to_mlir(_result_rust3))
+    mo.hstack([_user_output, _result_output])
     return
 
 
