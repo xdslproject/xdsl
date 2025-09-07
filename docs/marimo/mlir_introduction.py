@@ -465,20 +465,63 @@ def _(compilation_output, example_editor3, mo, to_mlir, xmo):
 def _(mo):
     mo.md(
         r"""
+    <br>
     ## Applying compilation passes
 
-    Now that we have showed some MLIR IR code, let's see how we can manipulate MLIR IR with passes. Here are two very important MLIR passes that are relevant in most compilers:
+    Once we have an MLIR IR program, we can apply a compilation **pass**.
 
-    * `cse` (Common sub-expression elimination): This pass finds operations that are identical, and replace one with the other to reduce the number of computations.
-    * `canonicalize`: This pass does three different optimizations in one:
-        * It removes operations without side-effects that are not used.
-        * It constant fold operations, meaning that operations with only constant inputs will be replaced by a constant.
-        * It applies simple local optimizations, such as `x - x = 0`.
+    We already define the following passes:
 
+    * `cse` (Constant Sub-expression Elimination): De-duplicate identical operations.
+    * `dce` (Dead-Code Elimination): Removes unused side-effect free operations.
+    * `constant-fold-interp`: Evaluate operations that only have constant inputs.
 
-    In this notebook, we will define compiler pipelines using a comma-separated list of pass names (for instance, `cse,canonicalize`). The following two code editors will allow you to write a program, a pass pipeline, and see the resulting MLIR IR at each step of the pipeline.
+    For each of the following programs, can you find out which passes should be applied?
     """
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    def build_example(num: int, mlir_str: str) -> tuple[list[mo.ui.checkbox], mo.vstack]:
+        title = mo.md(f"### Example {num}")
+        pass_md = mo.md("`" * 3 + "mlir\n" + pass_1_mlir + "`" * 3)
+        pass_boxes = [mo.ui.checkbox(label="cse"), mo.ui.checkbox(label="dce"), mo.ui.checkbox(label="constant-fold-interp")]
+        pass_mo = mo.vstack([title, pass_md, *pass_boxes])
+        return (pass_boxes, pass_mo)
+
+    pass_1_mlir = r"""%x = arith.constant 3 : i32
+    %res = arith.subi %x, %x : i32
+    """
+    pass_1_boxes, pass_1_mo = build_example(1, pass_1_mlir)
+
+    pass_2_mlir = r"""%t = arith.addi %x, %x : i32
+    printf.print_format "{}", %t : i32
+    """
+    pass_2_boxes, pass_2_mo = build_example(2, pass_2_mlir)
+
+    pass_3_mlir = r"""%t = arith.muli %x, %y : i32
+    %u = arith.muli %x, %y : i32
+    %z = arith.addi %t, %u : i32
+    printf.print_format "{}", %z : i32"""
+    pass_3_boxes, pass_3_mo = build_example(3, pass_3_mlir)
+
+    pass_4_mlir = r"""%t = arith.addi %x, %y : i32
+    %_c2 = arith.constant 2 : i32
+    %_c4 = arith.constant 4 : i32
+    %u = arith.addi %_c2, %_c4 : i32
+    %_x_times_u = arith.muli %x, %u : i32
+    printf.print_format "{}", %_x_times_u : i32"""
+    pass_4_boxes, pass_4_mo = build_example(4, pass_4_mlir)
+
+    mo.vstack([mo.hstack([pass_1_mo, pass_2_mo]), mo.md("<br>"), mo.hstack([pass_3_mo, pass_4_mo])])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Try to apply the optimizations on your programs here!""")
     return
 
 
