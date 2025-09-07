@@ -588,10 +588,10 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _(check_optimizations, mo):
     mo.md(
-        r"""
-    ### How to optimize these examples?
+        rf"""
+    ### How to optimize these examples? {check_optimizations}
 
     For each of the following programs, can you find out which passes should be applied?
     """
@@ -601,10 +601,15 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
+    get_checkboxes_state, set_checkboxes_state = mo.state(False)
+
     def build_example(num: int, mlir_str: str) -> tuple[list[mo.ui.checkbox], mo.vstack]:
         title = mo.md(f"#### Example {num}")
         pass_md = mo.md("`" * 3 + "mlir\n" + mlir_str + "`" * 3)
-        pass_boxes = [mo.ui.checkbox(label="cse"), mo.ui.checkbox(label="dce"), mo.ui.checkbox(label="constant-fold-interp")]
+        pass_boxes = [
+            mo.ui.checkbox(label=label, on_change=set_checkboxes_state)
+            for label in ("cse", "dce", "constant-fold-interp")
+        ]
         pass_mo = mo.vstack([title, pass_md, *pass_boxes])
         return (pass_boxes, pass_mo)
 
@@ -654,7 +659,39 @@ def _(mo):
     pass_6_boxes, pass_6_mo = build_example(6, pass_6_mlir)
 
     mo.vstack([mo.hstack([pass_1_mo, pass_2_mo]), mo.md("<br>"), mo.hstack([pass_3_mo, pass_4_mo]), mo.md("<br>"), mo.hstack([pass_5_mo, pass_6_mo])])
-    return
+    return (
+        get_checkboxes_state,
+        pass_1_boxes,
+        pass_2_boxes,
+        pass_3_boxes,
+        pass_4_boxes,
+        pass_5_boxes,
+        pass_6_boxes,
+    )
+
+
+@app.cell
+def _(
+    get_checkboxes_state,
+    mo,
+    pass_1_boxes,
+    pass_2_boxes,
+    pass_3_boxes,
+    pass_4_boxes,
+    pass_5_boxes,
+    pass_6_boxes,
+):
+    get_checkboxes_state
+
+    boxes = (*pass_1_boxes, *pass_2_boxes, *pass_3_boxes, *pass_4_boxes, *pass_5_boxes, *pass_6_boxes)
+    values = "".join(str(int(box.value)) for box in boxes)
+    expected_values = "011000100000000001"
+
+    check_optimizations = "✅" if values == expected_values else "❌"
+    values, check_optimizations
+
+    mo.hstack((mo.md("✅ Correct!" if values == expected_values else "❌ At least one exercise is incorrect"),), justify="center")
+    return (check_optimizations,)
 
 
 @app.cell(hide_code=True)
