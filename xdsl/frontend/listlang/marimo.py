@@ -1,0 +1,25 @@
+from io import StringIO
+
+import marimo as mo
+
+from xdsl.dialects import builtin
+from xdsl.interpreter import Interpreter
+from xdsl.interpreters.arith import ArithFunctions
+from xdsl.interpreters.printf import PrintfFunctions
+from xdsl.interpreters.scf import ScfFunctions
+
+
+def interp(module: builtin.ModuleOp) -> str:
+    _io = StringIO()
+
+    _i = Interpreter(module=module, file=_io)
+    _i.register_implementations(ArithFunctions())
+    _i.register_implementations(ScfFunctions())
+    _i.register_implementations(PrintfFunctions())
+    _i.run_ssacfg_region(module.body, ())
+
+    return _io.getvalue()
+
+
+def rust_md(code: str) -> mo.Html:
+    return mo.md("`" * 3 + "rust\n" + code + "\n" + "`" * 3)
