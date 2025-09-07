@@ -259,7 +259,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(bool_edit, lmo, mo, to_mlir, xmo):
-    bool_1_prefix = r"let x = 10; let y = 12;"
+    bool_1_prefix = r"let x = 5; let y = 9;"
 
     bool_1_module = to_mlir(bool_1_prefix + bool_edit.value)
     bool_1_output = lmo.interp(bool_1_module)
@@ -270,7 +270,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_1_cmp = mo.md(f"expected: {bool_1_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
     bool_1_stack = mo.vstack([mo.md("### Case 1 &nbsp;&nbsp;" + bool_1_check), lmo.rust_md(bool_1_prefix), bool_1_cmp])
 
-    bool_2_prefix = "let x = 13; let y = 18;"
+    bool_2_prefix = "let x = 7; let y = 7;"
 
     bool_2_module = to_mlir(bool_2_prefix + bool_edit.value)
     bool_2_output = lmo.interp(bool_2_module)
@@ -294,7 +294,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
     bool_3_stack = mo.vstack([mo.md("### Case 3 &nbsp;&nbsp;" + bool_3_check), lmo.rust_md(bool_3_prefix), bool_3_cmp])
 
-    bool_4_prefix = "let x = 27; let y = 7;"
+    bool_4_prefix = "let x = 3; let y = 5;"
 
     bool_4_module = to_mlir(bool_4_prefix + bool_edit.value)
     bool_4_output = lmo.interp(bool_4_module)
