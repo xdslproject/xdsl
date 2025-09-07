@@ -18,6 +18,8 @@ def interp(module: builtin.ModuleOp) -> str:
     _i.register_implementations(PrintfFunctions())
     _i.run_ssacfg_region(module.body, ())
 
+    # Lowercase to avoid capitals in `True` and `False` printing of bools.
+    # Safe since we never print strings other than `True` and `False`.
     return _io.getvalue().lower()
 
 
