@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.15.2"
-app = marimo.App()
+app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
@@ -16,7 +16,7 @@ def _():
     return (xmo,)
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo, xmo):
     from typing import Any
     from io import StringIO
@@ -52,10 +52,11 @@ def _(mo, xmo):
             all_passes = get_all_passes()
             all_passes["lower-list-to-tensor"] = lambda: LowerListToTensor()
             pipeline = PassPipeline.parse_spec(all_passes, pass_editor.value, callback)
-            labels = ["IR before a pass was executed"] + ["IR after " + p.name for p in pipeline.passes]
+            titles = xmo.pipeline_titles(pipeline.passes)
+            labels = ["IR before a pass was executed"] + ["IR after " + t for t in titles]
             pipeline.apply(Context(), module)
             module_list.append(module.clone())
-            return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list)]
+            return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
         except ParseError as e:
             return e
     return compilation_output, get_compilation_outputs_with_passes, to_mlir
@@ -739,19 +740,31 @@ def _(mo, reset_button8):
 @app.cell
 def _(example_editor8, get_compilation_outputs_with_passes, pass_editor8):
     outputs8 = get_compilation_outputs_with_passes(example_editor8, pass_editor8)
-    return (outputs8,)
+    labels8, modules8 = zip(*outputs8)
+    return labels8, outputs8
 
 
 @app.cell
-def _(mo, pass_editor8):
-    slider8 = mo.ui.slider(start=0, stop=len(pass_editor8.value.split(",")))
-    slider8
+def _(mo):
+    get_state8, set_state8 = mo.state(0)
+    return get_state8, set_state8
+
+
+@app.cell
+def _(get_state8, labels8, mo, set_state8):
+    slider8 = mo.ui.slider(start=0, stop=len(labels8) - 1, value=get_state8(), on_change=set_state8)
     return (slider8,)
 
 
 @app.cell
-def _(mo, outputs8, slider8):
-    mo.vstack([*outputs8[slider8.value]])
+def _(get_state8, labels8, mo, outputs8, set_state8):
+    tabs8 = mo.ui.tabs(dict(outputs8), value=labels8[get_state8()], on_change=lambda k: set_state8(labels8.index(k)))
+    return (tabs8,)
+
+
+@app.cell
+def _(mo, slider8, tabs8):
+    mo.vstack((slider8, tabs8))
     return
 
 
