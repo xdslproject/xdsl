@@ -43,7 +43,7 @@ def _(mo, xmo):
             printer.print_op(op)
             printer.print_string("\n")
         return output.getvalue()
-    
+
 
     def compilation_output(code_editor: Any) -> mo.md:
         try:
@@ -67,12 +67,7 @@ def _(mo, xmo):
             return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list)]
         except ParseError as e:
             return e
-    return (
-        compilation_output,
-        get_compilation_outputs_with_passes,
-        to_mlir,
-        to_str_without_module,
-    )
+    return compilation_output, get_compilation_outputs_with_passes, to_mlir
 
 
 @app.cell(hide_code=True)
@@ -408,12 +403,12 @@ def _(lmo, mo):
 
 
 @app.cell
-def _(mo, to_mlir, to_str_without_module, write_editor, write_listlang):
+def _(mo, to_mlir, write_editor, write_listlang, xmo):
     write_mlir = to_mlir(write_listlang)
 
     write_check = "✅ " if str(write_mlir) == str(write_editor.value) else "❌"
 
-    write_hint = "/// details | Need a hint?\n" + "`"*3 + "mlir\n" + to_str_without_module(to_mlir(write_listlang)) + "\n" + "`" * 3 + "\n///"
+    write_hint = "/// details | Need a hint?\n" + "`"*3 + "mlir\n" + xmo.module_str(to_mlir(write_listlang)) + "\n" + "`" * 3 + "\n///"
 
     mo.vstack([mo.md(write_check), mo.md(write_hint)])
     return
@@ -455,8 +450,9 @@ def _(mo, reset_button3):
 
 
 @app.cell(hide_code=True)
-def _(compilation_output, example_editor3):
-    compilation_output(example_editor3)
+def _(compilation_output, example_editor3, mo):
+    output1234 = compilation_output(example_editor3)
+    mo.hstack([output1234, output1234])
     return
 
 
