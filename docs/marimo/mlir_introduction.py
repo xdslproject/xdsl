@@ -58,7 +58,12 @@ def _(mo, xmo):
             return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list)]
         except ParseError as e:
             return e
-    return compilation_output, get_compilation_outputs_with_passes, to_mlir
+    return (
+        StringIO,
+        compilation_output,
+        get_compilation_outputs_with_passes,
+        to_mlir,
+    )
 
 
 @app.cell(hide_code=True)
@@ -186,18 +191,37 @@ def _(editor_add_expr, mo, prefix, to_mlir, xmo):
     else:
         # TODO: Instead of showing the parsing error, can we show the last output
         # plus the error message?
-        res = xmo.module_md(to_mlir(prefix + exp_val))
+        arithmetic_module = to_mlir(prefix + exp_val)
+        res = xmo.module_md(arithmetic_module)
 
     res
+    return (arithmetic_module,)
+
+
+@app.cell
+def _(arithmetic_module):
+    print(arithmetic_module)
     return
 
 
 @app.cell
-def _(mo):
-    # TODO: hook up the interpreter to actually compute 22 vs. 38.
+def _(StringIO, arithmetic_module, mo):
+    from xdsl.interpreter import Interpreter
+    from xdsl.interpreters.scf import ScfFunctions
+    from xdsl.interpreters.arith import ArithFunctions
+    from xdsl.interpreters.printf import PrintfFunctions
 
-    exp_output = 22
-    exp_check = "✅ " if exp_output == 38 else "❌" 
+    _io = StringIO()
+
+    _i = Interpreter(module=arithmetic_module, file=_io)
+    _i.register_implementations(ArithFunctions())
+    _i.register_implementations(ScfFunctions())
+    _i.register_implementations(PrintfFunctions())
+    _i.run_ssacfg_region(arithmetic_module.body, ())
+
+
+    exp_output = _io.getvalue()
+    exp_check = "✅ " if exp_output == "38" else "❌" 
     mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise\nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
     return (exp_check,)
 
