@@ -74,14 +74,8 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-    ## Interactive & Reactive!
-
-    This notebook is *reactive*, meaning you can *interact* with our examples. Try the sliders!
-    """
-    )
+def _(check, mo):
+    mo.md(f"<br>\n## Interactive & Reactive! &nbsp; &nbsp;{check}\n\nThis notebook is *reactive*, meaning you can *interact* with our examples. Try the sliders!")
     return
 
 
@@ -117,7 +111,7 @@ def _(interact_x, interact_y, mo):
                      f", &nbsp;&nbsp;&nbsp; {10*result_add} = {result_mul} &nbsp;&nbsp; {check}")
 
     mo.vstack([code_examples, challenge])
-    return
+    return (check,)
 
 
 @app.cell
@@ -126,10 +120,11 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _(exp_check, mo):
     mo.md(
         r"""
-    ## Arithmetic Expressions
+    <br>
+    ## Arithmetic Expressions &nbsp;&nbsp;""" + exp_check + r"""
 
     Let's explore how our language treats arithmetic expressions.
 
@@ -194,7 +189,7 @@ def _(mo):
     exp_output = 22
     exp_check = "✅ " if exp_output == 38 else "❌" 
     mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise\nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
-    return
+    return (exp_check,)
 
 
 @app.cell
@@ -225,6 +220,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
+    <br>
     ## Boolean Expressions 
 
     To try to understand this more, you can change the following example, and see how the generated MLIR code change.
