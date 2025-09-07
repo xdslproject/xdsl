@@ -34,6 +34,10 @@ def module_md(module: ModuleOp) -> mo.Html:
     return mo.md("`" * 3 + "mlir\n" + output.getvalue()[:-1] + "\n" + "`" * 3)
 
 
+def rust_md(code: str) -> mo.Html:
+    return mo.md("`" * 3 + "rust\n" + code + "\n" + "`" * 3)
+
+
 def _spec_str(p: ModulePass | PassPipeline) -> str:
     """
     A string representation of the pass passed in, to display to the user.
