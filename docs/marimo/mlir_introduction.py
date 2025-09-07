@@ -730,7 +730,7 @@ def _(mo, reset_button8):
     let c = a.map(|x| x + a.len());
     c"""
 
-    example_editor8 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
+    example_editor8 = mo.ui.code_editor(language="rust", value=_initial_code, label="Listlang code:")
     pass_editor8 = mo.ui.code_editor(value="cse,canonicalize,lower-list-to-tensor,cse,licm,canonicalize", max_height=1, label="Passes:")
 
     mo.vstack([example_editor8, pass_editor8])
