@@ -268,7 +268,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_1_check = "✅ " if bool_1_ok else "❌"
 
     bool_1_cmp = mo.md(f"expected: {bool_1_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
-    bool_1_stack = mo.vstack([mo.md("### Case 1"), lmo.rust_md(bool_1_prefix),  bool_1_cmp, mo.md(bool_1_check)])
+    bool_1_stack = mo.vstack([mo.md("### Case 1 &nbsp;&nbsp;" + bool_1_check), lmo.rust_md(bool_1_prefix), bool_1_cmp])
 
     bool_2_prefix = "let x = 13; let y = 18;"
 
@@ -279,7 +279,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_2_check = "✅ " if bool_2_ok else "❌"
 
     bool_2_cmp = mo.md(f"expected: {bool_2_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_2_output}")
-    bool_2_stack = mo.vstack([mo.md("### Case 2"), lmo.rust_md(bool_2_prefix), bool_2_cmp, mo.md(bool_2_check)])
+    bool_2_stack = mo.vstack([mo.md("### Case 2 &nbsp;&nbsp;" + bool_2_check), lmo.rust_md(bool_2_prefix), bool_2_cmp])
 
     bool_res = xmo.module_md(to_mlir(bool_1_prefix + bool_edit.value))
 
@@ -292,7 +292,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_3_check = "✅ " if bool_3_ok else "❌" 
 
     bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
-    bool_3_stack = mo.vstack([mo.md("### Case 3"), lmo.rust_md(bool_3_prefix),  bool_3_cmp, mo.md(bool_3_check)])
+    bool_3_stack = mo.vstack([mo.md("### Case 3 &nbsp;&nbsp;" + bool_3_check), lmo.rust_md(bool_3_prefix), bool_3_cmp])
 
     bool_4_prefix = "let x = 27; let y = 7;"
 
@@ -303,7 +303,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_4_check = "✅ " if bool_4_ok else "❌" 
 
     bool_4_cmp = mo.md(f"expected: {bool_4_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_4_output}")
-    bool_4_stack = mo.vstack([mo.md("### Case 4"), lmo.rust_md(bool_4_prefix), bool_4_cmp, mo.md(bool_4_check)])
+    bool_4_stack = mo.vstack([mo.md("### Case 4 &nbsp;&nbsp;" + bool_4_check), lmo.rust_md(bool_4_prefix), bool_4_cmp])
 
     bool_res = xmo.module_md(to_mlir(bool_1_prefix + bool_edit.value))
 
