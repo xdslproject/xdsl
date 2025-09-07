@@ -58,12 +58,7 @@ def _(mo, xmo):
             return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list)]
         except ParseError as e:
             return e
-    return (
-        StringIO,
-        compilation_output,
-        get_compilation_outputs_with_passes,
-        to_mlir,
-    )
+    return compilation_output, get_compilation_outputs_with_passes, to_mlir
 
 
 @app.cell(hide_code=True)
@@ -205,22 +200,14 @@ def _(arithmetic_module):
 
 
 @app.cell
-def _(StringIO, arithmetic_module, mo):
-    from xdsl.interpreter import Interpreter
-    from xdsl.interpreters.scf import ScfFunctions
-    from xdsl.interpreters.arith import ArithFunctions
-    from xdsl.interpreters.printf import PrintfFunctions
-
-    _io = StringIO()
-
-    _i = Interpreter(module=arithmetic_module, file=_io)
-    _i.register_implementations(ArithFunctions())
-    _i.register_implementations(ScfFunctions())
-    _i.register_implementations(PrintfFunctions())
-    _i.run_ssacfg_region(arithmetic_module.body, ())
+def _():
+    from xdsl.frontend.listlang import marimo as lmo
+    return (lmo,)
 
 
-    exp_output = _io.getvalue()
+@app.cell
+def _(arithmetic_module, lmo, mo):
+    exp_output = lmo.interp(arithmetic_module)
     exp_check = "✅ " if exp_output == "38" else "❌" 
     mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise\nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
     return (exp_check,)
@@ -251,9 +238,9 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(exp_check, mo):
+def _(bool_all_check, mo):
     mo.md(
-         "<br>\n## Boolean Expressions &nbsp;&nbsp;" + exp_check + r"""
+         "<br>\n## Boolean Expressions &nbsp;&nbsp;" + bool_all_check + r"""
 
     Find a Boolean expression that holds for all cases below. Use `true`, `false`, `&&`, `||`, `==`, `!=`, `<`, `>`, `<=`, `>=`.
     """
@@ -271,48 +258,52 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(bool_edit, mo, to_mlir, xmo):
+def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_1_prefix = r"let x = 10; let y = 12;"
 
-    bool_1_output = "false"
+    bool_1_module = to_mlir(bool_1_prefix + bool_edit.value)
+    bool_1_output = lmo.interp(bool_1_module)
     bool_1_expected = "true"
     bool_1_ok = bool_1_output == bool_1_expected
     bool_1_check = "✅ " if bool_1_ok else "❌"
 
     bool_1_cmp = mo.md(f"expected: {bool_1_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
-    bool_1_stack = mo.vstack([mo.md("### Case 1"), xmo.rust_md(bool_1_prefix),  bool_1_cmp, mo.md(bool_1_check)])
+    bool_1_stack = mo.vstack([mo.md("### Case 1"), lmo.rust_md(bool_1_prefix),  bool_1_cmp, mo.md(bool_1_check)])
 
     bool_2_prefix = "let x = 13; let y = 18;"
 
-    bool_2_output = "false"
+    bool_2_module = to_mlir(bool_2_prefix + bool_edit.value)
+    bool_2_output = lmo.interp(bool_2_module)
     bool_2_expected = "false"
     bool_2_ok = bool_2_output == bool_2_expected
     bool_2_check = "✅ " if bool_2_ok else "❌"
 
     bool_2_cmp = mo.md(f"expected: {bool_2_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_2_output}")
-    bool_2_stack = mo.vstack([mo.md("### Case 2"), xmo.rust_md(bool_2_prefix), bool_2_cmp, mo.md(bool_2_check)])
+    bool_2_stack = mo.vstack([mo.md("### Case 2"), lmo.rust_md(bool_2_prefix), bool_2_cmp, mo.md(bool_2_check)])
 
     bool_res = xmo.module_md(to_mlir(bool_1_prefix + bool_edit.value))
 
     bool_3_prefix = r"let x = 8; let y = 2;"
 
-    bool_3_output = "false"
+    bool_3_module = to_mlir(bool_3_prefix + bool_edit.value)
+    bool_3_output = lmo.interp(bool_3_module)
     bool_3_expected = "true"
     bool_3_ok = bool_3_output == bool_3_expected
     bool_3_check = "✅ " if bool_3_ok else "❌" 
 
     bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
-    bool_3_stack = mo.vstack([mo.md("### Case 3"), xmo.rust_md(bool_3_prefix),  bool_3_cmp, mo.md(bool_3_check)])
+    bool_3_stack = mo.vstack([mo.md("### Case 3"), lmo.rust_md(bool_3_prefix),  bool_3_cmp, mo.md(bool_3_check)])
 
     bool_4_prefix = "let x = 27; let y = 18;"
 
-    bool_4_output = "false"
+    bool_4_module = to_mlir(bool_4_prefix + bool_edit.value)
+    bool_4_output = lmo.interp(bool_4_module)
     bool_4_expected = "false"
     bool_4_ok = bool_4_output == bool_4_expected
     bool_4_check = "✅ " if bool_4_ok else "❌" 
 
     bool_4_cmp = mo.md(f"expected: {bool_4_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_4_output}")
-    bool_4_stack = mo.vstack([mo.md("### Case 4"), xmo.rust_md(bool_4_prefix), bool_4_cmp, mo.md(bool_4_check)])
+    bool_4_stack = mo.vstack([mo.md("### Case 4"), lmo.rust_md(bool_4_prefix), bool_4_cmp, mo.md(bool_4_check)])
 
     bool_res = xmo.module_md(to_mlir(bool_1_prefix + bool_edit.value))
 
@@ -322,7 +313,7 @@ def _(bool_edit, mo, to_mlir, xmo):
 
     mo.vstack([bool_res, mo.hstack([bool_1_stack, bool_2_stack]), mo.md("<br>"), 
     mo.hstack([bool_3_stack, bool_4_stack])])
-    return
+    return (bool_all_check,)
 
 
 @app.cell(hide_code=True)
