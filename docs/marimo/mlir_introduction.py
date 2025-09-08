@@ -391,7 +391,7 @@ def _(match_editor, match_listlang, mo, to_mlir, xmo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Write your own MLIR program""")
+    mo.md(r"""### Write your own MLIR program )write_che""")
     return
 
 
@@ -511,7 +511,7 @@ def _(mo, reset_button5):
 
     example5 = r"""let x = 5;
     let y = 2;
-    if x < y {y - x} else {y}"""
+    if x < y {y + x} else {y}"""
     editor5 = mo.ui.code_editor(language = "rust", value = example5, disabled = False)
     editor5
     return (editor5,)
