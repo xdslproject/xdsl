@@ -1466,10 +1466,9 @@ class TensorType(
     ) -> AttrConstraint[TensorType[AttributeInvT]]:
         if element_type is None and shape is None:
             return BaseAttr[TensorType[AttributeInvT]](TensorType)
-        element_type_constr = AnyAttr() if element_type is None else element_type
         shape_constr = AnyAttr() if shape is None else shape
         return ParamAttrConstraint[TensorType[AttributeInvT]](
-            TensorType, (shape_constr, element_type_constr, AnyAttr())
+            TensorType, (shape_constr, element_type, AnyAttr())
         )
 
 
