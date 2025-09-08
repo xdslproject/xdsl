@@ -16,8 +16,8 @@ def _():
     return (xmo,)
 
 
-@app.cell
-def _(mo, xmo):
+app._unparsable_cell(
+    r"""
     from typing import Any
     from io import StringIO
 
@@ -29,6 +29,9 @@ def _(mo, xmo):
     from xdsl.printer import Printer
     from xdsl.parser import Parser
     from xdsl.transforms import get_all_passes
+    from xdsl.transforms.dead_code_elimination import DeadCodeElimination
+    from xdsl.transforms.constant_fold_interp import ConstantFoldInterpPass
+    from xdsl.transforms.common_subexpression_elimination import CommonSubexpressionElimination
     from xdsl.context import Context
     from xdsl.frontend.listlang.lowerings import LowerListToTensor
     from xdsl.utils.exceptions import ParseError, VerifyException, InterpretationError
@@ -43,7 +46,7 @@ def _(mo, xmo):
 
     def parse_mlir(code: str) -> builtin.ModuleOp:
         context = Context()
-        for dialect in ("builtin", "scf", "arith", "printf"):
+        for dialect in (\"builtin\", \"scf\", \"arith\", \"printf\"):
             context.register_dialect(dialect, all_dialects[dialect])
         parser = Parser(context, code)
         return parser.parse_module(code)
@@ -52,35 +55,47 @@ def _(mo, xmo):
         try:
             return xmo.module_md(to_mlir(code_editor.value))
         except ParseError as e:
-            return mo.md(f"Compilation error: {e}")
+            return mo.md(f\"Compilation error: {e}\")
 
-    def get_compilation_outputs_with_passes(code_editor: Any, pass_editor: Any) -> list[tuple[str, mo.md]] | ParseError:
-        try:
-            module = to_mlir(code_editor.value)
-            module_list = [module.clone()]
-
-            def callback(pass1, module, pass2):
-                module_list.append(module.clone())
-            all_passes = get_all_passes()
-            all_passes["lower-list-to-tensor"] = lambda: LowerListToTensor()
-            pipeline = PassPipeline.parse_spec(all_passes, pass_editor.value, callback)
-            titles = xmo.pipeline_titles(pipeline.passes)
-            labels = ["Initial IR"] + ["IR after " + t for t in titles]
-            pipeline.apply(Context(), module)
+    def get_compilation_outputs_with_passes(code_editor: Any, pass_editor: Any, input=\"rust\") -> list[tuple[str, mo.md]]:
+        if input == \"rust\":
+            module = to_mlir(code_editor.value)|
+        else:
+            module = parse_mlir(code_editor.value)
+        module_list = [module.clone()]
+        def callback(pass1, module, pass2):
             module_list.append(module.clone())
-            return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
+        all_passes = get_all_passes()
+        all_passes[\"lower-list-to-tensor\"] = lambda: LowerListToTensor()
+        pipeline = PassPipeline.parse_spec(all_passes, pass_editor.value, callback)
+        titles = xmo.pipeline_titles(pipeline.passes)
+        labels = [\"Initial IR\"] + [\"IR after \" + t for t in titles]
+        pipeline.apply(Context(), module)
+        module_list.append(module.clone())
+        return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
+
+    def execute_and_catch_exceptions(fun: Any) -> Any | tuple[bool, mo.md]:
+        \"\"\"
+        execute a lambda, and return a formatted error if any exception happened. 
+        \"\"\"
+        try:
+            return fun()
         except ParseError as e:
-            return e
-    return (
-        InterpretationError,
-        ParseError,
-        StringIO,
-        VerifyException,
-        compilation_output,
-        get_compilation_outputs_with_passes,
-        parse_mlir,
-        to_mlir,
-    )
+            _error_output9 = StringIO()
+            print(e, file=_error_output9)
+            return False, mo.md(\"/// attention | Compilation error:\n\" + \"`\" * 3 + \"\n\" + _error_output9.getvalue() + \"`\" * 3 + \"\n///\")
+        except InterpretationError as e:
+            _error_output9 = StringIO()
+            print(e, file=_error_output9)
+            return False, mo.md(\"/// attention | Compilation error:\n\" + \"`\" * 3 + \"\n\" + _error_output9.getvalue() + \"`\" * 3 + \"\n///\")
+        except VerifyException as e:
+            _error_output9 = StringIO()
+            print(e.__notes__[0], file=_error_output9)
+            print(e, file=_error_output9)
+            return False, mo.md(\"/// attention | Compilation error:\n\" + \"`\" * 3 + \"\n\" + _error_output9.getvalue() + \"`\" * 3 + \"\n///\")
+    """,
+    name="_"
+)
 
 
 @app.cell(hide_code=True)
@@ -618,42 +633,20 @@ def _(editor8, lmo, parse_mlir):
 
 
 @app.cell
-def _(
-    InterpretationError,
-    ParseError,
-    StringIO,
-    VerifyException,
-    editor8,
-    mo,
-    run8_with_values,
-):
+def _(editor8, execute_and_catch_exceptions, mo, run8_with_values):
     # Wrap this in a function so we can use early return
     def _execute() -> tuple[bool, mo.md]:
         if "%res" not in editor8.value:
             return False, mo.md("""/// attention | You need to output the result in the %res value!\n///""")
-        try:
-            _test_values = [(4, 4), (4, 8), (5, 4)]
-            for (x, y) in _test_values:
-                _res = run8_with_values(x, y)
-                _expected = min(x, y)
-                if _res != min(x, y):
-                    return False, mo.md(f"❌ Incorrect value for `x = {x}` and `y = {y}`. Expected `{_expected}`, but got `{_res}`")
-            return True, mo.md("✅ The program is correct!")
-        except ParseError as e:
-            error_output8 = StringIO()
-            print(e, file=error_output8)
-            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + error_output8.getvalue() + "`" * 3 + "\n///")
-        except InterpretationError as e:
-            error_output8 = StringIO()
-            print(e, file=error_output8)
-            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + error_output8.getvalue() + "`" * 3 + "\n///")
-        except VerifyException as e:
-            _error_output8 = StringIO()
-            print(e.__notes__[0], file=_error_output8)
-            print(e, file=_error_output8)
-            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output8.getvalue() + "`" * 3 + "\n///")
+        _test_values = [(4, 4), (4, 8), (5, 4)]
+        for (x, y) in _test_values:
+            _res = run8_with_values(x, y)
+            _expected = min(x, y)
+            if _res != min(x, y):
+                return False, mo.md(f"❌ Incorrect value for `x = {x}` and `y = {y}`. Expected `{_expected}`, but got `{_res}`")
+        return True, mo.md("✅ The program is correct!")
 
-    _correct, _output = _execute()
+    _correct, _output = execute_and_catch_exceptions(_execute)
 
     exercise8_tick = "✅" if _correct else "❌"
     _output
@@ -715,42 +708,20 @@ def _(editor9, lmo, parse_mlir):
 
 
 @app.cell
-def _(
-    InterpretationError,
-    ParseError,
-    StringIO,
-    VerifyException,
-    editor9,
-    mo,
-    run9_with_values,
-):
+def _(editor9, execute_and_catch_exceptions, mo, run9_with_values):
     # Check that the program compiles and runs correctly
     def _execute():
         if "%res" not in editor9.value:
             return False, mo.md("""/// attention | You need to output the result in the %res value!\n///""")
-        try:
-            _test_values = [(1, 3, 7), (3, 5, 9), (3, 1, 4), (4, 12, 1), (4, 1, 2), (6, 5, 2), (3, 3, 3), (1, 1, 7), (3, 4, 3), (9, 1, 1)]
-            for (x, y, z) in _test_values:
-                _res = run9_with_values(x, y, z)
-                _expected = min(x, y, z)
-                if _res != min(x, y, z):
-                    return False, mo.md(f"❌ Incorrect value for `x = {x}`, `y = {y}`, and `z = {z}`. Expected `{_expected}`, but got `{_res}`")
-            return True, mo.md("✅ The program is correct!")
-        except ParseError as e:
-            _error_output9 = StringIO()
-            print(e, file=_error_output9)
-            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
-        except InterpretationError as e:
-            _error_output9 = StringIO()
-            print(e, file=_error_output9)
-            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
-        except VerifyException as e:
-            _error_output9 = StringIO()
-            print(e.__notes__[0], file=_error_output9)
-            print(e, file=_error_output9)
-            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
+        _test_values = [(1, 3, 7), (3, 5, 9), (3, 1, 4), (4, 12, 1), (4, 1, 2), (6, 5, 2), (3, 3, 3), (1, 1, 7), (3, 4, 3), (9, 1, 1)]
+        for (x, y, z) in _test_values:
+            _res = run9_with_values(x, y, z)
+            _expected = min(x, y, z)
+            if _res != min(x, y, z):
+                return False, mo.md(f"❌ Incorrect value for `x = {x}`, `y = {y}`, and `z = {z}`. Expected `{_expected}`, but got `{_res}`")
+        return True, mo.md("✅ The program is correct!")
 
-    _correct, _output = _execute()
+    _correct, _output = execute_and_catch_exceptions(_execute)
 
     exercise9_tick = "✅" if _correct else "❌"
     _output
@@ -766,7 +737,7 @@ def _(mo):
 
     Once we have an MLIR IR program, we can apply a compilation **pass**.
 
-    We already define the following passes:
+    Here is a list of passes that we will cover in the following sections:
 
     * `cse` (Constant Sub-expression Elimination): De-duplicate identical operations.
     * `dce` (Dead-Code Elimination): Removes unused side-effect free operations.
@@ -780,7 +751,7 @@ def _(mo):
 def _(check_optimizations, mo):
     mo.md(
         rf"""
-    ### How to optimize these programs? &nbsp;&nbsp; {check_optimizations}
+    ## What passes optimize these programs? &nbsp;&nbsp; {check_optimizations}
 
     For each of the following programs, what passes do you think will modify the program?
     """
@@ -897,13 +868,168 @@ def _(
 def _(mo):
     mo.md(
         r"""
-    ### Find programs that can be optimized
+    ## Write non-optimal programs 
 
-    Can you write, for each of the passes, a program that gets optimized by it?
+    Can you write, for each pass, a program that gets can be optimized by it?
+    """
+    )
+    return
 
-    TODO : EXAMPLES HERE
 
-    Here is a more complex pipeline : "cse,dce,constant-fold-interp". Can you write a program that gets optimized at each step?
+@app.cell(hide_code=True)
+def _(dce_example_tick, mo):
+    mo.md(rf"""### Case 1: Program optimized by `dce` &nbsp; {dce_example_tick}""")
+    return
+
+
+@app.cell
+def _(mo):
+    reset_button10 = mo.ui.button(label="reset")
+    reset_button10
+    return (reset_button10,)
+
+
+@app.cell
+def _(mo, reset_button10):
+    reset_button10
+
+    _default = r"""%x = arith.constant 0 : i32
+    printf.print_format "{}", %x : i32"""
+    example_editor10 = mo.ui.code_editor(value=_default)
+
+    example_editor10
+    return (example_editor10,)
+
+
+@app.cell
+def _(
+    Context,
+    DeadCodeElimination,
+    example_editor10,
+    execute_and_catch_exceptions,
+    mo,
+    parse_mlir,
+    xmo,
+):
+    def _execute():
+        module = parse_mlir(example_editor10.value)
+        str_module = str(module)
+        DeadCodeElimination().apply(Context(), module)
+        if str(module) == str_module:
+            return False, mo.md("❌ The `dce` pass had no effects on the given program.")
+        return True, mo.vstack([mo.md("✅ Some operations were removed!\n\nHere is the resulting program:\n"), xmo.module_md(module)])
+
+    _correct, _output = execute_and_catch_exceptions(_execute)
+    dce_example_tick = "✅" if _correct else "❌"
+    _output
+    return (dce_example_tick,)
+
+
+@app.cell
+def _(fold_example_tick, mo):
+    mo.md(rf"""### Case 2: Program optimized by `cse` &nbsp; {fold_example_tick}""")
+    return
+
+
+@app.cell
+def _(mo):
+    reset_button12 = mo.ui.button(label="reset")
+    reset_button12
+    return (reset_button12,)
+
+
+@app.cell
+def _(mo, reset_button12):
+    reset_button12
+
+    _default = r"""%x = arith.constant 0 : i32
+    printf.print_format "{}", %x : i32"""
+    example_editor12 = mo.ui.code_editor(value=_default)
+
+    example_editor12
+    return (example_editor12,)
+
+
+@app.cell
+def _(
+    ConstantFoldInterpPass,
+    Context,
+    example_editor12,
+    execute_and_catch_exceptions,
+    mo,
+    parse_mlir,
+    xmo,
+):
+    def _execute():
+        module = parse_mlir(example_editor12.value)
+        str_module = str(module)
+        ConstantFoldInterpPass().apply(Context(), module)
+        if str(module) == str_module:
+            return False, mo.md("❌ The `constant-fold-interp` pass had no effects on the given program.")
+        return True, mo.vstack([mo.md("✅ Some operations were removed!\n\nHere is the resulting program:\n"), xmo.module_md(module)])
+
+    _correct, _output = execute_and_catch_exceptions(_execute)
+    fold_example_tick = "✅" if _correct else "❌"
+    _output
+    return (fold_example_tick,)
+
+
+@app.cell
+def _(cse_example_tick, mo):
+    mo.md(rf"""### Case 3: Program optimized by `cse` &nbsp; {cse_example_tick}""")
+    return
+
+
+@app.cell
+def _(mo):
+    reset_button11 = mo.ui.button(label="reset")
+    reset_button11
+    return (reset_button11,)
+
+
+@app.cell
+def _(mo, reset_button11):
+    reset_button11
+
+    _default = r"""%x = arith.constant 0 : i32
+    printf.print_format "{}", %x : i32"""
+    example_editor11 = mo.ui.code_editor(value=_default)
+
+    example_editor11
+    return (example_editor11,)
+
+
+@app.cell
+def _(
+    CommonSubexpressionElimination,
+    Context,
+    example_editor11,
+    execute_and_catch_exceptions,
+    mo,
+    parse_mlir,
+    xmo,
+):
+    def _execute():
+        module = parse_mlir(example_editor11.value)
+        str_module = str(module)
+        CommonSubexpressionElimination().apply(Context(), module)
+        if str(module) == str_module:
+            return False, mo.md("❌ The `cse` pass had no effects on the given program.")
+        return True, mo.vstack([mo.md("✅ Some operations were removed!\n\nHere is the resulting program:\n"), xmo.module_md(module)])
+
+    _correct, _output = execute_and_catch_exceptions(_execute)
+    cse_example_tick = "✅" if _correct else "❌"
+    _output
+    return (cse_example_tick,)
+
+
+@app.cell
+def _(exercise4_tick, mo):
+    mo.md(
+        rf"""
+    ### Case 4: All the above! {exercise4_tick}
+
+    When we write a compilation pipeline, we use way more than a single pass. Can you find a program that gets optimized at each step of the pipeline? Here, the passes `dce`, `cse`, `constant-fold-interp, dce` are called in order. Note that `dce` is called twice in the pipeline.
     """
     )
     return
@@ -919,19 +1045,45 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo, reset_button4):
     reset_button4
+    _default = """%x = arith.constant 0 : i32
+    printf.print_format "{}", %x : i32"""
 
-    example_editor4 = mo.ui.code_editor(language="rust", placeholder="let a = ...")
-    pass_editor4 = mo.ui.code_editor(value="cse,dce,constant-fold-interp", max_height=1, label="Passes:")
+    example_editor4 = mo.ui.code_editor(language="rust", value=_default)
+    pass_editor4 = mo.ui.code_editor(value="dce,cse,constant-fold-interp,dce", max_height=1, label="Passes:")
 
     example_editor4
     return example_editor4, pass_editor4
 
 
 @app.cell(hide_code=True)
-def _(example_editor4, get_compilation_outputs_with_passes, pass_editor4):
-    outputs4 = get_compilation_outputs_with_passes(example_editor4, pass_editor4)
-    labels4, modules4 = zip(*outputs4)
-    return labels4, outputs4
+def _(
+    example_editor4,
+    execute_and_catch_exceptions,
+    get_compilation_outputs_with_passes,
+    mo,
+    pass_editor4,
+):
+    def _execute():
+        outputs4 = get_compilation_outputs_with_passes(example_editor4, pass_editor4, "mlir")
+        return True, outputs4
+
+    _, outputs4 = execute_and_catch_exceptions(_execute)
+
+    _cell_result = mo.md("")
+    correct4 = False
+    if isinstance(outputs4, mo.Html):
+        _cell_result = outputs4
+    else:
+        labels4, modules4 = zip(*outputs4)
+        if (modules4[0].text != modules4[1].text) and (modules4[1].text != modules4[2].text) and (modules4[2].text != modules4[3].text) and (modules4[3] != modules4[4].text):
+            correct4 = True
+            _cell_result = mo.md("✅ All passes had an effect!")
+        else:
+            _cell_result = mo.md("❌ At least one pass had no effects! \n\nYou can look at how the program is being modified at each pass below:")
+
+    exercise4_tick = "✅" if correct4 else "❌"
+    _cell_result
+    return exercise4_tick, labels4, outputs4
 
 
 @app.cell
