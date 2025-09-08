@@ -16,8 +16,8 @@ def _():
     return (xmo,)
 
 
-app._unparsable_cell(
-    r"""
+@app.cell
+def _(mo, xmo):
     from typing import Any
     from io import StringIO
 
@@ -46,7 +46,7 @@ app._unparsable_cell(
 
     def parse_mlir(code: str) -> builtin.ModuleOp:
         context = Context()
-        for dialect in (\"builtin\", \"scf\", \"arith\", \"printf\"):
+        for dialect in ("builtin", "scf", "arith", "printf"):
             context.register_dialect(dialect, all_dialects[dialect])
         parser = Parser(context, code)
         return parser.parse_module(code)
@@ -55,47 +55,55 @@ app._unparsable_cell(
         try:
             return xmo.module_md(to_mlir(code_editor.value))
         except ParseError as e:
-            return mo.md(f\"Compilation error: {e}\")
+            return mo.md(f"Compilation error: {e}")
 
-    def get_compilation_outputs_with_passes(code_editor: Any, pass_editor: Any, input=\"rust\") -> list[tuple[str, mo.md]]:
-        if input == \"rust\":
-            module = to_mlir(code_editor.value)|
+    def get_compilation_outputs_with_passes(code_editor: Any, pass_editor: Any, input="rust") -> list[tuple[str, mo.md]]:
+        if input == "rust":
+            module = to_mlir(code_editor.value)
         else:
             module = parse_mlir(code_editor.value)
         module_list = [module.clone()]
         def callback(pass1, module, pass2):
             module_list.append(module.clone())
         all_passes = get_all_passes()
-        all_passes[\"lower-list-to-tensor\"] = lambda: LowerListToTensor()
+        all_passes["lower-list-to-tensor"] = lambda: LowerListToTensor()
         pipeline = PassPipeline.parse_spec(all_passes, pass_editor.value, callback)
         titles = xmo.pipeline_titles(pipeline.passes)
-        labels = [\"Initial IR\"] + [\"IR after \" + t for t in titles]
+        labels = ["Initial IR"] + ["IR after " + t for t in titles]
         pipeline.apply(Context(), module)
         module_list.append(module.clone())
         return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
 
     def execute_and_catch_exceptions(fun: Any) -> Any | tuple[bool, mo.md]:
-        \"\"\"
+        """
         execute a lambda, and return a formatted error if any exception happened. 
-        \"\"\"
+        """
         try:
             return fun()
         except ParseError as e:
             _error_output9 = StringIO()
             print(e, file=_error_output9)
-            return False, mo.md(\"/// attention | Compilation error:\n\" + \"`\" * 3 + \"\n\" + _error_output9.getvalue() + \"`\" * 3 + \"\n///\")
+            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
         except InterpretationError as e:
             _error_output9 = StringIO()
             print(e, file=_error_output9)
-            return False, mo.md(\"/// attention | Compilation error:\n\" + \"`\" * 3 + \"\n\" + _error_output9.getvalue() + \"`\" * 3 + \"\n///\")
+            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
         except VerifyException as e:
             _error_output9 = StringIO()
             print(e.__notes__[0], file=_error_output9)
             print(e, file=_error_output9)
-            return False, mo.md(\"/// attention | Compilation error:\n\" + \"`\" * 3 + \"\n\" + _error_output9.getvalue() + \"`\" * 3 + \"\n///\")
-    """,
-    name="_"
-)
+            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
+    return (
+        CommonSubexpressionElimination,
+        ConstantFoldInterpPass,
+        Context,
+        DeadCodeElimination,
+        compilation_output,
+        execute_and_catch_exceptions,
+        get_compilation_outputs_with_passes,
+        parse_mlir,
+        to_mlir,
+    )
 
 
 @app.cell(hide_code=True)
