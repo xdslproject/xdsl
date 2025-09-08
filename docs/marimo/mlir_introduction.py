@@ -23,18 +23,30 @@ def _(mo, xmo):
 
     from xdsl.frontend.listlang.main import ParseError, parse_program
     from xdsl.dialects import builtin
+    from xdsl.dialects import get_all_dialects
     from xdsl.builder import Builder, InsertPoint
     from xdsl.passes import PassPipeline
     from xdsl.printer import Printer
+    from xdsl.parser import Parser
     from xdsl.transforms import get_all_passes
     from xdsl.context import Context
     from xdsl.frontend.listlang.lowerings import LowerListToTensor
+    from xdsl.utils.exceptions import ParseError, VerifyException, InterpretationError
+
+    all_dialects = get_all_dialects()
 
     def to_mlir(code: str) -> builtin.ModuleOp:
         module = builtin.ModuleOp([])
         builder = Builder(InsertPoint.at_start(module.body.block))
         parse_program(code, builder)
         return module
+
+    def parse_mlir(code: str) -> builtin.ModuleOp:
+        context = Context()
+        for dialect in ("builtin", "scf", "arith", "printf"):
+            context.register_dialect(dialect, all_dialects[dialect])
+        parser = Parser(context, code)
+        return parser.parse_module(code)
 
     def compilation_output(code_editor: Any) -> mo.md:
         try:
@@ -59,7 +71,16 @@ def _(mo, xmo):
             return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
         except ParseError as e:
             return e
-    return compilation_output, get_compilation_outputs_with_passes, to_mlir
+    return (
+        InterpretationError,
+        ParseError,
+        StringIO,
+        VerifyException,
+        compilation_output,
+        get_compilation_outputs_with_passes,
+        parse_mlir,
+        to_mlir,
+    )
 
 
 @app.cell(hide_code=True)
@@ -167,7 +188,7 @@ def _(editor_add_expr, mo, prefix, to_mlir, xmo):
 
     exp_val = editor_add_expr.value
     if exp_val.count("let"):
-        res = mo.md(r"""
+        _res = mo.md(r"""
     /// attention | Error!
 
     'let' expressions are not allowed in this exercise.
@@ -176,7 +197,7 @@ def _(editor_add_expr, mo, prefix, to_mlir, xmo):
         exp_val = ""
 
     elif num_there(exp_val):
-        res = mo.md(r"""
+        _res = mo.md(r"""
     /// attention | Error!
 
     Constants are not allowed in this exercise.
@@ -188,9 +209,9 @@ def _(editor_add_expr, mo, prefix, to_mlir, xmo):
         # TODO: Instead of showing the parsing error, can we show the last output
         # plus the error message?
         arithmetic_module = to_mlir(prefix + exp_val)
-        res = xmo.module_md(arithmetic_module)
+        _res = xmo.module_md(arithmetic_module)
 
-    res
+    _res
     return (arithmetic_module,)
 
 
@@ -370,7 +391,7 @@ def _(match_editor, match_listlang, mo, to_mlir, xmo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Write your own MLIR program""")
+    mo.md(r"""### Write your own MLIR program )write_che""")
     return
 
 
@@ -490,7 +511,7 @@ def _(mo, reset_button5):
 
     example5 = r"""let x = 5;
     let y = 2;
-    if x < y {y - x} else {y}"""
+    if x < y {y + x} else {y}"""
     editor5 = mo.ui.code_editor(language = "rust", value = example5, disabled = False)
     editor5
     return (editor5,)
@@ -534,6 +555,196 @@ def _(mo):
     return
 
 
+@app.cell
+def _(exercise8_tick, mo):
+    mo.md(
+        rf"""
+    <br>
+    ## Get your hands dirty - with the `arith` dialect
+
+    ### Exercise: Minimum of 2 values {exercise8_tick}
+
+    Write the MLIR code that computes the minimum of 2 values.
+    Use the variables `%x` and `%y`, and place the result in the `%res` variable. For comparisons, use signed opcodes (e.g. `slt, sle`).
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    editor8 = mo.ui.code_editor(placeholder="%res = ...")
+
+    # Solution:
+    """
+    %c = arith.cmpi slt, %x, %y : i32
+    %res = scf.if %c -> (i32) {
+      scf.yield %x: i32
+    } else {
+      scf.yield %y : i32
+    }
+    """
+
+    editor8
+    return (editor8,)
+
+
+@app.cell
+def _(editor8, lmo, parse_mlir):
+    def run8_with_values(x: int, y: int):
+        code = (
+            f"%x = arith.constant {x} : i32\n"
+            f"%y = arith.constant {y} : i32\n"
+            + editor8.value + "\n"
+            + 'printf.print_format "{}", %res : i32'
+        )
+        module = parse_mlir(code)
+        module.verify()
+        result = int(lmo.interp(module))
+        return result
+    return (run8_with_values,)
+
+
+@app.cell
+def _(
+    InterpretationError,
+    ParseError,
+    StringIO,
+    VerifyException,
+    editor8,
+    mo,
+    run8_with_values,
+):
+    # Wrap this in a function so we can use early return
+    def _execute() -> tuple[bool, mo.md]:
+        if "%res" not in editor8.value:
+            return False, mo.md("""/// attention | You need to output the result in the %res value!\n///""")
+        try:
+            _test_values = [(4, 4), (4, 8), (5, 4)]
+            for (x, y) in _test_values:
+                _res = run8_with_values(x, y)
+                _expected = min(x, y)
+                if _res != min(x, y):
+                    return False, mo.md(f"❌ Incorrect value for `x = {x}` and `y = {y}`. Expected `{_expected}`, but got `{_res}`")
+            return True, mo.md("✅ The program is correct!")
+        except ParseError as e:
+            error_output8 = StringIO()
+            print(e, file=error_output8)
+            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + error_output8.getvalue() + "`" * 3 + "\n///")
+        except InterpretationError as e:
+            error_output8 = StringIO()
+            print(e, file=error_output8)
+            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + error_output8.getvalue() + "`" * 3 + "\n///")
+        except VerifyException as e:
+            _error_output8 = StringIO()
+            print(e.__notes__[0], file=_error_output8)
+            print(e, file=_error_output8)
+            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output8.getvalue() + "`" * 3 + "\n///")
+
+    _correct, _output = _execute()
+
+    exercise8_tick = "✅" if _correct else "❌"
+    _output
+    return (exercise8_tick,)
+
+
+@app.cell
+def _(exercise9_tick, mo):
+    mo.md(
+        rf"""
+    ### Exercise: Minimum of 3 values {exercise9_tick}
+
+    Write the MLIR code that computes the minimum of 3 values.
+    Use the variables `%x`, `%y`, and `%z`, and place the result in the `%res` variable. For comparisons, use signed opcodes (e.g. `slt, sle`).
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    editor9 = mo.ui.code_editor(placeholder="%res = ...")
+
+    # Solution:
+    """
+    %c = arith.cmpi slt, %x, %y : i32
+    %min1 = scf.if %c -> (i32) {
+      scf.yield %x : i32
+    } else {
+      scf.yield %y : i32
+    }
+    %c2 = arith.cmpi slt, %min1, %z : i32
+    %res = scf.if %c2 -> (i32) {
+      scf.yield %min1 : i32
+    } else {
+      scf.yield %z : i32
+    }
+    """
+
+    editor9
+    return (editor9,)
+
+
+@app.cell
+def _(editor9, lmo, parse_mlir):
+    def run9_with_values(x: int, y: int, z: int):
+        code = (
+            f"%x = arith.constant {x} : i32\n"
+            f"%y = arith.constant {y} : i32\n"
+            f"%z = arith.constant {z} : i32\n"
+            + editor9.value + "\n"
+            + 'printf.print_format "{}", %res : i32'
+        )
+        module = parse_mlir(code)
+        module.verify()
+        result = int(lmo.interp(module))
+        return result
+    return (run9_with_values,)
+
+
+@app.cell
+def _(
+    InterpretationError,
+    ParseError,
+    StringIO,
+    VerifyException,
+    editor9,
+    mo,
+    run9_with_values,
+):
+    # Check that the program compiles and runs correctly
+    def _execute():
+        if "%res" not in editor9.value:
+            return False, mo.md("""/// attention | You need to output the result in the %res value!\n///""")
+        try:
+            _test_values = [(1, 3, 7), (3, 5, 9), (3, 1, 4), (4, 12, 1), (4, 1, 2), (6, 5, 2), (3, 3, 3), (1, 1, 7), (3, 4, 3), (9, 1, 1)]
+            for (x, y, z) in _test_values:
+                _res = run9_with_values(x, y, z)
+                _expected = min(x, y, z)
+                if _res != min(x, y, z):
+                    return False, mo.md(f"❌ Incorrect value for `x = {x}`, `y = {y}`, and `z = {z}`. Expected `{_expected}`, but got `{_res}`")
+            return True, mo.md("✅ The program is correct!")
+        except ParseError as e:
+            _error_output9 = StringIO()
+            print(e, file=_error_output9)
+            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
+        except InterpretationError as e:
+            _error_output9 = StringIO()
+            print(e, file=_error_output9)
+            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
+        except VerifyException as e:
+            _error_output9 = StringIO()
+            print(e.__notes__[0], file=_error_output9)
+            print(e, file=_error_output9)
+            return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
+
+    _correct, _output = _execute()
+
+    exercise9_tick = "✅" if _correct else "❌"
+    _output
+    return (exercise9_tick,)
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
@@ -554,10 +765,10 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(check_optimizations, mo):
+def _(mo):
     mo.md(
-        rf"""
-    ### How to optimize these examples? {check_optimizations}
+        r"""
+    ### How to optimize these examples?
 
     For each of the following programs, can you find out which passes should be applied?
     """
@@ -565,45 +776,34 @@ def _(check_optimizations, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
-    get_checkboxes_state, set_checkboxes_state = mo.state(False)
-
     def build_example(num: int, mlir_str: str) -> tuple[list[mo.ui.checkbox], mo.vstack]:
         title = mo.md(f"#### Example {num}")
         pass_md = mo.md("`" * 3 + "mlir\n" + mlir_str + "`" * 3)
-        pass_boxes = [
-            mo.ui.checkbox(label=label, on_change=set_checkboxes_state)
-            for label in ("cse", "dce", "constant-fold-interp")
-        ]
+        pass_boxes = [mo.ui.checkbox(label="cse"), mo.ui.checkbox(label="dce"), mo.ui.checkbox(label="constant-fold-interp")]
         pass_mo = mo.vstack([title, pass_md, *pass_boxes])
         return (pass_boxes, pass_mo)
 
-    # cse
-    pass_1_mlir = r"""%b = arith.addi %a, %a : i32
-    %c = arith.addi %a, %a : i32
-    %d = arith.addi %b, %c : i32
-    printf.print_format "{}", %d : i32
+    pass_1_mlir = r"""%x = arith.constant 3 : i32
+    %y = arith.constant 15 : i32
+    %res = arith.subi %x, %y : i32
     """
     pass_1_boxes, pass_1_mo = build_example(1, pass_1_mlir)
 
-    # dce
-    pass_2_mlir = r"""%b = arith.addi %a, %a : i32
-    %c = arith.addi %a, %a : i32
-    %d = arith.addi %b, %b : i32
-    printf.print_format "{}", %d : i32
+    pass_2_mlir = r"""%t = arith.addi %x, %x : i32
+    %t2 = arith.addi %t, %t : i32
+    printf.print_format "{}", %t2 : i32
     """
     pass_2_boxes, pass_2_mo = build_example(2, pass_2_mlir)
 
-    # constant-fold-interp
-    pass_3_mlir = r"""%x = arith.constant 3 : i32
-    %y = arith.constant 15 : i32
-    %res = arith.subi %x, %y : i32
-    printf.print_format "{}", %res : i32
+    pass_3_mlir = r"""%t = arith.muli %x, %y : i32
+    %u = arith.muli %x, %y : i32
+    %z = arith.addi %t, %u : i32
+    printf.print_format "{}", %z : i32
     """
     pass_3_boxes, pass_3_mo = build_example(3, pass_3_mlir)
 
-    # nothing
     pass_4_mlir = r"""%t = arith.addi %x, %y : i32
     %t2 = arith.addi %y, %x : i32
     %res = arith.addi %t, %t2 : i32
@@ -611,7 +811,7 @@ def _(mo):
     """
     pass_4_boxes, pass_4_mo = build_example(4, pass_4_mlir)
 
-    # nothing
+
     pass_5_mlir = r"""%c1 = arith.constant -1 : i32
     %c0 = arith.constant 0 : i32
     %t = arith.addi %x, %c0 : i32
@@ -621,7 +821,6 @@ def _(mo):
     """
     pass_5_boxes, pass_5_mo = build_example(5, pass_5_mlir)
 
-    # dce,constant-fold-interp
     pass_6_mlir = r"""%c2 = arith.constant 2 : i32
     %c4 = arith.constant 4 : i32
     %u = arith.addi %c2, %c4 : i32
@@ -632,42 +831,7 @@ def _(mo):
     pass_6_boxes, pass_6_mo = build_example(6, pass_6_mlir)
 
     mo.vstack([mo.hstack([pass_1_mo, pass_2_mo]), mo.md("<br>"), mo.hstack([pass_3_mo, pass_4_mo]), mo.md("<br>"), mo.hstack([pass_5_mo, pass_6_mo])])
-    return (
-        get_checkboxes_state,
-        pass_1_boxes,
-        pass_2_boxes,
-        pass_3_boxes,
-        pass_4_boxes,
-        pass_5_boxes,
-        pass_6_boxes,
-    )
-
-
-@app.cell
-def _(
-    get_checkboxes_state,
-    mo,
-    pass_1_boxes,
-    pass_2_boxes,
-    pass_3_boxes,
-    pass_4_boxes,
-    pass_5_boxes,
-    pass_6_boxes,
-):
-    get_checkboxes_state
-
-    boxess = (pass_1_boxes, pass_2_boxes, pass_3_boxes, pass_4_boxes, pass_5_boxes, pass_6_boxes)
-    values = "_".join(
-        "".join(str(int(box.value)) for box in boxes)
-        for boxes in boxess
-    )
-    expected_values = "100_010_001_000_000_011"
-
-    check_optimizations = "✅" if values == expected_values else "❌"
-    values, check_optimizations
-
-    mo.hstack((mo.md("✅ Correct!" if values == expected_values else "❌ At least one exercise is incorrect"),), justify="center")
-    return (check_optimizations,)
+    return
 
 
 @app.cell(hide_code=True)
