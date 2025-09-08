@@ -10,6 +10,7 @@ import xdsl.frontend.listlang.list_dialect as list_dialect
 import xdsl.frontend.listlang.lowerings as lowerings
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, scf
+from xdsl.frontend.listlang import transforms
 from xdsl.frontend.listlang.lang_types import (
     ListLangBool,
     ListLangInt,
@@ -57,6 +58,7 @@ LT_CMP = Punctuation(re.compile(r"<"), "less than comparator")
 GT_CMP = Punctuation(re.compile(r">"), "greater than comparator")
 LTE_CMP = Punctuation(re.compile(r"<="), "less than or equal comparator")
 GTE_CMP = Punctuation(re.compile(r">="), "greater than or equal comparator")
+NEQ_CMP = Punctuation(re.compile(r"!="), "not equal comparator")
 
 BOOL_AND = Punctuation(re.compile(r"&&"), "boolean and")
 BOOL_OR = Punctuation(re.compile(r"\|\|"), "boolean or")
@@ -280,6 +282,7 @@ def _parse_opt_expr_atom(
         true = builder.insert_op(
             arith.ConstantOp(builtin.IntegerAttr(1, ListLangBool().xdsl()))
         )
+        true.result.name_hint = "_true"
         negated = builder.insert_op(arith.XOrIOp(to_negate.value.value, true.result))
         negated.result.name_hint = compose_name_hints("not", to_negate.value.value)
         return Located(neg.loc, TypedExpression(negated.result, ListLangBool()))
@@ -596,6 +599,7 @@ PARSE_BINOP_PRIORITY: tuple[tuple[BinaryOp, ...], ...] = (
         Comparator(GTE_CMP, "uge"),
         Comparator(GT_CMP, "ugt"),
         Comparator(LT_CMP, "ult"),
+        Comparator(NEQ_CMP, "ne"),
     ),
     (
         BoolAnd(),
@@ -799,15 +803,28 @@ if __name__ == "__main__":
         "--to", choices=["tensor", "interp", "mlir"], help="conversion target"
     )
 
+    arg_parser.add_argument("--opt", action=argparse.BooleanOptionalAction)
+
     args = arg_parser.parse_args()
 
-    module = program_to_mlir_module(args.filename.read())
+    code = args.filename.read()
+    try:
+        module = program_to_mlir_module(code)
+    except ParseError as e:
+        line, col = e.line_column(code)
+        raise ValueError(f"Parse error (line {line}, column {col}): {e.msg}")
+
     module.verify()
+
+    ctx = Context()
+
+    if args.opt:
+        transforms.OptimizeListOps().apply(ctx, module)
+        module.verify()
 
     def lower_down_to(target: str | None):
         if target is None:
             return
-        ctx = Context()
         lowerings.LowerListToTensor().apply(ctx, module)
         module.verify()
         if target == "tensor":
