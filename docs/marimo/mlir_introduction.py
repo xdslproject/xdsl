@@ -935,7 +935,7 @@ def _(
 
 @app.cell
 def _(fold_example_tick, mo):
-    mo.md(rf"""### Case 2: Program optimized by `cse` &nbsp; {fold_example_tick}""")
+    mo.md(rf"""### Case 2: Program optimized by `constant-fold-interp` &nbsp; {fold_example_tick}""")
     return
 
 
