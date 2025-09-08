@@ -36,6 +36,7 @@ def _(mo, xmo):
     from xdsl.frontend.listlang.lowerings import LowerListToTensor
     from xdsl.utils.exceptions import VerifyException, InterpretationError
     from xdsl.utils.exceptions import ParseError as XDSLParseError
+    from xdsl.frontend.listlang.transforms import OptimizeListOps
 
     all_dialects = get_all_dialects()
 
@@ -68,6 +69,7 @@ def _(mo, xmo):
             module_list.append(module.clone())
         all_passes = get_all_passes()
         all_passes["lower-list-to-tensor"] = lambda: LowerListToTensor()
+        all_passes["optimize-lists"] = lambda: OptimizeListOps()
         pipeline = PassPipeline.parse_spec(all_passes, pass_editor.value, callback)
         titles = xmo.pipeline_titles(pipeline.passes)
         labels = ["Initial IR"] + ["IR after " + t for t in titles]
@@ -106,6 +108,7 @@ def _(mo, xmo):
         Context,
         DeadCodeElimination,
         LowerListToTensor,
+        OptimizeListOps,
         PassPipeline,
         compilation_output,
         execute_and_catch_exceptions,
@@ -1236,7 +1239,7 @@ def _(mo, reset_button20):
     c"""
 
     example_editor20 = mo.ui.code_editor(language="rust", value=_initial_code)
-    pass_editor20 = mo.ui.code_editor(value="canonicalize,cse,lower-list-to-tensor,canonicalize,licm,cse", max_height=1)
+    pass_editor20 = mo.ui.code_editor(value="optimize-lists,canonicalize,cse,lower-list-to-tensor,canonicalize,licm,cse", max_height=1)
 
     mo.vstack([example_editor20, pass_editor20])
     return example_editor20, pass_editor20
@@ -1246,6 +1249,7 @@ def _(mo, reset_button20):
 def _(
     Context,
     LowerListToTensor,
+    OptimizeListOps,
     PassPipeline,
     example_editor20,
     execute_and_catch_exceptions,
@@ -1258,6 +1262,7 @@ def _(
         _module = to_mlir(example_editor20.value)
         _all_passes = get_all_passes()
         _all_passes["lower-list-to-tensor"] = lambda: LowerListToTensor()
+        _all_passes["optimize-lists"] = lambda: OptimizeListOps()
         PassPipeline.parse_spec(_all_passes, pass_editor20.value).apply(Context(), _module)
         return True, lmo.interp(_module)
 
@@ -1314,8 +1319,8 @@ def _(get_state20, labels20, mo, set_state20):
 
 
 @app.cell
-def _(get_state20, labels20, mo, outputs20, set_state8):
-    tabs20 = mo.ui.tabs(dict(outputs20), value=labels20[get_state20()], on_change=lambda k: set_state8(labels20.index(k)))
+def _(get_state20, labels20, mo, outputs20, set_state20):
+    tabs20 = mo.ui.tabs(dict(outputs20), value=labels20[get_state20()], on_change=lambda k: set_state20(labels20.index(k)))
     return (tabs20,)
 
 
