@@ -57,7 +57,7 @@ def _(mo, xmo):
         except ParseError as e:
             return mo.md(f"Compilation error: {e}")
 
-    def get_compilation_outputs_with_passes(code_editor: Any, pass_editor: Any, input="rust") -> list[tuple[str, mo.md]]:
+    def get_compilation_outputs_with_passes(code_editor: Any, pass_editor: Any, input="rust", result="md") -> list[tuple[str, mo.md]]:
         if input == "rust":
             module = to_mlir(code_editor.value)
         else:
@@ -72,7 +72,9 @@ def _(mo, xmo):
         labels = ["Initial IR"] + ["IR after " + t for t in titles]
         pipeline.apply(Context(), module)
         module_list.append(module.clone())
-        return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
+        if result == "md":
+            return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
+        return [(label, module) for label, module in zip(labels, module_list, strict=True)]
 
     def execute_and_catch_exceptions(fun: Any) -> Any | tuple[bool, mo.md]:
         """
@@ -84,7 +86,7 @@ def _(mo, xmo):
             _error_output9 = StringIO()
             print(e, file=_error_output9)
             return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
-        except InterpretationError as e:
+        except InterpretationError as e :
             _error_output9 = StringIO()
             print(e, file=_error_output9)
             return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
@@ -1122,21 +1124,17 @@ def _(mo, slider4, tabs4):
 def _(mo):
     mo.md(
         r"""
-    ## Adding lists to our DSL
+    ## Adding new abstractions with dialects
 
-    ### Adding abstractions with dialects
-
-    Now that we have seen most of the core concepts of MLIR IR, let's now add support for lists in our DSL.
-    Our list DSL has the following operations:
+    Let's now introduce lists in our language. For that, we add the following operations:
 
     * Creating a list from a range (`x..y`)
     * Getting the length of a list (`list.len()`)
     * Mapping a function over a list (`list.map(|x| x + 1)`)
 
-    In order to represent these lists and operations in MLIR IR, we will create our custom new operations and types.
-    This is done through defining what's called a **dialect**, a namespace for a set of operations and types. One of the main advantages of defining a custom dialect for our lists, is that we can now define simple optimizations that are specific to our dialect, and that would be hard to do otherwise. For instance, we can extend the `canonicalize` pass to understand how to optimize `list.map` operations.
+    To represent them in MLIR, we create our own collection of operations and types, which is called a **dialect**.
 
-    Here is an example of a program using lists, feel free to modify it and see the generated MLIR code:
+    Try to write some programs using these features, and look at the MLIR output.
     """
     )
     return
@@ -1153,45 +1151,26 @@ def _(mo):
 def _(mo, reset_button7):
     reset_button7
 
-    _initial_code = r"""let a = 0..10;
-    let c = a.map(|x| x + a.len());
-    c"""
+    _initial_code = r"""let a = 3;
+    let b = a..10;
+    b.len()"""
 
     example_editor7 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor7 = mo.ui.code_editor(value="cse,canonicalize", max_height=1, label="Passes:")
 
-    mo.vstack([example_editor7, pass_editor7])
-    return example_editor7, pass_editor7
+    example_editor7
+    return (example_editor7,)
 
 
 @app.cell(hide_code=True)
-def _(example_editor7, get_compilation_outputs_with_passes, pass_editor7):
-    outputs7 = get_compilation_outputs_with_passes(example_editor7, pass_editor7)
-    labels7, modules7 = zip(*outputs7)
-    return labels7, outputs7
+def _(example_editor7, to_mlir, xmo):
+    outputs7 = xmo.module_md(to_mlir(example_editor7.value))
+    outputs7
+    return
 
 
 @app.cell
 def _(mo):
     get_state7, set_state7 = mo.state(0)
-    return get_state7, set_state7
-
-
-@app.cell
-def _(get_state7, labels7, mo, set_state7):
-    slider7 = mo.ui.slider(start=0, stop=len(labels7) - 1, value=get_state7(), on_change=set_state7)
-    return (slider7,)
-
-
-@app.cell
-def _(get_state7, labels7, mo, outputs7, set_state7):
-    tabs7 = mo.ui.tabs(dict(outputs7), value=labels7[get_state7()], on_change=lambda k: set_state7(labels7.index(k)))
-    return (tabs7,)
-
-
-@app.cell
-def _(mo, slider7, tabs7):
-    mo.vstack((slider7, tabs7))
     return
 
 
@@ -1199,13 +1178,12 @@ def _(mo, slider7, tabs7):
 def _(mo):
     mo.md(
         r"""
-    Note the following:
+    /// details | What do you see?
 
-    * The list type is represented as `!list.list`. This is how custom types are represented in MLIR IR `!dialect.type`.
-    * The custom operations, as well as the custom type all start with `list`, which is the name of our dialect.
-    * `list.map` uses a region to represent the function to be applied on each element of the list. This region has an argument,
-        `x`, which is the element of the list being processed. The `list.yield` operation is used to return the new value for
-        the element.
+    * Types in MLIR are displayed with the syntax `!dialect.type`.
+    * User-defined operations, as well as the custom type all start with `list`, the dialect name.
+    * `list.map` uses a region to represent the function to be applied on each element of the list. This region has an argument, terminated by `list.yield`.
+    ///
     """
     )
     return
@@ -1217,13 +1195,18 @@ def _(mo):
         r"""
     ## Lowering our abstractions to MLIR
 
-    Once our frontend produces MLIR IR, we can use passes to lower (compile) our `list` dialect to existing MLIR dialect. From there, we can use existing MLIR passes to lower our code to LLVM.
+    Now, we need to compile our abstractions to abstractions defined by MLIR. From there, we can use existing MLIR passes to lower our code to LLVM.
 
-    As we are dealing with arrays, we can compile our code to the `tensor` abstraction, along with the `scf` abstraction for control flow such as loops.
+    Here, we are compiling our dialect to the `tensor` and `scf` dialects, which can represent tensors and loops.
 
-    The tensor type we are using is `tensor<?xi32>`. This represents tensors of rank 1, with an arbitrary dimenson. We can construct an empty tensor with `tensor.empty`, and write in it with `tensor.insert`. Tensors have *value-semantics*, meaning that a `tensor.insert` returns a new tensor, and the previous one can still be reused. The way tensors are layed out in memory is defined by a lowering pass called bufferization.
+    As a last interactive example how a full compiler pipeline works, here is a code editor where you can write your own program, your own compiler pipeline, and where you can then explore the different stages of the compiler. As an exercise, can you manage to write a program that gets optimized at each level?
 
-    In order to write an entire tensor, we use `scf.for`. This is an operation with a single region with two arguments. The region argument is the iterator value, and the second one is the value that is passed to the region and then returned. It is used to represent the accumulation of a value using SSA.
+    The optimizations that you can use are the following:
+
+    * `canonicalize` : It is the combination of constant folding, dead code elimination, and additionally dialect-specific optimizations
+    * `cse` : Constant sub-expression elimination, the same pass as before
+    * `lower-list-to-tensor` : Compiles the list abstraction to the `scf` and `tensor` dialects
+    * `licm` (Loop Invariant Code Motion) : Hoist variables outside of loops when they do not depend on any variables inside the loop
     """
     )
     return
@@ -1244,8 +1227,8 @@ def _(mo, reset_button8):
     let c = a.map(|x| x + a.len());
     c"""
 
-    example_editor8 = mo.ui.code_editor(language="rust", value=_initial_code, label="Listlang code:")
-    pass_editor8 = mo.ui.code_editor(value="cse,canonicalize,lower-list-to-tensor,cse,licm,canonicalize", max_height=1, label="Passes:")
+    example_editor8 = mo.ui.code_editor(language="rust", value=_initial_code)
+    pass_editor8 = mo.ui.code_editor(value="canonicalize,cse,lower-list-to-tensor,canonicalize,licm,cse", max_height=1)
 
     mo.vstack([example_editor8, pass_editor8])
     return example_editor8, pass_editor8
