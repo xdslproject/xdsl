@@ -7,6 +7,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.scf import ScfFunctions
+from xdsl.interpreters.tensor import TensorFunctions
 
 
 def interp(module: builtin.ModuleOp) -> str:
@@ -16,6 +17,7 @@ def interp(module: builtin.ModuleOp) -> str:
     _i.register_implementations(ArithFunctions())
     _i.register_implementations(ScfFunctions())
     _i.register_implementations(PrintfFunctions())
+    _i.register_implementations(TensorFunctions())
     _i.run_ssacfg_region(module.body, ())
 
     # Lowercase to avoid capitals in `True` and `False` printing of bools.
