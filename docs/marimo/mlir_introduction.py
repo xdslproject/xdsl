@@ -1218,6 +1218,7 @@ def _(exercise20_tick, mo):
     * `cse` : Constant sub-expression elimination, the same pass as before
     * `lower-list-to-tensor` : Compiles the list abstraction to the `scf` and `tensor` dialects
     * `licm` (Loop Invariant Code Motion) : Hoist variables outside of loops when they do not depend on any variables inside the loop
+    * `optimize-lists: Apply domain-specific optimizations on the `list` dialect
     """
     )
     return
