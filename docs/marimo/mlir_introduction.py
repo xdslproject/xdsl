@@ -1151,7 +1151,9 @@ def _(mo):
 def _(mo, reset_button7):
     reset_button7
 
-    _initial_code = r"""a..10"""
+    _initial_code = r"""let a = 3;
+    let b = a..10;
+    b.len()"""
 
     example_editor7 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
 
