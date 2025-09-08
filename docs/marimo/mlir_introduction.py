@@ -574,7 +574,7 @@ def _(exercise8_tick, mo):
     <br>
     ## Get your hands dirty - with the `scf` dialect
 
-    ### Exercise: Minimum of 2 values {exercise8_tick}
+    ### Exercise: Minimum of 2 values &nbsp;&nbsp; {exercise8_tick}
 
     Write the MLIR code that computes the minimum of 2 values.
     Use the variables `%x` and `%y`, and place the result in the `%res` variable. For comparisons, use signed opcodes (e.g. `slt, sle`).
@@ -664,7 +664,7 @@ def _(
 def _(exercise9_tick, mo):
     mo.md(
         rf"""
-    ### Exercise: Minimum of 3 values {exercise9_tick}
+    ### Exercise: Minimum of 3 values &nbsp;&nbsp; {exercise9_tick}
 
     Write the MLIR code that computes the minimum of 3 values.
     Use the variables `%x`, `%y`, and `%z`, and place the result in the `%res` variable. For comparisons, use signed opcodes (e.g. `slt, sle`).
@@ -780,9 +780,9 @@ def _(mo):
 def _(check_optimizations, mo):
     mo.md(
         rf"""
-    ### How to optimize these examples? {check_optimizations}
+    ### How to optimize these programs? &nbsp;&nbsp; {check_optimizations}
 
-    For each of the following programs, can you find out which passes should be applied?
+    For each of the following programs, what passes do you think will modify the program?
     """
     )
     return
@@ -812,24 +812,24 @@ def _(mo):
 
     # dce
     pass_2_mlir = r"""%b = arith.addi %a, %a : i32
-    %c = arith.addi %a, %a : i32
+    %c = arith.muli %b, %b : i32
     %d = arith.addi %b, %b : i32
     printf.print_format "{}", %d : i32
     """
     pass_2_boxes, pass_2_mo = build_example(2, pass_2_mlir)
 
-    # constant-fold-interp
-    pass_3_mlir = r"""%x = arith.constant 3 : i32
-    %y = arith.constant 15 : i32
-    %res = arith.subi %x, %y : i32
+    # nothing
+    pass_3_mlir = r"""%t = arith.addi %x, %y : i32
+    %t2 = arith.addi %y, %x : i32
+    %res = arith.addi %t, %t2 : i32
     printf.print_format "{}", %res : i32
     """
     pass_3_boxes, pass_3_mo = build_example(3, pass_3_mlir)
 
-    # nothing
-    pass_4_mlir = r"""%t = arith.addi %x, %y : i32
-    %t2 = arith.addi %y, %x : i32
-    %res = arith.addi %t, %t2 : i32
+    # constant-fold-interp
+    pass_4_mlir = r"""%x = arith.constant 3 : i32
+    %y = arith.constant 15 : i32
+    %res = arith.subi %x, %y : i32
     printf.print_format "{}", %res : i32
     """
     pass_4_boxes, pass_4_mo = build_example(4, pass_4_mlir)
@@ -884,7 +884,7 @@ def _(
         "".join(str(int(box.value)) for box in boxes)
         for boxes in boxess
     )
-    expected_values = "100_010_001_000_000_011"
+    expected_values = "100_010_000_001_000_011"
 
     check_optimizations = "✅" if values == expected_values else "❌"
     values, check_optimizations
