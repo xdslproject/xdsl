@@ -195,12 +195,6 @@ def _(editor_add_expr, mo, prefix, to_mlir, xmo):
 
 
 @app.cell
-def _(arithmetic_module):
-    print(arithmetic_module)
-    return
-
-
-@app.cell
 def _():
     from xdsl.frontend.listlang import marimo as lmo
     return (lmo,)
@@ -225,6 +219,8 @@ def _(mo):
     3) Each variable name begins with **%**.<br>
     4) Some operations (e.g., `printf.print_format`) do not yield results and do not define new variables.
 
+    ///
+
     ### The Components of an MLIR Operation
 
     <span data-tooltip="The return value of the operation">`%c1`</span> = <span data-tooltip="The dialect (namespace) of the operation">`arith`</span>`.`<span data-tooltip="The name of the operation">`constant`</span> <span data-tooltip="Call-site specific static information">1</span> `:` <span data-tooltip="The type of the return value"> i32</span><br>
@@ -232,7 +228,6 @@ def _(mo):
     <span data-tooltip="The dialect (namespace) of the operation">`printf`</span>`.`<span data-tooltip="The name of the operation">`print_format`</span> <span data-tooltip="Call-site specific static information">`"{}"`</span>`,`  <span data-tooltip="A list of operands">`%result`</span>  `:` <span data-tooltip="The type of the operand"> i32</span>
 
     Explore by hovering over the IR.
-    ///
     """
     )
     return
@@ -395,12 +390,15 @@ def _(lmo, mo):
 
 
 @app.cell
-def _(mo, to_mlir, write_editor, write_listlang, xmo):
+def _(mo, to_mlir, write_editor, write_listlang):
     write_mlir = to_mlir(write_listlang)
 
     write_check = "✅ " if str(write_mlir) == str(write_editor.value) else "❌"
 
-    write_hint = "/// details | Need a hint?\n" + "`"*3 + "mlir\n" + xmo.module_str(to_mlir(write_listlang)) + "\n" + "`" * 3 + "\n///"
+    write_hint = """/// details | Need a hint?
+    * Make sure the names are correct
+    * Did you add the print statement at the end?
+    ///"""
 
     mo.vstack([mo.md(write_check), mo.md(write_hint)])
     return
@@ -468,101 +466,69 @@ def _(compilation_output, example_editor3, mo, to_mlir, xmo):
 def _(mo):
     mo.md(
         r"""
+    <br>
     ## Control flow with Regions
 
-    Now that we have shown how computations work, let's look at how to model control-flow.
+    Now, let's look at how MLIR can handle control-flow with **regions**!
 
-    ### `scf.if`
-
-    As a simple first example of control-flow, let's look at a ternary condition. The following example computes the minimum between `x` and `y`:
+    Here is a simple program that has an if condition. Take a look at how it is compiled to MLIR, and feel free to change the original program. What happens when you nest if statements?
     """
     )
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
-    example5 = r"""
-    let x = 5;
-    let y = 7;
-    if x < y {x} else {y}
-    """
+    reset_button5 = mo.ui.button(label="reset")
+    reset_button5
+    return (reset_button5,)
 
-    mo.ui.code_editor(language = "rust", value = example5, disabled = True)
-    return (example5,)
+
+@app.cell(hide_code=True)
+def _(mo, reset_button5):
+    reset_button5
+
+    example5 = r"""let x = 5;
+    let y = 2;
+    if x < y {y - x} else {y}"""
+    editor5 = mo.ui.code_editor(language = "rust", value = example5, disabled = False)
+    editor5
+    return (editor5,)
 
 
 @app.cell
-def _(example5, to_mlir, xmo):
-    xmo.module_md(to_mlir(example5))
+def _(compilation_output, editor5):
+    compilation_output(editor5)
     return
 
 
-@app.cell(hide_code=True)
-def _(mo, reset_button6):
-    reset_button6
-
-    _initial_code = r"""let x = 5;
-    let y = 7;
-    if x < y {x} else {y}"""
-
-    example_editor6 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
-    pass_editor6 = mo.ui.code_editor(value="cse,canonicalize", max_height=1, label="Passes:")
-
-    mo.vstack([example_editor6, pass_editor6])
-    return example_editor6, pass_editor6
-
-
 @app.cell
-def _(mo):
-    reset_button6 = mo.ui.button(label="reset")
-    reset_button6
-    return (reset_button6,)
-
-
-@app.cell(hide_code=True)
-def _(example_editor6, get_compilation_outputs_with_passes, pass_editor6):
-    outputs6 = get_compilation_outputs_with_passes(example_editor6, pass_editor6)
-    labels6, modules6 = zip(*outputs6)
-    return labels6, outputs6
-
-
-@app.cell
-def _(mo):
-    get_state6, set_state6 = mo.state(0)
-    return get_state6, set_state6
-
-
-@app.cell
-def _(get_state6, labels6, mo, set_state6):
-    slider6 = mo.ui.slider(start=0, stop=len(labels6) - 1, value=get_state6(), on_change=set_state6)
-    return (slider6,)
-
-
-@app.cell
-def _(get_state6, labels6, mo, outputs6, set_state6):
-    tabs6 = mo.ui.tabs(dict(outputs6), value=labels6[get_state6()], on_change=lambda k: set_state6(labels6.index(k)))
-    return (tabs6,)
-
-
-@app.cell
-def _(mo, slider6, tabs6):
-    mo.vstack((slider6, tabs6))
-    return
-
-
-@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-    We can see the following in the generated MLIR IR:
+    /// details | What do you see?
+    * If expressions are represented by an `scf.if`.
+    * An `scf.if` contains two regions, similar to an if expression.
+    * Each region ends with an operation called a **terminator**. For `scf.if`, it is an `scf.yield`, and it returns the value computed in the region.
+    ///
+    """
+    )
+    return
 
-    * The `if` is represented using an `scf.if` operation. `scf` stands for "structured control-flow".
-    * `scf.if` contains two **regions**. A region is a section of code that contains another list of operation (we will explain this more in details later).
-    * Only one region is executed, this logic comes from `scf.if`. In general, operations that have regions decide when they are executed through compilation passes.
-    * Each region ends with an `scf.yield`, this is the "value" that is leaving the region when the region gets executed, and that gets returned by the `scf.if` operation.
 
-    Try to change the following program, and look at the effect of different optimization passes!
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    Here is the skeleton of an `scf.if`:
+
+    <span data-tooltip="The if expression return value">`%res`</span> = <span data-tooltip="The operation name">scf.if</span> <span data-tooltip="The condition (of type i1)"> `%cond` </span> `->` <span data-tooltip="The if expression return type">`(i32)`</span> {<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span data-tooltip="The operations to execute in the true branch">`%val_true = arith.addi %x, %y : i32`</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span data-tooltip="The scf.if terminator operation">`scf.yield`</span> <span data-tooltip="The value to return when the condition is true">`%val_true`</span> `:` <span data-tooltip="The if expression return type">`i32`</span><br>
+    `} else {`<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span data-tooltip="The operations to execute in the false branch">`%val_false = arith.addi %x, %y : i32`</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span data-tooltip="The scf.if terminator operation">`scf.yield`</span> <span data-tooltip="The value to return when the condition is false">`%val_false`</span> `:` <span data-tooltip="The if expression return type">`i32`</span><br>
+    }
     """
     )
     return
