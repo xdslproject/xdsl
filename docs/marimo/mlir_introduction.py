@@ -315,7 +315,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
 
     bool_1_module = to_mlir(bool_1_prefix + bool_edit.value)
     bool_1_output = lmo.interp(bool_1_module)
-    bool_1_expected = "-1"
+    bool_1_expected = "true"
     bool_1_ok = bool_1_output == bool_1_expected
     bool_1_check = "✅ " if bool_1_ok else "❌"
 
@@ -326,7 +326,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
 
     bool_2_module = to_mlir(bool_2_prefix + bool_edit.value)
     bool_2_output = lmo.interp(bool_2_module)
-    bool_2_expected = "0"
+    bool_2_expected = "false"
     bool_2_ok = bool_2_output == bool_2_expected
     bool_2_check = "✅ " if bool_2_ok else "❌"
 
@@ -339,7 +339,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
 
     bool_3_module = to_mlir(bool_3_prefix + bool_edit.value)
     bool_3_output = lmo.interp(bool_3_module)
-    bool_3_expected = "-1"
+    bool_3_expected = "true"
     bool_3_ok = bool_3_output == bool_3_expected
     bool_3_check = "✅ " if bool_3_ok else "❌"
 
@@ -350,7 +350,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
 
     bool_4_module = to_mlir(bool_4_prefix + bool_edit.value)
     bool_4_output = lmo.interp(bool_4_module)
-    bool_4_expected = "-1"
+    bool_4_expected = "true"
     bool_4_ok = bool_4_output == bool_4_expected
     bool_4_check = "✅ " if bool_4_ok else "❌"
 
