@@ -34,7 +34,8 @@ def _(mo, xmo):
     from xdsl.transforms.common_subexpression_elimination import CommonSubexpressionElimination
     from xdsl.context import Context
     from xdsl.frontend.listlang.lowerings import LowerListToTensor
-    from xdsl.utils.exceptions import ParseError, VerifyException, InterpretationError
+    from xdsl.utils.exceptions import VerifyException, InterpretationError
+    from xdsl.utils.exceptions import ParseError as XDSLParseError
 
     all_dialects = get_all_dialects()
 
@@ -86,10 +87,14 @@ def _(mo, xmo):
             _error_output9 = StringIO()
             print(e, file=_error_output9)
             return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
-        except InterpretationError as e :
+        except XDSLParseError as e:
             _error_output9 = StringIO()
             print(e, file=_error_output9)
             return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
+        except InterpretationError as e:
+            _error_output9 = StringIO()
+            print(e, file=_error_output9)
+            return False, mo.md("/// attention | Interpretation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
         except VerifyException as e:
             _error_output9 = StringIO()
             print(e.__notes__[0], file=_error_output9)
@@ -100,8 +105,11 @@ def _(mo, xmo):
         ConstantFoldInterpPass,
         Context,
         DeadCodeElimination,
+        LowerListToTensor,
+        PassPipeline,
         compilation_output,
         execute_and_catch_exceptions,
+        get_all_passes,
         get_compilation_outputs_with_passes,
         parse_mlir,
         to_mlir,
@@ -1214,54 +1222,106 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    reset_button8 = mo.ui.button(label="reset")
-    reset_button8
-    return (reset_button8,)
+    reset_button20 = mo.ui.button(label="reset")
+    reset_button20
+    return (reset_button20,)
 
 
 @app.cell(hide_code=True)
-def _(mo, reset_button8):
-    reset_button8
+def _(mo, reset_button20):
+    reset_button20
 
     _initial_code = r"""let a = 0..10;
     let c = a.map(|x| x + a.len());
     c"""
 
-    example_editor8 = mo.ui.code_editor(language="rust", value=_initial_code)
-    pass_editor8 = mo.ui.code_editor(value="canonicalize,cse,lower-list-to-tensor,canonicalize,licm,cse", max_height=1)
+    example_editor20 = mo.ui.code_editor(language="rust", value=_initial_code)
+    pass_editor20 = mo.ui.code_editor(value="canonicalize,cse,lower-list-to-tensor,canonicalize,licm,cse", max_height=1)
 
-    mo.vstack([example_editor8, pass_editor8])
-    return example_editor8, pass_editor8
+    mo.vstack([example_editor20, pass_editor20])
+    return example_editor20, pass_editor20
 
 
 @app.cell
-def _(example_editor8, get_compilation_outputs_with_passes, pass_editor8):
-    outputs8 = get_compilation_outputs_with_passes(example_editor8, pass_editor8)
-    labels8, modules8 = zip(*outputs8)
-    return labels8, outputs8
+def _(
+    Context,
+    LowerListToTensor,
+    PassPipeline,
+    example_editor20,
+    execute_and_catch_exceptions,
+    get_all_passes,
+    lmo,
+    pass_editor20,
+    to_mlir,
+):
+    def _exec():
+        _module = to_mlir(example_editor20.value)
+        _all_passes = get_all_passes()
+        _all_passes["lower-list-to-tensor"] = lambda: LowerListToTensor()
+        PassPipeline.parse_spec(_all_passes, pass_editor20.value).apply(Context(), _module)
+        return True, lmo.interp(_module)
+
+    _, exec_res20 = execute_and_catch_exceptions(_exec)
+
+    exec_res20
+    return
+
+
+@app.cell
+def _(
+    example_editor20,
+    execute_and_catch_exceptions,
+    get_compilation_outputs_with_passes,
+    mo,
+    pass_editor20,
+):
+    def _execute():
+        outputs20 = get_compilation_outputs_with_passes(example_editor20, pass_editor20)
+        return True, outputs20
+
+    _, outputs20 = execute_and_catch_exceptions(_execute)
+
+    _cell_result = mo.md("")
+    correct20 = False
+    if isinstance(outputs20, mo.Html):
+        _cell_result = outputs20
+        labels20 = []
+        modules20 = []
+    else:
+        labels20, modules20 = zip(*outputs20)
+        texts20 = {m.text for m in modules20}
+        if len(texts20) == len(modules20):
+            correct20 = True
+            _cell_result = mo.md("✅ All passes had an effect!")
+        else:
+            _cell_result = mo.md("❌ At least one pass had no effects! \n\nYou can look at how the program is being modified at each pass below:")
+
+    exercise20_tick = "✅" if correct20 else "❌"
+    _cell_result
+    return labels20, outputs20
 
 
 @app.cell
 def _(mo):
-    get_state8, set_state8 = mo.state(0)
-    return get_state8, set_state8
+    get_state20, set_state20 = mo.state(0)
+    return get_state20, set_state20
 
 
 @app.cell
-def _(get_state8, labels8, mo, set_state8):
-    slider8 = mo.ui.slider(start=0, stop=len(labels8) - 1, value=get_state8(), on_change=set_state8)
-    return (slider8,)
+def _(get_state20, labels20, mo, set_state20):
+    slider20 = mo.ui.slider(start=0, stop=len(labels20) - 1, value=get_state20(), on_change=set_state20)
+    return (slider20,)
 
 
 @app.cell
-def _(get_state8, labels8, mo, outputs8, set_state8):
-    tabs8 = mo.ui.tabs(dict(outputs8), value=labels8[get_state8()], on_change=lambda k: set_state8(labels8.index(k)))
-    return (tabs8,)
+def _(get_state20, labels20, mo, outputs20, set_state8):
+    tabs20 = mo.ui.tabs(dict(outputs20), value=labels20[get_state20()], on_change=lambda k: set_state8(labels20.index(k)))
+    return (tabs20,)
 
 
 @app.cell
-def _(mo, slider8, tabs8):
-    mo.vstack((slider8, tabs8))
+def _(mo, slider20, tabs20):
+    mo.vstack((slider20, tabs20))
     return
 
 
