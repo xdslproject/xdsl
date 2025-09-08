@@ -60,3 +60,13 @@ class ParseError(Exception):
     @staticmethod
     def from_loc(loc: Location, msg: str) -> "ParseError":
         return ParseError(loc.pos, msg)
+
+    def line_column(self, code: str) -> tuple[int, int]:
+        if self.position < 0 or self.position > len(code):
+            raise ValueError("error position is out of code range")
+
+        line = code.count("\n", 0, self.position) + 1
+
+        last_newline = code.rfind("\n", 0, self.position)
+        column = self.position - last_newline
+        return line, column
