@@ -880,7 +880,7 @@ def _(mo):
         r"""
     ## Write non-optimal programs 
 
-    Can you write, for each pass, a program that gets can be optimized by it?
+    Can you write, for each pass, a program that would be optimized by it?
     """
     )
     return
