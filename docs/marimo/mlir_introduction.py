@@ -1198,10 +1198,10 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _(exercise20_tick, mo):
     mo.md(
-        r"""
-    ## Lowering our abstractions to MLIR
+        rf"""
+    ## Lowering our abstractions to MLIR {exercise20_tick}
 
     Now, we need to compile our abstractions to abstractions defined by MLIR. From there, we can use existing MLIR passes to lower our code to LLVM.
 
@@ -1298,7 +1298,7 @@ def _(
 
     exercise20_tick = "✅" if correct20 else "❌"
     _cell_result
-    return labels20, outputs20
+    return exercise20_tick, labels20, outputs20
 
 
 @app.cell
