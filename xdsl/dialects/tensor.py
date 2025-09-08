@@ -43,7 +43,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import NoMemoryEffect
+from xdsl.traits import NoMemoryEffect, Pure
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -109,7 +109,7 @@ class DimOp(IRDLOperation):
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(
         self,
