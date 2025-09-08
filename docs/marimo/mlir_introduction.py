@@ -96,8 +96,15 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(check, mo):
-    mo.md(f"""<br>\n## Interactive & Reactive! &nbsp; &nbsp;{check}\n\nThis notebook is *reactive*, meaning you can *interact* with our examples. Try the sliders!""")
+def _(mo):
+    mo.md(
+        f"""
+    <br>
+    ## Interactive & Reactive!
+
+    This notebook is *reactive*, meaning you can *interact* with our examples. Try the sliders!
+    """
+    )
     return
 
 
@@ -129,11 +136,11 @@ def _(interact_x, interact_y, mo):
 
     check = "✅ " if 10 * result_add == result_mul else "❌"
 
-    challenge = mo.md("<br>\n### Exercise\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
+    challenge = mo.md(f"<br>\n### Exercise &nbsp; &nbsp;{check}\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
                      f", &nbsp;&nbsp;&nbsp; {10*result_add} = {result_mul} &nbsp;&nbsp; {check}")
 
     mo.vstack([code_examples, challenge])
-    return (check,)
+    return
 
 
 @app.cell
@@ -142,11 +149,11 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(exp_check, mo):
+def _(mo):
     mo.md(
         r"""
     <br>
-    ## Arithmetic Expressions &nbsp;&nbsp;""" + exp_check + r"""
+    ## Arithmetic Expressions""" + r"""
 
     Let's explore how our language treats arithmetic expressions.
 
@@ -225,8 +232,8 @@ def _():
 def _(arithmetic_module, lmo, mo):
     exp_output = lmo.interp(arithmetic_module)
     exp_check = "✅ " if exp_output == "38" else "❌"
-    mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise\nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
-    return (exp_check,)
+    mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise &nbsp;&nbsp; {exp_check} \nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
+    return
 
 
 @app.cell
@@ -257,7 +264,10 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(bool_all_check, mo):
     mo.md(
-         "<br>\n## Boolean Expressions &nbsp;&nbsp;" + bool_all_check + r"""
+        f"""
+    <br>\n## Boolean Expressions 
+
+    ### Exercise {bool_all_check}
 
     Find a Boolean expression that holds for all cases below. Use `true`, `false`, `&&`, `||`, `==`, `!=`, `<`, `>`, `<=`, `>=`.
     """
@@ -359,7 +369,7 @@ def _(mo):
 
 @app.cell
 def _(match_check, mo):
-    mo.md("### Match an MLIR Program &nbsp;&nbsp;" + match_check)
+    mo.md("### Exercise: Match an MLIR Program &nbsp;&nbsp;" + match_check)
     return
 
 
@@ -390,8 +400,8 @@ def _(match_editor, match_listlang, mo, to_mlir, xmo):
 
 
 @app.cell
-def _(mo):
-    mo.md(r"""### Write your own MLIR program )write_che""")
+def _(mo, write_check):
+    mo.md(rf"""### Exercise: Write your own MLIR program &nbsp;&nbsp; {write_check}""")
     return
 
 
@@ -422,7 +432,7 @@ def _(mo, to_mlir, write_editor, write_listlang):
     ///"""
 
     mo.vstack([mo.md(write_check), mo.md(write_hint)])
-    return
+    return (write_check,)
 
 
 @app.cell(hide_code=True)
@@ -430,9 +440,11 @@ def _(check_ssa, mo):
     mo.md(
         rf"""
     <br>
-    ## Static Single-Assignment (SSA)  {check_ssa}
+    ## Static Single-Assignment (SSA)
 
     MLIR IR uses **single static-assignment form** (SSA). In short, this means that every value (variable) is defined only once, and temporary values are defined for each intermediate expressions. We add an `_` on each variable name introduced to satisfy SSA.
+
+    ### Exercise &nbsp;&nbsp; {check_ssa}
 
     Try to SSA-ify the following rust program to make it look like the result on the right!
     """
@@ -560,7 +572,7 @@ def _(exercise8_tick, mo):
     mo.md(
         rf"""
     <br>
-    ## Get your hands dirty - with the `arith` dialect
+    ## Get your hands dirty - with the `scf` dialect
 
     ### Exercise: Minimum of 2 values {exercise8_tick}
 
