@@ -96,8 +96,15 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(check, mo):
-    mo.md(f"""<br>\n## Interactive & Reactive! &nbsp; &nbsp;{check}\n\nThis notebook is *reactive*, meaning you can *interact* with our examples. Try the sliders!""")
+def _(mo):
+    mo.md(
+        f"""
+    <br>
+    ## Interactive & Reactive!
+
+    This notebook is *reactive*, meaning you can *interact* with our examples. Try the sliders!
+    """
+    )
     return
 
 
@@ -129,11 +136,11 @@ def _(interact_x, interact_y, mo):
 
     check = "✅ " if 10 * result_add == result_mul else "❌"
 
-    challenge = mo.md("<br>\n### Exercise\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
+    challenge = mo.md(f"<br>\n### Exercise &nbsp; &nbsp;{check}\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
                      f", &nbsp;&nbsp;&nbsp; {10*result_add} = {result_mul} &nbsp;&nbsp; {check}")
 
     mo.vstack([code_examples, challenge])
-    return (check,)
+    return
 
 
 @app.cell
@@ -142,11 +149,11 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(exp_check, mo):
+def _(mo):
     mo.md(
         r"""
     <br>
-    ## Arithmetic Expressions &nbsp;&nbsp;""" + exp_check + r"""
+    ## Arithmetic Expressions""" + r"""
 
     Let's explore how our language treats arithmetic expressions.
 
@@ -225,8 +232,8 @@ def _():
 def _(arithmetic_module, lmo, mo):
     exp_output = lmo.interp(arithmetic_module)
     exp_check = "✅ " if exp_output == "38" else "❌"
-    mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise\nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
-    return (exp_check,)
+    mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise &nbsp;&nbsp; {exp_check} \nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
+    return
 
 
 @app.cell
@@ -257,7 +264,10 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(bool_all_check, mo):
     mo.md(
-         "<br>\n## Boolean Expressions &nbsp;&nbsp;" + bool_all_check + r"""
+        f"""
+    <br>\n## Boolean Expressions 
+
+    ### Exercise {bool_all_check}
 
     Find a Boolean expression that holds for all cases below. Use `true`, `false`, `&&`, `||`, `==`, `!=`, `<`, `>`, `<=`, `>=`.
     """
@@ -359,7 +369,7 @@ def _(mo):
 
 @app.cell
 def _(match_check, mo):
-    mo.md("### Match an MLIR Program &nbsp;&nbsp;" + match_check)
+    mo.md("### Exercise: Match an MLIR Program &nbsp;&nbsp;" + match_check)
     return
 
 
@@ -390,8 +400,8 @@ def _(match_editor, match_listlang, mo, to_mlir, xmo):
 
 
 @app.cell
-def _(mo):
-    mo.md(r"""### Write your own MLIR program )write_che""")
+def _(mo, write_check):
+    mo.md(rf"""### Exercise: Write your own MLIR program &nbsp;&nbsp; {write_check}""")
     return
 
 
@@ -422,7 +432,7 @@ def _(mo, to_mlir, write_editor, write_listlang):
     ///"""
 
     mo.vstack([mo.md(write_check), mo.md(write_hint)])
-    return
+    return (write_check,)
 
 
 @app.cell(hide_code=True)
@@ -430,9 +440,11 @@ def _(check_ssa, mo):
     mo.md(
         rf"""
     <br>
-    ## Static Single-Assignment (SSA)  {check_ssa}
+    ## Static Single-Assignment (SSA)
 
     MLIR IR uses **single static-assignment form** (SSA). In short, this means that every value (variable) is defined only once, and temporary values are defined for each intermediate expressions. We add an `_` on each variable name introduced to satisfy SSA.
+
+    ### Exercise &nbsp;&nbsp; {check_ssa}
 
     Try to SSA-ify the following rust program to make it look like the result on the right!
     """
@@ -560,9 +572,9 @@ def _(exercise8_tick, mo):
     mo.md(
         rf"""
     <br>
-    ## Get your hands dirty - with the `arith` dialect
+    ## Get your hands dirty - with the `scf` dialect
 
-    ### Exercise: Minimum of 2 values {exercise8_tick}
+    ### Exercise: Minimum of 2 values &nbsp;&nbsp; {exercise8_tick}
 
     Write the MLIR code that computes the minimum of 2 values.
     Use the variables `%x` and `%y`, and place the result in the `%res` variable. For comparisons, use signed opcodes (e.g. `slt, sle`).
@@ -652,7 +664,7 @@ def _(
 def _(exercise9_tick, mo):
     mo.md(
         rf"""
-    ### Exercise: Minimum of 3 values {exercise9_tick}
+    ### Exercise: Minimum of 3 values &nbsp;&nbsp; {exercise9_tick}
 
     Write the MLIR code that computes the minimum of 3 values.
     Use the variables `%x`, `%y`, and `%z`, and place the result in the `%res` variable. For comparisons, use signed opcodes (e.g. `slt, sle`).
@@ -765,53 +777,64 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _(check_optimizations, mo):
     mo.md(
-        r"""
-    ### How to optimize these examples?
+        rf"""
+    ### How to optimize these programs? &nbsp;&nbsp; {check_optimizations}
 
-    For each of the following programs, can you find out which passes should be applied?
+    For each of the following programs, what passes do you think will modify the program?
     """
     )
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
+    get_checkboxes_state, set_checkboxes_state = mo.state(False)
+
     def build_example(num: int, mlir_str: str) -> tuple[list[mo.ui.checkbox], mo.vstack]:
         title = mo.md(f"#### Example {num}")
         pass_md = mo.md("`" * 3 + "mlir\n" + mlir_str + "`" * 3)
-        pass_boxes = [mo.ui.checkbox(label="cse"), mo.ui.checkbox(label="dce"), mo.ui.checkbox(label="constant-fold-interp")]
+        pass_boxes = [
+            mo.ui.checkbox(label=label, on_change=set_checkboxes_state)
+            for label in ("cse", "dce", "constant-fold-interp")
+        ]
         pass_mo = mo.vstack([title, pass_md, *pass_boxes])
         return (pass_boxes, pass_mo)
 
-    pass_1_mlir = r"""%x = arith.constant 3 : i32
-    %y = arith.constant 15 : i32
-    %res = arith.subi %x, %y : i32
+    # cse
+    pass_1_mlir = r"""%b = arith.addi %a, %a : i32
+    %c = arith.addi %a, %a : i32
+    %d = arith.addi %b, %c : i32
+    printf.print_format "{}", %d : i32
     """
     pass_1_boxes, pass_1_mo = build_example(1, pass_1_mlir)
 
-    pass_2_mlir = r"""%t = arith.addi %x, %x : i32
-    %t2 = arith.addi %t, %t : i32
-    printf.print_format "{}", %t2 : i32
+    # dce
+    pass_2_mlir = r"""%b = arith.addi %a, %a : i32
+    %c = arith.muli %b, %b : i32
+    %d = arith.addi %b, %b : i32
+    printf.print_format "{}", %d : i32
     """
     pass_2_boxes, pass_2_mo = build_example(2, pass_2_mlir)
 
-    pass_3_mlir = r"""%t = arith.muli %x, %y : i32
-    %u = arith.muli %x, %y : i32
-    %z = arith.addi %t, %u : i32
-    printf.print_format "{}", %z : i32
-    """
-    pass_3_boxes, pass_3_mo = build_example(3, pass_3_mlir)
-
-    pass_4_mlir = r"""%t = arith.addi %x, %y : i32
+    # nothing
+    pass_3_mlir = r"""%t = arith.addi %x, %y : i32
     %t2 = arith.addi %y, %x : i32
     %res = arith.addi %t, %t2 : i32
     printf.print_format "{}", %res : i32
     """
+    pass_3_boxes, pass_3_mo = build_example(3, pass_3_mlir)
+
+    # constant-fold-interp
+    pass_4_mlir = r"""%x = arith.constant 3 : i32
+    %y = arith.constant 15 : i32
+    %res = arith.subi %x, %y : i32
+    printf.print_format "{}", %res : i32
+    """
     pass_4_boxes, pass_4_mo = build_example(4, pass_4_mlir)
 
-
+    # nothing
     pass_5_mlir = r"""%c1 = arith.constant -1 : i32
     %c0 = arith.constant 0 : i32
     %t = arith.addi %x, %c0 : i32
@@ -821,6 +844,7 @@ def _(mo):
     """
     pass_5_boxes, pass_5_mo = build_example(5, pass_5_mlir)
 
+    # dce,constant-fold-interp
     pass_6_mlir = r"""%c2 = arith.constant 2 : i32
     %c4 = arith.constant 4 : i32
     %u = arith.addi %c2, %c4 : i32
@@ -831,7 +855,42 @@ def _(mo):
     pass_6_boxes, pass_6_mo = build_example(6, pass_6_mlir)
 
     mo.vstack([mo.hstack([pass_1_mo, pass_2_mo]), mo.md("<br>"), mo.hstack([pass_3_mo, pass_4_mo]), mo.md("<br>"), mo.hstack([pass_5_mo, pass_6_mo])])
-    return
+    return (
+        get_checkboxes_state,
+        pass_1_boxes,
+        pass_2_boxes,
+        pass_3_boxes,
+        pass_4_boxes,
+        pass_5_boxes,
+        pass_6_boxes,
+    )
+
+
+@app.cell
+def _(
+    get_checkboxes_state,
+    mo,
+    pass_1_boxes,
+    pass_2_boxes,
+    pass_3_boxes,
+    pass_4_boxes,
+    pass_5_boxes,
+    pass_6_boxes,
+):
+    get_checkboxes_state
+
+    boxess = (pass_1_boxes, pass_2_boxes, pass_3_boxes, pass_4_boxes, pass_5_boxes, pass_6_boxes)
+    values = "_".join(
+        "".join(str(int(box.value)) for box in boxes)
+        for boxes in boxess
+    )
+    expected_values = "100_010_000_001_000_011"
+
+    check_optimizations = "✅" if values == expected_values else "❌"
+    values, check_optimizations
+
+    mo.hstack((mo.md("✅ Correct!" if values == expected_values else "❌ At least one exercise is incorrect"),), justify="center")
+    return (check_optimizations,)
 
 
 @app.cell(hide_code=True)
