@@ -4,7 +4,7 @@ PDL to PDL_interp Transformation
 
 import sys
 from abc import ABC
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, Optional, cast
@@ -83,13 +83,19 @@ class Position(ABC):
 
     def get_operation_depth(self) -> int:
         """Returns depth of first ancestor operation position"""
-        if isinstance(self, OperationPosition):
-            return self.depth
-        return self.parent.get_operation_depth() if self.parent else 0
+        op = self.get_base_operation()
+        return op.depth
 
     @property
     def kind(self) -> Kind:
         raise NotImplementedError()
+
+    def get_base_operation(self) -> "OperationPosition":
+        pos = self
+        while not isinstance(pos, OperationPosition):
+            assert pos.parent is not None
+            pos = pos.parent
+        return pos
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -172,6 +178,9 @@ class AttributePosition(Position):
 @dataclass(frozen=True)
 class TypePosition(Position):
     """Represents the type of a value"""
+
+    def __repr__(self):
+        return f"{self.parent.__repr__()}.type"
 
     @property
     def kind(self) -> Kind:
@@ -1521,13 +1530,77 @@ def _stable_topological_sort(
     return sorted_list
 
 
+@dataclass
+class GroupedPredicates:
+    position: OperationPosition
+    predicates: list[OrderedPredicate] = field(default_factory=lambda: [])
+    primary_score: int = 0
+    secondary_score: int = 0
+
+    def sort_key(self):
+        return (
+            -self.position.get_operation_depth(),
+            self.primary_score,
+            self.secondary_score,
+        )
+
+    def __lt__(self, other: "GroupedPredicates") -> bool:
+        return (
+            -self.position.get_operation_depth(),
+            self.primary_score,
+            self.secondary_score,
+        ) > (
+            -other.position.get_operation_depth(),
+            other.primary_score,
+            other.secondary_score,
+        )
+
+
 class PredicateTreeBuilder:
     """Builds optimized predicate matching trees"""
 
-    def __init__(self):
+    def __init__(self, optimize_for_eqsat: bool = False):
         self.analyzer = PatternAnalyzer(PredicateBuilder())
         self._pattern_roots: dict[pdl.PatternOp, SSAValue] = {}
         self.pattern_value_positions: dict[pdl.PatternOp, dict[SSAValue, Position]] = {}
+        self.optimize_for_eqsat = optimize_for_eqsat
+
+    def _build_operation_groups(self, predicates: Collection[OrderedPredicate]):
+        pos_to_group: dict[OperationPosition, GroupedPredicates] = {}
+
+        for pred in predicates:
+            op_pos = pred.position.get_base_operation()
+            group = pos_to_group.setdefault(op_pos, GroupedPredicates(position=op_pos))
+            group.predicates.append(pred)
+            group.primary_score += pred.primary_score
+            group.secondary_score += pred.secondary_score
+
+        return pos_to_group
+
+    def _sort_grouped(self, ordered_predicates: Collection[OrderedPredicate]):
+        pos_to_group = self._build_operation_groups(ordered_predicates)
+        sorted_predicates: list[OrderedPredicate] = []
+        seen_positions: set[OperationPosition] = set()
+        for group in sorted(pos_to_group.values()):
+            seen_positions.add(group.position)
+            to_delete: list[int] = []
+            for i, pred in enumerate(group.predicates):
+                if isinstance(q := pred.question, EqualToQuestion):
+                    if q.other_position.get_base_operation() in seen_positions:
+                        continue
+                    # If an EqualQuestion refers to a position that comes later, move it to the later group.
+                    new_q = EqualToQuestion(other_position=pred.position)
+                    pred.position = q.other_position
+                    pred.question = new_q
+                    to_delete.append(i)
+                    # del group.predicates[i]
+                    pos_to_group[pred.position.get_base_operation()].predicates.append(
+                        pred
+                    )
+                for i in reversed(to_delete):
+                    del group.predicates[i]
+            sorted_predicates.extend(sorted(group.predicates))
+        return sorted_predicates
 
     def build_predicate_tree(self, patterns: list[pdl.PatternOp]) -> MatcherNode:
         """Build optimized matcher tree from multiple patterns"""
@@ -1544,9 +1617,12 @@ class PredicateTreeBuilder:
 
         # Create ordered predicates with frequency analysis
         ordered_predicates = self._create_ordered_predicates(all_pattern_predicates)
+        if self.optimize_for_eqsat:
+            sorted_predicates = self._sort_grouped(ordered_predicates.values())
+        else:
+            # Sort predicates by priority
+            sorted_predicates = sorted(ordered_predicates.values())
 
-        # Sort predicates by priority
-        sorted_predicates = sorted(ordered_predicates.values())
         sorted_predicates = _stable_topological_sort(sorted_predicates)
 
         # Build matcher tree by propagating patterns
@@ -1796,7 +1872,10 @@ class MatcherGenerator:
     """Generates PDL interpreter matcher from matcher tree"""
 
     def __init__(
-        self, matcher_func: pdl_interp.FuncOp, rewriter_module: ModuleOp
+        self,
+        matcher_func: pdl_interp.FuncOp,
+        rewriter_module: ModuleOp,
+        optimize_for_eqsat: bool = False,
     ) -> None:
         self.matcher_func = matcher_func
         self.rewriter_module = rewriter_module
@@ -1809,12 +1888,13 @@ class MatcherGenerator:
             ConstraintQuestion, pdl_interp.ApplyConstraintOp
         ] = {}
         self.rewriter_names: dict[str, int] = {}
+        self.optimize_for_eqsat = optimize_for_eqsat
 
     def lower(self, patterns: list[pdl.PatternOp]) -> None:
         """Lower PDL patterns to PDL interpreter"""
 
         # Build the predicate tree
-        tree_builder = PredicateTreeBuilder()
+        tree_builder = PredicateTreeBuilder(self.optimize_for_eqsat)
         root = tree_builder.build_predicate_tree(patterns)
         self.value_to_position = tree_builder.pattern_value_positions
 
@@ -1901,6 +1981,11 @@ class MatcherGenerator:
                 assert parent_val is not None
                 # Get defining operation of operand
                 defining_op = pdl_interp.GetDefiningOpOp(parent_val)
+                for op in self.builder.insertion_point.block.ops:
+                    if isinstance(op, pdl_interp.GetDefiningOpOp):
+                        raise ValueError(
+                            "Cannot have two GetDefiningOpOp in the same block"
+                        )
                 self.builder.insert(defining_op)
                 value = defining_op.input_op
             else:
@@ -2403,9 +2488,9 @@ class MatcherGenerator:
 
         self.rewriter_builder.insert(pdl_interp.FinalizeOp())
         return SymbolRefAttr(
-            rewriter_name,
+            "rewriters",
             [
-                StringAttr("pdl_interp.rewriters"),
+                StringAttr(rewriter_name),
             ],
         )
 
@@ -2672,7 +2757,10 @@ class MatcherGenerator:
 
 
 def lower_pdl_to_pdl_interp(
-    module: ModuleOp, matcher_func: pdl_interp.FuncOp, rewriter_module: ModuleOp
+    module: ModuleOp,
+    matcher_func: pdl_interp.FuncOp,
+    rewriter_module: ModuleOp,
+    optimize_for_eqsat: bool = False,
 ) -> None:
     """Main entry point to lower PDL patterns to PDL interpreter"""
 
@@ -2680,7 +2768,7 @@ def lower_pdl_to_pdl_interp(
     patterns = [op for op in module.body.ops if isinstance(op, pdl.PatternOp)]
 
     # Create generator and lower
-    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator = MatcherGenerator(matcher_func, rewriter_module, optimize_for_eqsat)
     generator.lower(patterns)
 
 
@@ -2689,6 +2777,7 @@ def lower_pdl_to_pdl_interp(
 # =============================================================================
 
 
+@dataclass(frozen=True)
 class ConvertPDLToPDLInterpPass(ModulePass):
     """
     Pass to convert PDL operations to PDL interpreter operations.
@@ -2696,6 +2785,8 @@ class ConvertPDLToPDLInterpPass(ModulePass):
     """
 
     name = "convert-pdl-to-pdl-interp"
+
+    optimize_for_eqsat: bool = False
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         patterns = [
@@ -2707,7 +2798,9 @@ class ConvertPDLToPDLInterpPass(ModulePass):
         matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
         rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
 
-        generator = MatcherGenerator(matcher_func, rewriter_module)
+        generator = MatcherGenerator(
+            matcher_func, rewriter_module, self.optimize_for_eqsat
+        )
         generator.lower(patterns)
 
         # Replace all pattern ops with the matcher func and rewriter module
