@@ -102,7 +102,16 @@ To contribute to the development of xDSL follow the subsequent steps.
 
 ### Developer Installation
 
-Here are the commands to locally set up your development repository:
+We use [uv](https://docs.astral.sh/uv/) for dependency management of xDSL.
+See uv's [getting started page](https://docs.astral.sh/uv/getting-started/) for more
+details.
+
+```sh
+# Ensure uv is installed
+uv -v
+```
+
+Then, here are the commands to locally set up your development repository:
 
 ```sh
 # Clone repo
@@ -119,9 +128,7 @@ make tests
 
 Please take a look at the [Makefile](https://github.com/xdslproject/xdsl/blob/main/Makefile) for the available commands such as running specific tests, running the documentation website locally, and others.
 
-We use [uv](https://docs.astral.sh/uv/) for dependency management of xDSL.
-See uv's [getting started page](https://docs.astral.sh/uv/getting-started/) for more
-details.
+
 
 To make a custom mlir-opt available in the virtual environment, set the
 `XDSL_MLIR_OPT_PATH` variable when running `make venv`, like so:
