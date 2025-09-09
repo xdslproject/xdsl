@@ -8,36 +8,33 @@
 
 # xDSL: A Python-native SSA Compiler Framework
 
-[xDSL](http://www.xdsl.dev) is a Python-native compiler framework for
-building compiler infrastructure. It provides *SSA-based intermediate
-representations (IRs)* and tools to assemble or define new IRs, making it
-easy to experiment with compiler infrastructure directly from Python.  
+[xDSL](http://www.xdsl.dev) is a Python-native framework for
+building compiler infrastructure. It provides *[SSA-based intermediate
+representations (IRs)](https://en.wikipedia.org/wiki/Static_single-assignment_form)*
+and Pythonic APIs to define, assemble, and optimize custom IRs—all with seamless
+compatibility with [MLIR](https://mlir.llvm.org/) from the LLVM project.
 
-xDSL is inspired by [MLIR](https://mlir.llvm.org/), a compiler framework developed
-in C++, that is part of the LLVM project. An inherent advantage of a close design
-is the straightforward interoperability between xDSL and MLIR, making it possible
-to translate abstractions and programs back and forth. This results in one big
-SSA-based abstraction ecosystem, enabling Python's productivity, making analysis
-through simple scripting languages possible. This allows programs to be lowered
-through multiple IR levels, benefit from abstraction-specific optimizations,
-and still leverage MLIR's code generation and low-level optimizations.  
+Inspired by MLIR, xDSL enables smooth translation of programs and abstractions
+between frameworks. This lets users prototype compilers entirely in Python,
+while still accessing MLIR’s powerful optimization and code generation pipeline.
+All IRs in xDSL employ a unified SSA-based data structure, with regions and basic blocks,
+making it easy to write generic analyses and transformation passes.
 
-Users of xDSL can build a compiler by assembling predefined domain-specific IRs and,
-optionally, defining their own custom IRs. xDSL uses multi-level IRs, meaning that
-during the compilation process, a program can be lowered through several of these IRs.
-This allows for the implementation of abstraction-specific optimization passes, similar to
-the structure of common DSL compilers (such as Devito, Psyclone, and Firedrake).
-To simplify the writing of these passes, xDSL uses a uniform data structure based on
-SSA, basic blocks, and regions, which additionally enable the writing of generic
-passes.
+xDSL supports assembling compilers from predefined or custom IRs, and organizing
+transformations across a multi-level IR stack. This layered approach enables
+abstraction-specific optimization passes, similar to the architecture of projects
+like [Devito](https://github.com/devitocodes/devito), [Psyclone](https://github.com/stfc/PSyclone),
+and [Firedrake](https://github.com/firedrakeproject/firedrake).
 
 In short, xDSL makes it possible to:
-  - Prototype compilers quickly in Python
-  - Build DSLs with custom IRs
-  - Run analyses and transformations with simple scripts  
-  - Interop smoothly with MLIR and benefit from LLVM's backend   
 
-### Contents:
+- Prototype compilers quickly in Python
+- Build DSLs with custom IRs
+- Run analyses and transformations with simple scripts
+- Interoperate smoothly with MLIR and benefit from LLVM's backend
+
+## Contents
+
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [xDSL Developer Setup](#xdsl-developer-setup)
@@ -70,7 +67,8 @@ MLIR version is 20.1.7.
 ### Subprojects With Extra Dependencies
 
 xDSL has a number of subprojects, some of which require extra dependencies.
-To keep the set of dependencies to a minimum, these extra dependencies have to be specified explicitly, e.g. by using:
+To keep the set of dependencies to a minimum, these extra dependencies have to
+be specified explicitly, e.g. by using:
 
 ``` bash
 pip install xdsl[gui] # or [jax], [riscv]
@@ -84,7 +82,7 @@ for a comprehensive tutorial.
 To get familiar with xDSL, we recommend starting with our Jupyter notebooks. The
 notebooks provide hands-on examples and documentation of xDSL's core concepts: data
 structures, the Python-embedded abstraction definition language, and end-to-end custom
-compilers construvtion, like a database compiler.
+compilers construction, like a database compiler.
 There also exists a small documentation showing how to connect xDSL with MLIR
 for users interested in that use case.
 
@@ -93,8 +91,8 @@ for users interested in that use case.
 - [A DSL for defining new IRs](https://xdsl.dev/xdsl/lab/index.html?path=irdl.ipynb)
 - [Connecting xDSL with MLIR](docs/guides/mlir_interoperation.md)
 
-We provide a Makefile containing a lot of common tasks, which might provide
-an overview of common actions.
+We provide a [Makefile](https://github.com/xdslproject/xdsl/blob/main/Makefile)
+containing a lot of common tasks, which might provide an overview of common actions.
 
 ## xDSL Developer Setup
 
@@ -126,9 +124,9 @@ make precommit-install
 make tests
 ```
 
-Please take a look at the [Makefile](https://github.com/xdslproject/xdsl/blob/main/Makefile) for the available commands such as running specific tests, running the documentation website locally, and others.
-
-
+Please take a look at the [Makefile](https://github.com/xdslproject/xdsl/blob/main/Makefile)
+for the available commands such as running specific tests,
+running the documentation website locally, and others.
 
 To make a custom mlir-opt available in the virtual environment, set the
 `XDSL_MLIR_OPT_PATH` variable when running `make venv`, like so:
@@ -139,7 +137,7 @@ XDSL_MLIR_OPT_PATH=/PATH/TO/LLVM/BUILD/bin/mlir-opt make venv
 
 ### Alternative installations
 
-For some use-cases, such as running xDSL with [Pypy](https://pypy.org/),
+For some use-cases, such as running xDSL with [PyPy](https://pypy.org/),
 it may be preferable to install a minimal set of dependencies instead.
 This can be done with `uv sync`. Note that Pyright will then complain
 about missing dependencies, so run `make tests-functional` instead of
@@ -184,7 +182,9 @@ make precommit
 uv run ruff format
 ```
 
-When commiting to xDSL, try to pass all Python code through [pyright](https://github.com/microsoft/pyright) without errors. Pyright can be run on all staged files through the
+When commiting to xDSL, try to pass all Python code through
+[pyright](https://github.com/microsoft/pyright) without errors.
+Pyright checks all staged files through the
 makefile using `make pyright`.
 
 > [!IMPORTANT]
