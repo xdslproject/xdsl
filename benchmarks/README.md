@@ -3,11 +3,11 @@
 This directory contains infrastructure for the benchmarking and performance profiling of
 the xDSL compiler framework.
 
-The benchmarks are structured such that they can be automatically useed by the airspeed
-velocity, enabling a CI-based web frontend: <https://xdsl.dev/xdsl-bench/>.
+The benchmarks are structured such that they can be automatically used by the [airspeed
+velocity](https://asv.readthedocs.io/en/latest/), enabling a CI-based web frontend: <https://xdsl.dev/xdsl-bench/>.
 
 In addition to this, helper scripts and infrastructure is provided to run and profile
-benchmark performance on a developer's local machine
+benchmark performance on a developer's local machine.
 
 ## Using benchmarks locally
 
