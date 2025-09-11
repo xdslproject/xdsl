@@ -53,6 +53,7 @@ from xdsl.irdl import (
     AtMost,
     BaseAttr,
     ConstraintContext,
+    NotEqualIntConstraint,
     RangeLengthConstraint,
     RangeOf,
     RangeVarConstraint,
@@ -965,3 +966,17 @@ def test_array_of_constraint():
     assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ContainerOf(
         BaseAttr(B)
     )
+
+
+################################################################################
+# NotEqualIntConstraint
+################################################################################
+def test_not_equal_int_constraint():
+    constraint = NotEqualIntConstraint(5)
+
+    # Test with integer attribute not equal to 5
+    constraint.verify(3, ConstraintContext())
+
+    # Test with integer attribute equal to 5
+    with pytest.raises(VerifyException, match="expected integer != 5, got 5"):
+        constraint.verify(5, ConstraintContext())
