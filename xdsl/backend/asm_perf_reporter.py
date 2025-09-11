@@ -1,6 +1,7 @@
 import os
 import subprocess
 from abc import ABC, abstractmethod
+from shutil import which
 from tempfile import NamedTemporaryFile
 
 from xdsl.backend.assembly_printer import AssemblyPrinter
@@ -37,7 +38,13 @@ class AssemblyPerformanceReporter(ABC):
     def process_report(self, report: str) -> float | None:
         pass
 
+    def is_installed(self) -> bool:
+        return which(self.name()) is not None
+
     def estimate_cost(self) -> float | None:
+        if not self.is_installed():
+            return None
+
         with NamedTemporaryFile(mode="w+", delete=False, suffix=".s") as tmp_file:
             self.src_path = tmp_file.name
             printer = AssemblyPrinter(stream=tmp_file)

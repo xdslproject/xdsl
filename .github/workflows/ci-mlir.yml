@@ -18,86 +18,82 @@ jobs:
     container: ghcr.io/xdslproject/llvm:20.1.7
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.10' }}
     steps:
-      - uses: actions/checkout@v5
-        with:
-          path: xdsl
-          fetch-depth: 2
+    - uses: actions/checkout@v5
+      with:
+        path: xdsl
+        fetch-depth: 2
 
-      - name: Alias for llvm-mca
-        run: |
-          sudo ln -s /usr/bin/llvm-mca-20 /usr/bin/llvm-mca
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: "xdsl/uv.lock"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          cache-dependency-glob: "xdsl/uv.lock"
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
+    - name: Install the package locally and nbval
+      run: |
+        # Change directory so that xdsl-opt can be found during installation.
+        cd xdsl
+        make venv
 
-      - name: Install the package locally and nbval
-        run: |
-          # Change directory so that xdsl-opt can be found during installation.
-          cd xdsl
-          make venv
+    - name: Test with pytest and generate code coverage
+      run: |
+        cd xdsl
+        if [ "$COLLECT_COVERAGE" = "true" ]; then
+          uv run pytest -W error --cov
+        else
+          uv run pytest -W error
+        fi
 
-      - name: Test with pytest and generate code coverage
-        run: |
-          cd xdsl
-          if [ "$COLLECT_COVERAGE" = "true" ]; then
-            uv run pytest -W error --cov
-          else
-            uv run pytest -W error
-          fi
+    - name: Execute lit tests
+      run: |
+        cd xdsl
+        # Add mlir-opt to the path
+        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
+        if [ "$COLLECT_COVERAGE" = "true" ]; then
+          uv run lit -v tests/filecheck/ -DCOVERAGE
+          uv run lit -v docs/Toy/examples/ -DCOVERAGE
+        else
+          uv run lit -v tests/filecheck/
+          uv run lit -v docs/Toy/examples/
+        fi
 
-      - name: Execute lit tests
-        run: |
-          cd xdsl
-          # Add mlir-opt to the path
-          export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-          if [ "$COLLECT_COVERAGE" = "true" ]; then
-            uv run lit -v tests/filecheck/ -DCOVERAGE
-            uv run lit -v docs/Toy/examples/ -DCOVERAGE
-          else
-            uv run lit -v tests/filecheck/
-            uv run lit -v docs/Toy/examples/
-          fi
+    - name: Test MLIR dependent examples/tutorials
+      run: |
+        cd xdsl
+        # Add mlir-opt to the path
+        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
+        make tests-marimo
 
-      - name: Test MLIR dependent examples/tutorials
-        run: |
-          cd xdsl
-          # Add mlir-opt to the path
-          export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-          make tests-marimo
+    - name: Combine coverage data
+      if: matrix.python-version == '3.10'
+      run: |
+        cd xdsl
+        uv run coverage combine --append
+        uv run coverage report
+        uv run coverage xml
 
-      - name: Combine coverage data
-        if: matrix.python-version == '3.10'
-        run: |
-          cd xdsl
-          uv run coverage combine --append
-          uv run coverage report
-          uv run coverage xml
-
-      - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.10'
-        uses: Wandalen/wretry.action@v3
-        with:
-          action: codecov/codecov-action@v4
-          attempt_delay: 10000
-          attempt_limit: 10
-          with: |
-            fail_ci_if_error: true
-            verbose: true
-            root_dir: xdsl
-            files: coverage.xml
-            codecov_yml_path: codecov.yml
-            token: ${{ secrets.CODECOV_TOKEN }}
+    - name: Upload coverage to Codecov
+      if: matrix.python-version == '3.10'
+      uses: Wandalen/wretry.action@v3
+      with:
+        action: codecov/codecov-action@v4
+        attempt_delay: 10000
+        attempt_limit: 10
+        with: |
+          fail_ci_if_error: true
+          verbose: true
+          root_dir: xdsl
+          files: coverage.xml
+          codecov_yml_path: codecov.yml
+          token: ${{ secrets.CODECOV_TOKEN }}
