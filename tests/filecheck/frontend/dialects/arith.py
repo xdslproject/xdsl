@@ -252,6 +252,37 @@ except CodeGenerationException as e:
     print(e.msg)
 
 
+# CHECK: %[[C:.*]] = arith.constant true
+# CHECK: arith.addi %{{.*}}, %[[C]] : i1
+@ctx.parse_program
+def test_constant_add_bool(a: bool) -> bool:
+    return a + True  # pyright: ignore[reportReturnType]
+
+
+print(test_constant_add_bool.module)
+
+
+# CHECK: %[[C:.*]] = arith.constant 0.000000e+00 : f64
+# CHECK: arith.addf %{{.*}}, %[[C]] : f64
+@ctx.parse_program
+def test_constant_add_float(a: float) -> float:
+    return a + 0.0
+
+
+print(test_constant_add_float.module)
+
+
+# CHECK: %[[B:.*]] = bigint.constant #builtin.int<5>
+# CHECK: %[[C:.*]] = bigint.to_int %[[B]] : !bigint.bigint -> i32
+# CHECK: arith.addi %[[.*]], %[[C]] : i32
+# @ctx.parse_program
+# def test_constant_add_bigint(a: int) -> I32:
+#     return a + 5
+
+
+# print(test_constant_add_bigint.module)
+
+
 # CHECK: Binary operation 'FloorDiv' is not supported by type 'float' which does not overload '__floordiv__'.
 @ctx.parse_program
 def test_missing_floordiv_overload_f64(a: float, b: float) -> float:
