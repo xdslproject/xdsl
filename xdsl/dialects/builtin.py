@@ -61,6 +61,7 @@ from xdsl.irdl import (
     IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
+    NotEqualIntConstraint,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -417,6 +418,24 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         return IntAttrConstraint(
             self.int_constraint.mapping_type_vars(type_var_mapping)
         )
+
+
+StaticDimensionConstraint = MessageConstraint(
+    IntAttrConstraint(NotEqualIntConstraint(DYNAMIC_INDEX)),
+    f"expected static dimension, but got {DYNAMIC_INDEX}",
+)
+"""
+Constrain a dimension to be static (not equal to `DYNAMIC_INDEX`).
+"""
+
+
+StaticShapeArrayConstraint = MessageConstraint(
+    ArrayOfConstraint(StaticDimensionConstraint),
+    "expected static shape, but got dynamic dimension",
+)
+"""
+Constrain an array to be a static shape (all dimensions static).
+"""
 
 
 class Signedness(ConstraintConvertible, Enum):
