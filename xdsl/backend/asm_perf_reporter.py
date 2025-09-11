@@ -1,3 +1,4 @@
+import os
 import subprocess
 from abc import ABC, abstractmethod
 from tempfile import NamedTemporaryFile
@@ -46,9 +47,8 @@ class AssemblyPerformanceReporter(ABC):
             report = self.produce_report()
             return self.process_report(report)
         finally:
-            pass
-            # if os.path.exists(self.src_path):
-            #     os.remove(self.src_path)
+            if os.path.exists(self.src_path):
+                os.remove(self.src_path)
 
 
 class MCAReporter(AssemblyPerformanceReporter):
