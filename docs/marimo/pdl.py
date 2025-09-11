@@ -332,11 +332,11 @@ def _(mo):
       // %c0_attr =
       // %c0_op =
       // %c0_res = pdl.result 0 of %c0_op
-      // %x_times_zero_op =
+      // %x_plus_zero_op =
 
       // Uncomment these lines:
-      // pdl.rewrite %x_times_zero_op {
-      //   pdl.replace %x_times_zero_op with (%x : !pdl.value)
+      // pdl.rewrite %x_plus_zero_op {
+      //   pdl.replace %x_plus_zero_op with (%x : !pdl.value)
       // }
     }"""
     x_plus_zero_text_area = mo.ui.code_editor(x_plus_zero_text, language="javascript")
@@ -362,9 +362,9 @@ def _(mo, xmo):
       %c0_attr = pdl.attribute = 0.0 : f64
       %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
       %c0_res = pdl.result 0 of %c0_op
-      %x_times_zero_op = pdl.operation "arith.addf" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
-      pdl.rewrite %x_times_zero_op {
-        pdl.replace %x_times_zero_op with (%x : !pdl.value)
+      %x_plus_zero_op = pdl.operation "arith.addf" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
+      pdl.rewrite %x_plus_zero_op {
+        pdl.replace %x_plus_zero_op with (%x : !pdl.value)
       }
     }"""
 
