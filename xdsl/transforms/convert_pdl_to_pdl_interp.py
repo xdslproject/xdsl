@@ -1593,12 +1593,11 @@ class PredicateTreeBuilder:
                     pred.position = q.other_position
                     pred.question = new_q
                     to_delete.append(i)
-                    # del group.predicates[i]
                     pos_to_group[pred.position.get_base_operation()].predicates.append(
                         pred
                     )
-                for i in reversed(to_delete):
-                    del group.predicates[i]
+            for i in reversed(to_delete):
+                del group.predicates[i]
             sorted_predicates.extend(sorted(group.predicates))
         return sorted_predicates
 
@@ -1981,6 +1980,7 @@ class MatcherGenerator:
                 assert parent_val is not None
                 # Get defining operation of operand
                 defining_op = pdl_interp.GetDefiningOpOp(parent_val)
+                defining_op.attributes["position"] = StringAttr(position.__repr__())
                 for op in self.builder.insertion_point.block.ops:
                     if isinstance(op, pdl_interp.GetDefiningOpOp):
                         raise ValueError(
@@ -2051,6 +2051,7 @@ class MatcherGenerator:
             assert parent_val is not None
             # Get type of value or attribute
             if parent_val.type == pdl.AttributeType():
+                # TODO: fix?
                 # Would use GetAttributeTypeOp if it existed
                 get_type_op = pdl_interp.GetValueTypeOp(parent_val)
             else:
