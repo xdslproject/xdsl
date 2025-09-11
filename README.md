@@ -23,7 +23,7 @@ making it easy to write generic analyses and transformation passes.
 xDSL supports assembling compilers from predefined or custom IRs, and organizing
 transformations across a multi-level IR stack. This layered approach enables
 abstraction-specific optimization passes, similar to the architecture of projects
-like [Devito](https://github.com/devitocodes/devito), [Psyclone](https://github.com/stfc/PSyclone),
+like [Devito](https://github.com/devitocodes/devito), [PSyclone](https://github.com/stfc/PSyclone),
 and [Firedrake](https://github.com/firedrakeproject/firedrake).
 
 In short, xDSL makes it possible to:
