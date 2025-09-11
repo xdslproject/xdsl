@@ -45,7 +45,8 @@ def _(mo, triangle_text):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""This notebook explains all the components of the above snippet of code. The sections below are structured by _dialect_, which represents a namespace for related abstractions and constructs.""")
+    mo.md(r"""This notebook explains all the components of the above snippet of code. The sections below are structured by _dialect_, which represents a namespace for related abstractions and constructs. More specifically, we look into the
+          func, arith and scf dialects """)
     return
 
 
@@ -384,7 +385,8 @@ def _(mo):
 def _(mo, triangle_text, xmo):
     mo.md(
         rf"""
-    The `scf` dialect also contains abstractions to represent for loops, allowing us to implement the triangle function 1 + 2 + 3 + ... + n.
+    The `scf` dialect also contains abstractions to represent for loops. For example,
+    to caclulate the [triangular number](https://en.wikipedia.org/wiki/Triangular_number) 1 + 2 + 3 + ... + n:
 
     {xmo.module_html(triangle_text)}
 
@@ -484,7 +486,7 @@ def _(mo):
 def _(mo, triangle_text):
     mo.md(
         rf"""
-    This notebook contains a very light overview of the most commonly used dialects and operations in MLIR and xDSL, as well as the key concepts of SSA and structured control flow.
+    This notebook contains a very light overview of the most commonly used dialects and operations in MLIR and xDSL, as well as the key concepts of SSA and structured control flow (scf).
 
     {mo.ui.code_editor(triangle_text, language="javascript", disabled=True)}
 
