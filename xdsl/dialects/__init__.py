@@ -353,6 +353,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Transform
 
+    def get_python():
+        from xdsl.dialects.python import Python
+
+        return Python
+
     return {
         "accfg": get_accfg,
         "affine": get_affine,
@@ -423,6 +428,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "x86": get_x86,
         "x86_func": get_x86_func,
         "transform": get_transform,
+        "python": get_python,
     }
 
 
