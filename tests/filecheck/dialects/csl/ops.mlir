@@ -112,12 +112,12 @@ csl.func @initialize() {
 
 
     %one = "test.op"() : () -> i32
-    %variable_with_default = "csl.variable"() <{default = 42 : i32}> : () -> !csl.var<i32>
-    %variable = "csl.variable"() : () -> !csl.var<i32>
-    %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+    %variable_with_default = csl.variable(42 : i32) : !csl.var<i32>
+    %variable = csl.variable() : !csl.var<i32>
+    %value = csl.load_var(%variable_with_default : !csl.var<i32>) : i32
     %new_value = arith.addi %value, %one : i32
-    "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
-    "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
+    csl.store_var %variable_with_default : !csl.var<i32> = %new_value : i32
+    csl.store_var %variable : !csl.var<i32> = %new_value : i32
 
   csl.return
 }
@@ -408,12 +408,12 @@ csl.func @builtins() {
 // CHECK-NEXT:       "csl.faddh"(%dsd_1d1, %dsd_1d2, %dsd_1d3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:       "csl.faddh"(%f16_ptr, %f16_val, %dsd_1d3) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:       %one = "test.op"() : () -> i32
-// CHECK-NEXT:       %variable_with_default = "csl.variable"() <{default = 42 : i32}> : () -> !csl.var<i32>
-// CHECK-NEXT:       %variable = "csl.variable"() : () -> !csl.var<i32>
-// CHECK-NEXT:       %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+// CHECK-NEXT:       %variable_with_default = csl.variable(42 : i32) : !csl.var<i32>
+// CHECK-NEXT:       %variable = csl.variable() : !csl.var<i32>
+// CHECK-NEXT:       %value = csl.load_var(%variable_with_default : !csl.var<i32>) : i32
 // CHECK-NEXT:       %new_value = arith.addi %value, %one : i32
-// CHECK-NEXT:       "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
-// CHECK-NEXT:       "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
+// CHECK-NEXT:       csl.store_var %variable_with_default : !csl.var<i32> = %new_value : i32
+// CHECK-NEXT:       csl.store_var %variable : !csl.var<i32> = %new_value : i32
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @builtins() {

@@ -159,20 +159,20 @@
     "csl.export"(%22) <{"type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>, "var_name" = "b"}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
     "csl.export"() <{"type" = () -> (), "var_name" = @gauss_seidel_func}> : () -> ()
     %23 = "csl.variable"() <{"default" = 0 : i16}> : () -> !csl.var<i16>
-    %24 = "csl.variable"() : () -> !csl.var<memref<512xf32>>
-    %25 = "csl.variable"() : () -> !csl.var<memref<512xf32>>
+    %24 = csl.variable() : !csl.var<memref<512xf32>>
+    %25 = csl.variable() : !csl.var<memref<512xf32>>
     csl.func @loop() {
       %26 = arith.constant 0 : index
       %27 = arith.constant 1000 : index
       %28 = arith.constant 1 : index
-      "csl.store_var"(%24, %19) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-      "csl.store_var"(%25, %20) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
+      csl.store_var %24 : !csl.var<memref<512xf32>> = %19 : memref<512xf32>
+      csl.store_var %25 : !csl.var<memref<512xf32>> = %20 : memref<512xf32>
       csl.activate local, 1 : ui6
       csl.return
     }
     csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5} {
       %29 = arith.constant 1000 : i16
-      %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
+      %30 = csl.load_var(%23 : !csl.var<i16>) : i16
       %31 = arith.cmpi slt, %30, %29 : i16
       scf.if %31 {
         "csl.call"() <{"callee" = @for_body0}> : () -> ()
@@ -182,9 +182,9 @@
       csl.return
     }
     csl.func @for_body0() {
-      %arg10 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
-      %arg11 = "csl.load_var"(%24) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-      %arg12 = "csl.load_var"(%25) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
+      %arg10 = csl.load_var(%23 : !csl.var<i16>) : i16
+      %arg11 = csl.load_var(%24 : !csl.var<memref<512xf32>>) : memref<512xf32>
+      %arg12 = csl.load_var(%25 : !csl.var<memref<512xf32>>) : memref<512xf32>
       %32 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
       csl_stencil.apply(%arg11 : memref<512xf32>, %32 : memref<510xf32>, %arg12 : memref<512xf32>, %arg9 : i1) outs (%arg12 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 1 : i64, operandSegmentSizes = array<i32: 1, 1, 0, 2, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
       ^bb2(%arg13 : memref<4x510xf32>, %arg14 : index, %arg15 : memref<510xf32>):
@@ -218,13 +218,13 @@
     }
     csl.func @for_inc0() {
       %33 = arith.constant 1 : i16
-      %34 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
+      %34 = csl.load_var(%23 : !csl.var<i16>) : i16
       %35 = arith.addi %34, %33 : i16
-      "csl.store_var"(%23, %35) : (!csl.var<i16>, i16) -> ()
-      %36 = "csl.load_var"(%24) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-      %37 = "csl.load_var"(%25) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-      "csl.store_var"(%24, %37) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-      "csl.store_var"(%25, %36) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
+      csl.store_var %23 : !csl.var<i16> = %35 : i16
+      %36 = csl.load_var(%24 : !csl.var<memref<512xf32>>) : memref<512xf32>
+      %37 = csl.load_var(%25 : !csl.var<memref<512xf32>>) : memref<512xf32>
+      csl.store_var %24 : !csl.var<memref<512xf32>> = %37 : memref<512xf32>
+      csl.store_var %25 : !csl.var<memref<512xf32>> = %36 : memref<512xf32>
       csl.activate local, 1 : ui6
       csl.return
     }
@@ -266,21 +266,21 @@
 // CHECK-NEXT:    "csl.export"(%21) <{type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>, var_name = "a"}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:    "csl.export"(%22) <{type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>, var_name = "b"}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:    "csl.export"() <{type = () -> (), var_name = @gauss_seidel_func}> : () -> ()
-// CHECK-NEXT:    %23 = "csl.variable"() <{default = 0 : i16}> : () -> !csl.var<i16>
-// CHECK-NEXT:    %24 = "csl.variable"() : () -> !csl.var<memref<512xf32>>
-// CHECK-NEXT:    %25 = "csl.variable"() : () -> !csl.var<memref<512xf32>>
+// CHECK-NEXT:    %23 = csl.variable(0 : i16) : !csl.var<i16>
+// CHECK-NEXT:    %24 = csl.variable() : !csl.var<memref<512xf32>>
+// CHECK-NEXT:    %25 = csl.variable() : !csl.var<memref<512xf32>>
 // CHECK-NEXT:    csl.func @loop() {
 // CHECK-NEXT:      %26 = arith.constant 0 : index
 // CHECK-NEXT:      %27 = arith.constant 1000 : index
 // CHECK-NEXT:      %28 = arith.constant 1 : index
-// CHECK-NEXT:      "csl.store_var"(%24, %19) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-// CHECK-NEXT:      "csl.store_var"(%25, %20) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
+// CHECK-NEXT:      csl.store_var %24 : !csl.var<memref<512xf32>> = %19 : memref<512xf32>
+// CHECK-NEXT:      csl.store_var %25 : !csl.var<memref<512xf32>> = %20 : memref<512xf32>
 // CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
 // CHECK-NEXT:      %29 = arith.constant 1000 : i16
-// CHECK-NEXT:      %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
+// CHECK-NEXT:      %30 = csl.load_var(%23 : !csl.var<i16>) : i16
 // CHECK-NEXT:      %31 = arith.cmpi slt, %30, %29 : i16
 // CHECK-NEXT:      scf.if %31 {
 // CHECK-NEXT:        "csl.call"() <{callee = @for_body0}> : () -> ()
@@ -290,9 +290,9 @@
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @for_body0() {
-// CHECK-NEXT:      %arg10 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
-// CHECK-NEXT:      %arg11 = "csl.load_var"(%24) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-// CHECK-NEXT:      %arg12 = "csl.load_var"(%25) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
+// CHECK-NEXT:      %arg10 = csl.load_var(%23 : !csl.var<i16>) : i16
+// CHECK-NEXT:      %arg11 = csl.load_var(%24 : !csl.var<memref<512xf32>>) : memref<512xf32>
+// CHECK-NEXT:      %arg12 = csl.load_var(%25 : !csl.var<memref<512xf32>>) : memref<512xf32>
 // CHECK-NEXT:      %accumulator = memref.alloc() {alignment = 64 : i64} : memref<510xf32>
 // CHECK-NEXT:      %32 = arith.constant 0.000000e+00 : f32
 // CHECK-NEXT:      "csl.fmovs"(%accumulator, %32) : (memref<510xf32>, f32) -> ()
@@ -316,8 +316,8 @@
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @done_exchange_cb0() {
-// CHECK-NEXT:      %arg12_1 = "csl.load_var"(%25) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-// CHECK-NEXT:      %arg11_1 = "csl.load_var"(%24) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
+// CHECK-NEXT:      %arg12_1 = csl.load_var(%25 : !csl.var<memref<512xf32>>) : memref<512xf32>
+// CHECK-NEXT:      %arg11_1 = csl.load_var(%24 : !csl.var<memref<512xf32>>) : memref<512xf32>
 // CHECK-NEXT:      scf.if %arg9 {
 // CHECK-NEXT:      } else {
 // CHECK-NEXT:        %42 = memref.subview %arg11_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
@@ -334,13 +334,13 @@
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @for_inc0() {
 // CHECK-NEXT:      %46 = arith.constant 1 : i16
-// CHECK-NEXT:      %47 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
+// CHECK-NEXT:      %47 = csl.load_var(%23 : !csl.var<i16>) : i16
 // CHECK-NEXT:      %48 = arith.addi %47, %46 : i16
-// CHECK-NEXT:      "csl.store_var"(%23, %48) : (!csl.var<i16>, i16) -> ()
-// CHECK-NEXT:      %49 = "csl.load_var"(%24) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-// CHECK-NEXT:      %50 = "csl.load_var"(%25) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-// CHECK-NEXT:      "csl.store_var"(%24, %50) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-// CHECK-NEXT:      "csl.store_var"(%25, %49) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
+// CHECK-NEXT:      csl.store_var %23 : !csl.var<i16> = %48 : i16
+// CHECK-NEXT:      %49 = csl.load_var(%24 : !csl.var<memref<512xf32>>) : memref<512xf32>
+// CHECK-NEXT:      %50 = csl.load_var(%25 : !csl.var<memref<512xf32>>) : memref<512xf32>
+// CHECK-NEXT:      csl.store_var %24 : !csl.var<memref<512xf32>> = %50 : memref<512xf32>
+// CHECK-NEXT:      csl.store_var %25 : !csl.var<memref<512xf32>> = %49 : memref<512xf32>
 // CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
@@ -515,20 +515,20 @@
     "csl.export"(%22) <{"type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>, "var_name" = "arg1"}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
     "csl.export"() <{"type" = () -> (), "var_name" = @chunk_reduce_only}> : () -> ()
     %23 = "csl.variable"() <{"default" = 0 : i16}> : () -> !csl.var<i16>
-    %24 = "csl.variable"() : () -> !csl.var<memref<511xf32>>
-    %25 = "csl.variable"() : () -> !csl.var<memref<511xf32>>
+    %24 = csl.variable() : !csl.var<memref<511xf32>>
+    %25 = csl.variable() : !csl.var<memref<511xf32>>
     csl.func @chunk_reduce_only() {
       %26 = arith.constant 0 : index
       %27 = arith.constant 1000 : index
       %28 = arith.constant 1 : index
-      "csl.store_var"(%24, %19) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
-      "csl.store_var"(%25, %20) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
+      csl.store_var %24 : !csl.var<memref<511xf32>> = %19 : memref<511xf32>
+      csl.store_var %25 : !csl.var<memref<511xf32>> = %20 : memref<511xf32>
       csl.activate local, 1 : ui6
       csl.return
     }
     csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5} {
       %29 = arith.constant 1000 : i16
-      %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
+      %30 = csl.load_var(%23 : !csl.var<i16>) : i16
       %31 = arith.cmpi slt, %30, %29 : i16
       scf.if %31 {
         "csl.call"() <{"callee" = @for_body0}> : () -> ()
@@ -538,9 +538,9 @@
       csl.return
     }
     csl.func @for_body0() {
-      %arg10 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
-      %arg11 = "csl.load_var"(%24) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
-      %arg12 = "csl.load_var"(%25) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
+      %arg10 = csl.load_var(%23 : !csl.var<i16>) : i16
+      %arg11 = csl.load_var(%24 : !csl.var<memref<511xf32>>) : memref<511xf32>
+      %arg12 = csl.load_var(%25 : !csl.var<memref<511xf32>>) : memref<511xf32>
       %32 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
       csl_stencil.apply(%arg11 : memref<511xf32>, %32 : memref<510xf32>, %arg11 : memref<511xf32>, %arg12 : memref<511xf32>, %arg9 : i1) outs (%arg12 : memref<511xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 1 : i64, operandSegmentSizes = array<i32: 1, 1, 1, 2, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [0, 1]>], "topo" = #dmp.topo<1022x510>, "coeffs" = [#csl_stencil.coeff<#stencil.index<[1, 0]>, 2.345678e-01 : f32>, #csl_stencil.coeff<#stencil.index<[0, -1]>, 3.141500e-01 : f32>]}> ({
       ^bb2(%arg13 : memref<2x510xf32>, %arg14 : index, %arg15 : memref<510xf32>, %arg16 : memref<511xf32>):
@@ -568,13 +568,13 @@
     }
     csl.func @for_inc0() {
       %33 = arith.constant 1 : i16
-      %34 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
+      %34 = csl.load_var(%23 : !csl.var<i16>) : i16
       %35 = arith.addi %34, %33 : i16
-      "csl.store_var"(%23, %35) : (!csl.var<i16>, i16) -> ()
-      %36 = "csl.load_var"(%24) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
-      %37 = "csl.load_var"(%25) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
-      "csl.store_var"(%24, %37) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
-      "csl.store_var"(%25, %36) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
+      csl.store_var %23 : !csl.var<i16> = %35 : i16
+      %36 = csl.load_var(%24 : !csl.var<memref<511xf32>>) : memref<511xf32>
+      %37 = csl.load_var(%25 : !csl.var<memref<511xf32>>) : memref<511xf32>
+      csl.store_var %24 : !csl.var<memref<511xf32>> = %37 : memref<511xf32>
+      csl.store_var %25 : !csl.var<memref<511xf32>> = %36 : memref<511xf32>
       csl.activate local, 1 : ui6
       csl.return
     }
@@ -616,21 +616,21 @@
 // CHECK-NEXT:    "csl.export"(%21) <{type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>, var_name = "arg0"}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:    "csl.export"(%22) <{type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>, var_name = "arg1"}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:    "csl.export"() <{type = () -> (), var_name = @chunk_reduce_only}> : () -> ()
-// CHECK-NEXT:    %23 = "csl.variable"() <{default = 0 : i16}> : () -> !csl.var<i16>
-// CHECK-NEXT:    %24 = "csl.variable"() : () -> !csl.var<memref<511xf32>>
-// CHECK-NEXT:    %25 = "csl.variable"() : () -> !csl.var<memref<511xf32>>
+// CHECK-NEXT:    %23 = csl.variable(0 : i16) : !csl.var<i16>
+// CHECK-NEXT:    %24 = csl.variable() : !csl.var<memref<511xf32>>
+// CHECK-NEXT:    %25 = csl.variable() : !csl.var<memref<511xf32>>
 // CHECK-NEXT:    csl.func @chunk_reduce_only() {
 // CHECK-NEXT:      %26 = arith.constant 0 : index
 // CHECK-NEXT:      %27 = arith.constant 1000 : index
 // CHECK-NEXT:      %28 = arith.constant 1 : index
-// CHECK-NEXT:      "csl.store_var"(%24, %19) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
-// CHECK-NEXT:      "csl.store_var"(%25, %20) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
+// CHECK-NEXT:      csl.store_var %24 : !csl.var<memref<511xf32>> = %19 : memref<511xf32>
+// CHECK-NEXT:      csl.store_var %25 : !csl.var<memref<511xf32>> = %20 : memref<511xf32>
 // CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
 // CHECK-NEXT:      %29 = arith.constant 1000 : i16
-// CHECK-NEXT:      %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
+// CHECK-NEXT:      %30 = csl.load_var(%23 : !csl.var<i16>) : i16
 // CHECK-NEXT:      %31 = arith.cmpi slt, %30, %29 : i16
 // CHECK-NEXT:      scf.if %31 {
 // CHECK-NEXT:        "csl.call"() <{callee = @for_body0}> : () -> ()
@@ -640,9 +640,9 @@
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @for_body0() {
-// CHECK-NEXT:      %arg10 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
-// CHECK-NEXT:      %arg11 = "csl.load_var"(%24) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
-// CHECK-NEXT:      %arg12 = "csl.load_var"(%25) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
+// CHECK-NEXT:      %arg10 = csl.load_var(%23 : !csl.var<i16>) : i16
+// CHECK-NEXT:      %arg11 = csl.load_var(%24 : !csl.var<memref<511xf32>>) : memref<511xf32>
+// CHECK-NEXT:      %arg12 = csl.load_var(%25 : !csl.var<memref<511xf32>>) : memref<511xf32>
 // CHECK-NEXT:      %accumulator = memref.alloc() {alignment = 64 : i64} : memref<510xf32>
 // CHECK-NEXT:      %north = arith.constant dense<[0.000000e+00, 3.141500e-01]> : memref<2xf32>
 // CHECK-NEXT:      %south = arith.constant dense<[0.000000e+00, 1.000000e+00]> : memref<2xf32>
@@ -662,7 +662,7 @@
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @receive_chunk_cb0(%offset : i16) {
 // CHECK-NEXT:      %offset_1 = arith.index_cast %offset : i16 to index
-// CHECK-NEXT:      %arg11_1 = "csl.load_var"(%24) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
+// CHECK-NEXT:      %arg11_1 = csl.load_var(%24 : !csl.var<memref<511xf32>>) : memref<511xf32>
 // CHECK-NEXT:      %39 = arith.constant dense<1.234500e-01> : memref<510xf32>
 // CHECK-NEXT:      %40 = arith.constant 1 : i16
 // CHECK-NEXT:      %41 = "csl.get_dir"() <{dir = #csl<dir_kind west>}> : () -> !csl.direction
@@ -681,8 +681,8 @@
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @done_exchange_cb0() {
-// CHECK-NEXT:      %arg12_1 = "csl.load_var"(%25) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
-// CHECK-NEXT:      %arg11_2 = "csl.load_var"(%24) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
+// CHECK-NEXT:      %arg12_1 = csl.load_var(%25 : !csl.var<memref<511xf32>>) : memref<511xf32>
+// CHECK-NEXT:      %arg11_2 = csl.load_var(%24 : !csl.var<memref<511xf32>>) : memref<511xf32>
 // CHECK-NEXT:      scf.if %arg9 {
 // CHECK-NEXT:      } else {
 // CHECK-NEXT:        %51 = memref.subview %arg12_1[0] [510] [1] : memref<511xf32> to memref<510xf32>
@@ -693,13 +693,13 @@
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @for_inc0() {
 // CHECK-NEXT:      %52 = arith.constant 1 : i16
-// CHECK-NEXT:      %53 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
+// CHECK-NEXT:      %53 = csl.load_var(%23 : !csl.var<i16>) : i16
 // CHECK-NEXT:      %54 = arith.addi %53, %52 : i16
-// CHECK-NEXT:      "csl.store_var"(%23, %54) : (!csl.var<i16>, i16) -> ()
-// CHECK-NEXT:      %55 = "csl.load_var"(%24) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
-// CHECK-NEXT:      %56 = "csl.load_var"(%25) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
-// CHECK-NEXT:      "csl.store_var"(%24, %56) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
-// CHECK-NEXT:      "csl.store_var"(%25, %55) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
+// CHECK-NEXT:      csl.store_var %23 : !csl.var<i16> = %54 : i16
+// CHECK-NEXT:      %55 = csl.load_var(%24 : !csl.var<memref<511xf32>>) : memref<511xf32>
+// CHECK-NEXT:      %56 = csl.load_var(%25 : !csl.var<memref<511xf32>>) : memref<511xf32>
+// CHECK-NEXT:      csl.store_var %24 : !csl.var<memref<511xf32>> = %56 : memref<511xf32>
+// CHECK-NEXT:      csl.store_var %25 : !csl.var<memref<511xf32>> = %55 : memref<511xf32>
 // CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }

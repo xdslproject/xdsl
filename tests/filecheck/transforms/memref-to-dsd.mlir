@@ -98,13 +98,13 @@ builtin.module {
 // CHECK-NEXT: %26 = "test.op"() : () -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: "csl.fadds"(%26, %26, %26) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
-%33 = "csl.variable"() : () -> !csl.var<memref<512xf32>>
-%34 = "csl.load_var"(%33) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-"csl.store_var"(%33, %34) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
+%33 = csl.variable() : !csl.var<memref<512xf32>>
+%34 = csl.load_var(%33 : !csl.var<memref<512xf32>>) : memref<512xf32>
+csl.store_var %33 : !csl.var<memref<512xf32>> = %34 : memref<512xf32>
 
-// CHECK-NEXT: %27 = "csl.variable"() : () -> !csl.var<!csl<dsd mem1d_dsd>>
-// CHECK-NEXT: %28 = "csl.load_var"(%27) : (!csl.var<!csl<dsd mem1d_dsd>>) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: "csl.store_var"(%27, %28) : (!csl.var<!csl<dsd mem1d_dsd>>, !csl<dsd mem1d_dsd>) -> ()
+// CHECK-NEXT: %27 = csl.variable() : !csl.var<!csl<dsd mem1d_dsd>>
+// CHECK-NEXT: %28 = csl.load_var(%27 : !csl.var<!csl<dsd mem1d_dsd>>) : !csl<dsd mem1d_dsd>
+// CHECK-NEXT: csl.store_var %27 : !csl.var<!csl<dsd mem1d_dsd>> = %28 : !csl<dsd mem1d_dsd>
 
 // ensure that pre-existing get_mem_dsd ops access the underlying buffer, not the get_mem_dsd created on top of it
 

@@ -40,7 +40,7 @@ builtin.module {
 // CHECK-NEXT:   ^bb1(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : !csl.comptime_struct, %arg8 : !csl.comptime_struct, %arg9 : i1):
 // CHECK-NEXT:     %2 = memref.alloc() : memref<4xf32>
 // CHECK-NEXT:     %3 = memref.alloc() : memref<4xf32>
-// CHECK-NEXT:     %iteration = "csl.variable"() <{default = 0 : i32}> : () -> !csl.var<i32>
+// CHECK-NEXT:     %iteration = csl.variable(0 : i32) : !csl.var<i32>
 // CHECK-NEXT:     csl.func @loop_kernel() {
 // CHECK-NEXT:       %4 = arith.constant 1 : index
 // CHECK-NEXT:       %5 = arith.constant 10 : index
@@ -50,7 +50,7 @@ builtin.module {
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
 // CHECK-NEXT:       %7 = arith.constant 10 : i32
-// CHECK-NEXT:       %iteration_cond = "csl.load_var"(%iteration) : (!csl.var<i32>) -> i32
+// CHECK-NEXT:       %iteration_cond = csl.load_var(%iteration : !csl.var<i32>) : i32
 // CHECK-NEXT:       %8 = arith.cmpi slt, %iteration_cond, %7 : i32
 // CHECK-NEXT:       scf.if %8 {
 // CHECK-NEXT:         "csl.call"() <{callee = @for_body0}> : () -> ()
@@ -60,7 +60,7 @@ builtin.module {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @for_body0() {
-// CHECK-NEXT:       %iteration_bdy = "csl.load_var"(%iteration) : (!csl.var<i32>) -> i32
+// CHECK-NEXT:       %iteration_bdy = csl.load_var(%iteration : !csl.var<i32>) : i32
 // CHECK-NEXT:       %9 = memref.alloc() : memref<2xf32>
 // CHECK-NEXT:       csl_stencil.apply(%2 : memref<4xf32>, %9 : memref<2xf32>) outs (%3 : memref<4xf32>) <{bounds = #stencil.bounds<[0, 0], [1, 1]>, num_chunks = 1 : i64, swaps = [#csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>], topo = #dmp.topo<2>, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>}> ({
 // CHECK-NEXT:       ^bb2(%arg23 : memref<4x2xf32>, %arg24 : index, %arg25 : memref<2xf32>):
@@ -74,9 +74,9 @@ builtin.module {
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @for_inc0() {
 // CHECK-NEXT:       %10 = arith.constant 1 : i32
-// CHECK-NEXT:       %iteration_inc = "csl.load_var"(%iteration) : (!csl.var<i32>) -> i32
+// CHECK-NEXT:       %iteration_inc = csl.load_var(%iteration : !csl.var<i32>) : i32
 // CHECK-NEXT:       %11 = arith.addi %iteration_inc, %10 : i32
-// CHECK-NEXT:       "csl.store_var"(%iteration, %11) : (!csl.var<i32>, i32) -> ()
+// CHECK-NEXT:       csl.store_var %iteration : !csl.var<i32> = %11 : i32
 // CHECK-NEXT:       csl.activate local, 1 : ui5
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
