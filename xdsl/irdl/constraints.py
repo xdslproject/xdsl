@@ -867,7 +867,7 @@ class NotEqualIntConstraint(IntConstraint):
 
     def verify(self, i: int, constraint_context: ConstraintContext) -> None:
         if i == self.value:
-            raise VerifyException(f"expected integer != {self.value}, got {i}")
+            raise VerifyException(f"expected integer != {self.value}")
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
