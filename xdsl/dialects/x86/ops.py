@@ -3130,7 +3130,7 @@ class GetAnyRegisterOperation(
     This instruction allows us to create an SSAValue for a given register name.
     """
 
-    result = result_def(R1InvT)
+    result: OpResult[R1InvT] = result_def(R1InvT)
 
     def __init__(
         self,
