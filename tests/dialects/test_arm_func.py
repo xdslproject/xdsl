@@ -4,7 +4,7 @@ from xdsl.traits import CallableOpInterface
 
 
 def test_callable_interface():
-    a0, a1 = arm.register.X0, arm.register.X1
+    a0, a1 = arm.registers.X0, arm.registers.X1
 
     region = Region()
     func = arm_func.FuncOp("callable", region, ((a0, a1), (a0, a1)))
