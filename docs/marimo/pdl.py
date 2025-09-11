@@ -398,7 +398,7 @@ def _(info_text, mo, x_div_x_text_area):
 
 
 @app.cell(hide_code=True)
-def _(mo, x_plus_zero_text_solution, xmo):
+def _(mo, xmo):
     x_div_x_text_solution = """\
     pdl.pattern @x_div_x : benefit(2) {
       %t = pdl.type
@@ -412,7 +412,7 @@ def _(mo, x_plus_zero_text_solution, xmo):
       }
     }"""
 
-    mo.accordion({"Solution": xmo.module_html(x_plus_zero_text_solution)})
+    mo.accordion({"Solution": xmo.module_html(x_div_x_text_solution)})
     return (x_div_x_text_solution,)
 
 

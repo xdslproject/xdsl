@@ -14,15 +14,15 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 
 arg_passing_registers = [
-    x86.register.RDI,
-    x86.register.RSI,
-    x86.register.RDX,
-    x86.register.RCX,
-    x86.register.R8,
-    x86.register.R9,
+    x86.registers.RDI,
+    x86.registers.RSI,
+    x86.registers.RDX,
+    x86.registers.RCX,
+    x86.registers.R8,
+    x86.registers.R9,
 ]
 
-return_passing_register = x86.register.RAX
+return_passing_register = x86.registers.RAX
 
 
 # According to x86 calling conventions, the maximum number of
@@ -75,7 +75,7 @@ class LowerFuncOp(RewritePattern):
             arg = first_block.args[i]
             register = first_block.insert_arg(register_type, i)
             mov_op = x86.DS_MovOp(
-                source=register, destination=x86.register.UNALLOCATED_GENERAL
+                source=register, destination=x86.registers.UNALLOCATED_GENERAL
             )
             cast_op, parameter = builtin.UnrealizedConversionCastOp.cast_one(
                 mov_op.destination, arg.type
@@ -86,7 +86,7 @@ class LowerFuncOp(RewritePattern):
 
         # The last argument of the basic block should be the stack pointer
         sp = first_block.insert_arg(
-            x86.register.RSP, min(num_inputs, MAX_REG_PASSING_INPUTS)
+            x86.registers.RSP, min(num_inputs, MAX_REG_PASSING_INPUTS)
         )
 
         # If needed, load the stack-carried parameters by iteratively
@@ -99,7 +99,7 @@ class LowerFuncOp(RewritePattern):
             mov_op = x86.DM_MovOp(
                 memory=sp,
                 memory_offset=STACK_SLOT_SIZE_BYTES * (i + 1),
-                destination=x86.register.UNALLOCATED_GENERAL,
+                destination=x86.registers.UNALLOCATED_GENERAL,
                 comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
             )
             cast_op = builtin.UnrealizedConversionCastOp.get(
@@ -116,7 +116,7 @@ class LowerFuncOp(RewritePattern):
         new_func = x86_func.FuncOp(
             op.sym_name.data,
             new_region,
-            (reg_args_types + [x86.register.RSP], outputs_types),
+            (reg_args_types + [x86.registers.RSP], outputs_types),
             visibility=op.sym_visibility,
         )
 
@@ -149,7 +149,7 @@ class LowerReturnOp(RewritePattern):
             )
 
         cast_op = builtin.UnrealizedConversionCastOp.get(
-            (return_value,), (x86.register.UNALLOCATED_GENERAL,)
+            (return_value,), (x86.registers.UNALLOCATED_GENERAL,)
         )
         mov_op = x86.ops.DS_MovOp(cast_op, destination=return_passing_register)
         ret_op = x86_func.RetOp()

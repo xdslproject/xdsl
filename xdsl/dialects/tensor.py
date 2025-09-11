@@ -111,6 +111,8 @@ class DimOp(IRDLOperation):
 
     traits = traits_def(Pure())
 
+    assembly_format = "attr-dict $source `,` $index `:` type($source)"
+
     def __init__(
         self,
         source: SSAValue | Operation,
@@ -120,25 +122,6 @@ class DimOp(IRDLOperation):
         super().__init__(
             operands=(source, index), result_types=(IndexType(),), attributes=attributes
         )
-
-    def print(self, printer: Printer):
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        printer.print_string(", ")
-        printer.print_ssa_value(self.index)
-        printer.print_string(" : ")
-        printer.print_attribute(self.source.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attributes = parser.parse_optional_attr_dict()
-        source = parser.parse_operand()
-        parser.parse_punctuation(",")
-        index = parser.parse_operand()
-        parser.parse_punctuation(":")
-        parser.parse_type()
-        return cls(source, index, attributes)
 
     def verify_(self):
         if isinstance((source_type := self.source.type), TensorType):
