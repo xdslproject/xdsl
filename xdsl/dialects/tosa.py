@@ -193,7 +193,7 @@ class MulOp(ElementwiseBinaryOperation):
 TInv = TypeVar("TInv", bound=TensorType)
 
 
-class ElementwiseUnaryOperation(Generic[TInv], ElementwiseOperation):
+class ElementwiseUnaryOperation(ElementwiseOperation, Generic[TInv]):
     """
     Abstract base class for elementwise unary operations on tensors of floating-point types
     """

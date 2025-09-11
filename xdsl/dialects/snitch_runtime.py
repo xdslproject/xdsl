@@ -316,7 +316,7 @@ class ZeroMemoryOp(GetMemoryInfoBaseOperation):
     name = "snrt.zero_memory"
 
 
-class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
+class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, ABC, Generic[_T]):
     """
     Initiate an asynchronous 1D DMA transfer
     """
@@ -336,7 +336,7 @@ class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
         super().__init__(operands=[dst, src, size], result_types=[tx_id])
 
 
-class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
+class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, ABC, Generic[_T]):
     """
     Generic base class for starting asynchronous 2D DMA transfers
     """
