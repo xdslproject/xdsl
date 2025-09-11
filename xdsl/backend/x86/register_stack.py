@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing_extensions import override
 
 from xdsl.backend.register_stack import RegisterStack
-from xdsl.dialects.x86 import register
+from xdsl.dialects.x86 import registers
 
 
 @dataclass
@@ -13,8 +13,8 @@ class X86RegisterStack(RegisterStack):
     """
 
     DEFAULT_ALLOCATABLE_REGISTERS = (
-        *reversed(register.GeneralRegisterType.allocatable_registers()),
-        *reversed(register.AVX2RegisterType.allocatable_registers()),
+        *reversed(registers.GeneralRegisterType.allocatable_registers()),
+        *reversed(registers.AVX2RegisterType.allocatable_registers()),
     )
 
     @classmethod

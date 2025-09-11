@@ -1,4 +1,4 @@
-from xdsl.dialects.arm.register import IntRegisterType
+from xdsl.dialects.arm.registers import IntRegisterType
 
 
 def test_assembly_arg_str_ARMRegister():

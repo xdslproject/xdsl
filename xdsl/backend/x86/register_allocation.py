@@ -3,12 +3,12 @@ from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import live_ins_per_block
 from xdsl.backend.register_stack import RegisterStack
 from xdsl.dialects import x86_func
-from xdsl.dialects.x86 import register
+from xdsl.dialects.x86 import registers
 
 
 class X86RegisterAllocator(BlockNaiveAllocator):
     def __init__(self, available_registers: RegisterStack) -> None:
-        super().__init__(available_registers, register.X86RegisterType)
+        super().__init__(available_registers, registers.X86RegisterType)
 
     def allocate_func(self, func: x86_func.FuncOp) -> None:
         """
@@ -28,7 +28,7 @@ class X86RegisterAllocator(BlockNaiveAllocator):
         preallocated = {
             reg
             for reg in RegisterAllocatableOperation.iter_all_used_registers(func.body)
-            if isinstance(reg, register.X86RegisterType)
+            if isinstance(reg, registers.X86RegisterType)
         }
 
         for pa_reg in preallocated:

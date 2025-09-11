@@ -90,7 +90,7 @@ from .assembly import (
     print_type_pair,
 )
 from .attributes import LabelAttr
-from .register import (
+from .registers import (
     RAX,
     RDX,
     RSP,

@@ -29,7 +29,7 @@ class ArithConstantToX86(RewritePattern):
                 "Lowering of arith.constant is only implemented for integers"
             )
         mov_op = x86.DI_MovOp(
-            immediate=op.value.value.data, destination=x86.register.UNALLOCATED_GENERAL
+            immediate=op.value.value.data, destination=x86.registers.UNALLOCATED_GENERAL
         )
         cast_op, _ = UnrealizedConversionCastOp.cast_one(
             mov_op.destination, op.result.type
@@ -62,7 +62,7 @@ class ArithBinaryToX86(RewritePattern):
             )
         lhs_x86, rhs_x86 = self.arch.cast_operands_to_regs(rewriter)
         rhs_copy_op = x86.DS_MovOp(
-            source=rhs_x86, destination=x86.register.UNALLOCATED_GENERAL
+            source=rhs_x86, destination=x86.registers.UNALLOCATED_GENERAL
         )
         add_op = new_type(source=lhs_x86, register_in=rhs_copy_op.destination)
         result_cast_op, _ = UnrealizedConversionCastOp.cast_one(

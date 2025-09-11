@@ -28,7 +28,7 @@ class VectorBroadcastToX86(RewritePattern):
     def match_and_rewrite(self, op: vector.BroadcastOp, rewriter: PatternRewriter):
         # Get the register to be broadcasted
         source_cast_op, source_x86 = UnrealizedConversionCastOp.cast_one(
-            op.source, x86.register.UNALLOCATED_GENERAL
+            op.source, x86.registers.UNALLOCATED_GENERAL
         )
         # Actually broadcast the register
         element_type = op.source.type
