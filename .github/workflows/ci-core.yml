@@ -23,7 +23,7 @@ jobs:
 
       - name: Alias for llvm-mca
         run: |
-          ln -s /usr/bin/llvm-mca-20 /usr/bin/llvm-mca
+          sudo ln -s /usr/bin/llvm-mca-20 /usr/bin/llvm-mca
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
