@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     UnrealizedConversionCastOp,
+    f32,
     i16,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
@@ -428,7 +429,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             (elem_t := accumulator.type.get_element_type()), Float16Type | Float32Type
         )
         zero = arith.ConstantOp(FloatAttr(0.0, elem_t))
-        mov_op = csl.FmovsOp if elem_t == Float32Type() else csl.FmovhOp
+        mov_op = csl.FmovsOp if elem_t == f32 else csl.FmovhOp
         rewriter.insert_op(
             [zero, mov_op(operands=[[op.accumulator, zero]])], InsertPoint.before(op)
         )
