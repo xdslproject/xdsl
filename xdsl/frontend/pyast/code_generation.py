@@ -2,6 +2,8 @@ import ast
 from dataclasses import dataclass, field
 from typing import cast
 
+import xdsl.dialects.arith as arith
+import xdsl.dialects.bigint as bigint
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
@@ -337,6 +339,27 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             f"is not supported by type '{ir_type.name}' "
             f"which does not overload '{python_op}'.",
         )
+
+    def visit_Constant(self, node: ast.Constant) -> None:
+        # We only support bool, int and float for now
+        if isinstance(node.value, bool):
+            const_op = arith.ConstantOp(builtin.IntegerAttr(int(node.value), 1))
+            self.inserter.insert_op(const_op)
+        elif isinstance(node.value, int):
+            # we use bigint.constant to represent Python integers
+            bigint_op = bigint.ConstantOp(node.value)
+            self.inserter.insert_op(bigint_op)
+        elif isinstance(node.value, float):
+            # python floats are always f64
+            const_op = arith.ConstantOp(builtin.FloatAttr(node.value, 64))
+            self.inserter.insert_op(const_op)
+        else:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
+            )
 
     def visit_Expr(self, node: ast.Expr) -> None:
         self.visit(node.value)
