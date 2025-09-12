@@ -32,7 +32,7 @@ dev = [
     "ruff==0.13.0",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
-    "pytest-asyncio==1.1.0",
+    "pytest-asyncio==1.2.0",
     "pyright==1.1.405",
     "sympy==1.14.0",
 ]
