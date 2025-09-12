@@ -445,7 +445,9 @@ def test_not_constraint_use_cases():
 
     # Use case: Exclude a specific range of values using AtLeast/AtMost
     # "Not between 0 and 10" = "Not (>= 0 AND <= 10)"
-    not_small_positive = Not(IntAttrConstraint(AllOf([AtLeast(0), AtMost(10)])))
+    not_small_positive = Not(
+        AllOf((IntAttrConstraint(AtLeast(0)), IntAttrConstraint(AtMost(10))))
+    )
     ctx = ConstraintContext()
 
     # Values outside the range should pass
@@ -471,7 +473,7 @@ def test_not_constraint_use_cases():
 
     # Use case: Complex logical patterns with AllOf
     # "Must be an integer but not 0" - useful for division denominators
-    non_zero_int = AllOf([BaseAttr(IntAttr), Not(EqAttrConstraint(IntAttr(0)))])
+    non_zero_int = AllOf((BaseAttr(IntAttr), Not(EqAttrConstraint(IntAttr(0)))))
 
     # Non-zero integers should pass
     non_zero_int.verify(IntAttr(1), ctx)
