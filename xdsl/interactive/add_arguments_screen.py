@@ -1,6 +1,6 @@
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import Reactive
 from textual.screen import Screen
 from textual.widgets import Button, Input, Label
@@ -32,7 +32,7 @@ class AddArguments(Screen[ModulePass | None]):
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        with Horizontal(id="top_level"):
+        with ScrollableContainer(id="top_level"):
             with Vertical(id="argument_container"):
                 for arg in self.argument_tuple:
                     with Horizontal(id=f"argument_row_{arg.name}"):

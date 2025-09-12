@@ -12,6 +12,7 @@ AddArguments{
     border-title-align: center;
     width: 85%;
     height: 50%;
+    layout: horizontal;
 }
 
 # Horizontal(Button, Button, Button)
@@ -29,6 +30,14 @@ Button{
     border-title-color: $error-darken-3;
     border-title-style: none;
     border-title-align: center;
+}
+
+Label{
+    height: 1fr;
+}
+
+Input{
+    height: 1fr;
 }
 
 #argument_container{
