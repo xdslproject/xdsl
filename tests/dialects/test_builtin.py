@@ -27,7 +27,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     ShapedType,
     Signedness,
-    StaticShapeArrayConstraint,
+    StaticShapeArrayConstr,
     StridedLayoutAttr,
     SymbolRefAttr,
     TensorType,
@@ -988,10 +988,10 @@ def test_not_equal_int_constraint():
 ################################################################################
 def test_static_shape_array_constraint():
     static_shape = ArrayAttr([IntAttr(1), IntAttr(2), IntAttr(3)])
-    StaticShapeArrayConstraint.verify(static_shape, ConstraintContext())
+    StaticShapeArrayConstr.verify(static_shape, ConstraintContext())
 
     dynamic_shape = ArrayAttr([IntAttr(1), IntAttr(-1), IntAttr(3)])
     with pytest.raises(
         VerifyException, match="expected static shape, but got dynamic dimension"
     ):
-        StaticShapeArrayConstraint.verify(dynamic_shape, ConstraintContext())
+        StaticShapeArrayConstr.verify(dynamic_shape, ConstraintContext())
