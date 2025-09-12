@@ -123,6 +123,9 @@ builtin.module {
   %or_bitwise_zero_r0 = riscv.or %c0, %c1 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
   "test.op"(%or_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
+  %or_bitwise_self = riscv.or %c0, %c0 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%or_bitwise_self) : (!riscv.reg<a0>) -> ()
+
   %xor_lhs_rhs = riscv.xor %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
   "test.op"(%xor_lhs_rhs) : (!riscv.reg<a0>) -> ()
 
