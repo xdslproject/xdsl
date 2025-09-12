@@ -41,7 +41,6 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (f32, tensor<1xi32>)
 
-  // CHECK: operand at position 0 does not verify:
   // CHECK: f32 should be of base attribute tensor
   %res_reshape =  tensor.reshape %t0(%t1)  : (f32, tensor<1xi32>) -> tensor<4xf32>
 

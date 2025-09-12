@@ -29,12 +29,6 @@ class ApplyIndividualRewritePass(ModulePass):
         ).get_op(op)
         rewriter = PatternRewriter(matched_operation)
 
-        if matched_operation.name != self.operation_name:
-            raise ValueError(
-                f"Operation {matched_operation.name} at index "
-                f"{self.matched_operation_index} does not match {self.operation_name}"
-            )
-
         for trait in matched_operation.get_traits_of_type(
             HasCanonicalizationPatternsTrait
         ):

@@ -231,6 +231,7 @@ class ReshapeOp(IRDLOperation):
     source = operand_def(TensorType[Attribute])
     shape = operand_def(TensorType[AnySignlessIntegerOrIndexType])
     result = result_def(TensorType[Attribute])
+    assembly_format = "attr-dict $source `(` $shape `)` `:` `(` type($source) `,` type($shape) `)` `->` type($result)"
 
     traits = traits_def(NoMemoryEffect())
 
@@ -242,43 +243,6 @@ class ReshapeOp(IRDLOperation):
             ),
             result_types=(result_type,),
         )
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        printer.print_string("(")
-        printer.print_ssa_value(self.shape)
-        printer.print_string(")")
-        printer.print_string(" : ")
-        printer.print_string("(")
-        printer.print_attribute(self.source.type)
-        printer.print_string(", ")
-        printer.print_attribute(self.shape.type)
-        printer.print_string(")")
-        printer.print_string(" -> ")
-        printer.print_attribute(self.result.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs = parser.parse_optional_attr_dict()
-        source = parser.parse_operand()
-        parser.parse_punctuation("(")
-        shape = parser.parse_operand()
-        parser.parse_punctuation(")")
-        parser.parse_punctuation(":")
-        parser.parse_punctuation("(")
-        parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
-        parser.parse_punctuation(")")
-        parser.parse_optional_punctuation("->")
-        result_type = parser.parse_attribute()
-
-        reshape = cls(
-            source,
-            shape,
-            result_type,
-        )
-        reshape.attributes |= attrs
-        return reshape
 
     def verify_(self) -> None:
         if not isinstance(
