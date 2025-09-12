@@ -1936,8 +1936,8 @@ class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
-            BitwiseOrByZero,
             BitwiseOrBySelf,
+            BitwiseOrByZero,
         )
 
         return (BitwiseOrByZero(), BitwiseOrBySelf())

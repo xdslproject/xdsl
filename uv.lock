@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -1858,7 +1858,7 @@ wheels = [
 
 [[package]]
 name = "my-plugin"
-source = { directory = "tests/my_plugin" }
+source = { virtual = "tests/my_plugin" }
 dependencies = [
     { name = "xdsl" },
 ]
@@ -3742,7 +3742,7 @@ bench = [
     { name = "viztracer", specifier = ">=1.0.1" },
 ]
 dev = [
-    { name = "my-plugin", directory = "tests/my_plugin" },
+    { name = "my-plugin", virtual = "tests/my_plugin" },
     { name = "xdsl", extras = ["dev", "gui"] },
 ]
 docs = [
