@@ -123,7 +123,7 @@ builtin.module {
   %or_bitwise_zero_r0 = riscv.or %c0, %c1 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
   "test.op"(%or_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
-  %or_bitwise_self = riscv.or %c0, %c0 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
+  %or_bitwise_self = riscv.or %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
   "test.op"(%or_bitwise_self) : (!riscv.reg<a0>) -> ()
 
   %xor_lhs_rhs = riscv.xor %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
@@ -261,6 +261,9 @@ builtin.module {
 
 // CHECK-NEXT:   %or_bitwise_zero_r0 = riscv.mv %c1 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%or_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %or_bitwise_self = riscv.mv %i1 : (!riscv.reg<a1>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%or_bitwise_self) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %xor_lhs_rhs = riscv.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %xor_lhs_rhs_1 = riscv.mv %xor_lhs_rhs : (!riscv.reg<zero>) -> !riscv.reg<a0>
