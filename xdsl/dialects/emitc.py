@@ -331,7 +331,7 @@ class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
 
 
 @irdl_op_definition
-class EmitC_AddOp(EmitC_BinaryOp):
+class EmitC_AddOp(EmitC_BinaryOperation):
     """
     Addition operation.
 
