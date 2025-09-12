@@ -75,7 +75,6 @@ class ConstraintContext:
     def int_variables(self) -> AbstractSet[str]:
         return self._int_variables.keys()
 
-    @deprecated("ConstraintContexts should not be copied")
     def copy(self):
         return ConstraintContext(
             self._variables.copy(),
