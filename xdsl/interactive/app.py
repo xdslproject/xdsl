@@ -230,6 +230,9 @@ class InputApp(App[None]):
                 data=module_pass,
             )
 
+        # Expand the root node to show all passes on initialization
+        self.passes_tree.root.expand()
+
         # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)
 
