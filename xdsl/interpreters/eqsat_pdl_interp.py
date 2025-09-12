@@ -60,6 +60,8 @@ class BacktrackPoint:
 class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Interpreter functions for PDL patterns operating on e-graphs."""
 
+    interpreter: Interpreter | None = field(default=None)
+
     backtrack_stack: list[BacktrackPoint] = field(default_factory=list[BacktrackPoint])
     """Stack of backtrack points for exploring multiple matching paths in e-classes."""
 
@@ -360,6 +362,19 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
+        print(
+            "Recording match:",
+            op.rewriter,
+            "on root: ",
+            args[0].owner if hasattr(args[0], "owner") else args[0],
+        )
+
+        if len(self.pending_rewrites) >= 50:
+            assert self.interpreter
+            self.execute_pending_rewrites(self.interpreter)
+            raise InterpretationError(
+                "Too many pending rewrites, possible infinite loop."
+            )
         self.pending_rewrites.append(
             (op.rewriter, self.rewriter.current_operation, args)
         )
@@ -432,10 +447,18 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
     def execute_pending_rewrites(self, interpreter: Interpreter):
         """Execute all pending rewrites that were aggregated during matching."""
+        n_applied = 0
         for rewriter, root, args in self.pending_rewrites:
             self.rewriter.current_operation = root
 
             self.is_matching = False
+            temp = self.rewriter.has_done_action
+            self.rewriter.has_done_action = False
+
             interpreter.call_op(rewriter, args)
+            if self.rewriter.has_done_action:
+                n_applied += 1
+            self.rewriter.has_done_action = temp or self.rewriter.has_done_action
             self.is_matching = True
+        print(f"Applied {n_applied}/{len(self.pending_rewrites)} rewrites.")
         self.pending_rewrites.clear()

@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, pdl_interp
+from xdsl.dialects import builtin, eqsat, pdl_interp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
 from xdsl.parser import Parser
@@ -34,6 +34,7 @@ def apply_eqsat_pdl_interp(
     # Initialize interpreter and implementations once
     interpreter = Interpreter(pdl_interp_module)
     implementations = EqsatPDLInterpFunctions(ctx)
+    implementations.interpreter = interpreter
     implementations.populate_known_ops(op)
     interpreter.register_implementations(implementations)
     rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
@@ -43,7 +44,18 @@ def apply_eqsat_pdl_interp(
     walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
     walker.listener = listener
 
-    for _i in range(max_iterations):
+    for i in range(max_iterations):
+        print(f"Equality saturation iteration {i + 1} of {max_iterations}")
+        n_eclasses = 0
+        n_enodes = 0
+        for o in op.walk():
+            if isinstance(o, eqsat.EClassOp):
+                n_eclasses += 1
+                n_enodes += len(o.operands)
+        print("Egraphs has ", n_eclasses, "e-classes and", n_enodes, "e-nodes")
+        print()
+        print(op)
+        print()
         # Register matches by walking the module
         walker.rewrite_module(op)
         # Execute all pending rewrites that were aggregated during matching
