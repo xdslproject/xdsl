@@ -4,23 +4,14 @@ AddArguments{
     layout: vertical;
 }
 
-# ScrollableContainer(TextArea, Horizontal(Button, Button, Button))
-#container{
+# Horizontal(Vertical(...), Vertical(...), Horizontal(Button, Button, Button))
+#top_level{
     border: heavy $warning;
     border-title-color: $warning;
     border-title-style: bold;
     border-title-align: center;
     width: 85%;
     height: 50%;
-    layout: vertical;
-}
-
-# TextArea
-#argument_text_area{
-    border: heavy $accent-darken-1;
-    border-title-color: $error-darken-3;
-    border-title-style: bold;
-    border-title-align: center;
 }
 
 # Horizontal(Button, Button, Button)

@@ -32,14 +32,16 @@ class AddArguments(Screen[ModulePass | None]):
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="top_level"):
-            for arg in self.argument_tuple:
-                # with Horizontal(id=f"argument_row_{arg.name}"):
-                with Horizontal(id=f"top_level_{arg.name}"):
-                    yield Label(
-                        f"{arg.name} : {arg.expected_type}",
-                        id=f"arg_name_{arg.name}",
-                    )
+        with Horizontal(id="top_level"):
+            with Vertical(id="argument_container"):
+                for arg in self.argument_tuple:
+                    with Horizontal(id=f"argument_row_{arg.name}"):
+                        yield Label(
+                            f"{arg.name}",
+                            id=f"arg_name_{arg.name}",
+                        )
+            with Vertical(id="input_container"):
+                for arg in self.argument_tuple:
                     default_str = (
                         f" [default: {arg.default_value}]"
                         if arg.default_value is not None
