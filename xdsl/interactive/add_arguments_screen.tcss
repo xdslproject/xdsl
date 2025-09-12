@@ -23,3 +23,17 @@ AddArguments{
 Button{
     border: $warning;
 }
+
+#input_container{
+    border: $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: none;
+    border-title-align: center;
+}
+
+#argument_container{
+    border: $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: none;
+    border-title-align: center;
+}

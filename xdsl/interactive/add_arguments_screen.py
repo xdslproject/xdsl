@@ -61,6 +61,11 @@ class AddArguments(Screen[ModulePass | None]):
         self.query_one(
             "#top_level"
         ).border_title = "Provide arguments to apply to selected pass."
+        self.query_one(
+            "#argument_container"
+        ).border_title = f"Arguments for {self.selected_pass_type.name} pass"
+        self.query_one("#input_container").border_title = "Input Values"
+
         # Initialize parsed pass
         self.update_selected_pass_value()
         # Initialize enter button
