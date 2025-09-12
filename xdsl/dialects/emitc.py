@@ -26,7 +26,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ShapedType,
-    StaticShapeArrayConstraint,
+    StaticShapeArrayConstr,
     StringAttr,
     TensorType,
     TupleType,
@@ -170,17 +170,17 @@ EmitCArrayElementTypeCovT = TypeVar(
 
 @irdl_attr_definition
 class EmitC_ArrayType(
-    Generic[EmitCArrayElementTypeCovT],
     ParametrizedAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[EmitCArrayElementTypeCovT],
+    Generic[EmitCArrayElementTypeCovT],
 ):
     """EmitC array type"""
 
     name = "emitc.array"
 
-    shape: ArrayAttr[IntAttr] = param_def(StaticShapeArrayConstraint())
+    shape: ArrayAttr[IntAttr] = param_def(StaticShapeArrayConstr)
     element_type: EmitCArrayElementTypeCovT
 
     def __init__(
