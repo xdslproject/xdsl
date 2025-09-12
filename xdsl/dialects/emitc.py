@@ -309,7 +309,7 @@ class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
             raise VerifyException("pointers to lvalues are not allowed")
 
 
-class EmitC_BinaryOp(IRDLOperation, abc.ABC):
+class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
     """Base class for EmitC binary operations."""
 
     lhs = operand_def(EmitCTypeConstr)
