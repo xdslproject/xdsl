@@ -197,8 +197,13 @@ class ArrayAttr(
         | RangeConstraint[AttributeInvT]
         | None = None,
     ) -> ArrayOfConstraint[AttributeInvT]:
-        return ArrayOfConstraint(
-            TypeVarConstraint(AttributeCovT, AnyAttr()) if constr is None else constr
+        return ArrayOfConstraint[AttributeInvT](
+            cast(
+                AttrConstraint[AttributeInvT],
+                TypeVarConstraint(AttributeCovT, AnyAttr()),
+            )
+            if constr is None
+            else constr
         )
 
     def __len__(self):
@@ -218,7 +223,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
 
     def __init__(
         self,
-        constr: (IRDLAttrConstraint | RangeConstraint[AttributeCovT]),
+        constr: (IRDLAttrConstraint[AttributeCovT] | RangeConstraint[AttributeCovT]),
     ):
         if isinstance(constr, RangeConstraint):
             object.__setattr__(self, "elem_range_constraint", constr)
@@ -420,7 +425,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         )
 
 
-StaticDimensionConstraint = MessageConstraint(
+StaticDimensionConstr = MessageConstraint(
     IntAttrConstraint(NotEqualIntConstraint(DYNAMIC_INDEX)),
     f"expected static dimension, but got {DYNAMIC_INDEX}",
 )
@@ -429,8 +434,8 @@ Constrain a dimension to be static (not equal to `DYNAMIC_INDEX`).
 """
 
 
-StaticShapeArrayConstraint = MessageConstraint(
-    ArrayOfConstraint(StaticDimensionConstraint),
+StaticShapeArrayConstr = MessageConstraint(
+    ArrayOfConstraint(StaticDimensionConstr),
     "expected static shape, but got dynamic dimension",
 )
 """
