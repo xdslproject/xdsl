@@ -39,6 +39,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     AttrConstraint,
     ConstraintContext,
     IntConstraint,
@@ -378,6 +379,53 @@ class EmitC_AddOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_ApplyOp(IRDLOperation):
+    """Apply operation"""
+
+    name = "emitc.apply"
+
+    assembly_format = """
+        $applicableOperator `(` $operand `)` attr-dict `:` functional-type($operand, results)
+      """
+
+    applicableOperator = prop_def(StringAttr)
+
+    operand = operand_def(AnyAttr())
+
+    result = result_def(EmitCTypeConstr)
+
+    def verify_(self) -> None:
+        applicable_operator = self.applicableOperator.data
+
+        # Applicable operator must not be empty
+        if not applicable_operator:
+            raise VerifyException("applicable operator must not be empty")
+
+        if applicable_operator not in ("&", "*"):
+            raise VerifyException("applicable operator is illegal")
+
+        operand_type = self.operand.type
+        result_type = self.result.type
+
+        if applicable_operator == "&":
+            if not isinstance(operand_type, EmitC_LValueType):
+                raise VerifyException(
+                    "operand type must be an lvalue when applying `&`"
+                )
+            if not isinstance(result_type, EmitC_PointerType):
+                raise VerifyException("result type must be a pointer when applying `&`")
+        else:  # applicable_operator == "*"
+            if not isinstance(operand_type, EmitC_PointerType):
+                raise VerifyException(
+                    "operand type must be a pointer when applying `*`"
+                )
+
+    def has_side_effects(self) -> bool:
+        """Return True if the operation has side effects."""
+        return self.applicableOperator.data == "*"
+
+
+@irdl_op_definition
 class EmitC_CallOpaqueOp(IRDLOperation):
     """
     The `emitc.call_opaque` operation represents a C++ function call. The callee can be an arbitrary non-empty string.
@@ -455,6 +503,7 @@ EmitC = Dialect(
     "emitc",
     [
         EmitC_AddOp,
+        EmitC_ApplyOp,
         EmitC_CallOpaqueOp,
     ],
     [
