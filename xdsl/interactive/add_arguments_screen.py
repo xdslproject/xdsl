@@ -1,9 +1,9 @@
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Horizontal, ScrollableContainer, Vertical
+from textual.containers import Horizontal, Vertical
 from textual.reactive import Reactive
 from textual.screen import Screen
-from textual.widgets import Button, Input, Static
+from textual.widgets import Button, Input, Label
 
 from xdsl.passes import ModulePass, PassOptionInfo, get_pass_option_infos
 from xdsl.utils.exceptions import PassPipelineParseError
@@ -32,27 +32,27 @@ class AddArguments(Screen[ModulePass | None]):
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        with ScrollableContainer(id="container"):
-            with Vertical(id="top_level"):
-                for arg in self.argument_tuple:
-                    with Horizontal(id=f"argument_row_{arg.name}"):
-                        yield Static(
-                            f"{arg.name} : {arg.expected_type}",
-                            id=f"arg_name_{arg.name}",
-                        )
-                        default_str = (
-                            f" [default: {arg.default_value}]"
-                            if arg.default_value is not None
-                            else ""
-                        )
-                        yield Input(
-                            placeholder=f"Enter {arg.expected_type} value here.{default_str}",
-                            id=f"input_{arg.name}",
-                        )
-            with Horizontal(id="cancel_enter_buttons"):
-                yield Button("Clear Text", id="clear_input_screen_button")
-                yield self.enter_button
-                yield Button("Cancel", id="quit_screen_button")
+        with Vertical(id="top_level"):
+            for arg in self.argument_tuple:
+                # with Horizontal(id=f"argument_row_{arg.name}"):
+                with Horizontal(id=f"top_level_{arg.name}"):
+                    yield Label(
+                        f"{arg.name} : {arg.expected_type}",
+                        id=f"arg_name_{arg.name}",
+                    )
+                    default_str = (
+                        f" [default: {arg.default_value}]"
+                        if arg.default_value is not None
+                        else ""
+                    )
+                    yield Input(
+                        placeholder=f"Enter {arg.expected_type} value here.{default_str}",
+                        id=f"input_{arg.name}",
+                    )
+        with Horizontal(id="cancel_enter_buttons"):
+            yield Button("Clear Text", id="clear_input_screen_button")
+            yield self.enter_button
+            yield Button("Cancel", id="quit_screen_button")
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
@@ -64,7 +64,7 @@ class AddArguments(Screen[ModulePass | None]):
         # Initialize enter button
         self.watch_selected_pass_value()
 
-    @on(Input.Changed, "#top_level")
+    @on(Input.Changed)
     def update_selected_pass_value(self) -> None:
         concatenated_arg_val = ""
         for arg in self.argument_tuple:
