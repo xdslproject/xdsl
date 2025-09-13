@@ -135,3 +135,16 @@ func.func @insert_poison_idx(%a: vector<4x5xf32>, %b: f32) {
   vector.insert %b, %a[-1, 0] : f32 into vector<4x5xf32>
   return
 }
+
+// CHECK-LABEL: @shuffle
+func.func @shuffle(%a : vector<2xf32>, %b : vector<1x16xf32>, %c : vector<2x16xf32>, %d : vector<f32>) -> (vector<2xf32>, vector<3x16xf32>, vector<4xf32>, vector<2xf32>) {
+  // CHECK-NEXT: %0 = vector.shuffle %a, %a [0, 3] : vector<2xf32>, vector<2xf32>
+  %0 = vector.shuffle %a, %a [0, 3] : vector<2xf32>, vector<2xf32>
+  // CHECK-NEXT: %1 = vector.shuffle %c, %b [0, 1, 2] : vector<2x16xf32>, vector<1x16xf32>
+  %1 = vector.shuffle %c, %b [0, 1, 2] : vector<2x16xf32>, vector<1x16xf32>
+  // CHECK-NEXT: %2 = vector.shuffle %a, %a [3, 2, 1, 0] : vector<2xf32>, vector<2xf32>
+  %2 = vector.shuffle %a, %a [3, 2, 1, 0] : vector<2xf32>, vector<2xf32>
+  // CHECK-NEXT: %3 = vector.shuffle %d, %d [0, 1] : vector<f32>, vector<f32>
+  %3 = vector.shuffle %d, %d [0, 1] : vector<f32>, vector<f32>
+  return %0, %1, %2, %3 : vector<2xf32>, vector<3x16xf32>, vector<4xf32>, vector<2xf32>
+}
