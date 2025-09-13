@@ -499,7 +499,7 @@ class _OpDefField(Generic[_ClsT]):
         self.cls = cls
 
 
-class _RangeConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
+class _RangeConstrainedOpDefField(_OpDefField[_ClsT], Generic[_ClsT]):
     param: RangeConstraint | IRDLAttrConstraint
 
     def __init__(self, cls: type[_ClsT], param: RangeConstraint | IRDLAttrConstraint):
@@ -507,7 +507,7 @@ class _RangeConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
         self.param = param
 
 
-class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
+class _ConstrainedOpDefField(_OpDefField[_ClsT], Generic[_ClsT]):
     param: IRDLAttrConstraint
 
     def __init__(self, cls: type[_ClsT], param: IRDLAttrConstraint):
@@ -527,7 +527,7 @@ AttrOrPropInvT = TypeVar("AttrOrPropInvT", bound=AttrOrPropDef)
 
 
 class _AttrOrPropFieldDef(
-    Generic[AttrOrPropInvT], _ConstrainedOpDefField[AttrOrPropInvT]
+    _ConstrainedOpDefField[AttrOrPropInvT], Generic[AttrOrPropInvT]
 ):
     ir_name: str | None = None
     """

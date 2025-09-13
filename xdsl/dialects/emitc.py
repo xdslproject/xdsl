@@ -166,11 +166,11 @@ EmitCArrayElementTypeCovT = TypeVar(
 
 @irdl_attr_definition
 class EmitC_ArrayType(
-    Generic[EmitCArrayElementTypeCovT],
     ParametrizedAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[EmitCArrayElementTypeCovT],
+    Generic[EmitCArrayElementTypeCovT],
 ):
     """EmitC array type"""
 

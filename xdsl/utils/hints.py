@@ -169,6 +169,10 @@ def get_type_var_mapping(
         base_origin = get_origin(base)
         if base_origin is Generic:
             args = get_args(base)
+
+    for base in orig_bases:
+        base_origin = get_origin(base)
+        if base_origin is Generic:
             continue
         base_cls = base if base_origin is None else base_origin
         if not issubclass(base_cls, Generic):

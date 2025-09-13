@@ -115,7 +115,7 @@ _VectorT = TypeVar("_VectorT", bound=VectorWrappable, default=VectorWrappable)
 
 
 @irdl_attr_definition
-class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
+class VectorType(ParametrizedAttribute, TypeAttribute, Generic[_VectorT]):
     """
     This type holds multiple MPI types
     """

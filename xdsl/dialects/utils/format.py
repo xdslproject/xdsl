@@ -21,7 +21,7 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 
 
-class AbstractYieldOperation(Generic[AttributeInvT], IRDLOperation):
+class AbstractYieldOperation(IRDLOperation, Generic[AttributeInvT]):
     """
     A base class for yielding operations to inherit, provides the standard custom syntax
     and a definition of the `arguments` variadic operand.
