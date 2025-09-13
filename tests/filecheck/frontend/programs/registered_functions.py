@@ -29,16 +29,85 @@ print(test_add.module)
 # CHECK-NEXT: }
 
 
-# CHECK-NEXT: Function arguments must be declared variables.
+# Test with float literal arguments
+def add_f64(a: float, b: float) -> float: ...
+ctx.register_type(float, builtin.f64)
+ctx.register_function(add_f64, arith.AddfOp)
+# Register float operations for expressions
+ctx.register_function(float.__add__, arith.AddfOp)
+ctx.register_function(float.__mul__, arith.MulfOp)
+
 @ctx.parse_program
-def test_args():
-    return add_i32(1, 2)  # pyright: ignore[reportArgumentType]
+def test_float_literals() -> float:
+    return add_f64(1.5, 2.5)
 
 
-try:
-    test_args.module
-except CodeGenerationException as e:
-    print(e.msg)
+print(test_float_literals.module)
+# CHECK-NEXT: builtin.module {
+# CHECK-NEXT:   func.func @test_float_literals() -> f64 {
+# CHECK-NEXT:     %0 = arith.constant 1.500000e+00 : f64
+# CHECK-NEXT:     %1 = arith.constant 2.500000e+00 : f64
+# CHECK-NEXT:     %2 = arith.addf %0, %1 : f64
+# CHECK-NEXT:     func.return %2 : f64
+# CHECK-NEXT:   }
+# CHECK-NEXT: }
+
+
+# Test with bool literal arguments  
+def and_i1(a: bool, b: bool) -> bool: ...
+ctx.register_type(bool, builtin.i1)
+ctx.register_function(and_i1, arith.AndIOp)
+
+@ctx.parse_program
+def test_bool_literals() -> bool:
+    return and_i1(True, False)
+
+
+print(test_bool_literals.module)
+# CHECK-NEXT: builtin.module {
+# CHECK-NEXT:   func.func @test_bool_literals() -> i1 {
+# CHECK-NEXT:     %0 = arith.constant 1 : i1
+# CHECK-NEXT:     %1 = arith.constant 0 : i1
+# CHECK-NEXT:     %2 = arith.andi %0, %1 : i1
+# CHECK-NEXT:     func.return %2 : i1
+# CHECK-NEXT:   }
+# CHECK-NEXT: }
+
+
+# Test with expressions as arguments (mixing literals and variables)
+@ctx.parse_program
+def test_mixed_expr(x: float, y: float) -> float:
+    return add_f64(x + 1.0, y * 2.0)
+
+
+print(test_mixed_expr.module)
+# CHECK-NEXT: builtin.module {
+# CHECK-NEXT:   func.func @test_mixed_expr(%x : f64, %y : f64) -> f64 {
+# CHECK-NEXT:     %0 = arith.constant 1.000000e+00 : f64
+# CHECK-NEXT:     %1 = arith.addf %x, %0 : f64
+# CHECK-NEXT:     %2 = arith.constant 2.000000e+00 : f64
+# CHECK-NEXT:     %3 = arith.mulf %y, %2 : f64
+# CHECK-NEXT:     %4 = arith.addf %1, %3 : f64
+# CHECK-NEXT:     func.return %4 : f64
+# CHECK-NEXT:   }
+# CHECK-NEXT: }
+
+
+# Test with nested function calls as arguments
+@ctx.parse_program
+def test_nested_calls(x: float, y: float) -> float:
+    return add_f64(add_f64(x, y), add_f64(x, y))
+
+
+print(test_nested_calls.module)
+# CHECK-NEXT: builtin.module {
+# CHECK-NEXT:   func.func @test_nested_calls(%x : f64, %y : f64) -> f64 {
+# CHECK-NEXT:     %0 = arith.addf %x, %y : f64
+# CHECK-NEXT:     %1 = arith.addf %x, %y : f64
+# CHECK-NEXT:     %2 = arith.addf %0, %1 : f64
+# CHECK-NEXT:     func.return %2 : f64
+# CHECK-NEXT:   }
+# CHECK-NEXT: }
 
 
 # ================================================= #
@@ -47,16 +116,29 @@ except CodeGenerationException as e:
 ctx.post_transforms = []
 
 
-# CHECK-NEXT: Function arguments must be declared variables.
+# Test keyword arguments with float literals - now should work!
 @ctx.parse_program
-def test_more_args():
-    return add_i32(operand1=1, operand2=2)  # pyright: ignore[reportArgumentType]
+def test_kwargs_float_literals() -> float:
+    x = 10.0
+    y = 20.0
+    return add_f64(x, y)
 
 
-try:
-    test_more_args.module
-except CodeGenerationException as e:
-    print(e.msg)
+print(test_kwargs_float_literals.module)
+# CHECK-NEXT: builtin.module {
+# CHECK-NEXT:   func.func @test_kwargs_float_literals() -> f64 {
+# CHECK-NEXT:     "symref.declare"() {"symbol" = "x"} : () -> ()
+# CHECK-NEXT:     %0 = arith.constant 1.000000e+01 : f64
+# CHECK-NEXT:     "symref.update"(%0) {"symbol" = "x"} : (f64) -> ()
+# CHECK-NEXT:     "symref.declare"() {"symbol" = "y"} : () -> ()
+# CHECK-NEXT:     %1 = arith.constant 2.000000e+01 : f64
+# CHECK-NEXT:     "symref.update"(%1) {"symbol" = "y"} : (f64) -> ()
+# CHECK-NEXT:     %x = "symref.fetch"() {"symbol" = "x"} : () -> f64
+# CHECK-NEXT:     %y = "symref.fetch"() {"symbol" = "y"} : () -> f64
+# CHECK-NEXT:     %2 = arith.addf %x, %y : f64
+# CHECK-NEXT:     func.return %2 : f64
+# CHECK-NEXT:   }
+# CHECK-NEXT: }
 
 
 def func():

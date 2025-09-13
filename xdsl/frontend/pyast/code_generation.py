@@ -2,6 +2,8 @@ import ast
 from dataclasses import dataclass, field
 from typing import cast
 
+import xdsl.dialects.arith as arith
+import xdsl.dialects.bigint as bigint
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
@@ -113,8 +115,44 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        # TODO: Implement assignemnt in the next patch.
-        pass
+        # First evaluate the value expression
+        self.visit(node.value)
+        value = self.inserter.get_operand()
+        
+        # Handle each target (Python allows multiple assignment targets)
+        for target in node.targets:
+            if not isinstance(target, ast.Name):
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Only simple name assignments are supported, "
+                    f"got '{type(target).__qualname__}'.",
+                )
+            
+            assert self.symbol_table is not None
+            symbol_name = target.id
+            
+            # Check if this is a new variable or an update to existing one
+            if symbol_name not in self.symbol_table:
+                # New variable - declare it first
+                self.symbol_table[symbol_name] = value.type
+                declare_op = symref.DeclareOp(symbol_name)
+                self.inserter.insert_op(declare_op)
+            else:
+                # Existing variable - check type consistency
+                if self.symbol_table[symbol_name] != value.type:
+                    raise CodeGenerationException(
+                        self.file,
+                        node.lineno,
+                        node.col_offset,
+                        f"Cannot assign value of type '{value.type}' to variable "
+                        f"'{symbol_name}' of type '{self.symbol_table[symbol_name]}'.",
+                    )
+            
+            # Update the variable with the new value
+            update_op = symref.UpdateOp(symbol_name, value)
+            self.inserter.insert_op(update_op)
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         op_name: str = node.op.__class__.__qualname__
@@ -217,36 +255,21 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         # Resolve arguments
         assert self.symbol_table is not None
-        args: list[symref.FetchOp] = []
+        args = []
         for arg in node.args:
-            if not isinstance(arg, ast.Name) or arg.id not in self.symbol_table:
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    "Function arguments must be declared variables.",
-                )
-            args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
-            self.inserter.insert_op(arg_op)
+            # Visit the argument expression to evaluate it
+            self.visit(arg)
+            # Get the resulting operand from the expression
+            args.append(self.inserter.get_operand())
 
         # Resolve keyword arguments
-        kwargs: dict[str, symref.FetchOp] = {}
+        kwargs = {}
         for keyword in node.keywords:
-            if (
-                not isinstance(keyword.value, ast.Name)
-                or keyword.value.id not in self.symbol_table
-            ):
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    "Function arguments must be declared variables.",
-                )
             assert keyword.arg is not None
-            kwargs[keyword.arg] = symref.FetchOp(
-                keyword.value.id, self.symbol_table[keyword.value.id]
-            )
-            self.inserter.insert_op(kwargs[keyword.arg])
+            # Visit the keyword value expression to evaluate it
+            self.visit(keyword.value)
+            # Get the resulting operand from the expression
+            kwargs[keyword.arg] = self.inserter.get_operand()
 
         self.inserter.insert_op(ir_op(*args, **kwargs))
 
@@ -337,6 +360,27 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             f"is not supported by type '{ir_type.name}' "
             f"which does not overload '{python_op}'.",
         )
+
+    def visit_Constant(self, node: ast.Constant) -> None:
+        # We only support bool, int and float for now
+        if isinstance(node.value, bool):
+            const_op = arith.ConstantOp(builtin.IntegerAttr(int(node.value), 1))
+            self.inserter.insert_op(const_op)
+        elif isinstance(node.value, int):
+            # we use bigint.constant to represent Python integers
+            bigint_op = bigint.ConstantOp(node.value)
+            self.inserter.insert_op(bigint_op)
+        elif isinstance(node.value, float):
+            # python floats are always f64
+            const_op = arith.ConstantOp(builtin.FloatAttr(node.value, 64))
+            self.inserter.insert_op(const_op)
+        else:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
+            )
 
     def visit_Expr(self, node: ast.Expr) -> None:
         self.visit(node.value)

@@ -2,7 +2,7 @@
 
 import abc
 
-from xdsl.dialects.builtin import f64, i1
+from xdsl.dialects.builtin import IntAttr, IntegerType, f64, i1
 from xdsl.ir import (
     Dialect,
     Operation,
@@ -15,10 +15,11 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
     traits_def,
 )
-from xdsl.traits import Commutative, Pure, SameOperandsAndResultType
+from xdsl.traits import Commutative, ConstantLike, Pure, SameOperandsAndResultType
 
 
 @irdl_attr_definition
@@ -47,6 +48,46 @@ class BinaryOperation(IRDLOperation, abc.ABC):
     ):
         super().__init__(operands=[operand1, operand2], result_types=[bigint])
 
+
+@irdl_op_definition
+class ConstantOp(IRDLOperation):
+    name = "bigint.constant"
+    result = result_def(bigint)
+    value = prop_def(IntAttr)
+
+    traits = traits_def(ConstantLike(), Pure())
+
+    assembly_format = "attr-dict $value"
+
+    def __init__(
+        self,
+        value: IntAttr | int,
+    ):
+        if isinstance(value, int):
+            value = IntAttr(value)
+
+        super().__init__(
+            operands=[], result_types=[bigint], properties={"value": value}
+        )
+
+@irdl_op_definition
+class ToIntOp(IRDLOperation):
+    name = "bigint.to_int"
+    result = result_def(IntegerType)
+    value = operand_def(BigIntegerType)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "attr-dict $value `:` type($result)"
+
+    def __init__(
+        self,
+        value: Operation | SSAValue,
+        type: IntegerType = IntegerType(64),
+    ):
+        super().__init__(
+            operands=[value], result_types=[type]
+        )
 
 @irdl_op_definition
 class AddOp(BinaryOperation):
@@ -302,6 +343,7 @@ class LteOp(ComparisonOperation):
 BigInt = Dialect(
     "bigint",
     [
+        ConstantOp,
         AddOp,
         SubOp,
         MulOp,
