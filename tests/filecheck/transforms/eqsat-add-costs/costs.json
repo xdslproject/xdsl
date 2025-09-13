@@ -1,0 +1,9 @@
+{
+    "arith": 
+        {
+            "constant" : 1,
+            "addi": 3,
+            "shli": 2,
+            "muli": 5
+        }
+}
