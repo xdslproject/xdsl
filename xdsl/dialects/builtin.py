@@ -61,6 +61,7 @@ from xdsl.irdl import (
     IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
+    NotEqualIntConstraint,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -196,8 +197,13 @@ class ArrayAttr(
         | RangeConstraint[AttributeInvT]
         | None = None,
     ) -> ArrayOfConstraint[AttributeInvT]:
-        return ArrayOfConstraint(
-            TypeVarConstraint(AttributeCovT, AnyAttr()) if constr is None else constr
+        return ArrayOfConstraint[AttributeInvT](
+            cast(
+                AttrConstraint[AttributeInvT],
+                TypeVarConstraint(AttributeCovT, AnyAttr()),
+            )
+            if constr is None
+            else constr
         )
 
     def __len__(self):
@@ -217,7 +223,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
 
     def __init__(
         self,
-        constr: (IRDLAttrConstraint | RangeConstraint[AttributeCovT]),
+        constr: (IRDLAttrConstraint[AttributeCovT] | RangeConstraint[AttributeCovT]),
     ):
         if isinstance(constr, RangeConstraint):
             object.__setattr__(self, "elem_range_constraint", constr)
@@ -417,6 +423,24 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         return IntAttrConstraint(
             self.int_constraint.mapping_type_vars(type_var_mapping)
         )
+
+
+StaticDimensionConstr = MessageConstraint(
+    IntAttrConstraint(NotEqualIntConstraint(DYNAMIC_INDEX)),
+    f"expected static dimension, but got {DYNAMIC_INDEX}",
+)
+"""
+Constrain a dimension to be static (not equal to `DYNAMIC_INDEX`).
+"""
+
+
+StaticShapeArrayConstr = MessageConstraint(
+    ArrayOfConstraint(StaticDimensionConstr),
+    "expected static shape, but got dynamic dimension",
+)
+"""
+Constrain an array to be a static shape (all dimensions static).
+"""
 
 
 class Signedness(ConstraintConvertible, Enum):
@@ -728,26 +752,24 @@ class IntegerType(
         return f[format_index]
 
 
-i64 = IntegerType[64, Signedness.SIGNLESS](64)
-i32 = IntegerType[32, Signedness.SIGNLESS](32)
-i16 = IntegerType[16, Signedness.SIGNLESS](16)
-i8 = IntegerType[8, Signedness.SIGNLESS](8)
-i1 = IntegerType[1, Signedness.SIGNLESS](1)
-I64 = IntegerType[64, Signedness.SIGNLESS]
-I32 = IntegerType[32, Signedness.SIGNLESS]
-I16 = IntegerType[16, Signedness.SIGNLESS]
-I8 = IntegerType[8, Signedness.SIGNLESS]
-I1 = IntegerType[1, Signedness.SIGNLESS]
+I64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.SIGNLESS]]
+I32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.SIGNLESS]]
+I16: TypeAlias = IntegerType[Literal[16], Literal[Signedness.SIGNLESS]]
+I8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.SIGNLESS]]
+I1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.SIGNLESS]]
+i64: I64 = IntegerType(64)
+i32: I32 = IntegerType(32)
+i16: I16 = IntegerType(16)
+i8: I8 = IntegerType(8)
+i1: I1 = IntegerType(1)
 
 _IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
 
-SignlessIntegerConstraint = ParamAttrConstraint(
-    IntegerType, [IntAttr, SignednessAttr(Signedness.SIGNLESS)]
-)
-"""Type constraint for signless IntegerType."""
-
-AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstraint]
+AnySignlessIntegerType: TypeAlias = IntegerType[int, Literal[Signedness.SIGNLESS]]
 """Type alias constrained to signless IntegerType."""
+
+SignlessIntegerConstraint = irdl_to_attr_constraint(AnySignlessIntegerType)
+"""Type constraint for signless IntegerType."""
 
 
 @irdl_attr_definition
@@ -1135,15 +1157,15 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
     ) -> None:
         if isinstance(type, int):
             if type == 16:
-                type = Float16Type()
+                type = f16
             elif type == 32:
-                type = Float32Type()
+                type = f32
             elif type == 64:
-                type = Float64Type()
+                type = f64
             elif type == 80:
-                type = Float80Type()
+                type = f80
             elif type == 128:
-                type = Float128Type()
+                type = f128
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
 
@@ -1275,6 +1297,16 @@ class ComplexType(
 
     def pack(self, values: Sequence[tuple[float, float] | tuple[int, int]]) -> bytes:
         return self.element_type.pack(tuple(val for vals in values for val in vals))  # pyright: ignore[reportArgumentType]
+
+    @staticmethod
+    def constr(
+        element_type: IRDLAttrConstraint[ComplexElementCovT] | None = None,
+    ) -> AttrConstraint[ComplexType[ComplexElementCovT]]:
+        if element_type is None:
+            return BaseAttr[ComplexType[ComplexElementCovT]](ComplexType)
+        return ParamAttrConstraint[ComplexType[ComplexElementCovT]](
+            ComplexType, (element_type,)
+        )
 
 
 @irdl_attr_definition

@@ -78,12 +78,11 @@ class InputApp(App[None]):
     A dictionary that maps names on to Screen objects.
     """
 
-    INITIAL_IR_TEXT = """
-        func.func @hello(%n : i32) -> i32 {
-          %two = arith.constant 0 : i32
-          %res = arith.addi %two, %n : i32
-          func.return %res : i32
-        }
+    INITIAL_IR_TEXT = """func.func @hello(%n : i32) -> i32 {
+    %two = arith.constant 0 : i32
+    %res = arith.addi %two, %n : i32
+    func.return %res : i32
+}
         """
 
     all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...]
@@ -229,6 +228,9 @@ class InputApp(App[None]):
                 label=n,
                 data=module_pass,
             )
+
+        # Expand the root node to show all passes on initialization
+        self.passes_tree.root.expand()
 
         # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)

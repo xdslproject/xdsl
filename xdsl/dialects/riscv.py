@@ -1935,9 +1935,12 @@ class AndOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import BitwiseOrByZero
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseOrBySelf,
+            BitwiseOrByZero,
+        )
 
-        return (BitwiseOrByZero(),)
+        return (BitwiseOrByZero(), BitwiseOrBySelf())
 
 
 @irdl_op_definition
