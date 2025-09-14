@@ -8,13 +8,18 @@ This can be more convenient than adding the traits explicitly.
 """
 
 import abc
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.ir import Attribute, Operation
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.irdl import traits_def
 from xdsl.pattern_rewriter import RewritePattern
-from xdsl.traits import ConstantLike, HasCanonicalizationPatternsTrait
+from xdsl.traits import (
+    ConstantLike,
+    HasCanonicalizationPatternsTrait,
+    HasFolder,
+)
 
 
 @dataclass(frozen=True)
@@ -77,4 +82,48 @@ class ConstantLikeInterface(Operation, abc.ABC):
 
     @abc.abstractmethod
     def get_constant_value(self) -> Attribute:
+        raise NotImplementedError()
+
+
+class _HasFolderInterfaceTrait(HasFolder):
+    """
+    Gets the fold results from the operation's implementation
+    of `HasFolderInterface`.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    def fold(cls, op: Operation):
+        op = cast(HasFolderInterface, op)
+        return op.fold()
+
+
+class HasFolderInterface(Operation, abc.ABC):
+    """
+    An operation subclassing this interface must implement the
+    `fold` method, which attempts to fold the operation.
+    Wraps `HasFolderTrait`.
+    """
+
+    traits = traits_def(_HasFolderInterfaceTrait())
+
+    def get_constant(self, operand: SSAValue) -> Attribute | None:
+        if not isinstance(operand, OpResult):
+            return None
+        operand_op = operand.owner
+        if (t := operand_op.get_trait(ConstantLike)) is not None:
+            return t.get_constant_value(operand_op)
+
+    @abc.abstractmethod
+    def fold(self) -> Sequence[SSAValue | Attribute] | None:
+        """
+        Attempts to fold the operation. The fold method cannot modify the IR.
+        Returns either an existing SSAValue or an Attribute for each result of the operation.
+        When folding is unsuccessful, returns None.
+        """
+        # TODO: should we support fold methods that mutate the operation?
+        #   That would require fold to return an additional flag
+        #   indicating whether the operation was modified?
         raise NotImplementedError()
