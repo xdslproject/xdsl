@@ -277,6 +277,8 @@ def test_get_constant_value():
     li_op = riscv.LiOp(1)
     li_val = get_constant_value(li_op.rd)
     assert li_val == IntegerAttr.from_int_and_width(1, 32)
+    # LiOp implements ConstantLikeInterface so it also has a get_constant_value method:
+    assert li_op.get_constant_value() == IntegerAttr.from_int_and_width(1, 32)
     zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
     zero_val = get_constant_value(zero_op.res)
     assert zero_val == IntegerAttr.from_int_and_width(0, 32)

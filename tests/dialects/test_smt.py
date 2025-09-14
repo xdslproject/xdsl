@@ -51,10 +51,12 @@ def test_constant_bool():
     op = ConstantBoolOp(True)
     assert op.value is True
     assert op.value_attr == IntegerAttr(-1, 1)
+    assert op.get_constant_value() == IntegerAttr(-1, 1)
 
     op = ConstantBoolOp(False)
     assert op.value is False
     assert op.value_attr == IntegerAttr(0, 1)
+    assert op.get_constant_value() == IntegerAttr(0, 1)
 
 
 def test_bv_type():
@@ -182,14 +184,17 @@ def test_bv_constant_op():
     op = BvConstantOp(bv_attr)
     assert op.value == bv_attr
     assert op.result.type == BitVectorType(32)
+    assert op.get_constant_value() == bv_attr
 
     op2 = BvConstantOp(42, 32)
     assert op2.value == bv_attr
     assert op2.result.type == BitVectorType(32)
+    assert op2.get_constant_value() == bv_attr
 
     op3 = BvConstantOp(42, BitVectorType(32))
     assert op3.value == bv_attr
     assert op3.result.type == BitVectorType(32)
+    assert op3.get_constant_value() == bv_attr
 
 
 @pytest.mark.parametrize("op_type", [BVNotOp, BVNegOp])
