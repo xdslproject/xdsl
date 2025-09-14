@@ -1,10 +1,13 @@
 import pytest
 
+from xdsl.context import Context
+from xdsl.dialect_interfaces import ConstantMaterializationInterface
 from xdsl.dialects.arith import (
     AddfOp,
     AddiOp,
     AddUIExtendedOp,
     AndIOp,
+    Arith,
     BitcastOp,
     CeilDivSIOp,
     CeilDivUIOp,
@@ -51,6 +54,7 @@ from xdsl.dialects.arith import (
 )
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
+    DenseResourceAttr,
     FloatAttr,
     IndexType,
     IntegerAttr,
@@ -490,3 +494,43 @@ def test_extui_incorrect_bitwidth():
     # bitwidth of b has to be larger than the one of a
     with pytest.raises(VerifyException):
         _extui_op = ExtUIOp(a, i32).verify()
+
+
+def test_constant_materialization():
+    ctx = Context()
+    ctx.load_dialect(Arith)
+    interface = Arith.get_interface(ConstantMaterializationInterface)
+    assert interface is not None
+    const = interface.materialize_constant(
+        ctx, IntegerAttr.from_int_and_width(42, 32), i32
+    )
+    assert isinstance(const, ConstantOp)
+    assert const.value == IntegerAttr.from_int_and_width(42, 32)
+    assert const.result_types[0] == i32
+
+    const = interface.materialize_constant(ctx, FloatAttr(42.0, f64), f64)
+    assert isinstance(const, ConstantOp)
+    assert const.value == FloatAttr(42.0, f64)
+    assert const.result_types[0] == f64
+
+    const = interface.materialize_constant(
+        ctx,
+        DenseIntOrFPElementsAttr.from_list(TensorType(i32, [2]), [1, 2]),
+        TensorType(i32, [2]),
+    )
+    assert isinstance(const, ConstantOp)
+    assert const.value == DenseIntOrFPElementsAttr.from_list(
+        TensorType(i32, [2]), [1, 2]
+    )
+    assert const.result_types[0] == TensorType(i32, [2])
+
+    const = interface.materialize_constant(
+        ctx,
+        DenseResourceAttr.from_params("my_resource", TensorType(i32, [2])),
+        TensorType(i32, [2]),
+    )
+    assert isinstance(const, ConstantOp)
+    assert const.value == DenseResourceAttr.from_params(
+        "my_resource", TensorType(i32, [2])
+    )
+    assert const.result_types[0] == TensorType(i32, [2])
