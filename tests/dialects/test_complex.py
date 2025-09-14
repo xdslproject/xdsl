@@ -4,6 +4,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     i32,
 )
+from xdsl.traits import ConstantLike
 
 
 def test_constant_construction():
@@ -11,4 +12,6 @@ def test_constant_construction():
         value=ArrayAttr([IntAttr(42), IntAttr(43)]),
         result_type=complex.ComplexType(i32),
     )
-    assert c1.get_constant_value() == ArrayAttr([IntAttr(42), IntAttr(43)])
+    constantlike = c1.get_trait(ConstantLike)
+    assert constantlike is not None
+    assert constantlike.get_constant_value(c1) == ArrayAttr([IntAttr(42), IntAttr(43)])
