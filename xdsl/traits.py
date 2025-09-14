@@ -40,8 +40,9 @@ class ConstantLike(OpTrait, abc.ABC):
     See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html).
     """
 
+    @classmethod
     @abc.abstractmethod
-    def get_constant_value(self, op: Operation) -> Attribute:
+    def get_constant_value(cls, op: Operation) -> Attribute:
         """
         Get the constant value from this constant-like operation.
 
