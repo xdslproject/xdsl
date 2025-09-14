@@ -4467,7 +4467,6 @@ dev = [
     { name = "marimo" },
     { name = "nbconvert" },
     { name = "nbval" },
-    { name = "numpy" },
     { name = "pre-commit" },
     { name = "pyright" },
     { name = "pytest" },
@@ -4532,7 +4531,6 @@ requires-dist = [
     { name = "marimo", marker = "extra == 'dev'", specifier = "==0.15.3" },
     { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8.0.0" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "<0.12" },
-    { name = "numpy", marker = "extra == 'dev'", specifier = "==2.2.6" },
     { name = "numpy", marker = "extra == 'jax'", specifier = "==2.2.6" },
     { name = "ordered-set", specifier = "==4.1.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.0,<5.0.0" },
@@ -4562,7 +4560,7 @@ bench = [
 ]
 dev = [
     { name = "my-plugin", directory = "tests/my_plugin" },
-    { name = "xdsl", extras = ["dev", "gui"] },
+    { name = "xdsl", extras = ["dev", "gui", "docs"] },
 ]
 docs = [
     { name = "basedpyright", specifier = ">=1.31.0" },
