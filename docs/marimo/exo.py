@@ -198,7 +198,7 @@ def _(
 def _(Block, ModuleOp, Region, Rewriter, arith, scf):
     # Implementation of "reorder_loops"
     # TODO: reorder_loops does not check the commutativity of the body of the K loop. It needs to be asserted from the user.
-    def reorder_loops(module : ModuleOp, o_loop: scf.ForOp, i_loop: scf.ForOp):
+    def reorder_loops(module : ModuleOp, o_loop: scf.ForOp, i_loop: scf.ForOp) -> tuple[scf.ForOp, scf.ForOp]:
         r = Rewriter()
 
         # body of the outer loop should be size 1. Loops must be perfectly nested
@@ -221,6 +221,8 @@ def _(Block, ModuleOp, Region, Rewriter, arith, scf):
 
         for (old_outer, new_inner) in zip(o_loop.body.block.args, new_i_loop.body.block.args, strict=True):
             new_inner.name_hint = old_outer.name_hint
+
+        return new_o_loop, new_i_loop
     return (reorder_loops,)
 
 
