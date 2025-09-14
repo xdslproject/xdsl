@@ -48,7 +48,7 @@ builtin.module {
       %c = "arith.cmpi"(%zero, %arg) {"predicate" = 1 : i64} : (i32, i32) -> i1
       scf.condition(%c) %zero : i32
     } do {
-    ^1(%arg2 : i32):
+    ^bb1(%arg2 : i32):
       scf.yield %arg2 : i32
     }
     func.return
@@ -61,7 +61,7 @@ builtin.module {
   // CHECK-NEXT:     %{{.*}} = arith.cmpi ne, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:     scf.condition(%{{.*}}) %{{.*}} : i32
   // CHECK-NEXT:   } do {
-  // CHECK-NEXT:   ^{{.*}}(%{{.*}} : i32):
+  // CHECK-NEXT:   ^bb{{.*}}(%{{.*}} : i32):
   // CHECK-NEXT:     scf.yield %{{.*}} : i32
   // CHECK-NEXT:   }
   // CHECK-NEXT:   func.return
@@ -92,7 +92,7 @@ builtin.module {
   // CHECK-NEXT:      %{{.*}} = arith.cmpi eq, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:      scf.condition(%{{.*}}) %{{.*}}, %{{.*}} : i32, f32
   // CHECK-NEXT:    } do {
-  // CHECK-NEXT:    ^{{\d+}}(%{{.*}} : i32, %{{.*}} : f32):
+  // CHECK-NEXT:    ^bb{{\d+}}(%{{.*}} : i32, %{{.*}} : f32):
   // CHECK-NEXT:      %{{.*}} = arith.constant 1.000000e+00 : f32
   // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
   // CHECK-NEXT:      scf.yield %{{.*}}, %{{.*}} : i32, f32
@@ -125,7 +125,7 @@ builtin.module {
   // CHECK-NEXT:      %{{.*}} = arith.cmpi eq, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:      scf.condition(%{{.*}}) {hello = "world"} %{{.*}}, %{{.*}} : i32, f32
   // CHECK-NEXT:    } do {
-  // CHECK-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : f32):
+  // CHECK-NEXT:    ^bb{{.*}}(%{{.*}} : i32, %{{.*}} : f32):
   // CHECK-NEXT:      %{{.*}} = arith.constant 1.000000e+00 : f32
   // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
   // CHECK-NEXT:      scf.yield %{{.*}}, %{{.*}} : i32, f32

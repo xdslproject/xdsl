@@ -126,11 +126,11 @@
 
 "builtin.module"()({
     "gpu.module"()({
-^0:
+^bb0:
     }) {} : () -> ()
 }) {} : () -> ()
 
-// CHECK: property sym_name expected
+// CHECK: property 'sym_name' expected in operation 'gpu.module'
 
 // -----
 

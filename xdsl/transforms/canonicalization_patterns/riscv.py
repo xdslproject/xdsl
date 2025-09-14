@@ -35,27 +35,54 @@ class RemoveRedundantFMvD(RewritePattern):
 class MultiplyImmediates(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None and (
-            rs2 := get_constant_value(op.rs2)
-        ) is not None:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(
-                riscv.LiOp(
-                    rs1.value.data * rs2.value.data,
-                    rd=rd,
+        lhs: int | None = None
+        rhs: int | None = None
+        if (rs1 := get_constant_value(op.rs1)) is not None:
+            lhs = rs1.value.data
+
+        if (rs2 := get_constant_value(op.rs2)) is not None:
+            rhs = rs2.value.data
+
+        rd = cast(riscv.IntRegisterType, op.rd.type)
+
+        match (lhs, rhs):
+            case int(), None:
+                rewriter.replace_matched_op(
+                    riscv.MulOp(
+                        op.rs2,
+                        op.rs1,
+                        rd=rd,
+                    )
                 )
+            case None, int():
+                if rhs == 0:
+                    rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+                    return
+                elif rhs == 1:
+                    rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+                    return
+                else:
+                    return
+            case int(), int():
+                rewriter.replace_matched_op(riscv.LiOp(lhs * rhs, rd=rd))
+            case _:
+                return
+
+
+class DivideByOneIdentity(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.DivOp, rewriter: PatternRewriter) -> None:
+        # Check if rs2 is a constant 1
+        if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 1:
+            rd_type = cast(riscv.IntRegisterType, op.rd.type)
+
+            # Replace the DivOp with a copy/move of rs1 to rd
+            move_op = riscv.MVOp(
+                op.rs1,
+                rd=rd_type,
             )
 
-
-class MultiplyImmediateZero(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
-        elif (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+            rewriter.replace_matched_op([move_op])
 
 
 class AddImmediates(RewritePattern):
@@ -199,6 +226,18 @@ class ShiftLeftbyZero(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.SlliOp, rewriter: PatternRewriter) -> None:
+        # check if the shift amount is zero
+        if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=op.rd.type))
+
+
+class ShiftRightbyZero(RewritePattern):
+    """
+    x >> 0 -> x
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.SrliOp, rewriter: PatternRewriter) -> None:
         # check if the shift amount is zero
         if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=op.rd.type))
@@ -356,13 +395,13 @@ class FuseMultiplyAddD(RewritePattern):
         if (
             isinstance(mul := op.rs2.owner, riscv.FMulDOp)
             and _has_contract_flag(mul)
-            and len(mul.rd.uses) == 1
+            and mul.rd.has_one_use()
         ):
             addend = op.rs1
         elif (
             isinstance(mul := op.rs1.owner, riscv.FMulDOp)
             and _has_contract_flag(mul)
-            and len(mul.rd.uses) == 1
+            and mul.rd.has_one_use()
         ):
             addend = op.rs2
         else:
@@ -419,6 +458,17 @@ class BitwiseOrByZero(RewritePattern):
             # if the second operand is 0, set the destination to first operand
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+
+
+class BitwiseOrBySelf(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter):
+        """
+        x | x = x
+        """
+        if op.rs1 == op.rs2:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd, comment=op.comment))
 
 
 class XorBySelf(RewritePattern):

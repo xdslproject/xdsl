@@ -3,6 +3,7 @@ This test file needs the other files in the same folder to read and reprint them
 test functions below.
 """
 
+import re
 from contextlib import redirect_stdout
 from io import StringIO
 from typing import IO
@@ -13,7 +14,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, get_all_dialects
 from xdsl.passes import ModulePass
 from xdsl.transforms import get_all_passes
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, ParseError
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 
@@ -43,59 +44,83 @@ def test_empty_program():
 
 
 @pytest.mark.parametrize(
-    "args, expected_error",
+    "args, error_type, expected_error",
     [
         (
             ["--no-implicit-module", "tests/xdsl_opt/not_module.mlir"],
+            ParseError,
             "builtin.module operation expected",
         ),
         (
             ["--no-implicit-module", "tests/xdsl_opt/incomplete_program.mlir"],
+            ParseError,
             "Could not parse entire input",
         ),
         (
             ["tests/xdsl_opt/incomplete_program_residual.mlir"],
+            ParseError,
             "Could not parse entire input",
         ),
         (
             ["tests/xdsl_opt/incomplete_program.mlir"],
+            ParseError,
             "Could not parse entire input",
         ),
-        (["tests/xdsl_opt/empty_program.wrong"], "Unrecognized file extension 'wrong'"),
+        (
+            ["tests/xdsl_opt/empty_program.wrong"],
+            ValueError,
+            "Unrecognized file extension 'wrong'",
+        ),
+        (
+            ["tests/xdsl_opt/unverified_program.mlir"],
+            DiagnosticException,
+            "operand at position 0 does not verify",
+        ),
     ],
 )
-def test_error_on_run(args: list[str], expected_error: str):
+def test_error_on_run(
+    args: list[str], error_type: type[Exception], expected_error: str
+):
     opt = xDSLOptMain(args=args)
 
-    with pytest.raises(Exception, match=expected_error):
+    with pytest.raises(error_type, match=expected_error):
         opt.run()
+
+
+@pytest.mark.parametrize(
+    "args, error_type, expected_error",
+    [
+        (
+            ["tests/xdsl_opt/empty_program.mlir", "-p", "wrong"],
+            ValueError,
+            "Unrecognized passes: ['wrong']",
+        ),
+    ],
+)
+def test_error_on_construction(
+    args: list[str], error_type: type[Exception], expected_error: str
+):
+    with pytest.raises(error_type, match=re.escape(expected_error)):
+        xDSLOptMain(args=args)
 
 
 @pytest.mark.parametrize(
     "args, expected_error",
     [
         (
-            ["tests/xdsl_opt/empty_program.mlir", "-p", "wrong"],
-            "Unrecognized pass: wrong",
-        )
+            ["tests/xdsl_opt/empty_program.mlir", "-t", "wrong"],
+            "invalid choice: 'wrong'",
+        ),
     ],
 )
-def test_error_on_construction(args: list[str], expected_error: str):
-    with pytest.raises(Exception) as e:
-        _opt = xDSLOptMain(args=args)
-
-    assert e.value.args[0] == expected_error
-
-
-def test_wrong_target():
-    filename = "tests/xdsl_opt/empty_program.mlir"
-    opt = xDSLOptMain(args=[filename])
-    opt.args.target = "wrong"
-
-    with pytest.raises(Exception) as e:
-        opt.run()
-
-    assert e.value.args[0] == "Unknown target wrong"
+def test_error_on_argparse(
+    capsys: pytest.CaptureFixture[str], args: list[str], expected_error: str
+):
+    with pytest.raises(SystemExit):
+        xDSLOptMain(args=args)
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert expected_error in err
 
 
 def test_print_to_file():
@@ -153,15 +178,6 @@ def test_print_between_passes():
 
     output = f.getvalue()
     assert len([l for l in output.split("\n") if "builtin.module" in l]) == len(passes)
-
-
-def test_diagnostic_exception():
-    filename_in = "tests/xdsl_opt/unverified_program.mlir"
-
-    opt = xDSLOptMain(args=[filename_in])
-
-    with pytest.raises(DiagnosticException):
-        opt.run()
 
 
 def test_verify_diagnostics_output():

@@ -13,7 +13,7 @@ from xdsl.irdl import (
 )
 
 from .assembly import AssemblyInstructionArg, reg
-from .register import IntRegisterType
+from .registers import IntRegisterType
 
 
 class ARMOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):

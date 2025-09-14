@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.dialects import arith, builtin, llvm, test
 from xdsl.dialects.builtin import UnitAttr, i32
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, Block, Region
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
@@ -109,7 +109,7 @@ def test_llvm_pointer_ops():
 
     module.verify()
 
-    assert len(alloc_ptr.res.uses) == 1
+    assert alloc_ptr.res.has_one_use()
     assert ptr.size is idx.result
     assert isinstance(ptr.res.type, llvm.LLVMPointerType)
     assert ptr.res.type.type == builtin.i32
@@ -123,6 +123,47 @@ def test_llvm_pointer_ops():
     assert isinstance(nullptr.nullptr.type, llvm.LLVMPointerType)
     assert isinstance(nullptr.nullptr.type.type, builtin.NoneAttr)
     assert isinstance(nullptr.nullptr.type.addr_space, builtin.NoneAttr)
+
+
+@pytest.mark.parametrize(
+    "alignment, ordering, result_type",
+    [
+        # Load without alignment, default ordering
+        (None, 0, None),
+        # Load with alignment only
+        (16, 0, None),
+        # Load with both alignment and ordering
+        (32, 1, None),
+        # Load with explicit result type and alignment
+        (64, 0, builtin.i32),
+        # Load with ordering only
+        (None, 2, None),
+    ],
+)
+def test_llvm_load_op_with_alignment(
+    alignment: int | None,
+    ordering: int,
+    result_type: Attribute | None,
+):
+    """Test LoadOp with alignment attribute."""
+    ptr = create_ssa_value(llvm.LLVMPointerType.typed(builtin.i32))
+
+    load_op = llvm.LoadOp(
+        ptr, result_type=result_type, alignment=alignment, ordering=ordering
+    )
+
+    if alignment is not None:
+        assert load_op.alignment == builtin.IntegerAttr(alignment, 64)
+    else:
+        assert load_op.alignment is None
+
+    # Ordering is always set as IntegerAttr
+    assert load_op.ordering == builtin.IntegerAttr(ordering, 64)
+
+    if result_type is not None:
+        assert load_op.dereferenced_value.type == result_type
+    else:
+        assert load_op.dereferenced_value.type == builtin.i32
 
 
 def test_llvm_ptr_to_int_to_ptr():
@@ -155,7 +196,9 @@ def test_llvm_getelementptr_op_invalid_construction():
     opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
 
     # check that passing an opaque pointer to GEP without a pointee type fails
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="Opaque types must have a pointee type passed"
+    ):
         llvm.GEPOp(
             opaque_ptr,
             indices=[1],
@@ -163,7 +206,10 @@ def test_llvm_getelementptr_op_invalid_construction():
         )
 
     # check that non-pointer arguments fail
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="Expected <class 'xdsl.dialects.llvm.LLVMPointerType'> but got SSAValue with type i32.",
+    ):
         llvm.GEPOp(
             size,
             indices=[1],
@@ -261,6 +307,19 @@ def test_global_op():
     assert isinstance(global_op.linkage, llvm.LinkageAttr)
     assert isinstance(global_op_value := global_op.value, builtin.IntegerAttr)
     assert global_op_value.value.data == 76
+    assert len(global_op.body.blocks) == 0
+
+
+def test_global_op_with_body():
+    global_op = llvm.GlobalOp(
+        builtin.i32,
+        "testsymbol",
+        "internal",
+        body=Region([Block([llvm.UnreachableOp()])]),
+    )
+
+    assert len(global_op.body.blocks) == 1
+    assert len(global_op.body.blocks[0].ops) == 1
 
 
 def test_addressof_op():

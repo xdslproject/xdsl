@@ -4,6 +4,10 @@ from xdsl.context import Context
 from xdsl.dialects.builtin import UnregisteredAttr, UnregisteredOp
 from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition
+from xdsl.utils.exceptions import (
+    AlreadyRegisteredConstructException,
+    UnregisteredConstructException,
+)
 
 
 @irdl_op_definition
@@ -26,8 +30,13 @@ class DummyAttr2(ParametrizedAttribute):
     name = "test.dummy_attr2"
 
 
-testDialect = Dialect("test", [DummyOp], [DummyAttr])
-testDialect2 = Dialect("test", [DummyOp2], [DummyAttr2])
+@irdl_attr_definition
+class DummyType(ParametrizedAttribute, TypeAttribute):
+    name = "test.dummy_type"
+
+
+testDialect = Dialect("test", [DummyOp], [DummyAttr, DummyType])
+testDialect2 = Dialect("test", [DummyOp2], [DummyAttr2, DummyType])
 
 
 def test_get_op():
@@ -36,7 +45,7 @@ def test_get_op():
     ctx.load_op(DummyOp)
 
     assert ctx.get_op("test.dummy") == DummyOp
-    with pytest.raises(Exception):
+    with pytest.raises(UnregisteredConstructException):
         _ = ctx.get_op("test.dummy2")
 
     assert ctx.get_optional_op("test.dummy") == DummyOp
@@ -66,7 +75,7 @@ def test_get_op_with_dialect_stack():
     ctx.load_op(DummyOp)
 
     assert ctx.get_op("dummy", dialect_stack=("test",)) == DummyOp
-    with pytest.raises(Exception):
+    with pytest.raises(UnregisteredConstructException):
         _ = ctx.get_op("dummy2", dialect_stack=("test",))
 
     assert ctx.get_optional_op("dummy", dialect_stack=("test",)) == DummyOp
@@ -96,50 +105,72 @@ def test_get_op_unregistered_with_dialect_stack():
 def test_get_attr():
     """Test `get_attr` and `get_optional_attr` methods."""
     ctx = Context()
-    ctx.load_attr(DummyAttr)
+    ctx.load_attr_or_type(DummyAttr)
 
     assert ctx.get_attr("test.dummy_attr") == DummyAttr
-    with pytest.raises(Exception):
+    with pytest.raises(UnregisteredConstructException):
         _ = ctx.get_attr("test.dummy_attr2")
 
     assert ctx.get_optional_attr("test.dummy_attr") == DummyAttr
     assert ctx.get_optional_attr("test.dummy_attr2") is None
 
 
-@pytest.mark.parametrize("is_type", [True, False])
-def test_get_attr_unregistered(is_type: bool):
+def test_get_type():
+    """Test `get_type` and `get_optional_type` methods."""
+    ctx = Context()
+    ctx.load_attr_or_type(DummyAttr)
+    ctx.load_attr_or_type(DummyType)
+
+    assert ctx.get_type("test.dummy_type") == DummyType
+    with pytest.raises(UnregisteredConstructException):
+        _ = ctx.get_type("test.dummy_attr")
+
+    assert ctx.get_optional_type("test.dummy_type") == DummyType
+    assert ctx.get_optional_type("test.dummy_attr") is None
+
+
+def test_get_attr_unregistered():
     """
     Test `get_attr` and `get_optional_attr`
     methods with the `allow_unregistered` flag.
     """
     ctx = Context(allow_unregistered=True)
-    ctx.load_attr(DummyAttr)
+    ctx.load_attr_or_type(DummyAttr)
 
-    assert (
-        ctx.get_optional_attr("test.dummy_attr", create_unregistered_as_type=is_type)
-        == DummyAttr
-    )
+    assert ctx.get_optional_attr("test.dummy_attr") == DummyAttr
     attr = ctx.get_optional_attr("test.dummy_attr2")
     assert attr is not None
     assert issubclass(attr, UnregisteredAttr)
-    if is_type:
-        assert issubclass(attr, TypeAttribute)
+    assert not issubclass(attr, TypeAttribute)
 
-    assert (
-        ctx.get_attr("test.dummy_attr", create_unregistered_as_type=is_type)
-        == DummyAttr
-    )
+    assert ctx.get_attr("test.dummy_attr") == DummyAttr
+    assert issubclass(ctx.get_attr("test.dummy_attr2"), UnregisteredAttr)
+
+
+def test_get_type_unregistered():
+    """
+    Test `get_type` and `get_optional_type`
+    methods with the `allow_unregistered` flag.
+    """
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(DummyType)
+
+    assert ctx.get_optional_type("test.dummy_type") == DummyType
+    type = ctx.get_optional_type("test.dummy_type2")
+    assert type is not None
+    assert issubclass(type, UnregisteredAttr)
+    assert issubclass(type, TypeAttribute)
+
+    assert ctx.get_type("test.dummy_type") == DummyType
     assert issubclass(
-        ctx.get_attr("test.dummy_attr2", create_unregistered_as_type=is_type),
+        ctx.get_type("test.dummy_type2"),
         UnregisteredAttr,
     )
-    if is_type:
-        assert issubclass(attr, TypeAttribute)
 
 
 def test_clone_function():
     ctx = Context()
-    ctx.load_attr(DummyAttr)
+    ctx.load_attr_or_type(DummyAttr)
     ctx.load_op(DummyOp)
 
     copy = ctx.clone()
@@ -151,7 +182,7 @@ def test_clone_function():
     copy = ctx.clone()
 
     assert ctx == copy
-    copy.load_attr(DummyAttr2)
+    copy.load_attr_or_type(DummyAttr2)
     assert ctx != copy
 
 
@@ -169,14 +200,20 @@ def test_register_dialect_get_op_attr():
 def test_register_dialect_already_registered():
     ctx = Context()
     ctx.register_dialect("test", lambda: testDialect)
-    with pytest.raises(ValueError, match="'test' dialect is already registered"):
+    with pytest.raises(
+        AlreadyRegisteredConstructException,
+        match="'test' dialect is already registered",
+    ):
         ctx.register_dialect("test", lambda: testDialect2)
 
 
 def test_register_dialect_already_loaded():
     ctx = Context()
     ctx.load_dialect(testDialect)
-    with pytest.raises(ValueError, match="'test' dialect is already registered"):
+    with pytest.raises(
+        AlreadyRegisteredConstructException,
+        match="'test' dialect is already registered",
+    ):
         ctx.register_dialect("test", lambda: testDialect2)
 
 
@@ -188,11 +225,15 @@ def test_load_registered_dialect():
     ctx.load_registered_dialect("test")
     assert list(ctx.loaded_dialects) == [testDialect]
     assert list(ctx.registered_dialect_names) == ["test"]
+    assert list(ctx.loaded_types) == [DummyType]
+    assert list(ctx.loaded_attrs) == [DummyAttr]
 
 
 def test_load_registered_dialect_not_registered():
     ctx = Context()
-    with pytest.raises(ValueError, match="'test' dialect is not registered"):
+    with pytest.raises(
+        UnregisteredConstructException, match="'test' dialect is not registered"
+    ):
         ctx.load_registered_dialect("test")
 
 
@@ -206,7 +247,10 @@ def test_load_dialect():
 def test_load_dialect_already_loaded():
     ctx = Context()
     ctx.load_dialect(testDialect)
-    with pytest.raises(ValueError, match="'test' dialect is already registered"):
+    with pytest.raises(
+        AlreadyRegisteredConstructException,
+        match="'test' dialect is already registered",
+    ):
         ctx.load_dialect(testDialect)
 
 
@@ -214,11 +258,18 @@ def test_load_dialect_already_registered():
     ctx = Context()
     ctx.register_dialect("test", lambda: testDialect)
     with pytest.raises(
-        ValueError,
+        AlreadyRegisteredConstructException,
         match="'test' dialect is already registered, use "
         "'load_registered_dialect' instead",
     ):
         ctx.load_dialect(testDialect)
+
+
+def test_get_dialect():
+    ctx = Context()
+    assert ctx.get_optional_dialect("test") is None
+    ctx.register_dialect("test", lambda: testDialect)
+    assert ctx.get_optional_dialect("test") is testDialect
 
 
 def test_get_optional_op_registered():
@@ -237,3 +288,22 @@ def test_get_optional_attr_registered():
     assert ctx.get_optional_attr("test.dummy_attr2") is None
     assert list(ctx.loaded_dialects) == [testDialect]
     assert list(ctx.registered_dialect_names) == ["test"]
+
+
+def test_attr_type_same_name():
+    """
+    Check that a type and an attribute can have the same name.
+    """
+    ctx = Context()
+
+    class SameNameAttr(ParametrizedAttribute):
+        name = "test.same_name"
+
+    class SameNameType(ParametrizedAttribute, TypeAttribute):
+        name = "test.same_name"
+
+    dialect = Dialect("test", [], [SameNameAttr, SameNameType])
+    ctx.load_dialect(dialect)
+
+    assert ctx.get_attr("test.same_name") == SameNameAttr
+    assert ctx.get_type("test.same_name") == SameNameType

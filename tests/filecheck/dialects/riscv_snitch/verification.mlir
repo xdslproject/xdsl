@@ -4,7 +4,7 @@
 %0, %init = "test.op"() : () -> (!riscv.reg<a0>, !riscv.freg<fa0>)
 
 %z = "riscv_snitch.frep_outer"(%0, %init) ({
-^0(%acc : !riscv.freg<fa0>):
+^bb0(%acc : !riscv.freg<fa0>):
     riscv.sw %0, %0, 0 : (!riscv.reg<a0>, !riscv.reg<a0>) -> ()
     %res = "riscv.fadd.d"(%acc, %acc) : (!riscv.freg<fa0>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
     "riscv_snitch.frep_yield"(%res) : (!riscv.freg<fa0>) -> ()
@@ -17,7 +17,7 @@
 %0, %init = "test.op"() : () -> (!riscv.reg<a0>, !riscv.freg<fa0>)
 
 %z = "riscv_snitch.frep_outer"(%0, %init) ({
-^0(%acc : !riscv.freg<fa0>, %extra : !riscv.freg<fa1>):
+^bb0(%acc : !riscv.freg<fa0>, %extra : !riscv.freg<fa1>):
     %res = "riscv.fadd.d"(%acc, %acc) : (!riscv.freg<fa0>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
     "riscv_snitch.frep_yield"(%res) : (!riscv.freg<fa0>) -> ()
 }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<a0>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
@@ -29,7 +29,7 @@
 %0, %init = "test.op"() : () -> (!riscv.reg<a0>, !riscv.freg<fa0>)
 
 %z = "riscv_snitch.frep_outer"(%0, %init) ({
-^0(%acc : !riscv.freg<fa1>):
+^bb0(%acc : !riscv.freg<fa1>):
     %res = "riscv.fadd.d"(%acc, %acc) : (!riscv.freg<fa1>, !riscv.freg<fa1>) -> !riscv.freg<fa0>
     "riscv_snitch.frep_yield"(%res) : (!riscv.freg<fa0>) -> ()
 }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<a0>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
@@ -41,7 +41,7 @@
 %0, %init = "test.op"() : () -> (!riscv.reg<a0>, !riscv.freg<fa0>)
 
 %z = "riscv_snitch.frep_outer"(%0, %init) ({
-^0(%acc : !riscv.freg<fa0>):
+^bb0(%acc : !riscv.freg<fa0>):
     %res = "riscv.fadd.d"(%acc, %acc) : (!riscv.freg<fa0>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
     "riscv_snitch.frep_yield"() : () -> ()
 }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<a0>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
@@ -53,7 +53,7 @@
 %0, %init = "test.op"() : () -> (!riscv.reg<a0>, !riscv.freg<fa0>)
 
 %z = "riscv_snitch.frep_outer"(%0, %init) ({
-^0(%acc : !riscv.freg<fa0>):
+^bb0(%acc : !riscv.freg<fa0>):
     %res = "riscv.fadd.d"(%acc, %acc) : (!riscv.freg<fa0>, !riscv.freg<fa0>) -> !riscv.freg<fa1>
     "riscv_snitch.frep_yield"(%res) : (!riscv.freg<fa1>) -> ()
 }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<a0>, !riscv.freg<fa0>) -> !riscv.freg<fa0>

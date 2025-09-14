@@ -1,17 +1,21 @@
+from __future__ import annotations
+
 import dataclasses
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable
 from dataclasses import Field, dataclass, field
 from types import NoneType, UnionType
 from typing import (
     Any,
     ClassVar,
     NamedTuple,
-    TypeVar,
     Union,
     get_args,
     get_origin,
+    get_type_hints,
 )
+
+from typing_extensions import Self, TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin
@@ -20,6 +24,7 @@ from xdsl.utils.parse_pipeline import (
     PassArgElementType,
     PassArgListType,
     PipelinePassSpec,
+    parse_pipeline,
 )
 
 ModulePassT = TypeVar("ModulePassT", bound="ModulePass")
@@ -59,8 +64,20 @@ class ModulePass(ABC):
     @abstractmethod
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None: ...
 
+    def apply_to_clone(
+        self, ctx: Context, op: builtin.ModuleOp
+    ) -> tuple[Context, builtin.ModuleOp]:
+        """
+        Creates deep copies of the module and the context, and returns the result of
+        calling `apply` on them.
+        """
+        ctx = ctx.clone()
+        op = op.clone()
+        self.apply(ctx, op)
+        return ctx, op
+
     @classmethod
-    def from_pass_spec(cls: type[ModulePassT], spec: PipelinePassSpec) -> ModulePassT:
+    def from_pass_spec(cls, spec: PipelinePassSpec) -> Self:
         """
         This method takes a PipelinePassSpec, does type checking on the
         arguments, and then instantiates an instance of the ModulePass
@@ -84,6 +101,8 @@ class ModulePass(ABC):
 
         required_fields = cls.required_fields()
 
+        field_types = get_type_hints(cls)
+
         # iterate over all fields of the dataclass
         for op_field in fields:
             # ignore the name field and everything that's not used by __init__
@@ -97,9 +116,10 @@ class ModulePass(ABC):
                 raise ValueError(f'Pass {cls.name} requires argument "{op_field.name}"')
 
             # convert pass arg to the correct type:
+            field_type = field_types[op_field.name]
             arg_dict[op_field.name] = _convert_pass_arg_to_type(
                 spec_arguments_dict.pop(op_field.name),
-                op_field.type,
+                field_type,
             )
             # we use .pop here to also remove the arg from the dict
 
@@ -116,7 +136,7 @@ class ModulePass(ABC):
         return cls(**arg_dict)
 
     @classmethod
-    def required_fields(cls: type[ModulePassT]) -> set[str]:
+    def required_fields(cls) -> set[str]:
         """
         Inspects the definition of the pass for fields that do not have default values.
         """
@@ -158,6 +178,31 @@ class ModulePass(ABC):
             args[name] = arg_list
         return PipelinePassSpec(self.name, args)
 
+    @classmethod
+    def schedule_space(
+        cls, ctx: Context, module_op: builtin.ModuleOp
+    ) -> tuple[Self, ...]:
+        """
+        Returns a tuple of `Self` that can be applied to rewrite the given module with
+        the given context without error.
+        The default implementation attempts to construct an instance with no parameters,
+        and run it on the module_op; if the module_op is mutated then the pass instance
+        is returned.
+        Parametrizable passes should override this implementation to provide a full
+        schedule space of transformations.
+        """
+        try:
+            pass_instance = cls()
+            _, cloned_module = pass_instance.apply_to_clone(ctx, module_op)
+            if module_op.is_structurally_equivalent(cloned_module):
+                return ()
+        except Exception:
+            return ()
+        return (pass_instance,)
+
+    def __str__(self) -> str:
+        return str(self.pipeline_pass_spec())
+
 
 class PassOptionInfo(NamedTuple):
     """The name, expected type, and default value for one option of a module pass."""
@@ -186,14 +231,22 @@ def get_pass_option_infos(
 
 
 @dataclass(frozen=True)
-class PipelinePass(ModulePass):
+class PassPipeline:
+    """
+    A representation of a pass pipeline, with an optional callback to be executed
+    between each of the passes.
+    """
+
     passes: tuple[ModulePass, ...]
+    """
+    These will be executed sequentially during the execution of the pipeline.
+    """
     callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] | None = field(
         default=None
     )
     """
-    Function called in between every pass, taking the pass that just ran, the module, and
-    the next pass.
+    Function called in between every pass, taking the pass that just ran, the module,
+    and the next pass.
     """
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
@@ -209,16 +262,23 @@ class PipelinePass(ModulePass):
 
         self.passes[-1].apply(ctx, op)
 
-    @classmethod
-    def build_pipeline_tuples(
-        cls,
+    @staticmethod
+    def parse_spec(
         available_passes: dict[str, Callable[[], type[ModulePass]]],
-        pass_spec_pipeline: Iterable[PipelinePassSpec],
-    ) -> Iterator[tuple[type[ModulePass], PipelinePassSpec]]:
-        for p in pass_spec_pipeline:
-            if p.name not in available_passes:
-                raise Exception(f"Unrecognized pass: {p.name}")
-            yield (available_passes[p.name](), p)
+        spec: str,
+        callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None]
+        | None = None,
+    ) -> PassPipeline:
+        specs = tuple(parse_pipeline(spec))
+        unrecognised_passes = tuple(
+            p.name for p in specs if p.name not in available_passes
+        )
+        if unrecognised_passes:
+            raise ValueError(f"Unrecognized passes: {list(unrecognised_passes)}")
+
+        passes = tuple(available_passes[p.name]().from_pass_spec(p) for p in specs)
+
+        return PassPipeline(passes, callback)
 
 
 def _convert_pass_arg_to_type(

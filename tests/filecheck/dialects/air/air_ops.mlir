@@ -14,7 +14,7 @@ func.func @graph(%arg0 : memref<32x16xi32>, %arg1 : memref<32x16xi32>) -> () {
     %buf0 = memref.alloc() {sym_name = "scratch"}: memref<16x8xi32, 2>
     %buf1 = memref.alloc() {sym_name = "scratch_copy"}: memref<16x8xi32, 2>
     air.dma_memcpy_nd (%buf0[%c0, %c0][%c8, %c16][%c32, %c0], %ext0[%c8, %c0][%c8, %c16][%c32, %c0]) {id = 1 : i32} : (memref<16x8xi32, 2>, memref<32x16xi32>)
-    air.dma_memcpy_nd (%ext1[%c8, %c0][%c8, %c16][%c32, %c0], %buf1[%c0, %c0][%c8, %c16][%c32, %c0]) {id = 2 : i32} : (memref<32x16xi32>, memref<16x8xi32, 2>) 
+    air.dma_memcpy_nd (%ext1[%c8, %c0][%c8, %c16][%c32, %c0], %buf1[%c0, %c0][%c8, %c16][%c32, %c0]) {id = 2 : i32} : (memref<32x16xi32>, memref<16x8xi32, 2>)
     air.herd_terminator
   }
   return
@@ -26,8 +26,8 @@ func.func @graph(%arg0 : memref<32x16xi32>, %arg1 : memref<32x16xi32>) -> () {
 // CHECK-NEXT:   func.func @graph(%arg0 : memref<32x16xi32>, %arg1 : memref<32x16xi32>) {
 // CHECK-NEXT:     %herd_cols = arith.constant 1 : index
 // CHECK-NEXT:     %herd_rows = arith.constant 1 : index
-// CHECK-NEXT:     %0 = air.herd tile(%tx, %ty) in (%size_x = %herd_cols, %size_y = %herd_rows) args(%ext0 = %arg0, ext1 = %arg1 : memref<32x16xi32>,memref<32x16xi32>){
-// CHECK-NEXT:     ^0(%ext0 : memref<32x16xi32>, %ext1 : memref<32x16xi32>):
+// CHECK-NEXT:     %0 = air.herd tile(%tx, %ty) in (%size_x = %herd_cols, %size_y = %herd_rows) args(%ext0 = %arg0, %ext1 = %arg1 : memref<32x16xi32>,memref<32x16xi32>){
+// CHECK-NEXT:     ^bb0(%ext0 : memref<32x16xi32>, %ext1 : memref<32x16xi32>):
 // CHECK-NEXT:       %c0 = arith.constant 0 : index
 // CHECK-NEXT:       %c128 = arith.constant 128 : index
 // CHECK-NEXT:       %c32 = arith.constant 32 : index
@@ -46,14 +46,14 @@ func.func @graph(%arg0 : memref<32x16xi32>, %arg1 : memref<32x16xi32>) -> () {
 // -----
 
 #map = affine_map<()[s0] -> (s0 * 32)>
-#set = affine_set<()[s0, s1] : (s0 == 0, s1 >= 0, -s1 + 1 >= 0)> 
-#set1 = affine_set<()[s0, s1] : (s0 >= 0, -s0 + 1 >= 0, s1 == 0)> 
+#set = affine_set<()[s0, s1] : (s0 == 0, s1 >= 0, -s1 + 1 >= 0)>
+#set1 = affine_set<()[s0, s1] : (s0 >= 0, -s0 + 1 >= 0, s1 == 0)>
 module {
   air.channel @channel_4 [2, 2]
-  air.channel @channel_3 [1, 1] {broadcast_shape = [2, 1]} 
-  air.channel @channel_2 [1, 1] {broadcast_shape = [2, 1]} 
-  air.channel @channel_1 [1, 1] {broadcast_shape = [1, 2]} 
-  air.channel @channel_0 [1, 1] {broadcast_shape = [1, 2]} 
+  air.channel @channel_3 [1, 1] {broadcast_shape = [2, 1]}
+  air.channel @channel_2 [1, 1] {broadcast_shape = [2, 1]}
+  air.channel @channel_1 [1, 1] {broadcast_shape = [1, 2]}
+  air.channel @channel_0 [1, 1] {broadcast_shape = [1, 2]}
   func.func @forward(%arg0: memref<64x128xi32>, %arg1: memref<128x64xi32>, %arg2: memref<64x64xi32>) {
     %c64 = arith.constant 64 : index
     %c32 = arith.constant 32 : index
@@ -61,43 +61,43 @@ module {
     %c1 = arith.constant 1 : index
     %c0 = arith.constant 0 : index
     %c2 = arith.constant 2 : index
-    %c0_i32 = arith.constant 0 : i32 
+    %c0_i32 = arith.constant 0 : i32
     %async_token, %results = air.execute -> (memref<64x64xi32>) {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
       air.execute_terminator %alloc : memref<64x64xi32>
-    }   
+    }
     %async_token_0 = air.execute [%async_token] {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
       air.execute_terminator %alloc : memref<64x64xi32>
-    }   
+    }
     %async_token_1, %results_2 = air.execute -> (memref<64x64xi32>) {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
       air.execute_terminator %alloc : memref<64x64xi32>
-    }   
+    }
     %async_token_3 = air.execute [%async_token_1, %async_token_0] {
         %alloc = memref.alloc() {alignment = 64 : i64} : memref<64x64xi32>
         air.execute_terminator %alloc : memref<64x64xi32>
-    }   
-    %0 = air.wait_all async 
+    }
+    %0 = air.wait_all async
     %1 = scf.for %arg3 = %c0 to %c128 step %c32 iter_args(%arg4 = %0) -> (!air.async.token) {
       %10 = air.channel.put async [%arg4]  @channel_0[] (%arg0[%c0, %arg3] [%c32, %c32] [%c128, %c1]) {id = 1 : i32} : (memref<64x128xi32>)
       scf.yield %10 : !air.async.token
-    }   
-    %2 = air.wait_all async 
+    }
+    %2 = air.wait_all async
     %3 = scf.for %arg3 = %c0 to %c128 step %c32 iter_args(%arg4 = %2) -> (!air.async.token) {
       %10 = air.channel.put async [%arg4]  @channel_1[] (%arg0[%c32, %arg3] [%c32, %c32] [%c128, %c1]) {id = 2 : i32} : (memref<64x128xi32>)
       scf.yield %10 : !air.async.token
-    }   
-    %4 = air.wait_all async 
+    }
+    %4 = air.wait_all async
     %5 = scf.for %arg3 = %c0 to %c128 step %c32 iter_args(%arg4 = %4) -> (!air.async.token) {
       %10 = air.channel.put async [%arg4]  @channel_2[] (%arg1[%arg3, %c0] [%c32, %c32] [%c64, %c1]) {id = 3 : i32} : (memref<128x64xi32>)
       scf.yield %10 : !air.async.token
-    }   
-    %6 = air.wait_all async 
+    }
+    %6 = air.wait_all async
     %7 = scf.for %arg3 = %c0 to %c128 step %c32 iter_args(%arg4 = %6) -> (!air.async.token) {
       %10 = air.channel.put async [%arg4]  @channel_3[] (%arg1[%arg3, %c32] [%c32, %c32] [%c64, %c1]) {id = 4 : i32} : (memref<128x64xi32>)
       scf.yield %10 : !air.async.token
-    }   
+    }
     %10 = air.channel.get async [%async_token_3]  @channel_4[] (%results_2[] [%c32, %c32] [%c64, %c1]) {id = 5 : i32} : (memref<64x64xi32>)
     return
   }
@@ -230,7 +230,7 @@ module  {
 // CHECK-NEXT:     %c4 = arith.constant 4 : index
 // CHECK-NEXT:     %c1 = arith.constant 1 : index
 // CHECK-NEXT:     %0 = air.herd tile(%tx, %ty) in (%size_x = %c4, %size_y = %c1) args(%ext0 = %m0, %ext1 = %m1, %ext2 = %m2 : memref<1024xi32>,memref<1024xi32>,memref<1024xi32>){
-// CHECK-NEXT:     ^0(%op0 : memref<1024xi32>, %op1 : memref<1024xi32>, %op2 : memref<1024xi32>):
+// CHECK-NEXT:     ^bb0(%op0 : memref<1024xi32>, %op1 : memref<1024xi32>, %op2 : memref<1024xi32>):
 // CHECK-NEXT:       %c0 = arith.constant 0 : index
 // CHECK-NEXT:       %c1024 = arith.constant 1024 : index
 // CHECK-NEXT:       %c1_1 = arith.constant 1 : index
@@ -243,10 +243,10 @@ module  {
 // CHECK-NEXT:           air.pipeline.yield %init : tensor<1024xi32>
 // CHECK-NEXT:         }) : () -> tensor<1024xi32>
 // CHECK-NEXT:         %output2 = "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^1(%in : tensor<1024xi32>):
+// CHECK-NEXT:         ^bb1(%in : tensor<1024xi32>):
 // CHECK-NEXT:           %init_1 = tensor.empty() : tensor<1024xi32>
 // CHECK-NEXT:           %2 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in : tensor<1024xi32>) outs(%init_1 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^2(%a2 : i32, %a3 : i32):
+// CHECK-NEXT:           ^bb2(%a2 : i32, %a3 : i32):
 // CHECK-NEXT:             %one = arith.constant 1 : i32
 // CHECK-NEXT:             %3 = arith.addi %a2, %one : i32
 // CHECK-NEXT:             linalg.yield %3 : i32
@@ -254,10 +254,10 @@ module  {
 // CHECK-NEXT:           air.pipeline.yield %2 : tensor<1024xi32>
 // CHECK-NEXT:         }) : () -> tensor<1024xi32>
 // CHECK-NEXT:         %output3 = "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^3(%in_1 : tensor<1024xi32>):
+// CHECK-NEXT:         ^bb3(%in_1 : tensor<1024xi32>):
 // CHECK-NEXT:           %init_2 = tensor.empty() : tensor<1024xi32>
 // CHECK-NEXT:           %4 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in_1 : tensor<1024xi32>) outs(%init_2 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^4(%a2_1 : i32, %a3_1 : i32):
+// CHECK-NEXT:           ^bb4(%a2_1 : i32, %a3_1 : i32):
 // CHECK-NEXT:             %two = arith.constant 2 : i32
 // CHECK-NEXT:             %5 = arith.addi %a2_1, %two : i32
 // CHECK-NEXT:             linalg.yield %5 : i32
@@ -265,10 +265,10 @@ module  {
 // CHECK-NEXT:           air.pipeline.yield %4 : tensor<1024xi32>
 // CHECK-NEXT:         }) : () -> tensor<1024xi32>
 // CHECK-NEXT:         "air.pipeline.stage"() ({
-// CHECK-NEXT:         ^5(%in_2 : tensor<1024xi32>):
+// CHECK-NEXT:         ^bb5(%in_2 : tensor<1024xi32>):
 // CHECK-NEXT:           %init_3 = tensor.empty() : tensor<1024xi32>
 // CHECK-NEXT:           %6 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%in_2 : tensor<1024xi32>) outs(%init_3 : tensor<1024xi32>) {
-// CHECK-NEXT:           ^6(%a2_2 : i32, %a3_2 : i32):
+// CHECK-NEXT:           ^bb6(%a2_2 : i32, %a3_2 : i32):
 // CHECK-NEXT:             %three = arith.constant 3 : i32
 // CHECK-NEXT:             %7 = arith.addi %a2_2, %three : i32
 // CHECK-NEXT:             linalg.yield %7 : i32

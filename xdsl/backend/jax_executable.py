@@ -1,15 +1,16 @@
 from collections.abc import Callable, Sequence
 from inspect import signature
-from typing import Any, ParamSpec, TypeVar, cast, get_args, get_origin
+from typing import Any, ParamSpec, cast, get_args, get_origin
 
 import jax.numpy as jnp
 import numpy as np
 from jax import Array
 from jax._src import xla_bridge
 from jax._src.interpreters import mlir
-from jax._src.typing import SupportsDType  # pyright: ignore[reportPrivateImportUsage]
+from jax._src.typing import SupportsDType
 from jaxlib.mlir import ir
 from jaxlib.xla_client import LoadedExecutable
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
@@ -84,9 +85,9 @@ class JaxExecutable:
 
         program = str(module)
 
-        mlir_module = ir.Module.parse(program, context=mlir.make_ir_context())  # pyright: ignore[reportPrivateImportUsage]
-        bytecode = mlir.module_to_bytecode(mlir_module)  # pyright: ignore[reportPrivateImportUsage]
-        client = xla_bridge.backends()["cpu"]  # pyright: ignore[reportPrivateImportUsage]
+        mlir_module = ir.Module.parse(program, context=mlir.make_ir_context())
+        bytecode = mlir.module_to_bytecode(mlir_module)
+        client = xla_bridge.backends()["cpu"]
         loaded = client.compile(bytecode)
         return JaxExecutable(func_op.function_type, loaded)
 

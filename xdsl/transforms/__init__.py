@@ -11,10 +11,25 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return ApplyIndividualRewritePass
 
+    def get_apply_eqsat_pdl():
+        from xdsl.transforms import apply_eqsat_pdl
+
+        return apply_eqsat_pdl.ApplyEqsatPDLPass
+
+    def get_apply_eqsat_pdl_interp():
+        from xdsl.transforms import apply_eqsat_pdl_interp
+
+        return apply_eqsat_pdl_interp.ApplyEqsatPDLInterpPass
+
     def get_apply_pdl():
         from xdsl.transforms import apply_pdl
 
         return apply_pdl.ApplyPDLPass
+
+    def get_apply_pdl_interp():
+        from xdsl.transforms import apply_pdl_interp
+
+        return apply_pdl_interp.ApplyPDLInterpPass
 
     def get_arith_add_fastmath():
         from xdsl.transforms import arith_add_fastmath
@@ -55,6 +70,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import varith_transformations
 
         return varith_transformations.ConvertArithToVarithPass
+
+    def get_convert_arith_to_x86():
+        from xdsl.backend.x86.lowering import convert_arith_to_x86
+
+        return convert_arith_to_x86.ConvertArithToX86Pass
 
     def get_convert_func_to_riscv_func():
         from xdsl.backend.riscv.lowering import convert_func_to_riscv_func
@@ -118,6 +138,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ptr_to_riscv.ConvertPtrToRiscvPass
 
+    def get_convert_ptr_to_x86():
+        from xdsl.backend.x86.lowering import convert_ptr_to_x86
+
+        return convert_ptr_to_x86.ConvertPtrToX86Pass
+
     def get_convert_ptr_type_offsets():
         from xdsl.transforms import convert_ptr_type_offsets
 
@@ -172,6 +197,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import varith_transformations
 
         return varith_transformations.ConvertVarithToArithPass
+
+    def get_convert_vector_to_ptr():
+        from xdsl.transforms import convert_vector_to_ptr
+
+        return convert_vector_to_ptr.ConvertVectorToPtrPass
+
+    def get_convert_vector_to_x86():
+        from xdsl.backend.x86.lowering import convert_vector_to_x86
+
+        return convert_vector_to_x86.ConvertVectorToX86Pass
 
     def get_jax_use_donated_arguments():
         from xdsl.transforms import jax_use_donated_arguments
@@ -243,13 +278,23 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return eqsat_create_eclasses.EqsatCreateEclassesPass
 
+    def get_eqsat_create_egraphs():
+        from xdsl.transforms import eqsat_create_egraphs
+
+        return eqsat_create_egraphs.EqsatCreateEgraphsPass
+
+    def get_eqsat_serialize_egraph():
+        from xdsl.transforms import eqsat_serialize_egraph
+
+        return eqsat_serialize_egraph.SerializeEGraph
+
     def get_eqsat_extract():
         from xdsl.transforms import eqsat_extract
 
         return eqsat_extract.EqsatExtractPass
 
     def get_frontend_desymrefy():
-        from xdsl.frontend.pyast.passes.desymref import FrontendDesymrefyPass
+        from xdsl.transforms.desymref import FrontendDesymrefyPass
 
         return FrontendDesymrefyPass
 
@@ -262,6 +307,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import function_transformations
 
         return function_transformations.FunctionPersistArgNamesPass
+
+    def get_func_to_pdl_rewrite():
+        from xdsl.transforms.experimental import func_to_pdl_rewrite
+
+        return func_to_pdl_rewrite.FuncToPdlRewrite
 
     def get_gpu_map_parallel_loops():
         from xdsl.transforms import gpu_map_parallel_loops
@@ -277,6 +327,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import inline_snrt
 
         return inline_snrt.InlineSnrtPass
+
+    def get_licm():
+        from xdsl.transforms import loop_invariant_code_motion
+
+        return loop_invariant_code_motion.LoopInvariantCodeMotionPass
 
     def get_lift_arith_to_linalg():
         from xdsl.transforms.lift_arith_to_linalg import LiftArithToLinalg
@@ -488,21 +543,61 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return function_transformations.TestAddBenchTimersToTopLevelFunctions
 
+    def get_test_constant_folding():
+        from xdsl.transforms import test_constant_folding
+
+        return test_constant_folding.TestConstantFoldingPass
+
+    def get_test_specialised_constant_folding():
+        from xdsl.transforms import test_constant_folding
+
+        return test_constant_folding.TestSpecialisedConstantFoldingPass
+
     def get_test_lower_linalg_to_snitch():
         from xdsl.transforms import test_lower_linalg_to_snitch
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
+
+    def get_test_transform_dialect_erase_schedule():
+        from xdsl.transforms import test_transform_dialect_erase_schedule
+
+        return (
+            test_transform_dialect_erase_schedule.TestTransformDialectEraseSchedulePass
+        )
+
+    def get_transform_interpreter():
+        from xdsl.transforms import transform_interpreter
+
+        return transform_interpreter.TransformInterpreterPass
 
     def get_varith_fuse_repeated_operands():
         from xdsl.transforms import varith_transformations
 
         return varith_transformations.VarithFuseRepeatedOperandsPass
 
+    def get_vector_split_load_extract():
+        from xdsl.transforms import vector_split_load_extract
+
+        return vector_split_load_extract.VectorSplitLoadExtractPass
+
+    def get_x86_allocate_registers():
+        from xdsl.transforms import x86_allocate_registers
+
+        return x86_allocate_registers.X86AllocateRegisters
+
+    def get_x86_infer_broadcast():
+        from xdsl.transforms import x86_infer_broadcast
+
+        return x86_infer_broadcast.X86InferBroadcast
+
     # Please insert pass and `get_` function in alphabetical order
 
     return {
         "apply-individual-rewrite": get_apply_individual_rewrite,
+        "apply-eqsat-pdl": get_apply_eqsat_pdl,
+        "apply-eqsat-pdl-interp": get_apply_eqsat_pdl_interp,
         "apply-pdl": get_apply_pdl,
+        "apply-pdl-interp": get_apply_pdl_interp,
         "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
@@ -511,6 +606,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-riscv-snitch": get_convert_arith_to_riscv_snitch,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-arith-to-varith": get_convert_arith_to_varith,
+        "convert-arith-to-x86": get_convert_arith_to_x86,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-func-to-x86-func": get_convert_func_to_x86_func,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
@@ -523,6 +619,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-llvm": get_convert_ptr_to_llvm,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
+        "convert-ptr-to-x86": get_convert_ptr_to_x86,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-riscv-to-llvm": get_convert_riscv_to_llvm,
@@ -534,6 +631,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "convert-varith-to-arith": get_convert_varith_to_arith,
+        "convert-vector-to-ptr": get_convert_vector_to_ptr,
+        "convert-vector-to-x86": get_convert_vector_to_x86,
         "jax-use-donated-arguments": get_jax_use_donated_arguments,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
@@ -548,13 +647,17 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "empty-tensor-to-alloc-tensor": get_empty_tensor_to_alloc_tensor,
         "eqsat-add-costs": get_eqsat_add_costs,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
+        "eqsat-create-egraphs": get_eqsat_create_egraphs,
+        "eqsat-serialize-egraph": get_eqsat_serialize_egraph,
         "eqsat-extract": get_eqsat_extract,
         "frontend-desymrefy": get_frontend_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
         "function-persist-arg-names": get_function_persist_arg_names,
+        "func-to-pdl-rewrite": get_func_to_pdl_rewrite,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "inline-snrt": get_inline_snrt,
+        "licm": get_licm,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-fuse-multiply-add": get_linalg_fuse_multiply_add,
         "linalg-to-csl": get_linalg_to_csl,
@@ -597,6 +700,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
+        "test-constant-folding": get_test_constant_folding,
+        "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
+        "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
+        "vector-split-load-extract": get_vector_split_load_extract,
+        "x86-allocate-registers": get_x86_allocate_registers,
+        "x86-infer-broadcast": get_x86_infer_broadcast,
     }

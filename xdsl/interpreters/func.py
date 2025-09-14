@@ -26,7 +26,7 @@ class FuncFunctions(InterpreterFunctions):
     def run_call(
         self, interpreter: Interpreter, op: func.CallOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        return interpreter.call_op(op.callee.string_value(), args)
+        return interpreter.call_op(op.callee, args)
 
     @impl_callable(func.FuncOp)
     def call_func(

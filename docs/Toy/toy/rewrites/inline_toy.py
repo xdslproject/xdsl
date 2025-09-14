@@ -50,7 +50,7 @@ class InlineFunctions(RewritePattern):
 
         # remove block args
         while len(impl_block.args):
-            assert not len(impl_block.args[-1].uses)
+            assert not impl_block.args[-1].uses
             rewriter.erase_block_argument(impl_block.args[-1])
 
         # Inline function definition before matched op

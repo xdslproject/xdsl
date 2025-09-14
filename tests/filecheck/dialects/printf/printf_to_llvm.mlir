@@ -5,7 +5,7 @@ builtin.module {
         %pi = "arith.constant"() {value = 3.14159:f32} : () -> f32
         %12 = "arith.constant"() {value = 12 : i32} : () -> i32
 
-        printf.print_format "Hello: {} {}", %pi : f32, %12 : i32
+        printf.print_format "Hello: {} {}\n", %pi : f32, %12 : i32
 
         "func.return"() : () -> ()
     }) {sym_name = "main", function_type=() -> ()} : () -> ()

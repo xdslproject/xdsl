@@ -11,7 +11,9 @@ VENV_DIR ?= .venv
 export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
-VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs --extra bench
+VENV_EXTRAS ?= --all-extras
+VENV_GROUPS ?= --all-groups
+
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -28,7 +30,7 @@ uv-installed:
 # set up the venv with all dependencies for development
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
-	uv sync ${VENV_EXTRAS}
+	uv sync ${VENV_EXTRAS} ${VENV_GROUPS}
 	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
 		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
 	fi
@@ -62,10 +64,6 @@ pytest: uv-installed
 filecheck-toy: uv-installed
 	uv run lit $(LIT_OPTIONS) docs/Toy/examples
 
-.PHONY: pytest-toy
-pytest-toy: uv-installed
-	uv run pytest docs/Toy/toy/tests
-
 .PHONY: pytest-toy-nb
 pytest-toy-nb:
 	@if uv run python -c "import riscemu" > /dev/null 2>&1; then \
@@ -75,7 +73,7 @@ pytest-toy-nb:
 	fi
 
 .PHONY: tests-toy
-tests-toy: filecheck-toy pytest-toy pytest-toy-nb
+tests-toy: filecheck-toy pytest-toy-nb
 
 
 .PHONY: tests-marimo
@@ -92,7 +90,7 @@ tests-marimo: uv-installed
 			  fi; \
 			fi; \
 			echo "Running $$file"; \
-			if ! output=$$(uv run python3 "$$file" 2>&1); then \
+			if ! output=$$(uv run python -W error "$$file" 2>&1); then \
 				echo "$$output" >> "$$error_log"; \
 				failed_tests="$$failed_tests $$file"; \
 			fi; \
@@ -191,9 +189,20 @@ asv-clean:
 	rm -rf .asv/
 
 # docs
+
+# Set to 1 to skip the generation of "API Reference".
+SKIP_GEN_PAGES ?= 0
+# Set to 1 to skip the building of xDSL wheel
+SKIP_BUILD_WHEEL ?= 0
+
+
 .PHONY: docs-serve
 docs-serve: uv-installed
 	uv run mkdocs serve
+
+.PHONY: docs-serve-fast
+docs-serve-fast: uv-installed
+	SKIP_GEN_PAGES=1 uv run mkdocs serve
 
 .PHONY: docs-build
 docs-build: uv-installed

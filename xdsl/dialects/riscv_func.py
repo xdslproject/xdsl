@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
 
 from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     I8,
@@ -10,6 +11,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     i8,
 )
@@ -119,6 +121,15 @@ class CallOp(riscv.RISCVInstruction):
     def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
         return (self.callee.string_value(),)
 
+    def iter_used_registers(self) -> Generator[RegisterType, None, None]:
+        # These registers are not guaranteed to hold the same values when the callee
+        # returns, according to the RISC-V calling convention.
+        # https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf
+        yield from riscv.Registers.A
+        yield from riscv.Registers.T
+        yield from riscv.Registers.FA
+        yield from riscv.Registers.FT
+
 
 class FuncOpCallableInterface(CallableOpInterface):
     @classmethod
@@ -142,7 +153,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     body = region_def()
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
@@ -199,7 +210,8 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
     def print(self, printer: Printer):
         if self.sym_visibility:
             visibility = self.sym_visibility.data
-            printer.print(f" {visibility}")
+            printer.print_string(" ")
+            printer.print_string(visibility)
 
         print_func_op_like(
             printer,

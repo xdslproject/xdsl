@@ -58,8 +58,8 @@ builtin.module {
 
     // CHECK-NEXT:    func.func @cycle_multiblock(%{{.*}} : i64) -> i64 {
     // CHECK-NEXT:      %c0 = "test.op"() : () -> i32
-    // CHECK-NEXT:      cf.br ^0(%c0 : i32)
-    // CHECK-NEXT:    ^0(%0 : i32):
+    // CHECK-NEXT:      cf.br ^bb0(%c0 : i32)
+    // CHECK-NEXT:    ^bb0(%0 : i32):
     // CHECK-NEXT:      %1 = "test.op"(%{{.*}}, %{{.*}}) : (i64, i64) -> i64
     // CHECK-NEXT:      func.return %1 : i64
     // CHECK-NEXT:    }

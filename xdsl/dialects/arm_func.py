@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects import arm
-from xdsl.dialects.builtin import FunctionType, StringAttr
+from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolNameConstraint
 from xdsl.dialects.utils import (
     parse_func_op_like,
     print_func_op_like,
@@ -49,7 +49,7 @@ class FuncOp(arm.ops.ARMOperation):
     """ARM function definition operation"""
 
     name = "arm_func.func"
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     body = region_def()
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)

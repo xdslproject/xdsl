@@ -9,7 +9,7 @@ from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
 from .attributes import LabelAttr
-from .register import GeneralRegisterType, RFLAGSRegisterType, X86VectorRegisterType
+from .registers import GeneralRegisterType, RFLAGSRegisterType, X86VectorRegisterType
 
 AssemblyInstructionArg: TypeAlias = (
     IntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
@@ -69,7 +69,7 @@ def parse_optional_immediate_value(
 def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
     match immediate:
         case IntegerAttr():
-            printer.print(immediate.value.data)
+            immediate.print_without_type(printer)
         case LabelAttr():
             printer.print_string_literal(immediate.data)
 

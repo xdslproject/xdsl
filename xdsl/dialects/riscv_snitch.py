@@ -7,6 +7,7 @@ from typing import ClassVar, cast
 from typing_extensions import Self
 
 from xdsl.backend.register_allocatable import RegisterConstraints
+from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, snitch
 from xdsl.dialects.builtin import (
@@ -26,6 +27,7 @@ from xdsl.dialects.riscv import (
     RISCVAsmOperation,
     RISCVCustomFormatOperation,
     RISCVInstruction,
+    RISCVRegisterType,
     RsRsIntegerOperation,
     SImm12Attr,
     UImm5Attr,
@@ -143,7 +145,7 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> set[str]:
-        printer.print(", ")
+        printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
@@ -181,6 +183,13 @@ class ReadOp(RISCVAsmOperation):
     def assembly_line(self) -> str | None:
         return None
 
+    def iter_used_registers(self):
+        # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
+        # registers
+        yield riscv.Registers.FT0
+        yield riscv.Registers.FT1
+        yield riscv.Registers.FT2
+
 
 @irdl_op_definition
 class WriteOp(RISCVAsmOperation):
@@ -198,6 +207,13 @@ class WriteOp(RISCVAsmOperation):
 
     def assembly_line(self) -> str | None:
         return None
+
+    def iter_used_registers(self):
+        # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
+        # registers
+        yield riscv.Registers.FT0
+        yield riscv.Registers.FT1
+        yield riscv.Registers.FT2
 
 
 ALLOWED_FREP_OP_TYPES = (
@@ -342,9 +358,9 @@ class FRepOperation(RISCVInstruction):
         printer.print_ssa_value(self.max_rep)
         if self.stagger_count.data and self.stagger_mask.data:
             printer.print_string(", ")
-            printer.print(self.stagger_count.data)
+            printer.print_int(self.stagger_count.data)
             printer.print_string(", ")
-            printer.print(self.stagger_mask.data)
+            printer.print_int(self.stagger_mask.data)
 
         printer.print_op_attributes(
             self.attributes, reserved_attr_names=("stagger_count", "stagger_mask")
@@ -417,6 +433,38 @@ class FRepOperation(RISCVInstruction):
                         f"riscv_snitch.frep's riscv_snitch.frep_yield must match carried"
                         f"variables types."
                     )
+
+    def allocate_registers(self, allocator: BlockAllocator) -> None:
+        # Allocate values used inside the body but defined outside.
+        # Their scope lasts for the whole body execution scope
+        live_ins = allocator.live_ins_per_block[self.body.block]
+        for live_in in live_ins:
+            allocator.allocate_value(live_in)
+
+        yield_op = self.body.block.last_op
+        assert yield_op is not None, (
+            "last op of riscv_snitch.frep_outer and riscv_snitch.frep_inner is guaranteed"
+            " to be riscv_scf.Yield"
+        )
+        block_args = self.body.block.args
+
+        # The loop-carried variables are trickier
+        # The for op operand, block arg, and yield operand must have the same type
+        for block_arg, operand, yield_operand, op_result in zip(
+            block_args, self.iter_args, yield_op.operands, self.results
+        ):
+            allocator.allocate_values_same_reg(
+                (block_arg, operand, yield_operand, op_result)
+            )
+
+        allocator.allocate_value(self.max_rep)
+
+        # Reserve the loop carried variables for allocation within the body
+        regs = self.iter_args.types
+        assert all(isinstance(reg, RISCVRegisterType) for reg in regs)
+        regs = cast(tuple[RISCVRegisterType, ...], regs)
+        with allocator.available_registers.reserve_registers(regs):
+            allocator.allocate_block(self.body.block)
 
 
 @irdl_op_definition
@@ -663,14 +711,14 @@ class DMCopyImmOp(RISCVInstruction):
         return self.dest, self.size, self.config
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.size)
         printer.print_string(", ")
-        printer.print(self.config.value.data)
+        self.config.print_without_type(printer)
         if self.attributes:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_attr_dict(self.attributes)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_operation_type(self)
 
     @classmethod
@@ -715,12 +763,12 @@ class DMStatImmOp(RISCVInstruction):
         return self.dest, self.status
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
-        printer.print(self.status.value.data)
+        printer.print_string(" ")
+        self.status.print_without_type(printer)
         if self.attributes:
-            printer.print(" ")
+            printer.print_string(" ")
             printer.print_attr_dict(self.attributes)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_operation_type(self)
 
     @classmethod
@@ -900,7 +948,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
 
     def custom_print_attributes(self, printer: Printer) -> set[str]:
         if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
-            printer.print(" fastmath")
+            printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
         return {"fastmath"}
 

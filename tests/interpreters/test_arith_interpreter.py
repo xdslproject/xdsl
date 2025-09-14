@@ -4,18 +4,27 @@ from math import copysign, isnan
 
 import pytest
 
-from xdsl.dialects import arith, test
+from xdsl.dialects import arith, builtin, test
 from xdsl.dialects.arith import (
     AddfOp,
     AddiOp,
+    AndIOp,
     CmpiOp,
     ConstantOp,
+    DivSIOp,
+    FloorDivSIOp,
+    IndexCastOp,
     MulfOp,
     MuliOp,
+    OrIOp,
+    RemSIOp,
+    ShLIOp,
+    ShRSIOp,
     SubfOp,
     SubiOp,
+    XOrIOp,
 )
-from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness
+from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness, i8, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 
@@ -77,6 +86,52 @@ def test_muli(lhs_value: int, rhs_value: int):
 
     assert len(ret) == 1
     assert ret[0] == lhs_value * rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_andi(lhs_value: int, rhs_value: int):
+    andi = AndIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(andi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value & rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_ori(lhs_value: int, rhs_value: int):
+    ori = OrIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(ori, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value | rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_xori(lhs_value: int, rhs_value: int):
+    xori = XOrIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(xori, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value ^ rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1])
+def test_xori_i1(lhs_value: int, rhs_value: int):
+    lhs_op = test.TestOp(result_types=[builtin.i1])
+    rhs_op = test.TestOp(result_types=[builtin.i1])
+    xori = XOrIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(xori, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == -(abs(lhs_value) ^ abs(rhs_value))
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
@@ -181,3 +236,109 @@ def test_cmpi(
 
     assert len(ret) == 1
     assert ret[0] == fn(lhs_value, rhs_value)
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [0, 1, 2, 8])
+def test_shlsi(lhs_value: int, rhs_value: int):
+    shlsi = ShLIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(shlsi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value << rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [0, 1, 2, 8])
+def test_shrsi(lhs_value: int, rhs_value: int):
+    shrsi = ShRSIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(shrsi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value >> rhs_value
+
+
+@pytest.mark.parametrize(
+    "lhs_value,rhs_value,result", [(-3, -2, 1), (-3, 2, -1), (3, -2, -1), (3, 2, 1)]
+)
+def test_divsi(lhs_value: int, rhs_value: int, result: int):
+    divsi = DivSIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(divsi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == result
+
+
+@pytest.mark.parametrize(
+    "lhs_value,rhs_value,result", [(-3, -2, -1), (-3, 2, -1), (3, -2, 1), (3, 2, 1)]
+)
+def test_remsi(lhs_value: int, rhs_value: int, result: int):
+    remsi = RemSIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(remsi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == result
+
+
+@pytest.mark.parametrize(
+    "lhs_value,rhs_value,result", [(-3, -2, 1), (-3, 2, -2), (3, -2, -2), (3, 2, 1)]
+)
+def test_floordivsi(lhs_value: int, rhs_value: int, result: int):
+    floordivsi = FloorDivSIOp(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(floordivsi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == result
+
+
+@pytest.mark.parametrize("x", [1, 0, -1, 127, 1111])
+def test_indexcast_to_i32(x: int):
+    x_op = test.TestOp(result_types=[IndexType()])
+    indexcast = IndexCastOp(x_op, i32)
+
+    ret = interpreter.run_op(indexcast, (x,))
+
+    assert len(ret) == 1
+    assert ret[0] == x
+
+
+@pytest.mark.parametrize("x", [1, 0, -1, 127, 1111])
+def test_indexcast_from_i32(x: int):
+    x_op = test.TestOp(result_types=[i32])
+    indexcast = IndexCastOp(x_op, IndexType())
+
+    ret = interpreter.run_op(indexcast, (x,))
+
+    assert len(ret) == 1
+    assert ret[0] == x
+
+
+@pytest.mark.parametrize(
+    "x,expected", [(1, 1), (0, 0), (-1, -1), (127, 127), (1111, 87)]
+)
+def test_indexcast_to_i8(x: int, expected: int):
+    x_op = test.TestOp(result_types=[IndexType()])
+    indexcast = IndexCastOp(x_op, i8)
+
+    ret = interpreter.run_op(indexcast, (x,))
+
+    assert len(ret) == 1
+    assert ret[0] == expected
+
+
+@pytest.mark.parametrize(
+    "x,expected", [(1, 1), (0, 0), (-1, -1), (127, 127), (255, -1)]
+)
+def test_indexcast_from_i8(x: int, expected: int):
+    x_op = test.TestOp(result_types=[i8])
+    indexcast = IndexCastOp(x_op, IndexType())
+
+    ret = interpreter.run_op(indexcast, (x,))
+
+    assert len(ret) == 1
+    assert ret[0] == expected

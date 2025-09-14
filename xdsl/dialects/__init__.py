@@ -73,6 +73,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Comb
 
+    def get_complex():
+        from xdsl.dialects.complex import Complex
+
+        return Complex
+
     def get_csl():
         from xdsl.dialects.csl import CSL
 
@@ -88,10 +93,20 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return CSL_WRAPPER
 
+    def get_dlti():
+        from xdsl.dialects.dlti import DLTI
+
+        return DLTI
+
     def get_dmp():
         from xdsl.dialects.experimental.dmp import DMP
 
         return DMP
+
+    def get_emitc():
+        from xdsl.dialects.emitc import EmitC
+
+        return EmitC
 
     def get_eqsat():
         from xdsl.dialects.eqsat import EqSat
@@ -157,6 +172,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.math import Math
 
         return Math
+
+    def get_math_xdsl():
+        from xdsl.dialects.math_xdsl import MathXDSL
+
+        return MathXDSL
 
     def get_memref():
         from xdsl.dialects.memref import MemRef
@@ -248,6 +268,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Seq
 
+    def get_smt():
+        from xdsl.dialects.smt import SMT
+
+        return SMT
+
     def get_snitch():
         from xdsl.dialects.snitch import Snitch
 
@@ -279,7 +304,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return Stim
 
     def get_symref():
-        from xdsl.frontend.pyast.symref import Symref
+        from xdsl.dialects.symref import Symref
 
         return Symref
 
@@ -342,10 +367,13 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "cf": get_cf,
         "cmath": get_cmath,
         "comb": get_comb,
+        "complex": get_complex,
         "csl": get_csl,
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
+        "dlti": get_dlti,
         "dmp": get_dmp,
+        "emitc": get_emitc,
         "eqsat": get_eqsat,
         "fir": get_fir,
         "fsm": get_fsm,
@@ -359,6 +387,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "llvm": get_llvm,
         "ltl": get_ltl,
         "math": get_math,
+        "math_xdsl": get_math_xdsl,
         "memref": get_memref,
         "memref_stream": get_memref_stream,
         "ml_program": get_ml_program,
@@ -377,6 +406,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "riscv_snitch": get_riscv_snitch,
         "scf": get_scf,
         "seq": get_seq,
+        "smt": get_smt,
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,
         "snitch_stream": get_snitch_stream,

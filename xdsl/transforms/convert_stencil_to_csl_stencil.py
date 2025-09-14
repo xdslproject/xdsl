@@ -45,7 +45,6 @@ from xdsl.transforms.varith_transformations import (
     ConvertVarithToArithPass,
 )
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 def get_stencil_access_operands(op: Operand) -> set[Operand]:
@@ -133,9 +132,8 @@ class ConvertAccessOpPattern(RewritePattern):
         # Since ghost cells are not prefetched, these ops can be removed again. Check if the ExtractSliceOp
         # has no other effect and if so, remove both.
         if (
-            len(new_access_op.result.uses) == 1
-            and isinstance(
-                use := list(new_access_op.result.uses)[0].operation,
+            isinstance(
+                use := new_access_op.result.get_user_of_unique_use(),
                 tensor.ExtractSliceOp,
             )
             and use.static_sizes.get_values() == res_type.get_shape()
@@ -175,9 +173,8 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             "all swaps need to be of uniform size"
         )
 
-        assert isattr(
-            op.input_stencil.type,
-            MemRefType.constr() | stencil.StencilTypeConstr,
+        assert (MemRefType.constr() | stencil.StencilTypeConstr).verifies(
+            op.input_stencil.type
         )
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
@@ -551,7 +548,7 @@ class ConvertApplyOpPattern(RewritePattern):
             )
         )
 
-        if len(prefetch.uses) == 0:
+        if not prefetch.uses:
             rewriter.erase_op(prefetch.op)
 
 
@@ -567,8 +564,7 @@ class PromoteCoefficients(RewritePattern):
         if (
             not isinstance(apply := op.get_apply(), csl_stencil.ApplyOp)
             or not op.op == apply.receive_chunk.block.args[0]
-            or len(op.result.uses) != 1
-            or not isinstance(mulf := list(op.result.uses)[0].operation, arith.MulfOp)
+            or not isinstance(mulf := op.result.get_user_of_unique_use(), arith.MulfOp)
         ):
             return
 
@@ -582,7 +578,7 @@ class PromoteCoefficients(RewritePattern):
             return
 
         val = dense.get_attrs()[0]
-        assert isattr(val, FloatAttr)
+        assert isinstance(val, FloatAttr)
         apply.add_coeff(op.offset, val)
         rewriter.replace_op(mulf, [], new_results=[op.result])
 

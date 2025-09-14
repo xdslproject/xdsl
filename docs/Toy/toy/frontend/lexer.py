@@ -49,6 +49,12 @@ SINGLE_CHAR_TOKENS = {
     "/": ToyTokenKind.OPERATOR,
 }
 
+KEYWORD_TOKENS = {
+    "return": ToyTokenKind.RETURN,
+    "def": ToyTokenKind.DEF,
+    "var": ToyTokenKind.VAR,
+}
+
 IDENTIFIER_CHARS = re.compile(r"[\w]|[\d]|_")
 SPECIAL_CHARS = set(",")
 
@@ -144,7 +150,9 @@ class ToyLexer(Lexer[ToyTokenKind]):
         """
         self._consume_regex(self.bare_identifier_suffix_regex)
 
-        return self._form_token(ToyTokenKind.IDENTIFIER, start_pos)
+        span = Span(start_pos, self.pos, self.input)
+        kind = KEYWORD_TOKENS.get(span.text, ToyTokenKind.IDENTIFIER)
+        return Token(kind, span)
 
     _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
     _digits_star_regex = re.compile(r"[0-9]*")

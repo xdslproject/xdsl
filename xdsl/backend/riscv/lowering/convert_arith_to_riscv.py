@@ -28,6 +28,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.comparisons import signed_lower_bound, signed_upper_bound
+from xdsl.utils.hints import isa
 
 _INT_REGISTER_TYPE = riscv.Registers.UNALLOCATED_INT
 _FLOAT_REGISTER_TYPE = riscv.Registers.UNALLOCATED_FLOAT
@@ -39,7 +40,7 @@ class LowerArithConstant(RewritePattern):
         self, op: arith.ConstantOp, rewriter: PatternRewriter
     ) -> None:
         op_result_type = op.result.type
-        if isinstance(op_result_type, IntegerType) and isinstance(
+        if isa(op_result_type, IntegerType) and isinstance(
             op_val := op.value, IntegerAttr
         ):
             if op_result_type.width.data <= 32:
@@ -187,9 +188,7 @@ class LowerBinaryFloatOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected float type {op.lhs.type}")
 
-        rv_flags = riscv.FastMathFlagsAttr("none")
-        if op.fastmath is not None:
-            rv_flags = riscv.FastMathFlagsAttr(op.fastmath.data)
+        rv_flags = riscv.FastMathFlagsAttr(op.fastmath.data)
 
         new_op = cls(lhs, rhs, rd=_FLOAT_REGISTER_TYPE, fastmath=rv_flags)
         cast = UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,))

@@ -29,10 +29,9 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    GenericAttrConstraint,
+    AttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -55,18 +54,14 @@ class ReadableStreamType(
 ):
     name = "snitch.readable"
 
-    element_type: ParameterDef[_StreamTypeElement]
+    element_type: _StreamTypeElement
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
-    def __init__(self, element_type: _StreamTypeElement):
-        super().__init__([element_type])
-
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
-        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
         return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
             ReadableStreamType, (element_type,)
@@ -82,18 +77,14 @@ class WritableStreamType(
 ):
     name = "snitch.writable"
 
-    element_type: ParameterDef[_StreamTypeElement]
+    element_type: _StreamTypeElement
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
-    def __init__(self, element_type: _StreamTypeElement):
-        super().__init__([element_type])
-
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
-        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
         return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
             WritableStreamType, (element_type,)

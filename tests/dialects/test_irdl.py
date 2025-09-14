@@ -3,7 +3,7 @@ from typing import ClassVar
 
 import pytest
 
-from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr, i32
+from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, i32
 from xdsl.dialects.irdl import (
     AllOfOp,
     AnyOfOp,
@@ -13,14 +13,10 @@ from xdsl.dialects.irdl import (
     BaseOp,
     DialectOp,
     IsOp,
-    OperandsOp,
     OperationOp,
-    ParametersOp,
     ParametricOp,
-    ResultsOp,
     TypeOp,
 )
-from xdsl.dialects.irdl.irdl import VariadicityArrayAttr, VariadicityAttr
 from xdsl.ir import Block, Region
 from xdsl.irdl import IRDLOperation, irdl_op_definition
 from xdsl.utils.exceptions import PyRDLOpDefinitionError
@@ -45,44 +41,6 @@ def test_named_region_op_init(
 
     assert op.sym_name == StringAttr("cmath")
     assert len(op.body.blocks) == 1
-
-
-def test_parameter_op_init():
-    """
-    Test __init__ of ParametersOp.
-    """
-
-    val1 = create_ssa_value(AttributeType())
-    val2 = create_ssa_value(AttributeType())
-    op = ParametersOp([val1, val2])
-    op2 = ParametersOp.create(operands=[val1, val2])
-
-    assert op.is_structurally_equivalent(op2)
-
-    assert op.args == (val1, val2)
-
-
-@pytest.mark.parametrize("op_type", [OperandsOp, ResultsOp])
-def test_parameters_init(op_type: type[OperandsOp | ResultsOp]):
-    """
-    Test __init__ of OperandsOp, ResultsOp.
-    """
-
-    val1 = create_ssa_value(AttributeType())
-    val2 = create_ssa_value(AttributeType())
-    op = op_type([(VariadicityAttr.SINGLE, val1), (VariadicityAttr.OPTIONAL, val2)])
-    op2 = op_type.create(
-        operands=[val1, val2],
-        attributes={
-            "variadicity": VariadicityArrayAttr(
-                ArrayAttr((VariadicityAttr.SINGLE, VariadicityAttr.OPTIONAL))
-            )
-        },
-    )
-
-    assert op.is_structurally_equivalent(op2)
-
-    assert op.args == (val1, val2)
 
 
 def test_is_init():
@@ -189,7 +147,9 @@ def test_class_var_on_op():
 
 
 def test_class_var_on_op_invalid():
-    with pytest.raises(PyRDLOpDefinitionError, match="is neither a"):
+    with pytest.raises(
+        PyRDLOpDefinitionError, match='Invalid ClassVar name "var", must be uppercase'
+    ):
         irdl_op_definition(MyOpWithClassVarInvalid)
 
 

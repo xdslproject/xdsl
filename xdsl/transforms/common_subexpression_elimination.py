@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import TypeVar
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
@@ -70,7 +71,7 @@ _D = TypeVar("_D")
 class KnownOps:
     """
     Cache dictionary for known operations used in CSE.
-    It quacks like a dict[Operation, Operation], but uses OperationInfo of an Opetration
+    It quacks like a dict[Operation, Operation], but uses OperationInfo of an Operation
     as the actual key.
     """
 

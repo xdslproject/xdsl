@@ -4,6 +4,7 @@ from xdsl.dialects.arith import ConstantOp, FloatingPointLikeBinaryOperation
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    TensorType,
     VectorType,
     f32,
     i32,
@@ -11,11 +12,17 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.math import (
     AbsFOp,
     AbsIOp,
+    AcoshOp,
+    AcosOp,
+    AsinhOp,
+    AsinOp,
     Atan2Op,
+    AtanhOp,
     AtanOp,
     CbrtOp,
     CeilOp,
     CopySignOp,
+    CoshOp,
     CosOp,
     CountLeadingZerosOp,
     CountTrailingZerosOp,
@@ -36,6 +43,7 @@ from xdsl.dialects.math import (
     RoundEvenOp,
     RoundOp,
     RsqrtOp,
+    SinhOp,
     SinOp,
     SqrtOp,
     TanhOp,
@@ -60,7 +68,7 @@ class Test_float_math_binary_construction:
     lhs_vector = TestOp([lhs_vector_ssa_value], result_types=[f32_vector_type])
     rhs_vector = TestOp([rhs_vector_ssa_value], result_types=[f32_vector_type])
 
-    f32_tensor_type = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
+    f32_tensor_type = DenseIntOrFPElementsAttr.from_list(TensorType(f32, []), [5.5])
     lhs_tensor_ssa_value = create_ssa_value(f32_tensor_type)
     rhs_tensor_ssa_value = create_ssa_value(f32_tensor_type)
 
@@ -134,7 +142,7 @@ class Test_float_math_unary_constructions:
     test_vector_ssa = create_ssa_value(f32_vector_type)
     test_vec = TestOp([test_vector_ssa], result_types=[f32_vector_type])
 
-    f32_tensor_type = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
+    f32_tensor_type = DenseIntOrFPElementsAttr.from_list(TensorType(f32, []), [5.5])
     test_tensor_ssa_value = create_ssa_value(f32_tensor_type)
     test_tensor = TestOp([test_tensor_ssa_value], result_types=[f32_tensor_type])
 
@@ -142,10 +150,16 @@ class Test_float_math_unary_constructions:
         "OpClass",
         [
             AbsFOp,
+            AcosOp,
+            AcoshOp,
+            AsinOp,
+            AsinhOp,
             AtanOp,
+            AtanhOp,
             CbrtOp,
             CeilOp,
             CosOp,
+            CoshOp,
             ErfOp,
             Exp2Op,
             ExpM1Op,
@@ -159,6 +173,7 @@ class Test_float_math_unary_constructions:
             RoundOp,
             RsqrtOp,
             SinOp,
+            SinhOp,
             SqrtOp,
             TanOp,
             TanhOp,
@@ -179,10 +194,16 @@ class Test_float_math_unary_constructions:
         "OpClass",
         [
             AbsFOp,
+            AcosOp,
+            AcoshOp,
+            AsinOp,
+            AsinhOp,
             AtanOp,
+            AtanhOp,
             CbrtOp,
             CeilOp,
             CosOp,
+            CoshOp,
             ErfOp,
             Exp2Op,
             ExpM1Op,
@@ -196,6 +217,7 @@ class Test_float_math_unary_constructions:
             RoundOp,
             RsqrtOp,
             SinOp,
+            SinhOp,
             SqrtOp,
             TanOp,
             TanhOp,
@@ -213,10 +235,16 @@ class Test_float_math_unary_constructions:
         "OpClass",
         [
             AbsFOp,
+            AcosOp,
+            AcoshOp,
+            AsinOp,
+            AsinhOp,
             AtanOp,
+            AtanhOp,
             CbrtOp,
             CeilOp,
             CosOp,
+            CoshOp,
             ErfOp,
             Exp2Op,
             ExpM1Op,
@@ -230,6 +258,7 @@ class Test_float_math_unary_constructions:
             RoundOp,
             RsqrtOp,
             SinOp,
+            SinhOp,
             SqrtOp,
             TanOp,
             TanhOp,
@@ -256,7 +285,7 @@ class Test_fpowi:
     a_vector_ssa_value = create_ssa_value(f32_vector_type)
     a_vector = TestOp([a_vector_ssa_value], result_types=[f32_vector_type])
 
-    f32_tensor_type = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
+    f32_tensor_type = DenseIntOrFPElementsAttr.from_list(TensorType(f32, []), [5.5])
     a_tensor_ssa_value = create_ssa_value(f32_tensor_type)
     a_tensor = TestOp([a_tensor_ssa_value], result_types=[f32_tensor_type])
 
@@ -293,7 +322,7 @@ class Test_fma:
     b_vec = TestOp([test_vector_ssa], result_types=[f32_vector_type])
     c_vec = TestOp([test_vector_ssa], result_types=[f32_vector_type])
 
-    f32_tensor_type = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
+    f32_tensor_type = DenseIntOrFPElementsAttr.from_list(TensorType(f32, []), [5.5])
     test_tensor_ssa = create_ssa_value(f32_vector_type)
     a_tensor = TestOp([test_tensor_ssa], result_types=[f32_tensor_type])
     b_tensor = TestOp([test_tensor_ssa], result_types=[f32_tensor_type])
@@ -330,7 +359,7 @@ class Test_int_math_unary_constructions:
     test_vector_ssa = create_ssa_value(i32_vector_type)
     test_vec = TestOp([test_vector_ssa], result_types=[i32_vector_type])
 
-    i32_tensor_type = DenseIntOrFPElementsAttr.tensor_from_list([5], i32, [])
+    i32_tensor_type = DenseIntOrFPElementsAttr.from_list(TensorType(i32, []), [5])
     test_tensor_ssa_value = create_ssa_value(i32_tensor_type)
     test_tensor = TestOp([test_tensor_ssa_value], result_types=[i32_tensor_type])
 
@@ -400,7 +429,7 @@ class Test_Trunci:
     test_vector_ssa = create_ssa_value(i32_vector_type)
     test_vec = TestOp([test_vector_ssa], result_types=[i32_vector_type])
 
-    i32_tensor_type = DenseIntOrFPElementsAttr.tensor_from_list([5], i32, [])
+    i32_tensor_type = DenseIntOrFPElementsAttr.from_list(TensorType(i32, []), [5])
     test_tensor_ssa_value = create_ssa_value(i32_tensor_type)
     test_tensor = TestOp([test_tensor_ssa_value], result_types=[i32_tensor_type])
 

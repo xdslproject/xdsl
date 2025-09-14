@@ -94,7 +94,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 return
 
             # If either induction variable is used, we can only fold if used exactly once
-            if len(outer_index.uses) != 1 or len(inner_index.uses) != 1:
+            if not outer_index.has_one_use() or not inner_index.has_one_use():
                 return
 
             outer_user = next(iter(outer_index.uses)).operation

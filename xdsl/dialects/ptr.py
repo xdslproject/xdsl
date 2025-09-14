@@ -12,8 +12,15 @@ Current deviations:
  conflict.
 """
 
-from xdsl.dialects.builtin import AnyAttr, IntegerAttrTypeConstr, MemRefType, UnitAttr
-from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
+from xdsl.dialects.builtin import (
+    AnyAttr,
+    IndexType,
+    IntegerAttrTypeConstr,
+    IntegerType,
+    MemRefType,
+    UnitAttr,
+)
+from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -22,12 +29,26 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     result_def,
+    traits_def,
 )
+from xdsl.pattern_rewriter import RewritePattern
+from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 
 
 @irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute):
     name = "ptr_xdsl.ptr"
+
+    def __init__(self):
+        super().__init__()
+
+
+class PtrAddOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns import ptr
+
+        return (ptr.PtrAddZero(),)
 
 
 @irdl_op_definition
@@ -40,6 +61,11 @@ class PtrAddOp(IRDLOperation):
 
     assembly_format = "$addr `,` $offset attr-dict `:` `(` type($addr) `,` type($offset) `)` `->` type($result)"
 
+    traits = traits_def(PtrAddOpHasCanonicalizationPatterns())
+
+    def __init__(self, addr: SSAValue, offset: SSAValue):
+        super().__init__(operands=(addr, offset), result_types=(PtrType(),))
+
 
 # haven't managed to pass a type here yet. so did it with a hack.
 @irdl_op_definition
@@ -50,6 +76,9 @@ class TypeOffsetOp(IRDLOperation):
     offset = result_def(IntegerAttrTypeConstr)
 
     assembly_format = "$elem_type attr-dict `:` type($offset)"
+
+    def __init__(self, elem_type: Attribute, offset: IndexType | IntegerType):
+        super().__init__(properties={"elem_type": elem_type}, result_types=(offset,))
 
 
 @irdl_op_definition
@@ -64,6 +93,24 @@ class StoreOp(IRDLOperation):
     ordering = opt_prop_def(UnitAttr)
 
     assembly_format = "(`volatile` $volatile^)? $value `,` $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? attr-dict `:` type($value) `,` type($addr)"  # noqa: E501
+
+    def __init__(
+        self,
+        addr: SSAValue,
+        value: SSAValue,
+        *,
+        volatile: bool = False,
+        syncscope: bool = False,
+        ordering: bool = False,
+    ):
+        super().__init__(
+            operands=(addr, value),
+            properties={
+                "volatile": UnitAttr() if volatile else None,
+                "syncscope": UnitAttr() if syncscope else None,
+                "ordering": UnitAttr() if ordering else None,
+            },
+        )
 
 
 @irdl_op_definition
@@ -80,6 +127,35 @@ class LoadOp(IRDLOperation):
 
     assembly_format = "(`volatile` $volatile^)? $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? (`invariant` $invariant^)? attr-dict `:` type($addr) `->` type($res)"  # noqa: E501
 
+    def __init__(
+        self,
+        addr: SSAValue,
+        result_type: Attribute,
+        *,
+        volatile: bool = False,
+        syncscope: bool = False,
+        ordering: bool = False,
+        invariant: bool = False,
+    ):
+        super().__init__(
+            operands=(addr,),
+            result_types=(result_type,),
+            properties={
+                "volatile": UnitAttr() if volatile else None,
+                "syncscope": UnitAttr() if syncscope else None,
+                "ordering": UnitAttr() if ordering else None,
+                "invariant": UnitAttr() if invariant else None,
+            },
+        )
+
+
+class ToPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.ptr import RedundantToPtr
+
+        return (RedundantToPtr(),)
+
 
 @irdl_op_definition
 class ToPtrOp(IRDLOperation):
@@ -90,6 +166,34 @@ class ToPtrOp(IRDLOperation):
 
     assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
 
+    traits = traits_def(Pure(), ToPtrOpHasCanonicalizationPatternsTrait())
+
+    def __init__(self, source: SSAValue):
+        super().__init__(operands=(source,), result_types=(PtrType(),))
+
+
+class FromPtrOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.ptr import RedundantFromPtr
+
+        return (RedundantFromPtr(),)
+
+
+@irdl_op_definition
+class FromPtrOp(IRDLOperation):
+    name = "ptr_xdsl.from_ptr"
+
+    source = operand_def(PtrType)
+    res = result_def(MemRefType)
+
+    assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
+
+    traits = traits_def(Pure(), FromPtrOpHasCanonicalizationPatternsTrait())
+
+    def __init__(self, source: SSAValue, result_type: MemRefType):
+        super().__init__(operands=(source,), result_types=(result_type,))
+
 
 Ptr = Dialect(
     "ptr_xdsl",
@@ -99,6 +203,7 @@ Ptr = Dialect(
         StoreOp,
         LoadOp,
         ToPtrOp,
+        FromPtrOp,
     ],
     [
         PtrType,

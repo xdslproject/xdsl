@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Annotated, ClassVar, Generic, TypeVar
+from typing import Annotated, ClassVar, Generic
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import (
@@ -16,9 +17,10 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.test import TestType
-from xdsl.ir import Attribute, Block, Region
+from xdsl.ir import Block, Region
 from xdsl.irdl import (
     AnyAttr,
+    AnyInt,
     AnyOf,
     AttributeDef,
     AttrSizedOperandSegments,
@@ -27,6 +29,7 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintVar,
     EqAttrConstraint,
+    IntVarConstraint,
     IRDLOperation,
     OpDef,
     OperandDef,
@@ -75,8 +78,8 @@ class OpDefTestOp(IRDLOperation):
 
     operand = operand_def()
     result = result_def()
-    prop = prop_def(Attribute)
-    attr = attr_def(Attribute)
+    prop = prop_def()
+    attr = attr_def()
     region = region_def()
 
     # Check that we can define methods in operation definitions
@@ -165,16 +168,17 @@ def test_attr_verify():
         op.verify()
 
 
-# TODO: remove this test once the Annotated API is deprecated
-@irdl_op_definition
-class ConstraintVarOp(IRDLOperation):
-    name = "test.constraint_var_op"
+with pytest.deprecated_call():
+    # TODO: remove this test once the Annotated API is deprecated
+    @irdl_op_definition
+    class ConstraintVarOp(IRDLOperation):
+        name = "test.constraint_var_op"
 
-    T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
+        T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
 
-    operand = operand_def(T)
-    result = result_def(T)
-    attribute = attr_def(T)
+        operand = operand_def(T)
+        result = result_def(T)
+        attribute = attr_def(T)
 
 
 def test_constraint_var():
@@ -410,10 +414,45 @@ def test_range_var_fail_not_satisfy_constraint():
 
 
 @irdl_op_definition
+class SameLengthOp(IRDLOperation):
+    """
+    An operation that has the same number of results and operands.
+    """
+
+    name = "test.same_length"
+
+    LENGTH: ClassVar = IntVarConstraint("length", AnyInt())
+    operand = var_operand_def(RangeOf(AnyAttr()).of_length(LENGTH))
+    result = var_result_def(RangeOf(AnyAttr()).of_length(LENGTH))
+
+
+def test_same_length_op():
+    operand1 = create_ssa_value(i32)
+    operand2 = create_ssa_value(i32)
+
+    op1 = SameLengthOp.create(operands=[operand1, operand2], result_types=[i32, i32])
+    op1.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="incorrect length for range variable:\ninteger 2 expected from int variable 'length', but got 1",
+    ):
+        op2 = SameLengthOp.create(operands=[operand1, operand2], result_types=[i32])
+        op2.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="incorrect length for range variable:\ninteger 1 expected from int variable 'length', but got 2",
+    ):
+        op3 = SameLengthOp.create(operands=[operand1], result_types=[i32, i32])
+        op3.verify()
+
+
+@irdl_op_definition
 class WithoutPropOp(IRDLOperation):
     name = "test.op_without_prop"
 
-    prop1 = prop_def(Attribute)
+    prop1 = prop_def()
 
 
 # Check that an operation cannot accept properties that are not defined
@@ -553,6 +592,18 @@ def test_attribute_setters():
     assert op.opt_attr is None
 
 
+def test_attribute_missing():
+    """Test verification raises error when an attribute is missing"""
+
+    op = AttributeOp.create(attributes={})
+
+    with pytest.raises(
+        VerifyException,
+        match="attribute 'attr' expected in operation 'test.attribute_op'",
+    ):
+        op.verify()
+
+
 @irdl_op_definition
 class PropertyOp(IRDLOperation):
     name = "test.attribute_op"
@@ -587,6 +638,33 @@ def test_property_setters():
 
     op.opt_attr = None
     assert op.opt_attr is None
+
+
+def test_property_missing():
+    """Test verification raises error when a property is missing"""
+
+    op = PropertyOp.create(properties={})
+
+    with pytest.raises(
+        VerifyException,
+        match="property 'attr' expected in operation 'test.attribute_op'",
+    ):
+        op.verify()
+
+
+def test_undefined_property():
+    """Test verification raises error when a property is missing"""
+
+    op = PropertyOp.create(
+        properties={"attr": StringAttr("test"), "unknown": StringAttr("test")}
+    )
+
+    with pytest.raises(
+        VerifyException,
+        match="property 'unknown' is not defined by the operation 'test.attribute_op'."
+        + " Use the dictionary attribute to add arbitrary information to the operation.",
+    ):
+        op.verify()
 
 
 ################################################################################
@@ -624,7 +702,10 @@ def test_renamed_attributes_verify():
             "accessor": StringAttr("test"),
         }
     )
-    with pytest.raises(VerifyException, match="attribute attr_name expected"):
+    with pytest.raises(
+        VerifyException,
+        match="attribute 'attr_name' expected in operation 'test.renamed_attribute_op'",
+    ):
         op.verify()
 
     op = RenamedAttributeOp.create(
@@ -676,7 +757,10 @@ def test_renamed_properties_verify():
             "accessor": StringAttr("test"),
         }
     )
-    with pytest.raises(VerifyException, match="property prop_name expected"):
+    with pytest.raises(
+        VerifyException,
+        match="property 'prop_name' expected in operation 'test.renamed_property_op'",
+    ):
         op.verify()
 
     op = RenamedPropertyOp.create(
@@ -710,8 +794,8 @@ BarType = Annotated[TestType, TestType("bar")]
 
 
 _Attr = TypeVar("_Attr", bound=StringAttr | IntAttr)
-_Operand = TypeVar("_Operand", bound=FooType | BarType)
-_Result = TypeVar("_Result", bound=FooType | BarType)
+_Operand = TypeVar("_Operand", bound=TestType)
+_Result = TypeVar("_Result", bound=TestType)
 
 
 class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
@@ -727,21 +811,30 @@ class StringFooOp(GenericOp[StringAttr, FooType, FooType]):
     name = "test.string_specialized"
 
 
-def test_generic_op():
+class Generic2Op(Generic[_Operand], GenericOp[StringAttr, _Operand, FooType]): ...
+
+
+@irdl_op_definition
+class StringFoo2Op(Generic2Op[FooType]):
+    name = "test.string_specialized_2"
+
+
+@pytest.mark.parametrize("cls", [StringFooOp, StringFoo2Op])
+def test_generic_op(cls: type[StringFooOp | StringFoo2Op]):
     """Test generic operation."""
     FooOperand = create_ssa_value(TestType("foo"))
     BarOperand = create_ssa_value(TestType("bar"))
     FooResultType = TestType("foo")
     BarResultType = TestType("bar")
 
-    op = StringFooOp(
+    op = cls(
         attributes={"attr": StringAttr("test")},
         operands=[FooOperand],
         result_types=[FooResultType],
     )
     op.verify()
 
-    op_attr_fail = StringFooOp(
+    op_attr_fail = cls(
         attributes={"attr": IntAttr(1)},
         operands=[FooOperand],
         result_types=[FooResultType],
@@ -749,7 +842,7 @@ def test_generic_op():
     with pytest.raises(DiagnosticException):
         op_attr_fail.verify()
 
-    op_operand_fail = StringFooOp(
+    op_operand_fail = cls(
         attributes={"attr": StringAttr("test")},
         operands=[BarOperand],
         result_types=[FooResultType],
@@ -757,7 +850,7 @@ def test_generic_op():
     with pytest.raises(DiagnosticException):
         op_operand_fail.verify()
 
-    op_result_fail = StringFooOp(
+    op_result_fail = cls(
         attributes={"attr": StringAttr("test")},
         operands=[FooOperand],
         result_types=[BarResultType],
@@ -767,7 +860,7 @@ def test_generic_op():
 
 
 class OtherParentOp(IRDLOperation):
-    other_attr = attr_def(Attribute)
+    other_attr = attr_def()
 
 
 @irdl_op_definition
@@ -825,19 +918,19 @@ def test_entry_args_op():
 
     op = EntryArgsOp.create(regions=[Region(Block(arg_types=[i64]))])
     with pytest.raises(
-        DiagnosticException,
+        VerifyException,
         match="""\
 Operation does not verify: region #0 entry arguments do not verify:
-Expected attribute i32 but got i64""",
+.*Expected attribute i32 but got i64""",
     ):
         op.verify()
 
     op = EntryArgsOp.create(regions=[Region(Block(arg_types=[i64, i32]))])
     with pytest.raises(
-        DiagnosticException,
+        VerifyException,
         match="""\
 Operation does not verify: region #0 entry arguments do not verify:
-Expected attribute i32 but got i64""",
+.*Expected attribute i32 but got i64""",
     ):
         op.verify()
 

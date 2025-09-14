@@ -35,7 +35,7 @@ builtin.module {
 // CHECK:      builtin.module {
 // CHECK-NEXT:   "test.op"() ({
 // CHECK-NEXT:     "test.termop"(%0) : (i32) -> ()
-// CHECK-NEXT:   ^0(%0 : i32):
+// CHECK-NEXT:   ^bb0(%0 : i32):
 // CHECK-NEXT:     "test.termop"() : () -> ()
 // CHECK-NEXT:   }) : () -> ()
 // CHECK-NEXT: }
@@ -79,11 +79,11 @@ builtin.module {
         "test.op"() : () -> ()
 }
 
-// CHECK:       /graph_region.mlir:78:4
+// CHECK:       /graph_region.mlir:78:5
 // CHECK-NEXT:      ^blockA:
 // CHECK-NEXT:      ^^^^^^^
 // CHECK-NEXT:      re-declaration of block 'blockA'
 // CHECK-NEXT:  originally declared here:
-// CHECK-NEXT:  /graph_region.mlir:4:4
+// CHECK-NEXT:  /graph_region.mlir:4:5
 // CHECK-NEXT:      ^blockA:
 // CHECK-NEXT:      ^^^^^^^

@@ -16,9 +16,8 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
-__DEFAULT_PROG_NAME = "pe_program"
+_DEFAULT_PROG_NAME = "pe_program"
 """
 This is the name which will be used by the layout module when calling
 `@set_tile_code` if the `csl_wrapper.module` does not provide a `program_name`.
@@ -55,7 +54,7 @@ class ExtractCslModules(RewritePattern):
 
         params = list[SSAValue]()
         for param in op.params:
-            if isattr(param.value, builtin.IntegerAttr):
+            if isinstance(param.value, builtin.IntegerAttr):
                 value = arith.ConstantOp(param.value)
             else:
                 value = None
@@ -113,7 +112,7 @@ class ExtractCslModules(RewritePattern):
                   `csl.param` for each of them.
         """
 
-        prog_name = op.program_name.data if op.program_name else __DEFAULT_PROG_NAME
+        prog_name = op.program_name.data if op.program_name else _DEFAULT_PROG_NAME
         module_block = Block()
 
         outer_loop_block = Block()
@@ -188,7 +187,7 @@ class ExtractCslModules(RewritePattern):
     def _collect_yield_args(yield_op: csl_wrapper.YieldOp) -> list[csl.ParamOp]:
         params = list[csl.ParamOp]()
         for s, v in yield_op.items():
-            assert isattr(ty := v.type, csl.ParamOpAttrConstr)
+            assert csl.ParamOpAttrConstr.verifies(ty := v.type)
             params.append(csl.ParamOp(s, ty))
         return params
 
@@ -208,7 +207,7 @@ class ExtractCslModules(RewritePattern):
                   `csl.param` for each of them.
         """
 
-        prog_name = op.program_name.data if op.program_name else __DEFAULT_PROG_NAME
+        prog_name = op.program_name.data if op.program_name else _DEFAULT_PROG_NAME
         module_block = Block()
         with ImplicitBuilder(module_block):
             param_width, param_height, params_from_block_args = self._collect_params(op)

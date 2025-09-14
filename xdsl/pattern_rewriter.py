@@ -6,11 +6,11 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import TypeVar, Union, final, get_args, get_origin
+from typing import Union, final, get_args, get_origin
 
-from typing_extensions import deprecated
+from typing_extensions import TypeVar
 
-from xdsl.builder import Builder, BuilderListener
+from xdsl.builder import Builder, BuilderListener, InsertOpInvT
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -23,10 +23,9 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.irdl import GenericAttrConstraint, base
+from xdsl.irdl import AttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 @dataclass(eq=False)
@@ -101,49 +100,21 @@ class PatternRewriter(Builder, PatternRewriterListener):
         Builder.__init__(self, InsertPoint.before(current_operation))
 
     def insert_op(
-        self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
-    ):
+        self,
+        op: InsertOpInvT,
+        insertion_point: InsertPoint | None = None,
+    ) -> InsertOpInvT:
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
-        op = (op,) if isinstance(op, Operation) else op
-        if not op:
-            return
-        Rewriter.insert_op(op, insertion_point)
+        return super().insert_op(op, insertion_point)
 
-        for op_ in op:
-            self.handle_operation_insertion(op_)
-
-    def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
+    def insert_op_before_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations before the matched operation."""
-        self.insert_op(op, InsertPoint.before(self.current_operation))
+        return self.insert_op(op, InsertPoint.before(self.current_operation))
 
-    def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
+    def insert_op_after_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations after the matched operation."""
-        self.insert_op(op, InsertPoint.after(self.current_operation))
-
-    @deprecated("Please use `insert_op` instead")
-    def insert_op_at_end(self, op: Operation | Sequence[Operation], block: Block):
-        """Insert operations at the end of a block."""
-        self.insert_op(op, InsertPoint.at_end(block))
-
-    @deprecated("Please use `insert_op` instead")
-    def insert_op_at_start(self, op: Operation | Sequence[Operation], block: Block):
-        """Insert operations at the start of a block."""
-        self.insert_op(op, InsertPoint.at_start(block))
-
-    @deprecated("Please use `insert_op` instead")
-    def insert_op_before(
-        self, op: Operation | Sequence[Operation], target_op: Operation
-    ):
-        """Insert operations before an operation."""
-        self.insert_op(op, InsertPoint.before(target_op))
-
-    @deprecated("Please use `insert_op` instead")
-    def insert_op_after(
-        self, op: Operation | Sequence[Operation], target_op: Operation
-    ):
-        """Insert operations after an operation."""
-        self.insert_op(op, InsertPoint.after(target_op))
+        return self.insert_op(op, InsertPoint.after(self.current_operation))
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
@@ -163,16 +134,17 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.handle_operation_removal(op)
         Rewriter.erase_op(op, safe_erase=safe_erase)
 
-    def _replace_all_uses_with(
+    def replace_all_uses_with(
         self, from_: SSAValue, to: SSAValue | None, safe_erase: bool = True
     ):
         """Replace all uses of an SSA value with another SSA value."""
-        for use in from_.uses:
-            self.handle_operation_modification(use.operation)
+        modified_ops = [use.operation for use in from_.uses]
         if to is None:
             from_.erase(safe_erase=safe_erase)
         else:
             from_.replace_by(to)
+        for op in modified_ops:
+            self.handle_operation_modification(op)
 
     def replace_matched_op(
         self,
@@ -222,7 +194,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         # Then, replace the results with new ones
         self.handle_operation_replacement(op, new_results)
         for old_result, new_result in zip(op.results, new_results):
-            self._replace_all_uses_with(old_result, new_result, safe_erase=safe_erase)
+            self.replace_all_uses_with(old_result, new_result, safe_erase=safe_erase)
 
             # Preserve name hints for ops with multiple results
             if new_result is not None and not new_result.name_hint:
@@ -272,7 +244,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         uses, otherwise, replace it with an ErasedSSAValue.
         """
         self.has_done_action = True
-        self._replace_all_uses_with(arg, None, safe_erase=safe_erase)
+        self.replace_all_uses_with(arg, None, safe_erase=safe_erase)
         arg.block.erase_arg(arg, safe_erase)
 
     def inline_block(
@@ -287,30 +259,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
 
-    @deprecated("Please use `inline_block` instead")
-    def inline_block_at_end(
-        self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations to the end of another block.
-        This block should not be a parent of the block to move to.
-        """
-        self.inline_block(
-            block, InsertPoint.at_end(target_block), arg_values=arg_values
-        )
-
-    @deprecated("Please use `inline_block` instead")
-    def inline_block_at_start(
-        self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations to the start of another block.
-        This block should not be a parent of the block to move to.
-        """
-        self.inline_block(
-            block, InsertPoint.at_start(target_block), arg_values=arg_values
-        )
-
     def inline_block_before_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
     ):
@@ -321,16 +269,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.inline_block(
             block, InsertPoint.before(self.current_operation), arg_values=arg_values
         )
-
-    @deprecated("Please use `inline_block` instead")
-    def inline_block_before(
-        self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations before the given operation.
-        The block should not be a parent of the operation.
-        """
-        self.inline_block(block, InsertPoint.before(op), arg_values=arg_values)
 
     def inline_block_after_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
@@ -343,16 +281,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
             block, InsertPoint.after(self.current_operation), arg_values=arg_values
         )
 
-    @deprecated("Please use `inline_block` instead")
-    def inline_block_after(
-        self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations after the given operation.
-        The block should not be a parent of the operation.
-        """
-        self.inline_block(block, InsertPoint.after(op), arg_values=arg_values)
-
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
         """Move the region blocks to a new region."""
         self.has_done_action = True
@@ -363,33 +291,13 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         Rewriter.inline_region(region, insertion_point)
 
-    @deprecated(
-        "Please use `inline_region(region, BlockInsertPoint.before(target))` instead"
-    )
-    def inline_region_before(self, region: Region, target: Block) -> None:
-        """Move the region blocks to an existing region."""
-        self.inline_region(region, BlockInsertPoint.before(target))
-
-    @deprecated(
-        "Please use `inline_region(region, BlockInsertPoint.after(target))` instead"
-    )
-    def inline_region_after(self, region: Region, target: Block) -> None:
-        """Move the region blocks to an existing region."""
-        self.inline_region(region, BlockInsertPoint.after(target))
-
-    @deprecated(
-        "Please use `inline_region(region, BlockInsertPoint.at_start(target))` instead"
-    )
-    def inline_region_at_start(self, region: Region, target: Region) -> None:
-        """Move the region blocks to an existing region."""
-        self.inline_region(region, BlockInsertPoint.at_start(target))
-
-    @deprecated(
-        "Please use `inline_region(region, BlockInsertPoint.at_end(target))` instead"
-    )
-    def inline_region_at_end(self, region: Region, target: Region) -> None:
-        """Move the region blocks to an existing region."""
-        self.inline_region(region, BlockInsertPoint.at_end(target))
+    def notify_op_modified(self, op: Operation) -> None:
+        """
+        Notify the rewriter that an operation was modified in the pattern.
+        This will correctly update the rewriter state.
+        """
+        self.has_done_action = True
+        self.handle_operation_modification(op)
 
 
 class RewritePattern(ABC):
@@ -581,7 +489,7 @@ _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
 def attr_constr_rewrite_pattern(
-    constr: GenericAttrConstraint[_AttributeT],
+    constr: AttrConstraint[_AttributeT],
 ) -> Callable[
     [Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None]],
     Callable[[_TypeConversionPatternT, Attribute], Attribute | None],
@@ -597,7 +505,7 @@ def attr_constr_rewrite_pattern(
     ):
         @wraps(func)
         def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
-            if isattr(typ, constr):
+            if constr.verifies(typ):
                 return func(self, typ)
             return None
 
@@ -740,7 +648,7 @@ class PatternRewriteWalker:
         """
         for operand in operands:
             if (
-                len(operand.uses) == 1
+                operand.has_one_use()
                 and not isinstance(operand, ErasedSSAValue)
                 and isinstance((op := operand.owner), Operation)
             ):
@@ -863,14 +771,14 @@ class PatternRewriteWalker:
             rewriter.has_done_action = False
             rewriter.current_operation = op
             rewriter.insertion_point = InsertPoint.before(op)
+            rewriter.name_hint = None
 
             # Apply the pattern on the operation
             try:
                 self.pattern.match_and_rewrite(op, rewriter)
             except Exception as err:
                 op.emit_error(
-                    f"Error while applying pattern: {str(err)}",
-                    exception_type=type(err),
+                    f"Error while applying pattern: {err}",
                     underlying_error=err,
                 )
             rewriter_has_done_action |= rewriter.has_done_action

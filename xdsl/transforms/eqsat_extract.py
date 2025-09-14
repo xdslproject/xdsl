@@ -26,10 +26,8 @@ def eqsat_extract(block: Block):
                         if isinstance(operand, OpResult)
                     )
                 if isinstance(min_cost_operand, OpResult):
-                    assert eqsat.EQSAT_COST_LABEL in min_cost_operand.op.attributes, (
-                        min_cost_operand.op
-                    )
-                    del min_cost_operand.op.attributes[eqsat.EQSAT_COST_LABEL]
+                    if eqsat.EQSAT_COST_LABEL in min_cost_operand.op.attributes:
+                        del min_cost_operand.op.attributes[eqsat.EQSAT_COST_LABEL]
                 Rewriter.replace_op(op, (), new_results=(min_cost_operand,))
             continue
 

@@ -1,4 +1,5 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck %s
+// RUN: MLIR_GENERIC_ROUNDTRIP
+// RUN: MLIR_ROUNDTRIP
 
 %vali32 = "test.op"() : () -> i32
 %vali64 = "test.op"() : () -> i64
@@ -91,6 +92,14 @@
 // CHECK-NEXT: {{%.*}} = math.cos [[VALF32]] : f32
 // CHECK-NEXT: {{%.*}} = math.cos [[VALF64]] : f64
 // CHECK-NEXT: {{%.*}} = math.cos [[VEC_VALF64]] : vector<4xf64>
+
+%coshf0 = math.cosh %valf32 : f32
+%coshf1 = math.cosh %valf64 : f64
+%vcoshf1 = math.cosh %vec_valf64 : vector<4xf64>
+
+// CHECK-NEXT: {{%.*}} = math.cosh [[VALF32]] : f32
+// CHECK-NEXT: {{%.*}} = math.cosh [[VALF64]] : f64
+// CHECK-NEXT: {{%.*}} = math.cosh [[VEC_VALF64]] : vector<4xf64>
 
 %ctlzi0 = math.ctlz %vali32 : i32
 %ctlzi1 = math.ctlz %vali64 : i64
@@ -255,6 +264,14 @@
 // CHECK-NEXT: {{%.*}} = math.sin [[VALF32]] : f32
 // CHECK-NEXT: {{%.*}} = math.sin [[VALF64]] : f64
 // CHECK-NEXT: {{%.*}} = math.sin [[VEC_VALF64]] : vector<4xf64>
+
+%sinh0 = math.sinh %valf32 : f32
+%sinh1 = math.sinh %valf64 : f64
+%vsinh1 = math.sinh %vec_valf64 : vector<4xf64>
+
+// CHECK-NEXT: {{%.*}} = math.sinh [[VALF32]] : f32
+// CHECK-NEXT: {{%.*}} = math.sinh [[VALF64]] : f64
+// CHECK-NEXT: {{%.*}} = math.sinh [[VEC_VALF64]] : vector<4xf64>
 
 %sqrt0 = math.sqrt %valf32 : f32
 %sqrt1 = math.sqrt %valf64 : f64
