@@ -4,9 +4,12 @@ import abc
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, Literal, cast
 
+from xdsl.context import Context
+from xdsl.dialect_interfaces import ConstantMaterializationInterface
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
+    ComplexType,
     ContainerOf,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
@@ -28,7 +31,14 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
 from xdsl.interfaces import ConstantLikeInterface
-from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
+from xdsl.ir import (
+    Attribute,
+    BitEnumAttribute,
+    Dialect,
+    Operation,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -1376,6 +1386,34 @@ class ExtUIOp(IRDLOperation):
     traits = traits_def(Pure())
 
 
+class ArithConstantMaterializationInterface(ConstantMaterializationInterface):
+    def materialize_constant(
+        self, ctx: Context, value: Attribute, type: TypeAttribute
+    ) -> Operation:
+        if not isinstance(
+            value,
+            IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr | DenseResourceAttr,
+        ):
+            raise ValueError(
+                "expected IntegerAttr, FloatAttr, DenseIntOrFPElementsAttr, or DenseResourceAttr"
+            )
+
+        if isinstance(value, IntegerAttr):
+            value = cast(IntegerAttr[IntegerType | IndexType], value)
+        elif isinstance(value, FloatAttr):
+            value = cast(FloatAttr[AnyFloat], value)
+        elif isinstance(value, DenseIntOrFPElementsAttr):
+            value = cast(
+                DenseIntOrFPElementsAttr[
+                    IntegerType | IndexType | AnyFloat | ComplexType
+                ],
+                value,
+            )
+        # DenseResourceAttr doesn't need type casting
+
+        return ConstantOp(value=value, value_type=type)
+
+
 Arith = Dialect(
     "arith",
     [
@@ -1437,5 +1475,8 @@ Arith = Dialect(
     [
         FastMathFlagsAttr,
         IntegerOverflowAttr,
+    ],
+    [
+        ArithConstantMaterializationInterface(),
     ],
 )
