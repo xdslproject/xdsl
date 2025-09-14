@@ -6,7 +6,6 @@ from typing import IO
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.parser import Parser
 
 
 class CommandLineTool:
@@ -89,13 +88,6 @@ class CommandLineTool:
 
         Add other/additional frontends by overloading this function.
         """
-
-        def parse_mlir(io: IO[str]):
-            return Parser(
-                self.ctx,
-                io.read(),
-                self.get_input_name(),
-            ).parse_module(not self.args.no_implicit_module)
 
         self.available_frontends["mlir"] = parse_mlir
 
