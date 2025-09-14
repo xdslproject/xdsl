@@ -1,4 +1,10 @@
+from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from xdsl.context import Context
+    from xdsl.ir import Attribute, Operation, TypeAttribute
 
 
 class DialectInterface:
@@ -14,6 +20,34 @@ class DialectInterface:
     """
 
     pass
+
+
+class ConstantMaterializationInterface(DialectInterface, ABC):
+    """
+    An interface for dialects that support constant materialization.
+
+    A dialect that implements this interface should provide the `materialize_constant` method,
+    which creates a constant operation of the dialect given a value and a type.
+
+    This is useful for transformations that need to create constants in a dialect-specific way.
+    """
+
+    @abstractmethod
+    def materialize_constant(
+        self, ctx: "Context", value: "Attribute", type: "TypeAttribute"
+    ) -> "Operation | None":
+        """
+        Materializes a constant operation in the dialect.
+
+        Args:
+            ctx (Context): The context to use for creating the operation (necessary).
+            value (Attribute): The attribute representing the constant value.
+            type (TypeAttribute): The type of the constant.
+
+        Returns:
+            Operation: The created constant operation.
+        """
+        raise NotImplementedError("Dialect does not implement materialize_constant")
 
 
 class OpAsmDialectInterface(DialectInterface):
