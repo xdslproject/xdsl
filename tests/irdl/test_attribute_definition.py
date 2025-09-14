@@ -5,7 +5,7 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
@@ -27,7 +27,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    AttributeCovT,
     AttributeInvT,
     BitEnumAttribute,
     BuiltinAttribute,
@@ -46,6 +45,7 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintContext,
     GenericData,
+    IntConstraint,
     MessageConstraint,
     ParamAttrConstraint,
     ParamAttrDef,
@@ -437,7 +437,7 @@ class PositiveIntConstr(AttrConstraint):
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> PositiveIntConstr:
         return self
 
@@ -660,10 +660,8 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
 
     @staticmethod
     @override
-    def constr(
-        constr: AttrConstraint[AttributeCovT],
-    ) -> DataListAttr[AttributeCovT]:
-        return DataListAttr(constr)
+    def constr() -> DataListAttr:
+        return DataListAttr(TypeVarConstraint(AttributeInvT, AnyAttr()))
 
     @staticmethod
     def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
@@ -695,7 +693,7 @@ class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
             self.elem_constr.verify(e, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> DataListAttr[AttributeInvT]:
         return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
 

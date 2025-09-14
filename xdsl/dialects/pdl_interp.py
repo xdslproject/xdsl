@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar, cast
@@ -51,6 +51,7 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
+    IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
@@ -475,7 +476,7 @@ class RecordMatchOp(IRDLOperation):
     traits = traits_def(IsTerminator())
     rewriter = prop_def(SymbolRefAttr)
     rootKind = opt_prop_def(StringAttr)
-    generatedOps = opt_prop_def(ArrayAttr)
+    generatedOps = opt_prop_def(ArrayAttr[StringAttr])
     benefit = prop_def(IntegerAttr[I16])
 
     inputs = var_operand_def(AnyPDLTypeConstr)
@@ -494,8 +495,8 @@ class RecordMatchOp(IRDLOperation):
     def __init__(
         self,
         rewriter: str | SymbolRefAttr,
-        root_kind: str | StringAttr,
-        generated_ops: list[OperationType] | None,
+        root_kind: str | StringAttr | None,
+        generated_ops: ArrayAttr[StringAttr] | None,
         benefit: int | IntegerAttr[I16],
         inputs: Sequence[SSAValue],
         matched_ops: Sequence[SSAValue],
@@ -505,10 +506,6 @@ class RecordMatchOp(IRDLOperation):
             rewriter = SymbolRefAttr(rewriter)
         if isinstance(root_kind, str):
             root_kind = StringAttr(root_kind)
-        if (
-            generated_ops is None
-        ):  # TODO: if generatedOps is actually optional (check this), we shouldn't even pass an empty list
-            generated_ops = []
         if isinstance(benefit, int):
             benefit = IntegerAttr.from_int_and_width(benefit, 16)
         super().__init__(
@@ -516,7 +513,7 @@ class RecordMatchOp(IRDLOperation):
             properties={
                 "rewriter": rewriter,
                 "rootKind": root_kind,
-                "generatedOps": ArrayAttr(generated_ops),
+                "generatedOps": generated_ops,
                 "benefit": benefit,
             },
             successors=[dest],
@@ -548,7 +545,7 @@ class ValueConstrFromResultConstr(AttrConstraint[ValueType | RangeType[ValueType
         return self.result_constr.verify(result_type, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[ValueType | RangeType[ValueType]]:
         return ValueConstrFromResultConstr(
             self.result_constr.mapping_type_vars(type_var_mapping)

@@ -26,19 +26,17 @@ from xdsl.utils.hints import isa
 def xtype_for_el_type(
     el_type: Attribute, index_bitwidth: Literal[32, 64]
 ) -> PackableType[Any]:
-    match el_type:
-        case builtin.i32:
-            return ptr.int32
-        case builtin.i64:
-            return ptr.int64
-        case builtin.IndexType():
-            return ptr.index(index_bitwidth)
-        case builtin.f32:
-            return ptr.float32
-        case builtin.f64:
-            return ptr.float64
-        case _:
-            raise NotImplementedError(f"Unknown format for element type {el_type}")
+    """
+    Returns the datatype to use during interpretation for a given value.
+    For `index`, uses either `i32` or `i64`, depending on the `index_bitwidth`.
+    For all other types returns the input, as long as it's a subclass of
+    `PackableType`, raising an error otherwise.
+    """
+    if isinstance(el_type, builtin.IndexType):
+        return ptr.index(index_bitwidth)
+    if not isinstance(el_type, PackableType):
+        raise NotImplementedError(f"Unknown format for element type {el_type}")
+    return el_type  # pyright: ignore[reportUnknownVariableType]
 
 
 @register_impls

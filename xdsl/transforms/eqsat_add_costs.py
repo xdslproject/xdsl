@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import IntAttr
 from xdsl.ir import Block, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.hints import isa
 
 _DefaultCostT = TypeVar("_DefaultCostT", bound=int | None)
 
@@ -33,7 +34,7 @@ def get_eqsat_cost(
     cost_attribute = value.op.attributes.get(eqsat.EQSAT_COST_LABEL)
     if cost_attribute is None:
         return default
-    if not isinstance(cost_attribute, IntAttr):
+    if not isa(cost_attribute, IntAttr):
         raise DiagnosticException(
             f"Unexpected value {cost_attribute} for key {eqsat.EQSAT_COST_LABEL} in {value.op}"
         )

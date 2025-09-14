@@ -23,6 +23,11 @@ class RISCVRegisterAllocation(ModulePass):
     Inserts a comment with register allocation info in the IR.
     """
 
+    allow_infinite: bool = False
+    """
+    Whether to allow using infinite registers during register allocation.
+    """
+
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         allocator_strategies = {
             "LivenessBlockNaive": RegisterAllocatorLivenessBlockNaive,
@@ -36,7 +41,9 @@ class RISCVRegisterAllocation(ModulePass):
 
         for inner_op in op.walk():
             if isinstance(inner_op, riscv_func.FuncOp):
-                register_stack = RiscvRegisterStack.get()
+                register_stack = RiscvRegisterStack.get(
+                    allow_infinite=self.allow_infinite
+                )
                 allocator = allocator_strategies[self.allocation_strategy](
                     register_stack
                 )

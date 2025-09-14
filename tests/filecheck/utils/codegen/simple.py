@@ -3,13 +3,13 @@
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
     ComplexType,
-    Float32Type,
     IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
     NoneType,
     Signedness,
+    f32,
 )
 from xdsl.irdl import (
     AllOf,
@@ -132,7 +132,7 @@ ops = [
                     OperandDef(EqAttrConstraint(IntegerType(8, Signedness.UNSIGNED))),
                 ),
                 ("d", OperandDef(EqAttrConstraint(IndexType()))),
-                ("e", OperandDef(EqAttrConstraint(Float32Type()))),
+                ("e", OperandDef(EqAttrConstraint(f32))),
                 ("f", OperandDef(EqAttrConstraint(NoneType()))),
                 ("v1", OperandDef(ParamAttrConstraint(ComplexType, (AnyAttr(),)))),
             ],

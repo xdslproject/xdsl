@@ -389,7 +389,7 @@ def test_print_custom_block_arg_name():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block(block)
-    assert io.getvalue() == """\n^0(%test : i32, %test_1 : i32):"""
+    assert io.getvalue() == """\n^bb0(%test : i32, %test_1 : i32):"""
 
 
 def test_print_block_argument():
@@ -426,7 +426,8 @@ def test_print_block():
     p = Printer(stream=io)
     p.print_block(block)
     assert (
-        io.getvalue() == """\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()"""
+        io.getvalue()
+        == """\n^bb0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()"""
     )
 
 
@@ -456,7 +457,7 @@ def test_print_block_with_terminator():
     assert (
         io.getvalue()
         == """
-^0:
+^bb0:
   "test.op"() : () -> ()
   "test.termop"() : () -> ()"""
     )
@@ -474,7 +475,7 @@ def test_print_block_without_terminator():
     assert (
         io.getvalue()
         == """
-^0:
+^bb0:
   "test.op"() : () -> ()"""
     )
 
@@ -490,7 +491,7 @@ def test_print_region():
     p.print_region(region)
     assert (
         io.getvalue()
-        == """{\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
+        == """{\n^bb0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
     )
 
 
@@ -535,7 +536,7 @@ def test_print_region_empty_block_with_args():
     io = StringIO()
     p = Printer(stream=io)
     p.print_region(region, print_empty_block=False)
-    assert io.getvalue() == """{\n^0(%0 : i32, %1 : i32):\n}"""
+    assert io.getvalue() == """{\n^bb0(%0 : i32, %1 : i32):\n}"""
 
 
 #   ____          _                  _____                          _
@@ -814,10 +815,10 @@ def test_float():
         ("0", 0, IntegerType(32, signedness=Signedness.SIGNED)),
         ("1", True, IntegerType(32, signedness=Signedness.SIGNED)),
         ("0", False, IntegerType(32, signedness=Signedness.SIGNED)),
-        ("-1", -1, IndexType),
-        ("0", 0, IndexType),
-        ("1", True, IndexType),
-        ("0", False, IndexType),
+        ("-1", -1, IndexType()),
+        ("0", 0, IndexType()),
+        ("1", True, IndexType()),
+        ("0", False, IndexType()),
         ("-1", -1, None),
         ("0", 0, None),
         ("1", True, None),

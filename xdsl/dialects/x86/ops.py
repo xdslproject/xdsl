@@ -31,7 +31,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Generic, cast
+from typing import IO, Generic, Literal, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -40,7 +40,7 @@ from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
 )
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
@@ -74,6 +74,7 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     IsTerminator,
     MemoryReadEffect,
+    MemoryWriteEffect,
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -89,7 +90,7 @@ from .assembly import (
     print_type_pair,
 )
 from .attributes import LabelAttr
-from .register import (
+from .registers import (
     RAX,
     RDX,
     RSP,
@@ -110,6 +111,8 @@ class X86AsmOperation(
     """
     Base class for operations that can be a part of x86 assembly printing.
     """
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     @abstractmethod
     def assembly_line(self) -> str | None:
@@ -375,6 +378,8 @@ class RM_Operation(
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         register_in: Operation | SSAValue,
@@ -613,7 +618,11 @@ class MS_Operation(
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     source = operand_def(R2InvT)
 
-    traits = traits_def(MS_OperationHasCanonicalizationPatterns())
+    traits = traits_def(
+        MS_OperationHasCanonicalizationPatterns(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+    )
 
     def __init__(
         self,
@@ -663,6 +672,8 @@ class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     immediate = attr_def(IntegerAttr)
+
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,
@@ -779,6 +790,7 @@ class DMI_Operation(
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     immediate = attr_def(IntegerAttr)
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
@@ -840,6 +852,7 @@ class M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC
 
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
     def __init__(
         self,
@@ -1043,6 +1056,61 @@ class RSS_Operation(
         )
 
 
+class DSSI_Operation(
+    Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that have one destination register, one source
+    register and an immediate value.
+    """
+
+    destination = result_def(R1InvT)
+    source0 = operand_def(R2InvT)
+    source1 = operand_def(R3InvT)
+    immediate = attr_def(IntegerAttr[IntegerType[8]])
+
+    def __init__(
+        self,
+        source0: Operation | SSAValue,
+        source1: Operation | SSAValue,
+        immediate: int
+        | IntegerAttr[IntegerType[Literal[8], Literal[Signedness.UNSIGNED]]],
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, IntegerType[8, Signedness.UNSIGNED](8, Signedness.UNSIGNED)
+            )
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source0, source1],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.destination, self.source0, self.source1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = parse_immediate_value(parser, IntegerType(8, Signedness.UNSIGNED))
+        attributes["immediate"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+
 # endregion
 
 
@@ -1096,6 +1164,35 @@ class RS_ImulOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.rs.imul"
+
+
+@irdl_op_definition
+class RS_FAddOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Adds the floating point values in registers r and s and stores the result in r.
+    ```C
+    x[r] += x[s]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/fadd:faddp:fiadd).
+    """
+
+    name = "x86.rs.fadd"
+
+
+@irdl_op_definition
+class RS_FMulOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the floating point values in registers r and s and stores the result in
+    r.
+    ```C
+    x[r] *= x[s]
+    ```
+
+    See external [documentation](https://www.felixcloutier.com/x86/fmul:fmulp:fimul).
+    """
+
+    name = "x86.rs.fmul"
 
 
 @irdl_op_definition
@@ -1802,6 +1899,8 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
     memory = operand_def(X86RegisterType)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
+    traits = traits_def(MemoryWriteEffect())
+
     def __init__(
         self,
         rsp_in: Operation | SSAValue,
@@ -1858,6 +1957,8 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     memory = operand_def(GeneralRegisterType)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     rsp_out = result_def(RSP)
+
+    traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,
@@ -1970,6 +2071,8 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     rax_in = operand_def(RAX)
     rax_out = result_def(RAX)
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         memory: Operation | SSAValue,
@@ -2030,6 +2133,8 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
 
     rax_in = operand_def(RAX)
     rax_out = result_def(RAX)
+
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
@@ -2326,6 +2431,8 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     result = result_def(RFLAGSRegisterType)
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         source: Operation | SSAValue,
@@ -2440,6 +2547,8 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     result = result_def(RFLAGSRegisterType)
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(
         self,
         memory: Operation | SSAValue,
@@ -2499,6 +2608,8 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     immediate = attr_def(IntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
+
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
@@ -2988,6 +3099,28 @@ class DM_VbroadcastssOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]
     """
 
     name = "x86.dm.vbroadcastss"
+
+
+@irdl_op_definition
+class DSSI_ShufpsOp(
+    DSSI_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Selects a single precision floating-point value of an input quadruplet using a
+    two-bit control and move to a designated element of the destination operand.
+    Each 64-bit element-pair of a 128-bit lane of the destination operand is interleaved
+    between the corresponding lane of the first source operand and the second source
+    operand at the granularity 128 bits. Each two bits in the imm8 byte, starting from
+    bit 0, is the select control of the corresponding element of a 128-bit lane of the
+    destination to received the shuffled result of an input quadruplet. The two lower
+    elements of a 128-bit lane in the destination receives shuffle results from the
+    quadruple of the first source operand. The next two elements of the destination
+    receives shuffle results from the quadruple of the second source operand.
+
+    See external [documentation](https://www.felixcloutier.com/x86/shufps)
+    """
+
+    name = "x86.dssi.shufps"
 
 
 class GetAnyRegisterOperation(

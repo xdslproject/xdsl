@@ -73,11 +73,11 @@ memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 // CHECK-NEXT:  %idx3, %offsetmem = "test.op"() : () -> (index, memref<16xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:  %offsetmem_1 = ptr_xdsl.to_ptr %offsetmem : memref<16xf64, strided<[1], offset: 4>> -> !ptr_xdsl.ptr
 // CHECK-NEXT:  %memref_base_offset = arith.constant 4 : index
-// CHECK-NEXT:  %flv3 = arith.addi %idx3, %memref_base_offset : index
+// CHECK-NEXT:  %pointer_with_offset = arith.addi %idx3, %memref_base_offset : index
 // CHECK-NEXT:  %bytes_per_element_6 = ptr_xdsl.type_offset f64 : index
-// CHECK-NEXT:  %scaled_pointer_offset_6 = arith.muli %flv3, %bytes_per_element_6 : index
+// CHECK-NEXT:  %scaled_pointer_offset_6 = arith.muli %pointer_with_offset, %bytes_per_element_6 : index
 // CHECK-NEXT:  %offset_pointer_6 = ptr_xdsl.ptradd %offsetmem_1, %scaled_pointer_offset_6 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
-// CHECK-NEXT:  %flv3_1 = ptr_xdsl.load %offset_pointer_6 : !ptr_xdsl.ptr -> f64
+// CHECK-NEXT:  %flv3 = ptr_xdsl.load %offset_pointer_6 : !ptr_xdsl.ptr -> f64
 
 // -----
 

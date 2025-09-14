@@ -641,8 +641,63 @@ class IRWithUses(ABC):
         return None
 
 
+_VALUE_NAME_PATTERN = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
+"""Pattern to check if a name is valid for an SSAValue or Block."""
+
+_VALUE_NAME_SUFFIX_PATTERN = re.compile(r"(_\d+)$")
+"""This pattern is used to remove the suffix from an SSAValue or Block name."""
+
+
 @dataclass(eq=False)
-class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
+class IRWithName(ABC):
+    _name: str | None = field(init=False, default=None)
+
+    @property
+    def name_hint(self) -> str | None:
+        return self._name
+
+    @name_hint.setter
+    def name_hint(self, name: str | None):
+        self._name = self.extract_valid_name(name)
+
+    @classmethod
+    def is_valid_name(cls, name: str | None):
+        """
+        Returns `True` if `name` is None or a valid name for an identifier.
+        """
+        return name is None or _VALUE_NAME_PATTERN.fullmatch(name)
+
+    @overload
+    @classmethod
+    def extract_valid_name(cls, name: str) -> str: ...
+
+    @overload
+    @classmethod
+    def extract_valid_name(cls, name: None) -> None: ...
+
+    @classmethod
+    def extract_valid_name(cls, name: str | None) -> str | None:
+        """
+        If the name is valid, extracts the name before an optional `_\\d+` suffix.
+        Raises ValueError otherwise.
+        """
+        if name is None:
+            return
+        if _VALUE_NAME_PATTERN.fullmatch(name) is None:
+            raise ValueError(
+                f"Invalid {cls.__name__} name format `{name}`.",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number.",
+            )
+
+        if match := _VALUE_NAME_SUFFIX_PATTERN.search(name):
+            # Remove `_` followed by numbers at the end of the name
+            return name[: match.start()]
+
+        return name
+
+
+@dataclass(eq=False)
+class SSAValue(Generic[AttributeCovT], IRWithUses, IRWithName, ABC):
     """
     A reference to an SSA variable.
     An SSA variable is either an operation result, or a basic block argument.
@@ -650,10 +705,6 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
     _type: AttributeCovT
     """Each SSA variable is associated to a type."""
-
-    _name: str | None = field(init=False, default=None)
-
-    _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
 
     @property
     def type(self) -> AttributeCovT:
@@ -667,30 +718,6 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         This property returns the Operation or Block that currently defines a specific value.
         """
         pass
-
-    @property
-    def name_hint(self) -> str | None:
-        return self._name
-
-    @name_hint.setter
-    def name_hint(self, name: str | None):
-        # only allow valid names
-        if SSAValue.is_valid_name(name):
-            # Remove `_` followed by numbers at the end of the name
-            if name is not None:
-                r1 = re.compile(r"(_\d+)+$")
-                if match := r1.search(name):
-                    name = name[: match.start()]
-            self._name = name
-        else:
-            raise ValueError(
-                "Invalid SSA Value name format!",
-                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
-            )
-
-    @classmethod
-    def is_valid_name(cls, name: str | None):
-        return name is None or cls._name_regex.fullmatch(name)
 
     @staticmethod
     def get(
@@ -1136,6 +1163,10 @@ class Operation(_IRNode):
             successor.add_use(use)
         self._successors = new
         self._successor_uses = new_uses
+
+    @property
+    def successor_uses(self) -> Sequence[Use]:
+        return self._successor_uses
 
     def __post_init__(self):
         assert self.name != ""
@@ -1645,7 +1676,7 @@ class BlockOps(Reversible[Operation], Iterable[Operation]):
 
 
 @dataclass(init=False, eq=False, unsafe_hash=False)
-class Block(_IRNode, IRWithUses):
+class Block(_IRNode, IRWithUses, IRWithName):
     """A sequence of operations"""
 
     _args: tuple[BlockArgument, ...]
@@ -1659,6 +1690,11 @@ class Block(_IRNode, IRWithUses):
 
     parent: Region | None = field(default=None, repr=False)
     """Parent region containing the block."""
+
+    @staticmethod
+    def is_default_block_name(name: str) -> bool:
+        """Check if a name matches the default block naming pattern (bb followed by digits)."""
+        return name.startswith("bb") and name[2:].isdigit() and name[2:] != ""
 
     def __init__(
         self,

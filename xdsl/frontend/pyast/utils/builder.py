@@ -2,6 +2,7 @@ import ast
 from dataclasses import dataclass
 from typing import Any
 
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import CodeGeneration
 from xdsl.frontend.pyast.utils.type_conversion import (
@@ -9,7 +10,7 @@ from xdsl.frontend.pyast.utils.type_conversion import (
     TypeConverter,
     TypeRegistry,
 )
-from xdsl.transforms.desymref import Desymrefier
+from xdsl.passes import PassPipeline
 
 
 @dataclass
@@ -31,8 +32,11 @@ class PyASTBuilder:
     function_ast: ast.FunctionDef
     """The AST tree for the function being built."""
 
-    desymref: bool
-    """Whether to apply the desymref flag to the built module."""
+    build_context: Context
+    """The xDSL context to use when applying transformations to the built module."""
+
+    post_transforms: PassPipeline
+    """An ordered list of passes and callbacks to apply to the built module."""
 
     def build(self) -> ModuleOp:
         """Build a module from the builder state."""
@@ -49,9 +53,5 @@ class PyASTBuilder:
         )
         module.verify()
 
-        # Optionally run desymrefication pass to produce actual SSA
-        if self.desymref:
-            Desymrefier().desymrefy(module)
-            module.verify()
-
+        self.post_transforms.apply(self.build_context.clone(), module)
         return module

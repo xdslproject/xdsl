@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import cast
 
+from xdsl.backend.x86.lowering.helpers import Arch
 from xdsl.context import Context
 from xdsl.dialects import builtin, vector, x86
 from xdsl.dialects.builtin import (
@@ -18,18 +19,16 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.utils.exceptions import DiagnosticException
 
-from .helpers import vector_type_to_register_type
-
 
 @dataclass
 class VectorBroadcastToX86(RewritePattern):
-    arch: str
+    arch: Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: vector.BroadcastOp, rewriter: PatternRewriter):
         # Get the register to be broadcasted
         source_cast_op, source_x86 = UnrealizedConversionCastOp.cast_one(
-            op.source, x86.register.UNALLOCATED_GENERAL
+            op.source, x86.registers.UNALLOCATED_GENERAL
         )
         # Actually broadcast the register
         element_type = op.source.type
@@ -50,7 +49,7 @@ class VectorBroadcastToX86(RewritePattern):
                 )
         broadcast_op = broadcast(
             source=source_x86,
-            destination=vector_type_to_register_type(op.vector.type, self.arch),
+            destination=self.arch.register_type_for_type(op.vector.type).unallocated(),
         )
         # Get back the abstract vector
         dest_cast_op, _ = UnrealizedConversionCastOp.cast_one(
@@ -62,12 +61,12 @@ class VectorBroadcastToX86(RewritePattern):
 
 @dataclass
 class VectorFMAToX86(RewritePattern):
-    arch: str
+    arch: Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: vector.FMAOp, rewriter: PatternRewriter):
         vect_type = cast(VectorType, op.acc.type)
-        x86_vect_type = vector_type_to_register_type(vect_type, self.arch)
+        x86_vect_type = self.arch.register_type_for_type(vect_type).unallocated()
         # Pointer casts
         lhs_cast_op, lhs_new = UnrealizedConversionCastOp.cast_one(
             op.lhs, x86_vect_type
@@ -110,11 +109,12 @@ class ConvertVectorToX86Pass(ModulePass):
     arch: str
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
+        arch = Arch.arch_for_name(self.arch)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    VectorFMAToX86(self.arch),
-                    VectorBroadcastToX86(self.arch),
+                    VectorFMAToX86(arch),
+                    VectorBroadcastToX86(arch),
                 ]
             ),
             apply_recursively=False,

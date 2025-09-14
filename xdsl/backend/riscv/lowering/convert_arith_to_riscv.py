@@ -28,6 +28,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.comparisons import signed_lower_bound, signed_upper_bound
+from xdsl.utils.hints import isa
 
 _INT_REGISTER_TYPE = riscv.Registers.UNALLOCATED_INT
 _FLOAT_REGISTER_TYPE = riscv.Registers.UNALLOCATED_FLOAT
@@ -39,7 +40,7 @@ class LowerArithConstant(RewritePattern):
         self, op: arith.ConstantOp, rewriter: PatternRewriter
     ) -> None:
         op_result_type = op.result.type
-        if isinstance(op_result_type, IntegerType) and isinstance(
+        if isa(op_result_type, IntegerType) and isinstance(
             op_val := op.value, IntegerAttr
         ):
             if op_result_type.width.data <= 32:

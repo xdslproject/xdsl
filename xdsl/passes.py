@@ -64,6 +64,18 @@ class ModulePass(ABC):
     @abstractmethod
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None: ...
 
+    def apply_to_clone(
+        self, ctx: Context, op: builtin.ModuleOp
+    ) -> tuple[Context, builtin.ModuleOp]:
+        """
+        Creates deep copies of the module and the context, and returns the result of
+        calling `apply` on them.
+        """
+        ctx = ctx.clone()
+        op = op.clone()
+        self.apply(ctx, op)
+        return ctx, op
+
     @classmethod
     def from_pass_spec(cls, spec: PipelinePassSpec) -> Self:
         """
@@ -165,6 +177,31 @@ class ModulePass(ABC):
 
             args[name] = arg_list
         return PipelinePassSpec(self.name, args)
+
+    @classmethod
+    def schedule_space(
+        cls, ctx: Context, module_op: builtin.ModuleOp
+    ) -> tuple[Self, ...]:
+        """
+        Returns a tuple of `Self` that can be applied to rewrite the given module with
+        the given context without error.
+        The default implementation attempts to construct an instance with no parameters,
+        and run it on the module_op; if the module_op is mutated then the pass instance
+        is returned.
+        Parametrizable passes should override this implementation to provide a full
+        schedule space of transformations.
+        """
+        try:
+            pass_instance = cls()
+            _, cloned_module = pass_instance.apply_to_clone(ctx, module_op)
+            if module_op.is_structurally_equivalent(cloned_module):
+                return ()
+        except Exception:
+            return ()
+        return (pass_instance,)
+
+    def __str__(self) -> str:
+        return str(self.pipeline_pass_spec())
 
 
 class PassOptionInfo(NamedTuple):

@@ -33,7 +33,7 @@ def test_print_constant():
     def hello():
         PrintFormatOp("hello")
 
-    assert _print(hello) == "hello\n"
+    assert _print(hello) == "hello"
 
 
 def test_print_format():
@@ -44,4 +44,4 @@ def test_print_format():
         two = arith.ConstantOp.from_int_and_width(2, 32).result
         PrintFormatOp("{} {} {}", one, one, two)
 
-    assert _print(hello) == "1 1 2\n"
+    assert _print(hello) == "1 1 2"

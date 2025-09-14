@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from itertools import chain
 from typing import IO, Annotated, Generic, Literal, TypeAlias
 
 from typing_extensions import Self, TypeVar, assert_never
@@ -18,7 +17,7 @@ from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
 )
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
@@ -59,12 +58,9 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     ConstantLike,
-    EffectInstance,
     HasCanonicalizationPatternsTrait,
     IsolatedFromAbove,
     IsTerminator,
-    MemoryEffect,
-    MemoryEffectKind,
     NoTerminator,
     Pure,
 )
@@ -1939,9 +1935,12 @@ class AndOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import BitwiseOrByZero
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseOrBySelf,
+            BitwiseOrByZero,
+        )
 
-        return (BitwiseOrByZero(),)
+        return (BitwiseOrByZero(), BitwiseOrBySelf())
 
 
 @irdl_op_definition
@@ -3731,28 +3730,6 @@ class WfiOp(NullaryOperation):
 # endregion
 
 # region RISC-V SSA Helpers
-
-
-class RegisterAllocatedMemoryEffect(MemoryEffect):
-    """
-    An assembly operation that only has side-effect if some registers are allocated to
-    it.
-    """
-
-    @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        effects = set[EffectInstance]()
-        if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in chain(op.results)
-        ):
-            effects.add(EffectInstance(MemoryEffectKind.WRITE))
-        if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in chain(op.operands)
-        ):
-            effects.add(EffectInstance(MemoryEffectKind.READ))
-        return effects
 
 
 class GetAnyRegisterOperation(

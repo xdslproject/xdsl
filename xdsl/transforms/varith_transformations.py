@@ -14,6 +14,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.hints import isa
 from xdsl.utils.type import get_element_type_or_self
 
 # map the arith operation to the right varith op:
@@ -193,9 +194,7 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
     def match_and_rewrite(self, op: varith.VarithAddOp, rewriter: PatternRewriter, /):
         elem_t = get_element_type_or_self(op.res.type)
 
-        assert isinstance(
-            elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat
-        )
+        assert isa(elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat)
 
         consts: list[arith.ConstantOp] = []
         fusions: list[Operation] = []

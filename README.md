@@ -8,15 +8,17 @@
 
 # xDSL: A Python-native SSA Compiler Framework
 
-[xDSL](http://www.xdsl.dev) is a Python-native compiler framework built around
-SSA-based intermediate representations (IRs). Users of xDSL build a compiler by
-assembling predefined domain-specific IRs and, optionally, defining their own custom IRs. xDSL uses multi-level IRs, meaning
-that during the compilation process, a program will be lowered through several
-of these IRs. This allows the implementation of abstraction-specific
-optimization passes, similar to the structure of common DSL compilers (such as
-Devito, Psyclone, and Firedrake). To simplify the writing of these passes, xDSL
-uses a uniform data structure based on SSA, basic blocks, and regions, which
-additionally enables the writing of generic passes.
+[xDSL](http://www.xdsl.dev) is a Python-native compiler framework built around SSA-based
+intermediate representations (IRs).
+Users of xDSL build a compiler by assembling predefined domain-specific IRs and,
+optionally, defining their own custom IRs.
+xDSL uses multi-level IRs, meaning that during the compilation process, a program will
+be lowered through several of these IRs.
+This allows the implementation of abstraction-specific optimization passes, similar to
+the structure of common DSL compilers (such as Devito, Psyclone, and Firedrake).
+To simplify the writing of these passes, xDSL uses a uniform data structure based on
+SSA, basic blocks, and regions, which additionally enables the writing of generic
+passes.
 
 The design of xDSL is influenced by [MLIR](https://mlir.llvm.org/), a compiler
 framework developed in C++, that is part of the LLVM project. An inherent
@@ -50,8 +52,9 @@ MLIR version is 20.1.7.
 ### Subprojects With Extra Dependencies
 
 xDSL has a number of subprojects, some of which require extra dependencies.
-In order to keep the set of dependencies to a minimum, these extra dependencies have to be
-specified explicitly. To install these, use:
+In order to keep the set of dependencies to a minimum, these extra dependencies have to
+be specified explicitly.
+To install these, use:
 
 ``` bash
 pip install xdsl[gui,jax,riscv]
@@ -67,7 +70,8 @@ These may be useful for projects wanting to replicate the xDSL testing setup.
 
 ## Getting Started
 
-Check out the dedicated [Getting Started guide](GETTING_STARTED.md) for a comprehensive tutorial.
+Check out the dedicated [Getting Started guide](https://xdsl.readthedocs.io/stable/)
+for a comprehensive tutorial.
 
 To get familiar with xDSL, we recommend starting with our Jupyter notebooks. The
 notebooks consist of examples and documentation concerning the core xDSL data
@@ -90,48 +94,41 @@ To contribute to the development of xDSL follow the subsequent steps.
 
 ### Developer Installation
 
-We use [uv](https://docs.astral.sh/uv/) for dependency management of xDSL.
-Getting started documentation can be found [here](https://docs.astral.sh/uv/getting-started/),
-and is also printed by the `make uv-installed` and `make venv` targets if it
-is not already installed on your system.
+Here are the commands to run to set up local development:
 
-```bash
+```sh
+# Clone repo
 git clone https://github.com/xdslproject/xdsl.git
 cd xdsl
-# set up the venv and install everything
+# Set up local environment with all optional and dev dependencies
+# Creates a virtual environment called `.venv`
 make venv
+# Set up pre-commit hook for automatic formatting
+make precommit-install
+# Run all tests to verify installation was successful
+make tests
 ```
 
-To make a custom mlir-opt available in the virtual environment, set the `XDSL_MLIR_OPT_PATH` variable when running `make venv`, like so:
+Please take a look at the Makefile for the available commands such as running specific
+tests, running the documentation website locally, and others.
+
+We use [uv](https://docs.astral.sh/uv/) for dependency management of xDSL.
+See uv's [getting started page](https://docs.astral.sh/uv/getting-started/) for more
+defails.
+
+To make a custom mlir-opt available in the virtual environment, set the
+`XDSL_MLIR_OPT_PATH` variable when running `make venv`, like so:
 
 ``` bash
 XDSL_MLIR_OPT_PATH=/PATH/TO/LLVM/BUILD/bin/mlir-opt make venv
 ```
 
-#### If you can't use `uv`
+### Alternative installations
 
-For some systems and workflows, changing to a new dependency management system
-may be inconvenient, impractical, or impossible. If this is the case for you,
-xDSL can still be installed using `pip`.
-
-To create the required virtual environment (the equivalent of `make venv`):
-
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -e ".[dev]"
-```
-
-The following commands can then be run using this virtual environment rather
-than `uv` by running `source venv/bin/activate` when starting a new shell, then
-eliding the `uv run` prefix from the commands. For example, to run the commands
-in the following testing section:
-
-```bash
-source venv/bin/activate
-pytest
-lit tests/filecheck
-```
+For some use-cases, such as running xDSL with Pypy, it may be preferable to install a
+minimal set of dependencies instead. This can be done with `uv sync`.
+Note that Pyright will then complain about missing dependencies, so run
+`make tests-functional` instead of `make tests` to test the functionality of xDSL.
 
 ### Testing and benchmarking
 
@@ -149,11 +146,11 @@ uv run lit tests/filecheck
 make tests
 ```
 
-Benchmarks for the project are tracked in the <https://github.com/xdslproject/xdsl-bench>
-repository. These run automatically every day on the main branch, reporting
-their results to <https://xdsl.dev/xdsl-bench/>. However, they can also be run
-manually by cloning the repository and pointing the submodule at your
-feature branch to benchmark.
+Benchmarks for the project are tracked in the
+<https://github.com/xdslproject/xdsl-bench> repository.
+These run automatically every day on the main branch, reporting their results to <https://xdsl.dev/xdsl-bench/>.
+However, they can also be run manually by cloning the repository and pointing the
+submodule at your feature branch to benchmark.
 
 ### Formatting and Typechecking
 
@@ -180,8 +177,9 @@ makefile using `make pyright`.
 >
 > #### Experimental Pyright Features
 >
-> xDSL currently relies on an experimental feature of Pyright called TypeForm
-> TypeForm is [in discussion](https://discuss.python.org/t/pep-747-typeexpr-type-hint-for-a-type-expression/55984) and will likely land in some future version of Python.
+> xDSL currently relies on an experimental feature of Pyright called TypeForm.
+> TypeForm is [in discussion](https://discuss.python.org/t/pep-747-typeexpr-type-hint-for-a-type-expression/55984)
+> and will likely land in some future version of Python.
 >
 > For xDSL to type check correctly using Pyright, please add this to your `pyproject.toml`:
 >
@@ -192,4 +190,5 @@ makefile using `make pyright`.
 
 ### Discussion
 
-You can also join the discussion at our [Zulip chat room](https://xdsl.zulipchat.com), kindly supported by community hosting from [Zulip](https://zulip.com/).
+You can also join the discussion at our [Zulip chat room](https://xdsl.zulipchat.com),
+kindly supported by community hosting from [Zulip](https://zulip.com/).

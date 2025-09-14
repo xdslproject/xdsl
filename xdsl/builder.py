@@ -4,13 +4,20 @@ import contextlib
 import threading
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from types import TracebackType
-from typing import ClassVar, TypeAlias, overload
+from typing import TypeAlias, overload
 
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ArrayAttr
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OperationInvT,
+    Region,
+    SSAValue,
+)
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
@@ -59,6 +66,20 @@ class Builder(BuilderListener):
     insertion_point: InsertPoint
     """Operations will be inserted at this location."""
 
+    _name_hint: str | None = field(default=None)
+    """
+    If this is not None, results of inserted operations will be assigned this name hint.
+    This is always valid.
+    """
+
+    @property
+    def name_hint(self) -> str | None:
+        return self._name_hint
+
+    @name_hint.setter
+    def name_hint(self, name: str | None):
+        self._name_hint = SSAValue.extract_valid_name(name)
+
     def insert(self, op: OperationInvT) -> OperationInvT:
         """
         Inserts op at the current location and returns it.
@@ -75,7 +96,7 @@ class Builder(BuilderListener):
         if not ops:
             return ops
 
-        implicit_builder = ImplicitBuilder.get()
+        implicit_builder = _current_builder.builder
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
                 "Cannot insert operation explicitly when an implicit builder exists."
@@ -86,6 +107,10 @@ class Builder(BuilderListener):
         )
 
         for op_ in ops:
+            if self._name_hint is not None:
+                for result in op_.results:
+                    if result.name_hint is None:
+                        result._name = self._name_hint  # pyright: ignore[reportPrivateUsage]
             self.handle_operation_insertion(op_)
 
         return op
@@ -253,7 +278,7 @@ class Builder(BuilderListener):
 
     @staticmethod
     def assert_implicit():
-        if ImplicitBuilder.get() is None:
+        if _current_builder.builder is None:
             raise ValueError(
                 "op_builder must be called within an implicit builder block"
             )
@@ -263,30 +288,24 @@ class Builder(BuilderListener):
 
 
 @dataclass
-class _ImplicitBuilderStack(threading.local):
+class _ThreadLocalBuilder(threading.local):
     """
-    Stores the stack of implicit builders for use in @Builder.implicit_region, empty by
-    default. There is a stack per thread, guaranteed by inheriting from `threading.local`.
+    Stores the implicit builder for use in ImplicitBuilder, None by default.
+    There is a builder per thread, guaranteed by inheriting from `threading.local`.
     """
 
-    stack: list[Builder] = field(default_factory=list[Builder])
-
-    def push(self, builder: Builder) -> None:
-        self.stack.append(builder)
-
-    def get(self) -> Builder | None:
-        if len(self.stack):
-            return self.stack[-1]
-
-    def pop(self, builder: Builder) -> Builder:
-        popped = self.stack.pop()
-        assert popped is builder
-        return popped
+    builder: Builder | None = None
 
 
-class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...]]):
+_current_builder = _ThreadLocalBuilder()
+
+
+@contextlib.contextmanager
+def ImplicitBuilder(
+    arg: Builder | Block | Region | None,
+):
     """
-    Stores the current implicit builder context, consisting of the stack of builders in
+    Context manager for managing the current implicit builder context, consisting of the stack of builders in
     the current thread, and the current builder.
 
     Operations created within a `with` block of an implicit builder will be added to it.
@@ -300,52 +319,36 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
     from xdsl.dialects import arith
 
     with ImplicitBuilder(block):
-        arith.Constant.from_int_and_width(5, 32)
+        arith.Constant(IntegerAttr(5, 32))
 
     assert len(block.ops) == 1
     assert isinstance(block.ops.first, arith.Constant)
     ```
     """
+    match arg:
+        case None:
+            # None option added as convenience to allow for extending optional regions
+            # in ops easily.
+            raise ValueError("Cannot pass None to implicit_builder")
+        case Region():
+            builder = Builder(InsertPoint.at_end(arg.block))
+        case Block():
+            builder = Builder(InsertPoint.at_end(arg))
+        case Builder():
+            builder = arg
 
-    _stack: ClassVar[_ImplicitBuilderStack] = _ImplicitBuilderStack()
-    _old_post_init: Callable[[Operation], None] | None = None
-    _builder: Builder
+    old_builder = _current_builder.builder
+    old_post_init = None
+    if old_builder is None:
+        old_post_init = _override_operation_post_init()
 
-    def __init__(self, arg: Builder | Block | Region | None):
-        if arg is None:
-            # None option added as convenience to allow for extending optional regions in
-            # ops easily
-            raise ValueError("Cannot pass None to ImplicitBuidler init")
-        if isinstance(arg, Region):
-            arg = arg.block
-        if isinstance(arg, Block):
-            arg = Builder(InsertPoint.at_end(arg))
-        self._builder = arg
-
-    def __enter__(self) -> tuple[BlockArgument, ...]:
-        if not type(self)._stack.stack:
-            type(self)._old_post_init = _override_operation_post_init()
-        type(self)._stack.push(self._builder)
-        return self._builder.insertion_point.block.args
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-        /,
-    ) -> bool | None:
-        type(self)._stack.pop(self._builder)
-        if not type(self)._stack.stack:
-            assert (old_post_init := type(self)._old_post_init)
+    _current_builder.builder = builder
+    try:
+        yield builder.insertion_point.block.args
+    finally:
+        _current_builder.builder = old_builder
+        if old_builder is None:
             Operation.__post_init__ = old_post_init  # pyright: ignore[reportAttributeAccessIssue]
-
-    @classmethod
-    def get(cls) -> Builder | None:
-        """
-        Gets the topmost ImplicitBuilder on the stack.
-        """
-        return cls._stack.get()
 
 
 _CallableRegionFuncType: TypeAlias = Callable[
@@ -355,7 +358,7 @@ _CallableImplicitRegionFuncType: TypeAlias = Callable[[tuple[BlockArgument, ...]
 
 
 def _op_init_callback(op: Operation):
-    if (b := ImplicitBuilder.get()) is not None:
+    if (b := _current_builder.builder) is not None:
         b.insert(op)
 
 
