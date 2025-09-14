@@ -5,7 +5,7 @@ from typing import ClassVar
 
 from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg, square_brackets_reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
-from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
+from xdsl.dialects.arm.registers import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import (
     IntegerAttr,
     StringAttr,

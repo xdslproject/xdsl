@@ -20,7 +20,6 @@ from xdsl.dialects.builtin import (
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
-    BFloat16Type,
     BoolAttr,
     BytesAttr,
     ComplexType,
@@ -60,6 +59,8 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
+    bf16,
+    f64,
     i64,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
@@ -1293,7 +1294,7 @@ class AttrParser(BaseParser):
         # If no types are given, we take the default ones
         if self._current_token.kind != MLIRTokenKind.COLON:
             if isinstance(value, float):
-                return FloatAttr(value, Float64Type())
+                return FloatAttr(value, f64)
             return IntegerAttr(value, i64)
 
         # Otherwise, we parse the attribute type
@@ -1458,7 +1459,7 @@ class AttrParser(BaseParser):
         # bf16 type
         if name == "bf16":
             self._consume_token()
-            return BFloat16Type()
+            return bf16
 
         # Float type
         if (re_match := self._builtin_float_type_regex.match(name)) is not None:

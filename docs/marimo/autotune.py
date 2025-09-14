@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.17"
+__generated_with = "0.15.3"
 app = marimo.App(width="full")
 
 
@@ -73,7 +73,7 @@ def _(k, m, mo, n):
 def _():
     from xdsl.dialects.builtin import MemRefType, ModuleOp
     from xdsl.dialects import arith, func, linalg
-    from xdsl.ir.op_selector import OpSelector
+    from xdsl.utils.op_selector import OpSelector
     return MemRefType, ModuleOp, OpSelector, arith, func, linalg
 
 
@@ -324,7 +324,6 @@ def _(CycleResourceQueue, dataclass, field):
                 t: cycles
                 for t in op.result_types
             })
-
     return Interpreter, SnitchCycleEstimator
 
 
@@ -535,7 +534,7 @@ def _(mo, msg_factors):
     from xdsl.transforms.memref_stream_interleave import MemRefStreamInterleavePass
 
     uaj_passes = tuple(
-        MemRefStreamInterleavePass(4, 2, "memref_stream.generic", index, factor)
+        MemRefStreamInterleavePass(4, 2, index, factor)
         for index, factor in msg_factors
     )
 

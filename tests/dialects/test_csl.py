@@ -1,11 +1,11 @@
 import pytest
 
-from xdsl.dialects.builtin import Float32Type, IntegerType, Signedness, TensorType
+from xdsl.dialects.builtin import IntegerType, Signedness, TensorType, f32
 from xdsl.dialects.csl import Add16Op, DsdKind, DsdType, GetMemDsdOp
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
-tensor = create_ssa_value(TensorType(Float32Type(), [4]))
+tensor = create_ssa_value(TensorType(f32, [4]))
 size_i32 = create_ssa_value(IntegerType(32, Signedness.SIGNED))
 dest_dsd = GetMemDsdOp(
     operands=[tensor, size_i32], result_types=[DsdType(DsdKind.mem1d_dsd)]

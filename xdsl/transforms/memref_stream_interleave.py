@@ -250,7 +250,6 @@ class MemRefStreamInterleavePass(ModulePass):
 
     pipeline_depth: int = field(default=4)
     op_index: int | None = field(default=None)
-    op_name: str | None = field(default=None)
     iterator_index: int | None = field(default=None)
     unroll_factor: int | None = field(default=None)
 
@@ -261,8 +260,7 @@ class MemRefStreamInterleavePass(ModulePass):
             self.unroll_factor,
         )
         if self.op_index is not None:
-            assert self.op_name is not None
-            matched_op = OpSelector(self.op_index, self.op_name).get_op(op)
+            matched_op = OpSelector(self.op_index, "memref_stream.generic").get_op(op)
             pattern.match_and_rewrite(matched_op, PatternRewriter(matched_op))
             return
 
@@ -273,7 +271,6 @@ class MemRefStreamInterleavePass(ModulePass):
         return tuple(
             MemRefStreamInterleavePass(
                 op_index=op_idx,
-                op_name=matched_op.name,
                 iterator_index=iterator_index,
                 unroll_factor=unroll_factor,
             )
