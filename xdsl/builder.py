@@ -9,6 +9,7 @@ from typing import TypeAlias, overload
 from typing_extensions import TypeVar
 
 from xdsl.context import Context
+from xdsl.dialect_interfaces import ConstantMaterializationInterface
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import (
     Attribute,
@@ -18,6 +19,7 @@ from xdsl.ir import (
     OperationInvT,
     Region,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
@@ -120,6 +122,31 @@ class Builder(BuilderListener):
             self.handle_operation_insertion(op_)
 
         return op
+
+    def try_fold(self, ctx: Context, op: Operation):
+        from xdsl.interfaces import HasFolderInterface
+
+        if not isinstance(op, HasFolderInterface):
+            return op
+        folded = op.fold()
+        if folded is None:
+            return op
+        results: list[SSAValue] = []
+        for val, original_result in zip(folded, op.results):
+            if isinstance(val, SSAValue):
+                results.append(val)
+            else:
+                assert isinstance(folded, Attribute)
+                dialect = ctx.get_dialect(op.dialect_name())
+                interface = dialect.get_interface(ConstantMaterializationInterface)
+                if not interface:
+                    return None
+                assert isinstance(type := original_result.type, TypeAttribute)
+                new_op = interface.materialize_constant(folded, type)
+                if new_op is None:
+                    return None
+                results.append(new_op.results[0])
+        return results
 
     def create_block(
         self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()
