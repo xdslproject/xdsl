@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.12.8"
+__generated_with = "0.15.3"
 app = marimo.App(width="medium")
 
 
@@ -8,10 +8,10 @@ app = marimo.App(width="medium")
 def _(mo):
     mo.md(
         r"""
-        # Exo-Style Scheduling in xDSL
+    # Exo-Style Scheduling in xDSL
 
-        Applying 2D tiling on matrix multiplication.
-        """
+    Applying 2D tiling on matrix multiplication.
+    """
     )
     return
 
@@ -82,20 +82,23 @@ def _(Parser, ctx, xmo):
     input_module = Parser(ctx, input_str).parse_module()
     input_module.verify()
     xmo.module_html(input_module)
-    return input_module, input_str
+    return (input_module,)
 
 
 @app.cell
-def _(input_module):
+def _(Operation, input_module, scf):
     # Exo-like "find" function for getting a reference to an operation by pattern matching
 
     from xdsl.dialects.builtin import ModuleOp
 
-    # TODO: needs more sophisticated pattern language not just string match
-    def find(module: ModuleOp, pattern: str):
-        return list(op for op in module.walk() if op.name == pattern)
+    from typing_extensions import TypeVar
 
-    find(input_module, "scf.for")
+    _T = TypeVar("_T", bound=Operation)
+
+    def find(module: ModuleOp, pattern: type[_T]) -> tuple[_T, ...]:
+        return tuple(op for op in module.walk() if isinstance(op, pattern))
+
+    find(input_module, scf.ForOp)
     return ModuleOp, find
 
 
@@ -111,18 +114,7 @@ def _():
         op_type_rewrite_pattern,
     )
     from dataclasses import dataclass
-    return (
-        Block,
-        InsertPoint,
-        OpResult,
-        Operation,
-        Printer,
-        Region,
-        Rewriter,
-        cast,
-        dataclass,
-        op_type_rewrite_pattern,
-    )
+    return Block, InsertPoint, Operation, Printer, Region, Rewriter
 
 
 @app.cell
@@ -246,6 +238,7 @@ def _(
     find,
     input_module,
     reorder_loops,
+    scf,
     split,
 ):
     # Tile 2D rewrite
@@ -255,19 +248,19 @@ def _(
     _module =input_module.clone()
 
     # ---- Scheduling code begin -----
-    cursors = find(_module, "scf.for") # this should be loops
+    cursors = find(_module, scf.ForOp) # this should be loops
     split(_module, cursors[0], 16) # split the loop cursors[0] is pointing
     split(_module, cursors[1], 8)
     ScfForLoopRangeFoldingPass().apply(ctx, _module) # hack
     CanonicalizePass().apply(ctx, _module) # hack
-    io, ii, jo, ji, k = find(_module, "scf.for")
+    io, ii, jo, ji, k = find(_module, scf.ForOp)
     reorder_loops(_module, ii)
     # ---- Scheduling code end -----
 
     print("\n")
     print("IR after tiling:")
     Printer().print_op(_module)
-    return cursors, ii, io, ji, jo, k
+    return
 
 
 if __name__ == "__main__":
