@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from xdsl.context import Context
+from xdsl.dialect_interfaces import ConstantMaterializationInterface
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.interpreter import Interpreter
@@ -24,6 +25,7 @@ from xdsl.utils.exceptions import InterpretationError
 
 @dataclass
 class ConstantFoldInterpPattern(RewritePattern):
+    ctx: Context
     interpreter: Interpreter
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
@@ -51,8 +53,17 @@ class ConstantFoldInterpPattern(RewritePattern):
         except InterpretationError:
             return
 
+        dialect = self.ctx.get_dialect(op.dialect_name())
+
+        if (
+            materializer := dialect.get_interface(ConstantMaterializationInterface)
+        ) is None:
+            raise ValueError(
+                f"Dialect {dialect.name} does not implement the ConstantMaterializationInterface"
+            )
+
         new_ops = [
-            self.constant_op_for_value(interp_result, op_result.type)
+            materializer.materialize_constant(interp_result, op_result.type)
             for interp_result, op_result in zip(results, op.results)
         ]
 
@@ -86,5 +97,5 @@ class ConstantFoldInterpPass(ModulePass):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         interpreter = Interpreter(op)
         register_implementations(interpreter, ctx)
-        pattern = ConstantFoldInterpPattern(interpreter)
+        pattern = ConstantFoldInterpPattern(ctx, interpreter)
         PatternRewriteWalker(pattern).rewrite_module(op)
