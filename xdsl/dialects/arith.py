@@ -36,7 +36,6 @@ from xdsl.ir import (
     Dialect,
     Operation,
     SSAValue,
-    TypeAttribute,
 )
 from xdsl.irdl import (
     AnyAttr,
@@ -1386,7 +1385,7 @@ class ExtUIOp(IRDLOperation):
 
 
 class ArithConstantMaterializationInterface(ConstantMaterializationInterface):
-    def materialize_constant(self, value: Attribute, type: TypeAttribute) -> Operation:
+    def materialize_constant(self, value: Attribute, type: Attribute) -> Operation:
         if not isinstance(
             value,
             IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr | DenseResourceAttr,

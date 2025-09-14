@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from xdsl.ir import Attribute, Operation, TypeAttribute
+    from xdsl.ir import Attribute, Operation
 
 
 class DialectInterface:
@@ -33,14 +33,14 @@ class ConstantMaterializationInterface(DialectInterface, ABC):
 
     @abstractmethod
     def materialize_constant(
-        self, value: "Attribute", type: "TypeAttribute"
+        self, value: "Attribute", type: "Attribute"
     ) -> "Operation | None":
         """
         Materializes a constant operation in the dialect.
 
         Args:
             value (Attribute): The attribute representing the constant value.
-            type (TypeAttribute): The type of the constant.
+            type (Attribute): The type of the constant.
 
         Returns:
             Operation: The created constant operation.
