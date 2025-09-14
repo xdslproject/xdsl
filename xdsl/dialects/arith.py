@@ -4,7 +4,6 @@ import abc
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, Literal, cast
 
-from xdsl.context import Context
 from xdsl.dialect_interfaces import ConstantMaterializationInterface
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -1387,9 +1386,7 @@ class ExtUIOp(IRDLOperation):
 
 
 class ArithConstantMaterializationInterface(ConstantMaterializationInterface):
-    def materialize_constant(
-        self, ctx: Context, value: Attribute, type: TypeAttribute
-    ) -> Operation:
+    def materialize_constant(self, value: Attribute, type: TypeAttribute) -> Operation:
         if not isinstance(
             value,
             IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr | DenseResourceAttr,
