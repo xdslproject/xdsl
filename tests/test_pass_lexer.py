@@ -3,11 +3,9 @@ import pytest
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import (
     PipelineLexer,
-    Token,
+    SpecTokenKind,
     parse_pipeline,
 )
-
-Kind = Token.Kind
 
 generator = PipelineLexer._generator  # pyright: ignore[reportPrivateUsage]
 
@@ -20,16 +18,16 @@ def test_pass_lexer():
     )
 
     assert [t.kind for t in tokens] == [
-        Kind.IDENT, Kind.COMMA,  # pass-1,
-        Kind.IDENT, Kind.L_BRACE,  # pass-2{
-        Kind.IDENT, Kind.EQUALS, Kind.NUMBER, Kind.SPACE,  # arg1=1
-        Kind.IDENT, Kind.EQUALS, Kind.IDENT, Kind.SPACE,  # arg2=test
-        Kind.IDENT, Kind.EQUALS, Kind.STRING_LIT, Kind.SPACE,  # arg3="test-str"
-        Kind.IDENT, Kind.EQUALS, Kind.NUMBER, Kind.SPACE,  # arg-4=-34.4e-12
-        Kind.IDENT,  # no-val-arg
-        Kind.R_BRACE, Kind.COMMA,  # },
-        Kind.IDENT,  # pass-3
-        Kind.EOF,
+        SpecTokenKind.IDENT, SpecTokenKind.COMMA,  # pass-1,
+        SpecTokenKind.IDENT, SpecTokenKind.L_BRACE,  # pass-2{
+        SpecTokenKind.IDENT, SpecTokenKind.EQUALS, SpecTokenKind.NUMBER, SpecTokenKind.SPACE,  # arg1=1
+        SpecTokenKind.IDENT, SpecTokenKind.EQUALS, SpecTokenKind.IDENT, SpecTokenKind.SPACE,  # arg2=test
+        SpecTokenKind.IDENT, SpecTokenKind.EQUALS, SpecTokenKind.STRING_LIT, SpecTokenKind.SPACE,  # arg3="test-str"
+        SpecTokenKind.IDENT, SpecTokenKind.EQUALS, SpecTokenKind.NUMBER, SpecTokenKind.SPACE,  # arg-4=-34.4e-12
+        SpecTokenKind.IDENT,  # no-val-arg
+        SpecTokenKind.R_BRACE, SpecTokenKind.COMMA,  # },
+        SpecTokenKind.IDENT,  # pass-3
+        SpecTokenKind.EOF,
     ]  # fmt: skip
 
     assert tokens[-2].span.text == "pass-3"
