@@ -122,7 +122,6 @@ def _(
     Block,
     InsertPoint,
     ModuleOp,
-    Operation,
     Region,
     Rewriter,
     arith,
@@ -135,7 +134,7 @@ def _(
     # This split impelementation is at least sound
 
     # TODO: cursor is just an Operation for now. We need something better when we support forwarding
-    def split(module : ModuleOp, cursor: Operation, div_const: int):
+    def split(module : ModuleOp, cursor: scf.ForOp, div_const: int) -> tuple[scf.ForOp, scf.ForOp]:
         r = Rewriter()
 
         assert isinstance(cursor, scf.ForOp)
@@ -191,6 +190,8 @@ def _(
             if inner_arg.name_hint is not None:
                 outer_arg.name_hint = inner_arg.name_hint + "_o"
                 inner_arg.name_hint += "_i"
+
+        return outer_loop, inner_loop
     return (split,)
 
 
@@ -246,11 +247,10 @@ def _(
 
     # ---- Scheduling code begin -----
     cursors = find(_module, scf.ForOp) # this should be loops
-    split(_module, cursors[0], 16) # split the loop cursors[0] is pointing
-    split(_module, cursors[1], 8)
+    io, ii = split(_module, cursors[0], 16) # split the loop cursors[0] is pointing
+    jo, ji = split(_module, cursors[1], 8)
     ScfForLoopRangeFoldingPass().apply(ctx, _module) # hack
     CanonicalizePass().apply(ctx, _module) # hack
-    io, ii, jo, ji, k = find(_module, scf.ForOp)
     reorder_loops(_module, ii, jo)
     # ---- Scheduling code end -----
 
