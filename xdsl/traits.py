@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -48,6 +48,22 @@ class ConstantLike(OpTrait, abc.ABC):
 
         Returns:
             The constant value as an Attribute, or None if the value cannot be determined.
+        """
+        raise NotImplementedError()
+
+
+class HasFolder(OpTrait):
+    """
+    Operation known to support folding.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def fold(cls, op: Operation) -> Sequence[SSAValue | Attribute] | None:
+        """
+        Attempts to fold the operation. The fold method cannot modify the IR.
+        Returns either an existing SSAValue or an Attribute for each result of the operation.
+        When folding is unsuccessful, returns None.
         """
         raise NotImplementedError()
 
