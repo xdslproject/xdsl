@@ -33,12 +33,22 @@ class OpTrait:
 OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 
 
-class ConstantLike(OpTrait):
+class ConstantLike(OpTrait, abc.ABC):
     """
     Operation known to be constant-like.
 
     See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html).
     """
+
+    @abc.abstractmethod
+    def get_constant_value(self, op: Operation) -> Attribute:
+        """
+        Get the constant value from this constant-like operation.
+
+        Returns:
+            The constant value as an Attribute, or None if the value cannot be determined.
+        """
+        raise NotImplementedError()
 
 
 @dataclass(frozen=True)
