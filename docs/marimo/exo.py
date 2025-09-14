@@ -195,20 +195,15 @@ def _(
 
 
 @app.cell
-def _(Block, ModuleOp, Operation, Region, Rewriter, arith, scf):
+def _(Block, ModuleOp, Region, Rewriter, arith, scf):
     # Implementation of "reorder_loops"
     # TODO: reorder_loops does not check the commutativity of the body of the K loop. It needs to be asserted from the user.
-    def reorder_loops(module : ModuleOp, cursor : Operation):
+    def reorder_loops(module : ModuleOp, o_loop: scf.ForOp, i_loop: scf.ForOp):
         r = Rewriter()
 
-        # cursor must be a loop
-        assert isinstance(cursor, scf.ForOp)
         # body of the outer loop should be size 1. Loops must be perfectly nested
-        assert len(cursor.body.block.ops) == 2
-        assert isinstance(cursor.body.block.first_op, scf.ForOp)
-
-        o_loop = cursor
-        i_loop = cursor.body.block.first_op
+        assert len(o_loop.body.block.ops) == 2
+        assert i_loop.parent_op() is o_loop
 
         # check that inner loop bounds does not depend on the outer loop iteration variable
         # actually we can just check if they're constant or not
@@ -217,9 +212,9 @@ def _(Block, ModuleOp, Operation, Region, Rewriter, arith, scf):
 
         new_body = r.move_region_contents_to_new_regions(i_loop.body)
         new_i_loop = scf.ForOp(o_loop.lb, o_loop.ub, o_loop.step, (), new_body)
-        outer_body  = Region(Block([new_i_loop], arg_types=(cursor.body.block.args[0].type,)))
+        outer_body  = Region(Block([new_i_loop], arg_types=(o_loop.body.block.args[0].type,)))
         new_o_loop = scf.ForOp(i_loop.lb, i_loop.ub, i_loop.step, (), outer_body)
-        r.replace_op(cursor, new_o_loop)
+        r.replace_op(o_loop, new_o_loop)
 
         for (old_inner, new_outer) in zip(new_i_loop.body.block.args, new_o_loop.body.block.args, strict=True):
             new_outer.name_hint = old_inner.name_hint
@@ -254,7 +249,7 @@ def _(
     ScfForLoopRangeFoldingPass().apply(ctx, _module) # hack
     CanonicalizePass().apply(ctx, _module) # hack
     io, ii, jo, ji, k = find(_module, scf.ForOp)
-    reorder_loops(_module, ii)
+    reorder_loops(_module, ii, jo)
     # ---- Scheduling code end -----
 
     print("\n")
