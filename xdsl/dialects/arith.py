@@ -28,7 +28,7 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.interfaces import ConstantLikeInterface
+from xdsl.interfaces import ConstantLikeInterface, HasFolderInterface
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
@@ -182,7 +182,7 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
         return self.value
 
 
-class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
+class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC):
     """A generic base class for arith's binary operations on signless integers."""
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
@@ -224,6 +224,23 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
         See external [documentation](https://en.wikipedia.org/wiki/Identity_element).
         """
         return False
+
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if lhs is not None and rhs is not None:
+            if isinstance(lhs, IntegerAttr) and isinstance(rhs, IntegerAttr):
+                lhs = cast(IntegerAttr, lhs)
+                rhs = cast(IntegerAttr, rhs)
+                assert lhs.type == rhs.type
+                result = self.py_operation(lhs.value.data, rhs.value.data)
+                if result is not None:
+                    return (IntegerAttr(result, lhs.type),)
+        if (
+            isinstance(rhs, IntegerAttr)
+            and self.is_right_unit(cast(IntegerAttr, rhs)) == 0
+        ):
+            return (self.lhs,)
 
     def __init__(
         self,
@@ -361,6 +378,20 @@ class AddiOp(SignlessIntegerBinaryOperationWithOverflow):
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
+
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if lhs is not None and rhs is not None:
+            if isinstance(lhs, IntegerAttr) and isinstance(rhs, IntegerAttr):
+                lhs = cast(IntegerAttr, lhs)
+                rhs = cast(IntegerAttr, rhs)
+                assert lhs.type == rhs.type
+                result = self.py_operation(lhs.value.data, rhs.value.data)
+                if result is not None:
+                    return (IntegerAttr(result, lhs.type),)
+        if isinstance(rhs, IntegerAttr) and self.is_right_unit(cast(IntegerAttr, rhs)):
+            return (self.lhs,)
 
 
 @irdl_op_definition
