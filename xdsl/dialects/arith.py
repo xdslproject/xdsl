@@ -27,6 +27,7 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
+from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
@@ -48,7 +49,6 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
     ConditionallySpeculatable,
-    ConstantLike,
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
     Pure,
@@ -128,7 +128,7 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation):
+class ConstantOp(IRDLOperation, ConstantLikeInterface):
     name = "arith.constant"
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
@@ -139,7 +139,7 @@ class ConstantOp(IRDLOperation):
         | ParamAttrConstraint(DenseResourceAttr, (AnyAttr(), _T))
     )
 
-    traits = traits_def(ConstantLike(), Pure())
+    traits = traits_def(Pure())
 
     assembly_format = "attr-dict $value"
 
@@ -170,6 +170,9 @@ class ConstantOp(IRDLOperation):
                 "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
             },
         )
+
+    def get_constant_value(self) -> Attribute:
+        return self.value
 
 
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):

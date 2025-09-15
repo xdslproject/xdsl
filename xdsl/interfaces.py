@@ -11,10 +11,10 @@ import abc
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.ir import Operation
+from xdsl.ir import Attribute, Operation
 from xdsl.irdl import traits_def
 from xdsl.pattern_rewriter import RewritePattern
-from xdsl.traits import HasCanonicalizationPatternsTrait
+from xdsl.traits import ConstantLike, HasCanonicalizationPatternsTrait
 
 
 @dataclass(frozen=True)
@@ -48,4 +48,33 @@ class HasCanonicalizationPatternsInterface(Operation, abc.ABC):
     @classmethod
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        raise NotImplementedError()
+
+
+class _ConstantLikeInterfaceTrait(ConstantLike):
+    """
+    Gets the constant value from the operation's implementation
+    of `ConstantLikeInterface`.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    def get_constant_value(cls, op: Operation) -> Attribute:
+        op = cast(ConstantLikeInterface, op)
+        return op.get_constant_value()
+
+
+class ConstantLikeInterface(Operation, abc.ABC):
+    """
+    An operation subclassing this interface must implement the
+    `get_constant_value` method, which returns the constant value of this operation.
+    Wraps `ConstantLikeTrait`.
+    """
+
+    traits = traits_def(_ConstantLikeInterfaceTrait())
+
+    @abc.abstractmethod
+    def get_constant_value(self) -> Attribute:
         raise NotImplementedError()

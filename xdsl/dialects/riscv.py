@@ -30,6 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
+from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import (
     Attribute,
     Block,
@@ -57,7 +58,6 @@ from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
-    ConstantLike,
     HasCanonicalizationPatternsTrait,
     IsolatedFromAbove,
     IsTerminator,
@@ -3361,7 +3361,7 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, ABC):
     """
     Loads a 32-bit immediate into rd.
 
@@ -3375,7 +3375,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rd = result_def(IntRegisterType)
     immediate = attr_def(base(Imm32Attr) | base(LabelAttr))
 
-    traits = traits_def(Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait())
+    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait())
 
     def __init__(
         self,
@@ -3401,6 +3401,9 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
+
+    def get_constant_value(self):
+        return self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:

@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ParamAttrConstraint,
 )
+from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
@@ -30,7 +31,7 @@ from xdsl.irdl import (
     result_def,
     traits_def,
 )
-from xdsl.traits import ConstantLike, Pure
+from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 
 ComplexTypeConstr = ComplexType.constr(AnyFloat)
@@ -185,7 +186,7 @@ class ConjOp(ComplexUnaryComplexResultOperation):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation):
+class ConstantOp(IRDLOperation, ConstantLikeInterface):
     name = "complex.constant"
     T: ClassVar = VarConstraint("T", AnyFloatConstr | base(IntegerType))
     value = prop_def(
@@ -205,12 +206,15 @@ class ConstantOp(IRDLOperation):
     # have any complex result type, not just floating point:
     complex = result_def(ComplexType.constr(T))
 
-    traits = traits_def(Pure(), ConstantLike())
+    traits = traits_def(Pure())
 
     assembly_format = "$value attr-dict `:` type($complex)"
 
     def __init__(self, value: ArrayAttr, result_type: ComplexType):
         super().__init__(properties={"value": value}, result_types=[result_type])
+
+    def get_constant_value(self) -> Attribute:
+        return self.value
 
 
 @irdl_op_definition

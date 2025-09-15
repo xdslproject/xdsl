@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.parser import Parser
+from xdsl.traits import ConstantLike
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import create_ssa_value
@@ -277,6 +278,12 @@ def test_get_constant_value():
     li_op = riscv.LiOp(1)
     li_val = get_constant_value(li_op.rd)
     assert li_val == IntegerAttr.from_int_and_width(1, 32)
+    # LiOp implements ConstantLikeInterface so it also has a get_constant_value method:
+    constantlike = li_op.get_trait(ConstantLike)
+    assert constantlike is not None
+    assert constantlike.get_constant_value(li_op) == IntegerAttr.from_int_and_width(
+        1, 32
+    )
     zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
     zero_val = get_constant_value(zero_op.res)
     assert zero_val == IntegerAttr.from_int_and_width(0, 32)

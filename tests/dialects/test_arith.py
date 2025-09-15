@@ -66,6 +66,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
+from xdsl.traits import ConstantLike
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -126,13 +127,24 @@ class Test_integer_arith_construction:
 def test_constant_construction():
     c1 = ConstantOp(IntegerAttr(1, i32))
     assert c1.value.type == i32
+    constantlike1 = c1.get_trait(ConstantLike)
+    assert constantlike1 is not None
+    assert constantlike1.get_constant_value(c1) == IntegerAttr(1, i32)
 
     c3 = ConstantOp(FloatAttr(1.0, f32))
     assert c3.value.type == f32
+    constantlike3 = c3.get_trait(ConstantLike)
+    assert constantlike3 is not None
+    assert constantlike3.get_constant_value(c3) == FloatAttr(1.0, f32)
 
     value_type = TensorType(i32, [2, 2])
     c5 = ConstantOp(DenseIntOrFPElementsAttr.from_list(value_type, [1, 2, 3, 4]))
     assert c5.value.type == value_type
+    constantlike5 = c5.get_trait(ConstantLike)
+    assert constantlike5 is not None
+    assert constantlike5.get_constant_value(c5) == DenseIntOrFPElementsAttr.from_list(
+        value_type, [1, 2, 3, 4]
+    )
 
 
 @pytest.mark.parametrize(
