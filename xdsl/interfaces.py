@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import traits_def
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import (
@@ -110,10 +110,10 @@ class HasFolderInterface(Operation, abc.ABC):
     traits = traits_def(_HasFolderInterfaceTrait())
 
     def get_constant(self, operand: SSAValue) -> Attribute | None:
-        if not isinstance(operand, OpResult):
-            return None
-        operand_op = operand.owner
-        if (t := operand_op.get_trait(ConstantLike)) is not None:
+        if (
+            isinstance(operand_op := operand.owner, Operation)
+            and (t := operand_op.get_trait(ConstantLike)) is not None
+        ):
             return t.get_constant_value(operand_op)
 
     @abc.abstractmethod
