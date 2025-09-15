@@ -8,7 +8,6 @@ from xdsl.dialect_interfaces import ConstantMaterializationInterface
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
-    ComplexType,
     ContainerOf,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
@@ -1386,28 +1385,10 @@ class ExtUIOp(IRDLOperation):
 
 class ArithConstantMaterializationInterface(ConstantMaterializationInterface):
     def materialize_constant(self, value: Attribute, type: Attribute) -> Operation:
-        if not isinstance(
-            value,
-            IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr | DenseResourceAttr,
-        ):
-            raise ValueError(
-                "expected IntegerAttr, FloatAttr, DenseIntOrFPElementsAttr, or DenseResourceAttr"
-            )
-
-        if isinstance(value, IntegerAttr):
-            value = cast(IntegerAttr[IntegerType | IndexType], value)
-        elif isinstance(value, FloatAttr):
-            value = cast(FloatAttr[AnyFloat], value)
-        elif isinstance(value, DenseIntOrFPElementsAttr):
-            value = cast(
-                DenseIntOrFPElementsAttr[
-                    IntegerType | IndexType | AnyFloat | ComplexType
-                ],
-                value,
-            )
-        # DenseResourceAttr doesn't need type casting
-
-        return ConstantOp(value=value, value_type=type)
+        return cast(
+            Operation,
+            ConstantOp.build(properties={"value": value}, result_types=(type,)),
+        )
 
 
 Arith = Dialect(
