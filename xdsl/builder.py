@@ -123,30 +123,40 @@ class Builder(BuilderListener):
 
         return op
 
-    def try_fold(self, ctx: Context, op: Operation):
+    def try_fold(
+        self, ctx: Context, op: Operation
+    ) -> tuple[list[SSAValue], list[Operation]] | None:
+        """
+        Try to fold the given operation.
+        Returns a tuple the list of SSAValues that replace the results of the operation,
+        and a list of new operations that were created during folding.
+        If the operation could not be folded, returns None.
+        """
         from xdsl.interfaces import HasFolderInterface
 
         if not isinstance(op, HasFolderInterface):
-            return op
+            return None
         folded = op.fold()
         if folded is None:
-            return op
+            return None
         results: list[SSAValue] = []
+        new_ops: list[Operation] = []
         for val, original_result in zip(folded, op.results):
             if isinstance(val, SSAValue):
                 results.append(val)
             else:
-                assert isinstance(folded, Attribute)
+                assert isinstance(val, Attribute)
                 dialect = ctx.get_dialect(op.dialect_name())
                 interface = dialect.get_interface(ConstantMaterializationInterface)
                 if not interface:
                     return None
                 assert isinstance(type := original_result.type, TypeAttribute)
-                new_op = interface.materialize_constant(folded, type)
+                new_op = interface.materialize_constant(val, type)
                 if new_op is None:
                     return None
+                new_ops.append(new_op)
                 results.append(new_op.results[0])
-        return results
+        return results, new_ops
 
     def create_block(
         self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()
