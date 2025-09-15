@@ -229,17 +229,12 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
         lhs = self.get_constant(self.lhs)
         rhs = self.get_constant(self.rhs)
         if lhs is not None and rhs is not None:
-            if isinstance(lhs, IntegerAttr) and isinstance(rhs, IntegerAttr):
-                lhs = cast(IntegerAttr, lhs)
-                rhs = cast(IntegerAttr, rhs)
+            if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
                 assert lhs.type == rhs.type
                 result = self.py_operation(lhs.value.data, rhs.value.data)
                 if result is not None:
                     return (IntegerAttr(result, lhs.type),)
-        if (
-            isinstance(rhs, IntegerAttr)
-            and self.is_right_unit(cast(IntegerAttr, rhs)) == 0
-        ):
+        if isa(rhs, IntegerAttr) and self.is_right_unit(rhs) == 0:
             return (self.lhs,)
 
     def __init__(
@@ -378,20 +373,6 @@ class AddiOp(SignlessIntegerBinaryOperationWithOverflow):
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
-
-    def fold(self):
-        lhs = self.get_constant(self.lhs)
-        rhs = self.get_constant(self.rhs)
-        if lhs is not None and rhs is not None:
-            if isinstance(lhs, IntegerAttr) and isinstance(rhs, IntegerAttr):
-                lhs = cast(IntegerAttr, lhs)
-                rhs = cast(IntegerAttr, rhs)
-                assert lhs.type == rhs.type
-                result = self.py_operation(lhs.value.data, rhs.value.data)
-                if result is not None:
-                    return (IntegerAttr(result, lhs.type),)
-        if isinstance(rhs, IntegerAttr) and self.is_right_unit(cast(IntegerAttr, rhs)):
-            return (self.lhs,)
 
 
 @irdl_op_definition
