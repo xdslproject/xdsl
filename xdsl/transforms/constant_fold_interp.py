@@ -8,7 +8,7 @@ from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces import ConstantMaterializationInterface
-from xdsl.dialects import arith, builtin
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import register_implementations
@@ -44,6 +44,13 @@ class ConstantFoldInterpPattern(RewritePattern):
             # Only rewrite operations where all the operands are constants
             return
 
+        dialect = self.ctx.get_dialect(op.dialect_name())
+
+        if (
+            materializer := dialect.get_interface(ConstantMaterializationInterface)
+        ) is None:
+            return
+
         try:
             args = tuple(
                 self.interpreter.run_op(cast(OpResult, operand).op, ())[0]
@@ -53,35 +60,22 @@ class ConstantFoldInterpPattern(RewritePattern):
         except InterpretationError:
             return
 
-        dialect = self.ctx.get_dialect(op.dialect_name())
-
-        if (
-            materializer := dialect.get_interface(ConstantMaterializationInterface)
-        ) is None:
-            raise ValueError(
-                f"Dialect {dialect.name} does not implement the ConstantMaterializationInterface"
-            )
-
-        new_ops = [
-            materializer.materialize_constant(interp_result, op_result.type)
-            for interp_result, op_result in zip(results, op.results)
-        ]
-
-        if any(new_op is None for new_op in new_ops):
-            # If we don't know how to create a constant for one of the results, bail
-            return
-
-        new_ops = cast(list[Operation], new_ops)
+        new_ops: list[Operation] = []
+        for interp_result, op_result in zip(results, op.results):
+            result_attr = self.convert_to_attr(interp_result, op_result.type)
+            if result_attr is None:
+                return
+            new_op = materializer.materialize_constant(result_attr, op_result.type)
+            if new_op is None:
+                return
+            new_ops.append(new_op)
 
         rewriter.replace_matched_op(new_ops, [new_op.results[0] for new_op in new_ops])
 
-    def constant_op_for_value(
-        self, value: Any, value_type: Attribute
-    ) -> Operation | None:
+    def convert_to_attr(self, value: Any, value_type: Attribute) -> Attribute | None:
         match (value, value_type):
             case int(), IntegerType():
-                attr = IntegerAttr(value, cast(IntegerType, value_type))
-                return arith.ConstantOp(attr)
+                return IntegerAttr(value, cast(IntegerType, value_type))
             case _:
                 return None
 
