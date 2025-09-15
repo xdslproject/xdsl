@@ -35,12 +35,18 @@ dev = [
     "pytest-asyncio==1.2.0",
     "pyright==1.1.405",
     "sympy==1.14.0",
+    "numpy==2.2.6",
+    "matplotlib>=3.10.3",
+    "pandas>=2.3.0",
+    "python-lsp-server>=1.13.0",
+    "basedpyright>=1.31.0",
+    "numpy==2.2.6",
 ]
 gui = ["textual>=6,<7", "pyclip==0.7"]
 jax = ["jax==0.6.0", "numpy==2.2.6"]
 
 [dependency-groups]
-dev = ["xdsl[dev,gui]", "my_plugin"]
+dev = ["xdsl[dev,gui,docs]", "my_plugin"]
 bench = [
     "asv>=0.6.4",
     "snakeviz>=2.2.2",
@@ -62,6 +68,11 @@ docs = [
     "pymdown-extensions>=10.7",
     "riscemu==2.2.7",
     "micropip>=0.7",
+    "matplotlib>=3.10.3",
+    "pandas>=2.3.0",
+    "python-lsp-server>=1.13.0",
+    "basedpyright>=1.31.0",
+    "numpy==2.2.6",
 ]
 
 [project.urls]
