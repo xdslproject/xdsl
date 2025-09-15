@@ -1,8 +1,9 @@
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.dialects.arith import ConstantOp
-from xdsl.dialects.builtin import IntAttr, i32, i64
+from xdsl.context import Context
+from xdsl.dialects.arith import AddiOp, ConstantOp
+from xdsl.dialects.builtin import IntAttr, IntegerAttr, i32, i64
 from xdsl.dialects.scf import IfOp
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, BlockArgument, Operation, Region
@@ -366,3 +367,57 @@ def test_build_implicit_region_fail():
             IfOp(cond, (), then_0)
 
         _ = region
+
+
+def test_try_fold_foldable_operation():
+    """Test that try_fold correctly folds an AddiOp with zero."""
+    ctx = Context()
+    from xdsl.dialects import arith
+
+    ctx.load_dialect(arith.Arith)
+
+    block = Block()
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Create constants: 0 and 5
+    zero_const = ConstantOp.from_int_and_width(1, i32)
+    five_const = ConstantOp.from_int_and_width(5, i32)
+    builder.insert(zero_const)
+    builder.insert(five_const)
+
+    # Create an AddiOp: %result = arith.addi %zero, %five : i32
+    # Adding zero should fold to just the other operand
+    addi_op = AddiOp(zero_const.result, five_const.result)
+    builder.insert(addi_op)
+
+    # Try to fold the operation
+    result = builder.try_fold(ctx, addi_op)
+
+    # Should successfully fold
+    assert result is not None
+    values, new_ops = result
+    assert len(values) == 1
+    assert len(new_ops) == 1
+    assert isinstance(new_op := new_ops[0], ConstantOp)
+    assert isinstance(new_op.value, IntegerAttr)
+    assert new_op.value.value.data == 6
+
+
+def test_try_fold_unfoldable_operation():
+    """Test that try_fold returns None for operations that don't support folding."""
+    ctx = Context()
+
+    block = Block()
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Create a TestOp which doesn't implement folding
+    const_op = ConstantOp.from_int_and_width(5, i32)
+    builder.insert(const_op)
+    test_op = TestOp((const_op.result,), result_types=(i32,))
+    builder.insert(test_op)
+
+    # Try to fold the TestOp
+    result = builder.try_fold(ctx, test_op)
+
+    # Should return None since TestOp doesn't implement folding
+    assert result is None
