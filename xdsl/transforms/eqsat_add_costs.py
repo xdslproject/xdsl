@@ -110,14 +110,7 @@ class EqsatAddCostsPass(ModulePass):
         if self.cost_file is not None:
             assert os.path.exists(self.cost_file)
             with open(self.cost_file) as file:
-                external_costs = json.load(file)
-                for dialect in external_costs:
-                    for op in external_costs[dialect]:
-                        if ctx.get_optional_op(f"{dialect}.{op}") is None:
-                            raise ValueError(
-                                f"Cannot assign cost to an unregistered operation {dialect}.{op}"
-                            )
-                        cost_dict[f"{dialect}.{op}"] = external_costs[dialect][op]
+                cost_dict = json.load(file)
 
         for block in eclass_parent_blocks:
             add_eqsat_costs(block, default=self.default, cost_dict=cost_dict)
