@@ -19,13 +19,13 @@ from typing_extensions import Self, TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin
-from xdsl.utils.hints import isa, type_repr
-from xdsl.utils.parse_pipeline import (
-    PassArgElementType,
-    PassArgListType,
-    PipelinePassSpec,
+from xdsl.utils.arg_spec import (
+    ArgListType,
+    ArgSpec,
+    ArgType,
     parse_pipeline,
 )
+from xdsl.utils.hints import isa, type_repr
 
 ModulePassT = TypeVar("ModulePassT", bound="ModulePass")
 
@@ -77,9 +77,9 @@ class ModulePass(ABC):
         return ctx, op
 
     @classmethod
-    def from_pass_spec(cls, spec: PipelinePassSpec) -> Self:
+    def from_pass_spec(cls, spec: ArgSpec) -> Self:
         """
-        This method takes a PipelinePassSpec, does type checking on the
+        This method takes a ArgSpec, does type checking on the
         arguments, and then instantiates an instance of the ModulePass
         from the spec.
         """
@@ -89,15 +89,13 @@ class ModulePass(ABC):
             )
 
         # normalize spec arg names:
-        spec_arguments_dict: dict[str, PassArgListType] = (
-            spec.normalize_arg_names().args
-        )
+        spec_arguments_dict: dict[str, ArgListType] = spec.normalize_arg_names().args
 
         # get all dataclass fields
         fields: tuple[Field[Any], ...] = dataclasses.fields(cls)
 
         # start constructing the argument dict for the dataclass
-        arg_dict = dict[str, PassArgListType | PassArgElementType | None]()
+        arg_dict = dict[str, ArgListType | ArgType | None]()
 
         required_fields = cls.required_fields()
 
@@ -144,16 +142,16 @@ class ModulePass(ABC):
             field.name for field in dataclasses.fields(cls) if not _is_optional(field)
         }
 
-    def pipeline_pass_spec(self, *, include_default: bool = False) -> PipelinePassSpec:
+    def pipeline_pass_spec(self, *, include_default: bool = False) -> ArgSpec:
         """
-        This function takes a ModulePass and returns a PipelinePassSpec.
+        This function takes a ModulePass and returns a ArgSpec.
 
         If `include_default` is `True`, then optional arguments are not included in the
         spec.
         """
         # get all dataclass fields
         fields = dataclasses.fields(self)
-        args: dict[str, PassArgListType] = {}
+        args: dict[str, ArgListType] = {}
 
         # iterate over all fields of the dataclass
         for op_field in fields:
@@ -170,13 +168,13 @@ class ModulePass(ABC):
 
             if val is None:
                 arg_list = ()
-            elif isinstance(val, PassArgElementType):
+            elif isinstance(val, ArgType):
                 arg_list = (val,)
             else:
                 arg_list = val
 
             args[name] = arg_list
-        return PipelinePassSpec(self.name, args)
+        return ArgSpec(self.name, args)
 
     @classmethod
     def schedule_space(
@@ -282,8 +280,8 @@ class PassPipeline:
 
 
 def _convert_pass_arg_to_type(
-    value: PassArgListType, dest_type: Any
-) -> PassArgListType | PassArgElementType | None:
+    value: ArgListType, dest_type: Any
+) -> ArgListType | ArgType | None:
     """
     Takes in a list of pass args, and converts them to the required type.
 

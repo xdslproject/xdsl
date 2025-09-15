@@ -1,3 +1,11 @@
+"""
+When passing command-line arguments to xdsl-opt, it may be useful to parametrize them.
+The parametrized argument model object `ArgSpec` holds the name of the argument, and a
+mapping from a key to a tuple of parameters, described below.
+
+This is used when building pass pipelines.
+"""
+
 from __future__ import annotations
 
 import re
@@ -6,9 +14,70 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TypeAlias
 
-from xdsl.utils.exceptions import PassPipelineParseError
+from xdsl.utils.exceptions import ArgSpecPipelineParseError
 from xdsl.utils.lexer import Input, Span, Token
 from xdsl.utils.mlir_lexer import StringLiteral
+
+ArgType = str | int | bool | float
+"""
+The only types that can be used as `ArgSpec` parameters.
+"""
+ArgListType = tuple[ArgType, ...]
+"""
+The `ArgSpec` holds a dictionary from strings to lists of parameters.
+"""
+
+
+@dataclass(eq=True, frozen=True)
+class ArgSpec:
+    """
+    A pass name and its arguments.
+    """
+
+    name: str
+    args: dict[str, ArgListType]
+
+    def normalize_arg_names(self) -> ArgSpec:
+        """
+        This normalized all arg names by replacing `-` with `_`
+        """
+        new_args: dict[str, ArgListType] = dict()
+        for k, v in self.args.items():
+            new_args[k.replace("-", "_")] = v
+        return ArgSpec(name=self.name, args=new_args)
+
+    @staticmethod
+    def _spec_parameter_type_str(arg: ArgType) -> str:
+        match arg:
+            case bool():
+                return str(arg).lower()
+            case str():
+                return f'"{arg}"'
+            case int():
+                return str(arg)
+            case float():
+                return str(arg)
+
+    @staticmethod
+    def _spec_parameter_list_type_str(name: str, arg: ArgListType) -> str:
+        if arg:
+            return f"{name}={','.join(ArgSpec._spec_parameter_type_str(val) for val in arg)}"
+        else:
+            return name
+
+    def __str__(self) -> str:
+        """
+        This function returns a string containing the PipelineSpec name, its arguments
+        and respective values for use on the commandline.
+        """
+        query = f"{self.name}"
+        arguments_pipeline = " ".join(
+            ArgSpec._spec_parameter_list_type_str(arg_name, arg_val)
+            for arg_name, arg_val in self.args.items()
+        )
+        query += f"{{{arguments_pipeline}}}" if self.args else ""
+
+        return query
 
 
 class SpecTokenKind(Enum):
@@ -85,7 +154,7 @@ class PipelineLexer:
                     pos = match.end()
                     break
             if token is None:
-                raise PassPipelineParseError(
+                raise ArgSpecPipelineParseError(
                     SpecToken(SpecTokenKind.IDENT, Span(pos, pos + 1, input)),
                     "Unknown token",
                 )
@@ -105,65 +174,9 @@ class PipelineLexer:
         return self._peeked
 
 
-PassArgElementType = str | int | bool | float
-PassArgListType = tuple[PassArgElementType, ...]
-
-
-def _pass_arg_element_type_str(arg: PassArgElementType) -> str:
-    match arg:
-        case bool():
-            return str(arg).lower()
-        case str():
-            return f'"{arg}"'
-        case int():
-            return str(arg)
-        case float():
-            return str(arg)
-
-
-def _pass_arg_list_type_str(name: str, arg: PassArgListType) -> str:
-    if arg:
-        return f"{name}={','.join(_pass_arg_element_type_str(val) for val in arg)}"
-    else:
-        return name
-
-
-@dataclass(eq=True, frozen=True)
-class PipelinePassSpec:
-    """
-    A pass name and its arguments.
-    """
-
-    name: str
-    args: dict[str, PassArgListType]
-
-    def normalize_arg_names(self) -> PipelinePassSpec:
-        """
-        This normalized all arg names by replacing `-` with `_`
-        """
-        new_args: dict[str, PassArgListType] = dict()
-        for k, v in self.args.items():
-            new_args[k.replace("-", "_")] = v
-        return PipelinePassSpec(name=self.name, args=new_args)
-
-    def __str__(self) -> str:
-        """
-        This function returns a string containing the PipelineSpec name, its arguments
-        and respective values for use on the commandline.
-        """
-        query = f"{self.name}"
-        arguments_pipeline = " ".join(
-            _pass_arg_list_type_str(arg_name, arg_val)
-            for arg_name, arg_val in self.args.items()
-        )
-        query += f"{{{arguments_pipeline}}}" if self.args else ""
-
-        return query
-
-
 def parse_pipeline(
     pipeline_spec: str,
-) -> Iterator[PipelinePassSpec]:
+) -> Iterator[ArgSpec]:
     """
     This takes a pipeline string and gives a representation of
     the specification.
@@ -191,12 +204,12 @@ def parse_pipeline(
                 continue
             case invalid:
                 # every other token is invalid
-                raise PassPipelineParseError(
+                raise ArgSpecPipelineParseError(
                     invalid, "Expected a comma after pass argument dict here"
                 )
 
 
-def parse_spec(spec: str) -> PipelinePassSpec:
+def parse_spec(spec: str) -> ArgSpec:
     """
     Parses a pass, with optional arguments, or raises a `PassPipelineParseError` if one
     cannot be parsed.
@@ -205,7 +218,7 @@ def parse_spec(spec: str) -> PipelinePassSpec:
     return _parse_spec(lexer)
 
 
-def _parse_spec(lexer: PipelineLexer) -> PipelinePassSpec:
+def _parse_spec(lexer: PipelineLexer) -> ArgSpec:
     """
     Parses a pass, with optional arguments, or raises a `PassPipelineParseError` if one
     cannot be parsed.
@@ -213,28 +226,28 @@ def _parse_spec(lexer: PipelineLexer) -> PipelinePassSpec:
     # get the pass name
     name = lexer.lex()
     if name.kind is not SpecTokenKind.IDENT:
-        raise PassPipelineParseError(name, "Expected pass name here")
+        raise ArgSpecPipelineParseError(name, "Expected pass name here")
 
     # valid next tokens are EOF, COMMA or `{`
     match lexer.peek():
         case Token(kind=SpecTokenKind.EOF):
             # EOF means we have nothing else left to parse, we are done
-            return PipelinePassSpec(name.span.text, dict())
+            return ArgSpec(name.span.text, dict())
         case Token(kind=SpecTokenKind.COMMA):
             # comma means we are done parsing this pass, move on to next pass
-            return PipelinePassSpec(name.span.text, dict())
+            return ArgSpec(name.span.text, dict())
         case Token(kind=SpecTokenKind.L_BRACE):
             # `{` indicates start of args dict, so we parse that next
             lexer.lex()
-            return PipelinePassSpec(name.span.text, _parse_pass_args(lexer))
+            return ArgSpec(name.span.text, _parse_pass_args(lexer))
         case Token(SpecTokenKind.MLIR_PIPELINE, span):
             if name.span.text != "mlir-opt":
-                raise PassPipelineParseError(
+                raise ArgSpecPipelineParseError(
                     name,
                     "Expected `mlir-opt` to mark an MLIR pipeline here",
                 )
             lexer.lex()
-            return PipelinePassSpec(
+            return ArgSpec(
                 "mlir-opt",
                 {
                     "arguments": (
@@ -247,12 +260,12 @@ def _parse_spec(lexer: PipelineLexer) -> PipelinePassSpec:
             )
         case invalid:
             # every other token is invalid
-            raise PassPipelineParseError(
+            raise ArgSpecPipelineParseError(
                 invalid, "Expected a comma or pass arguments here"
             )
 
 
-def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
+def _parse_pass_args(lexer: PipelineLexer) -> dict[str, ArgListType]:
     """
     This parses pass arguments. They are a dictionary structure
     with whitespace separated, multi-value elements:
@@ -262,7 +275,7 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
 
     This function assumes that the leading `{` has already been consumed.
     """
-    args: dict[str, PassArgListType] = dict()
+    args: dict[str, ArgListType] = dict()
 
     while True:
         # get the name of the argument (or a `}` in case of zero-length dicts)
@@ -274,7 +287,7 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
 
         # check that it is a valid identifier
         if name.kind is not SpecTokenKind.IDENT:
-            raise PassPipelineParseError(name, "Expected argument name here")
+            raise ArgSpecPipelineParseError(name, "Expected argument name here")
 
         # next token should be either a space, `}` or `=`
         match lexer.lex():
@@ -293,7 +306,7 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
                 args[name.span.text] = _parse_arg_value(lexer)
             case invalid:
                 # every other token is invalid
-                raise PassPipelineParseError(
+                raise ArgSpecPipelineParseError(
                     invalid, "Expected equals, space or end of arguments here"
                 )
 
@@ -307,13 +320,13 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
                 return args
             case invalid:
                 # every other token is a syntax error
-                raise PassPipelineParseError(
+                raise ArgSpecPipelineParseError(
                     invalid,
                     "Malformed pass arguments, expected either a space or `}` here",
                 )
 
 
-def _parse_arg_value(lexer: PipelineLexer) -> PassArgListType:
+def _parse_arg_value(lexer: PipelineLexer) -> ArgListType:
     """
     Parse an argument value of the form: value (`,` value)*
     """
@@ -324,7 +337,7 @@ def _parse_arg_value(lexer: PipelineLexer) -> PassArgListType:
     return tuple(elms)
 
 
-def _parse_arg_value_element(lexer: PipelineLexer) -> PassArgElementType:
+def _parse_arg_value_element(lexer: PipelineLexer) -> ArgType:
     """
     Parse a singular value element
     """
@@ -352,7 +365,7 @@ def _parse_arg_value_element(lexer: PipelineLexer) -> PassArgElementType:
             return span.text
         case token:
             # every other token type is invalid as a value
-            raise PassPipelineParseError(
+            raise ArgSpecPipelineParseError(
                 token,
                 "Unknown argument value, wrap argument in quotes to pass arbitrary "
                 "string values",
