@@ -18,5 +18,5 @@
 // CHECK-NEXT:   %4 = tosa.max_pool2d %3 {kernel = array<i64: 3, 3>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 2, 2>} : (tensor<?x114x114x64xi8>) -> tensor<?x56x56x64xi8>
 // CHECK-NEXT:   %5 = "test.op"() : () -> tensor<?x25x5x64xi8>
 // CHECK-NEXT:   %6 = tosa.avg_pool2d %5 {acc_type = i32, kernel = array<i64: 25, 5>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 25, 5>} : (tensor<?x25x5x64xi8>) -> tensor<?x1x1x64xi8>
-// CHECK-NEXT:   %7 = tosa.concat %6, %6 {axis = 1 : i32} : (tensor<?x1x1x64xi8>, tensor<?x1x1x64xi8>, tensor<?x1x1x64xi8>) -> tensor<?x1x2x64xi8>
+// CHECK-NEXT:   %7 = tosa.concat %6, %6 {axis = 1 : i32} : (tensor<?x1x1x64xi8>, tensor<?x1x1x64xi8>) -> tensor<?x2x1x64xi8>
 // CHECK-NEXT: }

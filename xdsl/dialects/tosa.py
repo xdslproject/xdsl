@@ -1,9 +1,9 @@
 from abc import ABC
+from collections.abc import Sequence
 from typing import ClassVar, Generic
 
 from typing_extensions import TypeVar
 
-from collections.abc import Sequence
 from xdsl.dialects.builtin import (
     I32,
     I64,
@@ -18,7 +18,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
 )
-from xdsl.ir import Attribute, Dialect, TypeAttribute, SSAValue
+from xdsl.ir import Attribute, Dialect, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
@@ -360,7 +360,9 @@ class ConcatOp(IRDLOperation):
     axis = prop_def(IntegerAttr[I32])
     output = result_def(TensorType)
 
-    def __init__(self, tensors: Sequence[SSAValue], axis: IntegerAttr, output_type : TensorType):
+    def __init__(
+        self, tensors: Sequence[SSAValue], axis: IntegerAttr, output_type: TensorType
+    ):
         super().__init__(
             operands=[tensors],
             properties={"axis": axis},

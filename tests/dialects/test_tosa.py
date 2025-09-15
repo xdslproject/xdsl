@@ -1,10 +1,10 @@
 from xdsl.dialects.builtin import (
+    IntegerAttr,
     TensorType,
     f32,
     i32,
-    IntegerAttr,
 )
-from xdsl.dialects.tosa import are_tosa_broadcastable, ConcatOp
+from xdsl.dialects.tosa import ConcatOp, are_tosa_broadcastable
 from xdsl.utils.test_value import create_ssa_value
 
 t_i = TensorType(i32, [1, 2, 3, 4])
