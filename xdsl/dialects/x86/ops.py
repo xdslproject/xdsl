@@ -254,7 +254,7 @@ class X86Instruction(X86AsmOperation):
 
 
 class RS_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one register that is read and written to,
@@ -298,7 +298,7 @@ class RS_Operation(
 
 
 class DS_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one destination register and one source
@@ -330,7 +330,7 @@ class DS_Operation(
         return (self.destination, self.source)
 
 
-class R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class R_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one register that is read and written to.
     """
@@ -365,7 +365,7 @@ class R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC
 
 
 class RM_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one register read and written to and one
@@ -437,7 +437,7 @@ class DM_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 
 
 class DM_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that load from memory into a destination register.
@@ -491,7 +491,7 @@ class DM_Operation(
         return {"memory_offset"}
 
 
-class DI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class DI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one destination register and an immediate
     value.
@@ -539,7 +539,7 @@ class DI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
         return {"immediate"}
 
 
-class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one register that is read and written to
     and an immediate value.
@@ -607,7 +607,7 @@ class MS_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 
 
 class MS_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one memory reference and one source
@@ -663,7 +663,7 @@ class MS_Operation(
         return {"memory_offset"}
 
 
-class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class MI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one memory reference and an immediate
     value.
@@ -727,7 +727,7 @@ class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
 
 
 class DSI_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one destination register, one source
@@ -779,7 +779,7 @@ class DSI_Operation(
 
 
 class DMI_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one destination register, one memory
@@ -845,7 +845,7 @@ class DMI_Operation(
         return {"immediate", "memory_offset"}
 
 
-class M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class M_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations with a memory reference.
     """
@@ -1012,7 +1012,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
 
 
 class RSS_Operation(
-    Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R3InvT]
 ):
     """
     A base class for x86 operations that have one register that is read and written to,
@@ -1057,7 +1057,7 @@ class RSS_Operation(
 
 
 class DSSI_Operation(
-    Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R3InvT]
 ):
     """
     A base class for x86 operations that have one destination register, one source
@@ -3124,7 +3124,7 @@ class DSSI_ShufpsOp(
 
 
 class GetAnyRegisterOperation(
-    Generic[R1InvT], X86AsmOperation, X86CustomFormatOperation, ABC
+    X86AsmOperation, X86CustomFormatOperation, ABC, Generic[R1InvT]
 ):
     """
     This instruction allows us to create an SSAValue for a given register name.

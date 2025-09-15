@@ -251,11 +251,11 @@ class StencilBoundsAttr(ParametrizedAttribute):
 
 @dataclass(frozen=True, init=False)
 class StencilType(
-    Generic[_FieldTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
     builtin.ShapedType,
     builtin.ContainerType[_FieldTypeElement],
+    Generic[_FieldTypeElement],
 ):
     name = "stencil.type"
     bounds: StencilBoundsAttr | IntAttr
@@ -370,10 +370,10 @@ class StencilType(
 
 @irdl_attr_definition(init=False)
 class FieldType(
-    Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
+    Generic[_FieldTypeElement],
 ):
     """
     stencil.field represents memory from which stencil input values will be loaded,
@@ -387,10 +387,10 @@ class FieldType(
 
 @irdl_attr_definition(init=False)
 class TempType(
-    Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
+    Generic[_FieldTypeElement],
 ):
     """
     stencil.temp represents stencil values, and is the type on which stencil.apply operates.

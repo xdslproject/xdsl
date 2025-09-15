@@ -537,7 +537,7 @@ def riscv_code(module: ModuleOp) -> str:
 
 
 class RdRsRsOperation(
-    Generic[RDInvT, RS1InvT, RS2InvT], RISCVCustomFormatOperation, RISCVInstruction, ABC
+    RISCVCustomFormatOperation, RISCVInstruction, ABC, Generic[RDInvT, RS1InvT, RS2InvT]
 ):
     """
     A base class for RISC-V operations that have one destination register, and two source
@@ -574,7 +574,7 @@ class RdRsRsOperation(
 
 
 class RdRsRsIntegerOperation(
-    Generic[RS1InvT, RS2InvT], RdRsRsOperation[IntRegisterType, RS1InvT, RS2InvT], ABC
+    RdRsRsOperation[IntRegisterType, RS1InvT, RS2InvT], ABC, Generic[RS1InvT, RS2InvT]
 ):
     def __init__(
         self,
@@ -588,7 +588,7 @@ class RdRsRsIntegerOperation(
 
 
 class RdRsRsFloatOperation(
-    Generic[RS1InvT, RS2InvT], RdRsRsOperation[FloatRegisterType, RS1InvT, RS2InvT], ABC
+    RdRsRsOperation[FloatRegisterType, RS1InvT, RS2InvT], ABC, Generic[RS1InvT, RS2InvT]
 ):
     def __init__(
         self,
@@ -942,7 +942,7 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
 
 class RdRsOperation(
-    Generic[RDInvT, RSInvT], RISCVCustomFormatOperation, RISCVInstruction, ABC
+    RISCVCustomFormatOperation, RISCVInstruction, ABC, Generic[RDInvT, RSInvT]
 ):
     """
     A base class for RISC-V pseudo-instructions that have one destination register and one
@@ -972,7 +972,7 @@ class RdRsOperation(
 
 
 class RdRsIntegerOperation(
-    Generic[RSInvT], RdRsOperation[IntRegisterType, RSInvT], ABC
+    RdRsOperation[IntRegisterType, RSInvT], ABC, Generic[RSInvT]
 ):
     def __init__(
         self,
@@ -985,7 +985,7 @@ class RdRsIntegerOperation(
 
 
 class RdRsFloatOperation(
-    Generic[RSInvT], RdRsOperation[FloatRegisterType, RSInvT], ABC
+    RdRsOperation[FloatRegisterType, RSInvT], ABC, Generic[RSInvT]
 ):
     def __init__(
         self,
@@ -3736,7 +3736,7 @@ class WfiOp(NullaryOperation):
 
 
 class GetAnyRegisterOperation(
-    Generic[RDInvT], RISCVCustomFormatOperation, RISCVAsmOperation, ABC
+    RISCVCustomFormatOperation, RISCVAsmOperation, ABC, Generic[RDInvT]
 ):
     """
     This instruction allows us to create an SSAValue with for a given register name. This
