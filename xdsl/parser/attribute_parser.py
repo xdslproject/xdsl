@@ -60,8 +60,8 @@ from xdsl.dialects.builtin import (
     UnregisteredAttr,
     VectorType,
     bf16,
-    f64,
     i64,
+    f64,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
@@ -530,7 +530,6 @@ class AttrParser(BaseParser):
                     dims.append(dim)
 
         return dims
-        
 
     def parse_ranked_shape(self) -> tuple[list[int], Attribute]:
         """
