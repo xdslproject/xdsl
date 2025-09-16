@@ -465,12 +465,12 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
 
         bases = set[Attribute]()
         eq_bases = set[Attribute]()
+        abstract_constrs: list[AttrConstraint[AttributeCovT]] = []
         for i, c in enumerate(constrs):
             b = c.get_bases()
             if b is None:
-                raise PyRDLError(
-                    f"Constraint {c} cannot appear in an `AnyOf` constraint as its bases aren't known."
-                )
+                abstract_constrs.append(c)
+                continue
 
             if not b.isdisjoint(bases):
                 raise PyRDLError(
@@ -506,14 +506,23 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             "_based_constrs",
             based_constrs,
         )
+        object.__setattr__(self, "_abstract_constrs", tuple(abstract_constrs))
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if attr in self._eq_constrs:
             return
         constr = self._based_constrs.get(attr.__class__)
-        if constr is None:
-            raise VerifyException(f"Unexpected attribute {attr}")
-        constr.verify(attr, constraint_context)
+        if constr is not None:
+            constr.verify(attr, constraint_context)
+            return
+        # Try abstract constraints
+        for abstr_constr in getattr(self, "_abstract_constrs", ()):
+            try:
+                abstr_constr.verify(attr, constraint_context)
+                return
+            except VerifyException:
+                continue
+        raise VerifyException(f"Unexpected attribute {attr}")
 
     def __or__(
         self, value: AttrConstraint[_AttributeCovT], /

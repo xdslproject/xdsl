@@ -285,13 +285,6 @@ def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
     "c1, c2, msg",
     [
         (
-            AnyAttr(),
-            BaseAttr(AttrA),
-            re.escape(
-                "Constraint AnyAttr() cannot appear in an `AnyOf` constraint as its bases aren't known"
-            ),
-        ),
-        (
             BaseAttr(AttrA) | BaseAttr(AttrB),
             BaseAttr(AttrA),
             re.escape(
