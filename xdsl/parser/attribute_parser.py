@@ -60,8 +60,8 @@ from xdsl.dialects.builtin import (
     UnregisteredAttr,
     VectorType,
     bf16,
-    i64,
     f64,
+    i64,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet

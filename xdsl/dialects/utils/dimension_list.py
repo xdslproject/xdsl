@@ -33,9 +33,7 @@ def print_dimension_list(printer: Printer, dims: DenseArrayBase[IntegerType]) ->
 
     printer.print_list(
         values,
-        lambda x: printer.print_int(x)
-        if x != -1
-        else printer.print_string("?"),
+        lambda x: printer.print_int(x) if x != -1 else printer.print_string("?"),
         "x",
     )
 
