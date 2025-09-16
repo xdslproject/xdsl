@@ -20,7 +20,7 @@ from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
 from xdsl.ir import Dialect, SSAValue
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 ctx = Context()
@@ -234,6 +234,16 @@ def test_parse_dynamic_index_list_with_custom_delimiter():
 def test_parse_empty_dimension_list():
     parser = Parser(ctx, "[]")
     assert parse_empty_dimension_list(parser)
+
+    parser = Parser(ctx, "5x5x5x5")
+    assert not parse_empty_dimension_list(parser)
+
+    with pytest.raises(
+        ParseError,
+        match=re.escape("']' expected"),
+    ):
+        parser = Parser(ctx, "[5, 10]")
+        parse_empty_dimension_list(parser)
 
 
 def test_print_dimension_list():
