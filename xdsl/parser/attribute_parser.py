@@ -504,6 +504,34 @@ class AttrParser(BaseParser):
         # Move the lexer to the position after 'x'.
         self._resume_from(self._current_token.span.start + 1)
 
+    def parse_dimension_list(self, trailing_x: bool = False) -> list[int]:
+        """
+        Parse a dimension list with the following format:
+          dimension-list ::= (dimension `x`)* dimension
+          dimension-list-trailing ::= (dimension `x`)*
+        each dimension is also required to be non-negative.
+        """
+        dims: list[int] = []
+        accepted_token_kinds = (MLIRTokenKind.INTEGER_LIT, MLIRTokenKind.QUESTION)
+
+        if trailing_x:
+            while self._current_token.kind in accepted_token_kinds:
+                dim = self.parse_shape_dimension()
+                dims.append(dim)
+                self.parse_shape_delimiter()
+
+        else:
+            if self._current_token.kind in accepted_token_kinds:
+                dim = self.parse_shape_dimension()
+
+                while self._current_token.text[0] == "x":
+                    self.parse_shape_delimiter()
+                    dim = self.parse_shape_dimension()
+                    dims.append(dim)
+
+        return dims
+        
+
     def parse_ranked_shape(self) -> tuple[list[int], Attribute]:
         """
         Parse a ranked shape with the following format:
@@ -511,14 +539,7 @@ class AttrParser(BaseParser):
           dimension ::= `?` | decimal-literal
         each dimension is also required to be non-negative.
         """
-        dims: list[int] = []
-        while self._current_token.kind in (
-            MLIRTokenKind.INTEGER_LIT,
-            MLIRTokenKind.QUESTION,
-        ):
-            dim = self.parse_shape_dimension()
-            dims.append(dim)
-            self.parse_shape_delimiter()
+        dims = self.parse_dimension_list(True)
 
         type = self.expect(self.parse_optional_type, "Expected shape type.")
         return dims, type
