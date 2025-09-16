@@ -14,10 +14,7 @@ from xdsl.utils.hints import isa
 
 def parse_empty_dimension_list(parser: Parser) -> bool:
     if parser.parse_optional_characters("["):
-        if not parser.parse_characters("]"):
-            parser.raise_error(
-                "Failed parsing dimension list, expected '[]' for an empty list"
-            )
+        parser.parse_characters("]")
 
         return True
 
