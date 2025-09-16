@@ -447,6 +447,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     _based_constrs: dict[type[Attribute], AttrConstraint[AttributeCovT]] = field(
         hash=False, repr=False
     )
+    _abstr_constr: AttrConstraint[AttributeCovT] | None
 
     def __init__(
         self,
@@ -465,12 +466,18 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
 
         bases = set[Attribute]()
         eq_bases = set[Attribute]()
-        abstract_constrs: list[AttrConstraint[AttributeCovT]] = []
+        abstract_constr: AttrConstraint[AttributeCovT] | None = None
         for i, c in enumerate(constrs):
             b = c.get_bases()
             if b is None:
-                abstract_constrs.append(c)
-                continue
+                if abstract_constr is None:
+                    abstract_constr = c
+                    continue
+                else:
+                    raise PyRDLError(
+                        "Only one abstract constraint is allowed in `AnyOf` constraint,"
+                        f" found {c} when {abstract_constr} was already present."
+                    )
 
             if not b.isdisjoint(bases):
                 raise PyRDLError(
@@ -506,7 +513,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             "_based_constrs",
             based_constrs,
         )
-        object.__setattr__(self, "_abstract_constrs", tuple(abstract_constrs))
+        object.__setattr__(self, "_abstr_constr", abstract_constr)
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if attr in self._eq_constrs:
@@ -515,13 +522,13 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         if constr is not None:
             constr.verify(attr, constraint_context)
             return
-        # Try abstract constraints
-        for abstr_constr in getattr(self, "_abstract_constrs", ()):
+        # Try abstract constraint if present
+        if self._abstr_constr is not None:
             try:
-                abstr_constr.verify(attr, constraint_context)
+                self._abstr_constr.verify(attr, constraint_context)
                 return
             except VerifyException:
-                continue
+                pass
         raise VerifyException(f"Unexpected attribute {attr}")
 
     def __or__(
