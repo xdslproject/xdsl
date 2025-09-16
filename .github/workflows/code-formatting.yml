@@ -14,9 +14,6 @@ jobs:
   code-formatting:
 
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10']
 
     steps:
     - uses: actions/checkout@v5
@@ -27,10 +24,13 @@ jobs:
         enable-cache: true
         cache-dependency-glob: "uv.lock"
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.13
       uses: actions/setup-python@v6
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.13'
+
+    - name: Generate Python type stubs
+      run: uv run xdsl-stubgen
 
     - name: Run code formatting checks with pre-commit
       uses: pre-commit/action@v3.0.1

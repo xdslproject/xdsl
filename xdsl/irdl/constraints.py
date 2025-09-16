@@ -101,7 +101,7 @@ Possible types that a constraint variable can have.
 
 
 @dataclass(frozen=True)
-class AttrConstraint(Generic[AttributeCovT], ABC):
+class AttrConstraint(ABC, Generic[AttributeCovT]):
     """Constrain an attribute to a certain value."""
 
     @abstractmethod
@@ -328,7 +328,7 @@ class ConstraintVar:
 
 
 @dataclass(frozen=True)
-class EqAttrConstraint(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
+class EqAttrConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     """Constrain an attribute to be equal to another attribute."""
 
     attr: AttributeCovT
@@ -358,7 +358,7 @@ class EqAttrConstraint(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
 
 
 @dataclass(frozen=True)
-class BaseAttr(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
+class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     """Constrain an attribute to be of a given base type."""
 
     attr: type[AttributeCovT]
@@ -437,7 +437,7 @@ class AnyAttr(AttrConstraint):
 
 
 @dataclass(frozen=True, init=False)
-class AnyOf(Generic[AttributeCovT], AttrConstraint[AttributeCovT]):
+class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     """Ensure that an attribute satisfies one of the given constraints."""
 
     attr_constrs: tuple[AttrConstraint[AttributeCovT], ...]
@@ -620,7 +620,7 @@ ParametrizedAttributeCovT = TypeVar(
 
 @dataclass(frozen=True, init=False)
 class ParamAttrConstraint(
-    Generic[ParametrizedAttributeCovT], AttrConstraint[ParametrizedAttributeCovT]
+    AttrConstraint[ParametrizedAttributeCovT], Generic[ParametrizedAttributeCovT]
 ):
     """
     Constrain an attribute to be of a given type,
@@ -859,6 +859,23 @@ class EqIntConstraint(IntConstraint):
 
 
 @dataclass(frozen=True)
+class NotEqualIntConstraint(IntConstraint):
+    """Constrain an integer to not be equal to a given value."""
+
+    value: int
+    """The value the integer must not be equal to."""
+
+    def verify(self, i: int, constraint_context: ConstraintContext) -> None:
+        if i == self.value:
+            raise VerifyException(f"expected integer != {self.value}")
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> IntConstraint:
+        return self
+
+
+@dataclass(frozen=True)
 class IntSetConstraint(IntConstraint):
     """Constrain an integer to one of a set of integers."""
 
@@ -1000,7 +1017,7 @@ class IntTypeVarConstraint(IntConstraint):
 
 
 @dataclass(frozen=True)
-class RangeConstraint(Generic[AttributeCovT], ABC):
+class RangeConstraint(ABC, Generic[AttributeCovT]):
     """Constrain a range of attributes to certain values."""
 
     @abstractmethod

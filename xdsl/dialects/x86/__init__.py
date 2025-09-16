@@ -108,7 +108,7 @@ from .ops import (
     SM_CmpOp,
     SS_CmpOp,
 )
-from .register import (
+from .registers import (
     AVX2RegisterType,
     AVX512RegisterType,
     GeneralRegisterType,

@@ -27,6 +27,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     ShapedType,
     Signedness,
+    StaticShapeArrayConstr,
     StridedLayoutAttr,
     SymbolRefAttr,
     TensorType,
@@ -53,6 +54,7 @@ from xdsl.irdl import (
     AtMost,
     BaseAttr,
     ConstraintContext,
+    NotEqualIntConstraint,
     RangeLengthConstraint,
     RangeOf,
     RangeVarConstraint,
@@ -965,3 +967,31 @@ def test_array_of_constraint():
     assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ContainerOf(
         BaseAttr(B)
     )
+
+
+################################################################################
+# NotEqualIntConstraint
+################################################################################
+def test_not_equal_int_constraint():
+    constraint = NotEqualIntConstraint(5)
+
+    # Test with integer attribute not equal to 5
+    constraint.verify(3, ConstraintContext())
+
+    # Test with integer attribute equal to 5
+    with pytest.raises(VerifyException, match="expected integer != 5"):
+        constraint.verify(5, ConstraintContext())
+
+
+################################################################################
+# StaticShapeArrayConstraint
+################################################################################
+def test_static_shape_array_constraint():
+    static_shape = ArrayAttr([IntAttr(1), IntAttr(2), IntAttr(3)])
+    StaticShapeArrayConstr.verify(static_shape, ConstraintContext())
+
+    dynamic_shape = ArrayAttr([IntAttr(1), IntAttr(-1), IntAttr(3)])
+    with pytest.raises(
+        VerifyException, match="expected static shape, but got dynamic dimension"
+    ):
+        StaticShapeArrayConstr.verify(dynamic_shape, ConstraintContext())

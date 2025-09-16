@@ -206,10 +206,10 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _(mo, write_check):
     mo.md(
-        r"""
-    ## Exercises
+        rf"""
+    ## Exercises {write_check}
 
     In this notebook, you'll write patterns in PDL to transform this input function:
     """
@@ -233,28 +233,20 @@ def _(arith, builtin):
 
 
 @app.cell
-def _(pyast_ctx):
+def _(mo, pyast_ctx):
     @pyast_ctx.parse_program
     def main(a: float, b: float, c: float) -> float:
         return (c + (a - a)) / (b / b)
+
+    import inspect
+    lines = inspect.getsource(main)
+    mo.md(f"```python\n{lines}```")
     return (main,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""As you can see, it just returns `c`, we'll want to rewrite our program to return `c` directly, without the useless computations.""")
-    return
-
-
-@app.cell
-def _(main):
-    main(1, 2, 3)
-    return
-
-
-@app.cell
-def _(main):
-    main(4, 5, 6)
     return
 
 
@@ -332,11 +324,11 @@ def _(mo):
       // %c0_attr =
       // %c0_op =
       // %c0_res = pdl.result 0 of %c0_op
-      // %x_times_zero_op =
+      // %x_plus_zero_op =
 
       // Uncomment these lines:
-      // pdl.rewrite %x_times_zero_op {
-      //   pdl.replace %x_times_zero_op with (%x : !pdl.value)
+      // pdl.rewrite %x_plus_zero_op {
+      //   pdl.replace %x_plus_zero_op with (%x : !pdl.value)
       // }
     }"""
     x_plus_zero_text_area = mo.ui.code_editor(x_plus_zero_text, language="javascript")
@@ -362,9 +354,9 @@ def _(mo, xmo):
       %c0_attr = pdl.attribute = 0.0 : f64
       %c0_op = pdl.operation "arith.constant" {"value" = %c0_attr} -> (%t : !pdl.type)
       %c0_res = pdl.result 0 of %c0_op
-      %x_times_zero_op = pdl.operation "arith.addf" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
-      pdl.rewrite %x_times_zero_op {
-        pdl.replace %x_times_zero_op with (%x : !pdl.value)
+      %x_plus_zero_op = pdl.operation "arith.addf" (%x, %c0_res : !pdl.value, !pdl.value) -> (%t : !pdl.type)
+      pdl.rewrite %x_plus_zero_op {
+        pdl.replace %x_plus_zero_op with (%x : !pdl.value)
       }
     }"""
 
@@ -398,7 +390,7 @@ def _(info_text, mo, x_div_x_text_area):
 
 
 @app.cell(hide_code=True)
-def _(mo, x_plus_zero_text_solution, xmo):
+def _(mo, xmo):
     x_div_x_text_solution = """\
     pdl.pattern @x_div_x : benefit(2) {
       %t = pdl.type
@@ -412,7 +404,7 @@ def _(mo, x_plus_zero_text_solution, xmo):
       }
     }"""
 
-    mo.accordion({"Solution": xmo.module_html(x_plus_zero_text_solution)})
+    mo.accordion({"Solution": xmo.module_html(x_div_x_text_solution)})
     return (x_div_x_text_solution,)
 
 
@@ -467,7 +459,16 @@ def _(mo, xmo):
     return (x_div_one_text_solution,)
 
 
-@app.cell(hide_code=True)
+@app.cell
+def _():
+    expected_text = """\
+    func.func @main(%a : f64, %b : f64, %c : f64) -> f64 {
+      func.return %c : f64
+    }"""
+    return (expected_text,)
+
+
+@app.cell
 def _(
     ApplyPDLPass,
     InsertPoint,
@@ -475,6 +476,7 @@ def _(
     Rewriter,
     ctx,
     dce,
+    expected_text,
     main,
     x_div_one_text_area,
     x_div_x_text_area,
@@ -491,11 +493,16 @@ def _(
         ApplyPDLPass().apply(ctx, _module)
         dce(_module)
         _results_text = str(_cloned_func)
+        write_check = "✅" if _results_text == expected_text else "❌"
+        if _results_text == expected_text:
+            check_text = f"{write_check} Applying all patterns yields expected function."
+        else:
+            check_text = f"{write_check} Applying all patterns does not yield expected function."
     except Exception as e:
         _error_text = str(e)
     if _error_text:
         info_text = f"""
-    Error:
+    /// attention | Error:
 
     ```
     {_error_text}
@@ -508,8 +515,10 @@ def _(
     ```
     {_results_text}
     ```
+
+    {check_text}
     """
-    return (info_text,)
+    return info_text, write_check
 
 
 @app.cell(hide_code=True)
@@ -520,6 +529,7 @@ def _(
     Rewriter,
     ctx,
     dce,
+    expected_text,
     main,
     x_div_one_text_solution,
     x_div_x_text_solution,
@@ -534,10 +544,7 @@ def _(
         ApplyPDLPass().apply(ctx, _module)
         dce(_module)
         _results_text = str(_cloned_func)
-        assert _results_text == """\
-    func.func @main(%a : f64, %b : f64, %c : f64) -> f64 {
-      func.return %c : f64
-    }"""
+        assert _results_text == expected_text
     return
 
 

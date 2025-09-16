@@ -399,7 +399,7 @@ def _(mo):
 
 @app.cell
 def _(print_ir, symbols):
-    # x, y, z, t are non-zere reals.
+    # x, y, z, t are non-zero reals.
     x, y, z, t = symbols("x y z t", real=True, zero=False)
 
     print_ir(x - y)
