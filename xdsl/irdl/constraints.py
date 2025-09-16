@@ -461,16 +461,21 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             irdl_to_attr_constraint(constr) for constr in attr_constrs
         )
 
-        eq_constrs = set[Attribute]()
+        eq_constrs = dict[Attribute, AttrConstraint[AttributeCovT]]()
         based_constrs = dict[type[Attribute], AttrConstraint[AttributeCovT]]()
 
-        bases = set[Attribute]()
-        eq_bases = set[Attribute]()
+        bases = set[type[Attribute]]()
+        eq_bases = set[type[Attribute]]()
         abstr_constr: AttrConstraint[AttributeCovT] | None = None
         for i, c in enumerate(constrs):
             b = c.get_bases()
             if b is None:
                 if abstr_constr is None:
+                    if not isinstance(c, BaseAttr) or is_runtime_final(c.attr):
+                        raise PyRDLError(
+                            f"Abstract constraint in `AnyOf` must be a `BaseAttr` "
+                            f"with a non-final attribute class, got {c} instead."
+                        )
                     abstr_constr = c
                     continue
                 else:
@@ -486,7 +491,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                 )
 
             if isinstance(c, EqAttrConstraint):
-                eq_constrs.add(c.attr)
+                eq_constrs[c.attr] = c
                 eq_bases |= b
             else:
                 if not b.isdisjoint(eq_bases):
@@ -497,6 +502,23 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                 for base in b:
                     based_constrs[base] = c
                 bases |= b
+
+        # check for overlaps with the abstract constraint
+        if abstr_constr:
+            # equality constraints should not overlap
+            for attr, constr in eq_constrs.items():
+                if isinstance(attr, abstr_constr.attr):
+                    raise PyRDLError(
+                        f"Equality constraint {constr} overlaps with the abstract "
+                        f"constraint {abstr_constr} in `AnyOf` constraint."
+                    )
+            # bases should not overlap via issubclass
+            for base in bases:
+                if issubclass(base, abstr_constr.attr):
+                    raise PyRDLError(
+                        f"Non-equality constraint {based_constrs[base]} overlaps with "
+                        f"the abstract constraint {abstr_constr} in `AnyOf` constraint."
+                    )
 
         object.__setattr__(
             self,
@@ -524,11 +546,8 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             return
         # Try abstract constraint if present
         if self._abstr_constr is not None:
-            try:
-                self._abstr_constr.verify(attr, constraint_context)
-                return
-            except VerifyException:
-                pass
+            self._abstr_constr.verify(attr, constraint_context)
+            return
         raise VerifyException(f"Unexpected attribute {attr}")
 
     def __or__(
