@@ -86,6 +86,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_func_to_x86_func.ConvertFuncToX86FuncPass
 
+    def get_convert_linalg_microkernel_to_vector():
+        from xdsl.transforms import convert_linalg_microkernel_to_vector
+
+        return convert_linalg_microkernel_to_vector.ConvertLinalgMicrokernelToVectorPass
+
     def get_convert_linalg_to_loops():
         from xdsl.transforms import convert_linalg_to_loops
 
@@ -609,6 +614,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-x86": get_convert_arith_to_x86,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-func-to-x86-func": get_convert_func_to_x86_func,
+        "convert-linalg-microkernel-to-vector": get_convert_linalg_microkernel_to_vector,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
