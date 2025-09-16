@@ -261,6 +261,66 @@ class Predicate:
     q: Question
     a: Answer
 
+    @staticmethod
+    def get_is_not_null() -> "Predicate":
+        return Predicate(IsNotNullQuestion(), TrueAnswer())
+
+    @staticmethod
+    def get_operation_name(name: str) -> "Predicate":
+        return Predicate(OperationNameQuestion(), StringAnswer(value=name))
+
+    @staticmethod
+    def get_operand_count(count: int) -> "Predicate":
+        return Predicate(OperandCountQuestion(), UnsignedAnswer(value=count))
+
+    @staticmethod
+    def get_result_count(count: int) -> "Predicate":
+        return Predicate(ResultCountQuestion(), UnsignedAnswer(value=count))
+
+    @staticmethod
+    def get_equal_to(other_position: Position) -> "Predicate":
+        return Predicate(EqualToQuestion(other_position=other_position), TrueAnswer())
+
+    @staticmethod
+    def get_operand_count_at_least(count: int) -> "Predicate":
+        """Get predicate for minimum operand count (variadic case)"""
+        return Predicate(OperandCountAtLeastQuestion(), UnsignedAnswer(value=count))
+
+    @staticmethod
+    def get_result_count_at_least(count: int) -> "Predicate":
+        """Get predicate for minimum result count (variadic case)"""
+        return Predicate(ResultCountAtLeastQuestion(), UnsignedAnswer(value=count))
+
+    @staticmethod
+    def get_attribute_constraint(attr_value: Attribute) -> "Predicate":
+        """Get predicate for attribute value constraint"""
+        return Predicate(
+            AttributeConstraintQuestion(), AttributeAnswer(value=attr_value)
+        )
+
+    @staticmethod
+    def get_type_constraint(
+        type_value: TypeAttribute | ArrayAttr[TypeAttribute],
+    ) -> "Predicate":
+        """Get predicate for type value constraint"""
+        return Predicate(TypeConstraintQuestion(), TypeAnswer(value=type_value))
+
+    @staticmethod
+    def get_constraint(
+        name: str,
+        arg_positions: list[Position],
+        result_types: list[pdl.AnyPDLType],
+        is_negated: bool = False,
+    ) -> "Predicate":
+        """Get predicate for a native constraint"""
+        question = ConstraintQuestion(
+            name=name,
+            arg_positions=arg_positions,
+            result_types=result_types,
+            is_negated=is_negated,
+        )
+        return Predicate(question, TrueAnswer())
+
 
 # Question Types
 @dataclass(frozen=True)
@@ -385,61 +445,3 @@ class PositionalPredicate(Predicate):
     """A predicate applied to a specific position"""
 
     position: Position
-
-
-# =============================================================================
-# Predicate Builder
-# =============================================================================
-
-
-class PredicateBuilder:
-    def get_is_not_null(self) -> Predicate:
-        return Predicate(IsNotNullQuestion(), TrueAnswer())
-
-    def get_operation_name(self, name: str) -> Predicate:
-        return Predicate(OperationNameQuestion(), StringAnswer(value=name))
-
-    def get_operand_count(self, count: int) -> Predicate:
-        return Predicate(OperandCountQuestion(), UnsignedAnswer(value=count))
-
-    def get_result_count(self, count: int) -> Predicate:
-        return Predicate(ResultCountQuestion(), UnsignedAnswer(value=count))
-
-    def get_equal_to(self, other_position: Position) -> Predicate:
-        return Predicate(EqualToQuestion(other_position=other_position), TrueAnswer())
-
-    def get_operand_count_at_least(self, count: int) -> Predicate:
-        """Get predicate for minimum operand count (variadic case)"""
-        return Predicate(OperandCountAtLeastQuestion(), UnsignedAnswer(value=count))
-
-    def get_result_count_at_least(self, count: int) -> Predicate:
-        """Get predicate for minimum result count (variadic case)"""
-        return Predicate(ResultCountAtLeastQuestion(), UnsignedAnswer(value=count))
-
-    def get_attribute_constraint(self, attr_value: Attribute) -> Predicate:
-        """Get predicate for attribute value constraint"""
-        return Predicate(
-            AttributeConstraintQuestion(), AttributeAnswer(value=attr_value)
-        )
-
-    def get_type_constraint(
-        self, type_value: TypeAttribute | ArrayAttr[TypeAttribute]
-    ) -> Predicate:
-        """Get predicate for type value constraint"""
-        return Predicate(TypeConstraintQuestion(), TypeAnswer(value=type_value))
-
-    def get_constraint(
-        self,
-        name: str,
-        arg_positions: list[Position],
-        result_types: list[pdl.AnyPDLType],
-        is_negated: bool = False,
-    ) -> Predicate:
-        """Get predicate for a native constraint"""
-        question = ConstraintQuestion(
-            name=name,
-            arg_positions=arg_positions,
-            result_types=result_types,
-            is_negated=is_negated,
-        )
-        return Predicate(question, TrueAnswer())
