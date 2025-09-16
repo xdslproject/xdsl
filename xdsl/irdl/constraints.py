@@ -447,7 +447,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     _based_constrs: dict[type[Attribute], AttrConstraint[AttributeCovT]] = field(
         hash=False, repr=False
     )
-    _abstr_constr: AttrConstraint[AttributeCovT] | None
+    _abstr_constr: AttrConstraint[AttributeCovT] | None = field(hash=False, repr=False)
 
     def __init__(
         self,
@@ -466,17 +466,17 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
 
         bases = set[Attribute]()
         eq_bases = set[Attribute]()
-        abstract_constr: AttrConstraint[AttributeCovT] | None = None
+        abstr_constr: AttrConstraint[AttributeCovT] | None = None
         for i, c in enumerate(constrs):
             b = c.get_bases()
             if b is None:
-                if abstract_constr is None:
-                    abstract_constr = c
+                if abstr_constr is None:
+                    abstr_constr = c
                     continue
                 else:
                     raise PyRDLError(
                         "Only one abstract constraint is allowed in `AnyOf` constraint,"
-                        f" found {c} when {abstract_constr} was already present."
+                        f" found {c} when {abstr_constr} was already present."
                     )
 
             if not b.isdisjoint(bases):
@@ -513,7 +513,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             "_based_constrs",
             based_constrs,
         )
-        object.__setattr__(self, "_abstr_constr", abstract_constr)
+        object.__setattr__(self, "_abstr_constr", abstr_constr)
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if attr in self._eq_constrs:
