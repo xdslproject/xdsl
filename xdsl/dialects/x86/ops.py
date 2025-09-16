@@ -31,7 +31,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Generic, cast
+from typing import IO, Generic, Literal, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -90,7 +90,7 @@ from .assembly import (
     print_type_pair,
 )
 from .attributes import LabelAttr
-from .register import (
+from .registers import (
     RAX,
     RDX,
     RSP,
@@ -254,7 +254,7 @@ class X86Instruction(X86AsmOperation):
 
 
 class RS_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one register that is read and written to,
@@ -298,7 +298,7 @@ class RS_Operation(
 
 
 class DS_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one destination register and one source
@@ -330,7 +330,7 @@ class DS_Operation(
         return (self.destination, self.source)
 
 
-class R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class R_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one register that is read and written to.
     """
@@ -365,7 +365,7 @@ class R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC
 
 
 class RM_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one register read and written to and one
@@ -437,7 +437,7 @@ class DM_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 
 
 class DM_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that load from memory into a destination register.
@@ -491,7 +491,7 @@ class DM_Operation(
         return {"memory_offset"}
 
 
-class DI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class DI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one destination register and an immediate
     value.
@@ -539,7 +539,7 @@ class DI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
         return {"immediate"}
 
 
-class RI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one register that is read and written to
     and an immediate value.
@@ -607,7 +607,7 @@ class MS_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 
 
 class MS_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one memory reference and one source
@@ -663,7 +663,7 @@ class MS_Operation(
         return {"memory_offset"}
 
 
-class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class MI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one memory reference and an immediate
     value.
@@ -727,7 +727,7 @@ class MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, AB
 
 
 class DSI_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one destination register, one source
@@ -779,7 +779,7 @@ class DSI_Operation(
 
 
 class DMI_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
 ):
     """
     A base class for x86 operations that have one destination register, one memory
@@ -845,7 +845,7 @@ class DMI_Operation(
         return {"immediate", "memory_offset"}
 
 
-class M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, ABC):
+class M_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations with a memory reference.
     """
@@ -1012,7 +1012,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
 
 
 class RSS_Operation(
-    Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R3InvT]
 ):
     """
     A base class for x86 operations that have one register that is read and written to,
@@ -1054,6 +1054,61 @@ class RSS_Operation(
         return RegisterConstraints(
             (self.source1, self.source2), (), ((self.register_in, self.register_out),)
         )
+
+
+class DSSI_Operation(
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R3InvT]
+):
+    """
+    A base class for x86 operations that have one destination register, one source
+    register and an immediate value.
+    """
+
+    destination = result_def(R1InvT)
+    source0 = operand_def(R2InvT)
+    source1 = operand_def(R3InvT)
+    immediate = attr_def(IntegerAttr[IntegerType[8]])
+
+    def __init__(
+        self,
+        source0: Operation | SSAValue,
+        source1: Operation | SSAValue,
+        immediate: int
+        | IntegerAttr[IntegerType[Literal[8], Literal[Signedness.UNSIGNED]]],
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, IntegerType[8, Signedness.UNSIGNED](8, Signedness.UNSIGNED)
+            )
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source0, source1],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.destination, self.source0, self.source1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = parse_immediate_value(parser, IntegerType(8, Signedness.UNSIGNED))
+        attributes["immediate"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 # endregion
@@ -3046,8 +3101,30 @@ class DM_VbroadcastssOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]
     name = "x86.dm.vbroadcastss"
 
 
+@irdl_op_definition
+class DSSI_ShufpsOp(
+    DSSI_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Selects a single precision floating-point value of an input quadruplet using a
+    two-bit control and move to a designated element of the destination operand.
+    Each 64-bit element-pair of a 128-bit lane of the destination operand is interleaved
+    between the corresponding lane of the first source operand and the second source
+    operand at the granularity 128 bits. Each two bits in the imm8 byte, starting from
+    bit 0, is the select control of the corresponding element of a 128-bit lane of the
+    destination to received the shuffled result of an input quadruplet. The two lower
+    elements of a 128-bit lane in the destination receives shuffle results from the
+    quadruple of the first source operand. The next two elements of the destination
+    receives shuffle results from the quadruple of the second source operand.
+
+    See external [documentation](https://www.felixcloutier.com/x86/shufps)
+    """
+
+    name = "x86.dssi.shufps"
+
+
 class GetAnyRegisterOperation(
-    Generic[R1InvT], X86AsmOperation, X86CustomFormatOperation, ABC
+    X86AsmOperation, X86CustomFormatOperation, ABC, Generic[R1InvT]
 ):
     """
     This instruction allows us to create an SSAValue for a given register name.

@@ -3,10 +3,12 @@ from abc import ABC
 from dataclasses import dataclass
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.dialects.bufferization import TensorFromMemRefConstraint
 from xdsl.dialects.builtin import (
     IndexType,
+    IntAttrConstraint,
     IntegerType,
     MemRefType,
     StringAttr,
@@ -19,11 +21,14 @@ from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyInt,
     AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
     EqAttrConstraint,
+    EqIntConstraint,
+    IntTypeVarConstraint,
     ParamAttrConstraint,
     VarConstraint,
     base,
@@ -335,3 +340,13 @@ def test_any_of_overlapping(c1: AttrConstraint, c2: AttrConstraint, msg: str):
 )
 def test_any_of_non_overlapping(constrs: tuple[AttrConstraint, ...]):
     AnyOf(constrs)
+
+
+def test_mapping_type_vars():
+    _IntT = TypeVar("_IntT", bound=int, default=int)
+    tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
+    int_attr_constr = IntAttrConstraint(tv_constr)
+    my_constr = EqIntConstraint(1)
+    assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == IntAttrConstraint(
+        my_constr
+    )

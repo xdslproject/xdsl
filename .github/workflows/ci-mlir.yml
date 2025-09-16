@@ -36,7 +36,7 @@ jobs:
         cache-dependency-glob: "xdsl/uv.lock"
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -44,7 +44,7 @@ jobs:
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        VENV_EXTRAS="--all-extras" make venv
+        make venv
 
     - name: Test with pytest and generate code coverage
       run: |

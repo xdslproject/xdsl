@@ -20,7 +20,6 @@ from xdsl.dialects.builtin import (
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
-    BFloat16Type,
     BoolAttr,
     BytesAttr,
     ComplexType,
@@ -60,6 +59,8 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
+    bf16,
+    f64,
     i64,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
@@ -71,6 +72,7 @@ from xdsl.utils.bitwise_casts import (
     convert_u64_to_f64,
 )
 from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position, Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
 
@@ -540,7 +542,7 @@ class AttrParser(BaseParser):
 
     def _parse_complex_attrs(self) -> ComplexType:
         element_type = self.parse_attribute()
-        if not isinstance(element_type, IntegerType | AnyFloat):
+        if not isa(element_type, IntegerType | AnyFloat):
             self.raise_error(
                 "Complex type must be parameterized by an integer or float type!"
             )
@@ -938,7 +940,7 @@ class AttrParser(BaseParser):
         pos = self.pos
         element_type = self.parse_attribute()
 
-        if not isinstance(element_type, IntegerType | AnyFloat):
+        if not isa(element_type, IntegerType | AnyFloat):
             self.raise_error(
                 "dense array element type must be an integer or floating point type",
                 pos,
@@ -1292,7 +1294,7 @@ class AttrParser(BaseParser):
         # If no types are given, we take the default ones
         if self._current_token.kind != MLIRTokenKind.COLON:
             if isinstance(value, float):
-                return FloatAttr(value, Float64Type())
+                return FloatAttr(value, f64)
             return IntegerAttr(value, i64)
 
         # Otherwise, we parse the attribute type
@@ -1314,7 +1316,7 @@ class AttrParser(BaseParser):
                         )
             return FloatAttr(float(value), type)
 
-        if isinstance(type, IntegerType | IndexType):
+        if isa(type, IntegerType | IndexType):
             if isinstance(value, float):
                 self.raise_error("Floating point value is not valid for integer type.")
             return IntegerAttr(value, type)
@@ -1457,7 +1459,7 @@ class AttrParser(BaseParser):
         # bf16 type
         if name == "bf16":
             self._consume_token()
-            return BFloat16Type()
+            return bf16
 
         # Float type
         if (re_match := self._builtin_float_type_regex.match(name)) is not None:

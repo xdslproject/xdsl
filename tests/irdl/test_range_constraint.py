@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import pytest
 from typing_extensions import TypeVar
@@ -11,6 +11,9 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    EqIntConstraint,
+    IntConstraint,
+    IntTypeVarConstraint,
     IntVarConstraint,
     RangeConstraint,
     RangeLengthConstraint,
@@ -32,7 +35,7 @@ class AnyRangeConstraint(RangeConstraint):
         return
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> RangeConstraint:
         return self
 
@@ -108,3 +111,13 @@ def test_verify_range_length_constraint():
         ConstraintContext(_variables={"ATTR": world}, _int_variables={"LENGTH": 3}),
         length=None,
     ) == (world, world, world)
+
+
+def test_mapping_type_vars():
+    _IntT = TypeVar("_IntT", bound=int, default=int)
+    tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
+    range_constr = RangeLengthConstraint(AnyRangeConstraint(), tv_constr)
+    my_constr = EqIntConstraint(1)
+    assert range_constr.mapping_type_vars({_IntT: my_constr}) == RangeLengthConstraint(
+        AnyRangeConstraint(), my_constr
+    )

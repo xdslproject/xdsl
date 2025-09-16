@@ -42,7 +42,7 @@ def test_dimension():
 
 
 def test_alloc():
-    memref_type = memref.MemRefType(builtin.Float32Type(), [10, 10, 10])
+    memref_type = memref.MemRefType(builtin.f32, [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert isinstance(alloc, AllocOp)
@@ -53,7 +53,7 @@ def test_alloc():
     assert isinstance(alloc.asyncToken.type, AsyncTokenType)
     assert alloc.hostShared is None
 
-    dyn_type = memref.MemRefType(builtin.Float32Type(), [-1, -1, -1])
+    dyn_type = memref.MemRefType(builtin.f32, [-1, -1, -1])
     ten = arith.ConstantOp.from_int_and_width(10, builtin.IndexType())
     dynamic_sizes = [ten, ten, ten]
     token = alloc.asyncToken
@@ -136,7 +136,7 @@ def test_block_id():
 
 
 def test_dealloc():
-    memref_type = memref.MemRefType(builtin.Float32Type(), [10, 10, 10])
+    memref_type = memref.MemRefType(builtin.f32, [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert alloc.asyncToken is not None  # For pyright
@@ -327,8 +327,8 @@ def test_launchfunc():
 
 
 def test_memcpy():
-    memref_type = memref.MemRefType(builtin.Float32Type(), [10, 10, 10])
-    host_alloc = memref.AllocOp.get(builtin.Float32Type(), 0, [10, 10, 10])
+    memref_type = memref.MemRefType(builtin.f32, [10, 10, 10])
+    host_alloc = memref.AllocOp.get(builtin.f32, 0, [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert alloc.asyncToken is not None  # for Pyright

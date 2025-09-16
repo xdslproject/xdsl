@@ -199,7 +199,7 @@ AttributeInvT = TypeVar("AttributeInvT", bound=Attribute, default=Attribute)
 
 
 @dataclass(frozen=True)
-class Data(Generic[DataElement], Attribute, ABC):
+class Data(Attribute, ABC, Generic[DataElement]):
     """An attribute represented by a Python structure."""
 
     data: DataElement
@@ -312,7 +312,7 @@ class EnumAttribute(Data[EnumType]):
 
 
 @dataclass(frozen=True, init=False)
-class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
+class BitEnumAttribute(Data[tuple[EnumType, ...]], Generic[EnumType]):
     """
     Core helper for BitEnumAttributes. Takes a StrEnum type parameter, and
     defines parsing/printing automatically from its values.
@@ -697,7 +697,7 @@ class IRWithName(ABC):
 
 
 @dataclass(eq=False)
-class SSAValue(Generic[AttributeCovT], IRWithUses, IRWithName, ABC):
+class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
     """
     A reference to an SSA variable.
     An SSA variable is either an operation result, or a basic block argument.
@@ -789,7 +789,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, IRWithName, ABC):
 
 
 @dataclass(eq=False)
-class OpResult(Generic[AttributeCovT], SSAValue[AttributeCovT]):
+class OpResult(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     """A reference to an SSA variable defined by an operation result."""
 
     op: Operation
@@ -812,7 +812,7 @@ class OpResult(Generic[AttributeCovT], SSAValue[AttributeCovT]):
 
 
 @dataclass(eq=False)
-class BlockArgument(Generic[AttributeCovT], SSAValue[AttributeCovT]):
+class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     """A reference to an SSA variable defined by a basic block argument."""
 
     block: Block
@@ -892,7 +892,7 @@ SSAValueCovT = TypeVar(
 )
 
 
-class SSAValues(Generic[SSAValueCovT], tuple[SSAValueCovT, ...]):
+class SSAValues(tuple[SSAValueCovT, ...], Generic[SSAValueCovT]):
     """
     A helper data structure for a sequence of SSAValues.
     """
@@ -1163,6 +1163,10 @@ class Operation(_IRNode):
             successor.add_use(use)
         self._successors = new
         self._successor_uses = new_uses
+
+    @property
+    def successor_uses(self) -> Sequence[Use]:
+        return self._successor_uses
 
     def __post_init__(self):
         assert self.name != ""

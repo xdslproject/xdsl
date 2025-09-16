@@ -5,10 +5,10 @@ import pytest
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    Float32Type,
     FloatAttr,
     IntAttr,
     StringAttr,
+    f32,
     i32,
 )
 from xdsl.dialects.dlti import (
@@ -39,9 +39,9 @@ def test_data_layout_entry():
     assert entry.value == IntAttr(12)
 
     # Test passing string for key and float for value
-    entry = DataLayoutEntryAttr("test3", FloatAttr(99.45, Float32Type()))
+    entry = DataLayoutEntryAttr("test3", FloatAttr(99.45, f32))
     assert entry.key == StringAttr("test3")
-    assert entry.value == FloatAttr(99.45, Float32Type())
+    assert entry.value == FloatAttr(99.45, f32)
 
     # Test passing type for key and string for value
     entry = DataLayoutEntryAttr(i32, "test")
@@ -66,7 +66,7 @@ def test_incorrect_data_layout_entry():
     "entries",
     [
         [StringAttr("value1"), IntAttr(23), IntAttr(43)],
-        [IntAttr(23), FloatAttr(2.4, Float32Type())],
+        [IntAttr(23), FloatAttr(2.4, f32)],
     ],
 )
 def test_entry_maps(

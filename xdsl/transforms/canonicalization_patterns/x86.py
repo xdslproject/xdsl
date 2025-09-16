@@ -2,7 +2,7 @@ from typing import cast
 
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.dialects.x86.register import X86RegisterType
+from xdsl.dialects.x86.registers import X86RegisterType
 from xdsl.ir import Operation, OpResult, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,

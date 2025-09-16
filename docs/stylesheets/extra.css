@@ -26,6 +26,10 @@ h2 {
     /* background: linear-gradient(0deg, var(--md-primary-fg-color) 0%, var(--md-primary-fg-color--dark) 160%); */
     background: var(--md-primary-fg-color);
   }
+
+  .markdown {
+    font-family: monospace;
+  }
 }
 
 [data-md-color-scheme="slate"] {
@@ -46,4 +50,9 @@ h2 {
     /* background: linear-gradient(0deg, var(--md-primary-fg-color) 0%, var(--md-primary-fg-color--light) 150%); */
     background: var(--md-primary-fg-color);
   }
+}
+
+/* Disable marimo spinners */
+.animate-delayed-show-200 {
+  visibility: hidden}
 }

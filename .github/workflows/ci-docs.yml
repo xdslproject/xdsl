@@ -28,12 +28,12 @@ jobs:
         cache-dependency-glob: "uv.lock"
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Install the project
-      run: VENV_EXTRAS="--all-extras" make venv
+      run: make venv
 
     - name: Build documentation
       run: uv run mkdocs build --strict

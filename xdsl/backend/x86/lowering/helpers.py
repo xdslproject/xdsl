@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import cast, overload
 
 from xdsl.backend.utils import cast_to_regs
+from xdsl.builder import Builder
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
@@ -10,7 +12,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     VectorType,
 )
-from xdsl.dialects.x86.register import X86RegisterType, X86VectorRegisterType
+from xdsl.dialects.x86.registers import X86RegisterType, X86VectorRegisterType
 from xdsl.ir import Attribute, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import DiagnosticException
@@ -46,11 +48,11 @@ class Arch(StrEnum):
         vector_size = vector_num_elements * element_size
         match self, vector_size:
             case ((Arch.AVX2 | Arch.AVX512), 256):
-                return x86.register.AVX2RegisterType
+                return x86.registers.AVX2RegisterType
             case Arch.AVX512, 512:
-                return x86.register.AVX512RegisterType
+                return x86.registers.AVX512RegisterType
             case _, 128:
-                return x86.register.SSERegisterType
+                return x86.registers.SSERegisterType
             case _:
                 raise DiagnosticException(
                     f"The vector size ({vector_size} bits) and target architecture `{self}` are inconsistent."
@@ -61,7 +63,7 @@ class Arch(StrEnum):
         if (
             isinstance(value_type, FixedBitwidthType) and value_type.bitwidth <= 64
         ) or isinstance(value_type, IndexType):
-            return x86.register.GeneralRegisterType
+            return x86.registers.GeneralRegisterType
         else:
             raise DiagnosticException("Not implemented for bitwidth larger than 64.")
 
@@ -82,19 +84,23 @@ class Arch(StrEnum):
             return self._register_type_for_vector_type(value_type)
         return self._scalar_type_for_type(value_type)
 
+    def cast_to_regs(
+        self, values: Sequence[SSAValue], builder: Builder
+    ) -> list[SSAValue[Attribute]]:
+        return cast_to_regs(values, self.register_type_for_type, builder)
+
+    def cast_operands_to_regs(
+        self, rewriter: PatternRewriter
+    ) -> list[SSAValue[Attribute]]:
+        new_operands = cast_to_regs(
+            rewriter.current_operation.operands,
+            self.register_type_for_type,
+            rewriter,
+        )
+        return new_operands
+
 
 _ARCH_BY_NAME = {str(case): case for case in Arch}
 """
 Handled architectures in x86 backend.
 """
-
-
-def cast_operands_to_regs(
-    arch: Arch, rewriter: PatternRewriter
-) -> list[SSAValue[Attribute]]:
-    new_ops, new_operands = cast_to_regs(
-        values=rewriter.current_operation.operands,
-        register_map=arch.register_type_for_type,
-    )
-    rewriter.insert_op_before_matched_op(new_ops)
-    return new_operands

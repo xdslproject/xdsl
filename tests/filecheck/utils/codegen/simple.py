@@ -3,13 +3,13 @@
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
     ComplexType,
-    Float32Type,
     IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
     NoneType,
     Signedness,
+    f32,
 )
 from xdsl.irdl import (
     AllOf,
@@ -31,7 +31,6 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.traits import (
-    ConstantLike,
     Pure,
 )
 from xdsl.utils.dialect_codegen import dump_dialect_pyfile, generate_dynamic_attr_class
@@ -132,7 +131,7 @@ ops = [
                     OperandDef(EqAttrConstraint(IntegerType(8, Signedness.UNSIGNED))),
                 ),
                 ("d", OperandDef(EqAttrConstraint(IndexType()))),
-                ("e", OperandDef(EqAttrConstraint(Float32Type()))),
+                ("e", OperandDef(EqAttrConstraint(f32))),
                 ("f", OperandDef(EqAttrConstraint(NoneType()))),
                 ("v1", OperandDef(ParamAttrConstraint(ComplexType, (AnyAttr(),)))),
             ],
@@ -176,7 +175,7 @@ ops = [
         "Test_TraitsOp",
         OpDef(
             name="test.traits",
-            traits=traits_def(ConstantLike(), Pure()),
+            traits=traits_def(Pure()),
         ),
     ),
     (
@@ -306,7 +305,7 @@ dump_dialect_pyfile(
 # CHECK-NEXT:  class Test_TraitsOp(IRDLOperation):
 # CHECK-NEXT:      name = "test.traits"
 # CHECK-EMPTY:
-# CHECK-NEXT:      traits = traits_def(ConstantLike(), Pure())
+# CHECK-NEXT:      traits = traits_def(Pure())
 
 # CHECK:       @irdl_op_definition
 # CHECK-NEXT:  class Test_AttributesOp(IRDLOperation):

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.backend.x86.lowering.helpers import Arch, cast_operands_to_regs
+from xdsl.backend.x86.lowering.helpers import Arch
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, x86
 from xdsl.dialects.builtin import (
@@ -29,7 +29,7 @@ class ArithConstantToX86(RewritePattern):
                 "Lowering of arith.constant is only implemented for integers"
             )
         mov_op = x86.DI_MovOp(
-            immediate=op.value.value.data, destination=x86.register.UNALLOCATED_GENERAL
+            immediate=op.value.value.data, destination=x86.registers.UNALLOCATED_GENERAL
         )
         cast_op, _ = UnrealizedConversionCastOp.cast_one(
             mov_op.destination, op.result.type
@@ -60,9 +60,9 @@ class ArithBinaryToX86(RewritePattern):
             raise DiagnosticException(
                 f"Lowering of {op.name} not implemented for ShapedType"
             )
-        lhs_x86, rhs_x86 = cast_operands_to_regs(self.arch, rewriter)
+        lhs_x86, rhs_x86 = self.arch.cast_operands_to_regs(rewriter)
         rhs_copy_op = x86.DS_MovOp(
-            source=rhs_x86, destination=x86.register.UNALLOCATED_GENERAL
+            source=rhs_x86, destination=x86.registers.UNALLOCATED_GENERAL
         )
         add_op = new_type(source=lhs_x86, register_in=rhs_copy_op.destination)
         result_cast_op, _ = UnrealizedConversionCastOp.cast_one(

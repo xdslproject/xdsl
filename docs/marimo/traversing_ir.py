@@ -14,7 +14,7 @@ def _():
     from xdsl.parser import Parser
     from xdsl.utils import marimo as xmo
     from collections import Counter
-    from xdsl.ir import OpResult, BlockArgument
+    from xdsl.ir import OpResult
     return (
         Context,
         Counter,
@@ -64,7 +64,8 @@ def _():
 def _(mo, sum_of_squares_text):
     mo.md(
         fr"""
-    In this notebook, we'll be looking at the structure of the following module:
+    In this notebook, we'll be looking at the structure of the following module,
+    which implements a sum-of-squares function:
 
     {mo.ui.code_editor(sum_of_squares_text, language="javascript", disabled=True)}
     """
@@ -102,7 +103,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    The Operation class exposes a `walk` function, which lets us iterate over the IR from top to bottom.
+    The Operation class exposes a `walk` function, which lets us visit the IR from top to bottom.
 
     For example, to get the names of all the operations in our module, we can write a snippet like this:
     """
@@ -353,7 +354,7 @@ def _(definition_by_use, mo, sum_of_squares_module):
         Modify the function below to return the operation that defines the value by the operation that uses it.
         If the operand is a block argument, use the name of the parent operation.
 
-        Note: the `SSAValue` class provides a `owner` helper that might be useful.
+        Note: the `SSAValue` class provides the `owner` helper that might be useful.
 
 
         ```

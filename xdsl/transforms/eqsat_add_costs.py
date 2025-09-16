@@ -1,3 +1,5 @@
+import json
+import os
 from dataclasses import dataclass, field
 
 from typing_extensions import TypeVar
@@ -8,6 +10,7 @@ from xdsl.dialects.builtin import IntAttr
 from xdsl.ir import Block, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.hints import isa
 
 _DefaultCostT = TypeVar("_DefaultCostT", bound=int | None)
 
@@ -33,20 +36,24 @@ def get_eqsat_cost(
     cost_attribute = value.op.attributes.get(eqsat.EQSAT_COST_LABEL)
     if cost_attribute is None:
         return default
-    if not isinstance(cost_attribute, IntAttr):
+    if not isa(cost_attribute, IntAttr):
         raise DiagnosticException(
             f"Unexpected value {cost_attribute} for key {eqsat.EQSAT_COST_LABEL} in {value.op}"
         )
     return cost_attribute.data
 
 
-def add_eqsat_costs(block: Block, default: int | None):
+def add_eqsat_costs(block: Block, default: int | None, cost_dict: dict[str, int]):
     for op in block.ops:
         if not op.results:
             # No need to annotate ops without results
             continue
 
         if eqsat.EQSAT_COST_LABEL in op.attributes:
+            continue
+
+        if op.name in cost_dict:
+            op.attributes[eqsat.EQSAT_COST_LABEL] = IntAttr(cost_dict[op.name])
             continue
 
         if len(op.results) != 1:
@@ -86,6 +93,8 @@ class EqsatAddCostsPass(ModulePass):
 
     name = "eqsat-add-costs"
 
+    cost_file: str | None = field(default=None)
+    "Path to JSON file of cost values"
     default: int | None = field(default=None)
     "Default cost to assign if it cannot be calculated."
 
@@ -95,5 +104,13 @@ class EqsatAddCostsPass(ModulePass):
             for o in op.walk()
             if o.parent is not None and isinstance(o, eqsat.EClassOp)
         )
+
+        cost_dict: dict[str, int] = {}
+
+        if self.cost_file is not None:
+            assert os.path.exists(self.cost_file)
+            with open(self.cost_file) as file:
+                cost_dict = json.load(file)
+
         for block in eclass_parent_blocks:
-            add_eqsat_costs(block, default=self.default)
+            add_eqsat_costs(block, default=self.default, cost_dict=cost_dict)

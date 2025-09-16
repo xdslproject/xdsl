@@ -1,22 +1,29 @@
 import marimo
 
-__generated_with = "0.14.11"
+__generated_with = "0.15.2"
 app = marimo.App(width="medium")
-
-with app.setup:
-    import marimo as mo
-    import xdsl.utils.marimo as xmo
-    from xdsl.dialects.eqsat import EClassOp
 
 
 @app.cell(hide_code=True)
 def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""# Embedding Equality Saturation in IR""")
     return
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         r"""
     This notebook presents the `eqsat` dialect with examples.
@@ -29,7 +36,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(ctx, input_module_string):
+def _(ctx, input_module_string, xmo):
     from xdsl.parser import Parser
     from xdsl.utils.lexer import Input
 
@@ -40,31 +47,29 @@ def _(ctx, input_module_string):
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(r"""We start by adding eclass ops, which represent a union of multiple ways of calculating the same value:""")
     return
 
 
 @app.cell(hide_code=True)
-def _(ctx, input_module):
+def _(ctx, input_module, xmo):
     from xdsl.transforms.eqsat_create_eclasses import EqsatCreateEclassesPass
 
-    eclass_module = input_module.clone()
-
-    EqsatCreateEclassesPass().apply(ctx, eclass_module)
+    _, eclass_module = EqsatCreateEclassesPass().apply_to_clone(ctx, input_module)
 
     xmo.module_html(eclass_module)
     return (eclass_module,)
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(r"""We then execute the `apply-pdl-interp-eqsat` pass, which applies the rewrites non-destructively.""")
     return
 
 
 @app.cell(hide_code=True)
-def _(Parser, ctx, eclass_module, pdl_interp_module_string):
+def _(Parser, ctx, eclass_module, pdl_interp_module_string, xmo):
     from xdsl.transforms.apply_eqsat_pdl_interp import apply_eqsat_pdl_interp
 
     saturated_module = eclass_module.clone()
@@ -77,37 +82,33 @@ def _(Parser, ctx, eclass_module, pdl_interp_module_string):
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(r"""We then add the costs, which for now is just the number of operations to compute a given result:""")
     return
 
 
 @app.cell(hide_code=True)
-def _(ctx, saturated_module):
+def _(ctx, saturated_module, xmo):
     from xdsl.transforms.eqsat_add_costs import EqsatAddCostsPass
 
-    cost_module = saturated_module.clone()
-
     # Use a default cost since the resulting IR is currently recursive and we can't handle that
-    EqsatAddCostsPass(default=1000).apply(ctx, cost_module)
+    _, cost_module = EqsatAddCostsPass(default=1000).apply_to_clone(ctx, saturated_module)
 
     xmo.module_html(cost_module)
     return (cost_module,)
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(r"""And then we extract to get the optimal result:""")
     return
 
 
 @app.cell(hide_code=True)
-def _(cost_module, ctx):
+def _(cost_module, ctx, xmo):
     from xdsl.transforms.eqsat_extract import EqsatExtractPass
 
-    extracted_module = cost_module.clone()
-
-    EqsatExtractPass().apply(ctx, extracted_module)
+    _, extracted_module = EqsatExtractPass().apply_to_clone(ctx, cost_module)
 
     xmo.module_html(extracted_module)
     return (extracted_module,)
@@ -116,6 +117,7 @@ def _(cost_module, ctx):
 @app.cell
 def _(extracted_module):
     def test_no_eclass():
+        from xdsl.dialects.eqsat import EClassOp
         "Test that the extracted module doesn't contain eclass ops"
         eclass_ops = tuple(op for op in extracted_module.walk() if isinstance(op, EClassOp))
         assert not eclass_ops

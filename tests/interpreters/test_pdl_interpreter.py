@@ -47,7 +47,7 @@ def test_native_constraint():
     def pdl_module():
         with ImplicitBuilder(pdl.PatternOp(42, None).body):
             attr = pdl.AttributeOp().output
-            pdl.ApplyNativeConstraintOp("even_length_string", [attr])
+            pdl.ApplyNativeConstraintOp("even_length_string", [attr], [])
             op = pdl.OperationOp(
                 op_name=None,
                 attribute_value_names=ArrayAttr([StringAttr("attr")]),
@@ -486,7 +486,7 @@ def test_native_constraint_constant_parameter():
         with ImplicitBuilder(pdl.PatternOp(42, None).body):
             attr = pdl.AttributeOp().output
             four = pdl.AttributeOp(IntegerAttr(4, i32)).output
-            pdl.ApplyNativeConstraintOp("length_string", [attr, four])
+            pdl.ApplyNativeConstraintOp("length_string", [attr, four], [])
             op = pdl.OperationOp(
                 op_name=None,
                 attribute_value_names=ArrayAttr([StringAttr("attr")]),

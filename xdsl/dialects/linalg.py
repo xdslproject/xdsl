@@ -576,7 +576,7 @@ class NamedOperation(IRDLOperation, ABC):
                 element_type = op_type.get_element_type()
             else:  # int or float
                 element_type = op_type
-            assert isinstance(element_type, AnyFloat | IntegerType)
+            assert isa(element_type, AnyFloat | IntegerType)
             result.append(element_type)
 
         return result

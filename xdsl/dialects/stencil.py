@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from math import prod
 from operator import add, lt, neg
-from typing import Annotated, Generic, TypeAlias, cast
+from typing import Generic, TypeAlias, cast
 
 from typing_extensions import TypeVar
 
@@ -251,11 +251,11 @@ class StencilBoundsAttr(ParametrizedAttribute):
 
 @dataclass(frozen=True, init=False)
 class StencilType(
-    Generic[_FieldTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
     builtin.ShapedType,
     builtin.ContainerType[_FieldTypeElement],
+    Generic[_FieldTypeElement],
 ):
     name = "stencil.type"
     bounds: StencilBoundsAttr | IntAttr
@@ -370,10 +370,10 @@ class StencilType(
 
 @irdl_attr_definition(init=False)
 class FieldType(
-    Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
+    Generic[_FieldTypeElement],
 ):
     """
     stencil.field represents memory from which stencil input values will be loaded,
@@ -387,10 +387,10 @@ class FieldType(
 
 @irdl_attr_definition(init=False)
 class TempType(
-    Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
+    Generic[_FieldTypeElement],
 ):
     """
     stencil.temp represents stencil values, and is the type on which stencil.apply operates.
@@ -809,8 +809,8 @@ class CombineOp(IRDLOperation):
 
     name = "stencil.combine"
 
-    dim = attr_def(IntegerAttr[Annotated[IndexType, IndexType()]])
-    index = attr_def(IntegerAttr[Annotated[IndexType, IndexType()]])
+    dim = attr_def(IntegerAttr[IndexType])
+    index = attr_def(IntegerAttr[IndexType])
     lower = var_operand_def(TempType)
     upper = var_operand_def(TempType)
     lowerext = var_operand_def(TempType)
@@ -954,7 +954,7 @@ class IndexOp(IRDLOperation):
     """
 
     name = "stencil.index"
-    dim = attr_def(IntegerAttr[Annotated[IndexType, IndexType()]])
+    dim = attr_def(IntegerAttr[IndexType])
     offset = attr_def(IndexAttr)
     idx = result_def(builtin.IndexType())
 

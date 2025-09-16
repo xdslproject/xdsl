@@ -43,3 +43,19 @@ def f3(x: int) -> int:
 
 
 print(f3.module)
+
+try:
+    # CHECK:      func.func @f4(%{{.*}} : !bigint.bigint) -> !bigint.bigint {
+    # CHECK-NEXT:   symref.declare "x"
+    # CHECK-NEXT:   symref.update @x = %{{.*}} : !bigint.bigint
+    # CHECK-NEXT:   %{{.*}} = symref.fetch @x : !bigint.bigint
+    # CHECK-NEXT:   func.return %{{.*}} : !bigint.bigint
+    # CHECK-NEXT: }
+    @ctx.parse_program
+    def f4(x: int) -> int:
+        return x
+
+    print(f4.module)
+except Exception as e:
+    print(e)
+    exit(1)

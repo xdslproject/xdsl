@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from collections.abc import Set as AbstractSet
+from dataclasses import dataclass
 from typing import ClassVar, cast
 
-from typing_extensions import deprecated
+from typing_extensions import TypeVar, deprecated
 
+from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     I1,
+    I64,
     AffineMapAttr,
     AnyFloat,
     AnyFloatConstr,
@@ -16,6 +20,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
     IndexTypeConstr,
+    IntAttr,
     IntegerType,
     MemRefType,
     SignlessIntegerConstraint,
@@ -33,15 +38,27 @@ from xdsl.dialects.utils import (
     verify_dynamic_index_list,
 )
 from xdsl.dialects.utils.dynamic_index_list import DynamicIndexList
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    EnumAttribute,
+    Operation,
+    SSAValue,
+)
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
 from xdsl.irdl import (
+    AnyAttr,
+    AttrConstraint,
     AttrSizedOperandSegments,
+    ConstraintContext,
+    IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
     base,
+    irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     operand_def,
     opt_operand_def,
     opt_prop_def,
@@ -51,12 +68,13 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import NoMemoryEffect, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position
+from xdsl.utils.str_enum import StrEnum
 
 DYNAMIC_INDEX: int = -(2**63)
 
@@ -151,6 +169,187 @@ class StoreOp(IRDLOperation):
         indices: Sequence[Operation | SSAValue],
     ) -> StoreOp:
         return StoreOp(vector, ref, indices)
+
+
+_IntArrayConstr = irdl_to_attr_constraint(ArrayAttr[IntAttr])
+_MaskConstr = irdl_to_attr_constraint(DenseArrayBase[I64])
+
+
+@dataclass(frozen=True)
+class ShuffleResultConstraint(AttrConstraint[VectorType]):
+    element_constr: AttrConstraint
+    v1_shape_constr: VarConstraint
+    v2_shape_constr: VarConstraint
+    mask_constraint: VarConstraint
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        # We can only verify the element type here, and not the relations to other shapes
+        VectorType.constr(self.element_constr).verify(attr, constraint_context)
+        attr = cast(VectorType, attr)
+        if not attr.shape.data:
+            raise VerifyException("Result vector type must not be 0-D.")
+
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
+        res = self.element_constr.can_infer(var_constraint_names) and (
+            self.v1_shape_constr.name in var_constraint_names
+            and self.v2_shape_constr.name in var_constraint_names
+            and self.mask_constraint.name in var_constraint_names
+        )
+        assert res
+        return res
+
+    def infer(self, context: ConstraintContext) -> VectorType:
+        v1_shape = context.get_variable(self.v1_shape_constr.name)
+        v2_shape = context.get_variable(self.v2_shape_constr.name)
+        mask = context.get_variable(self.mask_constraint.name)
+        assert v1_shape is not None
+        assert v2_shape is not None
+        assert mask is not None
+        assert _IntArrayConstr.verifies(v1_shape)
+        assert _IntArrayConstr.verifies(v2_shape)
+        assert _MaskConstr.verifies(mask)
+
+        result_trailing: tuple[IntAttr, ...]
+        if not v1_shape:
+            assert not v2_shape
+            result_trailing = ()
+        else:
+            result_trailing = v1_shape.data[1:]
+
+        element_type = self.element_constr.infer(context)
+        result_leading = len(mask)
+        shape = (
+            (IntAttr(result_leading), *result_trailing)
+            if result_leading
+            else result_trailing
+        )
+        return VectorType(element_type, ArrayAttr(shape))
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint[VectorType]:
+        return ShuffleResultConstraint(
+            self.element_constr.mapping_type_vars(type_var_mapping),
+            self.v1_shape_constr.mapping_type_vars(type_var_mapping),
+            self.v2_shape_constr.mapping_type_vars(type_var_mapping),
+            self.mask_constraint.mapping_type_vars(type_var_mapping),
+        )
+
+
+@irdl_op_definition
+class ShuffleOp(IRDLOperation):
+    """
+    The shuffle operation constructs a permutation (or duplication) of elements
+    from two input vectors, returning a vector with the same element type as
+    the input and a length that is the same as the shuffle mask. The two input
+    vectors must have the same element type, same rank , and trailing dimension
+    sizes and shuffles their values in the
+    leading dimension (which may differ in size) according to the given mask.
+    The legality rules are:
+    * the two operands must have the same element type as the result
+      - Either, the two operands and the result must have the same
+        rank and trailing dimension sizes, viz. given two k-D operands
+                v1 : <s_1 x s_2 x .. x s_k x type> and
+                v2 : <t_1 x t_2 x .. x t_k x type>
+        we have s_i = t_i for all 1 < i <= k
+      - Or, the two operands must be 0-D vectors and the result is a 1-D vector.
+    * the mask length equals the leading dimension size of the result
+    * numbering the input vector indices left to right across the operands, all
+      mask values must be within range, viz. given two k-D operands v1 and v2
+      above, all mask values are in the range [0,s_1+t_1)
+
+    Note, scalable vectors are not supported.
+
+    Example:
+
+    ```mlir
+    %0 = vector.shuffle %a, %a [0, 3]
+                : vector<2xf32>, vector<2xf32>       ; yields vector<2xf32>
+    %1 = vector.shuffle %c, %b [0, 1, 2]
+                : vector<2x16xf32>, vector<1x16xf32> ; yields vector<3x16xf32>
+    %2 = vector.shuffle %a, %a [3, 2, 1, 0]
+                 : vector<2xf32>, vector<2xf32>      ; yields vector<4xf32>
+    %3 = vector.shuffle %d, %d [0, 1]
+                : vector<f32>, vector<f32>           ; yields vector<2xf32>
+    ```
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Vector/#vectorshuffle-vectorshuffleop).
+    """
+
+    name = "vector.shuffle"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    V1_SHAPE: ClassVar = VarConstraint("V1_SHAPE", _IntArrayConstr)
+    V2_SHAPE: ClassVar = VarConstraint("V2_SHAPE", _IntArrayConstr)
+    MASK: ClassVar = VarConstraint("MASK", _MaskConstr)
+    RES: ClassVar = ShuffleResultConstraint(T, V1_SHAPE, V2_SHAPE, MASK)
+
+    v1 = operand_def(VectorType.constr(T, shape=V1_SHAPE))
+    v2 = operand_def(VectorType.constr(T, shape=V2_SHAPE))
+    mask = prop_def(MASK)
+    result = result_def(RES)
+
+    irdl_options = [ParsePropInAttrDict()]
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "operands $mask attr-dict `:` type(operands)"
+
+    def __init__(
+        self,
+        v1: SSAValue,
+        v2: SSAValue,
+        mask: DenseArrayBase[I64],
+        *,
+        result_type: VectorType,
+    ):
+        super().__init__(
+            operands=(v1, v2),
+            result_types=(result_type,),
+            properties={"mask": mask},
+        )
+
+    def verify_(self):
+        assert isa(self.v1.type, VectorType)
+        assert isa(self.v2.type, VectorType)
+        assert isa(self.result.type, VectorType)
+
+        v1_shape = self.v1.type.get_shape()
+        v2_shape = self.v2.type.get_shape()
+        result_shape = self.result.type.get_shape()
+        mask = self.mask.get_values()
+
+        result_leading_dim = result_shape[0]
+
+        if len(mask) != result_leading_dim:
+            # the mask length equals the leading dimension size of the result
+            raise VerifyException(
+                f"Length of mask {self.mask} must equal leading dim of result {self.result.type}."
+            )
+
+        if not v1_shape or not v2_shape:
+            if v1_shape or v2_shape:
+                raise VerifyException(
+                    "Inputs must either both be non-0-D or both be 0-D"
+                )
+
+            if len(result_shape) != 1:
+                raise VerifyException("If inputs are 0-D output must be 1-D")
+
+            v1_leading_dim = 1
+            v2_leading_dim = 1
+        else:
+            v1_leading_dim, *v1_trailing = v1_shape
+            v2_leading_dim, *v2_trailing = v2_shape
+
+            if v1_trailing != v2_trailing:
+                raise VerifyException("Input trailing dimensions must match")
+
+        dim_bound = v1_leading_dim + v2_leading_dim
+        for dim in mask:
+            if not (-1 <= dim < dim_bound):
+                raise VerifyException(
+                    f"Mask value {dim} out of range [-1, {dim_bound})"
+                )
 
 
 @irdl_op_definition
@@ -1245,23 +1444,97 @@ class TransferWriteOp(VectorTransferOperation):
         )
 
 
+class CombiningKindFlag(StrEnum):
+    """
+    Values specifying the kind of combining operation.
+    """
+
+    ADD = "add"
+    MUL = "mul"
+    MINUI = "minui"
+    MINSI = "minsi"
+    MINNUMF = "minnumf"
+    MAXUI = "maxui"
+    MAXSI = "maxsi"
+    MAXNUMF = "maxnumf"
+    AND = "and"
+    OR = "or"
+    XOR = "xor"
+    MAXIMUMF = "maximumf"
+    MINIMUMF = "minimumf"
+
+
+@irdl_attr_definition
+class CombiningKindAttr(EnumAttribute[CombiningKindFlag]):
+    """
+    A mirror of LLVM's vector.kind attribute.
+    """
+
+    name = "vector.kind"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> CombiningKindFlag:
+        with parser.in_angle_brackets():
+            return CombiningKindFlag(parser.parse_identifier())
+
+
+@irdl_op_definition
+class ReductionOp(IRDLOperation):
+    name = "vector.reduction"
+
+    _T: ClassVar = VarConstraint("T", AnyAttr())
+
+    vector = operand_def(VectorType.constr(_T))
+    acc = opt_operand_def(_T)
+    dest = result_def(_T)
+    kind = prop_def(CombiningKindAttr)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+
+    assembly_format = "$kind `,` $vector (`,` $acc^)? (`fastmath` `` $fastmath^)? attr-dict `:` type($vector) `into` type($dest)"
+
+    def __init__(
+        self,
+        vector: SSAValue | Operation,
+        kind: CombiningKindAttr,
+        acc: SSAValue | Operation | None = None,
+        fastmath: FastMathFlagsAttr | None = None,
+    ):
+        vector = SSAValue.get(vector)
+        super().__init__(
+            operands=[vector, acc],
+            result_types=[vector.type],
+            properties={
+                "kind": kind,
+                "fastmath": fastmath,
+            },
+        )
+
+
 Vector = Dialect(
     "vector",
     [
-        LoadOp,
-        StoreOp,
         BroadcastOp,
+        CreateMaskOp,
+        ExtractElementOp,
+        ExtractOp,
         FMAOp,
+        InsertElementOp,
+        InsertOp,
+        LoadOp,
         MaskedLoadOp,
         MaskedStoreOp,
         PrintOp,
-        CreateMaskOp,
-        ExtractOp,
-        ExtractElementOp,
-        InsertOp,
-        InsertElementOp,
+        ReductionOp,
+        ShuffleOp,
+        StoreOp,
         TransferReadOp,
         TransferWriteOp,
     ],
-    [],
+    [
+        CombiningKindAttr,
+    ],
 )

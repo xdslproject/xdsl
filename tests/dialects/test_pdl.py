@@ -27,7 +27,7 @@ type_val, attr_val, val_val, op_val = block.args
 
 
 def test_build_anc():
-    anc = pdl.ApplyNativeConstraintOp("anc", [type_val])
+    anc = pdl.ApplyNativeConstraintOp("anc", [type_val], [])
 
     assert anc.constraint_name == StringAttr("anc")
     assert anc.args == (type_val,)
