@@ -4,7 +4,7 @@ from io import StringIO
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects.builtin import DenseArrayBase, IndexType, IntegerType, I64, i32, i64
+from xdsl.dialects.builtin import I64, DenseArrayBase, IndexType, IntegerType, i32, i64
 from xdsl.dialects.utils import (
     get_dynamic_index_list,
     parse_dynamic_index_list_with_types,

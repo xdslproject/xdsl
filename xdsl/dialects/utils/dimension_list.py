@@ -1,4 +1,4 @@
-from xdsl.dialects.builtin import DenseArrayBase, IntegerType, I64, i64
+from xdsl.dialects.builtin import I64, DenseArrayBase, IntegerType, i64
 from xdsl.irdl.declarative_assembly_format import (
     AttributeVariable,
     CustomDirective,
