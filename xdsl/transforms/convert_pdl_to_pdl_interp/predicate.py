@@ -1,3 +1,9 @@
+"""
+This file implements some of the core data structures used in the pdl-to-pdl-interp conversion.
+The pdl-to-pdl-interp conversion works by translating declarative [pdl patterns](../../dialects/pdl) into a set of
+predicates that are then converted to imperative code in the pdl_interp dialect.
+"""
+
 from abc import ABC
 from dataclasses import dataclass
 from typing import Optional
@@ -14,7 +20,9 @@ from xdsl.ir import (
 
 @dataclass(frozen=True)
 class Position(ABC):
-    """Base class for all position types"""
+    """The position class encodes a location in a pattern.
+    Each pattern has a root position. From there, other positions can be reached representing operands, results, and more.
+    """
 
     parent: Optional["Position"] = None
 
@@ -219,7 +227,11 @@ class ConstraintPosition(Position):
         )
 
 
-# smaller is better:
+"""
+Different position types are ranked by priority.
+A lower cost means a higher priority.
+This is used to decide which position to branch on first when evaluating predicates.
+"""
 POSITION_COSTS = {
     OperationPosition: 1,
     OperandPosition: 2,
@@ -378,6 +390,11 @@ class ConstraintQuestion(Question):
     is_negated: bool
 
 
+"""
+Different question types are ranked by priority.
+A lower cost means a higher priority.
+This is used to decide which question to branch on first when evaluating predicates.
+"""
 QUESTION_COSTS = {
     IsNotNullQuestion: 1,
     OperationNameQuestion: 2,
