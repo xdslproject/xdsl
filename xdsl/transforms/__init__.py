@@ -123,6 +123,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ml_program_to_memref.ConvertMlProgramToMemRefPass
 
+    def get_convert_pdl_to_pdl_interp():
+        from xdsl.transforms import convert_pdl_to_pdl_interp
+
+        return convert_pdl_to_pdl_interp.ConvertPDLToPDLInterpPass
+
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
 
@@ -292,6 +297,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import eqsat_extract
 
         return eqsat_extract.EqsatExtractPass
+
+    def get_eqsat_optimize_pdl_interp():
+        from xdsl.transforms import eqsat_optimize_pdl_interp
+
+        return eqsat_optimize_pdl_interp.EqsatOptimizePDLInterp
 
     def get_frontend_desymrefy():
         from xdsl.transforms.desymref import FrontendDesymrefyPass
@@ -616,6 +626,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-ptr": get_convert_memref_to_ptr,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
+        "convert-pdl-to-pdl-interp": get_convert_pdl_to_pdl_interp,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-llvm": get_convert_ptr_to_llvm,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
@@ -650,6 +661,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "eqsat-create-egraphs": get_eqsat_create_egraphs,
         "eqsat-serialize-egraph": get_eqsat_serialize_egraph,
         "eqsat-extract": get_eqsat_extract,
+        "eqsat-optimize-pdl-interp": get_eqsat_optimize_pdl_interp,
         "frontend-desymrefy": get_frontend_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
         "function-persist-arg-names": get_function_persist_arg_names,
