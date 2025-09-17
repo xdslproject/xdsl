@@ -29,5 +29,8 @@ jobs:
       with:
         python-version: '3.13'
 
+    - name: Generate Python type stubs
+      run: uv run xdsl-stubgen
+
     - name: Run code formatting checks with pre-commit
       uses: pre-commit/action@v3.0.1

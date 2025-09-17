@@ -1,4 +1,5 @@
 from abc import ABC
+from collections.abc import Sequence
 from typing import ClassVar, Generic
 
 from typing_extensions import TypeVar
@@ -17,7 +18,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
 )
-from xdsl.ir import Attribute, Dialect, TypeAttribute
+from xdsl.ir import Attribute, Dialect, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
@@ -28,6 +29,7 @@ from xdsl.irdl import (
     prop_def,
     result_def,
     traits_def,
+    var_operand_def,
 )
 from xdsl.traits import Commutative, Pure
 from xdsl.utils.exceptions import VerifyException
@@ -344,6 +346,34 @@ class AvgPool2DOp(IRDLOperation):
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
 
+@irdl_op_definition
+class ConcatOp(IRDLOperation):
+    """
+    TOSA dialect operation for concatenating tensors.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaconcat-mlirtosaconcatop).
+    """
+
+    name = "tosa.concat"
+
+    tensors = var_operand_def(TensorType)
+    axis = prop_def(IntegerAttr[I32])
+    output = result_def(TensorType)
+
+    def __init__(
+        self, tensors: Sequence[SSAValue], axis: IntegerAttr, output_type: TensorType
+    ):
+        super().__init__(
+            operands=[tensors],
+            properties={"axis": axis},
+            result_types=[output_type],
+        )
+
+    irdl_options = [ParsePropInAttrDict()]
+
+    assembly_format = "$tensors attr-dict `:` `(` type($tensors) `)` `->` type($output)"
+
+
 TOSA = Dialect(
     "tosa",
     [
@@ -357,6 +387,7 @@ TOSA = Dialect(
         MatMulOp,
         MaxPool2DOp,
         AvgPool2DOp,
+        ConcatOp,
     ],
     [],
 )

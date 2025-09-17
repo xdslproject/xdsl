@@ -548,15 +548,15 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_constant_folding.TestConstantFoldingPass
 
-    def get_test_specialised_constant_folding():
-        from xdsl.transforms import test_constant_folding
-
-        return test_constant_folding.TestSpecialisedConstantFoldingPass
-
     def get_test_lower_linalg_to_snitch():
         from xdsl.transforms import test_lower_linalg_to_snitch
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
+
+    def get_test_specialised_constant_folding():
+        from xdsl.transforms import test_constant_folding
+
+        return test_constant_folding.TestSpecialisedConstantFoldingPass
 
     def get_test_transform_dialect_erase_schedule():
         from xdsl.transforms import test_transform_dialect_erase_schedule
@@ -564,6 +564,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return (
             test_transform_dialect_erase_schedule.TestTransformDialectEraseSchedulePass
         )
+
+    def get_test_vectorize_matmul():
+        from xdsl.transforms import test_vectorize_matmul
+
+        return test_vectorize_matmul.TestVectorizeMatmulPass
 
     def get_transform_interpreter():
         from xdsl.transforms import transform_interpreter
@@ -701,9 +706,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
-        "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
+        "test-vectorize-matmul": get_test_vectorize_matmul,
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
         "vector-split-load-extract": get_vector_split_load_extract,
