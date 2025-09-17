@@ -31,10 +31,6 @@ class BlockThroughputCostModel(ABC):
         self.arch = arch
 
     @abstractmethod
-    def name(self) -> str:
-        pass
-
-    @abstractmethod
     def estimate_throughput(self, block: Block) -> float | None:
         """
         Estimates the throughput of a block of assembly-like operations.
@@ -58,8 +54,12 @@ class ExternalBlockThroughputCostModel(BlockThroughputCostModel):
     This class extends `BlockThroughputCostModel` and provides common functionality
     for models that rely on an external command-line tool to produce a report
     from a source file. Subclasses must implement methods to define the command
-    to run (`cmd`), and to parse the tool's output (`process_report`).
+    to run (`cmd`) and name (`tool_name`), and to parse the tool's output (`process_report`).
     """
+
+    @abstractmethod
+    def tool_name(self) -> str:
+        pass
 
     @abstractmethod
     def cmd(self) -> list[str]:
@@ -79,7 +79,7 @@ class ExternalBlockThroughputCostModel(BlockThroughputCostModel):
         pass
 
     def is_installed(self) -> bool:
-        return which(self.name()) is not None
+        return which(self.tool_name()) is not None
 
     def estimate_throughput(self, block: Block) -> float | None:
         with NamedTemporaryFile(mode="w+", delete=False, suffix=".s") as tmp_file:
@@ -104,11 +104,11 @@ class MCABlockThroughputCostModel(ExternalBlockThroughputCostModel):
     A throughput cost model that uses the `llvm-mca` tool.
     """
 
-    def name(self) -> str:
+    def tool_name(self) -> str:
         return "llvm-mca"
 
     def cmd(self) -> list[str]:
-        return ["llvm-mca", f"-mcpu={self.arch}", self.src_path]
+        return [self.tool_name(), f"-mcpu={self.arch}", self.src_path]
 
     def process_report(self, report: str) -> float | None:
         cycles = None

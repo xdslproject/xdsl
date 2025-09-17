@@ -1,12 +1,10 @@
-import shutil
-
 import pytest
 
 from xdsl.backend.block_throughput_cost_model import MCABlockThroughputCostModel
 from xdsl.builder import Builder
 from xdsl.dialects import x86_func
 
-llvm_mca_available = shutil.which("llvm-mca") is not None
+llvm_mca_available = MCABlockThroughputCostModel("skylake").is_installed()
 
 
 @pytest.mark.skipif(not llvm_mca_available, reason="llvm-mca is not installed")
