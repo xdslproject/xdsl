@@ -4,7 +4,7 @@ from io import StringIO
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects.builtin import I64, DenseArrayBase, IndexType, IntegerType, i32, i64
+from xdsl.dialects.builtin import IndexType, IntegerType, i32
 from xdsl.dialects.utils import (
     get_dynamic_index_list,
     parse_dynamic_index_list_with_types,
@@ -18,7 +18,7 @@ from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
 from xdsl.ir import Dialect, SSAValue
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 ctx = Context()
