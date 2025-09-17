@@ -410,10 +410,6 @@ class Printer(BasePrinter):
             self.print_string(f"{value:d}")
 
     def print_dimension_list(self, dims: Sequence[int]):
-        if len(dims) == 0:
-            self.print_string("[]")
-            return
-
         self.print_list(
             dims,
             lambda x: self.print_int(x) if x != -1 else self.print_string("?"),
