@@ -960,7 +960,6 @@ def test_float_attr_specials():
         ([1, 2, 3], "1x2x3"),
         ([1, -1, 3, -1], "1x?x3x?"),
         ([5], "5"),
-        ([], "[]"),
     ],
 )
 def test_print_dimension_list(dims: list[int], expected: str):

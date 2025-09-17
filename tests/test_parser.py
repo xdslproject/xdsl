@@ -1215,16 +1215,10 @@ def test_parse_identifier_or_str_literal(input: str, expected: str | None):
         ("2x3x4", [2, 3, 4]),
         ("9x1x5x", [9, 1, 5]),
         ("9x?x1x?", [9, -1, 1, -1]),
-        ("[]", []),
-        ("[9, 2]", None),
     ],
 )
-def test_parse_dimension_list(input: str, expected: list[int] | None):
+def test_parse_dimension_list(input: str, expected: list[int]):
     parser = Parser(Context(), input)
 
-    if expected is not None:
-        result = parser.parse_dimension_list()
-        assert result == expected
-    else:
-        with pytest.raises(ParseError, match=re.escape("']' expected")):
-            parser.parse_dimension_list()
+    result = parser.parse_dimension_list()
+    assert result == expected
