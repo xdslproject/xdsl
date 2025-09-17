@@ -24,12 +24,6 @@ class BlockThroughputCostModel(ABC):
     of assembly-like operations for a specific microarchitecture.
     """
 
-    arch: str
-    src_path: str
-
-    def __init__(self, arch: str):
-        self.arch = arch
-
     @abstractmethod
     def estimate_throughput(self, block: Block) -> float | None:
         """
@@ -56,6 +50,12 @@ class ExternalBlockThroughputCostModel(BlockThroughputCostModel):
     from a source file. Subclasses must implement methods to define the command
     to run (`cmd`) and name (`tool_name`), and to parse the tool's output (`process_report`).
     """
+
+    arch: str
+    src_path: str
+
+    def __init__(self, arch: str):
+        self.arch = arch
 
     @abstractmethod
     def tool_name(self) -> str:
