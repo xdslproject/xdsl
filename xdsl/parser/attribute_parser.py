@@ -485,6 +485,21 @@ class AttrParser(BaseParser):
 
         return int_token.kind.get_int_value(int_token.span)
 
+    def parse_optional_shape_delimiter(self) -> bool:
+        """
+        Parse 'x', a shape delimiter. Note that if 'x' is followed by other
+        characters, it will split the token. For instance, 'x1' will be split
+        into 'x' and '1'.
+        """
+        if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
+            return False
+
+        if self._current_token.text[0] != "x":
+            return False
+
+        self._resume_from(self._current_token.span.start + 1)
+        return True
+
     def parse_shape_delimiter(self) -> None:
         """
         Parse 'x', a shape delimiter. Note that if 'x' is followed by other
@@ -504,18 +519,6 @@ class AttrParser(BaseParser):
         # Move the lexer to the position after 'x'.
         self._resume_from(self._current_token.span.start + 1)
 
-    def _parse_empty_dimension_list(self) -> bool:
-        """
-        Parses an empty dimension list, which has it's own syntax:
-          empty-dimension-list ::= `[` `]`
-        Note that a regular dimension list has no square brackets.
-        """
-        if self.parse_optional_characters("["):
-            self.parse_characters("]")
-            return True
-
-        return False
-
     def parse_dimension_list(self) -> list[int]:
         """
         Parse a dimension list with the following format:
@@ -525,16 +528,12 @@ class AttrParser(BaseParser):
         dims: list[int] = []
         accepted_token_kinds = (MLIRTokenKind.INTEGER_LIT, MLIRTokenKind.QUESTION)
 
-        if self._parse_empty_dimension_list():
-            return []
-
         while self._current_token.kind in accepted_token_kinds:
             dim = self.parse_shape_dimension()
             dims.append(dim)
 
-            # on last iteration, 'x' may not exist, e.g.: 5x3x2
-            if len(self._current_token.text) > 0 and self._current_token.text[0] == "x":
-                self.parse_shape_delimiter()
+            if not self.parse_optional_shape_delimiter():
+                break
 
         return dims
 
