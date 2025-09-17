@@ -1,3 +1,11 @@
+"""
+This module defines an abstract base class `BlockThroughputCostModel` for estimating the
+throughput of a given `Block`.
+
+It includes a concrete implementation, `MCABlockThroughputCostModel`, that uses
+the `llvm-mca` tool to perform this estimation.
+"""
+
 import os
 import subprocess
 from abc import ABC, abstractmethod
@@ -8,7 +16,14 @@ from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
 from xdsl.ir import Block
 
 
-class AssemblyPerformanceReporter(ABC):
+class BlockThroughputCostModel(ABC):
+    """
+    An abstract base class for a throughput cost model.
+
+    This class provides an interface for estimating the throughput of a block
+    of assembly-like operations for a specific microarchitecture.
+    """
+
     arch: str
     src_path: str
 
@@ -18,6 +33,33 @@ class AssemblyPerformanceReporter(ABC):
     @abstractmethod
     def name(self) -> str:
         pass
+
+    @abstractmethod
+    def estimate_throughput(self, block: Block) -> float | None:
+        """
+        Estimates the throughput of a block of assembly-like operations.
+
+        Throughput is defined as the number of cycles per iteration of a block.
+        The throughput value gives an indication of the performance of the block.
+
+        Args:
+            block: The block of operations to analyze.
+
+        Returns:
+            The estimated throughput as a float, or None if the estimation fails.
+        """
+        pass
+
+
+class ExternalBlockThroughputCostModel(BlockThroughputCostModel):
+    """
+    An abstract base class for throughput cost models that use external command-line tools.
+
+    This class extends `BlockThroughputCostModel` and provides common functionality
+    for models that rely on an external command-line tool to produce a report
+    from a source file. Subclasses must implement methods to define the command
+    to run (`cmd`), and to parse the tool's output (`process_report`).
+    """
 
     @abstractmethod
     def cmd(self) -> list[str]:
@@ -57,7 +99,11 @@ class AssemblyPerformanceReporter(ABC):
                 os.remove(self.src_path)
 
 
-class MCAReporter(AssemblyPerformanceReporter):
+class MCABlockThroughputCostModel(ExternalBlockThroughputCostModel):
+    """
+    A throughput cost model that uses the `llvm-mca` tool.
+    """
+
     def name(self) -> str:
         return "llvm-mca"
 

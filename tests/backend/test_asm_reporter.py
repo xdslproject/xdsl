@@ -2,7 +2,7 @@ import shutil
 
 import pytest
 
-from xdsl.backend.asm_perf_reporter import MCAReporter
+from xdsl.backend.block_throughput_cost_model import MCABlockThroughputCostModel
 from xdsl.builder import Builder
 from xdsl.dialects import x86_func
 
@@ -16,7 +16,7 @@ def test_mca_reporter_x86():
         x86_func.RetOp()
 
     arch = "skylake"
-    reporter = MCAReporter(arch)
+    reporter = MCABlockThroughputCostModel(arch)
     estimated_cost = reporter.estimate_throughput(trivial_x86_func.block)
     assert estimated_cost is not None, (
         "MCA reporter should return a valid cost estimate"
