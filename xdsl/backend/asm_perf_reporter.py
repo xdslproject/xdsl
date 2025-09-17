@@ -4,18 +4,16 @@ from abc import ABC, abstractmethod
 from shutil import which
 from tempfile import NamedTemporaryFile
 
-from xdsl.backend.assembly_printer import AssemblyPrinter
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
+from xdsl.ir import Block
 
 
 class AssemblyPerformanceReporter(ABC):
     arch: str
-    module: ModuleOp
     src_path: str
 
-    def __init__(self, arch: str, module: ModuleOp):
+    def __init__(self, arch: str):
         self.arch = arch
-        self.module = module
 
     @abstractmethod
     def name(self) -> str:
@@ -41,11 +39,15 @@ class AssemblyPerformanceReporter(ABC):
     def is_installed(self) -> bool:
         return which(self.name()) is not None
 
-    def estimate_cost(self) -> float | None:
+    def estimate_throughput(self, block: Block) -> float | None:
         with NamedTemporaryFile(mode="w+", delete=False, suffix=".s") as tmp_file:
             self.src_path = tmp_file.name
             printer = AssemblyPrinter(stream=tmp_file)
-            printer.print_module(self.module)
+            for op in block.walk():
+                assert isinstance(op, AssemblyPrintable), (
+                    f"Block operation {op} should be an assembly instruction"
+                )
+                op.print_assembly(printer)
 
         try:
             report = self.produce_report()
