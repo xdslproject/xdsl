@@ -504,30 +504,37 @@ class AttrParser(BaseParser):
         # Move the lexer to the position after 'x'.
         self._resume_from(self._current_token.span.start + 1)
 
-    def parse_dimension_list(self, trailing_x: bool = False) -> list[int]:
+    def _parse_empty_dimension_list(self) -> bool:
+        """
+        Parses an empty dimension list, which has it's own syntax:
+          empty-dimension-list ::= `[` `]`
+        Note that a regular dimension list has no square brackets.
+        """
+        if self.parse_optional_characters("["):
+            self.parse_characters("]")
+            return True
+
+        return False
+
+    def parse_dimension_list(self) -> list[int]:
         """
         Parse a dimension list with the following format:
-          dimension-list ::= (dimension `x`)* dimension
-          dimension-list-trailing ::= (dimension `x`)*
+          dimension-list ::= (dimension `x`)* dimension `x`?
         each dimension is also required to be non-negative.
         """
         dims: list[int] = []
         accepted_token_kinds = (MLIRTokenKind.INTEGER_LIT, MLIRTokenKind.QUESTION)
 
-        if trailing_x:
-            while self._current_token.kind in accepted_token_kinds:
-                dim = self.parse_shape_dimension()
-                dims.append(dim)
+        if self._parse_empty_dimension_list():
+            return []
+
+        while self._current_token.kind in accepted_token_kinds:
+            dim = self.parse_shape_dimension()
+            dims.append(dim)
+
+            # on last iteration, 'x' may not exist, e.g.: 5x3x2
+            if len(self._current_token.text) > 0 and self._current_token.text[0] == "x":
                 self.parse_shape_delimiter()
-
-        else:
-            if self._current_token.kind in accepted_token_kinds:
-                dim = self.parse_shape_dimension()
-
-                while self._current_token.text[0] == "x":
-                    self.parse_shape_delimiter()
-                    dim = self.parse_shape_dimension()
-                    dims.append(dim)
 
         return dims
 
@@ -538,7 +545,7 @@ class AttrParser(BaseParser):
           dimension ::= `?` | decimal-literal
         each dimension is also required to be non-negative.
         """
-        dims = self.parse_dimension_list(True)
+        dims = self.parse_dimension_list()
 
         type = self.expect(self.parse_optional_type, "Expected shape type.")
         return dims, type
