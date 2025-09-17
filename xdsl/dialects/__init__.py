@@ -353,11 +353,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Transform
 
-    def get_cost_model():
-        from xdsl.dialects.cost_model import CostModel
-
-        return CostModel
-
     return {
         "accfg": get_accfg,
         "affine": get_affine,
@@ -428,7 +423,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "x86": get_x86,
         "x86_func": get_x86_func,
         "transform": get_transform,
-        "cost_model": get_cost_model,
     }
 
 
