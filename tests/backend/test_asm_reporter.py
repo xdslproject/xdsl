@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.backend.asm_perf_reporter import MCAReporter
 from xdsl.builder import Builder
-from xdsl.dialects import cost_model, x86_func
+from xdsl.dialects import x86_func
 
 llvm_mca_available = shutil.which("llvm-mca") is not None
 
@@ -13,9 +13,7 @@ llvm_mca_available = shutil.which("llvm-mca") is not None
 def test_mca_reporter_x86():
     @Builder.implicit_region
     def trivial_x86_func():
-        cost_model.BeginMCARegionOfInterestOp()
         x86_func.RetOp()
-        cost_model.StopMCARegionOfInterestOp()
 
     arch = "skylake"
     reporter = MCAReporter(arch)
