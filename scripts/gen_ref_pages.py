@@ -25,7 +25,8 @@ def gen_reference():
 
         if parts[-1] == "__main__":
             continue
-        elif parts[-1].startswith("_"):
+        elif parts[-1].startswith("_") and parts[-1] != "__init__":
+            # skip private modules
             continue
         if not parts:
             continue
