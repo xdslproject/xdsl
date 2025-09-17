@@ -1,6 +1,6 @@
 """
 This file implements some of the core data structures used in the pdl-to-pdl-interp conversion.
-The pdl-to-pdl-interp conversion works by translating declarative [pdl patterns](../../dialects/pdl) into a set of
+The pdl-to-pdl-interp conversion works by translating declarative [pdl patterns](../../../dialects/pdl) into a set of
 predicates that are then converted to imperative code in the pdl_interp dialect.
 """
 
