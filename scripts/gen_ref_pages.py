@@ -36,6 +36,9 @@ def gen_reference():
 
         if parts[-1] == "__init__":
             parts = parts[:-1]
+            if not parts:
+                # skip the root __init__.py
+                continue
             doc_path = doc_path.with_name("index.md")
             full_doc_path = full_doc_path.with_name("index.md")
 
