@@ -11,8 +11,6 @@ from xdsl.dialects.utils import (
     parse_dynamic_index_list_without_types,
     parse_dynamic_index_with_type,
     parse_dynamic_index_without_type,
-    parse_empty_dimension_list,
-    print_dimension_list,
     print_dynamic_index_list,
     split_dynamic_index_list,
 )
@@ -229,46 +227,6 @@ def test_parse_dynamic_index_list_with_custom_delimiter():
     assert values[0] is test_values[0]
     assert values[1] is test_values[1]
     assert tuple(indices) == (dynamic_index, 42, dynamic_index)
-
-
-def test_parse_empty_dimension_list():
-    parser = Parser(ctx, "[]")
-    assert parse_empty_dimension_list(parser)
-
-    parser = Parser(ctx, "5x5x5x5")
-    assert not parse_empty_dimension_list(parser)
-
-    with pytest.raises(
-        ParseError,
-        match=re.escape("']' expected"),
-    ):
-        parser = Parser(ctx, "[5, 10]")
-        parse_empty_dimension_list(parser)
-
-
-def test_print_dimension_list():
-    dyn_index = -1
-
-    # Test case 1: Integers only
-    stream = StringIO()
-    printer = Printer(stream)
-    dims = DenseArrayBase[I64].from_list(i64, [8, 9, 2, 3])
-    print_dimension_list(printer, dims)
-    assert stream.getvalue() == "8x9x2x3"
-
-    # Test case 2: Dynamics
-    stream = StringIO()
-    printer = Printer(stream)
-    dims = DenseArrayBase[I64].from_list(i64, [8, dyn_index, 2, dyn_index])
-    print_dimension_list(printer, dims)
-    assert stream.getvalue() == "8x?x2x?"
-
-    # Test case 3: Empty
-    stream = StringIO()
-    printer = Printer(stream)
-    dims = DenseArrayBase[I64].from_list(i64, [])
-    print_dimension_list(printer, dims)
-    assert stream.getvalue() == "[]"
 
 
 @pytest.mark.parametrize(
