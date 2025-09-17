@@ -227,11 +227,6 @@ class ConstraintPosition(Position):
         )
 
 
-"""
-Different position types are ranked by priority.
-A lower cost means a higher priority.
-This is used to decide which position to branch on first when evaluating predicates.
-"""
 POSITION_COSTS = {
     OperationPosition: 1,
     OperandPosition: 2,
@@ -246,6 +241,11 @@ POSITION_COSTS = {
     UsersPosition: 11,
     ForEachPosition: 12,
 }
+"""
+Different position types are ranked by priority.
+A lower cost means a higher priority.
+This is used to decide which position to branch on first when evaluating predicates.
+"""
 
 # =============================================================================
 # Predicate System - Questions and Answers
@@ -390,11 +390,6 @@ class ConstraintQuestion(Question):
     is_negated: bool
 
 
-"""
-Different question types are ranked by priority.
-A lower cost means a higher priority.
-This is used to decide which question to branch on first when evaluating predicates.
-"""
 QUESTION_COSTS = {
     IsNotNullQuestion: 1,
     OperationNameQuestion: 2,
@@ -407,6 +402,11 @@ QUESTION_COSTS = {
     TypeConstraintQuestion: 9,
     ConstraintQuestion: 10,
 }
+"""
+Different question types are ranked by priority.
+A lower cost means a higher priority.
+This is used to decide which question to branch on first when evaluating predicates.
+"""
 
 
 def get_position_cost(position: Position) -> int:
