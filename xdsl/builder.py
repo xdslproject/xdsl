@@ -145,7 +145,7 @@ class Builder(BuilderListener):
         if with_folding:
             assert isinstance(op, Operation)  # folding only works on single ops
             values = op.results
-            if (res := self.try_fold(self.context or Context(), op)) is None:
+            if (res := self.try_fold(op)) is None:
                 Rewriter.insert_op(
                     op,
                     self.insertion_point
@@ -173,9 +173,7 @@ class Builder(BuilderListener):
 
         return cast(InsertOpInvT, op)
 
-    def try_fold(
-        self, ctx: Context, op: Operation
-    ) -> tuple[list[SSAValue], list[Operation]] | None:
+    def try_fold(self, op: Operation) -> tuple[list[SSAValue], list[Operation]] | None:
         """
         Try to fold the given operation.
         Returns a tuple the list of SSAValues that replace the results of the operation,
@@ -196,7 +194,11 @@ class Builder(BuilderListener):
                 results.append(val)
             else:
                 assert isinstance(val, Attribute)
-                dialect = ctx.get_dialect(op.dialect_name())
+                if self.context is None:
+                    raise ValueError(
+                        "Cannot materialize constant without a context in the builder"
+                    )
+                dialect = self.context.get_dialect(op.dialect_name())
                 interface = dialect.get_interface(ConstantMaterializationInterface)
                 if not interface:
                     return None
