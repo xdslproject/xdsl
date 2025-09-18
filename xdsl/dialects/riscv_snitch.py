@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, cast
+from typing import ClassVar, Literal, TypeAlias, cast
 
 from typing_extensions import Self
 
@@ -11,7 +11,6 @@ from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, snitch
 from xdsl.dialects.builtin import (
-    IntAttr,
     IntegerAttr,
     IntegerType,
     Signedness,
@@ -223,6 +222,11 @@ ALLOWED_FREP_OP_TYPES = (
     UnrealizedConversionCastOp,
 )
 
+I3: TypeAlias = IntegerType[Literal[3]]
+I4: TypeAlias = IntegerType[Literal[4]]
+i3 = I3(3)
+i4 = I4(4)
+
 
 class FRepOperation(RISCVInstruction):
     """
@@ -244,12 +248,18 @@ class FRepOperation(RISCVInstruction):
     """
     Loop-carried variable initial values.
     """
-    stagger_mask = attr_def(IntAttr)
+    stagger_mask = attr_def(
+        IntegerAttr[I4],
+        default_value=IntegerAttr(0, i4),
+    )
     """
     4 bits for each operand (rs1 rs2 rs3 rd). If the bit is set, the corresponding operand
     is staggered.
     """
-    stagger_count = attr_def(IntAttr)
+    stagger_count = attr_def(
+        IntegerAttr[I3],
+        default_value=IntegerAttr(0, i3),
+    )
     """
     3 bits, indicating for how many iterations the stagger should increment before it
     wraps again (up to 23 = 8).
@@ -266,13 +276,13 @@ class FRepOperation(RISCVInstruction):
         max_rep: SSAValue | Operation,
         body: Sequence[Operation] | Sequence[Block] | Region,
         iter_args: Sequence[SSAValue | Operation] = (),
-        stagger_mask: IntAttr | None = None,
-        stagger_count: IntAttr | None = None,
+        stagger_mask: IntegerAttr[IntegerType[Literal[4]]] | None = None,
+        stagger_count: IntegerAttr[IntegerType[Literal[3]]] | None = None,
     ):
         if stagger_mask is None:
-            stagger_mask = IntAttr(0)
+            stagger_mask = IntegerAttr(0, IntegerType[Literal[4]](4))
         if stagger_count is None:
-            stagger_count = IntAttr(0)
+            stagger_count = IntegerAttr(0, IntegerType[Literal[3]](3))
         super().__init__(
             operands=(max_rep, iter_args),
             result_types=[[SSAValue.get(a).type for a in iter_args]],
@@ -293,9 +303,9 @@ class FRepOperation(RISCVInstruction):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return (
             self.max_rep,
-            self.max_inst,
-            self.stagger_mask.data,
-            self.stagger_count.data,
+            str(self.max_inst),
+            self.stagger_mask,
+            self.stagger_count,
         )
 
     @classmethod
@@ -342,8 +352,8 @@ class FRepOperation(RISCVInstruction):
             max_rep,
             body,
             iter_arg_operands,
-            IntAttr(stagger_mask),
-            IntAttr(stagger_count),
+            IntegerAttr(stagger_mask, IntegerType(4)),
+            IntegerAttr(stagger_count, IntegerType(3)),
         )
         if remaining_attributes is not None:
             frep.attributes |= remaining_attributes.data
@@ -356,11 +366,11 @@ class FRepOperation(RISCVInstruction):
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         printer.print_ssa_value(self.max_rep)
-        if self.stagger_count.data and self.stagger_mask.data:
+        if self.stagger_count.value.data and self.stagger_mask.value.data:
             printer.print_string(", ")
-            printer.print_int(self.stagger_count.data)
+            printer.print_int(self.stagger_count.value.data)
             printer.print_string(", ")
-            printer.print_int(self.stagger_mask.data)
+            printer.print_int(self.stagger_mask.value.data)
 
         printer.print_op_attributes(
             self.attributes, reserved_attr_names=("stagger_count", "stagger_mask")
@@ -391,9 +401,9 @@ class FRepOperation(RISCVInstruction):
         )
 
     def verify_(self) -> None:
-        if self.stagger_count.data:
+        if self.stagger_count.value.data:
             raise VerifyException("Non-zero stagger count currently unsupported")
-        if self.stagger_mask.data:
+        if self.stagger_mask.value.data:
             raise VerifyException("Non-zero stagger mask currently unsupported")
         for instruction in self.body.ops:
             if not instruction.has_trait(Pure) and not isinstance(
