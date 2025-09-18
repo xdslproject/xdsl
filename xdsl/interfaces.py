@@ -122,8 +122,7 @@ class HasFolderInterface(Operation, abc.ABC):
         Attempts to fold the operation. The fold method cannot modify the IR.
         Returns either an existing SSAValue or an Attribute for each result of the operation.
         When folding is unsuccessful, returns None.
+
+        The fold method is not allowed to mutate the operation being folded.
         """
-        # TODO: should we support fold methods that mutate the operation?
-        #   That would require fold to return an additional flag
-        #   indicating whether the operation was modified?
         raise NotImplementedError()
