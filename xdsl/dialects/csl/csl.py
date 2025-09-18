@@ -433,7 +433,7 @@ class VariableOp(IRDLOperation):
     default = opt_prop_def(ParamAttr)
     res = result_def(VarType)
 
-    assembly_format = "`(`($default^)?`)` `:` type($res) attr-dict"
+    assembly_format = "`(` $default `)` `:` type($res) attr-dict"
 
     def get_element_type(self):
         assert isinstance(self.res.type, VarType)
