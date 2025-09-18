@@ -12,13 +12,15 @@ from xdsl.dialects.utils import (
     parse_dynamic_index_with_type,
     parse_dynamic_index_without_type,
     print_dynamic_index_list,
+    parse_empty_dimension_list_directive,
+    print_empty_dimension_list_directive,
     split_dynamic_index_list,
 )
 from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
 from xdsl.ir import Dialect, SSAValue
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 ctx = Context()
@@ -227,6 +229,35 @@ def test_parse_dynamic_index_list_with_custom_delimiter():
     assert values[0] is test_values[0]
     assert values[1] is test_values[1]
     assert tuple(indices) == (dynamic_index, 42, dynamic_index)
+
+
+@pytest.mark.parametrize(
+    "string,expected",
+    [
+        ("[]", True),
+        ("2x3x4", False),
+        ("[2, 3, 4]", None),
+    ],
+)
+def test_parse_empty_dimension_list(string: str, expected: bool | None):
+    parser = Parser(ctx, string)
+
+    if expected is not None:
+        assert parse_empty_dimension_list_directive(parser) == expected
+        return
+
+    with pytest.raises(
+        ParseError,
+        match="']' expected",
+    ):
+        parse_empty_dimension_list_directive(parser)
+
+
+def test_print_empty_dimension_list():
+    stream = StringIO()
+    printer = Printer(stream)
+    print_empty_dimension_list_directive(printer)
+    assert stream.getvalue() == "[]"
 
 
 @pytest.mark.parametrize(
