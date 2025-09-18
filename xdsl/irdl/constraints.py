@@ -470,19 +470,18 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         for i, c in enumerate(constrs):
             b = c.get_bases()
             if b is None:
-                if abstr_constr is None:
-                    if not isinstance(c, BaseAttr) or is_runtime_final(c.attr):
-                        raise PyRDLError(
-                            f"Abstract constraint in `AnyOf` must be a `BaseAttr` "
-                            f"with a non-final attribute class, got {c} instead."
-                        )
-                    abstr_constr = c
-                    continue
-                else:
+                if abstr_constr is not None:
                     raise PyRDLError(
                         "Only one abstract constraint is allowed in `AnyOf` constraint,"
                         f" found {c} when {abstr_constr} was already present."
                     )
+                if not isinstance(c, BaseAttr) or is_runtime_final(c.attr):
+                    raise PyRDLError(
+                        f"Abstract constraint in `AnyOf` must be a `BaseAttr` "
+                        f"with a non-final attribute class, got {c} instead."
+                    )
+                abstr_constr = c
+                continue
 
             if not b.isdisjoint(bases):
                 raise PyRDLError(
@@ -504,7 +503,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                 bases |= b
 
         # check for overlaps with the abstract constraint
-        if abstr_constr:
+        if abstr_constr is not None:
             # equality constraints should not overlap
             for attr, constr in eq_constrs.items():
                 if isinstance(attr, abstr_constr.attr):
