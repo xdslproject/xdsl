@@ -7,6 +7,7 @@ Those can be translated to C/C++ via the Cpp emitter.
 See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
+import abc
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Generic, Literal
 
@@ -25,6 +26,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ShapedType,
+    StaticShapeArrayConstr,
     StringAttr,
     TensorType,
     TupleType,
@@ -37,6 +39,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     AttrConstraint,
     ConstraintContext,
     IntConstraint,
@@ -45,9 +48,11 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
+    operand_def,
     opt_prop_def,
     param_def,
     prop_def,
+    result_def,
     var_operand_def,
     var_result_def,
 )
@@ -166,17 +171,17 @@ EmitCArrayElementTypeCovT = TypeVar(
 
 @irdl_attr_definition
 class EmitC_ArrayType(
-    Generic[EmitCArrayElementTypeCovT],
     ParametrizedAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[EmitCArrayElementTypeCovT],
+    Generic[EmitCArrayElementTypeCovT],
 ):
     """EmitC array type"""
 
     name = "emitc.array"
 
-    shape: ArrayAttr[IntAttr]
+    shape: ArrayAttr[IntAttr] = param_def(StaticShapeArrayConstr)
     element_type: EmitCArrayElementTypeCovT
 
     def __init__(
@@ -234,6 +239,9 @@ class EmitCTypeConstraint(AttrConstraint):
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if isa(attr, TensorType):
+            # EmitC only supports tensors with static shapes
+            if not attr.has_static_shape():
+                raise VerifyException(f"Type {attr} is not a supported EmitC type")
             elem_type = attr.get_element_type()
             if isinstance(elem_type, EmitC_ArrayType):
                 raise VerifyException("EmitC type cannot be a tensor of EmitC arrays")
@@ -300,6 +308,121 @@ class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
     def verify(self) -> None:
         if isinstance(self.pointee_type, EmitC_LValueType):
             raise VerifyException("pointers to lvalues are not allowed")
+
+
+class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
+    """Base class for EmitC binary operations."""
+
+    lhs = operand_def(EmitCTypeConstr)
+    rhs = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[result_type],
+        )
+
+
+@irdl_op_definition
+class EmitC_AddOp(EmitC_BinaryOperation):
+    """
+    Addition operation.
+
+    With the `emitc.add` operation the arithmetic operator + (addition) can
+    be applied. Supports pointer arithmetic where one operand is a pointer
+    and the other is an integer or opaque type.
+
+    Example:
+
+    ```mlir
+    // Custom form of the addition operation.
+    %0 = emitc.add %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.add %arg2, %arg3 : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 + v2;
+    float* v6 = v3 + v4;
+    ```
+    """
+
+    name = "emitc.add"
+
+    def verify_(self) -> None:
+        lhs_type = self.lhs.type
+        rhs_type = self.rhs.type
+
+        if isa(lhs_type, EmitC_PointerType) and isa(rhs_type, EmitC_PointerType):
+            raise VerifyException(
+                "emitc.add requires that at most one operand is a pointer"
+            )
+
+        if (
+            isa(lhs_type, EmitC_PointerType)
+            and not isa(rhs_type, IntegerType | EmitC_OpaqueType)
+        ) or (
+            isa(rhs_type, EmitC_PointerType)
+            and not isa(lhs_type, IntegerType | EmitC_OpaqueType)
+        ):
+            raise VerifyException(
+                "emitc.add requires that one operand is an integer or of opaque "
+                "type if the other is a pointer"
+            )
+
+
+@irdl_op_definition
+class EmitC_ApplyOp(IRDLOperation):
+    """Apply operation"""
+
+    name = "emitc.apply"
+
+    assembly_format = """
+        $applicableOperator `(` $operand `)` attr-dict `:` functional-type($operand, results)
+      """
+
+    applicableOperator = prop_def(StringAttr)
+
+    operand = operand_def(AnyAttr())
+
+    result = result_def(EmitCTypeConstr)
+
+    def verify_(self) -> None:
+        applicable_operator = self.applicableOperator.data
+
+        # Applicable operator must not be empty
+        if not applicable_operator:
+            raise VerifyException("applicable operator must not be empty")
+
+        if applicable_operator not in ("&", "*"):
+            raise VerifyException("applicable operator is illegal")
+
+        operand_type = self.operand.type
+        result_type = self.result.type
+
+        if applicable_operator == "&":
+            if not isinstance(operand_type, EmitC_LValueType):
+                raise VerifyException(
+                    "operand type must be an lvalue when applying `&`"
+                )
+            if not isinstance(result_type, EmitC_PointerType):
+                raise VerifyException("result type must be a pointer when applying `&`")
+        else:  # applicable_operator == "*"
+            if not isinstance(operand_type, EmitC_PointerType):
+                raise VerifyException(
+                    "operand type must be a pointer when applying `*`"
+                )
+
+    def has_side_effects(self) -> bool:
+        """Return True if the operation has side effects."""
+        return self.applicableOperator.data == "*"
 
 
 @irdl_op_definition
@@ -379,6 +502,8 @@ class EmitC_CallOpaqueOp(IRDLOperation):
 EmitC = Dialect(
     "emitc",
     [
+        EmitC_AddOp,
+        EmitC_ApplyOp,
         EmitC_CallOpaqueOp,
     ],
     [

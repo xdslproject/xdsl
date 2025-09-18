@@ -7,7 +7,7 @@ from xdsl.utils.exceptions import VerifyException
 
 def test_emitc_array_negative_dimension():
     with pytest.raises(
-        VerifyException, match="EmitC array dimensions must have non-negative size"
+        VerifyException, match="expected static shape, but got dynamic dimension"
     ):
         EmitC_ArrayType([-1], i32)
 

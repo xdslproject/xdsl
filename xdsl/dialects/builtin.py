@@ -61,6 +61,7 @@ from xdsl.irdl import (
     IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
+    NotEqualIntConstraint,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -135,13 +136,13 @@ _ContainerElementTypeT = TypeVar(
 )
 
 
-class ContainerType(Generic[_ContainerElementTypeT], ABC):
+class ContainerType(ABC, Generic[_ContainerElementTypeT]):
     @abstractmethod
     def get_element_type(self) -> _ContainerElementTypeT:
         pass
 
 
-class _BuiltinData(Generic[DataElement], Data[DataElement], BuiltinAttribute, ABC):
+class _BuiltinData(Data[DataElement], BuiltinAttribute, ABC, Generic[DataElement]):
     """
     Helper superclass to implement dummy print and parse parameter methods.
     """
@@ -157,7 +158,7 @@ class _BuiltinData(Generic[DataElement], Data[DataElement], BuiltinAttribute, AB
 
 
 class _BuiltinGenericData(
-    Generic[DataElement], GenericData[DataElement], _BuiltinData[DataElement], ABC
+    GenericData[DataElement], _BuiltinData[DataElement], ABC, Generic[DataElement]
 ):
     """
     Helper superclass to implement dummy print and parse parameter methods.
@@ -176,9 +177,9 @@ class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
 
 @irdl_attr_definition
 class ArrayAttr(
-    Generic[AttributeCovT],
     _BuiltinGenericData[tuple[AttributeCovT, ...]],
     Iterable[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "array"
 
@@ -196,8 +197,13 @@ class ArrayAttr(
         | RangeConstraint[AttributeInvT]
         | None = None,
     ) -> ArrayOfConstraint[AttributeInvT]:
-        return ArrayOfConstraint(
-            TypeVarConstraint(AttributeCovT, AnyAttr()) if constr is None else constr
+        return ArrayOfConstraint[AttributeInvT](
+            cast(
+                AttrConstraint[AttributeInvT],
+                TypeVarConstraint(AttributeCovT, AnyAttr()),
+            )
+            if constr is None
+            else constr
         )
 
     def __len__(self):
@@ -217,7 +223,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
 
     def __init__(
         self,
-        constr: (IRDLAttrConstraint | RangeConstraint[AttributeCovT]),
+        constr: (IRDLAttrConstraint[AttributeCovT] | RangeConstraint[AttributeCovT]),
     ):
         if isinstance(constr, RangeConstraint):
             object.__setattr__(self, "elem_range_constraint", constr)
@@ -361,7 +367,7 @@ IntCovT = TypeVar("IntCovT", bound=int, default=int, covariant=True)
 
 
 @irdl_attr_definition
-class IntAttr(Generic[IntCovT], GenericData[IntCovT]):
+class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
     name = "builtin.int"
 
     @classmethod
@@ -419,6 +425,24 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         )
 
 
+StaticDimensionConstr = MessageConstraint(
+    IntAttrConstraint(NotEqualIntConstraint(DYNAMIC_INDEX)),
+    f"expected static dimension, but got {DYNAMIC_INDEX}",
+)
+"""
+Constrain a dimension to be static (not equal to `DYNAMIC_INDEX`).
+"""
+
+
+StaticShapeArrayConstr = MessageConstraint(
+    ArrayOfConstraint(StaticDimensionConstr),
+    "expected static shape, but got dynamic dimension",
+)
+"""
+Constrain an array to be a static shape (all dimensions static).
+"""
+
+
 class Signedness(ConstraintConvertible, Enum):
     "Signedness semantics for integer"
 
@@ -459,7 +483,7 @@ SignednessCovT = TypeVar(
 
 
 @irdl_attr_definition
-class SignednessAttr(Generic[SignednessCovT], GenericData[SignednessCovT]):
+class SignednessAttr(GenericData[SignednessCovT], Generic[SignednessCovT]):
     name = "builtin.signedness"
 
     @classmethod
@@ -532,7 +556,7 @@ class FixedBitwidthType(CompileTimeFixedBitwidthType, ABC):
 _PyT = TypeVar("_PyT")
 
 
-class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
+class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     """
     Abstract base class for xDSL types whose values can be encoded and decoded as bytes.
     """
@@ -566,7 +590,7 @@ class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
         raise NotImplementedError()
 
 
-class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
+class StructPackableType(PackableType[_PyT], ABC, Generic[_PyT]):
     """
     Abstract base class for xDSL types that can be packed and unpacked using Python's
     `struct` package, using a format string.
@@ -615,11 +639,11 @@ Bitwidths: `<B`: 1-8, `<H`: 9-16, `<I`: 17-32, `<Q`: 33-64.
 
 @irdl_attr_definition
 class IntegerType(
-    Generic[IntCovT, SignednessCovT],
     ParametrizedAttribute,
     StructPackableType[int],
     FixedBitwidthType,
     BuiltinAttribute,
+    Generic[IntCovT, SignednessCovT],
 ):
     name = "integer_type"
     width: IntAttr[IntCovT]
@@ -854,9 +878,9 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 
 @irdl_attr_definition
 class IntegerAttr(
-    Generic[_IntegerAttrType],
     BuiltinAttribute,
     TypedAttribute,
+    Generic[_IntegerAttrType],
 ):
     name = "integer"
     value: IntAttr
@@ -1116,7 +1140,7 @@ _FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
+class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
     name = "float"
 
     value: FloatData
@@ -1201,12 +1225,12 @@ ComplexElementCovT = TypeVar(
 
 @irdl_attr_definition
 class ComplexType(
-    Generic[ComplexElementCovT],
     PackableType[tuple[float, float] | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
     ContainerType[ComplexElementCovT],
     TypeAttribute,
+    Generic[ComplexElementCovT],
 ):
     name = "complex"
     element_type: ComplexElementCovT
@@ -1315,12 +1339,12 @@ class TupleType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class VectorType(
-    Generic[AttributeCovT],
     BuiltinAttribute,
     ParametrizedAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "vector"
 
@@ -1417,12 +1441,12 @@ AnyVectorType: TypeAlias = VectorType[Attribute]
 
 @irdl_attr_definition
 class TensorType(
-    Generic[AttributeCovT],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "tensor"
 
@@ -1488,11 +1512,11 @@ AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
 
 @irdl_attr_definition
 class UnrankedTensorType(
-    Generic[AttributeCovT],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "unranked_tensor"
 
@@ -1512,10 +1536,10 @@ AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType
 
 @dataclass(frozen=True, init=False)
 class ContainerOf(
-    Generic[AttributeCovT],
     AttrConstraint[
         AttributeCovT | VectorType[AttributeCovT] | TensorType[AttributeCovT]
     ],
+    Generic[AttributeCovT],
 ):
     """A type constraint that can be nested once in a vector or a tensor."""
 
@@ -1663,10 +1687,10 @@ DenseArrayInvT = TypeVar(
 
 @irdl_attr_definition
 class DenseArrayBase(
-    Generic[DenseArrayT],
     ContainerType[DenseArrayT],
     ParametrizedAttribute,
     BuiltinAttribute,
+    Generic[DenseArrayT],
 ):
     name = "array"
 
@@ -2322,12 +2346,12 @@ class NoneType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class MemRefType(
-    Generic[_MemRefTypeElement],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[_MemRefTypeElement],
+    Generic[_MemRefTypeElement],
 ):
     name = "memref"
 
@@ -2485,11 +2509,11 @@ class MemRefType(
 
 @irdl_attr_definition
 class UnrankedMemRefType(
-    Generic[_UnrankedMemRefTypeElems],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ContainerType[_UnrankedMemRefTypeElems],
+    Generic[_UnrankedMemRefTypeElems],
 ):
     name = "unranked_memref"
 
@@ -2531,10 +2555,10 @@ DenseElementT = TypeVar("DenseElementT", bound=AnyDenseElement, default=AnyDense
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
-    Generic[DenseElementCovT],
     TypedAttribute,
     BuiltinAttribute,
     ContainerType[DenseElementCovT],
+    Generic[DenseElementCovT],
 ):
     name = "dense"
     type: RankedStructure[DenseElementCovT]

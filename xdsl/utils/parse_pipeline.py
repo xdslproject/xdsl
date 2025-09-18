@@ -4,43 +4,41 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum
+from typing import TypeAlias
 
 from xdsl.utils.exceptions import PassPipelineParseError
-from xdsl.utils.lexer import Input, Span
+from xdsl.utils.lexer import Input, Span, Token
 from xdsl.utils.mlir_lexer import StringLiteral
 
 
-@dataclass
-class Token:
-    span: Span
-    kind: Kind
+class SpecTokenKind(Enum):
+    EOF = object()
 
-    class Kind(Enum):
-        EOF = object()
-
-        IDENT = object()
-        L_BRACE = "{"
-        R_BRACE = "}"
-        EQUALS = "="
-        NUMBER = object()
-        SPACE = object()
-        STRING_LIT = object()
-        MLIR_PIPELINE = object()
-        COMMA = ","
+    IDENT = object()
+    L_BRACE = "{"
+    R_BRACE = "}"
+    EQUALS = "="
+    NUMBER = object()
+    SPACE = object()
+    STRING_LIT = object()
+    MLIR_PIPELINE = object()
+    COMMA = ","
 
 
-_lexer_rules: list[tuple[re.Pattern[str], Token.Kind]] = [
+SpecToken: TypeAlias = Token[SpecTokenKind]
+
+_lexer_rules: list[tuple[re.Pattern[str], SpecTokenKind]] = [
     # first rule is special to allow 2d-slice to be recognized as an ident
-    (re.compile(r"[0-9]+[A-Za-z_-]+[A-Za-z0-9_-]*"), Token.Kind.IDENT),
-    (re.compile(r"[-+]?[0-9]+(\.[0-9]*([eE][-+]?[0-9]+)?)?"), Token.Kind.NUMBER),
-    (re.compile(r"[A-Za-z0-9_-]+"), Token.Kind.IDENT),
-    (re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"'), Token.Kind.STRING_LIT),
-    (re.compile(r'\[(\\[nfvtr"\\]|[^\n\f\v\r\]\\])*\]'), Token.Kind.MLIR_PIPELINE),
-    (re.compile(r"\{"), Token.Kind.L_BRACE),
-    (re.compile(r"}"), Token.Kind.R_BRACE),
-    (re.compile(r"="), Token.Kind.EQUALS),
-    (re.compile(r"\s+"), Token.Kind.SPACE),
-    (re.compile(r","), Token.Kind.COMMA),
+    (re.compile(r"[0-9]+[A-Za-z_-]+[A-Za-z0-9_-]*"), SpecTokenKind.IDENT),
+    (re.compile(r"[-+]?[0-9]+(\.[0-9]*([eE][-+]?[0-9]+)?)?"), SpecTokenKind.NUMBER),
+    (re.compile(r"[A-Za-z0-9_-]+"), SpecTokenKind.IDENT),
+    (re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"'), SpecTokenKind.STRING_LIT),
+    (re.compile(r'\[(\\[nfvtr"\\]|[^\n\f\v\r\]\\])*\]'), SpecTokenKind.MLIR_PIPELINE),
+    (re.compile(r"\{"), SpecTokenKind.L_BRACE),
+    (re.compile(r"}"), SpecTokenKind.R_BRACE),
+    (re.compile(r"="), SpecTokenKind.EQUALS),
+    (re.compile(r"\s+"), SpecTokenKind.SPACE),
+    (re.compile(r","), SpecTokenKind.COMMA),
 ]
 """
 This is a list of lexer rules that should be tried in this specific order to get the
@@ -62,45 +60,46 @@ class PipelineLexer:
     value     ::= NUMBER | BOOL | IDENT | STRING_LITERAL
     """
 
-    _stream: Iterator[Token]
-    _peeked: Token | None
+    _stream: Iterator[SpecToken]
+    _peeked: SpecToken | None
 
     def __init__(self, input_str: str):
         self._stream = PipelineLexer._generator(input_str)
         self._peeked = None
 
     @staticmethod
-    def _generator(input_str: str) -> Iterator[Token]:
+    def _generator(input_str: str) -> Iterator[SpecToken]:
         input = Input(input_str, "pass-pipeline")
         pos = 0
         end = len(input_str)
 
         if len(input_str) == 0:
-            yield Token(Span(pos, pos + 1, input), Token.Kind.EOF)
+            yield SpecToken(SpecTokenKind.EOF, Span(pos, pos + 1, input))
             return
 
         while True:
-            token: Token | None = None
+            token: SpecToken | None = None
             for pattern, kind in _lexer_rules:
                 if (match := pattern.match(input_str, pos)) is not None:
-                    token = Token(Span(match.start(), match.end(), input), kind)
+                    token = SpecToken(kind, Span(match.start(), match.end(), input))
                     pos = match.end()
                     break
             if token is None:
                 raise PassPipelineParseError(
-                    Token(Span(pos, pos + 1, input), Token.Kind.IDENT), "Unknown token"
+                    SpecToken(SpecTokenKind.IDENT, Span(pos, pos + 1, input)),
+                    "Unknown token",
                 )
             yield token
             if pos >= end:
-                yield Token(Span(pos, pos + 1, input), Token.Kind.EOF)
+                yield SpecToken(SpecTokenKind.EOF, Span(pos, pos + 1, input))
                 return
 
-    def lex(self) -> Token:
+    def lex(self) -> SpecToken:
         token = self.peek()
         self._peeked = None
         return token
 
-    def peek(self) -> Token:
+    def peek(self) -> SpecToken:
         if self._peeked is None:
             self._peeked = next(self._stream)
         return self._peeked
@@ -179,25 +178,25 @@ def parse_pipeline(
     while True:
         # get the pass name
         name = lexer.lex()
-        if name.kind is Token.Kind.EOF:
+        if name.kind is SpecTokenKind.EOF:
             return
-        if name.kind is not Token.Kind.IDENT:
+        if name.kind is not SpecTokenKind.IDENT:
             raise PassPipelineParseError(name, "Expected pass name here")
 
         # valid next tokens are EOF, COMMA or `{`
         match lexer.lex():
-            case Token(kind=Token.Kind.EOF):
+            case Token(kind=SpecTokenKind.EOF):
                 # EOF means we have nothing else left to parse, we are done
                 yield PipelinePassSpec(name.span.text, dict())
                 return
-            case Token(kind=Token.Kind.COMMA):
+            case Token(kind=SpecTokenKind.COMMA):
                 # comma means we are done parsing this pass, move on to next pass
                 yield PipelinePassSpec(name.span.text, dict())
                 continue
-            case Token(kind=Token.Kind.L_BRACE):
+            case Token(kind=SpecTokenKind.L_BRACE):
                 # `{` indicates start of args dict, so we parse that next
                 yield PipelinePassSpec(name.span.text, _parse_pass_args(lexer))
-            case Token(span, Token.Kind.MLIR_PIPELINE):
+            case Token(SpecTokenKind.MLIR_PIPELINE, span):
                 if name.span.text != "mlir-opt":
                     raise PassPipelineParseError(
                         name,
@@ -222,10 +221,10 @@ def parse_pipeline(
 
         # check for comma or EOF
         match lexer.lex():
-            case Token(kind=Token.Kind.EOF):
+            case Token(kind=SpecTokenKind.EOF):
                 # EOF means we are finished parsing
                 return
-            case Token(kind=Token.Kind.COMMA):
+            case Token(kind=SpecTokenKind.COMMA):
                 # comma means we move on to parse the next pass spec
                 continue
             case invalid:
@@ -252,26 +251,26 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
         name = lexer.lex()
 
         # allow for zero-length arg dicts
-        if name.kind is Token.Kind.R_BRACE:
+        if name.kind is SpecTokenKind.R_BRACE:
             return args
 
         # check that it is a valid identifier
-        if name.kind is not Token.Kind.IDENT:
+        if name.kind is not SpecTokenKind.IDENT:
             raise PassPipelineParseError(name, "Expected argument name here")
 
         # next token should be either a space, `}` or `=`
         match lexer.lex():
-            case Token(kind=Token.Kind.SPACE):
+            case Token(kind=SpecTokenKind.SPACE):
                 # space means zero-length argument, store empty list
                 args[name.span.text] = ()
                 # then continue parsing args list
                 continue
-            case Token(kind=Token.Kind.R_BRACE):
+            case Token(kind=SpecTokenKind.R_BRACE):
                 # `}` means zero-length argument with no further arg
                 args[name.span.text] = ()
                 # stop parsing args
                 return args
-            case Token(kind=Token.Kind.EQUALS):
+            case Token(kind=SpecTokenKind.EQUALS):
                 # equals means we have an arg value given, parse it
                 args[name.span.text] = _parse_arg_value(lexer)
             case invalid:
@@ -282,10 +281,10 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
 
         # next token must be either space or `}`
         match lexer.lex():
-            case Token(kind=Token.Kind.SPACE):
+            case Token(kind=SpecTokenKind.SPACE):
                 # space means we get another argument
                 continue
-            case Token(kind=Token.Kind.R_BRACE):
+            case Token(kind=SpecTokenKind.R_BRACE):
                 # `}` signifies end of args
                 return args
             case invalid:
@@ -301,7 +300,7 @@ def _parse_arg_value(lexer: PipelineLexer) -> PassArgListType:
     Parse an argument value of the form: value (`,` value)*
     """
     elms = [_parse_arg_value_element(lexer)]
-    while lexer.peek().kind is Token.Kind.COMMA:
+    while lexer.peek().kind is SpecTokenKind.COMMA:
         lexer.lex()
         elms.append(_parse_arg_value_element(lexer))
     return tuple(elms)
@@ -314,19 +313,19 @@ def _parse_arg_value_element(lexer: PipelineLexer) -> PassArgElementType:
     # valid value elements are quoted strings, numbers, true|false, and "ident" type
     # strings
     match lexer.lex():
-        case Token(kind=Token.Kind.STRING_LIT, span=span):
+        case Token(kind=SpecTokenKind.STRING_LIT, span=span):
             # string literals are converted to unescaped strings
             str_token = StringLiteral.from_span(span)
             assert str_token is not None
             return str_token.string_contents
-        case Token(kind=Token.Kind.NUMBER, span=span):
+        case Token(kind=SpecTokenKind.NUMBER, span=span):
             # NUMBER is both float and int
             # if the token contains a `.` it's a float
             if "." in span.text:
                 return float(span.text)
             # otherwise an int
             return int(span.text)
-        case Token(kind=Token.Kind.IDENT, span=span):
+        case Token(kind=SpecTokenKind.IDENT, span=span):
             # identifiers are either true|false or treated as a string
             if span.text == "true":
                 return True

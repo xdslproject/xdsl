@@ -4,6 +4,7 @@ import abc
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, Literal, cast
 
+from xdsl.dialect_interfaces import ConstantMaterializationInterface
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
@@ -27,7 +28,14 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
+from xdsl.interfaces import ConstantLikeInterface
+from xdsl.ir import (
+    Attribute,
+    BitEnumAttribute,
+    Dialect,
+    Operation,
+    SSAValue,
+)
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -48,7 +56,6 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
     ConditionallySpeculatable,
-    ConstantLike,
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
     Pure,
@@ -128,7 +135,7 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation):
+class ConstantOp(IRDLOperation, ConstantLikeInterface):
     name = "arith.constant"
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
@@ -139,7 +146,7 @@ class ConstantOp(IRDLOperation):
         | ParamAttrConstraint(DenseResourceAttr, (AnyAttr(), _T))
     )
 
-    traits = traits_def(ConstantLike(), Pure())
+    traits = traits_def(Pure())
 
     assembly_format = "attr-dict $value"
 
@@ -170,6 +177,9 @@ class ConstantOp(IRDLOperation):
                 "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
             },
         )
+
+    def get_constant_value(self) -> Attribute:
+        return self.value
 
 
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
@@ -1373,6 +1383,14 @@ class ExtUIOp(IRDLOperation):
     traits = traits_def(Pure())
 
 
+class ArithConstantMaterializationInterface(ConstantMaterializationInterface):
+    def materialize_constant(self, value: Attribute, type: Attribute) -> Operation:
+        return cast(
+            Operation,
+            ConstantOp.build(properties={"value": value}, result_types=(type,)),
+        )
+
+
 Arith = Dialect(
     "arith",
     [
@@ -1434,5 +1452,8 @@ Arith = Dialect(
     [
         FastMathFlagsAttr,
         IntegerOverflowAttr,
+    ],
+    [
+        ArithConstantMaterializationInterface(),
     ],
 )

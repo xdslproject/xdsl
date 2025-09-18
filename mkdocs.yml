@@ -57,6 +57,7 @@ plugins:
           show_root_heading: true
           show_root_full_path: false
           show_signature_annotations: true
+          show_if_no_docstring: true
 - mkdocs-simple-hooks:
     hooks:
       on_post_build: "scripts.hooks:build_xdsl_wheel"
