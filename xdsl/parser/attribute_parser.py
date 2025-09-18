@@ -522,17 +522,30 @@ class AttrParser(BaseParser):
     def parse_dimension_list(self) -> list[int]:
         """
         Parse a dimension list with the following format:
-          dimension-list ::= (dimension `x`)* dimension `x`?
+          dimension-list ::= (dimension `x`)* dimension
         each dimension is also required to be non-negative.
         """
         dims: list[int] = []
         accepted_token_kinds = (MLIRTokenKind.INTEGER_LIT, MLIRTokenKind.QUESTION)
 
-        while self._current_token.kind in accepted_token_kinds:
-            dim = self.parse_shape_dimension()
-            dims.append(dim)
+        # empty case
+        if self._current_token.kind not in accepted_token_kinds:
+            return []
 
-            if not self.parse_optional_shape_delimiter():
+        # parse first number
+        dim = self.parse_shape_dimension()
+        dims.append(dim)
+
+        # Two approaches possible here, could look for `x` `num` and only parse
+        # when both are found (requires peek() functionality), or could parse
+        # the `x` always, and then `undo` if we don't see a number following
+        # which is this approach
+        while self.parse_optional_shape_delimiter():
+            if self._current_token.kind in accepted_token_kinds:
+                dim = self.parse_shape_dimension()
+                dims.append(dim)
+            else:
+                self._resume_from(self._current_token.span.start - 1)
                 break
 
         return dims
@@ -545,6 +558,7 @@ class AttrParser(BaseParser):
         each dimension is also required to be non-negative.
         """
         dims = self.parse_dimension_list()
+        self.parse_shape_delimiter()
 
         type = self.expect(self.parse_optional_type, "Expected shape type.")
         return dims, type
