@@ -447,7 +447,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
 
 
 AssemblyInstructionArg: TypeAlias = (
-    IntegerAttr | LabelAttr | SSAValue | IntRegisterType | str | int
+    IntegerAttr | LabelAttr | SSAValue | IntRegisterType | str
 )
 
 
