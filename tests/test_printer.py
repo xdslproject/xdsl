@@ -957,6 +957,7 @@ def test_float_attr_specials():
 @pytest.mark.parametrize(
     "dims, expected",
     [
+        ([], ""),
         ([1, 2, 3], "1x2x3"),
         ([1, -1, 3, -1], "1x?x3x?"),
         ([5], "5"),
