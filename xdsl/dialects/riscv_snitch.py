@@ -276,13 +276,13 @@ class FRepOperation(RISCVInstruction):
         max_rep: SSAValue | Operation,
         body: Sequence[Operation] | Sequence[Block] | Region,
         iter_args: Sequence[SSAValue | Operation] = (),
-        stagger_mask: IntegerAttr[IntegerType[Literal[4]]] | None = None,
-        stagger_count: IntegerAttr[IntegerType[Literal[3]]] | None = None,
+        stagger_mask: IntegerAttr[I4] | None = None,
+        stagger_count: IntegerAttr[I3] | None = None,
     ):
         if stagger_mask is None:
-            stagger_mask = IntegerAttr(0, IntegerType[Literal[4]](4))
+            stagger_mask = IntegerAttr(0, i4)
         if stagger_count is None:
-            stagger_count = IntegerAttr(0, IntegerType[Literal[3]](3))
+            stagger_count = IntegerAttr(0, i3)
         super().__init__(
             operands=(max_rep, iter_args),
             result_types=[[SSAValue.get(a).type for a in iter_args]],
@@ -352,8 +352,8 @@ class FRepOperation(RISCVInstruction):
             max_rep,
             body,
             iter_arg_operands,
-            IntegerAttr(stagger_mask, IntegerType(4)),
-            IntegerAttr(stagger_count, IntegerType(3)),
+            IntegerAttr(stagger_mask, i4),
+            IntegerAttr(stagger_count, i3),
         )
         if remaining_attributes is not None:
             frep.attributes |= remaining_attributes.data
