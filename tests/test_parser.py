@@ -1207,3 +1207,19 @@ def test_parse_identifier_or_str_literal(input: str, expected: str | None):
             parser.parse_identifier_or_str_literal()
     else:
         assert parser.parse_identifier_or_str_literal() == expected
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        ("", []),
+        ("2x3x4", [2, 3, 4]),
+        ("9x1x5x", [9, 1, 5]),
+        ("9x?x1x?", [9, -1, 1, -1]),
+    ],
+)
+def test_parse_dimension_list(input: str, expected: list[int]):
+    parser = Parser(Context(), input)
+
+    result = parser.parse_dimension_list()
+    assert result == expected

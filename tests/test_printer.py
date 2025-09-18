@@ -954,6 +954,23 @@ def test_float_attr_specials():
     _test_attr_print("0xfff0000000000000 : f64", FloatAttr(float("-inf"), 64))
 
 
+@pytest.mark.parametrize(
+    "dims, expected",
+    [
+        ([], ""),
+        ([1, 2, 3], "1x2x3"),
+        ([1, -1, 3, -1], "1x?x3x?"),
+        ([5], "5"),
+    ],
+)
+def test_print_dimension_list(dims: list[int], expected: str):
+    io = StringIO()
+    printer = Printer(stream=io)
+    printer.print_dimension_list(dims)
+
+    assert io.getvalue() == expected
+
+
 def test_print_function_type():
     io = StringIO()
     printer = Printer(stream=io)
