@@ -536,15 +536,13 @@ class AttrParser(BaseParser):
         dim = self.parse_shape_dimension()
         dims.append(dim)
 
-        # Two approaches possible here, could look for `x` `num` and only parse
-        # when both are found (requires peek() functionality), or could parse
-        # the `x` always, and then `undo` if we don't see a number following
-        # which is this approach
         while self.parse_optional_shape_delimiter():
             if self._current_token.kind in accepted_token_kinds:
                 dim = self.parse_shape_dimension()
                 dims.append(dim)
             else:
+                # We want to preserve a trailing `x` as it provides useful
+                # information to the rest of the parser, so we undo the parse
                 self._resume_from(self._current_token.span.start - 1)
                 break
 
