@@ -558,7 +558,8 @@ class AttrParser(BaseParser):
         each dimension is also required to be non-negative.
         """
         dims = self.parse_dimension_list()
-        self.parse_shape_delimiter()
+        if len(dims) > 0:
+            self.parse_shape_delimiter()
 
         type = self.expect(self.parse_optional_type, "Expected shape type.")
         return dims, type
