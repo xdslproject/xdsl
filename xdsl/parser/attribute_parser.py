@@ -485,20 +485,21 @@ class AttrParser(BaseParser):
 
         return int_token.kind.get_int_value(int_token.span)
 
-    def parse_optional_shape_delimiter(self) -> bool:
+    def _parse_optional_shape_delimiter(self) -> str | None:
         """
         Parse 'x', a shape delimiter. Note that if 'x' is followed by other
         characters, it will split the token. For instance, 'x1' will be split
         into 'x' and '1'.
         """
         if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
-            return False
+            return None
 
         if self._current_token.text[0] != "x":
-            return False
+            return None
 
+        # Move the lexer to the position after 'x'.
         self._resume_from(self._current_token.span.start + 1)
-        return True
+        return "x"
 
     def parse_shape_delimiter(self) -> None:
         """
@@ -506,18 +507,15 @@ class AttrParser(BaseParser):
         characters, it will split the token. For instance, 'x1' will be split
         into 'x' and '1'.
         """
-        if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
-            self.raise_error(
-                f"Expected 'x' in shape delimiter, got {self._current_token.kind.name}"
-            )
+        token = self._current_token
+        tk = token.kind
 
-        if self._current_token.text[0] != "x":
-            self.raise_error(
-                f"Expected 'x' in shape delimiter, got {self._current_token.text}"
-            )
+        err_val = tk.name if tk != MLIRTokenKind.BARE_IDENT else token.text
 
-        # Move the lexer to the position after 'x'.
-        self._resume_from(self._current_token.span.start + 1)
+        self.expect(
+            self._parse_optional_shape_delimiter,
+            f"Expected 'x' in shape delimiter, got {err_val}",
+        )
 
     def parse_dimension_list(self) -> list[int]:
         """
@@ -536,7 +534,7 @@ class AttrParser(BaseParser):
         dim = self.parse_shape_dimension()
         dims.append(dim)
 
-        while self.parse_optional_shape_delimiter():
+        while self._parse_optional_shape_delimiter():
             if self._current_token.kind in accepted_token_kinds:
                 dim = self.parse_shape_dimension()
                 dims.append(dim)
