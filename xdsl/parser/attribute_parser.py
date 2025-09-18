@@ -541,7 +541,7 @@ class AttrParser(BaseParser):
                 dim = self.parse_shape_dimension()
                 dims.append(dim)
             else:
-                # We want to preserve a trailing `x` as it provides useful
+                # We want to preserve a trailing `x` as it provides useful
                 # information to the rest of the parser, so we undo the parse
                 self._resume_from(self._current_token.span.start - 1)
                 break
