@@ -410,6 +410,13 @@ class Printer(BasePrinter):
             self.print_string(f"{value:d}")
 
     def print_dimension_list(self, dims: Sequence[int]):
+        """
+        Prints the dimension list of a shape, ending with a dimension.
+
+        e.g.:
+          Input: [5, 1, -1, 4]
+          Prints: "5x1x?x4"
+        """
         self.print_list(
             dims,
             lambda x: self.print_int(x) if x != -1 else self.print_string("?"),
