@@ -11,8 +11,8 @@ from xdsl.dialects.utils import (
     parse_dynamic_index_list_without_types,
     parse_dynamic_index_with_type,
     parse_dynamic_index_without_type,
-    print_dynamic_index_list,
     parse_empty_dimension_list_directive,
+    print_dynamic_index_list,
     print_empty_dimension_list_directive,
     split_dynamic_index_list,
 )
