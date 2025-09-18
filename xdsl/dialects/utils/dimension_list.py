@@ -31,6 +31,7 @@ class DimensionList(CustomDirective):
 
     These look like (e.g.) 3x?x5x2, or [] to denote empty
     """
+
     dimensions: AttributeVariable
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
@@ -55,4 +56,3 @@ class DimensionList(CustomDirective):
             return
 
         printer.print_dimension_list(values)
-
