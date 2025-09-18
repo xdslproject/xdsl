@@ -4,7 +4,7 @@ import contextlib
 import threading
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import TypeAlias, overload
+from typing import Literal, TypeAlias, cast, overload
 
 from typing_extensions import TypeVar
 
@@ -88,17 +88,49 @@ class Builder(BuilderListener):
     def name_hint(self, name: str | None):
         self._name_hint = SSAValue.extract_valid_name(name)
 
-    def insert(self, op: OperationInvT) -> OperationInvT:
+    @overload
+    def insert(
+        self, op: OperationInvT, *, with_folding: Literal[False] = False
+    ) -> OperationInvT: ...
+
+    @overload
+    def insert(
+        self, op: Operation, *, with_folding: Literal[True]
+    ) -> Sequence[SSAValue]: ...
+
+    def insert(
+        self, op: OperationInvT, *, with_folding: bool = False
+    ) -> OperationInvT | Sequence[SSAValue]:
         """
         Inserts op at the current location and returns it.
         """
-        return self.insert_op(op)
+        return self.insert_op(op, with_folding=with_folding)
 
+    @overload
     def insert_op(
         self,
         op: InsertOpInvT,
         insertion_point: InsertPoint | None = None,
-    ) -> InsertOpInvT:
+        *,
+        with_folding: Literal[False] = False,
+    ) -> InsertOpInvT: ...
+
+    @overload
+    def insert_op(
+        self,
+        op: Operation,
+        insertion_point: InsertPoint | None = None,
+        *,
+        with_folding: Literal[True],
+    ) -> list[SSAValue]: ...
+
+    def insert_op(
+        self,
+        op: InsertOpInvT | Operation,
+        insertion_point: InsertPoint | None = None,
+        *,
+        with_folding: bool = False,
+    ) -> InsertOpInvT | Sequence[SSAValue]:
         """Inserts op(s) at the current insertion point."""
         ops = (op,) if isinstance(op, Operation) else op
         if not ops:
@@ -109,6 +141,24 @@ class Builder(BuilderListener):
             raise ValueError(
                 "Cannot insert operation explicitly when an implicit builder exists."
             )
+
+        if with_folding:
+            assert isinstance(op, Operation)  # folding only works on single ops
+            values = op.results
+            if (res := self.try_fold(self.context or Context(), op)) is None:
+                Rewriter.insert_op(
+                    op,
+                    self.insertion_point
+                    if insertion_point is None
+                    else insertion_point,
+                )
+                return values
+            results, new_ops = res
+            Rewriter.insert_op(
+                new_ops,
+                self.insertion_point if insertion_point is None else insertion_point,
+            )
+            return results
 
         Rewriter.insert_op(
             op, self.insertion_point if insertion_point is None else insertion_point
@@ -121,7 +171,7 @@ class Builder(BuilderListener):
                         result._name = self._name_hint  # pyright: ignore[reportPrivateUsage]
             self.handle_operation_insertion(op_)
 
-        return op
+        return cast(InsertOpInvT, op)
 
     def try_fold(
         self, ctx: Context, op: Operation
