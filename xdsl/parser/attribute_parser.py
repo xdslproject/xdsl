@@ -507,13 +507,15 @@ class AttrParser(BaseParser):
         characters, it will split the token. For instance, 'x1' will be split
         into 'x' and '1'.
         """
+        if self._parse_optional_shape_delimiter() is not None:
+            return
+
         token = self._current_token
         tk = token.kind
 
         err_val = tk.name if tk != MLIRTokenKind.BARE_IDENT else token.text
 
-        self.expect(
-            self._parse_optional_shape_delimiter,
+        self.raise_error(
             f"Expected 'x' in shape delimiter, got {err_val}",
         )
 
