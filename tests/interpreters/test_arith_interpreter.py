@@ -10,6 +10,7 @@ from xdsl.dialects.arith import (
     AddiOp,
     AndIOp,
     CmpiOp,
+    CmpfOp,
     ConstantOp,
     DivSIOp,
     FloorDivSIOp,
@@ -233,6 +234,34 @@ def test_cmpi(
     cmpi = CmpiOp(lhs_op, rhs_op, arg)
 
     ret = interpreter.run_op(cmpi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == fn(lhs_value, rhs_value)
+
+@pytest.mark.parametrize("lhs_value", [1.5, 0.5, -1.5, 127.5])
+@pytest.mark.parametrize("rhs_value", [1.5, 0.5, -1.5, 127.5])
+@pytest.mark.parametrize(
+    "pred",
+    [
+        ("eq", operator.eq),
+        ("ne", operator.ne),
+        ("slt", operator.lt),
+        ("sle", operator.le),
+        ("sgt", operator.gt),
+        ("sge", operator.ge),
+        ("ult", operator.lt),
+        ("ule", operator.le),
+        ("ugt", operator.gt),
+        ("uge", operator.ge),
+    ],
+)
+def test_cmpf(
+    lhs_value: int, rhs_value: int, pred: tuple[str, Callable[[int, int], int]]
+):
+    arg, fn = pred
+    cmpf = CmpfOp(lhs_op, rhs_op, arg)
+
+    ret = interpreter.run_op(cmpf, (lhs_value, rhs_value))
 
     assert len(ret) == 1
     assert ret[0] == fn(lhs_value, rhs_value)
