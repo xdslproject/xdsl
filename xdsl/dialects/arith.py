@@ -236,6 +236,10 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
                     return (IntegerAttr(result, lhs.type),)
         if isa(rhs, IntegerAttr) and self.is_right_unit(rhs):
             return (self.lhs,)
+        if not self.has_trait(Commutative):
+            return None
+        if isa(lhs, IntegerAttr) and self.is_right_unit(lhs):
+            return (self.rhs,)
 
     def __init__(
         self,
