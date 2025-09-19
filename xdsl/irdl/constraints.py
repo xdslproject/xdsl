@@ -461,7 +461,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             irdl_to_attr_constraint(constr) for constr in attr_constrs
         )
 
-        eq_constrs = dict[Attribute, AttrConstraint[AttributeCovT]]()
+        eq_constrs = set[Attribute]()
         based_constrs = dict[type[Attribute], AttrConstraint[AttributeCovT]]()
 
         bases = set[type[Attribute]]()
@@ -490,7 +490,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                 )
 
             if isinstance(c, EqAttrConstraint):
-                eq_constrs[c.attr] = c
+                eq_constrs.add(c.attr)
                 eq_bases |= b
             else:
                 if not b.isdisjoint(eq_bases):
@@ -505,10 +505,10 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         # check for overlaps with the abstract constraint
         if abstr_constr is not None:
             # equality constraints should not overlap
-            for attr, constr in eq_constrs.items():
+            for attr in eq_constrs:
                 if isinstance(attr, abstr_constr.attr):
                     raise PyRDLError(
-                        f"Equality constraint {constr} overlaps with the abstract "
+                        f"Equality constraint {EqAttrConstraint(attr)} overlaps with the abstract "
                         f"constraint {abstr_constr} in `AnyOf` constraint."
                     )
             # bases should not overlap via issubclass
