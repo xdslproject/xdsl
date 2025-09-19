@@ -23,7 +23,9 @@ class MeshOp(IRDLOperation):
 
     traits = traits_def(SymbolOpInterface())
 
-    assembly_format = "$sym_name `(` `shape` `=` custom<DimensionList>($shape) `)` attr-dict"
+    assembly_format = (
+        "$sym_name `(` `shape` `=` custom<DimensionList>($shape) `)` attr-dict"
+    )
 
     custom_directives = (DimensionList,)
 
