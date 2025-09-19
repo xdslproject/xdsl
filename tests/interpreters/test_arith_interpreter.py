@@ -242,18 +242,16 @@ def test_cmpi(
 @pytest.mark.parametrize("rhs_value", [1.5, 0.5, -1.5, 127.5])
 @pytest.mark.parametrize(
     "pred",
-    [
-        ("eq", operator.eq),
-        ("ne", operator.ne),
-        ("slt", operator.lt),
-        ("sle", operator.le),
-        ("sgt", operator.gt),
-        ("sge", operator.ge),
-        ("ult", operator.lt),
-        ("ule", operator.le),
-        ("ugt", operator.gt),
-        ("uge", operator.ge),
-    ],
+     cmpf_comparison_operations = list({
+           "false": lambda : False,
+           "oeq": operator.eq,
+           "ogt": operator.gt,
+           "oge": operator.ge,
+           "olt": operator.lt,
+           "ole": operator.le,
+           "one": operator.ne,
+           "true": lambda : True,
+       }.items())
 )
 def test_cmpf(
     lhs_value: int, rhs_value: int, pred: tuple[str, Callable[[int, int], int]]
