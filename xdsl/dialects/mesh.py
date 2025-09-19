@@ -1,7 +1,7 @@
 from xdsl.dialects.builtin import (
-    SymbolNameConstraint,
     I64,
     DenseArrayBase,
+    SymbolNameConstraint,
 )
 from xdsl.dialects.utils.dimension_list import DimensionList
 from xdsl.ir import Dialect
