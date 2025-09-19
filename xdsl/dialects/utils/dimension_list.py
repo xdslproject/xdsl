@@ -37,7 +37,7 @@ class DimensionList(CustomDirective):
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         dims = []
 
-        if parse_empty_dimension_list_directive(parser):
+        if not parse_empty_dimension_list_directive(parser):
             dims = parser.parse_dimension_list()
 
         self.dimensions.set(state, DenseArrayBase[I64].from_list(i64, dims))
