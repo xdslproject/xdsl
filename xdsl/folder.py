@@ -45,26 +45,31 @@ class Folder:
 
     def insert_with_fold(
         self, op: Operation, builder: Builder
-    ) -> Sequence[SSAValue] | None:
+    ) -> tuple[Sequence[SSAValue], list[Operation]] | None:
         """
         Inserts the operation using the provided builder, trying to fold it first.
-        If folding is successful, the folded results are returned, otherwise None is returned.
+
+        If folding is successful, returns a tuple containing
+        the folded results and any newly created operations.
+        Otherwise, returns None.
         """
         results = self.try_fold(op)
         if results is not None:
             values, new_ops = results
             builder.insert_op(new_ops)
-            return values
+            return values, new_ops
         else:
             builder.insert(op)
-            return op.results
+            return op.results, list[Operation]()
 
     def replace_with_fold(
         self, op: Operation, safe_erase: bool = True
-    ) -> Sequence[SSAValue] | None:
+    ) -> tuple[list[SSAValue], list[Operation]] | None:
         """
         Replaces the operation with its folded results.
-        If folding is successful, the folded results are returned.
+
+        If folding is successful, returns a tuple containing
+        the folded results and any newly created operations.
         Otherwise, returns None.
         """
         results = self.try_fold(op)
@@ -72,3 +77,4 @@ class Folder:
             return None
         values, new_ops = results
         Rewriter().replace_op(op, new_ops, values, safe_erase)
+        return values, new_ops
