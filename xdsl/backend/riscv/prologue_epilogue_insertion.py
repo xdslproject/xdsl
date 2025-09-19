@@ -54,19 +54,19 @@ class PrologueEpilogueInsertion(ModulePass):
 
         # Build the prologue at the beginning of the function.
         builder = Builder(InsertPoint.at_start(func.body.blocks[0]))
-        sp_register = builder.insert(riscv.GetRegisterOp(Registers.SP))
+        sp_register = builder.insert_op(riscv.GetRegisterOp(Registers.SP))
         stack_size = sum(get_register_size(r) for r in used_callee_preserved_registers)
-        builder.insert(riscv.AddiOp(sp_register, -stack_size, rd=Registers.SP))
+        builder.insert_op(riscv.AddiOp(sp_register, -stack_size, rd=Registers.SP))
         offset = 0
         for reg in used_callee_preserved_registers:
             if isinstance(reg, IntRegisterType):
-                reg_op = builder.insert(riscv.GetRegisterOp(reg))
+                reg_op = builder.insert_op(riscv.GetRegisterOp(reg))
                 op = riscv.SwOp(rs1=sp_register, rs2=reg_op, immediate=offset)
             else:
-                reg_op = builder.insert(riscv.GetFloatRegisterOp(reg))
+                reg_op = builder.insert_op(riscv.GetFloatRegisterOp(reg))
                 op = riscv.FSdOp(rs1=sp_register, rs2=reg_op, immediate=offset)
 
-            builder.insert(op)
+            builder.insert_op(op)
             offset += get_register_size(reg)
 
         # Now build the epilogue right before every return operation.
@@ -82,10 +82,10 @@ class PrologueEpilogueInsertion(ModulePass):
                     op = riscv.LwOp(rs1=sp_register, rd=reg, immediate=offset)
                 else:
                     op = riscv.FLdOp(rs1=sp_register, rd=reg, immediate=offset)
-                builder.insert(op)
+                builder.insert_op(op)
                 offset += get_register_size(reg)
 
-            builder.insert(riscv.AddiOp(sp_register, stack_size, rd=Registers.SP))
+            builder.insert_op(riscv.AddiOp(sp_register, stack_size, rd=Registers.SP))
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for func in op.walk():

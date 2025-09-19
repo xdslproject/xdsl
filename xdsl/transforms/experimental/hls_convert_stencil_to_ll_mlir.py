@@ -98,17 +98,17 @@ def gen_duplicate_loop(
     def for_body(builder: Builder, args: tuple[BlockArgument, ...]):
         hls_pipeline_op = PragmaPipelineOp(ii)
 
-        builder.insert(hls_pipeline_op)
+        builder.insert_op(hls_pipeline_op)
         hls_read = HLSStreamReadOp(input_stream.results[0])
-        builder.insert(hls_read)
+        builder.insert_op(hls_read)
 
         for duplicate_stream in duplicate_stream_lst:
             hls_write = HLSStreamWriteOp(hls_read, duplicate_stream)
             hls_write.attributes["duplicate"] = IntAttr(1)
-            builder.insert(hls_write)
+            builder.insert_op(hls_write)
 
         yield_op = scf.YieldOp()
-        builder.insert(yield_op)
+        builder.insert_op(yield_op)
 
     lb = ConstantOp.from_int_and_width(0, IndexType())
     ub = n
@@ -232,8 +232,8 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         @Builder.region
         def load_data_region(builder: Builder):
             yield_op = HLSYieldOp.get()
-            builder.insert(threedload_call)
-            builder.insert(yield_op)
+            builder.insert_op(threedload_call)
+            builder.insert_op(yield_op)
 
         load_data_dataflow = PragmaDataflowOp(load_data_region)
 
@@ -246,8 +246,8 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         @Builder.region
         def shift_buffer_region(builder: Builder):
             yield_op = HLSYieldOp.get()
-            builder.insert(shift_buffer_call)
-            builder.insert(yield_op)
+            builder.insert_op(shift_buffer_call)
+            builder.insert_op(yield_op)
 
         shift_buffer_dataflow = PragmaDataflowOp(shift_buffer_region)
 
@@ -260,9 +260,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         @Builder.region
         def duplicateStream_region(builder: Builder):
             for dup_op in duplicate_loop:
-                builder.insert(dup_op)
+                builder.insert_op(dup_op)
             yield_op = HLSYieldOp.get()
-            builder.insert(yield_op)
+            builder.insert_op(yield_op)
 
         duplicateStream_dataflow = PragmaDataflowOp(duplicateStream_region)
 
@@ -488,8 +488,8 @@ def transform_apply_into_loop(
 
     @Builder.region
     def p_region(builder: Builder):
-        builder.insert(p)
-        builder.insert(HLSYieldOp.get())
+        builder.insert_op(p)
+        builder.insert_op(HLSYieldOp.get())
 
     p_dataflow = PragmaDataflowOp(p_region)
 
@@ -802,9 +802,9 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
 
             @Builder.region
             def write_data_df_region(builder: Builder):
-                builder.insert(call_write_data)
+                builder.insert_op(call_write_data)
                 hls_yield_op = HLSYieldOp.get()
-                builder.insert(hls_yield_op)
+                builder.insert_op(hls_yield_op)
 
             write_data_dataflow = PragmaDataflowOp(write_data_df_region)
 
@@ -1192,17 +1192,17 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
             @Builder.region([IndexType()])
             def for_body(builder: Builder, args: tuple[BlockArgument, ...]):
                 hls_pipeline_op = PragmaPipelineOp(ii)
-                builder.insert(hls_pipeline_op)
+                builder.insert_op(hls_pipeline_op)
                 for i in range(len(self.original_memref_lst)):
                     load_op = memref.LoadOp.get(self.original_memref_lst[i], [args[0]])
                     store_op = memref.StoreOp.get(
                         load_op, self.clone_memref_lst[i], [args[0]]
                     )
-                    builder.insert(load_op)
-                    builder.insert(store_op)
+                    builder.insert_op(load_op)
+                    builder.insert_op(store_op)
 
                 yield_op = scf.YieldOp()
-                builder.insert(yield_op)
+                builder.insert_op(yield_op)
 
             for_local_copies = scf.ForOp(lb, ub, step, [], for_body)
             rewriter.insert_op_before_matched_op([lb, ub, step, ii, for_local_copies])

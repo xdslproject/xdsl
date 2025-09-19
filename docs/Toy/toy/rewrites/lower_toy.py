@@ -114,7 +114,7 @@ def build_affine_for(
         region,
         step,
     )
-    builder.insert(op)
+    builder.insert_op(op)
     body_builder_fn(Builder(InsertPoint.at_end(block)), induction_var, rest)
     return op
 
@@ -192,7 +192,7 @@ def build_affine_loop_nest_impl(
             if i == e - 1:
                 body_builder_fn(nested_builder, ivs)
 
-            nested_builder.insert(affine.YieldOp.get())
+            nested_builder.insert_op(affine.YieldOp.get())
 
         # Delegate actual loop creation to the callback in order to dispatch
         # between constant- and variable-bound loops.
@@ -301,7 +301,7 @@ def lower_op_to_loops(
         # current index.
         value_to_store = process_iteration(nested_builder, operands, ivs)
         store_op = affine.StoreOp(value_to_store, alloc.memref, ivs)
-        nested_builder.insert(store_op)
+        nested_builder.insert_op(store_op)
 
     builder = Builder(InsertPoint.before(op))
     build_affine_loop_nest_const(
@@ -325,9 +325,9 @@ class AddOpLowering(RewritePattern):
             builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange
         ) -> SSAValue:
             # Generate loads for the element of 'lhs' and 'rhs' at the inner loop.
-            loaded_lhs = builder.insert(affine.LoadOp(op.lhs, loop_ivs))
-            loaded_rhs = builder.insert(affine.LoadOp(op.rhs, loop_ivs))
-            new_binop = builder.insert(arith.AddfOp(loaded_lhs, loaded_rhs))
+            loaded_lhs = builder.insert_op(affine.LoadOp(op.lhs, loop_ivs))
+            loaded_rhs = builder.insert_op(affine.LoadOp(op.rhs, loop_ivs))
+            new_binop = builder.insert_op(arith.AddfOp(loaded_lhs, loaded_rhs))
             return new_binop.result
 
         lower_op_to_loops(op, op.operands, rewriter, body)
@@ -340,9 +340,9 @@ class MulOpLowering(RewritePattern):
             builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange
         ) -> SSAValue:
             # Generate loads for the element of 'lhs' and 'rhs' at the inner loop.
-            loaded_lhs = builder.insert(affine.LoadOp(op.lhs, loop_ivs))
-            loaded_rhs = builder.insert(affine.LoadOp(op.rhs, loop_ivs))
-            new_binop = builder.insert(arith.MulfOp(loaded_lhs, loaded_rhs))
+            loaded_lhs = builder.insert_op(affine.LoadOp(op.lhs, loop_ivs))
+            loaded_rhs = builder.insert_op(affine.LoadOp(op.rhs, loop_ivs))
+            new_binop = builder.insert_op(arith.MulfOp(loaded_lhs, loaded_rhs))
             return new_binop.result
 
         lower_op_to_loops(op, op.operands, rewriter, body)
@@ -455,7 +455,7 @@ class TransposeOpLowering(RewritePattern):
         ) -> SSAValue:
             # Transpose the elements by generating a load from the reverse indices.
             load_op = affine.LoadOp(op.arg, tuple(reversed(loop_ivs)))
-            builder.insert(load_op)
+            builder.insert_op(load_op)
             return load_op.result
 
         lower_op_to_loops(op, op.operands, rewriter, body)
