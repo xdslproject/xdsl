@@ -234,7 +234,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
                 result = self.py_operation(lhs.value.data, rhs.value.data)
                 if result is not None:
                     return (IntegerAttr(result, lhs.type),)
-        if isa(rhs, IntegerAttr) and self.is_right_unit(rhs) == 0:
+        if isa(rhs, IntegerAttr) and self.is_right_unit(rhs):
             return (self.lhs,)
 
     def __init__(
