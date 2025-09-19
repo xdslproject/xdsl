@@ -4,7 +4,7 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
 )
 from xdsl.dialects.utils.dimension_list import DimensionList
-from xdsl.ir import Dialect
+from xdsl.ir import Dialect, VerifyException
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -28,6 +28,12 @@ class MeshOp(IRDLOperation):
     )
 
     custom_directives = (DimensionList,)
+
+    def verify_(self):
+        if not self.shape.get_values():
+            raise VerifyException(
+                "'mesh.mesh' op rank of mesh is expected to be a positive integer"
+            )
 
 
 Mesh = Dialect(
