@@ -441,7 +441,13 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     """Ensure that an attribute satisfies one of the given constraints."""
 
     attr_constrs: tuple[AttrConstraint[AttributeCovT], ...]
-    """The list of constraints that are checked."""
+    """
+    The tuple of attribute constraints that are checked by this `AnyOf` constraint.
+
+    At most one constraint may be "abstract": an abstract constraint is a `BaseAttr`
+    for an abstract base class which can be inherited by other attribute classes.
+    This abstract attribute type is not runtime-final (i.e., does not have the `@irdl_attr_definition` decorator).
+    """
 
     _eq_constrs: set[Attribute] = field(hash=False, repr=False)
     _based_constrs: dict[type[Attribute], AttrConstraint[AttributeCovT]] = field(
