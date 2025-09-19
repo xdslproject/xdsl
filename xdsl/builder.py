@@ -8,6 +8,7 @@ from typing import TypeAlias, overload
 
 from typing_extensions import TypeVar
 
+from xdsl.context import Context
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import (
     Attribute,
@@ -72,6 +73,11 @@ class Builder(BuilderListener):
     This is always valid.
     """
 
+    context: Context | None = field(default=None)
+    """
+    The context used to load dialects.
+    """
+
     @property
     def name_hint(self) -> str | None:
         return self._name_hint
@@ -131,18 +137,21 @@ class Builder(BuilderListener):
         return block
 
     @staticmethod
-    def _region_no_args(func: Callable[[Builder], None]) -> Region:
+    def _region_no_args(
+        func: Callable[[Builder], None], ctx: Context | None = None
+    ) -> Region:
         """
         Generates a single-block region.
         """
         block = Block()
-        builder = Builder(InsertPoint.at_end(block))
+        builder = Builder(InsertPoint.at_end(block), context=ctx)
         func(builder)
         return Region(block)
 
     @staticmethod
     def _region_args(
         input_types: Sequence[Attribute] | ArrayAttr[Attribute],
+        ctx: Context | None = None,
     ) -> Callable[[_CallableRegionFuncType], Region]:
         """
         Decorator for constructing a single-block region, containing the implementation of a
@@ -154,7 +163,7 @@ class Builder(BuilderListener):
 
         def wrapper(func: _CallableRegionFuncType) -> Region:
             block = Block(arg_types=input_types)
-            builder = Builder(InsertPoint.at_start(block))
+            builder = Builder(InsertPoint.at_start(block), context=ctx)
 
             func(builder, block.args)
 
@@ -167,6 +176,7 @@ class Builder(BuilderListener):
     @staticmethod
     def region(
         input: Sequence[Attribute] | ArrayAttr[Attribute],
+        ctx: Context | None = None,
     ) -> Callable[[_CallableRegionFuncType], Region]:
         """
         Annotation used to construct a Region tuple from a function.
@@ -190,19 +200,24 @@ class Builder(BuilderListener):
 
     @overload
     @staticmethod
-    def region(input: Callable[[Builder], None]) -> Region: ...
+    def region(
+        input: Callable[[Builder], None], ctx: Context | None = None
+    ) -> Region: ...
 
     @staticmethod
     def region(
         input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[Builder], None],
+        ctx: Context | None = None,
     ) -> Callable[[_CallableRegionFuncType], Region] | Region:
         if isinstance(input, Callable):
-            return Builder._region_no_args(input)
+            return Builder._region_no_args(input, ctx)
         else:
-            return Builder._region_args(input)
+            return Builder._region_args(input, ctx)
 
     @staticmethod
-    def _implicit_region_no_args(func: Callable[[], None]) -> Region:
+    def _implicit_region_no_args(
+        func: Callable[[], None], ctx: Context | None = None
+    ) -> Region:
         """
         Generates a single-block region.
         """
@@ -217,6 +232,7 @@ class Builder(BuilderListener):
     @staticmethod
     def _implicit_region_args(
         input_types: Sequence[Attribute] | ArrayAttr[Attribute],
+        ctx: Context | None = None,
     ) -> Callable[[_CallableImplicitRegionFuncType], Region]:
         """
         Decorator for constructing a single-block region, containing the implementation of a
@@ -228,7 +244,7 @@ class Builder(BuilderListener):
 
         def wrapper(func: _CallableImplicitRegionFuncType) -> Region:
             block = Block(arg_types=input_types)
-            builder = Builder(InsertPoint.at_end(block))
+            builder = Builder(InsertPoint.at_end(block), context=ctx)
 
             with ImplicitBuilder(builder):
                 func(block.args)
@@ -242,6 +258,7 @@ class Builder(BuilderListener):
     @staticmethod
     def implicit_region(
         input: Sequence[Attribute] | ArrayAttr[Attribute],
+        ctx: Context | None = None,
     ) -> Callable[[_CallableImplicitRegionFuncType], Region]:
         """
         Annotation used to construct a Region tuple from a function.
@@ -265,16 +282,19 @@ class Builder(BuilderListener):
 
     @overload
     @staticmethod
-    def implicit_region(input: Callable[[], None]) -> Region: ...
+    def implicit_region(
+        input: Callable[[], None], ctx: Context | None = None
+    ) -> Region: ...
 
     @staticmethod
     def implicit_region(
         input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[], None],
+        ctx: Context | None = None,
     ) -> Callable[[_CallableImplicitRegionFuncType], Region] | Region:
         if isinstance(input, Callable):
-            return Builder._implicit_region_no_args(input)
+            return Builder._implicit_region_no_args(input, ctx)
         else:
-            return Builder._implicit_region_args(input)
+            return Builder._implicit_region_args(input, ctx)
 
     @staticmethod
     def assert_implicit():
@@ -303,6 +323,7 @@ _current_builder = _ThreadLocalBuilder()
 @contextlib.contextmanager
 def ImplicitBuilder(
     arg: Builder | Block | Region | None,
+    ctx: Context | None = None,
 ):
     """
     Context manager for managing the current implicit builder context, consisting of the stack of builders in
@@ -331,10 +352,14 @@ def ImplicitBuilder(
             # in ops easily.
             raise ValueError("Cannot pass None to implicit_builder")
         case Region():
-            builder = Builder(InsertPoint.at_end(arg.block))
+            builder = Builder(InsertPoint.at_end(arg.block), context=ctx)
         case Block():
-            builder = Builder(InsertPoint.at_end(arg))
+            builder = Builder(InsertPoint.at_end(arg), context=ctx)
         case Builder():
+            if ctx is not None:
+                raise ValueError(
+                    "Cannot pass both a Builder and a Context to implicit_builder"
+                )
             builder = arg
 
     old_builder = _current_builder.builder
