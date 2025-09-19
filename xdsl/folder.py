@@ -1,13 +1,15 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialect_interfaces import ConstantMaterializationInterface
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
-from xdsl.rewriter import Rewriter
+from xdsl.pattern_rewriter import PatternRewriter
 
 
+@dataclass
 class Folder:
     context: Context
 
@@ -26,14 +28,14 @@ class Folder:
             return None
         results: list[SSAValue] = []
         new_ops: list[Operation] = []
-        for val, original_result in zip(folded, op.results):
+        for val, original_result in zip(folded, op.results, strict=True):
             if isinstance(val, SSAValue):
                 results.append(val)
             else:
                 assert isinstance(val, Attribute)
                 dialect = self.context.get_dialect(op.dialect_name())
                 interface = dialect.get_interface(ConstantMaterializationInterface)
-                if not interface:
+                if interface is None:
                     return None
                 assert isinstance(type := original_result.type, TypeAttribute)
                 new_op = interface.materialize_constant(val, type)
@@ -54,16 +56,16 @@ class Folder:
         Otherwise, returns None.
         """
         results = self.try_fold(op)
-        if results is not None:
+        if results is None:
+            builder.insert(op)
+            return op.results, []
+        else:
             values, new_ops = results
             builder.insert_op(new_ops)
             return values, new_ops
-        else:
-            builder.insert(op)
-            return op.results, list[Operation]()
 
     def replace_with_fold(
-        self, op: Operation, safe_erase: bool = True
+        self, op: Operation, rewriter: PatternRewriter, safe_erase: bool = True
     ) -> tuple[list[SSAValue], list[Operation]] | None:
         """
         Replaces the operation with its folded results.
@@ -76,5 +78,5 @@ class Folder:
         if results is None:
             return None
         values, new_ops = results
-        Rewriter().replace_op(op, new_ops, values, safe_erase)
+        rewriter.replace_op(op, new_ops, values, safe_erase)
         return values, new_ops
