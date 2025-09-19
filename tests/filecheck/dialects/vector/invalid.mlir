@@ -61,3 +61,11 @@ func.func @extract_0d(%arg0: vector<f32>) {
   %1 = vector.extract %arg0[0] : f32 from vector<f32>
   func.return
 }
+
+// -----
+
+func.func @bitcast_mismatched_rank(%arg0: vector<4x4xf32>) {
+  // CHECK: Expected source rank (2) to match dest rank (1).
+  %1 = vector.bitcast %arg0 : vector<4x4xf32> to vector<16xf32>
+  func.return
+}
