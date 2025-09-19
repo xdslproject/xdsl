@@ -188,6 +188,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return MemRefStream
 
+    def get_mesh():
+        from xdsl.dialects.mesh import Mesh
+
+        return Mesh
+
     def get_ml_program():
         from xdsl.dialects.ml_program import MLProgram
 
@@ -390,6 +395,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "math_xdsl": get_math_xdsl,
         "memref": get_memref,
         "memref_stream": get_memref_stream,
+        "mesh": get_mesh,
         "ml_program": get_ml_program,
         "mod_arith": get_mod_arith,
         "mpi": get_mpi,
