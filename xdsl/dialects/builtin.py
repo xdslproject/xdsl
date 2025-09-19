@@ -1468,15 +1468,7 @@ class TensorType(
     def print_builtin(self, printer: Printer):
         printer.print_string("tensor")
         with printer.in_angle_brackets():
-            printer.print_list(
-                self.shape.data,
-                lambda x: (
-                    printer.print_string(f"{x.data}")
-                    if x.data != -1
-                    else printer.print_string("?")
-                ),
-                "x",
-            )
+            printer.print_dimension_list(self.get_shape())
             if len(self.shape.data) != 0:
                 printer.print_string("x")
             printer.print_attribute(self.element_type)
@@ -2419,15 +2411,7 @@ class MemRefType(
         printer.print_string("memref")
         with printer.in_angle_brackets():
             if self.shape.data:
-                printer.print_list(
-                    self.shape.data,
-                    lambda x: (
-                        printer.print_string(f"{x.data}")
-                        if x.data != -1
-                        else printer.print_string("?")
-                    ),
-                    "x",
-                )
+                printer.print_dimension_list(self.get_shape())
                 printer.print_string("x")
             printer.print_attribute(self.element_type)
             if not isinstance(self.layout, NoneAttr):

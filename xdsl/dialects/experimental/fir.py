@@ -2033,7 +2033,7 @@ class ResultOp(IRDLOperation):
 
     name = "fir.result"
     regs = var_region_def()
-    _results = opt_operand_def()
+    _results = var_operand_def()
 
     traits = traits_def(IsTerminator())
 

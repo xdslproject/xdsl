@@ -9,7 +9,7 @@ from xdsl.passes import ModulePass
 
 
 @dataclass(frozen=True)
-class RISCVRegisterAllocation(ModulePass):
+class RISCVAllocateRegistersPass(ModulePass):
     """
     Allocates unallocated registers in the module.
     """

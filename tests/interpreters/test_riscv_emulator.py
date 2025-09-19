@@ -8,7 +8,7 @@ from xdsl.context import Context
 from xdsl.dialects import riscv, riscv_debug, riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import BlockArgument
-from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
+from xdsl.transforms.riscv_allocate_registers import RISCVAllocateRegistersPass
 
 pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 
@@ -32,7 +32,7 @@ def test_simple():
 
         riscv_func.FuncOp("main", body, ((), ()), visibility="public")
 
-    RISCVRegisterAllocation().apply(ctx, module)
+    RISCVAllocateRegistersPass().apply(ctx, module)
 
     code = riscv.riscv_code(module)
 
@@ -149,7 +149,7 @@ def test_multiply_add():
             ),
         )
 
-    RISCVRegisterAllocation().apply(ctx, module)
+    RISCVAllocateRegistersPass().apply(ctx, module)
 
     code = riscv.riscv_code(module)
     with StringIO() as stream, redirect_stdout(stream):

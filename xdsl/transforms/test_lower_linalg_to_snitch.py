@@ -29,10 +29,10 @@ from xdsl.transforms import (
     memref_stream_unnest_out_parameters,
     memref_streamify,
     reconcile_unrealized_casts,
-    riscv_register_allocation,
+    riscv_allocate_registers,
     riscv_scf_loop_range_folding,
     scf_for_loop_flatten,
-    snitch_register_allocation,
+    snitch_allocate_registers,
 )
 
 OPTIMISE_MEMREF_STREAM_PASSES: tuple[ModulePass, ...] = (
@@ -64,13 +64,13 @@ LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES: tuple[ModulePass, ...] = (
 LOWER_SNITCH_STREAM_TO_ASM_PASSES: tuple[ModulePass, ...] = (
     canonicalize.CanonicalizePass(),
     convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
-    snitch_register_allocation.SnitchRegisterAllocation(),
+    snitch_allocate_registers.SnitchAllocateRegistersPass(),
     convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch(),
     lower_snitch.LowerSnitchPass(),
     canonicalize.CanonicalizePass(),
     riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass(),
     canonicalize.CanonicalizePass(),
-    riscv_register_allocation.RISCVRegisterAllocation(add_regalloc_stats=True),
+    riscv_allocate_registers.RISCVAllocateRegistersPass(add_regalloc_stats=True),
     canonicalize.CanonicalizePass(),
     convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass(),
     canonicalize.CanonicalizePass(),

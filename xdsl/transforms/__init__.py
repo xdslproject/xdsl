@@ -468,10 +468,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return replace_incompatible_fpga.ReplaceIncompatibleFPGA
 
-    def get_riscv_register_allocation():
-        from xdsl.transforms import riscv_register_allocation
+    def get_riscv_allocate_registers():
+        from xdsl.transforms import riscv_allocate_registers
 
-        return riscv_register_allocation.RISCVRegisterAllocation
+        return riscv_allocate_registers.RISCVAllocateRegistersPass
 
     def get_riscv_prologue_epilogue_insertion():
         from xdsl.backend.riscv import prologue_epilogue_insertion
@@ -504,9 +504,9 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return ShapeInferencePass
 
     def get_snitch_allocate_registers():
-        from xdsl.transforms import snitch_register_allocation
+        from xdsl.transforms import snitch_allocate_registers
 
-        return snitch_register_allocation.SnitchRegisterAllocation
+        return snitch_allocate_registers.SnitchAllocateRegistersPass
 
     def get_stencil_bufferize():
         from xdsl.transforms import stencil_bufferize
@@ -690,7 +690,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "printf-to-putchar": get_printf_to_putchar,
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
-        "riscv-allocate-registers": get_riscv_register_allocation,
+        "riscv-allocate-registers": get_riscv_allocate_registers,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,

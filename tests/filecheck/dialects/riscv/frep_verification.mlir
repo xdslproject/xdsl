@@ -67,6 +67,6 @@ riscv_snitch.frep_outer %i0 {
 ^bb0:
     %f1 = "riscv.fadd.s"(%f0, %f0) : (!riscv.freg, !riscv.freg) -> !riscv.freg
     "test.termop"() : () -> ()
-}) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg) -> ()
+}) : (!riscv.reg) -> ()
 
 // CHECK: Operation does not verify: 'riscv_snitch.frep_outer' terminates with operation test.termop instead of riscv_snitch.frep_yield

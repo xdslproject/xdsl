@@ -20,39 +20,24 @@ def _():
     from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
         ConvertRiscvScfToRiscvCfPass,
     )
-    from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
-        ConvertSnitchStreamToSnitch,
-    )
     from xdsl.builder import ImplicitBuilder
     from xdsl.context import Context
     from xdsl.dialects import arith, func, linalg
     from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.dialects.riscv import riscv_code
     from xdsl.interpreters.utils.ptr import TypedPtr
-    from xdsl.ir import Attribute, Block, Region, SSAValue
+    from xdsl.ir import Block, Region
     from xdsl.passes import PassPipeline
     from xdsl.dialects import get_all_dialects
     from xdsl.transforms import (
         arith_add_fastmath,
         convert_linalg_to_loops,
         convert_linalg_to_memref_stream,
-        convert_memref_stream_to_loops,
-        convert_memref_stream_to_snitch_stream,
         convert_riscv_scf_for_to_frep,
-        dead_code_elimination,
-        loop_hoist_memref,
-        lower_affine,
-        memref_streamify,
         reconcile_unrealized_casts,
     )
     from xdsl.transforms.canonicalize import CanonicalizePass
-    from xdsl.transforms.lower_snitch import LowerSnitchPass
-    from xdsl.transforms.mlir_opt import MLIROptPass
-    from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-    from xdsl.transforms.riscv_scf_loop_range_folding import (
-        RiscvScfLoopRangeFoldingPass,
-    )
-    from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
+    from xdsl.transforms.riscv_allocate_registers import RISCVAllocateRegistersPass
     return (
         AffineMap,
         AffineMapAttr,
@@ -64,7 +49,7 @@ def _():
         MemRefType,
         ModuleOp,
         PassPipeline,
-        RISCVRegisterAllocation,
+        RISCVAllocateRegistersPass,
         Region,
         TypedPtr,
         arith,
@@ -281,14 +266,14 @@ def _(mo):
 def _(
     CanonicalizePass,
     PassPipeline,
-    RISCVRegisterAllocation,
+    RISCVAllocateRegistersPass,
     riscv_ctx,
     riscv_module,
     xmo,
 ):
     allocate_registers = PassPipeline(
         [
-            RISCVRegisterAllocation(),
+            RISCVAllocateRegistersPass(),
             CanonicalizePass(),
         ]
     )
