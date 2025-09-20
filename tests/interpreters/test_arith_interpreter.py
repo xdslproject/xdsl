@@ -9,8 +9,8 @@ from xdsl.dialects.arith import (
     AddfOp,
     AddiOp,
     AndIOp,
-    CmpiOp,
     CmpfOp,
+    CmpiOp,
     ConstantOp,
     DivSIOp,
     FloorDivSIOp,
@@ -238,31 +238,40 @@ def test_cmpi(
     assert len(ret) == 1
     assert ret[0] == fn(lhs_value, rhs_value)
 
-o = lambda x, y : (not isnan(x) and not isnan(y))
-u = lambda x, y : (isnan(x) or isnan(y))
+
+def o(x, y):
+    return not isnan(x) and not isnan(y)
+
+
+def u(x, y):
+    return isnan(x) or isnan(y)
+
 
 @pytest.mark.parametrize("lhs_value", [1.5, 0.5, -1.5, 127.5, float("nan")])
 @pytest.mark.parametrize("rhs_value", [1.5, 0.5, -1.5, 127.5, float("nan")])
 @pytest.mark.parametrize(
     "pred",
-     list(
-             {"false": lambda x, y: False,  # "false"
-             "oeq": lambda x, y: (x == y) and o(x, y),  # "oeq"
-             "ogt": lambda x, y: (x > y) and o(x, y),   # "ogt"
-             "oge": lambda x, y: (x >= y) and o(x, y),  # "oge"
-             "olt": lambda x, y: (x < y) and o(x, y),   # "olt"
-             "ole": lambda x, y: (x <= y) and o(x, y),   # "ole"
-             "one": lambda x, y: (x != y) and o(x, y),   # "one
-             "ord": lambda x, y: o(x,y), # "ord"
-             "ueq": lambda x, y: (x == y) or u(x,y), # "ueq"
-             "ugt": lambda x, y: (x > y) or u(x,y), # "ugt"
-             "uge": lambda x, y: (x >= y) or u(x,y), # "uge"
-             "ult": lambda x, y: (x < y) or u(x,y), # "ult"
-             "ule": lambda x, y: (x <= y) or u(x,y), # "ule"
-             "une": lambda x, y: (x != y) or u(x,y), # "une"
-             "uno": lambda x, y: u(x,y), # "uno"
-             "true": lambda x, y: True # "true"
-       }.items()))
+    list(
+        {
+            "false": lambda x, y: False,  # "false"
+            "oeq": lambda x, y: (x == y) and o(x, y),  # "oeq"
+            "ogt": lambda x, y: (x > y) and o(x, y),  # "ogt"
+            "oge": lambda x, y: (x >= y) and o(x, y),  # "oge"
+            "olt": lambda x, y: (x < y) and o(x, y),  # "olt"
+            "ole": lambda x, y: (x <= y) and o(x, y),  # "ole"
+            "one": lambda x, y: (x != y) and o(x, y),  # "one
+            "ord": lambda x, y: o(x, y),  # "ord"
+            "ueq": lambda x, y: (x == y) or u(x, y),  # "ueq"
+            "ugt": lambda x, y: (x > y) or u(x, y),  # "ugt"
+            "uge": lambda x, y: (x >= y) or u(x, y),  # "uge"
+            "ult": lambda x, y: (x < y) or u(x, y),  # "ult"
+            "ule": lambda x, y: (x <= y) or u(x, y),  # "ule"
+            "une": lambda x, y: (x != y) or u(x, y),  # "une"
+            "uno": lambda x, y: u(x, y),  # "uno"
+            "true": lambda x, y: True,  # "true"
+        }.items()
+    ),
+)
 def test_cmpf(
     lhs_value: int, rhs_value: int, pred: tuple[str, Callable[[int, int], int]]
 ):
