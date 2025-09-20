@@ -1912,9 +1912,12 @@ class SltuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import BitwiseAndByZero
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseAndBySelf,
+            BitwiseAndByZero,
+        )
 
-        return (BitwiseAndByZero(),)
+        return (BitwiseAndByZero(), BitwiseAndBySelf())
 
 
 @irdl_op_definition
