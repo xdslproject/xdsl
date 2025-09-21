@@ -6,7 +6,7 @@ from collections.abc import Set as AbstractSet
 from io import StringIO
 from typing import IO, Annotated, Generic, Literal, TypeAlias
 
-from typing_extensions import Self, TypeVar, assert_never
+from typing_extensions import Self, TypeVar
 
 from xdsl.backend.assembly_printer import (
     AssemblyPrintable,
@@ -65,7 +65,6 @@ from xdsl.traits import (
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 
 def is_non_zero(reg: IntRegisterType) -> bool:
@@ -447,7 +446,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
 
 
 AssemblyInstructionArg: TypeAlias = (
-    IntegerAttr | LabelAttr | SSAValue | IntRegisterType | str
+    IntegerAttr | LabelAttr | SSAValue | RegisterType | str
 )
 
 
@@ -496,28 +495,18 @@ class RISCVInstruction(RISCVAsmOperation, ABC):
 
 
 def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
-    if isa(arg, IntegerAttr):
+    if isinstance(arg, SSAValue):
+        if not isinstance(t := arg.type, RegisterType):
+            raise ValueError(f"Unexpected register type {t}")
+        return t.register_name.data
+    elif isinstance(arg, IntegerAttr):
         return f"{arg.value.data}"
-    elif isinstance(arg, int):
-        return f"{arg}"
     elif isinstance(arg, LabelAttr):
         return arg.data
-    elif isinstance(arg, str):
-        return arg
-    elif isinstance(arg, IntRegisterType):
+    elif isinstance(arg, RegisterType):
         return arg.register_name.data
-    elif isinstance(arg, FloatRegisterType):
-        return arg.register_name.data
-    else:
-        if isinstance(arg.type, IntRegisterType):
-            reg = arg.type.register_name.data
-            return reg
-        elif isinstance(arg.type, FloatRegisterType):
-            reg = arg.type.register_name.data
-            return reg
-        else:
-            raise ValueError(f"Unexpected register type {arg.type}")
-    assert_never(arg)
+
+    return arg
 
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
