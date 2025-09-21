@@ -108,7 +108,12 @@ class MCABlockThroughputCostModel(ExternalBlockThroughputCostModel):
         return "llvm-mca"
 
     def cmd(self) -> list[str]:
-        return [self.tool_name(), f"-mcpu={self.arch}", self.src_path]
+        return [
+            self.tool_name(),
+            "-mtriple=x86_64-unknown-linux-gnu",
+            f"-mcpu={self.arch}",
+            self.src_path,
+        ]
 
     def process_report(self, report: str) -> float | None:
         cycles = None
