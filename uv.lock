@@ -1330,7 +1330,7 @@ source = { git = "https://github.com/superlopuh/lz-string.git#d435be09f8aa454ce0
 
 [[package]]
 name = "marimo"
-version = "0.16.0"
+version = "0.16.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1352,9 +1352,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c2/ad/10292a9410786135e9a9ad35297590df4fa7538161c54b3c669d5a7be999/marimo-0.16.0.tar.gz", hash = "sha256:81377a0cfe4e95f9d7341a860a0a2772caccc1e8a7bbc8d3ad20c7945d77b07c", size = 33640723, upload-time = "2025-09-18T21:20:42.815Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7f/73/7f9156d9842c556861fe3dd82b819a90229a0f71cffc256b9532167cddff/marimo-0.16.1.tar.gz", hash = "sha256:c3d99f0bcd34fe28ba262eaa44797e79bd91db2a27a47522520f2601dd1cb67a", size = 33650084, upload-time = "2025-09-22T19:34:46.338Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/16/387627a14a18eac0556e3f9ca85b3264d120f6492cd4d3477dc32abd012b/marimo-0.16.0-py3-none-any.whl", hash = "sha256:8b7d092894a23461e087b0fdf86942876602a779b6403c01f324b35be4c99495", size = 34033289, upload-time = "2025-09-18T21:20:37.108Z" },
+    { url = "https://files.pythonhosted.org/packages/21/38/6b3bebaa8c3f745f5d3e34efe11749d7fcc2bc2cbe83c5da7c972b62b4ba/marimo-0.16.1-py3-none-any.whl", hash = "sha256:0513426a53348c4e3b5d648a3f67db1464205e0e3eab71da1a249d2ff12a2fa2", size = 34044898, upload-time = "2025-09-22T19:34:50.866Z" },
 ]
 
 [[package]]
@@ -3543,16 +3543,16 @@ wheels = [
 
 [[package]]
 name = "uvicorn"
-version = "0.36.0"
+version = "0.35.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "h11" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ef/5e/f0cd46063a02fd8515f0e880c37d2657845b7306c16ce6c4ffc44afd9036/uvicorn-0.36.0.tar.gz", hash = "sha256:527dc68d77819919d90a6b267be55f0e76704dca829d34aea9480be831a9b9d9", size = 80032, upload-time = "2025-09-20T01:07:14.418Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/42/e0e305207bb88c6b8d3061399c6a961ffe5fbb7e2aa63c9234df7259e9cd/uvicorn-0.35.0.tar.gz", hash = "sha256:bc662f087f7cf2ce11a1d7fd70b90c9f98ef2e2831556dd078d131b96cc94a01", size = 78473, upload-time = "2025-06-28T16:15:46.058Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/06/5cc0542b47c0338c1cb676b348e24a1c29acabc81000bced518231dded6f/uvicorn-0.36.0-py3-none-any.whl", hash = "sha256:6bb4ba67f16024883af8adf13aba3a9919e415358604ce46780d3f9bdc36d731", size = 67675, upload-time = "2025-09-20T01:07:12.984Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/e2/dc81b1bd1dcfe91735810265e9d26bc8ec5da45b4c0f6237e286819194c3/uvicorn-0.35.0-py3-none-any.whl", hash = "sha256:197535216b25ff9b785e29a0b79199f55222193d47f820816e7da751e9bc8d4a", size = 66406, upload-time = "2025-06-28T16:15:44.816Z" },
 ]
 
 [[package]]
@@ -3812,7 +3812,7 @@ requires-dist = [
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.6.0" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.16.0" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.16.1" },
     { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8.0.0" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "<0.12" },
     { name = "numpy", marker = "extra == 'jax'", specifier = "==2.2.6" },
