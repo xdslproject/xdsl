@@ -6,6 +6,7 @@ from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.utils.base_printer import BasePrinter
+from xdsl.utils.exceptions import DiagnosticException
 
 
 class AssemblyPrinter(BasePrinter):
@@ -81,14 +82,20 @@ class OneLineAssemblyPrintable(AssemblyPrintable, ABC):
 # region: Assembly arg printing utilities
 
 
-def reg(value: SSAValue) -> str:
+def reg(*values: SSAValue) -> str:
     """
     A wrapper around SSAValue to be printed in assembly.
     Only valid if the type of the value is a RegisterType.
     """
-
-    assert isinstance(value.type, RegisterType)
-    return value.type.register_name.data
+    types = {value.type for value in values}
+    if len(types) != 1:
+        names = [str(t) for t in types]
+        names.sort()
+        raise DiagnosticException(f"Expected types to be same, got {names}")
+    (t,) = types
+    if not isinstance(t, RegisterType):
+        raise DiagnosticException(f"Expected register type, got {t}")
+    return t.register_name.data
 
 
 # endregion
