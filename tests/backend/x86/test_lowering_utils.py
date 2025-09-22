@@ -2,6 +2,7 @@ import pytest
 
 from xdsl.backend.x86.lowering.helpers import Arch
 from xdsl.builder import Builder
+from xdsl.dialects import ptr
 from xdsl.dialects.builtin import VectorType, f64, i64
 from xdsl.dialects.x86.ops import DS_MovOp, DS_Operation, DS_VmovapdOp
 from xdsl.dialects.x86.registers import (
@@ -47,3 +48,12 @@ def test_move_value_to_unallocated(
     assert isinstance(new_op := new.owner, expected_op)
     assert new_op.source is src
     assert new.type == expected_unallocated_type
+
+
+@pytest.mark.parametrize(
+    "arch",
+    [Arch.AVX2, Arch.AVX512, Arch.UNKNOWN],
+)
+def test_register_type_for_ptr_type(arch: Arch):
+    # All architectures: ptr type should use GeneralRegisterType
+    assert arch.register_type_for_type(ptr.PtrType()) == GeneralRegisterType
