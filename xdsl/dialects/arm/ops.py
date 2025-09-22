@@ -12,7 +12,7 @@ from xdsl.irdl import (
     result_def,
 )
 
-from .assembly import AssemblyInstructionArg, reg
+from .assembly import reg
 from .registers import IntRegisterType
 
 
@@ -35,7 +35,7 @@ class ARMInstruction(ARMOperation, ABC):
     """
 
     @abstractmethod
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+    def assembly_line_args(self) -> tuple[str | None, ...]:
         """
         The arguments to the instruction, in the order they should be printed in the
         assembly.
@@ -52,9 +52,7 @@ class ARMInstruction(ARMOperation, ABC):
     def assembly_line(self) -> str | None:
         # default assembly code generator
         instruction_name = self.assembly_instruction_name()
-        arg_str = ", ".join(
-            arg.assembly_str() for arg in self.assembly_line_args() if arg is not None
-        )
+        arg_str = ", ".join(arg for arg in self.assembly_line_args() if arg is not None)
         return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
