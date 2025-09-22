@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from xdsl.dialects.arm.assembly import reg, square_brackets_reg
+from xdsl.backend.assembly_printer import reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.registers import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import (
@@ -473,7 +473,7 @@ class DVarSLd1Op(ARMInstruction):
     def assembly_line_args(self):
         return (
             variadic_neon_reg_arg(self.dest_regs, self.arrangement),
-            square_brackets_reg(self.s),
+            f"[{reg(self.s)}]",
         )
 
 
@@ -527,7 +527,7 @@ class DVarSSt1Op(ARMInstruction):
     def assembly_line_args(self):
         return (
             variadic_neon_reg_arg(self.src_regs, self.arrangement),
-            square_brackets_reg(self.d),
+            f"[{reg(self.d)}]",
         )
 
 
