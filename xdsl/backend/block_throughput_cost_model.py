@@ -51,14 +51,23 @@ class ExternalBlockThroughputCostModel(BlockThroughputCostModel):
     to run (`cmd`) and name (`tool_name`), and to parse the tool's output (`process_report`).
     """
 
+    target: str
+    """
+    The target triple.
+    """
     arch: str
+    """
+    The architecture name of the target.
+    """
     src_path: str
 
-    def __init__(self, arch: str):
+    def __init__(self, *, target: str, arch: str):
+        self.target = target
         self.arch = arch
 
+    @classmethod
     @abstractmethod
-    def tool_name(self) -> str:
+    def tool_name(cls) -> str:
         pass
 
     @abstractmethod
@@ -78,8 +87,9 @@ class ExternalBlockThroughputCostModel(BlockThroughputCostModel):
     def process_report(self, report: str) -> float | None:
         pass
 
-    def is_installed(self) -> bool:
-        return which(self.tool_name()) is not None
+    @classmethod
+    def is_installed(cls) -> bool:
+        return which(cls.tool_name()) is not None
 
     def estimate_throughput(self, block: Block) -> float | None:
         with NamedTemporaryFile(mode="w+", delete=False, suffix=".s") as tmp_file:
@@ -104,13 +114,14 @@ class MCABlockThroughputCostModel(ExternalBlockThroughputCostModel):
     A throughput cost model that uses the `llvm-mca` tool.
     """
 
-    def tool_name(self) -> str:
+    @classmethod
+    def tool_name(cls) -> str:
         return "llvm-mca"
 
     def cmd(self) -> list[str]:
         return [
             self.tool_name(),
-            "-mtriple=x86_64-unknown-linux-gnu",
+            f"-mtriple={self.target}",
             f"-mcpu={self.arch}",
             self.src_path,
         ]
