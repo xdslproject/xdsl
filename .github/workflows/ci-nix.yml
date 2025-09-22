@@ -1,7 +1,7 @@
 # This workflow enter a nix shell and run the main test suite.
 # It's primarily used to check that the nix environment works
 
-name: CI - Nix based testing
+name: CI - Nix-based testing
 
 on:
   push:
