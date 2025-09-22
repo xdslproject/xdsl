@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
+from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable, reg
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import (
@@ -12,7 +12,6 @@ from xdsl.irdl import (
     result_def,
 )
 
-from .assembly import reg
 from .registers import IntRegisterType
 
 
