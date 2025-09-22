@@ -1,0 +1,23 @@
+# This workflow enter a nix shell and run the main test suite.
+# It's primarily used to check that the nix environment works
+
+name: CI - Nix based testing
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    steps:
+    - uses: actions/checkout@v5
+    - name: Install Nix
+      uses: cachix/install-nix-action@v31
+      with:
+        github_access_token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build venv
+      run: nix develop --command make venv
+    - name: Run tests
+      run: nix develop --command make tests
