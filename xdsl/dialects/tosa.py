@@ -5,24 +5,28 @@ from typing import ClassVar, Generic
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
+    I8,
     I32,
     I64,
     AnyAttr,
     AnyFloat,
+    AnyFloatConstr,
     BoolAttr,
     DenseArrayBase,
     FloatAttr,
     IntegerAttr,
-    IntegerType,
     ShapedType,
+    SignlessIntegerConstraint,
     StringAttr,
     TensorType,
 )
 from xdsl.ir import Attribute, Dialect, SSAValue, TypeAttribute
 from xdsl.irdl import (
+    AttrConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
+    eq,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -75,20 +79,30 @@ class ClampOp(IRDLOperation):
 
     name = "tosa.clamp"
 
-    min_int = prop_def(IntegerAttr[I64])
-    max_int = prop_def(IntegerAttr[I64])
+    T: ClassVar[VarConstraint] = VarConstraint("T", AnyAttr())
+    VALUE: ClassVar[AttrConstraint] = IntegerAttr.constr(
+        type=SignlessIntegerConstraint & T
+    ) | FloatAttr.constr(type=AnyFloatConstr & T)
 
-    min_fp = prop_def(FloatAttr)
-    max_fp = prop_def(FloatAttr)
+    min_val = prop_def(VALUE)
+    max_val = prop_def(VALUE)
 
-    nan_mode = opt_prop_def(StringAttr)
+    nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
 
-    input = operand_def(TensorType)
-    output = result_def(TensorType)
+    input = operand_def(TensorType.constr(T))
+    output = result_def(TensorType.constr(T))
 
     irdl_options = [ParsePropInAttrDict()]
 
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
+
+
+ROUNDING_MODE_CONSTRAINT = (
+    eq(StringAttr("SINGLE_ROUND"))
+    | eq(StringAttr("INEXACT_ROUND"))
+    | eq(StringAttr("DOUBLE_ROUND"))
+)
+"""Rounding mode for `tosa.rescale`"""
 
 
 @irdl_op_definition
@@ -101,20 +115,25 @@ class RescaleOp(IRDLOperation):
 
     name = "tosa.rescale"
 
-    input_zp = prop_def(IntegerAttr[I32])
-    output_zp = prop_def(IntegerAttr[I32])
-    multiplier = prop_def(DenseArrayBase[IntegerType])
-    shift = prop_def(DenseArrayBase[IntegerType])
     scale32 = prop_def(BoolAttr)
-    double_round = prop_def(BoolAttr)
+    rounding_mode = prop_def(
+        ROUNDING_MODE_CONSTRAINT, default_value=StringAttr("PROPAGATE")
+    )
     per_channel = prop_def(BoolAttr)
+    input_unsigned = prop_def(BoolAttr)
+    output_unsigned = prop_def(BoolAttr)
 
     input = operand_def(TensorType)
+    multiplier = operand_def(TensorType)
+    shift = operand_def(TensorType)
+    input_zp = operand_def(TensorType)
+    output_zp = operand_def(TensorType)
+
     output = result_def(TensorType)
 
     irdl_options = [ParsePropInAttrDict()]
 
-    assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
 
 class ElementwiseOperation(IRDLOperation, ABC):
@@ -178,7 +197,7 @@ class SubOp(ElementwiseBinaryOperation):
 
 
 @irdl_op_definition
-class MulOp(ElementwiseBinaryOperation):
+class MulOp(ElementwiseOperation):
     """
     Tosa elementwise multiplication operation (Hadamard product)
 
@@ -190,6 +209,23 @@ class MulOp(ElementwiseBinaryOperation):
     traits = traits_def(
         Commutative(),
     )
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    input1 = operand_def(TensorType.constr(T))
+    input2 = operand_def(TensorType.constr(T))
+    shift = operand_def(TensorType[I8])
+    output = result_def(TensorType.constr(T))
+
+    def verify_(self) -> None:
+        t1 = self.input1.type
+        t2 = self.input2.type
+        t_out = self.output.type
+
+        if not are_tosa_broadcastable(t1, t2, t_out):
+            raise VerifyException(
+                f"'{type(self).name}' Operand and result tensor shapes are not compatible"
+            )
 
 
 TInv = TypeVar("TInv", bound=TensorType)
@@ -304,7 +340,7 @@ class MaxPool2DOp(IRDLOperation):
     kernel = prop_def(DenseArrayBase[I64])
     stride = prop_def(DenseArrayBase[I64])
     pad = prop_def(DenseArrayBase[I64])
-    nan_mode = opt_prop_def(StringAttr)
+    nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
 
     irdl_options = [ParsePropInAttrDict()]
 
@@ -334,12 +370,15 @@ class AvgPool2DOp(IRDLOperation):
     name = "tosa.avg_pool2d"
 
     input = operand_def(TensorType)
-    output = result_def(TensorType)
+    input_zp = operand_def(TensorType)
+    output_zp = operand_def(TensorType)
 
     kernel = prop_def(DenseArrayBase)
     stride = prop_def(DenseArrayBase)
     pad = prop_def(DenseArrayBase)
     acc_type = prop_def(TypeAttribute)
+
+    output = result_def(TensorType)
 
     irdl_options = [ParsePropInAttrDict()]
 
