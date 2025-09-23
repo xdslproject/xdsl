@@ -16,9 +16,12 @@ class Folder:
     def try_fold(self, op: Operation) -> tuple[list[SSAValue], list[Operation]] | None:
         """
         Try to fold the given operation.
-        Returns a tuple the list of SSAValues that replace the results of the operation,
+        Returns a tuple with the list of SSAValues that replace the results of the operation,
         and a list of new operations that were created during folding.
         If the operation could not be folded, returns None.
+
+        Note that while this folds only one operation, multiple new operations can be created.
+        Each of the results of the original operation might be replaced by a new constant operation.
         """
 
         if not isinstance(op, HasFolderInterface):
