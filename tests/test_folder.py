@@ -18,11 +18,9 @@ def test_try_fold_foldable_operation():
 
     ctx.load_dialect(arith.Arith)
 
-    # Create constants: 0 and 5
     one_const = ConstantOp.from_int_and_width(1, i32)
     five_const = ConstantOp.from_int_and_width(5, i32)
 
-    # Create an AddiOp: %result = arith.addi %zero, %five : i32
     # Adding two constants should fold to a constant operation
     addi_op = AddiOp(one_const.result, five_const.result)
 
@@ -50,14 +48,11 @@ def test_insert_with_fold():
     block = Block()
     builder = Builder(InsertPoint.at_end(block))
 
-    # Create constants: 1 and 5
     one_const = ConstantOp.from_int_and_width(1, i32)
     five_const = ConstantOp.from_int_and_width(5, i32)
     builder.insert(one_const)
     builder.insert(five_const)
 
-    # Create an AddiOp: %result = arith.addi %zero, %five : i32
-    # Adding zero should fold to just the other operand
     addi_op = AddiOp(one_const.result, five_const.result)
 
     # Insert with fold
@@ -85,14 +80,11 @@ def test_insert_with_fold_already_inserted():
     block = Block()
     builder = Builder(InsertPoint.at_end(block))
 
-    # Create constants: 1 and 5
     one_const = ConstantOp.from_int_and_width(1, i32)
     five_const = ConstantOp.from_int_and_width(5, i32)
     builder.insert(one_const)
     builder.insert(five_const)
 
-    # Create an AddiOp: %result = arith.addi %zero, %five : i32
-    # Adding zero should fold to just the other operand
     addi_op = AddiOp(one_const.result, five_const.result)
     builder.insert(addi_op)
 
@@ -118,8 +110,6 @@ def test_replace_with_fold():
     builder.insert(one_const)
     builder.insert(five_const)
 
-    # Create an AddiOp: %result = arith.addi %one, %five : i32
-    # Adding one and five should fold to a constant operation
     addi_op = AddiOp(one_const.result, five_const.result)
     builder.insert(addi_op)
     rewriter = PatternRewriter(addi_op)
