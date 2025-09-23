@@ -493,6 +493,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return scf_for_loop_range_folding.ScfForLoopRangeFoldingPass
 
+    def get_scf_for_loop_unroll():
+        from xdsl.transforms import scf_for_loop_unroll
+
+        return scf_for_loop_unroll.ScfForLoopUnrollPass
+
     def get_scf_parallel_loop_tiling():
         from xdsl.transforms import scf_parallel_loop_tiling
 
@@ -695,6 +700,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
         "scf-for-loop-range-folding": get_scf_for_loop_range_folding,
+        "scf-for-loop-unroll": get_scf_for_loop_unroll,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "shape-inference": get_shape_inference,
         "snitch-allocate-registers": get_snitch_allocate_registers,
