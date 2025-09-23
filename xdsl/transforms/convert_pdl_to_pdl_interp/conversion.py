@@ -1109,7 +1109,7 @@ class PredicateTreeBuilder:
             sorted_predicates.extend(sorted(group.predicates))
         return sorted_predicates
 
-    def build_predicate_tree(self, patterns: list[pdl.PatternOp]) -> MatcherNode:
+    def build_predicate_tree(self, patterns: Sequence[pdl.PatternOp]) -> MatcherNode:
         """Build optimized matcher tree from multiple patterns"""
 
         # Extract predicates for all patterns
@@ -1401,7 +1401,7 @@ class MatcherGenerator:
         self.rewriter_names: dict[str, int] = {}
         self.optimize_for_eqsat = optimize_for_eqsat
 
-    def lower(self, patterns: list[pdl.PatternOp]) -> None:
+    def lower(self, patterns: Sequence[pdl.PatternOp]) -> None:
         """Lower PDL patterns to PDL interpreter"""
 
         # Build the predicate tree
@@ -2307,18 +2307,23 @@ class ConvertPDLToPDLInterpPass(ModulePass):
         if not patterns:
             return
 
-        matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
-        rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
-
-        generator = MatcherGenerator(
-            matcher_func, rewriter_module, self.optimize_for_eqsat
-        )
-        generator.lower(patterns)
+        matcher_func, rewriters_module = self.convert_pdl_patterns(patterns)
 
         # Replace all pattern ops with the matcher func and rewriter module
         rewriter = Rewriter()
         for pattern in patterns:
             rewriter.erase_op(pattern)
         op.body.block.add_op(matcher_func)
-        if rewriter_module.body.block.ops:
-            op.body.block.add_op(rewriter_module)
+        if rewriters_module.body.block.ops:
+            op.body.block.add_op(rewriters_module)
+
+    def convert_pdl_patterns(self, patterns: Sequence[pdl.PatternOp]):
+        matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+        rewriters_module = ModuleOp([], sym_name=StringAttr("rewriters"))
+
+        generator = MatcherGenerator(
+            matcher_func, rewriters_module, self.optimize_for_eqsat
+        )
+        generator.lower(patterns)
+
+        return matcher_func, rewriters_module
