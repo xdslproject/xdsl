@@ -461,7 +461,7 @@ class ApplyConstraintOp(IRDLOperation):
                 "name": constraint_name,
                 "isNegated": is_negated,
             },
-            result_types=res_types,
+            result_types=[res_types],
             successors=[true_dest, false_dest],
         )
 
