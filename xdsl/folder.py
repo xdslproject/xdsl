@@ -57,6 +57,10 @@ class Folder:
             builder.insert(op)
             return op.results
         else:
+            if op.parent:
+                raise ValueError(
+                    "Can't insert_with_fold fold an operation that already has a parent."
+                )
             values, new_ops = results
             builder.insert_op(new_ops)
             return values

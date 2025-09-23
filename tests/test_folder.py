@@ -1,3 +1,5 @@
+import pytest
+
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects.arith import AddiOp, ConstantOp
@@ -71,6 +73,34 @@ def test_insert_with_fold():
     assert isinstance(defining_op.value, IntegerAttr)
     assert defining_op.value.value.data == 6
     assert defining_op.parent is block
+
+
+def test_insert_with_fold_already_inserted():
+    """Test that insert_with_fold raises an error when trying to fold an already inserted operation."""
+    ctx = Context()
+    from xdsl.dialects import arith
+
+    ctx.load_dialect(arith.Arith)
+
+    block = Block()
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Create constants: 1 and 5
+    one_const = ConstantOp.from_int_and_width(1, i32)
+    five_const = ConstantOp.from_int_and_width(5, i32)
+    builder.insert(one_const)
+    builder.insert(five_const)
+
+    # Create an AddiOp: %result = arith.addi %zero, %five : i32
+    # Adding zero should fold to just the other operand
+    addi_op = AddiOp(one_const.result, five_const.result)
+    builder.insert(addi_op)
+
+    # Insert with fold
+    folder = Folder(ctx)
+    msg = "Can't insert_with_fold fold an operation that already has a parent."
+    with pytest.raises(ValueError, match=msg):
+        folder.insert_with_fold(addi_op, builder)
 
 
 def test_replace_with_fold():
