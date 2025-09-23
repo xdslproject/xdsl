@@ -5,11 +5,12 @@ from xdsl.dialects.builtin import IntegerAttr, i32
 from xdsl.dialects.test import TestOp
 from xdsl.folder import Folder
 from xdsl.ir import Block, OpResult
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
 
 
 def test_try_fold_foldable_operation():
-    """Test that try_fold correctly folds an AddiOp with zero."""
+    """Test that try_fold correctly folds an AddiOp with two constants."""
     ctx = Context()
     from xdsl.dialects import arith
 
@@ -20,7 +21,7 @@ def test_try_fold_foldable_operation():
     five_const = ConstantOp.from_int_and_width(5, i32)
 
     # Create an AddiOp: %result = arith.addi %zero, %five : i32
-    # Adding zero should fold to just the other operand
+    # Adding two constants should fold to a constant operation
     addi_op = AddiOp(one_const.result, five_const.result)
 
     # Try to fold the operation
@@ -47,7 +48,7 @@ def test_insert_with_fold():
     block = Block()
     builder = Builder(InsertPoint.at_end(block))
 
-    # Create constants: 0 and 5
+    # Create constants: 1 and 5
     one_const = ConstantOp.from_int_and_width(1, i32)
     five_const = ConstantOp.from_int_and_width(5, i32)
     builder.insert(one_const)
@@ -82,20 +83,20 @@ def test_replace_with_fold():
     block = Block()
     builder = Builder(InsertPoint.at_end(block))
 
-    # Create constants: 0 and 5
     one_const = ConstantOp.from_int_and_width(1, i32)
     five_const = ConstantOp.from_int_and_width(5, i32)
     builder.insert(one_const)
     builder.insert(five_const)
 
-    # Create an AddiOp: %result = arith.addi %zero, %five : i32
-    # Adding zero should fold to just the other operand
+    # Create an AddiOp: %result = arith.addi %one, %five : i32
+    # Adding one and five should fold to a constant operation
     addi_op = AddiOp(one_const.result, five_const.result)
     builder.insert(addi_op)
+    rewriter = PatternRewriter(addi_op)
 
     # Replace with fold
     folder = Folder(ctx)
-    folded_values = folder.insert_with_fold(addi_op, builder)
+    folded_values = folder.replace_with_fold(addi_op, rewriter)
 
     # Should successfully fold
     assert folded_values is not None
